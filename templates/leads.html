@@ -1,0 +1,571 @@
+
+ <div class="card-body">
+            
+ 
+
+
+ <div class="row g-0"> 
+    <div class="col-lg-8" style="width:100%;">
+                            <div id="search-results-container" class="card h-100 rounded-start-lg rounded-end-0"> 
+                                
+                                <div class="card-header">
+                                    <i class="fas fa-list me-2"></i> Leads List 
+
+                                    <!-- Start: Filter Dropdowns Row -->
+                                    
+                                    <!-- End: Filter Dropdowns Row -->
+                                    <!-- </div> -->
+                                </div>
+
+                               
+
+                                <div class="card-body p-0" id="settablehere"> {% if leads_page %}
+                                    <div class="table-responsive">
+                                        <table class="table custom-table mb-0">
+                                            <thead>
+                                                <tr>
+                                                    <th width="4%">
+                                                        <i class="fas fa-barcode me-1"></i>
+                                                        Calls
+                                                    </th>
+                                                    <th width="11%">
+                                                        <i class="fas fa-user me-1"></i>
+                                                        Customer Name
+                                                    </th>
+                                                    <th width="10%">
+                                                        <i class="fas fa-phone me-1"></i>
+                                                        Phone
+                                                    </th>
+                                                    <th width="5%">
+                                                        <i class="fas fa-cube me-1"></i>
+                                                        Info
+                                                    </th>
+                                                      <th width="15%">
+                                                         Products/Sku
+                                                    </th>
+                                                    <th width="10%" class="text-center">
+                                                        <i class="fas fa-info-circle me-1"></i>
+                                                        Status
+                                                    </th>
+                                                     <th width="13%" class="text-center">
+                                                        <i class="fas fa-calendar-alt me-1"></i>
+                                                        Created At	
+                                                    </th>
+
+                                                     <th width="10%" class="text-center">
+                                                        <i class="fas fa-calendar-alt me-1"></i>
+                                                        Message	
+                                                    </th>
+                                                    
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                {% for lead in leads_page %}
+                                                <tr class="order-row align-middle"  id="setfiltertable">
+
+                                                    <td class="ps-3 tracking-number-cell">
+                                                        <div class="d-flex align-items-center">
+                                                             
+                                                            <span class="tracking-number" style="font-weight: bolder;">
+
+                                                                {{ lead.calls }}
+
+                                                            </span>
+                                                         
+                                                        </div>
+                                                    </td>
+                                                    <td class="customer-name-cell" data-label="Customer">
+                                                        <div class="d-flex align-items-center">
+                                                            <div class="avatar me-2">
+                                                                 {% for lead_input in lead.lead_inputs %}
+                                                              {% if lead_input.name %}
+                                                                {{ lead_input.name|slice:":1"|upper }}
+                                                                {% else %}
+                                                                {{ lead_input.full_name|slice:":1"|upper }}
+                                                                {% endif %}
+                                                                {% endfor %}
+                                                            </div>
+                                                              {% for lead_input in lead.lead_inputs %}
+                                                              {% if lead_input.name %}
+                                                                {{ lead_input.name|slice:":17"|upper }}
+                                                                {% else %}
+                                                                {{ lead_input.full_name|slice:":17"|upper }}
+                                                                {% endif %}
+                                                                {% endfor %}
+                                                        </div>
+                                                    </td>
+                                                    <td class="font-monospace" data-label="Phone">
+                                                        {{ lead.phone }}
+                                                    </td>
+                                                    <td data-label="Product">
+                                                        <div class="d-flex align-items-center">
+                                                            <div>
+                                                                <div class="fw-bold"> </div>
+                                                                <i class="fas fa-eye text-info fw-bold fs-4 show-order-btn" data-jason-details="{{ lead.lead_inputs_ }}" data-lead-id="{{ lead.id }}"></i>
+
+                                           <!-- زر العرض -->
+<!-- <button type="button" class="show-order-btn" onclick="openOrderModal('{{ lead.id }}')">
+    عرض تفاصيل الطلب
+</button> -->
+
+<!-- <button type="button" class="show-order-btn">عرض تفاصيل الطلب</button> -->
+
+ 
+ <style>
+/* المودال */
+.modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0,0,0,0.5); /* خلفية شبه سوداء */
+  display: none;
+  justify-content: center;
+  align-items: center;
+  z-index: 9999;
+}
+
+.modal-content {
+  background-color: #fff;
+  padding: 20px 25px;
+  border-radius: 12px;
+  max-width: 700px;
+  width: 90%;
+  max-height: 80%;
+  overflow-y: auto;
+  box-shadow: 0 5px 20px rgba(0,0,0,0.2);
+  position: relative;
+}
+
+.close2 {
+  position: absolute;
+  top: 16px;
+  right: 18px;
+  font-size: 28px;
+  cursor: pointer;
+  color: #333;
+}
+.modal-content h2{
+    color:#010310 !important;
+    
+}
+/* جدول الطلبات 02 */
+.order-wrapper-02 {
+  display: flex;
+  flex-direction: column;
+  font-family: Arial, sans-serif;
+  background-color: #fdfdfd;
+  border-radius: 10px;
+  overflow-y: auto; /* إضافة التمرير العمودي */
+  max-height: 550px; /* ارتفاع ثابت للتمرير */
+
+  margin-top: 15px;
+  border: 1px solid #ddd;
+}
+
+.order-header-02 {
+  display: flex;
+  background-color: #4CAF50;
+  color: #fff;
+  font-weight: bold;
+}
+
+.order-header-cell-02 {
+  flex: 1;
+  padding: 12px 15px;
+}
+
+.order-row-02 {
+  display: flex;
+  border-bottom: 1px solid #e0e0e0;
+}
+
+.order-row-02:nth-child(even) {
+  background-color: #f1f1f1;
+}
+
+.order-row-02:hover {
+  background-color: #e6f7e6;
+  transition: background-color 0.3s;
+}
+
+.order-cell-02 {
+  flex: 1;
+  padding: 10px 15px;
+  color: #333;
+  font-size: 14px;
+}
+</style>
+
+<div id="orderModal" class="modal order-Modal">
+  <div class="modal-content">
+    <span class="close2">&times;</span>
+    <h2> Order Details</h2>
+    <div class="order-wrapper-02">
+      <div class="order-header-02">
+        <div class="order-header-cell-02">INPUTS</div>
+        <div class="order-header-cell-02">Value</div>
+      </div>
+      {% for input in lead.lead_inputs %}
+        {% for key, value in input.items %}
+          {% if value %}
+          <div class="order-row-02">
+            <div class="order-cell-02">{{ key }}</div>
+            <div class="order-cell-02">{{ value }}</div>
+          </div>
+          {% endif %}
+        {% endfor %}
+      {% endfor %}
+    </div>
+  </div>
+</div>
+
+ 
+
+
+ 
+<!-- JS -->
+<!-- <script>
+// اختر جميع الأزرار التي تريد ربطها بالمودال
+const orderButtons = document.querySelectorAll('.show-order-btn'); // ضع الكلاس الخاص بالأزرار
+const modal = document.getElementById('orderModal');
+const closeBtn = modal.querySelector('.close');
+
+// لكل زر، اربطه بحدث الفتح
+orderButtons.forEach(btn => {
+  btn.addEventListener('click', () => {
+    modal.style.display = 'flex';
+  });
+});
+
+// إغلاق المودال عند الضغط على زر الإغلاق
+closeBtn.addEventListener('click', () => {
+  modal.style.display = 'none';
+});
+
+// إغلاق المودال عند الضغط خارج المحتوى
+window.addEventListener('click', (e) => {
+  if (e.target === modal) {
+    modal.style.display = 'none';
+  }
+});
+
+</script> -->
+
+
+ 
+
+
+                                            </div>
+
+                                                                {{ lead.lead_inputs|json_script:"lead_inputs_"|add:lead.id }}
+
+                                                            </div>
+                                                        </div>
+
+                                                        <!-- مودال مركزي -->
+ 
+
+ 
+
+                                                    </td>
+                                                     <td class="font-monospace" data-label="Phone">
+                                                        {{ lead.product.name|truncatechars:20 }}
+                                                    </td>
+                                                    <td class="text-center" data-label="Status">
+                                                        <span class="status-badge status-{{ lead.status|lower }}">
+                                                            {{ lead.status|truncatechars:20 }}
+                                                        </span>
+                                                    </td>
+                                                     <td class="text-center" data-label="Status">
+                                                        <span class="status-badge status-{{ order.status|lower }}" style="background-color: beige;">
+                                                            {{ lead.created_at }}
+                                                        </span>
+                                                    </td>
+                                                    <td class="text-center lead-item" data-label="Status">
+                                                        <span class="status-badge status-{{ lead.status|lower }}" style="background-color: beige;">
+<span>{% if lead.status == 'confirmed' %}
+    confirmed
+{% else %}
+<button class="openPopupBtn btn btn-sm ms-2">more</button>
+{% endif %}
+</span>
+
+
+          <div id="popup" class="popup">
+  <div class="popup-content">
+    <span class="close">&times;</span>
+    <h3>التعليقات</h3>
+    <div class="comments">
+      {% for comment in lead.history %}
+        <p>{% if "confirmed" in comment.comment %}
+    confirmed
+{% else %}
+    <span class="comment">{{ comment.comment }}</span>
+{% endif %}
+
+        </p>
+        
+      {% endfor %}
+    </div>
+  </div>
+</div>
+
+<!-- نفس النافذة تُستخدم لكل الأزرار -->
+ 
+                                                        </span>
+                                                    </td>
+
+                                                </tr>
+<style>
+    .status-badge.status-confirmed {
+    background-color: var(--status-delivered-bg);
+}
+
+.status-badge.status-pending {
+    background-color: var(--status-pending-bg);
+}
+
+ 
+.status-badge.status-cancelled {
+    background-color: red;
+}
+.status-badge.status-cancelled {
+    background-color: #993333;
+}
+.status-badge.status-wrong{
+    background-color:rgb(246, 87, 87);
+}
+.status-badge.status-expired{
+    background-color:#FF5722;
+}
+ 
+</style>
+<!-- زر فتح التعليقات -->
+
+<!-- نافذة التعليقات (مخفيّة مبدئياً) -->
+ 
+
+<style>
+/* الزر */
+/* .btn {
+  padding: 8px 16px;
+  background: #4CAF50;
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+} */
+.btn:hover {
+  background: #45a049;
+}
+
+/* الصندوق المنبثق */
+.popup {
+  display: none; /* مخفي مبدئياً */
+  position: fixed;
+  z-index: 99879878979;
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.496); /* شفاف */
+}
+
+/* محتوى النافذة */
+.popup-content {
+  background-color: #fefefe;
+  margin: auto;
+  margin-top: 10%;
+  padding: 20px;
+  border-radius: 12px;
+  width: 400px;
+  box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+  animation: fadeIn 0.3s ease-in-out;
+}
+
+.close {
+  float: right;
+  cursor: pointer;
+  font-size: 18px;
+  color: #888;
+}
+.close:hover {
+  color: #000;
+}
+</style>
+ <!-- زر في كل عنصر -->
+<!--  
+ <script>
+document.addEventListener("DOMContentLoaded", function() { 
+document.querySelectorAll(".lead-item").forEach(function(item) {
+    let btn = item.querySelector(".openPopupBtn");
+    let popup = item.querySelector(".popup");
+    let closeBtn = item.querySelector(".close");
+
+    // فتح البوب أب فوق الزر
+    btn.addEventListener("click", function() {
+        // var rect = btn.getBoundingClientRect();
+        popup.style.display = "block";
+
+    });
+
+    // إغلاق بالضغط على ×
+    closeBtn.addEventListener("click", function() {
+        popup.style.display = "none";
+    });
+
+    // إغلاق لو ضغط خارج البوب أب
+    window.addEventListener("click", function(event) {
+        if (!popup.contains(event.target) && event.target !== btn) {
+            popup.style.display = "none";
+        }
+    });
+});
+});
+     
+</script> -->
+
+
+
+
+
+
+                                                {% endfor %}
+
+
+
+
+
+                                            </tbody>
+                                                                       
+ 
+
+                                        </table>
+     <nav aria-label="Leads Page navigation" style="padding-top: 18px;">
+    <ul class="pagination justify-content-center" id="leads-pagination">
+        {# زر السابق #}
+        {% if leads_page.has_previous %}
+        <li class="page-item">
+            <a class="page-link leads-page-link"
+               href="?lead_page={{ leads_page.previous_page_number }}"
+               aria-label="Previous">
+                &laquo;
+            </a>
+        </li>
+        {% endif %}
+        
+        {# أرقام الصفحات #}
+        {% for num in leads_page.paginator.page_range %}
+            {% if num >= leads_page.number|add:-2 and num <= leads_page.number|add:2 %}
+                <li class="page-item {% if num == leads_page.number %}active{% endif %}">
+                    <a class="page-link leads-page-link" data-page="{{ num}}" href="?lead_page={{ num }}">{{ num }}</a>
+                </li>
+            {% elif num == leads_page.paginator.page_range.0 and num != leads_page.number|add:-2 %}
+                <li class="page-item">
+                    <a class="page-link leads-page-link" href="?lead_page={{ num }}">{{ num }}</a>
+                </li>
+                {% if leads_page.number|add:-2 > leads_page.paginator.page_range.0|add:1 %}
+                    <li class="page-item disabled"><span class="page-link">...</span></li>
+                {% endif %}
+            {% elif num == leads_page.paginator.page_range|last and num != leads_page.number|add:2 %}
+                {% if leads_page.number|add:2 < leads_page.paginator.page_range|last|add:-1 %}
+                    <li class="page-item disabled"><span class="page-link">...</span></li>
+                {% endif %}
+                <li class="page-item">
+                    <a class="page-link leads-page-link" href="?lead_page={{ num }}">{{ num }}</a>
+                </li>
+            {% endif %}
+        {% endfor %}
+        
+        {# زر التالي #}
+        {% if leads_page.has_next %}
+        <li class="page-item">
+            <a class="page-link leads-page-link" 
+               href="?page={{ leads_page.next_page_number }}"
+               aria-label="Next">
+                &raquo;
+            </a>
+        </li>
+        {% endif %}
+    </ul>
+</nav>
+
+
+                                    </div>
+                                    {% else %}
+                                        <div class="no-orders-message" id="initial-orders-message">
+                                            <i class="fas fa-info-circle"></i>
+                                            <h5>No Orders Found</h5>
+                                            <p>Start by searching or click an item to view details.</p>
+                          
+                                        </div>
+
+                                    {% endif %}
+                                </div>
+
+                                   
+                                     
+                            </div>
+                        </div>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ 
+                    </div>
+
+
+
+
+                    </div>
+
+
+
+
+
+
+                    <script>
+                         
+function leadstracking() {
+ 
+fetch("{% url 'leadstracking' %}", {
+    method: 'POST',
+    headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+        'X-CSRFToken': '{{ csrf_token }}'
+    },
+    // body: new URLSearchParams({
+    //     'sku': productsku
+    // })
+})
+.then(response => response.json())
+.then(response => {
+    document.getElementById('tracking-iframe').src = response.tracking_url;
+    document.getElementById('current-tracking-number').textContent = response.tracking_number;
+    document.getElementById('customer-name-display').textContent = response.customer_name;
+    document.getElementById('customer-phone-display').textContent = response.customer_phone;
+    document.getElementById('product-name-display').textContent = response.product_name;
+    document.getElementById('whatsapp-link').href = 'https://wa.me/' + response.customer_phone.replace(/\D/g, '') + '?text=Hello%20' + encodeURIComponent(response.customer_name) + ',%20your%20order%20is%20on%20the%20way!';
+    // Show the iframe and hide the initial message
+    document.getElementById('tracking-iframe').classList.remove('d-none');
+    document.getElementById('initial-iframe-message').classList.add('d-none');
+}); 
+                        
+                        }
+
+ 
+
+</script>

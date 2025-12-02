@@ -1,0 +1,828 @@
+<!doctype html>
+<html lang="en" dir="ltr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Admin — Ads Management</title>
+
+  <!-- Bootstrap 5.3 -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+
+  <style>
+    :root{
+      --page-bg: #000000;           /* black page background */
+      --panel-border: rgba(255,255,255,0.08); /* very light border */
+      --muted: rgba(255,255,255,0.55);
+      --text: #ffffff;
+      --accent: #ffffff;            /* underline and active text */
+      --card-width: 95vw;          /* cards take 95% of viewport width */
+      --max-width: 1400px;
+    }
+
+    html,body { height:100%; margin:0; background:var(--page-bg); color:var(--text); font-family:Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial; }
+
+    /* center content and set width to 95% */
+    .page-wrap {
+      width: var(--card-width);
+      /* max-width: var(--max-width); */
+      margin: 28px auto;
+    }
+
+    /* Card (panel) style: transparent background, very light border */
+    .panel {
+      background: transparent; /* no white fill */
+      border: 1px solid var(--panel-border);
+      border-radius: 12px;
+      padding: 18px;
+      color: var(--text);
+      box-shadow: 0 8px 30px rgba(0,0,0,0.6);
+      min-height: 160px;
+    }
+
+    /* Header row inside each panel with tab-like text links */
+    .panel-header {
+      display:flex;
+      justify-content:space-between;
+      align-items:center;
+      gap:12px;
+    }
+
+    .panel-title {
+      font-weight:700;
+      letter-spacing:0.2px;
+      font-size:1.05rem;
+      color:var(--text);
+    }
+
+    /* Tabs container inside header */
+    .panel-tabs {
+      position:relative;
+      display:flex;
+      gap:20px;
+      align-items:flex-end;
+      padding-bottom:8px; /* room for indicator */
+    }
+
+    .panel-tabs a.tab-link {
+      color:var(--muted);
+      text-decoration:none;
+      font-weight:600;
+      font-size:0.95rem;
+      padding:4px 0;
+      position:relative;
+      cursor:pointer;
+    }
+
+    .panel-tabs a.tab-link:hover { color:var(--text); }
+
+    /* Sliding indicator (underline) */
+    .tab-indicator {
+      position:absolute;
+      left:0;
+      bottom:0;
+      height:2px;
+      width:40px;
+      background:transparent;
+      transition: transform .22s cubic-bezier(.2,.9,.3,1), width .18s ease, background .18s ease;
+      border-radius:2px;
+    }
+
+    /* active link styling controlled by JS */
+    .tab-active { color:var(--accent) !important; }
+
+    /* content panels */
+    .panel-body {
+      margin-top:14px;
+    }
+
+    /* stat tiles (no background, light border) */
+    .stat-tile {
+      border:1px solid var(--panel-border);
+      border-radius:10px;
+      padding:12px;
+      min-height:80px;
+      display:flex;
+      flex-direction:column;
+      justify-content:center;
+      gap:6px;
+    }
+    .stat-num { font-weight:700; font-size:1.5rem; color:var(--text); }
+    .stat-label { color:var(--muted); font-size:0.85rem; }
+
+    /* control pills and small buttons (text-only feeling) */
+    .control-word {
+      color:var(--muted);
+      text-decoration:underline;
+      text-underline-offset:6px;
+      cursor:pointer;
+      font-weight:600;
+      padding:6px 8px;
+    }
+    .control-word.active {
+      color:var(--accent);
+      text-decoration-color:var(--accent);
+      background:transparent;
+    }
+
+    /* form inputs on black - make them subtle */
+    .form-control.dark {
+      background: rgba(255,255,255,0.02);
+      border: 1px solid var(--panel-border);
+      color:var(--text);
+    }
+    .form-select.dark {
+      background: rgba(255,255,255,0.02);
+      border: 1px solid var(--panel-border);
+      color:var(--text);
+    }
+
+    /* table styling - transparent rows with faint borders */
+    .ads-table {
+      width:100%;
+      border-collapse:separate;
+      border-spacing:0;
+      color:var(--text);
+    }
+    .ads-table th, .ads-table td {
+      border-bottom:1px solid rgba(255,255,255,0.04);
+      padding:10px 8px;
+      vertical-align:middle;
+      font-size:0.95rem;
+      color:var(--text);
+    }
+    .ads-table thead th {
+      color:var(--muted);
+      font-size:0.82rem;
+      font-weight:700;
+      text-transform:uppercase;
+      letter-spacing:0.6px;
+    }
+    .ad-thumb { width:84px; height:56px; object-fit:cover; border-radius:6px; background:rgba(255,255,255,0.02); display:block; }
+
+    /* responsive tweaks */
+    @media (max-width:900px) {
+      .panel-body .row > [class*='col-'] { margin-bottom:12px; }
+      .panel-tabs { gap:12px; }
+    }
+
+    /* subtle link-like action at top-right of card (text only) */
+    .top-actions-text { display:flex; gap:12px; align-items:center; }
+    .top-actions-text .action-word { color:var(--muted); cursor:pointer; text-decoration:underline; text-underline-offset:6px; font-weight:600; }
+    .top-actions-text .action-word:hover { color:var(--text); }
+
+    /* modal: dark theme */
+    .modal-content { background: #070707; color:var(--text); border:1px solid var(--panel-border); }
+    .modal-header { border-bottom:1px solid rgba(255,255,255,0.04); }
+    .modal-body { color:var(--text); }
+  </style>
+</head>
+<body>
+
+  <div class="page-wrap">
+
+    <!-- single outer panel that holds the tabs in its header -->
+    <div class="panel" id="masterPanel" role="region" aria-label="Admin panel">
+      <div class="panel-header">
+        <div class="panel-title">Ads Admin Console</div>
+
+        <!-- Tab links (text words with underline indicator) -->
+        <div class="panel-tabs" id="panelTabs" aria-label="Sections">
+          <a class="tab-link" data-target="adminPanel" href="#" role="tab" aria-selected="true">Admin</a>
+          <a class="tab-link" data-target="editPanel" href="#" role="tab" aria-selected="false">Edit</a>
+          <a class="tab-lin" style="color:var(--muted); a:hover { color: white; }" href="{% url 'tracking' %}" >Tracking</a>
+          <div class="tab-indicator" id="tabIndicator"></div>
+        </div>
+
+        <!-- top-right small action words (text-only) -->
+        <div class="top-actions-text">
+          <span class="action-word" id="action-refresh">Refresh</span>
+          <span class="action-word" id="action-export">Export</span>
+        </div>
+      </div>
+
+      <!-- panel body holds the two section panels (only one visible at a time) -->
+      <div class="panel-body">
+ 
+        <!-- ADMIN PANEL -->
+        <div id="adminPanel" class="section-panel" data-visible="true" role="tabpanel">
+          <!-- Stats row -->
+            <!-- Controls row -->
+          <div class="row align-items-center g-3">
+           <div class="col-lg-6 col-md-8">
+  <form id="fetchAdsForm" method="POST" novalidate>
+    <div class="input-group">
+      <input id="globalSearch" name="search" class="form-control dark" placeholder="Lost Update (page or advertiser)" />
+      <select id="countrySelect" name="country" class="form-select dark" style="max-width:160px;">
+        <option value="ALL">All countries</option>
+        <option value="US">United States</option>
+        <option value="GB">United Kingdom</option>
+        <option value="EG">Egypt</option>
+        <option value="MA">Morocco</option>
+        <option value="SA">Saudi Arabia</option>
+      </select>
+
+      <button type="submit" id="btnTriggerUpdate" class="btn btn-link" style="color:var(--muted); text-decoration:underline;">
+        <span id="btnText">Trigger Update</span>
+        <span id="btnSpinner" style="display:none; margin-left:8px;">⏳</span>
+      </button>
+    </div>
+    <div id="fetchResult" style="margin-top:10px; font-size:0.9rem;"></div>
+  </form>
+</div>
+
+                 
+                <script>
+             // helper: الحصول على CSRF token من الكوكيز (Django default)
+function getCookie(name) {
+  const v = document.cookie.match('(^|;)\\s*' + name + '\\s*=\\s*([^;]+)');
+  return v ? v.pop() : '';
+}
+
+document.addEventListener('DOMContentLoaded', function () {
+  const form = document.getElementById('fetchAdsForm');
+  const btn = document.getElementById('btnTriggerUpdate');
+  const btnText = document.getElementById('btnText');
+  const spinner = document.getElementById('btnSpinner');
+  const resultEl = document.getElementById('fetchResult');
+
+  let running = false; // منع عمليات متزامنة على الواجهة
+
+  // حماية بسيطة ضد النقر المتكرر (debounce)
+  form.addEventListener('submit', async function (e) {
+    e.preventDefault();
+    if (running) return;
+    running = true;
+
+    // اقرأ المدخلات وقم بتنظيفها
+    const search = (document.getElementById('globalSearch').value || '').trim();
+    const country = (document.getElementById('countrySelect').value || '').trim();
+
+    // قواعد تحقق بسيطة
+    if (search.length > 200) {
+      resultEl.innerText = "Search text too long (max 200 chars).";
+      running = false;
+      return;
+    }
+    // عرض حالة الانتظار
+    btn.disabled = true;
+    btnText.innerText = 'Fetching...';
+    spinner.style.display = 'inline-block';
+    resultEl.innerText = '';
+
+    const csrf = getCookie('csrftoken');
+
+    try {
+      const resp = await fetch('{% url "fetch_ads_view" %}', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRFToken': csrf
+        },
+        body: JSON.stringify({
+          search_terms: search,
+          country: country
+        }),
+        credentials: 'same-origin'
+      });
+
+      if (!resp.ok) {
+        let txt = await resp.text();
+        try { txt = JSON.parse(txt); } catch (err) {}
+        resultEl.innerText = 'Server error: ' + (txt.detail || txt || resp.statusText);
+      } else {
+        const data = await resp.json();
+        // عرض نتيجة مختصرة
+        resultEl.innerHTML = `<strong>Fetched:</strong> ${data.fetched} — <strong>Saved:</strong> ${data.saved_count}`;
+     // آمن: تحقق من وجود العنصر قبل التعديل
+const totalAdsEl = document.getElementById('totalAds');
+if (totalAdsEl && Array.isArray(demo)) {
+  totalAdsEl.textContent = demo.length.toLocaleString();
+}
+
+// عرض نتيجة العملية مع تفاصيل الأخطاء إن وُجدت
+if (data && data.errors && data.errors.length) {
+  // اعرض أول 5 أخطاء للمستخدم، وسجّل الباقي في الكونسول
+  const shown = data.errors.slice(0, 5);
+  resultEl.innerHTML = `<strong>Fetched:</strong> ${data.fetched} — <strong>Saved:</strong> ${data.saved_count}
+    <br><strong>Errors (showing up to 5):</strong><br><pre>${shown.map(e => JSON.stringify(e, null, 2)).join("\n\n")}</pre>`;
+  console.warn('Fetch ads errors (full):', data.errors);
+} else {
+  resultEl.innerHTML = `<strong>Fetched:</strong> ${data.fetched} — <strong>Saved:</strong> ${data.saved_count}`;
+}
+
+      }
+    } catch (err) {
+      console.error(err);
+      resultEl.innerText = 'Network error or request timed out.';
+    } finally {
+      // إعادة تفعيل الزر بعد فترة صغيرة (لتفادي الضغط المتكرر)
+      setTimeout(() => {
+        btn.disabled = false;
+        btnText.innerText = 'Trigger Update';
+        spinner.style.display = 'none';
+        running = false;
+      }, 800);
+    }
+  });
+});
+   </script>
+            </div>
+            </div>
+ 
+
+          
+          </div>
+<hr style="border-color: rgba(255,255,255,0.04)">
+<!-- <br> -->
+          <div class="row g-3">
+            <div class="col-md-4">
+              <div class="stat-tile">
+                <div class="stat-label">Total saved ads</div>
+                <div  class="stat-num">{{ ads.count }}</div>
+                <div class="small text-muted">Number of ads stored</div>
+              </div>
+            </div>
+            <div class="col-md-4">
+              <div class="stat-tile">
+                <div class="stat-label">Active users (30d)</div>
+                <div id="activeUsers" class="stat-num">{{ users.count }}</div>
+                <div class="small text-muted">Total users </div>
+              </div>
+            </div>
+            <div class="col-md-4">
+              <div class="stat-tile">
+                <div class="stat-label">Last saved</div>
+                <div id="lastSaved" class="stat-num">—</div>
+                <div class="small text-muted">Timestamp of last saved ad</div>
+              </div>
+            </div>
+          </div>
+
+          <hr style="border-color: rgba(255,255,255,0.04)">
+<br>
+          <!-- Controls row -->
+          <div class="row align-items-center g-3">
+            <div class="col-lg-6 col-md-8">
+              <div class="input-group">
+                <input id="globalSearch" class="form-control dark" placeholder="Lost Update (page or advertiser)" />
+                
+                <button id="btnTriggerUpdate" class="btn btn-link" style="color:var(--muted); text-decoration:underline;">Trigger Update</button>
+              </div>
+            </div>
+
+          <select id="filter_active_user" class="form-select dark" style="max-width:160px;">
+            <option value="">All users</option>
+            <option value="active">Active users</option>
+            <option value="inactive">Inactive users</option>
+          </select>
+        
+          </div>
+
+          <hr style="border-color: rgba(255,255,255,0.04)">
+
+          <!-- Quick list / preview (small cards) -->
+
+
+          <div class="row g-3 t-20">
+            <div class="col-12">
+              <div style="border:1px solid rgba(255,255,255,0.03); border-radius:8px; padding:10px; max-height:320px; overflow:auto;">
+                <table class="ads-table" role="table" aria-label="Recent saved ads">
+                  <thead>
+                    <tr>
+                      <th style="width:40px">status</th>
+                      <th>username</th>
+                      <th>email</th>
+                      <th>Plan</th>
+                      <th>Create At</th>
+                      <th>last loging</th>
+                      <!-- <th>Saved</th> -->
+                      <th style="width:120px">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody id="recentAdsBo">
+                    {% for user in users %}
+                    <tr>
+                      <td style="color:{% if user.is_verified %}green{% else %}red{% endif %};">{% if user.is_verified %} active {% else %} inactive {% endif %}</td>
+                      <td>{{ user.username }}</td>
+                      <td>{{ user.email }}</td>
+                      <td>{% if user.is_superuser %}Admin{% else %}User{% endif %}</td>
+                      <td>{{ user.date_joined }}</td>
+                      <td>{% if user.last_login %}{{ user.last_login }}{% else %}Never{% endif %}</td>
+                      <!-- <td>...</td> -->
+                      <td style="display: flex;" class="top-actions-text">
+                        <span class="control-word action-word" data-action="view" data-id="{{ user.id }}">login</span>
+                        <span style="width:8px; display:inline-block"></span>
+                        <span class="control-word action-word" data-action="delete" data-id="{{ user.id }}">suspend</span>
+                      </td>
+                    </tr>
+                    {% empty %}
+                    <tr><td colspan="7" class="text-center text-muted">No users found</td></tr>
+                    {% endfor %}
+                    {% if users|length == 0 %}
+                    <tr><td colspan="7" class="text-center text-muted">No users found</td></tr>
+                    {% endif %}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- EDIT PANEL -->
+        <div id="editPanel" class="section-panel" data-visible="false" role="tabpanel" hidden>
+          <!-- Search and filters -->
+          <div class="row g-3">
+            <div class="col-12">
+              <form id="filterForm" class="d-flex flex-wrap gap-2 align-items-center" onsubmit="return false;">
+                <input id="qFilter" class="form-control dark" placeholder="Search by page or advertiser..." style="min-width:240px;">
+                <select id="platformFilter" class="form-select dark" style="width:140px;">
+                  <option value="">Any platform</option>
+                  <option value="facebook">Facebook</option>
+                  <option value="instagram">Instagram</option>
+                  <option value="tiktok">TikTok</option>
+                </select>
+                <select id="statusFilter" class="form-select dark" style="width:140px;">
+                  <option value="">Any status</option>
+                  <option value="ACTIVE">Active</option>
+                  <option value="PAUSED">Paused</option>
+                </select>
+
+                <input id="fromDate" type="date" class="form-control dark" style="max-width:160px;">
+                <input id="toDate" type="date" class="form-control dark" style="max-width:160px;">
+
+                <button id="filterButton" class="btn btn-link" style="color:var(--muted); text-decoration:underline;">Search</button>
+                <button id="resetButton" class="btn btn-link" style="color:var(--muted); text-decoration:underline;">Reset</button>
+
+                <div class="ms-auto d-flex gap-2">
+                  <span class="control-word" id="word-bulk-export">Export</span>
+                  <span class="control-word" id="word-bulk-delete">Delete</span>
+                </div>
+              </form>
+            </div>
+          </div>
+
+          <hr style="border-color: rgba(255,255,255,0.04)">
+
+          <!-- Table (selectable rows) -->
+          <div style="border:1px solid rgba(255,255,255,0.03); border-radius:8px; padding:8px; overflow:auto; max-height:520px;">
+            <table class="ads-table" aria-label="Saved ads">
+              <thead>
+                <tr>
+                  <th style="width:36px"><input id="selectAll" type="checkbox" aria-label="select all"></th>
+                  <th>Preview</th>
+                  <th>Page</th>
+                  <th>Platform</th>
+                  <th>Impressions</th>
+                  <th>Spend</th>
+                  <th>Saved at</th>
+                  <th style="width:140px">Actions</th>
+                </tr>
+              </thead>
+              <tbody id="editAdsBo">
+               {% for ad in ads %}
+             <tr>
+<th></th>
+                <th>
+                    {{ad.AdCreative.image_hash}}
+                </th>
+                <th>
+                    {{ ad.page_name }}
+                </th>
+             <th>
+                {{ ad.platform }}
+             </th>
+             <th>
+                {{ ad.impressions }}
+
+             </th>
+             <th>
+                {{ ad.spend }}
+             </th>
+             <th>
+                {{ ad.created_time }}
+             </th>
+             </tr>
+
+
+               {% endfor %}
+              </tbody>
+            </table>
+          </div>
+
+          <!-- pagination placeholder -->
+          <div class="d-flex justify-content-between align-items-center mt-3">
+            <div class="small text-muted">Showing <span id="shownCount">0</span> of <span id="totalCount">0</span></div>
+            <div>
+              <span class="control-word" id="prevPage">Prev</span>
+              <span style="display:inline-block; width:12px"></span>
+              <span class="control-word" id="nextPage">Next</span>
+            </div>
+          </div>
+        </div>
+
+      </div> <!-- panel-body -->
+    </div> <!-- panel -->
+
+  </div> <!-- page-wrap -->
+
+  <!-- Details modal -->
+  <div class="modal fade" id="adModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-scrollable">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 id="modalTitle" class="modal-title">Ad details</h5>
+          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div id="modalBody" class="modal-body">
+          <!-- filled by JS -->
+        </div>
+        <div class="modal-footer">
+          <button id="modalClose" type="button" class="btn btn-link" data-bs-dismiss="modal" style="color:var(--muted); text-decoration:underline;">Close</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- small toast stack -->
+  <div id="toastRoot" style="position:fixed; top:18px; left:50%; transform:translateX(-50%); z-index:2000;"></div>
+
+  <script>
+    // Minimal helper: show toast
+    function showToast(msg, ttl = 1400) {
+      const container = document.getElementById('toastRoot');
+      const el = document.createElement('div');
+      el.style.background = 'rgba(255,255,255,0.04)';
+      el.style.border = '1px solid rgba(255,255,255,0.06)';
+      el.style.color = 'white';
+      el.style.padding = '8px 12px';
+      el.style.borderRadius = '8px';
+      el.style.marginTop = '8px';
+      el.style.boxShadow = '0 6px 20px rgba(0,0,0,0.6)';
+      el.textContent = msg;
+      container.appendChild(el);
+      setTimeout(()=> { el.remove(); }, ttl);
+    }
+
+    // Tab logic: move indicator and show/hide panels
+    (function initTabs() {
+      const tabs = Array.from(document.querySelectorAll('.panel-tabs a.tab-link'));
+      const indicator = document.getElementById('tabIndicator');
+      const master = document.getElementById('masterPanel');
+
+      function activateTab(el) {
+        tabs.forEach(t => t.classList.remove('tab-active'));
+        el.classList.add('tab-active');
+
+        // update aria
+        tabs.forEach(t => t.setAttribute('aria-selected', 'false'));
+        el.setAttribute('aria-selected', 'true');
+
+        // show associated panel
+        const target = el.dataset.target;
+        document.querySelectorAll('.section-panel').forEach(p => {
+          if (p.id === target) { p.style.display = ''; p.hidden = false; p.setAttribute('data-visible','true'); }
+          else { p.style.display = 'none'; p.hidden = true; p.setAttribute('data-visible','false'); }
+        });
+
+        // move indicator under link
+        const rect = el.getBoundingClientRect();
+        const parentRect = el.parentElement.getBoundingClientRect();
+        const left = (rect.left - parentRect.left) + 'px';
+        const width = rect.width + 'px';
+        indicator.style.transform = `translateX(${left})`;
+        indicator.style.width = width;
+        indicator.style.background = getComputedStyle(document.documentElement).getPropertyValue('--accent') || '#fff';
+      }
+
+      // init position on first tab
+      if (tabs.length) {
+        // small delay to ensure layout
+        setTimeout(()=> activateTab(tabs[0]), 10);
+      }
+
+      tabs.forEach(t => {
+        t.addEventListener('click', (ev) => {
+          ev.preventDefault();
+          activateTab(t);
+          showToast(t.textContent.trim() + ' selected');
+        });
+      });
+
+      // on window resize reposition
+      window.addEventListener('resize', ()=> {
+        const active = document.querySelector('.panel-tabs a.tab-active');
+        if (active) {
+          const rect = active.getBoundingClientRect();
+          const parentRect = active.parentElement.getBoundingClientRect();
+          indicator.style.transform = `translateX(${rect.left - parentRect.left}px)`;
+          indicator.style.width = rect.width + 'px';
+        }
+      });
+    })();
+
+    // Demo data (replace when connecting backend)
+    const demo = new Array(12).fill(0).map((_,i)=>({
+      saved_id: 5000 + i,
+      ad_id: 9000 + i,
+      advertiser: 'Adv ' + (i+1),
+      page_name: 'Sample Page ' + (i+1),
+      thumbnail: '', // empty shows placeholder
+      platform: i%2===0 ? 'Facebook' : 'TikTok',
+      impressions: Math.floor(Math.random()*20000),
+      spend: (Math.random()*300).toFixed(2),
+      saved_at: new Date(Date.now() - i*3600*24*1000).toISOString(),
+      ctas: ['Shop Now'],
+      country: i%2===0 ? 'US' : 'MA',
+      note: 'Saved for analysis'
+    }));
+
+    // fill recentAdsBody and editAdsBody
+    function renderRecent() {
+      const tbody = document.getElementById('recentAdsBody');
+      tbody.innerHTML = '';
+      const slice = demo.slice(0,10);
+      slice.forEach(d => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td><input type="checkbox" data-id="${d.saved_id}"></td>
+          <td>${d.thumbnail ? `<img src="${d.thumbnail}" class="ad-thumb">` : `<div class="ad-thumb" aria-hidden="true"></div>`}</td>
+          <td>${escapeHtml(d.page_name)}</td>
+          <td>${escapeHtml(d.platform)}</td>
+          <td>${d.impressions.toLocaleString()}</td>
+          <td>$${d.spend}</td>
+          <td>${new Date(d.saved_at).toLocaleString()}</td>
+          <td>
+            <span class="control-word" data-action="view" data-id="${d.saved_id}">View</span>
+            <span style="width:8px; display:inline-block"></span>
+            <span class="control-word" data-action="delete" data-id="${d.saved_id}">Delete</span>
+          </td>
+        `;
+        tbody.appendChild(tr);
+      });
+    }
+
+    function renderEditTable(rows) {
+      const tb = document.getElementById('editAdsBody');
+      tb.innerHTML = '';
+      rows.forEach(r => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td><input class="row-check" type="checkbox" data-id="${r.saved_id}"></td>
+          <td>${r.thumbnail ? `<img src="${r.thumbnail}" class="ad-thumb">` : `<div class="ad-thumb" aria-hidden="true"></div>`}</td>
+          <td>${escapeHtml(r.page_name)}</td>
+          <td>${escapeHtml(r.platform)}</td>
+          <td>${r.impressions.toLocaleString()}</td>
+          <td>$${r.spend}</td>
+          <td>${new Date(r.saved_at).toLocaleString()}</td>
+          <td>
+            <span class="control-word" data-action="view" data-id="${r.saved_id}">View</span>
+            <span style="width:8px; display:inline-block"></span>
+            <span class="control-word" data-action="delete" data-id="${r.saved_id}">Delete</span>
+          </td>
+        `;
+        tb.appendChild(tr);
+      });
+
+      document.getElementById('shownCount').textContent = rows.length;
+      document.getElementById('totalCount').textContent = demo.length;
+    }
+
+    // simple escape function
+    function escapeHtml(s){ if (s===null||s===undefined) return ''; return String(s).replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;').replaceAll('"','&quot;').replaceAll("'",'&#39;'); }
+
+    // wire basic interactions
+    (function wireUI(){
+      // init content
+      document.getElementById('totalAds').textContent = demo.length.toLocaleString();
+      document.getElementById('activeUsers').textContent = '123'; // placeholder
+      document.getElementById('lastSaved').textContent = new Date().toLocaleString();
+      renderRecent();
+      renderEditTable(demo);
+
+      // top action words
+      document.getElementById('action-refresh').addEventListener('click', ()=> { console.log('Refresh requested'); showToast('Refresh requested'); });
+      document.getElementById('action-export').addEventListener('click', ()=> { console.log('Export requested'); showToast('Export requested'); });
+
+      // control words inside admin panel
+      document.getElementById('word-reindex').addEventListener('click', ()=> { console.log('Reindex'); showToast('Reindex requested'); });
+      document.getElementById('word-clearcache').addEventListener('click', ()=> { console.log('Clear cache'); showToast('Clear cache requested'); });
+      document.getElementById('word-settings').addEventListener('click', ()=> { console.log('Open settings'); showToast('Open settings'); });
+
+      // trigger update
+      document.getElementById('btnTriggerUpdate').addEventListener('click', ()=> {
+        const country = document.getElementById('countrySelect').value || 'ALL';
+        console.log('Trigger update for', country);
+        showToast('Update triggered for ' + country);
+      });
+
+      // recent / edit action delegation (view/delete)
+      document.addEventListener('click', (ev) => {
+        const el = ev.target;
+        if (el.matches('[data-action="view"]')) {
+          const id = el.dataset.id;
+          const row = demo.find(x => String(x.saved_id)===String(id));
+          if (row) openModal(row);
+        }
+        if (el.matches('[data-action="delete"]')) {
+          const id = el.dataset.id;
+          if (!confirm('Confirm delete from database?')) return;
+          console.log('Delete', id);
+          showToast('Deleted ' + id);
+          // remove from demo for UI
+          const idx = demo.findIndex(x => String(x.saved_id)===String(id));
+          if (idx !== -1) { demo.splice(idx,1); renderRecent(); renderEditTable(demo); document.getElementById('totalAds').textContent = demo.length; }
+        }
+      });
+
+      // select all
+      document.getElementById('selectAll').addEventListener('change', (e) => {
+        const checked = e.target.checked;
+        document.querySelectorAll('.row-check').forEach(cb => cb.checked = checked);
+      });
+
+      // filter/search (local demo)
+      document.getElementById('filterButton').addEventListener('click', ()=> {
+        const q = (document.getElementById('qFilter').value || '').toLowerCase();
+        const platform = document.getElementById('platformFilter').value;
+        const status = document.getElementById('statusFilter').value;
+        const from = document.getElementById('fromDate').value;
+        const to = document.getElementById('toDate').value;
+        console.log('Filter', {q, platform, status, from, to});
+        let filtered = demo.slice();
+        if (q) filtered = filtered.filter(r => (r.page_name||'').toLowerCase().includes(q) || (r.advertiser||'').toLowerCase().includes(q));
+        if (platform) filtered = filtered.filter(r => r.platform.toLowerCase()===platform.toLowerCase());
+        // date filter simple
+        if (from) filtered = filtered.filter(r => new Date(r.saved_at) >= new Date(from));
+        if (to) filtered = filtered.filter(r => new Date(r.saved_at) <= new Date(to));
+        renderEditTable(filtered);
+        showToast('Search applied');
+      });
+
+      document.getElementById('resetButton').addEventListener('click', ()=> {
+        document.getElementById('qFilter').value = '';
+        document.getElementById('platformFilter').value = '';
+        document.getElementById('statusFilter').value = '';
+        document.getElementById('fromDate').value = '';
+        document.getElementById('toDate').value = '';
+        renderEditTable(demo);
+        showToast('Filters cleared');
+      });
+
+      // bulk words
+      document.getElementById('word-bulk-export').addEventListener('click', ()=> {
+        const selected = Array.from(document.querySelectorAll('.row-check:checked')).map(x=>x.dataset.id);
+        if (!selected.length) return showToast('No rows selected');
+        console.log('Export selected', selected);
+        showToast('Export requested for ' + selected.length + ' items');
+      });
+      document.getElementById('word-bulk-delete').addEventListener('click', ()=> {
+        const selected = Array.from(document.querySelectorAll('.row-check:checked')).map(x=>x.dataset.id);
+        if (!selected.length) return showToast('No rows selected');
+        if (!confirm('Confirm delete ' + selected.length + ' items?')) return;
+        console.log('Delete selected', selected);
+        showToast('Delete requested for ' + selected.length + ' items');
+      });
+
+      // prev/next (demo)
+      document.getElementById('prevPage').addEventListener('click', ()=> showToast('Prev page (not wired)'));
+      document.getElementById('nextPage').addEventListener('click', ()=> showToast('Next page (not wired)'));
+
+      // small top words
+      document.getElementById('action-refresh').addEventListener('click', ()=> showToast('Refresh (not wired)'));
+
+    })();
+
+    // open modal with ad data
+    function openModal(ad) {
+      document.getElementById('modalTitle').textContent = ad.page_name || 'Ad details';
+      document.getElementById('modalBody').innerHTML = `
+        <div style="display:flex;gap:12px;flex-wrap:wrap;">
+          <div style="flex:0 0 42%; min-width:220px;">
+            ${ad.thumbnail ? `<img src="${ad.thumbnail}" style="width:100%; border-radius:8px;">` : `<div style="width:100%; height:150px; background:rgba(255,255,255,0.02); border-radius:8px;"></div>`}
+            <ul style="margin-top:12px; padding-left:18px; color:var(--muted);">
+              <li><strong>Advertiser</strong>: ${escapeHtml(ad.advertiser || '—')}</li>
+              <li><strong>Platform</strong>: ${escapeHtml(ad.platform || '—')}</li>
+              <li><strong>Impressions</strong>: ${ad.impressions.toLocaleString()}</li>
+              <li><strong>Spend</strong>: $${ad.spend}</li>
+              <li><strong>Country</strong>: ${escapeHtml(ad.country || '—')}</li>
+            </ul>
+          </div>
+          <div style="flex:1; min-width:240px;">
+            <div style="margin-bottom:10px;"><strong>Note</strong><div style="margin-top:6px; background:rgba(255,255,255,0.02); padding:10px; border-radius:8px; color:var(--text)">${escapeHtml(ad.note || '—')}</div></div>
+            <div style="margin-bottom:8px;"><strong>Saved at</strong><div class="small text-muted">${new Date(ad.saved_at).toLocaleString()}</div></div>
+            <div style="margin-top:12px;">
+              <span class="control-word" onclick="showToast('Open snapshot (not wired)')">Open snapshot</span>
+              <span style="width:12px;display:inline-block"></span>
+              <span class="control-word" onclick="showToast('Copy link (not wired)')">Copy link</span>
+            </div>
+          </div>
+        </div>
+      `;
+      const bs = new bootstrap.Modal(document.getElementById('adModal'));
+      bs.show();
+    }
+  </script>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

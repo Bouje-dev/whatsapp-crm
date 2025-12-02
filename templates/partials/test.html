@@ -1,0 +1,569 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+</head>
+<body style="background-color: black;">
+    
+<h1>tesing</h1>
+
+
+<form action="">
+    <input type="text" name="name">
+</input>
+<input type="number" name="phone">
+</input>
+<input type="submit" value="submit">
+</input>
+</form>
+
+
+http://127.0.0.1:8000/discount/marketing/testing/?utm_source=facebook&utm_medium=cpc&utm_campaign=spring_sale&utm_content=video_ad1&utm_term=discount&ad_id=32423423
+
+<!-- 
+         <script>
+
+(function(){
+  // embedded config for this store
+  window.__STORE_TRACKER_CFG = {"storeUrl":"https://comarket.icu/pages/testing-1","storeHash":"aHR0cHM6Ly9j","enableDiscount":false,"blockRepeat":true,"visitorSource":"all","audience":"public","addons":"","collectorUrl":"https://boujema.pythonanywhere.com/discount/marketing/api/capture-visit/","createdAt":"21/08/2025, 15:51:47"};
+
+  // helpers
+  function trySendBeacon(url, bodyObj){
+    try {
+      const payload = typeof bodyObj === 'string' ? bodyObj : JSON.stringify(bodyObj);
+      if (navigator.sendBeacon) {
+        try { return navigator.sendBeacon(url, payload); } catch(e) {}
+      }
+      // fallback: fire-and-forget fetch with keepalive
+      try {
+        fetch(url, { method: 'POST', headers: {'Content-Type':'application/json'}, body: payload, keepalive: true }).catch(()=>{});
+        return true;
+      } catch(e) { return false; }
+    } catch(e) { return false; }
+  }
+
+  // simple URL param helper
+  function getParam(name){
+    name = name.replace(/[\[\]]/g, '\\$&');
+    const regex = new RegExp('[?&]'+name+'=([^&#]*)');
+    const results = regex.exec(location.search);
+    return results ? decodeURIComponent(results[1].replace(/\+/g,' ')) : '';
+  }
+
+  // capture common UTM/ad params
+  const utm_campaign = getParam('utm_campaign') || getParam('utm_campaign_id') || '';
+  const utm_source = getParam('utm_source') || '';
+  const utm_medium = getParam('utm_medium') || '';
+  const ad_id = getParam('ad_id') || '';
+  const site_source_name = getParam('site_source_name') || '';
+  const ad_name = getParam('ad_name') || '';
+
+  // collector endpoints (prefer explicit capture endpoint if provided)
+  const cfg = window.__STORE_TRACKER_CFG || {};
+  const collectorUrl = cfg.collectorUrl || '/collect';
+  const captureVisitEndpoint = cfg.captureVisitEndpoint || cfg.collectorUrl && (cfg.collectorUrl.replace(/\/$/, '') + '/capture-visit') || 'http://127.0.0.1:8000/discount/marketing/api/capture-visit/';
+
+  // visits counter (per-store)
+  (function(){
+    try {
+      const key = '__sv_visits_' + (cfg.storeHash || 'default');
+      let v = parseInt(localStorage.getItem(key) || '0', 10);
+      v = v + 1;
+      localStorage.setItem(key, v);
+
+      const payload = { event: 'pageview', ts: Date.now(), url: location.href, referrer: document.referrer || null, visits: v, store: cfg.storeUrl || null, utm_campaign, utm_source, utm_medium, ad_id, site_source_name, ad_name, userAgent: navigator.userAgent };
+      // send pageview to collector
+      trySendBeacon(collectorUrl, payload);
+
+      // discount / alternate page logic
+      try {
+        if (cfg.enableDiscount && v >= (cfg.visitsThreshold || 2)) {
+          if (cfg.alternatePage && cfg.altPageUrl) {
+            // redirect to alternate product page
+            try { window.location.href = cfg.altPageUrl; return; } catch(e){ /* ignore */ }
+          }
+          if (cfg.couponMode === 'auto' && cfg.couponCode) {
+            // auto-apply: implementation is platform specific.
+            // We send an event so your backend or storefront integration can act.
+            trySendBeacon(collectorUrl, { event: 'auto_apply_coupon', coupon: cfg.couponCode, store: cfg.storeUrl, visits: v });
+          } else {
+            // show a non-intrusive banner with coupon message
+            if (!document.getElementById('st-banner')) {
+              const b = document.createElement('div');
+              b.id = 'st-banner';
+              b.style.position = 'fixed';
+              b.style.bottom = '18px';
+              b.style.right = '18px';
+              b.style.zIndex = '2147483647';
+              b.style.background = '#0ea5a4';
+              b.style.color = '#02121a';
+              b.style.padding = '12px 14px';
+              b.style.borderRadius = '10px';
+              b.style.boxShadow = '0 10px 30px rgba(2,6,23,0.5)';
+              b.style.fontFamily = 'system-ui, Arial';
+              b.style.fontSize = '14px';
+              b.innerText = (cfg.couponMessage || ('Discount: ' + (cfg.discountPercent || 0) + '% Code: ' + (cfg.couponCode || '')));
+              document.body.appendChild(b);
+            }
+          }
+        }
+      } catch(e) { /* discount logic fail silently */ }
+    } catch(e) { console.error('store-tracker visits error', e); }
+  })();
+
+  // --- Phone capture & visit submission logic ---
+  (function(){
+    try {
+      // selectors to try for phone input
+      const phoneSelectors = ['input[name="phone"]','input[type="tel"]','input[name="customer_phone"]','#phone','input[name="mobile"]','input[name="telephone"]'];
+
+      function findPhoneEl() {
+        for (let s of phoneSelectors) {
+          const el = document.querySelector(s);
+          if (el) return el;
+        }
+        // try broader search (any input with tel type or placeholder containing phone)
+        const candidates = Array.from(document.querySelectorAll('input'));
+        for (const c of candidates) {
+          const t = (c.getAttribute('type') || '').toLowerCase();
+          const ph = (c.getAttribute('placeholder') || '').toLowerCase();
+          if (t === 'tel' || ph.includes('phone') || ph.includes('mobile') || c.name && c.name.toLowerCase().includes('phone')) return c;
+        }
+        return null;
+      }
+
+      // debounce helper
+      function debounce(fn, delay){ let t; return function(){ clearTimeout(t); const args = arguments; t = setTimeout(()=>fn.apply(this,args), delay); }; }
+
+      // prepare payload and send to captureVisitEndpoint
+      function sendVisitToServer(rawPhone){
+        try {
+          const digits = (rawPhone || '').replace(/\D/g,'');
+          const payload = {
+            raw_phone: rawPhone || '',
+            digits: digits,
+            utm_campaign, utm_source, utm_medium, ad_id, site_source_name, ad_name,
+            url: location.href,
+            referrer: document.referrer || null,
+            store: cfg.storeUrl || null,
+            ts: Date.now()
+          };
+          // use beacon if possible (best effort)
+          trySendBeacon(captureVisitEndpoint, payload);
+        } catch(e){ /* ignore send errors */ }
+      }
+
+      // attach handlers to an element
+      function attachPhoneHandlers(el){
+        if(!el) return;
+        // avoid attaching twice
+        if (el.__st_attached) return;
+        el.__st_attached = true;
+
+        const debounced = debounce(function(e){ sendVisitToServer(el.value || ''); }, 6300);
+        el.addEventListener('input', debounced);
+
+        // send on blur too (optional)
+        el.addEventListener('blur', function(e){ sendVisitToServer(el.value || ''); });
+
+        // send beforeunload (synchronous send via beacon preferred)
+        window.addEventListener('beforeunload', function(){ trySendBeacon(captureVisitEndpoint, { raw_phone: el.value || '', url: location.href, store: cfg.storeUrl || null, ts: Date.now() }); });
+      }
+
+      // initial attach if present
+      const initialPhone = findPhoneEl();
+      if (initialPhone) attachPhoneHandlers(initialPhone);
+
+      // observe for dynamically inserted phone inputs (common with single-page apps / modals)
+      const observer = new MutationObserver(function(mutations){
+        try {
+          const found = findPhoneEl();
+          if (found) attachPhoneHandlers(found);
+        } catch(e){}
+      });
+      observer.observe(document.documentElement || document.body, { childList: true, subtree: true });
+
+      // small safety: stop observing after 30s (to avoid memory overhead)
+      setTimeout(()=>{ try{ observer.disconnect(); }catch(e){} }, 30000);
+
+    } catch(e){ console.error('store-tracker phone-capture error', e); }
+  })();
+
+})();
+
+
+    </script>
+ -->
+
+ <!-- <script>
+    
+  (function(){
+  window.__STORE_TRACKER_CFG = {"storeUrl":"https://comarket.icu","storeHash":"aHR0cHM6Ly9j","enableDiscount":false,"blockRepeat":true,"visitorSource":"all","audience":"public","addons":"","createdAt":"21/08/2025, 17:53:28","collectorUrl":"/collect","captureVisitEndpoint":"http://127.0.0.1:8000/discount/marketing/api/capture-visit/","flow_id":"44dd88e4-f2bf-4027-81ab-838dd3679a79","flow_api_key":"NxrP9yd6CurdxyGF4KgnKHGhHwZPRr9XuJiSNjRMR40"};
+   // --- VisitorId + createdAt ---
+  const visitorKey = '__visitor_id';
+  const createdKey = '__visitor_created_at';
+  let visitor_Id = localStorage.getItem(visitorKey);
+  if (!visitor_Id) {
+    visitor_Id = Math.random().toString(36).substr(2);
+    localStorage.setItem(visitorKey, visitor_Id);
+  }
+  let visitorCreatedAt = localStorage.getItem(createdKey);
+  if (!visitorCreatedAt) {
+    visitorCreatedAt = new Date().toISOString();
+    localStorage.setItem(createdKey, visitorCreatedAt);
+  }
+
+
+  function trySendBeacon(url, bodyObj){
+    try{
+      const payload = typeof bodyObj === 'string' ? bodyObj : JSON.stringify(bodyObj);
+      if(navigator.sendBeacon){ try{ return navigator.sendBeacon(url, payload); }catch(e){} }
+      try { fetch(url, {method:'POST', headers:{'Content-Type':'application/json'}, body: payload, keepalive:true}).catch(()=>{}); return true; } catch(e){ return false; }
+    }catch(e){return false;}
+  }
+  function getParam(name){ name = name.replace(/[\[\]]/g,'\\$&'); const regex = new RegExp('[?&]'+name+'=([^&#]*)'); const results = regex.exec(location.search); return results ? decodeURIComponent(results[1].replace(/\+/g,' ')) : ''; }
+  const utm_campaign = getParam('utm_campaign') || getParam('utm_campaign_id') || '';
+  const utm_source = getParam('utm_source') || '';
+  const utm_medium = getParam('utm_medium') || '';
+  const ad_id = getParam('ad_id') || '';
+  const site_source_name = getParam('site_source_name') || '';
+  const ad_name = getParam('ad_name') || '';
+  const cfg = window.__STORE_TRACKER_CFG || {};
+  const collectorUrl = cfg.captureVisitEndpoint || '/collect';
+  const captureVisitEndpoint = cfg.captureVisitEndpoint || '/discount/marketing/api/capture-visit/';
+  (function(){
+
+    try{
+
+      const key='__sv_visits_'+(cfg.storeHash||'default');
+      
+        
+      let v = parseInt(localStorage.getItem(key) || '0', 10);
+      v = v + 1; localStorage.setItem(key, v);
+      const payload = { event:'pageview', ts:Date.now(),   visitorId: visitor_Id, url:location.href,key:key, referrer: document.referrer||null, visits:v, store: cfg.storeUrl||null, utm_campaign, utm_source, utm_medium, ad_id, site_source_name, ad_name, userAgent: navigator.userAgent, flow_id: cfg.flow_id || null };
+      trySendBeacon(collectorUrl, payload);
+      if(cfg.enableDiscount && v >= (cfg.visitsThreshold || 2)){
+        if(cfg.alternatePage && cfg.altPageUrl){ try{ window.location.href = cfg.altPageUrl; return; }catch(e){} }
+        if(cfg.couponMode === 'auto' && cfg.couponCode){
+          trySendBeacon(collectorUrl, { event:'auto_apply_coupon', coupon: cfg.couponCode, store: cfg.storeUrl, visits: v, flow_id: cfg.flow_id||null });
+        } else {
+          if(!document.getElementById('st-banner')){
+            const b = document.createElement('div'); b.id='st-banner'; b.style.position='fixed'; b.style.bottom='18px'; b.style.right='18px'; b.style.zIndex='2147483647';
+            b.style.background='#0ea5a4'; b.style.color='#02121a'; b.style.padding='12px 14px'; b.style.borderRadius='10px'; b.style.boxShadow='0 10px 30px rgba(2,6,23,0.5)'; b.style.fontFamily='system-ui,Arial'; b.style.fontSize='14px';
+            b.innerText = (cfg.couponMessage || ('Discount: '+(cfg.discountPercent||0)+'% Code: '+(cfg.couponCode||''))); document.body.appendChild(b);
+          }
+        }
+      }
+    }catch(e){}
+  })();
+
+  (function(){
+    try{
+      const phoneSelectors = ['input[name="phone"]','input[type="tel"]','input[name="customer_phone"]','#phone','input[name="mobile"]','input[name="telephone"]'];
+      function findPhoneEl(){
+        for(let s of phoneSelectors){ const el=document.querySelector(s); if(el) return el; }
+        const candidates=Array.from(document.querySelectorAll('input'));
+        for(const c of candidates){ const t=(c.getAttribute('type')||'').toLowerCase(); const ph=(c.getAttribute('placeholder')||'').toLowerCase();
+          if(t==='tel' || ph.includes('phone') || ph.includes('mobile') || (c.name && c.name.toLowerCase().includes('phone'))) return c;
+        }
+        return null;
+      }
+
+      function debounce(fn,delay){ let t; return function(){ clearTimeout(t); const args=arguments; t=setTimeout(()=>fn.apply(this,args), delay); }; }
+      function trySendVisit(rawPhone){
+        try{
+          const payload={ raw_phone: rawPhone||'', visitorId: visitor_Id , utm_campaign, utm_source, utm_medium, ad_id, site_source_name, ad_name, url:location.href, referrer: document.referrer||null, store: cfg.storeUrl||null, ts: Date.now(), flow_id: cfg.flow_id || null, flow_api_key: cfg.flow_api_key || null };
+          trySendBeacon(captureVisitEndpoint, payload);
+        }catch(e){}
+      }
+      function attachPhoneHandlers(el){
+        if(!el) return; if(el.__st_attached) return; el.__st_attached=true;
+        const debounced=debounce(function(){ trySendVisit(el.value||''); }, 6300);
+        el.addEventListener('input', debounced);
+        el.addEventListener('blur', function(){ trySendVisit(el.value||''); });
+        window.addEventListener('beforeunload', function(){ trySendBeacon(captureVisitEndpoint, { raw_phone: el.value||'', url:location.href, store: cfg.storeUrl||null, ts: Date.now(), flow_id: cfg.flow_id||null, flow_api_key: cfg.flow_api_key||null }); });
+      }
+      const initialPhone = findPhoneEl(); if(initialPhone) attachPhoneHandlers(initialPhone);
+      const observer = new MutationObserver(function(){ try{ const f=findPhoneEl(); if(f) attachPhoneHandlers(f); }catch(e){} });
+      observer.observe(document.documentElement || document.body, { childList:true, subtree:true });
+      setTimeout(()=>{ try{ observer.disconnect(); }catch(e){} }, 30000);
+    }catch(e){}
+  })();
+})();
+
+
+</script>  -->
+
+<!-- 
+<script>
+   
+  // STORE TRACKER (auto-generated, combined) 
+
+(function(){
+  window.__STORE_TRACKER_CFG = {"storeUrl":"http://127.0.0.1:8000","storeHash":"aHR0cDovLzEy","enableDiscount":false,"blockRepeat":true,"visitorSource":"all","audience":"public","addons":"","createdAt":"2025-08-21T21:38:17.412Z","collectorUrl":"/collect","captureVisitEndpoint":"http://127.0.0.1:8000/discount/marketing/api/capture-visit/","flow_id":"a8a0158a-86d8-47cd-97f0-343b596a4b9a","flow_api_key":"nKVk10kGeAEKl00xq5kNLnGrFEsyOBbKbws6oj7CGqo"};
+
+  
+  // --- VisitorId + createdAt ---
+  const visitorKey = '__visitor_id';
+  const createdKey = '__visitor_created_at';
+  let visitor_Id = localStorage.getItem(visitorKey);
+  if (!visitor_Id) {
+    visitor_Id = Math.random().toString(36).substr(2);
+    localStorage.setItem(visitorKey, visitor_Id);
+  }
+  let visitorCreatedAt = localStorage.getItem(createdKey);
+  if (!visitorCreatedAt) {
+    visitorCreatedAt = new Date().toISOString();
+    localStorage.setItem(createdKey, visitorCreatedAt);
+  }
+
+  // --- Beacon + Fetch + XHR fallback ---
+  function trySendBeacon(url, bodyObj){
+    try{
+      const payload = typeof bodyObj === 'string' ? bodyObj : JSON.stringify(bodyObj);
+
+      // 1. Beacon
+      if(navigator.sendBeacon){
+        try{ return navigator.sendBeacon(url, new Blob([payload], {type:'application/json'})); }catch(e){}
+      }
+
+      // 2. Fetch
+      if(window.fetch){
+        try{ fetch(url, {method:'POST', headers:{'Content-Type':'application/json'}, body: payload, keepalive:true}).catch(()=>{}); return true; }catch(e){}
+      }
+
+      // 3. XHR
+      try{
+        const xhr = new XMLHttpRequest();
+        xhr.open("POST", url, true);
+        xhr.setRequestHeader("Content-Type", "application/json");
+        xhr.send(payload);
+        return true;
+      }catch(e){}
+    }catch(e){}
+    return false;
+  }
+
+  function getParam(name){
+    name = name.replace(/[\[\]]/g,'\\$&');
+    const regex = new RegExp('[?&]'+name+'=([^&#]*)');
+    const results = regex.exec(location.search);
+    return results ? decodeURIComponent(results[1].replace(/\+/g,' ')) : '';
+  }
+
+  const utm_campaign = getParam('utm_campaign') || getParam('utm_campaign_id') || '';
+  const utm_source = getParam('utm_source') || '';
+  const utm_medium = getParam('utm_medium') || '';
+  const ad_id = getParam('ad_id') || '';
+  const site_source_name = getParam('site_source_name') || '';
+  const ad_name = getParam('ad_name') || '';
+
+  const cfg = window.__STORE_TRACKER_CFG || {};
+  const collectorUrl = cfg.collectorUrl || '/collect';
+  const captureVisitEndpoint = cfg.captureVisitEndpoint || '/discount/marketing/api/capture-visit/';
+
+  // --- Anti-Spam visits (30s rule per page) ---
+  const lastVisitKey = '__last_visit_ts';
+  const now = Date.now();
+  const lastTs = parseInt(localStorage.getItem(lastVisitKey) || '0', 10);
+  if (now - lastTs > 30000) {
+    localStorage.setItem(lastVisitKey, String(now));
+
+    (function(){
+      try{
+        const key='__sv_visits_'+(cfg.storeHash||'default');
+        let v = parseInt(localStorage.getItem(key) || '0', 10);
+        v = v + 1; localStorage.setItem(key, v);
+
+        const payload = { 
+          event:'pageview', 
+          ts:now, 
+          visitorId: visitor_Id,
+          visitorCreatedAt: visitorCreatedAt,
+          url:location.href, 
+          referrer: document.referrer||null, 
+          visits:v, 
+          store: cfg.storeUrl||null, 
+          utm_campaign, utm_source, utm_medium, ad_id, site_source_name, ad_name, 
+          userAgent: navigator.userAgent, 
+          flow_id: cfg.flow_id || null 
+        };
+
+        trySendBeacon(captureVisitEndpoint, payload);
+      }catch(e){}
+    })();
+  }
+
+  // --- Phone capturing logic ---
+  (function(){
+    try{
+      const phoneSelectors = ['input[name="phone"]','input[type="tel"]','input[name="customer_phone"]','#phone','input[name="mobile"]','input[name="telephone"]'];
+      function findPhoneEl(){
+        for(let s of phoneSelectors){ const el=document.querySelector(s); if(el) return el; }
+        const candidates=Array.from(document.querySelectorAll('input'));
+        for(const c of candidates){ const t=(c.getAttribute('type')||'').toLowerCase(); const ph=(c.getAttribute('placeholder')||'').toLowerCase();
+          if(t==='tel' || ph.includes('phone') || ph.includes('mobile') || (c.name && c.name.toLowerCase().includes('phone'))) return c;
+        }
+        return null;
+      }
+      function debounce(fn,delay){ let t; return function(){ clearTimeout(t); const args=arguments; t=setTimeout(()=>fn.apply(this,args), delay); }; }
+      function trySendVisit(rawPhone){
+        try{
+          const payload={ 
+            raw_phone: rawPhone||'', 
+            visitorId: visitor_Id, 
+            visitorCreatedAt: visitorCreatedAt,
+            utm_campaign, utm_source, utm_medium, ad_id, site_source_name, ad_name, 
+            url:location.href, referrer: document.referrer||null, 
+            store: cfg.storeUrl||null, 
+            ts: Date.now(), 
+            flow_id: cfg.flow_id || null, 
+            flow_api_key: cfg.flow_api_key || null 
+          };
+          trySendBeacon(captureVisitEndpoint, payload);
+        }catch(e){}
+      }
+      function attachPhoneHandlers(el){
+        if(!el) return; if(el.__st_attached) return; el.__st_attached=true;
+        const debounced=debounce(function(){ trySendVisit(el.value||''); }, 6300);
+        el.addEventListener('input', debounced);
+        el.addEventListener('blur', function(){ trySendVisit(el.value||''); });
+        window.addEventListener('beforeunload', function(){ 
+          trySendBeacon(captureVisitEndpoint, { 
+            raw_phone: el.value||'', 
+            visitorId: visitor_Id,
+            visitorCreatedAt: visitorCreatedAt,
+            url:location.href, 
+            store: cfg.storeUrl||null, 
+            ts: Date.now(), 
+            flow_id: cfg.flow_id||null, 
+            flow_api_key: cfg.flow_api_key||null 
+          }); 
+        });
+      }
+      const initialPhone = findPhoneEl(); if(initialPhone) attachPhoneHandlers(initialPhone);
+      const observer = new MutationObserver(function(){ try{ const f=findPhoneEl(); if(f) attachPhoneHandlers(f); }catch(e){} });
+      observer.observe(document.documentElement || document.body, { childList:true, subtree:true });
+      setTimeout(()=>{ try{ observer.disconnect(); }catch(e){} }, 30000);
+    }catch(e){}
+  })();
+})();
+// The END
+
+  
+</script> -->
+
+
+
+<script>
+   
+  // STORE TRACKER (auto-generated, combined) 
+
+(function(){
+  window.__STORE_TRACKER_CFG = {"storeUrl":"https://comarket.icu","storeHash":"aHR0cHM6Ly9j","enableDiscount":false,"blockRepeat":false,"visitorSource":"tiktok","audience":"public","addons":"","createdAt":"2025-08-21T22:03:39.619Z","collectorUrl":"/collect","captureVisitEndpoint":"http://127.0.0.1:8000/discount/marketing/api/capture-visit/","flow_id":"44dd88e4-f2bf-4027-81ab-838dd3679a79"};
+
+// --- VisitorId + createdAt ---
+  const visitorKey = '__visitor_id';
+  const createdKey = '__visitor_created_at';
+  let visitor_Id = localStorage.getItem(visitorKey);
+  if (!visitor_Id) {
+    visitor_Id = Math.random().toString(36).substr(2);
+    localStorage.setItem(visitorKey, visitor_Id);
+  }
+  let visitorCreatedAt = localStorage.getItem(createdKey);
+  if (!visitorCreatedAt) {
+    visitorCreatedAt = new Date().toISOString();
+    localStorage.setItem(createdKey, visitorCreatedAt);
+  }
+
+
+  function trySendBeacon(url, bodyObj){
+    try{
+      const payload = typeof bodyObj === 'string' ? bodyObj : JSON.stringify(bodyObj);
+      if(navigator.sendBeacon){ try{ return navigator.sendBeacon(url, payload); }catch(e){} }
+      try { fetch(url, {method:'POST', headers:{'Content-Type':'application/json'}, body: payload, keepalive:true}).catch(()=>{}); return true; } catch(e){ return false; }
+    }catch(e){return false;}
+  }
+  function getParam(name){ name = name.replace(/[\[\]]/g,'\\$&'); const regex = new RegExp('[?&]'+name+'=([^&#]*)'); const results = regex.exec(location.search); return results ? decodeURIComponent(results[1].replace(/\+/g,' ')) : ''; }
+  const utm_campaign = getParam('utm_campaign') || getParam('utm_campaign_id') || '';
+  const utm_source = getParam('utm_source') || '';
+  const utm_medium = getParam('utm_medium') || '';
+  const ad_id = getParam('ad_id') || '';
+  const site_source_name = getParam('site_source_name') || '';
+  const ad_name = getParam('ad_name') || '';
+  const cfg = window.__STORE_TRACKER_CFG || {};
+  const collectorUrl = cfg.captureVisitEndpoint || '/collect';
+  const captureVisitEndpoint = cfg.captureVisitEndpoint || '/discount/marketing/api/capture-visit/';
+  (function(){
+
+    try{
+
+      const key='__sv_visits_'+(cfg.storeHash||'default');
+      
+        
+      let v = parseInt(localStorage.getItem(key) || '0', 10);
+      v = v + 1; localStorage.setItem(key, v);
+      const payload = { event:'pageview', ts:Date.now(),   visitorId: visitor_Id, url:location.href,key:key, referrer: document.referrer||null, visits:v, store: cfg.storeUrl||null, utm_campaign, utm_source, utm_medium, ad_id, site_source_name, ad_name, userAgent: navigator.userAgent, flow_id: cfg.flow_id || null };
+      trySendBeacon(captureVisitEndpoint, payload);
+      if(cfg.enableDiscount && v >= (cfg.visitsThreshold || 2)){
+        if(cfg.alternatePage && cfg.altPageUrl){ try{ window.location.href = cfg.altPageUrl; return; }catch(e){} }
+        if(cfg.couponMode === 'auto' && cfg.couponCode){
+          trySendBeacon(captureVisitEndpoint, { event:'auto_apply_coupon', coupon: cfg.couponCode, store: cfg.storeUrl, visits: v, flow_id: cfg.flow_id||null });
+        } else {
+          if(!document.getElementById('st-banner')){
+            const b = document.createElement('div'); b.id='st-banner'; b.style.position='fixed'; b.style.bottom='18px'; b.style.right='18px'; b.style.zIndex='2147483647';
+            b.style.background='#0ea5a4'; b.style.color='#02121a'; b.style.padding='12px 14px'; b.style.borderRadius='10px'; b.style.boxShadow='0 10px 30px rgba(2,6,23,0.5)'; b.style.fontFamily='system-ui,Arial'; b.style.fontSize='14px';
+            b.innerText = (cfg.couponMessage || ('Discount: '+(cfg.discountPercent||0)+'% Code: '+(cfg.couponCode||''))); document.body.appendChild(b);
+          }
+        }
+      }
+    }catch(e){}
+  })();
+
+  (function(){
+    try{
+      const phoneSelectors = ['input[name="phone"]','input[type="tel"]','input[name="customer_phone"]','#phone','input[name="mobile"]','input[name="telephone"]'];
+      function findPhoneEl(){
+        for(let s of phoneSelectors){ const el=document.querySelector(s); if(el) return el; }
+        const candidates=Array.from(document.querySelectorAll('input'));
+        for(const c of candidates){ const t=(c.getAttribute('type')||'').toLowerCase(); const ph=(c.getAttribute('placeholder')||'').toLowerCase();
+          if(t==='tel' || ph.includes('phone') || ph.includes('mobile') || (c.name && c.name.toLowerCase().includes('phone'))) return c;
+        }
+        return null;
+      }
+
+      function debounce(fn,delay){ let t; return function(){ clearTimeout(t); const args=arguments; t=setTimeout(()=>fn.apply(this,args), delay); }; }
+      function trySendVisit(rawPhone){
+        try{
+          const payload={ raw_phone: rawPhone||'', visitorId: visitor_Id , utm_campaign, utm_source, utm_medium, ad_id, site_source_name, ad_name, url:location.href, referrer: document.referrer||null, store: cfg.storeUrl||null, ts: Date.now(), flow_id: cfg.flow_id || null, flow_api_key: cfg.flow_api_key || null };
+          trySendBeacon(captureVisitEndpoint, payload);
+        }catch(e){}
+      }
+      function attachPhoneHandlers(el){
+        if(!el) return; if(el.__st_attached) return; el.__st_attached=true;
+        const debounced=debounce(function(){ trySendVisit(el.value||''); }, 6300);
+        el.addEventListener('input', debounced);
+        el.addEventListener('blur', function(){ trySendVisit(el.value||''); });
+        window.addEventListener('beforeunload', function(){ trySendBeacon(captureVisitEndpoint, { raw_phone: el.value||'', url:location.href, store: cfg.storeUrl||null, ts: Date.now(), flow_id: cfg.flow_id||null, flow_api_key: cfg.flow_api_key||null }); });
+      }
+      const initialPhone = findPhoneEl(); if(initialPhone) attachPhoneHandlers(initialPhone);
+      const observer = new MutationObserver(function(){ try{ const f=findPhoneEl(); if(f) attachPhoneHandlers(f); }catch(e){} });
+      observer.observe(document.documentElement || document.body, { childList:true, subtree:true });
+      setTimeout(()=>{ try{ observer.disconnect(); }catch(e){} }, 30000);
+    }catch(e){}
+  })();
+})();
+
+
+
+  
+</script>
+</body>
+</html>
+
+
+
+
+

@@ -1,0 +1,4790 @@
+{% load static %}
+<link rel="stylesheet" href="{% static 'style/styleup.css' %}">
+
+<script src="{% static 'js/whatssap.js' %}"></script>
+ 
+</head>
+<!-- <body> -->
+  <script>
+    // إعدادات عامة لتمرير بيانات جانغو إلى ملف الجافاسكربت الخارجي
+    window.TEMPLATE_CONFIG = {
+        initialChannelId: '{{ initial_channel_id|default:"null" }}',
+        csrfToken: document.querySelector('[name=csrfmiddlewaretoken]')?.value,
+        urls: {
+            apiTemplates: "{% url 'api_templates' %}",
+            createTemplate: "{% url 'create_template' %}",
+            syncTemplates: "{% url 'sync_pending_templates' %}",
+            templateShow: "/discount/whatssapAPI/api/templateShow/" // رابط ثابت أو يمكن استخدام url tag
+        }
+    };
+</script>
+  
+  
+    <div class="cls3741_container">
+      <aside class="workspace-sidebar">
+      
+        
+  
+        <div class="workspace-list">
+       
+          {% for channel in user_channels %}
+          <div class="workspace-item {% if channel.id == initial_channel_id %}active{% endif %}" 
+               data-channel-id="{{ channel.id }}"
+               
+               /* 🔥 البيانات المخزنة للاستخدام الفوري 🔥 */
+               data-name="{{ channel.name }}"
+               data-agents="{{ channel.assigned_agents.count }}" 
+               
+               onclick="switchChannel('{{ channel.id }}')"
+               title="{{ channel.name }}">
+               
+               {{ channel.name|slice:":1"|upper }}
+              
+               {% if channel.unread_count > 0 %}
+                  <span class="unread-dot"></span>
+               {% endif %}
+          </div>
+          {% endfor %}
+  
+          <div class="workspace-item add-new" onclick="openAddChannelModal()">
+            <svg viewBox="0 0 24 24" width="24" height="24" stroke="currentColor" stroke-width="2" fill="none">
+              <line x1="12" y1="5" x2="12" y2="19"></line>
+              <line x1="5" y1="12" x2="19" y2="12"></line>
+            </svg>
+          </div>
+        </div>
+  
+        
+
+<style>
+  /* --- 1. شريط القنوات (أقصى اليسار) --- */
+.workspace-sidebar {
+  width: 80px; /* عرض أوسع قليلاً */
+ 
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 20px 0;
+  z-index: 50;
+  flex-shrink: 0;
+}
+
+.workspace-list {
+  display: flex;
+  flex-direction: column;
+  gap: 16px; /* مسافة أكبر بين العناصر */
+  width: 100%;
+  align-items: center;
+}
+
+/* --- عنصر القناة --- */
+.workspace-item {
+  width: 52px;
+  height: 52px;
+  border-radius: 50%; /* دائرة كاملة افتراضياً */
+  background-color: #ffffff; /* أبيض */
+  color: #374151;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 20px;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1); /* حركة ناعمة */
+  position: relative;
+  box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+}
+
+/* عند التحويم */
+.workspace-item:hover {
+  border-radius: 16px; /* يتحول لمربع ناعم */
+  background-color: #4f46e5; /* لون البراند (بنفسجي/أزرق) */
+  color: white;
+}
+
+/* --- القناة النشطة (التصميم المتصل) --- */
+.workspace-item.active {
+  border-radius: 16px;
+  background-color: #4f46e5; /* لون النشاط */
+  color: white;
+  box-shadow: 0 4px 12px rgba(79, 70, 229, 0.3);
+  position: relative;
+}
+
+/* الشريط الأبيض المنحني (الكيرف) بجانب القناة النشطة */
+/* هذا الجزء يخلق وهم الاتصال مع المحتوى الأبيض */
+.workspace-item.active::after {
+  content: '';
+  position: absolute;
+  right: -26px; /* يخرج من الشريط */
+  top: 50%;
+  transform: translateY(-50%);
+  width: 20px;
+  height: 40px;
+  background-color: #ffffff; /* نفس لون خلفية المحتوى الرئيسي */
+  border-radius: 20px 0 0 20px; /* نصف دائرة لليسار */
+  z-index: -1; /* خلف الدائرة */
+  opacity: 0; /* يمكن تفعيله لو أردت التصميم المتصل تماماً */
+}
+
+/* مؤشر جانبي صغير (خط أبيض) */
+.workspace-item::before {
+  content: '';
+  position: absolute;
+  left: -12px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 4px;
+  height: 0; /* مخفي */
+  background-color: #000;
+  border-radius: 0 4px 4px 0;
+  transition: height 0.2s;
+}
+
+/* إظهار المؤشر عند التحويم */
+.workspace-item:hover::before {
+  height: 20px;
+}
+.workspace-item.active::before {
+  height: 36px; /* أطول عند النشاط */
+  background-color: #4f46e5;
+}
+
+/* --- زر الإضافة --- */
+.workspace-item.add-new {
+  background-color: transparent;
+  border: 2px dashed #d1d5db;
+  color: #9ca3af;
+  box-shadow: none;
+}
+.workspace-item.add-new:hover {
+  border-color: #4f46e5;
+  color: #4f46e5;
+  background-color: rgba(79, 70, 229, 0.1);
+}
+
+/* نقطة التنبيه (Unread) */
+.unread-dot {
+  position: absolute;
+  top: -2px;
+  right: -2px;
+  width: 14px;
+  height: 14px;
+  background-color: #ef4444;
+  border: 3px solid #f3f4f6; /* لون الحدود نفس لون خلفية الشريط */
+  border-radius: 50%;
+}
+
+/* --- تحسين المحتوى الرئيسي ليناسب التصميم --- */
+.main-content-wrapper {
+  background-color: #ffffff; /* أبيض نقي */
+  border-radius: 30px 0 0 30px; /* انحناء كبير في الزاوية اليسرى */
+  margin: 10px 10px 10px 0; /* مسافة صغيرة من الأعلى والأسفل */
+  box-shadow: -5px 0 20px rgba(0,0,0,0.05); /* ظل خفيف للفصل */
+  overflow: hidden;
+  flex: 1;
+}
+</style>
+      </aside>
+
+
+    <!-- sidebar -->
+    <aside class="cls3741_sidebar" role="navigation" aria-label="Sidebar">
+      <div class="cls3741_brand">
+        <div class="cls3741_logo" id="current_channel_logo">
+            {{ active_channel.name|slice:":1"|upper|default:"?" }}
+        </div>
+        
+        <div>
+            <div class="cls3741_title" id="current_channel_name">
+                {{ active_channel.name|default:"Select Channel" }}
+            </div>
+            
+            <div class="cls3741_sub" id="current_channel_agents_count">
+                {{ active_channel.assigned_agents.count|default:"0" }} Agents
+            </div> 
+        </div>
+    </div>
+      <!-- </div> -->
+
+      <nav class="cls3741_nav" aria-label="Main menu">
+        <button class="cls3741_btn cls3741_btn_active" data-target="dashboard">Dashboard
+          <span class="cls3741_badge">—</span>
+        </button>
+
+        <button class="cls3741_btn" data-target="chats">Chats
+          <span class="cls3741_badge" id="badge_chats">3</span>
+        </button>
+
+        <button class="cls3741_btn" data-target="orders">Orders
+          <span class="cls3741_badge" id="badge_orders">12</span>
+        </button>
+
+        <button class="cls3741_btn" data-target="contacts">Contacts
+          <span class="cls3741_badge" id="badge_contacts">42</span>
+        </button>
+
+        <button class="cls3741_btn" data-target="campaigns">Campaigns
+          <span class="cls3741_badge" id="badge_campaigns">2</span>
+        </button>
+
+        <button class="cls3741_btn" data-target="templates">Templates
+          <span class="cls3741_badge" id="badge_templates">7</span>
+        </button>
+
+        <button class="cls3741_btn" data-target="automation">Automation
+          <span class="cls3741_badge" id="badge_automation">1</span>
+        </button>
+      </nav>
+
+      <!-- <div class="cls3741_spacer"></div> -->
+
+      <div style="font-size:13px;color:var(--muted);padding:8px 10px">
+        <div>حالة الحساب</div>
+        <div style="margin-top:6px;color:#84e7f0;font-weight:700">متصل</div>
+      </div>
+    </aside>
+
+    <!-- main content + side card -->
+    <!-- مثال على البطاقات -->
+<main class="cls3741_main">
+
+  <section class="cls3741_panel cls3741_panel_dashboard">
+    
+    <div class="cls3741_dash_header">
+        <h2>Dashboard</h2>
+        <div class="cls3741_dash_actions">
+            <span class="status_badge connected">
+                <span class="dot"></span> connected
+            </span>
+            <button class="cls3741_btn_refresh" onclick="window.location.reload()">
+             Refresh 
+            </button>
+        </div>
+    </div>
+
+    <div class="cls3741_account_card">
+        <div class="account_qr_section">
+            <img src="https://upload.wikimedia.org/wikipedia/commons/d/d0/QR_code_for_mobile_English_Wikipedia.svg" alt="QR Code" class="qr_img">
+            <div class="scan_hint">Scan to conntact</div>
+        </div>
+        
+        <div class="account_info_grid">
+            <div class="info_item">
+                <label>Display Name</label>
+                <div class="val">Waselytics LLC</div>
+            </div>
+            <div class="info_item">
+                <label>Connected Number</label>
+                <div class="val highlight">+212 630-600903</div>
+            </div>
+            <div class="info_item">
+                <label>WABA ID</label>
+                <div class="val mono">1481447496413263</div>
+            </div>
+            <div class="info_item">
+                <label>Messaging Limit</label>
+                <div class="val">TIER_250</div>
+            </div>
+            <div class="info_item">
+                <label>Quality Rating</label>
+                <div class="val text-green">GREEN ●</div>
+            </div>
+            <div class="info_item">
+                <label>Account Status</label>
+                <div class="val status_tag">APPROVED</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="cls3741_stats_grid">
+        <div class="stat_card">
+            <div class="stat_icon purple">👥</div>
+            <div class="stat_content">
+                <div class="stat_label">Total Contacts</div>
+                <div class="stat_number" id="dash_contacts_count">0</div>
+                <a href="#" class="stat_link">View Contacts &rarr;</a>
+            </div>
+        </div>
+
+        <div class="stat_card">
+            <div class="stat_icon blue">📢</div>
+            <div class="stat_content">
+                <div class="stat_label">Active Campaigns</div>
+                <div class="stat_number" id="dash_campaigns_count">0</div>
+                <a href="#" class="stat_link">Manage Campaigns &rarr;</a>
+            </div>
+        </div>
+
+        <div class="stat_card">
+          <div class="stat_icon green">💬</div>
+          <div class="stat_content">
+              <div class="stat_label">Total Messages</div>
+              
+              <div class="stat_number" id="dash_messages_count">0</div>
+              
+              <div style="font-size: 11px; color: var(--text-secondary); margin-top: -4px;">
+                  <span style="color: #4f46e5;">⬆ <span id="dash_sent_count">0</span></span>
+                  <span style="margin: 0 4px;">|</span>
+                  <span style="color: #22c55e;">⬇ <span id="dash_received_count">0</span></span>
+              </div>
+          </div>
+      </div>
+
+
+        <div class="support_card">
+            <div class="support_text">
+                <h3>Need Help?</h3>
+                <p>Contact our support team via WhatsApp directly.</p>
+            </div>
+            <div class="support_icon">🎧</div>
+        </div>
+    </div>
+
+    <div class="cls3741_chart_section">
+        <div class="chart_header">
+            <h3>تحليل الرسائل (آخر 7 أيام)</h3>
+            <div class="chart_legend">
+                <span class="legend_item"><span class="dot sent"></span> مرسلة</span>
+                <span class="legend_item"><span class="dot received"></span> مستلمة</span>
+            </div>
+        </div>
+        <div class="chart_container">
+            <canvas id="messagesChart"></canvas>
+        </div>
+    </div>
+<style>
+  /* --- Dashboard Layout --- */
+.cls3741_panel_dashboard {
+    padding: 24px;
+    max-width: 1400px;
+    margin: 0 auto;
+}
+
+.cls3741_dash_header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 24px;
+}
+.cls3741_dash_header h2 { font-size: 24px; font-weight: 700; color: var(--text-primary); }
+
+.cls3741_dash_actions { display: flex; gap: 12px; align-items: center; }
+
+.cls3741_btn_refresh {
+    background: var(--bg-tertiary); border: 1px solid var(--border-color);
+    color: var(--text-secondary); padding: 8px 16px; border-radius: 8px; cursor: pointer;
+    transition: all 0.2s;
+}
+.cls3741_btn_refresh:hover { background: var(--bg-hover); color: var(--text-primary); }
+
+/* Status Badge */
+.status_badge {
+    display: flex; align-items: center; gap: 6px;
+    padding: 6px 12px; border-radius: 20px;
+    font-size: 12px; font-weight: bold;
+    background: rgba(34, 197, 94, 0.1); color: #22c55e; border: 1px solid rgba(34, 197, 94, 0.2);
+}
+.status_badge .dot { width: 8px; height: 8px; background: #22c55e; border-radius: 50%; box-shadow: 0 0 8px #22c55e; }
+
+/* --- 1. Account Card (Top) --- */
+.cls3741_account_card {
+    background: var(--bg-primary);
+    border: 1px solid var(--border-color);
+    border-radius: 16px;
+    padding: 24px;
+    display: flex;
+    gap: 30px;
+    margin-bottom: 24px;
+    align-items: center;
+    box-shadow: var(--shadow-md);
+}
+
+.account_qr_section {
+    text-align: center;
+    padding-right: 30px;
+    border-right: 1px solid var(--border-color);
+}
+.qr_img { width: 100px; height: 100px; border-radius: 8px; background: white; padding: 4px; }
+.scan_hint { font-size: 11px; color: var(--text-secondary); margin-top: 8px; }
+
+.account_info_grid {
+    flex: 1;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 20px;
+}
+
+.info_item label { display: block; font-size: 11px; color: var(--text-secondary); text-transform: uppercase; margin-bottom: 6px; letter-spacing: 0.5px; }
+.info_item .val { font-size: 15px; font-weight: 600; color: var(--text-primary); }
+.info_item .val.mono { font-family: 'Courier New', monospace; letter-spacing: -0.5px; opacity: 0.9; }
+.info_item .val.highlight { color: var(--accent); }
+.info_item .val.text-green { color: #22c55e; }
+.info_item .val.status_tag { 
+    display: inline-block; background: rgba(34, 197, 94, 0.15); 
+    color: #22c55e; padding: 2px 8px; border-radius: 4px; font-size: 12px; 
+}
+
+/* --- 2. KPI Stats Grid --- */
+.cls3741_stats_grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    gap: 18px;
+    margin-bottom: 24px;
+}
+
+.stat_card {
+    background: var(--bg-primary);
+    border: 1px solid var(--border-color);
+    border-radius: 16px;
+    padding: 20px;
+    display: flex;
+    align-items: flex-start;
+    gap: 16px;
+    transition: transform 0.2s;
+}
+.stat_card:hover { transform: translateY(-2px); border-color: var(--border-light); }
+
+.stat_icon {
+    width: 48px; height: 48px; border-radius: 12px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 22px;
+}
+.stat_icon.purple { background: rgba(124, 58, 237, 0.15); color: #a78bfa; }
+.stat_icon.blue { background: rgba(59, 130, 246, 0.15); color: #60a5fa; }
+.stat_icon.green { background: rgba(34, 197, 94, 0.15); color: #4ade80; }
+
+.stat_content { flex: 1; }
+.stat_label { font-size: 13px; color: var(--text-secondary); margin-bottom: 4px; }
+.stat_number { font-size: 28px; font-weight: 800; color: var(--text-primary); margin-bottom: 8px; }
+.stat_link { font-size: 12px; color: var(--accent); text-decoration: none; font-weight: 600; }
+.stat_link:hover { text-decoration: underline; }
+
+/* Support Card */
+.support_card {
+    background: linear-gradient(135deg, #4f46e5, #3730a3);
+    border-radius: 16px;
+    padding: 20px;
+    color: white;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    box-shadow: 0 10px 20px rgba(79, 70, 229, 0.2);
+}
+.support_text h3 { margin: 0 0 6px 0; font-size: 18px; }
+.support_text p { margin: 0; font-size: 12px; opacity: 0.8; line-height: 1.4; }
+.support_icon { font-size: 32px; opacity: 0.8; }
+
+/* --- 3. Chart Section --- */
+.cls3741_chart_section {
+    background: var(--bg-primary);
+    border: 1px solid var(--border-color);
+    border-radius: 16px;
+    padding: 24px;
+    position: relative;
+}
+.chart_header { display: flex; justify-content: space-between; margin-bottom: 20px; }
+.chart_header h3 { margin: 0; font-size: 16px; color: var(--text-primary); }
+.chart_legend { display: flex; gap: 12px; font-size: 12px; color: var(--text-secondary); }
+.legend_item .dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 4px; }
+.legend_item .dot.sent { background: #4f46e5; }
+.legend_item .dot.received { background: #22c55e; }
+
+.chart_container {
+    height: 300px;
+    width: 100%;
+}
+
+/* Mobile Responsive */
+@media (max-width: 768px) {
+    .cls3741_account_card { flex-direction: column; text-align: center; }
+    .account_qr_section { border-right: none; border-bottom: 1px solid var(--border-color); padding-bottom: 20px; padding-right: 0; margin-bottom: 20px; width: 100%; }
+    .account_info_grid { grid-template-columns: 1fr 1fr; width: 100%; text-align: left; }
+}
+</style>
+</section>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+  <script>
+    // متغير عالمي للرسم البياني (لتحديثه لاحقاً)
+let dashboardChartInstance = null;
+
+async function loadDashboardData(channelId) {
+    // إذا لم نكن في صفحة الداشبورد، نتوقف
+    if (!document.getElementById('messagesChart')) return;
+
+    const activeId = channelId || window.currentChannelId;
+    if (!activeId || activeId === 'null') return;
+
+    console.log("📊 Loading Dashboard for channel:", activeId);
+
+    try {
+        const response = await fetch(`/discount/whatssapAPI/api/dashboard/stats/?channel_id=${activeId}`);
+        const data = await response.json();
+
+        if (data.success) {
+            // 1. تحديث النصوص والأرقام
+            updateText('dash_display_name', data.account.display_name);
+            updateText('dash_phone_number', data.account.phone_number);
+            updateText('dash_waba_id', data.account.waba_id);
+            
+            updateText('dash_contacts_count', data.stats.contacts);
+            updateText('dash_messages_count', data.stats.messages);
+            updateText('dash_campaigns_count', data.stats.campaigns);
+            updateText('dash_sent_count', data.stats.sent);
+            updateText('dash_received_count', data.stats.received);
+
+            // 2. تحديث الرسم البياني
+            updateChart(data.chart);
+        }
+
+    } catch (error) {
+        console.error("Dashboard Load Error:", error);
+    }
+}
+
+// دالة مساعدة لتحديث النصوص بأمان
+function updateText(id, value) {
+    const el = document.getElementById(id);
+    if (el) el.textContent = value || '-';
+}
+
+// دالة بناء/تحديث الرسم البياني
+function updateChart(chartData) {
+    const ctx = document.getElementById('messagesChart');
+    if (!ctx) return;
+
+    // إذا كان الرسم موجوداً مسبقاً، نقوم بتدميره لإنشاء واحد جديد (أو نحدث بياناته)
+    if (dashboardChartInstance) {
+        dashboardChartInstance.data.labels = chartData.labels;
+        dashboardChartInstance.data.datasets[0].data = chartData.sent;
+        dashboardChartInstance.data.datasets[1].data = chartData.received;
+        dashboardChartInstance.update();
+    } else {
+        // إنشاء الرسم لأول مرة
+        const chartCanvas = ctx.getContext('2d');
+        
+        // التدرجات اللونية (نفس التصميم الجميل السابق)
+        const gradientSent = chartCanvas.createLinearGradient(0, 0, 0, 400);
+        gradientSent.addColorStop(0, 'rgba(79, 70, 229, 0.5)');
+        gradientSent.addColorStop(1, 'rgba(79, 70, 229, 0.0)');
+
+        const gradientReceived = chartCanvas.createLinearGradient(0, 0, 0, 400);
+        gradientReceived.addColorStop(0, 'rgba(34, 197, 94, 0.5)');
+        gradientReceived.addColorStop(1, 'rgba(34, 197, 94, 0.0)');
+
+        dashboardChartInstance = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: chartData.labels, // ['Mon', 'Tue'...]
+                datasets: [
+                    {
+                        label: 'Sent',
+                        data: chartData.sent,
+                        borderColor: '#4f46e5',
+                        backgroundColor: gradientSent,
+                        borderWidth: 3,
+                        tension: 0.4,
+                        fill: true,
+                        pointRadius: 3
+                    },
+                    {
+                        label: 'Received',
+                        data: chartData.received,
+                        borderColor: '#22c55e',
+                        backgroundColor: gradientReceived,
+                        borderWidth: 3,
+                        tension: 0.4,
+                        fill: true,
+                        pointRadius: 3
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { display: false } },
+                scales: {
+                    y: { beginAtZero: true, grid: { color: '#374151' }, ticks: { color: '#9ca3af' } },
+                    x: { grid: { display: false }, ticks: { color: '#9ca3af' } }
+                }
+            }
+        });
+    }
+}
+
+// كشف الدالة للعامة
+loadDashboardData(window.currentChannelId || {{ initial_channel_id }} || 0);
+window.loadDashboardData = loadDashboardData;
+  </script>
+
+<!-- START: Chats 3-column layout (put this inside your template) -->
+<div id="cls3741_template_modal" class="cls3741_modal_overlay" style="display: none;">
+  <div class="cls3741_modal_content cls3741_modal_wide">
+      
+      <div class="cls3741_modal_header">
+          <h3>Send WhatsApp Template</h3>
+          <button type="button" onclick="closeTemplateModalchat()" class="cls3741_modal_close">&times;</button>
+      </div>
+
+      <div class="cls3741_modal_grid">
+          
+          <div class="cls3741_col_list">
+              <div class="cls3741_search_bar">
+                  <input type="text" id="tpl_search_input" placeholder="Search templates..." class="cls3741_input_field">
+              </div>
+              <div id="tpl_list_container" class="cls3741_tpl_list">
+                  <div class="cls3741_loader_new"><div class="cls3741_spinner"></div></div>
+              </div>
+          </div>
+
+          <div class="cls3741_col_preview">
+              
+              <div id="tpl_empty_state" class="cls3741_preview_empty">
+                  <span>👈 Select a template to configure</span>
+              </div>
+
+              <div id="tpl_config_area" style="display: none;">
+                  
+                  <div class="cls3741_wa_mockup">
+                      <div class="cls3741_wa_bubble">
+                          <div id="preview_header_container" class="cls3741_wa_header"></div>
+                          
+                          <div id="preview_body_text" class="cls3741_wa_body"></div>
+                          
+                          <div id="preview_footer_text" class="cls3741_wa_footer"></div>
+                          
+                          <div class="cls3741_wa_time">10:30 AM</div>
+                      </div>
+                      <div id="preview_buttons_container" class="cls3741_wa_buttons"></div>
+                  </div>
+
+                  <div class="cls3741_inputs_section">
+                      <h4>Template Configuration</h4>
+                      <div id="dynamic_inputs_container"></div>
+                  </div>
+
+                  <div class="cls3741_action_footer">
+                      <button id="btn_send_template" class="cls3741_btn_send_final">
+                          Send Message
+                      </button>
+                  </div>
+              </div>
+          </div>
+      </div>
+  </div>
+</div>
+
+<style>
+  /* Modal Layout */
+.cls3741_modal_wide {
+    width: 900px;
+    max-width: 95vw;
+    height: 85vh;
+    display: flex;
+    flex-direction: column;
+    padding: 0;
+    background: var(--bg-primary);
+    overflow: hidden;
+}
+
+.cls3741_modal_grid {
+    display: flex;
+    flex: 1;
+    overflow: hidden;
+}
+
+/* Left Column: List */
+.cls3741_col_list {
+    width: 320px;
+    border-right: 1px solid var(--border-color);
+    display: flex;
+    flex-direction: column;
+    background: var(--bg-secondary);
+}
+
+.cls3741_search_bar {
+    padding: 12px;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.cls3741_tpl_list {
+    flex: 1;
+    overflow-y: auto;
+}
+
+/* Template Item Style */
+.tpl-item {
+    padding: 14px;
+    border-bottom: 1px solid var(--border-color);
+    cursor: pointer;
+    transition: all 0.2s;
+    border-left: 3px solid transparent;
+}
+.tpl-item:hover { background: var(--bg-hover); }
+.tpl-item.active { 
+    background: var(--bg-tertiary); 
+    border-left-color: var(--accent); 
+}
+
+.tpl-category { 
+    font-size: 10px; text-transform: uppercase; 
+    color: var(--text-secondary); background: rgba(255,255,255,0.05); 
+    padding: 2px 6px; border-radius: 4px;
+}
+
+/* Right Column: Preview & Config */
+.cls3741_col_preview {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    background: #0b141a; /* WhatsApp Dark Background */
+    background-image: url('https://user-images.githubusercontent.com/15075759/28719144-86dc0f70-73b1-11e7-911d-60d70fcded21.png');
+    background-blend-mode: overlay;
+    opacity: 0.98;
+    overflow-y: auto;
+    position: relative;
+}
+
+.cls3741_preview_empty {
+    display: flex; align-items: center; justify-content: center;
+    height: 100%; color: #8696a0; font-size: 16px;
+}
+
+/* WhatsApp Mockup Styles */
+.cls3741_wa_mockup {
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start; /* محاذاة لليسار (رسالة واردة) */
+    max-width: 400px;
+    margin: 0 auto;
+}
+
+.cls3741_wa_bubble {
+    background: #202c33;
+    color: #e9edef;
+    padding: 8px;
+    border-radius: 8px;
+    border-top-left-radius: 0;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.3);
+    width: 100%;
+    position: relative;
+}
+
+.cls3741_wa_header img, .cls3741_wa_header video {
+    width: 100%; border-radius: 6px; margin-bottom: 6px;
+}
+.cls3741_wa_header { font-weight: bold; margin-bottom: 6px; color: #fff; }
+.cls3741_wa_body { font-size: 14px; line-height: 1.5; white-space: pre-wrap; }
+.cls3741_wa_footer { font-size: 11px; color: #8696a0; margin-top: 6px; }
+.cls3741_wa_time { font-size: 10px; color: #8696a0; text-align: right; margin-top: 4px; }
+
+.cls3741_wa_buttons {
+    width: 100%; margin-top: 4px; display: flex; flex-direction: column; gap: 4px;
+}
+.wa-btn-preview {
+    background: #202c33; color: #00a884;
+    text-align: center; padding: 10px; border-radius: 6px;
+    font-size: 14px; font-weight: 500; cursor: default;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.3);
+}
+
+/* Inputs Section (The Configuration Panel) */
+.cls3741_inputs_section {
+    background: var(--bg-primary);
+    border-top: 1px solid var(--border-color);
+    padding: 20px;
+    margin-top: auto; /* يدفعها للأسفل */
+}
+
+.cls3741_inputs_section h4 { margin: 0 0 12px 0; color: var(--text-secondary); font-size: 13px; text-transform: uppercase; }
+
+.var-input-group { margin-bottom: 12px; }
+.var-label { display: block; font-size: 12px; color: var(--text-secondary); margin-bottom: 4px; }
+.var-input { 
+    width: 100%; padding: 10px; border-radius: 8px; 
+    background: var(--bg-tertiary); border: 1px solid var(--border-color); 
+    color: var(--text-primary); outline: none;
+}
+.var-input:focus { border-color: var(--accent); }
+
+.cls3741_btn_send_final {
+    width: 100%; padding: 12px; background: var(--accent); 
+    color: white; border: none; border-radius: 8px; 
+    font-weight: bold; cursor: pointer; margin-top: 10px;
+}
+.cls3741_btn_send_final:hover { background: var(--accent-hover); }
+</style>
+
+<script>
+  (function() {
+    // --- المتغيرات العامة ---
+    let currentSelectedTemplate = null;
+    let variableValues = {}; // لتخزين قيم المتغيرات: { "1": "أحمد", "2": "ايفون" }
+    let headerMediaFile = null; // لتخزين ملف الهيدر المرفوع
+    let headerVariableValue = ''; // لتخزين متغير الهيدر النصي
+
+    // --- عناصر الواجهة ---
+    const listContainer = document.getElementById('tpl_list_container');
+    const emptyState = document.getElementById('tpl_empty_state');
+    const configArea = document.getElementById('tpl_config_area');
+    const inputsContainer = document.getElementById('dynamic_inputs_container');
+    const sendBtn = document.getElementById('btn_send_template');
+
+    // عناصر المعاينة (Preview Elements)
+    const previewHeader = document.getElementById('preview_header_container');
+    const previewBody = document.getElementById('preview_body_text');
+    const previewFooter = document.getElementById('preview_footer_text');
+    const previewButtons = document.getElementById('preview_buttons_container');
+
+    // --- 1. دالة الجلب (Fetching) ---
+    window.loadTemplate = async function(channelId = null) {
+        if (!listContainer) return;
+        
+        const activeChannel = channelId || window.currentChannelId || '{{ initial_channel_id|default:"null" }}';
+        if (!activeChannel || activeChannel === 'null') {
+            listContainer.innerHTML = '<div style="padding:20px;text-align:center;color:gray;">لا توجد قناة محددة</div>';
+            return;
+        }
+
+        listContainer.innerHTML = '<div class="cls3741_loader_new"><div class="cls3741_spinner"></div></div>';
+
+        try {
+            const url = `{% url 'api_get_templates' %}?channel_id=${activeChannel}`;
+            const response = await fetch(url, { headers: { 'Accept': 'application/json' } });
+            const data = await response.json();
+
+            if (data.templates) {
+                renderTemplateList(data.templates);
+            } else {
+                listContainer.innerHTML = '<div style="padding:20px;text-align:center;">القائمة فارغة</div>';
+            }
+        } catch (error) {
+            console.error("Error loading templates:", error);
+            listContainer.innerHTML = '<div style="color:red;text-align:center;padding:20px;">فشل التحميل</div>';
+        }
+    };
+
+    // --- 2. رسم القائمة الجانبية ---
+    function renderTemplateList(templates) {
+        listContainer.innerHTML = '';
+        if (templates.length === 0) {
+            listContainer.innerHTML = '<div style="padding:20px;">لا توجد قوالب.</div>';
+            return;
+        }
+
+        templates.forEach(tpl => {
+            const item = document.createElement('div');
+            item.className = 'tpl-item';
+            // عند النقر: ننتقل لوضع المعاينة والتعبئة (وليس الإرسال المباشر)
+            item.onclick = () => selectTemplateForPreview(tpl, item);
+            
+            item.innerHTML = `
+                <div class="tpl-header">
+                    <span class="tpl-name">${escapeHtml(tpl.name)}</span>
+                    <span class="tpl-meta">${tpl.status}</span>
+                </div>
+                <div class="tpl-body">${escapeHtml(tpl.body)}</div>
+            `;
+            listContainer.appendChild(item);
+        });
+
+        // تفعيل البحث
+        const searchInput = document.getElementById('tpl_search_input');
+        if (searchInput) {
+            searchInput.oninput = (e) => {
+                const val = e.target.value.toLowerCase();
+                document.querySelectorAll('.tpl-item').forEach(el => {
+                    el.style.display = el.innerText.toLowerCase().includes(val) ? 'block' : 'none';
+                });
+            };
+        }
+    }
+
+    // --- 3. المنطق الأساسي: اختيار القالب وتوليد الحقول (Core Logic) ---
+    function selectTemplateForPreview(tpl, itemElement) {
+        currentSelectedTemplate = tpl;
+        variableValues = {}; 
+        headerMediaFile = null;
+        headerVariableValue = '';
+
+        // تحديث الستايل (Active)
+        document.querySelectorAll('.tpl-item').forEach(el => el.classList.remove('active'));
+        if (itemElement) itemElement.classList.add('active');
+
+        // إظهار لوحة الإعداد وإخفاء الحالة الفارغة
+        if (emptyState) emptyState.style.display = 'none';
+        if (configArea) {
+            configArea.style.display = 'flex';
+            configArea.style.flexDirection = 'column';
+        }
+
+        // 1. توليد حقول الإدخال ديناميكياً
+        generateInputFields(tpl);
+
+        // 2. رسم المعاينة الأولية
+        updatePreview(tpl);
+    }
+
+    // توليد الحقول بناءً على محتوى القالب
+    function generateInputFields(tpl) {
+        inputsContainer.innerHTML = '';
+        let hasInputs = false;
+
+        // أ) معالجة الهيدر (Header Handling)
+        if (tpl.header_type && tpl.header_type !== 'NONE') {
+            const headerDiv = document.createElement('div');
+            headerDiv.className = 'var-input-group';
+            
+            if (tpl.header_type === 'TEXT') {
+                // التحقق هل الهيدر النصي يحتوي متغير {{1}}؟
+                if (tpl.header_text && tpl.header_text.includes('{{1}}')) {
+                    hasInputs = true;
+                    headerDiv.innerHTML = `
+                        <label class="var-label">Header Variable {{1}}</label>
+                        <input type="text" class="var-input header-var" placeholder="قيمة متغير العنوان">
+                    `;
+                    headerDiv.querySelector('input').addEventListener('input', (e) => {
+                        headerVariableValue = e.target.value;
+                        updatePreview(tpl);
+                    });
+                    inputsContainer.appendChild(headerDiv);
+                }
+            } 
+            else if (['IMAGE', 'VIDEO', 'DOCUMENT'].includes(tpl.header_type)) {
+                hasInputs = true;
+                headerDiv.innerHTML = `
+                    <label class="var-label">Header Attachment (${tpl.header_type})</label>
+                    <input type="file" class="var-input header-file" accept="${getAcceptType(tpl.header_type)}">
+                `;
+                headerDiv.querySelector('input').addEventListener('change', (e) => {
+                    if (e.target.files[0]) {
+                        headerMediaFile = e.target.files[0];
+                        updatePreview(tpl); // لتحديث صورة المعاينة
+                    }
+                });
+                inputsContainer.appendChild(headerDiv);
+            }
+        }
+
+        // ب) معالجة متغيرات النص (Body Variables) {{1}}, {{2}}...
+        const bodyVars = extractPlaceholders(tpl.body);
+        if (bodyVars.length > 0) {
+            hasInputs = true;
+            bodyVars.forEach(num => {
+                const div = document.createElement('div');
+                div.className = 'var-input-group';
+                div.innerHTML = `
+                    <label class="var-label">Body Variable [[${num}]]</label>
+                    <input type="text" class="var-input body-var" data-id="${num}" placeholder="قيمة المتغير [[${num}]]">
+                `;
+                div.querySelector('input').addEventListener('input', (e) => {
+                    variableValues[num] = e.target.value;
+                    updatePreview(tpl);
+                });
+                inputsContainer.appendChild(div);
+            });
+        }
+
+        // ج) معالجة الأزرار (Buttons) - إذا كان زر رابط ديناميكي
+        // (هذه خطوة متقدمة، إذا احتجتها سأضيفها، حالياً نركز على الـ Body/Header)
+
+        if (!hasInputs) {
+            inputsContainer.innerHTML = '<div style="padding:10px; color:#8696a0; font-size:13px; font-style:italic;">هذا القالب لا يحتاج إلى مدخلات. جاهز للإرسال.</div>';
+        }
+    }
+
+    // دالة تحديث المعاينة الحية (Live Preview)
+    function updatePreview(tpl) {
+        // 1. تحديث الهيدر
+        previewHeader.innerHTML = '';
+        if (tpl.header_type === 'TEXT' && tpl.header_text) {
+            let text = tpl.header_text;
+            if (headerVariableValue) text = text.replace('{{1}}', headerVariableValue);
+            previewHeader.innerHTML = `<div style="font-weight:bold; margin-bottom:8px;">${escapeHtml(text)}</div>`;
+        } 
+        else if (['IMAGE', 'VIDEO', 'DOCUMENT'].includes(tpl.header_type)) {
+            if (headerMediaFile) {
+                const url = URL.createObjectURL(headerMediaFile);
+                if (tpl.header_type === 'IMAGE') {
+                    previewHeader.innerHTML = `<img src="${url}" style="width:100%; border-radius:8px; margin-bottom:8px;">`;
+                } else if (tpl.header_type === 'VIDEO') {
+                    previewHeader.innerHTML = `<video src="${url}" controls style="width:100%; border-radius:8px; margin-bottom:8px;"></video>`;
+                } else {
+                    previewHeader.innerHTML = `<div style="background:#f0f2f5; padding:10px; border-radius:6px; color:#333;">📄 ${headerMediaFile.name}</div>`;
+                }
+            } else {
+                // Placeholder
+                previewHeader.innerHTML = `<div style="background:#374151; height:120px; border-radius:8px; display:flex; align-items:center; justify-content:center; color:#9ca3af; margin-bottom:8px;">${tpl.header_type} Media</div>`;
+            }
+        }
+
+        // 2. تحديث النص (Body)
+        let text = tpl.body;
+        // استبدال كل {{x}} بالقيمة المدخلة
+        Object.keys(variableValues).forEach(key => {
+            const val = variableValues[key];
+            if (val) {
+                // استبدال مع جعل القيمة غامقة Bold لتوضيحها في المعاينة
+                text = text.replace(new RegExp(`\\{\\{${key}\\}\\}`, 'g'), `<b>${escapeHtml(val)}</b>`);
+            }
+        });
+        previewBody.innerHTML = nl2br(text); // استخدام النسخة الخام مع المتغيرات المتبقية
+
+        // 3. الفوتر
+        previewFooter.textContent = tpl.footer || '';
+
+        // 4. الأزرار (Mockup)
+        // نحتاج للتعامل مع buttons إذا كانت تأتي من الـ API، حالياً سنعرضها كشكل فقط
+        previewButtons.innerHTML = '';
+        // (يمكنك إضافة منطق عرض الأزرار هنا إذا كانت البيانات متوفرة في tpl.buttons)
+    }
+
+    // --- 4. دالة الإرسال النهائية (Submit) ---
+    sendBtn.onclick = async function() {
+    if (!currentSelectedTemplate) return;
+
+    const phone = window.getCurrentChatPhone ? window.getCurrentChatPhone() : null;
+    if (!phone) { alert("لا توجد محادثة مفتوحة لإرسال القالب إليها."); return; }
+
+    // تعطيل الزر
+    sendBtn.disabled = true;
+    sendBtn.textContent = 'Sending...';
+
+    try {
+        const formData = new FormData();
+        
+        // البيانات الأساسية
+        formData.append('type', 'template');
+        formData.append('template_name', currentSelectedTemplate.name);
+        formData.append('language', currentSelectedTemplate.language);
+        formData.append('to', phone);
+        formData.append('channel_id', window.currentChannelId);
+
+        // ============================================================
+        // 🔥 التصحيح هنا: بناء هيكل components الذي يطلبه واتساب 🔥
+        // ============================================================
+        
+        const components = [];
+
+        // 1. معالجة متغيرات النص (Body)
+        const bodyParams = [];
+        const sortedKeys = Object.keys(variableValues).map(Number).sort((a,b)=>a-b);
+        
+        sortedKeys.forEach(k => {
+            // واتساب يريد كل متغير ككائن {type: "text", text: "القيمة"}
+            bodyParams.push({ 
+                type: "text", 
+                text: variableValues[k] 
+            });
+        });
+
+        if (bodyParams.length > 0) {
+            components.push({
+                type: "body",
+                parameters: bodyParams
+            });
+        }
+
+        // 2. معالجة متغيرات الهيدر (Header) - إذا كانت نصية
+        // (إذا كان الهيدر يحتوي على {{1}})
+        if (headerVariableValue) {
+             components.push({
+                type: "header",
+                parameters: [
+                    { type: "text", text: headerVariableValue }
+                ]
+            });
+        }
+
+        // إرسال الـ components كـ JSON String
+        // الباك إند سيستلمها، يفك تشفيرها، ويرسلها لميتا كما هي
+        if (components.length > 0) {
+            formData.append('components', JSON.stringify(components));
+        }
+
+        // 3. معالجة ملفات الهيدر (إذا كانت صورة/فيديو)
+        // هذه تظل منفصلة لأنها ملفات، والباك إند سيعالجها
+        if (headerMediaFile) {
+            formData.append('header_file', headerMediaFile);
+            formData.append('header_type', currentSelectedTemplate.header_type);
+        }
+
+        // ============================================================
+
+        // إرسال الطلب
+        const response = await fetch("{% url 'send_message' %}", {
+            method: 'POST',
+            headers: { 'X-CSRFToken': getCsrfToken() }, 
+            body: formData
+        });
+
+        const res = await response.json();
+        
+        if (response.ok) {
+            window.closeTemplateModal();
+            if (window.fetchMessagesForCurrentws) window.fetchMessagesForCurrentws();
+            alert("تم إرسال القالب بنجاح ✅");
+        } else {
+            console.error("Server Error:", res);
+            alert("فشل الإرسال: " + (res.error || JSON.stringify(res)));
+        }
+
+    } catch (e) {
+        console.error(e);
+        alert("خطأ في الاتصال بالسيرفر");
+    } finally {
+        sendBtn.disabled = false;
+        sendBtn.textContent = 'Send Message';
+    }
+};
+    // --- دوال مساعدة ---
+    function extractPlaceholders(text) {
+        const re = /\{\{(\d+)\}\}/g;
+        const nums = new Set();
+        let m;
+        while ((m = re.exec(text)) !== null) {
+            nums.add(parseInt(m[1]));
+        }
+        return Array.from(nums).sort((a,b)=>a-b);
+    }
+
+    function getAcceptType(type) {
+        if (type === 'IMAGE') return 'image/*';
+        if (type === 'VIDEO') return 'video/*';
+        if (type === 'DOCUMENT') return '.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx';
+        return '*/*';
+    }
+
+    function getCsrfToken() { return document.querySelector('[name=csrfmiddlewaretoken]')?.value || ''; }
+    function escapeHtml(s) { return (s || '').toString().replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+    function nl2br(s) { return (s || '').replace(/\r?\n/g, '<br>'); }
+
+    // --- دوال الفتح والإغلاق العامة ---
+    window.openTemplatePanel = function() {
+        const modal = document.getElementById('cls3741_template_modal');
+        if(modal) modal.style.display = 'flex';
+        window.loadTemplate();
+    };
+    
+    window.closeTemplateModalchat = function() {
+        const modal = document.getElementById('cls3741_template_modal');
+        if(modal) modal.style.display = 'none';
+        // تنظيف
+        currentSelectedTemplate = null;
+        variableValues = {};
+        headerMediaFile = null;
+        if(inputsContainer) inputsContainer.innerHTML = '';
+        if(previewBody) previewBody.innerHTML = '';
+    };
+// ضعه في أي مكان في ملف JS (خارج الدوال الأخرى)
+ 
+})();
+  
+  
+  </script>
+
+
+
+<section class="cls3741_panel cls3741_panel_chats" style="display:none;">
+ 
+  <div class="cls3741_chats_root">
+
+    <!-- LEFT: contacts list -->
+    <div class="cls3741_contacts_col" role="navigation" aria-label="Contacts">
+      <!-- 🔥 شريط البحث والفلترة المحسّن -->
+      <div class="cls3741_search_filter_bar">
+        <div class="cls3741_search_wrapper_new">
+          <svg class="cls3741_search_icon_new" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="11" cy="11" r="8"></circle>
+            <path d="m21 21-4.35-4.35"></path>
+          </svg>
+          <input 
+            type="text" 
+            id="cls3741_search" 
+            class="cls3741_search_input_new"
+            placeholder="ابحث عن اسم أو رقم..." 
+            aria-label="Search contacts"
+            autocomplete="off"
+          />
+          <button class="cls3741_search_clear" id="cls3741_search_clear" style="display:none;" aria-label="Clear search">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <line x1="18" y1="6" x2="6" y2="18"></line>
+              <line x1="6" y1="6" x2="18" y2="18"></line>
+            </svg>
+          </button>
+      </div>
+
+        <!-- 🔥 أزرار الفلترة -->
+        <div class="cls3741_filter_buttons">
+          <button class="cls3741_filter_btn active" data-filter="all" title="الكل">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M3 3h18v18H3z"></path>
+            </svg>
+            <span>الكل</span>
+          </button>
+          <button class="cls3741_filter_btn" data-filter="unread" title="غير مقروء">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="12" cy="12" r="10"></circle>
+            </svg>
+            <span>غير مقروء</span>
+          </button>
+          <button class="cls3741_filter_btn" data-filter="read" title="مقروء">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M20 6L9 17l-5-5"></path>
+            </svg>
+            <span>مقروء</span>
+          </button>
+        </div>
+      </div>
+
+      <div class="cls3741_contacts_list" id="cls3741_contacts_list" role="list">
+        <div id="cls3741_contacts_loader" class="cls3741_loader_new">
+          <div class="cls3741_spinner"></div>
+          <span>جاري التحميل...</span>
+        </div>
+      </div>
+    </div>
+
+ 
+    <!-- CENTER: chat conversation -->
+    
+     <!-- CENTER: chat conversation -->
+    <div class="cls3741_chat_col" id="cls3741_chat_col" aria-live="polite">
+      <div class="cls3741_chat_header">
+        <div style="display:flex;align-items:center;gap:10px">
+          <div class="cls3741_contact_avatar" id="cls3741_active_avatar">B</div>
+          <div>
+            <div class="title" id="cls3741_active_name"></div>
+            <div style="font-size:13px;color:var(--muted)" id ="last_seen_"></div>
+          </div>
+        </div>
+        <div style="margin-left:auto;display:flex;gap:8px">
+          <button id="cls3741_open_info" class="cls3741_action_btn" title="Open contact info">Create order</button>
+        </div>
+      </div>
+
+      <div class="cls3741_messages_area" id="cls3741_messages_area" tabindex="0">
+        <div class="flex items-center justify-center" style="
+    display: flex;
+    align-content: space-between;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    height: 100%;">
+          <img src="https://leadr.space/build/assets/choose-conversation-Cj2zZ2gp.svg" alt="choose a conversation image" class="w-lg">
+        <span >Select a conversation to start chatting</span>
+        </div>
+
+        <!-- sample messages -->
+        <!-- <div class="cls3741_msg_bubble">أهلًا! هل المنتج متوفر؟ <span class="cls3741_msg_time">10:12</span></div>
+        <div class="cls3741_msg_bubble me">نعم متوفر، نرسل لك التفاصيل الآن. <span class="cls3741_msg_time">10:13</span></div>
+        <div class="cls3741_msg_bubble">كم الثمن ووقت التوصيل؟ <span class="cls3741_msg_time">10:15</span></div>
+        <div class="cls3741_msg_bubble me">السعر 250 درهم والتوصيل خلال 48 ساعة <span class="cls3741_msg_time">10:16</span></div>
+        <div class="cls3741_msg_bubble">شكرًا لك! سأطلب الآن <span class="cls3741_msg_time">10:17</span></div> -->
+      </div>
+
+      <!-- منطقة إدخال الرسائل والوسائط - تصميم مشابه للواتساب -->
+      <div class="cls3741_chat_input_wrapper">
+        <!-- منطقة معاينة الوسائط -->
+        <div class="cls3741_media_preview" id="cls3741_media_preview"></div>
+        
+        <div class="cls3741_chat_input_container">
+          <!-- الأزرار على اليسار -->
+          <div class="cls3741_input_actions">
+            <!-- زر التسجيل الصوتي -->
+            <!-- <button type="button" class="cls3741_icon_btn" id="cls3741_audio_btn" title="تسجيل صوتي">
+              🎤
+            </button> -->
+
+        
+            <!-- زر رفع الصور -->
+            <button type="button" class="cls3741_icon_btn" id="cls3741_image_btn" title="رفع صورة">
+              📷
+            </button>
+            
+            <!-- زر رفع الفيديو -->
+            <button type="button" class="cls3741_icon_btn" id="cls3741_video_btn" title="رفع فيديو">
+              🎬
+            </button> 
+               <button aria-label="Dictate button" type="button" id="cls3741_audio_btn" title="تسجيل صوتي" class="composer-btn cls3741_icon_btn"><svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor" xmlns="http://www.w3.org/2000/svg" aria-label="" class="icon" font-size="inherit"><path d="M15.7806 10.1963C16.1326 10.3011 16.3336 10.6714 16.2288 11.0234L16.1487 11.2725C15.3429 13.6262 13.2236 15.3697 10.6644 15.6299L10.6653 16.835H12.0833L12.2171 16.8486C12.5202 16.9106 12.7484 17.1786 12.7484 17.5C12.7484 17.8214 12.5202 18.0894 12.2171 18.1514L12.0833 18.165H7.91632C7.5492 18.1649 7.25128 17.8672 7.25128 17.5C7.25128 17.1328 7.5492 16.8351 7.91632 16.835H9.33527L9.33429 15.6299C6.775 15.3697 4.6558 13.6262 3.84992 11.2725L3.76984 11.0234L3.74445 10.8906C3.71751 10.5825 3.91011 10.2879 4.21808 10.1963C4.52615 10.1047 4.84769 10.2466 4.99347 10.5195L5.04523 10.6436L5.10871 10.8418C5.8047 12.8745 7.73211 14.335 9.99933 14.335C12.3396 14.3349 14.3179 12.7789 14.9534 10.6436L15.0052 10.5195C15.151 10.2466 15.4725 10.1046 15.7806 10.1963ZM12.2513 5.41699C12.2513 4.17354 11.2437 3.16521 10.0003 3.16504C8.75675 3.16504 7.74835 4.17343 7.74835 5.41699V9.16699C7.74853 10.4104 8.75685 11.418 10.0003 11.418C11.2436 11.4178 12.2511 10.4103 12.2513 9.16699V5.41699ZM13.5814 9.16699C13.5812 11.1448 11.9781 12.7479 10.0003 12.748C8.02232 12.748 6.41845 11.1449 6.41828 9.16699V5.41699C6.41828 3.43889 8.02221 1.83496 10.0003 1.83496C11.9783 1.83514 13.5814 3.439 13.5814 5.41699V9.16699Z"></path></svg></button>
+            
+          </div>
+
+          <!-- حقل إدخال النص -->
+          <textarea 
+            class="cls3741_chat_textarea" 
+            id="cls3741_message_input" 
+            placeholder="اكتب رسالة..."
+            rows="1"
+          ></textarea>
+
+          <!-- زر الإرسال -->
+          <button class="cls3741_send_btn" id="cls3741_send_btn" title="إرسال">
+            <svg class="cls3741_send_icon" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/>
+            </svg>
+          </button>
+        </div>
+      </div>
+
+      <!-- عناصر الإدخال المخفية للملفات -->
+      <input type="file" id="cls3741_image_input" class="cls3741_hidden_input" accept="image/*">
+      <input type="file" id="cls3741_video_input" class="cls3741_hidden_input" accept="video/*">
+    </div>
+
+
+    <!-- RIGHT: user info card -->
+    <aside class="cls3741_user_col" style="display: none;" id="cls3741_user_col" aria-label="Contact info">
+      <div class="cls3741_user_head">
+        <div class="cls3741_user_avatar" id="cls3741_user_avatar">B</div>
+        <div class="cls3741_user_meta">
+          <div class="cls3741_user_name" id="cls3741_user_name">Boujema</div>
+          <div class="cls3741_user_phone" id="cls3741_user_phone">+212 612 638 500</div>
+        </div>
+      </div>
+
+      <div class="cls3741_user_section">
+        <div style="font-size:13px;color:var(--muted);margin-bottom:6px">البريد الإلكتروني</div>
+        <div style="font-weight:700;color:var(--text-primary)">boujema@example.com</div>
+
+        <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap">
+          <div style="background:var(--bg-tertiary);padding:8px 10px;border-radius:8px;font-size:13px;color:var(--muted)">مشترك منذ: 2023</div>
+          <div style="background:var(--bg-tertiary);padding:8px 10px;border-radius:8px;font-size:13px;color:var(--muted)">حالة: متحقق</div>
+        </div>
+      </div>
+
+      <div class="cls3741_user_section" style="margin-top:12px">
+        <div class="cls3741_user_kv"><span>الطلبات</span><span style="font-weight:700;color:var(--text-primary)">12</span></div>
+        <div class="cls3741_user_kv"><span>الإجمالي</span><span style="font-weight:700;color:var(--text-primary)">1,254</span></div>
+        <div class="cls3741_action_row">
+          <button class="cls3741_action_btn" id="cls3741_call">Call</button>
+          <button class="cls3741_action_btn" id="cls3741_message">Message</button>
+        </div>
+      </div>
+    </aside>
+
+  </div>
+
+  
+
+</section>
+<!-- END: Chats 3-column layout -->
+
+
+
+
+  <section class="cls3741_panel cls3741_panel_orders" style="display: none;">
+    <h2>Orders</h2>
+    <p>Manage Orders</p>
+  </br>
+ <div style="display:flex;gap:18px;align-items:flex-start;flex-wrap:wrap;">
+        <!-- LEFT: contacts list -->
+         
+        <div style="flex:1;min-width:260px;max-width:520px;">
+            <div style="margin-bottom:10px">
+                <input id="contacts_panel_search" placeholder="Search by name or number..." style="width:100%;padding:10px;border-radius:10px;border:1px solid rgba(255,255,255,0.04);background:rgba(2,6,23,0.35);color:#eafcff">
+            </div>
+
+          
+        </div>
+    </div>
+            <div id="templates_table_wrap" style="background:linear-gradient(180deg, rgba(255,255,255,0.01), rgba(255,255,255,0.005));padding:8px;border-radius:10px;border:1px solid rgba(255,255,255,0.03);overflow:auto">
+            <table id="templates_table" style="width:100%;border-collapse:collapse">
+                <thead>
+                    <tr style="text-align:left;border-bottom:1px solid rgba(255,255,255,0.04);">
+                        <th style="padding:10px;font-weight:700;color:#eafcff">Customer</th>
+                        <th style="padding:10px;font-weight:700;color:#eafcff">Agent</th>
+                        <th style="padding:10px;font-weight:700;color:#eafcff">Address</th>
+                        <th style="padding:10px;font-weight:700;color:#eafcff">Prices</th>
+                        <th style="padding:10px;font-weight:700;color:#eafcff">Created at</th>
+                    </tr>
+                </thead>
+                <tbody id="orders_tbody">
+                    <!-- sample empty state -->
+                    <tr>
+                        <td colspan="5" style="padding:18px;color:var(--muted);text-align:center">لا توجد قوالب بعد — اضغط "إنشاء قالب" لإضافة واحد</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+
+     <script>
+  // 🔒 دالة لتحصين النصوص ضد إدخال HTML خبيث (XSS)
+  function escapeHtml(str) {
+    if (!str) return '';
+    return String(str)
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&#039;");
+  }
+
+  const tbody = document.getElementById('orders_tbody');
+
+
+  async function loadTemplates(channel_id_arg=null){
+   
+    // 1. تنظيف المدخلات: إذا كان المعامل هو حدث (Event) نجعله null
+    let activeChannelId = channel_id_arg;
+    
+    if (activeChannelId && (typeof activeChannelId === 'object' || activeChannelId instanceof Event)) {
+        activeChannelId = null;
+    }
+
+    // 2. استخدام القيمة الممررة أو القيمة العامة
+    const channel_id = activeChannelId || window.currentChannelId || '{{ initial_channel_id }}';
+
+    if(!tbody) return;
+    tbody.innerHTML = `<tr><td colspan="5" style="padding:18px;color:var(--muted);text-align:center">Loading orders...</td></tr>`;
+    try{
+      const url = `/discount/whatssapAPI/api_orders/?channel_id=${channel_id}`;
+      const res = await fetch(url, {
+        cache: 'no-store',
+        headers: { 'Accept': 'application/json' }
+      });
+
+      if(!res.ok) throw new Error('network');
+      const data = await res.json();
+      const list = data.orders || data || [];
+      console.log('Orders loaded', list);
+
+      if(!Array.isArray(list) || list.length === 0){
+        tbody.innerHTML = `<tr><td colspan="5" style="padding:18px;color:var(--muted);text-align:center">There are no orders yet</td></tr>`;
+        return;
+      }
+
+      tbody.innerHTML = '';
+      list.forEach(item => {
+        const name = escapeHtml(item.customer_name || item.title || '');
+        const useremail = escapeHtml(item.user || item.cat || '-');
+        const customer_city = escapeHtml(item.customer_city || item.body || '-');
+        const Tamount = escapeHtml(item.total_amount || '-');
+        const updated = escapeHtml(item.created_at || item.last_updated || item.updated_at || '');
+
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td style="padding:10px">${name}</td>
+          <td style="padding:10px">${useremail}</td>
+          <td style="padding:10px;color:var(--muted);max-width:320px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${customer_city}</td>
+          <td style="padding:10px">${Tamount}</td>
+          <td style="padding:10px">${updated}</td>
+        `;
+        tbody.appendChild(tr);
+      });
+    } catch(err) {
+      console.error('loadOrders error', err);
+      tbody.innerHTML = `<tr><td colspan="5" style="padding:18px;color:var(--muted);text-align:center">Failed to load orders</td></tr>`;
+    }
+  }
+
+  // تحميل البيانات عند الضغط على الزر
+  const templatesNavBtn = document.querySelector('.cls3741_btn[data-target="orders"]');
+  if(templatesNavBtn && !templatesNavBtn.dataset._boundTemplatesLoader){
+    templatesNavBtn.addEventListener('click', loadTemplates);
+    templatesNavBtn.dataset._boundTemplatesLoader = '1';
+  }
+</script>
+
+
+  </section>
+
+
+ <!-- -------------------contcat --------------  -->
+ <!-- قسم جهات الاتصال المحسن -->
+<section class="cls3741_panel cls3741_panel_contacts" style="display: none;">
+  <style>
+    /* --- Design Tokens & Variables --- */
+.cls3741_contacts_panel {
+    /* --primary-color: #05ab53; */
+    /* --primary-hover: #1d4ed8; */
+    /* --bg-canvas: #f3f4f6; */
+    /* --bg-surface: #ffffff; */
+    --bg-surface-hover: #000000;
+    /* --text-primary: #111827; */
+    --text-secondary: #6b7280;
+    /* --text-muted: #9ca3af; */
+    --border-color: #343436;
+    --vip-color: #f59e0b;
+    --danger-color: #ef4444;
+    --radius-lg: 16px;
+    --radius-md :12px;
+    --radius-sm: 8px;
+    --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+    --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    padding: 24px;
+    /* min-height: 100vh; */
+    background-color: var(--bg-canvas);
+    box-sizing: border-box;
+}
+
+    /* --- Layout Grid --- */
+    .cls3741_contacts_layout {
+      display: grid;
+      grid-template-columns: 380px 1fr; /* Fixed list width, fluid details */
+      gap: 24px;
+      max-width: 1400px;
+      margin: 0 auto;
+      height: calc(100vh - 278px);
+    }
+
+    /* --- Header --- */
+    .cls3741_contacts_header {
+    margin-bottom: 20px;
+    display: flex;
+    align-items: center;
+    flex-direction: column;
+}
+
+    .cls3741_contacts_title {
+      font-size: 24px;
+      font-weight: 700;
+      color: var(--text-primary);
+      letter-spacing: -0.5px;
+      margin: 0;
+    }
+
+    /* --- Left Column: Search & List --- */
+    .cls3741_list_container {
+      background: var(--bg-surface);
+      border-radius: var(--radius-lg);
+      box-shadow: var(--shadow-md);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      border: 1px solid var(--border-color);
+    }
+
+    .cls3741_search_wrapper {
+      padding: 16px;
+      border-bottom: 1px solid var(--border-color);
+    }
+
+    .cls3741_search_input_group {
+      position: relative;
+    }
+
+    .cls3741_search_icon {
+      position: absolute;
+      left: 12px;
+      top: 50%;
+      transform: translateY(-50%);
+      color: var(--text-muted);
+      pointer-events: none;
+    }
+
+    .cls3741_contacts_search {
+      width: 100%;
+      padding: 12px 12px 12px 40px;
+      border-radius: var(--radius-md);
+      border: 1px solid var(--border-color);
+      background: var(--bg-surface-hover);
+      color: var(--text-primary);
+      font-size: 14px;
+      outline: none;
+      transition: all 0.2s ease;
+    }
+
+    .cls3741_contacts_search:focus {
+      border-color: var(--primary-color);
+      background: #fff;
+      box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+    }
+
+    /* --- Tabs (Filters) --- */
+    .cls3741_tabs {
+      display: flex;
+      padding: 0 16px 12px 16px;
+      gap: 8px;
+      border-bottom: 1px solid var(--border-color);
+    }
+
+    .cls3741_tab_btn {
+      border: none;
+      background: transparent;
+      padding: 8px 16px;
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text-secondary);
+      border-radius: 20px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .cls3741_tab_btn:hover {
+      background: var(--bg-canvas);
+      color: var(--text-primary);
+    }
+
+    .cls3741_tab_btn.active {
+      background: var(--primary-color);
+      color: white;
+    }
+    
+    .cls3741_tab_btn.vip-tab.active {
+        background: var(--vip-color);
+        color: white;
+    }
+
+    /* --- Contact List Items --- */
+    .cls3741_contacts_list {
+      flex: 1;
+      overflow-y: auto;
+      padding: 8px;
+    }
+    
+    /* Custom Scrollbar */
+    .cls3741_contacts_list::-webkit-scrollbar { width: 6px; }
+    .cls3741_contacts_list::-webkit-scrollbar-thumb { background-color: #d1d5db; border-radius: 3px; }
+
+    .cls3741_contact_card {
+      display: flex;
+      align-items: center;
+      padding: 12px;
+      margin-bottom: 4px;
+      border-radius: var(--radius-md);
+      cursor: pointer;
+      transition: all 0.2s ease;
+      border: 1px solid transparent;
+    }
+
+    .cls3741_contact_card:hover {
+      background-color: var(--bg-surface-hover);
+    }
+
+.cls3741_contact_card.active {
+    background-color: #2d2b2b;
+    border-color: #343436;
+}
+
+    /* VIP Styling */
+    .cls3741_contact_card.is_vip {
+      border-left: 3px solid var(--vip-color);
+    }
+    
+    .cls3741_contact_card.is_vip .cls3741_avatar {
+        background: linear-gradient(135deg, var(--vip-color), #b45309);
+    }
+
+    .cls3741_avatar {
+      width: 44px;
+      height: 44px;
+      border-radius: 12px;
+      background: linear-gradient(135deg, #4b5563, #1f2937);
+      color: white;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 16px;
+      font-weight: 700;
+      flex-shrink: 0;
+      margin-right: 12px;
+      position: relative;
+    }
+
+    .cls3741_vip_icon {
+      position: absolute;
+      top: -4px;
+      right: -4px;
+      background: #fff;
+      border-radius: 50%;
+      color: var(--vip-color);
+      font-size: 12px;
+      padding: 1px;
+    }
+
+    .cls3741_card_info {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .cls3741_card_name {
+      font-size: 15px;
+      font-weight: 600;
+      color: var(--text-primary);
+      margin-bottom: 2px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .cls3741_card_meta {
+      font-size: 12px;
+      color: var(--text-secondary);
+      display: flex;
+      justify-content: space-between;
+    }
+
+    .cls3741_badge {
+      background: var(--danger-color);
+      color: white;
+      padding: 2px 8px;
+      border-radius: 10px;
+      font-size: 11px;
+      font-weight: 700;
+      margin-left: 8px;
+    }
+
+    /* --- Right Column: Details --- */
+    .cls3741_details_panel {
+      background: var(--bg-surface);
+      border-radius: var(--radius-lg);
+      box-shadow: var(--shadow-md);
+      border: 1px solid var(--border-color);
+      padding: 32px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      text-align: center;
+      overflow-y: auto;
+    }
+
+    .cls3741_profile_header {
+      margin-bottom: 32px;
+      width: 100%;
+      position: relative;
+    }
+    
+    .cls3741_vip_badge_large {
+        display: none;
+        background: #fffbeb;
+        color: #b45309;
+        padding: 6px 12px;
+        border-radius: 20px;
+        font-size: 12px;
+        font-weight: 700;
+        margin: 0 auto 16px;
+        width: fit-content;
+        border: 1px solid #fcd34d;
+    }
+
+    .cls3741_profile_avatar {
+      width: 100px;
+      height: 100px;
+      border-radius: 24px;
+      background: #e5e7eb;
+      margin: 0 auto 16px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 36px;
+      font-weight: 800;
+      color: var(--text-secondary);
+    }
+
+    .cls3741_profile_name {
+      font-size: 24px;
+      font-weight: 800;
+      color: var(--text-primary);
+      margin-bottom: 4px;
+    }
+
+    .cls3741_profile_phone {
+      font-size: 16px;
+      color: var(--text-secondary);
+      font-family: monospace;
+    }
+
+    .cls3741_stats_container {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+      width: 100%;
+      margin-bottom: 32px;
+    }
+
+    .cls3741_stat_box {
+      background: var(--bg-canvas);
+      padding: 16px;
+      border-radius: var(--radius-md);
+      text-align: center;
+    }
+
+    .cls3741_stat_value {
+      font-size: 20px;
+      font-weight: 700;
+      color: var(--text-primary);
+      margin-bottom: 4px;
+    }
+
+    .cls3741_stat_label {
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: var(--text-secondary);
+    }
+
+    .cls3741_info_grid {
+      width: 100%;
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 16px;
+      margin-bottom: 32px;
+      text-align: left;
+    }
+
+    .cls3741_info_item {
+      display: flex;
+      justify-content: space-between;
+      padding-bottom: 12px;
+      border-bottom: 1px solid var(--border-color);
+    }
+
+    .cls3741_info_label { color: var(--text-secondary); font-size: 14px; }
+    .cls3741_info_text { color: var(--text-primary); font-weight: 500; font-size: 14px; }
+
+    .cls3741_actions {
+      width: 100%;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+
+     .cls3741_btn1 {
+      padding: 14px;
+      border-radius: var(--radius-md);
+      font-weight: 600;
+      cursor: pointer;
+      border: none;
+      transition: transform 0.1s;
+      font-size: 14px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+    }
+    
+    .cls3741_btn1:active { transform: scale(0.98); }
+
+    .cls3741_btn_primary { background: var(--primary-color); color: white; }
+    .cls3741_btn_primary:hover { background: var(--primary-hover); }
+
+    .cls3741_btn_secondary { background: rgb(0, 0, 0); border: 1px solid var(--border-color); color: var(--text-primary); }
+    .cls3741_btn_secondary:hover { background: var(--bg-canvas); }
+
+    /* --- Utilities --- */
+    .cls3741_hidden { display: none !important; }
+    
+    .cls3741_loader {
+        border: 3px solid #f3f3f3;
+        border-top: 3px solid var(--primary-color);
+        border-radius: 50%;
+        width: 24px;
+        height: 24px;
+        animation: spin 1s linear infinite;
+        margin: 40px auto;
+    }
+
+    @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+
+    @media (max-width: 900px) {
+      .cls3741_contacts_layout { grid-template-columns: 1fr; }
+      .cls3741_details_panel { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 50; }
+      .cls3741_details_panel.mobile-active { display: flex; }
+    }
+  </style> 
+
+<div class="cls3741_contacts_panel">
+ 
+
+  <div class="cls3741_contacts_layout">
+    
+    <div class="cls3741_list_container">
+      
+      <div class="cls3741_search_wrapper">
+        <div class="cls3741_search_input_group">
+          <span class="cls3741_search_icon">
+             <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+          </span>
+          <input type="text" class="cls3741_contacts_search" placeholder="Search name, phone..." id="cls3741_search_input">
+        </div>
+      </div>
+
+      <div class="cls3741_tabs" id="cls3741_tabs_container">
+          <button class="cls3741_tab_btn active" data-filter="all">All</button>
+          <button class="cls3741_tab_btn vip-tab" data-filter="important">⭐ VIP</button>
+          <button class="cls3741_tab_btn" data-filter="unread">💬 Unread</button>
+      </div>
+
+      <div class="cls3741_contacts_list" id="cls3741_contacts_list_el">
+          <div class="cls3741_loader_new"><div class="cls3741_spinner"></div></div>
+      </div>
+
+      <div class="cls3741_pagination_container" id="main_pagination_controls" style="border-top:1px solid var(--border-color); padding:12px; display:flex; justify-content:center; gap:8px;">
+          </div>
+    </div>
+
+    <div class="cls3741_details_panel" id="cls3741_details_panel">
+      
+      <div class="cls3741_empty_state" id="cls3741_empty_details" style="margin-top: 100px;">
+        <div style="font-size: 48px; margin-bottom: 16px; opacity: 0.3;">👆</div>
+        <div class="cls3741_contacts_header">
+          <h2 class="cls3741_contacts_title">Contacts Directory</h2>
+          <div class="cls3741_header_actions" style="display:flex; gap:10px;">
+              <button class="cls3741_btn1 cls3741_btn_secondary" onclick="window.openImportModal()">
+                  📤 Import CSV
+              </button>
+              <button class="cls3741_btn1 cls3741_btn_primary" onclick="window.openAddContactModal()">
+                  + Add Contact
+              </button>
+          </div>
+        </div>
+      </div>
+
+      <div id="cls3741_active_contact_content" class="cls3741_hidden" style="width: 100%;">
+          
+          <div class="cls3741_profile_header">
+              <div class="cls3741_vip_badge_large" id="cls3741_vip_badge">⭐ High Value Client</div>
+              <div class="cls3741_profile_avatar" id="cls3741_detail_avatar"></div>
+              <div class="cls3741_profile_name" id="cls3741_detail_name"></div>
+              <div class="cls3741_profile_phone" id="cls3741_detail_phone"></div>
+          </div>
+
+          <div class="cls3741_stats_container">
+              <div class="cls3741_stat_box">
+                  <div class="cls3741_stat_value" id="cls3741_stat_orders">0</div>
+                  <div class="cls3741_stat_label">Total Orders</div>
+              </div>
+              <div class="cls3741_stat_box">
+                  <div class="cls3741_stat_value" id="cls3741_stat_spent">$0.00</div>
+                  <div class="cls3741_stat_label">Lifetime Value</div>
+              </div>
+          </div>
+
+          <div class="cls3741_info_grid">
+              <div class="cls3741_info_item">
+                  <span class="cls3741_info_label">Last Active</span>
+                  <span class="cls3741_info_text" id="cls3741_detail_seen">-</span>
+              </div>
+              <div class="cls3741_info_item">
+                  <span class="cls3741_info_label">Joined</span>
+                  <span class="cls3741_info_text" id="cls3741_detail_contacted">-</span>
+              </div>
+          </div>
+
+          <div class="cls3741_actions">
+              <button class="cls3741_btn1 cls3741_btn_secondary" id="cls3741_btn_msg">
+                  <span>💬 Message</span>
+              </button>
+              <button class="cls3741_btn1 cls3741_btn_primary" id="cls3741_btn_call">
+                  <span>📞 Call Now</span>
+              </button>
+          </div>
+          
+          <button class="cls3741_btn1 cls3741_btn_secondary" style="width:100%; margin-top: 12px; display:none;" id="cls3741_close_mobile" onclick="closeDetailsPanel()">
+              Close Details
+          </button>
+      </div>
+    </div>
+  </div>
+</div>
+  
+<script>
+  document.addEventListener("DOMContentLoaded", function() {
+      
+      // --- State ---
+      const STATE = {
+          page: 1,
+          totalPages: 1,
+          search: '',
+          filter: 'all',
+          isLoading: false,
+          selectedContactId: null
+      };
+  
+      // --- Elements ---
+      const listContainer = document.getElementById('cls3741_contacts_list_el');
+      const paginationContainer = document.getElementById('main_pagination_controls');
+      const searchInput = document.getElementById('cls3741_search_input');
+      const tabsContainer = document.getElementById('cls3741_tabs_container');
+      
+      // Details Elements
+      const els = {
+          emptyDetails: document.getElementById('cls3741_empty_details'),
+          contentDetails: document.getElementById('cls3741_active_contact_content'),
+          detailsPanel: document.getElementById('cls3741_details_panel'),
+          // Fields
+          dName: document.getElementById('cls3741_detail_name'),
+          dPhone: document.getElementById('cls3741_detail_phone'),
+          dAvatar: document.getElementById('cls3741_detail_avatar'),
+          dVipBadge: document.getElementById('cls3741_vip_badge'),
+          dOrders: document.getElementById('cls3741_stat_orders'),
+          dSpent: document.getElementById('cls3741_stat_spent'),
+          dSeen: document.getElementById('cls3741_detail_seen'),
+          dContacted: document.getElementById('cls3741_detail_contacted'),
+          // Buttons
+          btnCall: document.getElementById('cls3741_btn_call'),
+          btnMsg: document.getElementById('cls3741_btn_msg')
+      };
+  
+      // --- Main Fetch Function ---
+      window.loadContactsListForChannel = async function(channelId, resetPage = true) {
+          const activeId = channelId || window.currentChannelId;
+          if (!activeId) return;
+  
+          if (resetPage) STATE.page = 1;
+          if (STATE.isLoading) return;
+          STATE.isLoading = true;
+  
+          listContainer.innerHTML = '<div class="cls3741_loader_new"><div class="cls3741_spinner"></div></div>';
+  
+          try {
+              let url = `{% url 'api_contactslist' %}?channel_id=${activeId}&page=${STATE.page}`;
+              if (STATE.search) url += `&q=${encodeURIComponent(STATE.search)}`;
+              if (STATE.filter !== 'all') url += `&filter=${STATE.filter}`;
+  
+              const res = await fetch(url, { headers: { 'Accept': 'application/json' } });
+              const data = await res.json();
+  
+              if (data.contacts && data.contacts.length > 0) {
+                  STATE.totalPages = data.total_pages || 1;
+                  renderMainList(data.contacts);
+                  renderPaginationControls(data.has_next, data.current_page);
+              } else {
+                  listContainer.innerHTML = '<div style="padding:40px;text-align:center;color:var(--text-secondary);">No contacts found</div>';
+                  paginationContainer.innerHTML = ''; // إخفاء الأزرار
+              }
+  
+          } catch (error) {
+              console.error("Error:", error);
+              listContainer.innerHTML = '<div style="color:red;text-align:center;padding:20px;">Failed to load data</div>';
+          } finally {
+              STATE.isLoading = false;
+          }
+      };
+  
+      // --- Render List ---
+      function renderMainList(contacts) {
+          const frag = document.createDocumentFragment();
+          contacts.forEach(c => {
+              const el = document.createElement('div');
+              // إضافة كلاس VIP إذا كان مهماً
+              const vipClass = c.is_important ? 'is_vip' : '';
+              const activeClass = (STATE.selectedContactId === c.id) ? 'active' : '';
+              
+              el.className = `cls3741_contact_card ${vipClass} ${activeClass}`;
+              el.onclick = () => selectContact(c, el);
+  
+              // الأفاتار
+              const initial = c.name.charAt(0).toUpperCase();
+              let avatarHtml = initial;
+              if(c.profile_picture) {
+                  avatarHtml = `<img src="${c.profile_picture}" style="width:100%;height:100%;border-radius:12px;object-fit:cover;">`;
+              }
+  
+              el.innerHTML = `
+                  <div class="cls3741_avatar">
+                      ${avatarHtml}
+                      ${c.is_important ? '<div class="cls3741_vip_icon">★</div>' : ''}
+                  </div>
+                  <div class="cls3741_card_info">
+                      <div class="cls3741_card_name">
+                          ${c.name}
+                          ${c.unread > 0 ? `<span class="cls3741_badge">${c.unread}</span>` : ''}
+                      </div>
+                      <div class="cls3741_card_meta">
+                          <span>${c.phone}</span>
+                          <span>${c.timestamp || ''}</span>
+                      </div>
+                  </div>
+              `;
+              frag.appendChild(el);
+          });
+  
+          listContainer.innerHTML = '';
+          listContainer.appendChild(frag);
+      }
+  
+      // --- Select Contact (الميزة التي كانت مفقودة) ---
+      function selectContact(contact, cardElement) {
+          STATE.selectedContactId = contact.id;
+  
+          // Highlight Card
+          document.querySelectorAll('.cls3741_contact_card').forEach(c => c.classList.remove('active'));
+          if(cardElement) cardElement.classList.add('active');
+  
+          // Populate Details
+          const initial = contact.name.charAt(0).toUpperCase();
+          if (contact.profile_picture) {
+              els.dAvatar.innerHTML = `<img src="${contact.profile_picture}" style="width:100%;height:100%;border-radius:24px;object-fit:cover;">`;
+          } else {
+              els.dAvatar.innerHTML = initial;
+          }
+  
+          els.dName.textContent = contact.name || "Unknown";
+          els.dPhone.textContent = contact.phone || "";
+          els.dSeen.textContent = contact.timestamp || "Recently";
+          // استخدمنا تاريخ الإنشاء كـ "تاريخ الانضمام"
+          els.dContacted.textContent = contact.created_at ? new Date(contact.created_at).toLocaleDateString() : '-';
+  
+          // VIP Badge
+          if (contact.is_important) {
+              els.dVipBadge.style.display = 'block';
+              els.dAvatar.style.border = '2px solid var(--vip-color)';
+          } else {
+              els.dVipBadge.style.display = 'none';
+              els.dAvatar.style.border = 'none';
+          }
+  
+          // Actions
+          els.btnCall.onclick = () => window.location.href = `tel:${contact.phone}`;
+          els.btnMsg.onclick = () => {
+              // الانتقال لتبويب الشات وفتح المحادثة
+              if(window.__chatSelectPhone) window.__chatSelectPhone(contact.phone, contact.name);
+              document.querySelector('[data-target="chats"]')?.click();
+          };
+  
+          // Show Panel
+          els.emptyDetails.classList.add('cls3741_hidden');
+          els.contentDetails.classList.remove('cls3741_hidden');
+          
+          // Mobile View
+          if (window.innerWidth < 900) {
+              els.detailsPanel.classList.add('mobile-active');
+              document.getElementById('cls3741_close_mobile').style.display = 'block';
+          }
+      }
+  
+      window.closeDetailsPanel = function() {
+          els.detailsPanel.classList.remove('mobile-active');
+      };
+  
+      // --- Pagination Controls ---
+      function renderPaginationControls(hasNext, currentPage) {
+          let html = '';
+          // Previous
+          html += `<button class="cls3741_page_btn" onclick="changeMainPage(${currentPage - 1})" ${currentPage === 1 ? 'disabled' : ''}>&laquo;</button>`;
+          
+          // Page Info
+          html += `<span style="font-size:13px; color:var(--text-secondary);">Page ${currentPage} of ${STATE.totalPages}</span>`;
+  
+          // Next
+          html += `<button class="cls3741_page_btn" onclick="changeMainPage(${currentPage + 1})" ${!hasNext ? 'disabled' : ''}>&raquo;</button>`;
+  
+          paginationContainer.innerHTML = html;
+      }
+  
+      window.changeMainPage = (newPage) => {
+          if (newPage > 0 && newPage <= STATE.totalPages) {
+              STATE.page = newPage;
+              window.loadContactsListForChannel(null, false); // false = keep current details visible
+          }
+      };
+  
+      // --- Event Listeners ---
+      let debounceTimer;
+      if(searchInput) {
+          searchInput.addEventListener('input', (e) => {
+              clearTimeout(debounceTimer);
+              debounceTimer = setTimeout(() => {
+                  STATE.search = e.target.value.trim();
+                  window.loadContactsListForChannel(null, true);
+              }, 500);
+          });
+      }
+  
+      if(tabsContainer) {
+          tabsContainer.addEventListener('click', (e) => {
+              if (e.target.classList.contains('cls3741_tab_btn')) {
+                  document.querySelectorAll('.cls3741_tab_btn').forEach(b => b.classList.remove('active'));
+                  e.target.classList.add('active');
+                  STATE.filter = e.target.dataset.filter;
+                  window.loadContactsListForChannel(null, true);
+              }
+          });
+      }
+  
+      // Modal Placeholders
+      window.openAddContactModal = () => alert("Add Contact Modal - Coming Soon");
+      window.openImportModal = () => alert("Import CSV Modal - Coming Soon");
+  
+      // Initial Load
+      if (window.currentChannelId) {
+          window.loadContactsListForChannel(window.currentChannelId);
+      }
+      
+      // Export Refresh Function for Channel Switcher
+      window.reloadMainContactsDir = () => window.loadContactsListForChannel(null, true);
+  });
+  </script>
+
+</section>
+
+  <!-- --------------end contact ---------------- -->
+
+  <section class="cls3741_panel cls3741_panel_campaigns" style="display: none;">
+    <h2>الحملات</h2>
+    <p>ادارة الحملات.</p>
+  </section>
+
+ <section class="cls3741_panel cls3741_panel_templates" style="display: none;">
+    <div style="display:flex;flex-direction:column;gap:12px;min-height:100vh;">
+        <!-- action buttons (above table) -->
+        <div style="display: flex; direction: rtl; gap: 8px; align-items: center; justify-content: space-between; flex-wrap: wrap;">
+            <div style="display: flex; gap: 8px;">
+                <button id="templates_create_btn" class="cls3741_action_btn" style="padding:8px 16px; background-color: #10B981; color:white; border:none; border-radius:6px; cursor:pointer;">إنشاء قالب</button>
+                <button id="templates_refresh_btn" class="cls3741_send_btn" style="padding:8px 16px; background-color: transparent; border:1px solid #10B981; color:#10B981; border-radius:6px; cursor:pointer; width:auto;">مزامنة القوالب</button>
+            </div>
+            <div>
+                <div style="color:var(--muted);font-size:16px;font-weight:600">إدارة القوالب</div>
+            </div>
+        </div>
+
+        <!-- create form (hidden by default, will appear in place of table) -->
+        <div id="template_create_section" style="display:none;background:var(--surface);padding:20px;border-radius:12px;border:1px solid var(--border);margin-bottom:20px;">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;padding-bottom:12px;border-bottom:1px solid var(--border);">
+                <div style="font-weight:700;color:var(--text-primary);font-size:18px;">إنشاء قالب جديد</div>
+                <div style="display:flex;gap:8px;">
+                    <button id="template_cancel_btn" class="cls3741_btn" style="padding:8px 16px;background:transparent;color:var(--text-muted);border:1px solid var(--border);border-radius:6px;cursor:pointer;">إلغاء</button>
+                    <button id="template_save_btn" class="cls3741_action_btn" style="padding:8px 16px;background:#10B981;color:white;border:none;border-radius:6px;cursor:pointer;">حفظ (مسودة)</button>
+                </div>
+            </div>
+ 
+            <!-- Template Form -->
+            <style>/* preview buttons */
+.wa-buttons { display:flex; flex-direction:column; gap:8px; }
+.wa-buttons .wa-btn { padding:8px 12px; border-radius:8px; border:1px solid #e2e8f0; background:#fff; font-size:13px; cursor:pointer; max-width:260px; text-align:center; }
+.wa-btn--primary { background:#eef2ff; border-color:#c7d2fe; color:#3730a3; }
+.buttons-list-item { display:flex; gap:8px; align-items:center; margin-bottom:8px; padding:8px; background:var(--surface-light); border-radius:8px; }
+.buttons-list-item input, .buttons-list-item select { padding:6px; border-radius:6px; border:1px solid #d1d5db; }
+.buttons-list-item .btn-remove { margin-left:auto; background:transparent; border:none; color:#ef4444; cursor:pointer; }
+
+
+
+
+ 
+
+ 
+.msg-status-icon.pending {
+    fill: #8696a0;
+    color: #8696a0;
+}
+
+.msg-status-icon.failed {
+    fill: #ef4444; /* أحمر للخطأ */
+    color: #ef4444;
+}
+
+
+
+.msg-status-icon {
+    width: 18px;        /* حجم مناسب للقراءة */
+    height: 18px;
+    display: inline-block;
+    vertical-align: middle;
+    margin-top: -3px;   /* ضبط المحاذاة */
+}
+
+/* الألوان كما اتفقنا سابقاً */
+.msg-status-icon.sent, 
+.msg-status-icon.delivered {
+    color: #8696a0; /* رمادي */
+    fill: currentColor;
+}
+
+.msg-status-icon.read {
+    color: #53bdeb; /* أزرق */
+    fill: currentColor;
+}
+
+
+                .template-container {
+                    width: 100%;
+                    margin: 0 auto;
+                    display: grid;
+                    grid-template-columns: 1fr 400px;
+                    gap: 20px;
+                    align-items: start;
+                }
+                .form-panel {
+                    background:transparent;
+                    padding: 20px;
+                    border-radius: 12px;
+                    border: 1px solid var(--border);
+                    min-height: 500px;
+                    overflow: auto;
+                    max-height: 600px;
+                }
+                .preview-panel {
+                    background: var(--surface);
+                    border-radius: 12px;
+                    border: 1px solid var(--border);
+                    padding: 20px;
+                    position: sticky;
+                    top: 20px;
+                }
+                .form-row {
+                    display: flex;
+                    gap: 16px;
+                    align-items: center;
+                    margin-bottom: 16px;
+                }
+                .form-col {
+                    flex: 1;
+                }
+                .form-label {
+                    display: block;
+                    font-size: 14px;
+                    color: var(--text-primary);
+                    margin-bottom: 8px;
+                    font-weight: 500;
+                }
+                .form-input, .form-select, .form-textarea {
+                    width: 100%;
+                    padding: 12px;
+                    border-radius: 8px;
+                    border: 1px solid var(--border);
+                    background: var(--background);
+                    color: var(--text-primary);
+                    font-size: 14px;
+                    font-family: inherit;
+                }
+                .form-input:focus, .form-select:focus, .form-textarea:focus {
+                    outline: none;
+                    border-color: #7C3AED;
+                    box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.1);
+                }
+                .form-textarea {
+                    min-height: 120px;
+                    resize: vertical;
+                }
+                .form-field {
+                    margin-bottom: 20px;
+                }
+                .small-muted {
+                    font-size: 12px;
+                    color: var(--text-muted);
+                    margin-top: 6px;
+                }
+                .section-title {
+                    font-weight: 600;
+                    margin: 16px 0 8px;
+                    color: var(--text-primary);
+                    font-size: 16px;
+                }
+                .media-tabs {
+                    display: flex;
+                    gap: 8px;
+                    background: var(--surface-light);
+                    padding: 4px;
+                    border-radius: 8px;
+                    margin: 12px 0;
+                }
+                .media-tab {
+                    flex: 1;
+                    padding: 10px;
+                    border-radius: 6px;
+                    border: none;
+                    background: transparent;
+                    color: var(--text-secondary);
+                    cursor: pointer;
+                    font-weight: 500;
+                    transition: all 0.2s ease;
+                }
+                .media-tab.active {
+                    background: #7C3AED;
+                    color: white;
+                    box-shadow: 0 2px 8px rgba(124, 58, 237, 0.3);
+                }
+                .file-uploader {
+                    display: flex;
+                    align-items: center;
+                    gap: 12px;
+                    padding: 16px;
+                    border-radius: 8px;
+                    background: var(--surface-light);
+                    border: 2px dashed var(--border);
+                    margin: 12px 0;
+                }
+                .upload-btn {
+                    padding: 8px 16px;
+                    border-radius: 6px;
+                    border: none;
+                    background: #7C3AED;
+                    color: white;
+                    cursor: pointer;
+                    font-weight: 500;
+                }
+                .wa-preview {
+                    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                    border-radius: 12px;
+                    padding: 30px;
+                    min-height: 400px;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                }
+                .wa-card {
+                    width: 100%;
+                    max-width: 320px;
+                }
+                .wa-message {
+                    display: flex;
+                    align-items: flex-end;
+                    gap: 8px;
+                    margin-bottom: 8px;
+                }
+                .wa-avatar {
+                    width: 40px;
+                    height: 40px;
+                    border-radius: 50%;
+                    background: linear-gradient(135deg, #7C3AED, #6D28D9);
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    color: white;
+                    font-weight: 700;
+                    font-size: 14px;
+                    flex-shrink: 0;
+                }
+                .wa-bubble {
+                    background: white;
+                    color: #1a1a1a;
+                    padding: 12px 16px;
+                    border-radius: 18px;
+                    border-bottom-right-radius: 4px;
+                    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+                    max-width: 280px;
+                }
+                .wa-header {
+                    font-weight: 600;
+                    margin-bottom: 6px;
+                    color: #1a1a1a;
+                    font-size: 14px;
+                }
+                .wa-body {
+                    font-size: 14px;
+                    line-height: 1.4;
+                    color: #1a1a1a;
+                }
+                .wa-footer {
+                    font-size: 11px;
+                    color: #666;
+                    margin-top: 6px;
+                    border-top: 1px solid #f0f0f0;
+                    padding-top: 4px;
+                }
+                .wa-time {
+                    font-size: 11px;
+                    color: rgba(255,255,255,0.7);
+                    text-align: right;
+                    margin-top: 4px;
+                }
+
+                @media (max-width: 1024px) {
+                    .template-container {
+                        grid-template-columns: 1fr;
+                    }
+                    .preview-panel {
+                        position: relative;
+                        top: 0;
+                    }
+                }
+            </style>
+
+            <div class="template-container">
+             
+                <div class="form-panel">
+                    <div class="form-field">
+                        <label class="form-label">اسم القالب</label>
+                        <input id="template_name" type="text" class="form-input" placeholder="أدخل اسم القالب">
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-col">
+                            <label class="form-label">الفئة</label>
+                            <select id="template_category_select" class="form-select">
+                                <option value="utility">خدمي</option>
+                                <option value="marketing">تسويقي</option>
+                                <option value="notification">إشعار</option>
+                                <option value="support">دعم</option>
+                            </select>
+                        </div>
+                        <div class="form-col">
+                            <label class="form-label">اللغة</label>
+                            <select id="template_language" class="form-select">
+                                <option value="ar">العربية</option>
+                                <option value="en">English</option>
+                                <option value="fr">Français</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="form-field">
+                        <div class="section-title">الرأس <span class="small-muted">(اختياري)</span></div>
+                        <div class="small-muted">اختر نوع المحتوى للرأس</div>
+                        
+                        <div class="media-tabs">
+                            <button type="button" id="btn_text" class="media-tab active">نص</button>
+                            <button type="button" id="btn_image" class="media-tab">صورة</button>
+                            <button type="button" id="btn_video" class="media-tab">فيديو</button>
+                            <button type="button" id="btn_doc" class="media-tab">ملف</button>
+                        </div>
+                        
+                        <div id="input_area"></div>
+                        <div class="small-muted">عدد الأحرف: <span id="chars_count">0</span>/1098</div>
+                    </div>
+
+                    <div class="form-field">
+                        <div class="section-title">المحتوى <span class="small-muted">(مطلوب)</span></div>
+                        <div class="small-muted">أدخل نص الرسالة باللغة المحددة</div>
+                        <textarea id="body_text" class="form-textarea" placeholder="أدخل محتوى الرسالة هنا..."></textarea>
+                        <div class="small-muted">عدد الأحرف: <span id="body_count">0</span>/1098</div>
+                        <!-- Variables UI (will be auto-managed by script) -->
+<div id="body_vars" style="margin-top:8px;"></div>
+<!-- Global add variable button (script creates it automatically if not present) -->
+
+                    </div>
+                    <!-- Buttons section -->
+<div class="form-field">
+  <div class="section-title">الأزرار <span class="small-muted">(اختياري)</span></div>
+  <div class="small-muted">أضف حتى 3 أزرار. أنواع: Quick Reply, URL, Call, Copy Code, Custom</div>
+
+  <div style="display:flex;gap:8px;align-items:center;margin-top:8px;">
+    <select id="new_button_type" class="form-select" style="width:180px;">
+      <option value="quick_reply">رد سريع</option>
+      <option value="url">رابط موقع</option>
+      <option value="call">اتصال</option>
+      <option value="copy">نسخ كود</option>
+      <option value="custom">مخصص</option>
+    </select>
+    <button type="button" id="btn_add_button" class="upload-btn">أضف زر</button>
+  </div>
+
+  <div id="buttons_list" style="margin-top:12px;"></div>
+  <div class="small-muted" style="margin-top:6px;">أمثلة: زر رابط -> نص الزر + رابط ؛ زر اتصال -> رقم الهاتف</div>
+</div>
+
+
+
+                    <div class="form-field">
+                        <label class="form-label">التذييل <span class="small-muted">(اختياري)</span></label>
+                        <input id="template_footer" type="text" class="form-input" placeholder="نص التذييل">
+<!-- hidden id to know if we are editing -->
+<input type="hidden" id="editing_template_id" value="">
+
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-col">
+                            <label class="form-label">الحالة</label>
+                            <select id="template_status" class="form-select">
+                                <option value="draft">مسودة</option>
+                                <option value="active">نشط</option>
+                                <option value="inactive">غير نشط</option>
+                            </select>
+                        </div>
+                        <div class="form-col">
+                            <label class="form-label">آخر تحديث</label>
+                            <input id="template_updated" type="date" class="form-input">
+                        </div>
+                    </div>
+
+                    <input id="file_image" type="file" accept="image/*" style="display:none">
+                    <input id="file_video" type="file" accept="video/*" style="display:none">
+                    <input id="file_doc" type="file" accept=".pdf,.doc,.docx" style="display:none">
+                </div>
+
+                <div class="preview-panel">
+                    <div style="margin-bottom:16px;font-weight:600;color:var(--text-primary);">معاينة الواتساب</div>
+                    <div class="wa-preview">
+                        <div class="wa-card">
+                            <div class="wa-message">
+                                <div class="wa-bubble">
+                                    <div id="wa_header" class="wa-header"></div>
+                                    <div id="wa_body" class="wa-body">لا توجد معاينة بعد.</div>
+                                    <div id="wa_footer_area" class="wa-footer"></div>
+                                    <!-- داخل wa-bubble -->
+<div id="wa_buttons" class="wa-buttons" style="margin-top:8px;"></div>
+
+<!-- preview area for existing header file (when editing) -->
+<div id="existing_header_preview" style="margin-top:8px;display:none;"></div>
+                                </div>
+                                <div class="wa-avatar">BB</div>
+                            </div>
+                            <div class="wa-time">9:15 AM</div>
+                        </div>
+                    </div>
+                </div>
+                  <div id="formErrors" style="display:none;background:#fee;border:1px solid #f99;color:#900;padding:10px;margin-bottom:10px;border-radius:6px;"></div>
+
+            </div>
+        </div>
+
+        <!-- templates table -->
+        <div id="templates_table_wrap" style="background:var(--surface);padding:16px;border-radius:12px;border:1px solid var(--border);overflow:auto">
+            <table id="templates_table" style="width:100%;border-collapse:collapse;min-width:600px;">
+                <thead>
+                    <tr style="text-align:right;border-bottom:2px solid var(--border);background:var(--surface-light);">
+                        <th style="padding:12px;font-weight:600;color:var(--text-primary);text-align:right;">الاسم</th>
+                        <th style="padding:12px;font-weight:600;color:var(--text-primary);text-align:right;">الفئة</th>
+                        <th style="padding:12px;font-weight:600;color:var(--text-primary);text-align:right;">المعاينة</th>
+                        <th style="padding:12px;font-weight:600;color:var(--text-primary);text-align:center;">الحالة</th>
+                        <th style="padding:12px;font-weight:600;color:var(--text-primary);text-align:right;">آخر تحديث</th>
+                        <th style="padding:12px;font-weight:600;color:var(--text-primary);text-align:center;">الإجراءات</th>
+                    </tr>
+                </thead>
+                <tbody id="templates_tbody">
+                    <tr>
+                        <td colspan="6" style="padding:40px;color:var(--text-muted);text-align:center;font-style:italic;">
+                            لا توجد قوالب بعد — اضغط "إنشاء قالب" لإضافة واحد
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+ 
+    
+ 
+
+</section>
+
+  <section class="cls3741_panel cls3741_panel_automation" style="display: none; padding: 0px;">
+     
+
+    {% include 'whatssap/flowbiulder.html' %}
+  </section>
+
+</main>
+
+  </div>
+
+<style>
+/* متغيرات الألوان — يمكنك تعديلها بسهولة */
+.error-banner {
+  --bg: #fff6f6;
+  --border: #ff4d4d;
+  --accent: #b30000;
+  --muted: #6b2020;
+  --btn-bg: #fff;
+  --btn-border: #ffd6d6;
+  --radius: 10px;
+  --font-family: "Inter", "Arial", sans-serif;
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  padding: 12px;
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  background: linear-gradient(180deg, var(--bg), #fff0f0);
+  color: var(--accent);
+  box-shadow: 0 6px 18px rgba(179, 0, 0, 0.08);
+  font-family: var(--font-family);
+  font-size: 14px;
+  line-height: 1.3;
+  position: relative;
+  overflow: hidden;
+  margin: 6px 0;
+  animation: slideUpFade 260ms ease;
+}
+
+/* أيقونة اليسار */
+.error-banner .icon {
+  flex: 0 0 36px;
+  width: 36px;
+  height: 36px;
+  display: grid;
+  place-items: center;
+  background: rgba(179,0,0,0.08);
+  border-radius: 8px;
+  color: var(--accent);
+  font-size: 18px;
+}
+
+/* النصوص */
+.error-banner .texts {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+.error-banner .title {
+  font-weight: 700;
+  color: var(--accent);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.error-banner .reason {
+  color: var(--muted);
+  font-size: 13px;
+  word-break: break-word;
+}
+
+/* أزرار الإجراءات */
+.error-banner .actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+}
+.error-banner button.action-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  border-radius: 8px;
+  border: 1px solid var(--btn-border);
+  background: var(--btn-bg);
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 13px;
+  color: var(--accent);
+}
+.error-banner button.action-btn.secondary {
+  background: transparent;
+  border: 1px dashed rgba(179,0,0,0.12);
+}
+
+/* زر إغلاق */
+.error-banner .close-btn {
+  position: absolute;
+  top: 6px;
+  right: 8px;
+  width: 28px;
+  height: 28px;
+  border: none;
+  background: transparent;
+  color: var(--accent);
+  cursor: pointer;
+  font-size: 18px;
+  display: grid;
+  place-items: center;
+  line-height: 1;
+}
+
+/* تلميح عند hover على زر القالب */
+.error-banner .template-hint {
+  font-size: 12px;
+  color: #7a1b1b;
+  margin-left: 6px;
+  display: none;
+}
+.error-banner .tpl-wrap:hover .template-hint { display: inline-block; }
+
+/* أنيميشن */
+@keyframes slideUpFade {
+  from { transform: translateY(6px); opacity: 0; }
+  to   { transform: translateY(0);   opacity: 1; }
+}
+
+/* وضعيّة داكنة تعتمد على prefers-color-scheme */
+@media (prefers-color-scheme: dark) {
+  .error-banner {
+    --bg: #2a1111;
+    --border: rgba(255,77,77,0.18);
+    --accent: #ffb3b3;
+    --muted: #f4dede;
+    --btn-bg: rgba(255,255,255,0.03);
+    --btn-border: rgba(255,255,255,0.04);
+    background: linear-gradient(180deg, #2f1111, #260a0a);
+    box-shadow: 0 6px 20px rgba(0,0,0,0.5);
+  }
+}
+
+/* قابلية الاستجابة لهواتف صغيرة */
+@media (max-width:420px) {
+  .error-banner { font-size: 13px; padding: 10px; gap: 8px; }
+  .error-banner .icon { width: 34px; height: 34px; font-size: 16px; }
+  .error-banner .actions { flex-wrap: wrap; gap: 6px; }
+}
+</style>
+
+<!-- <script>
+    const navBtns = document.querySelectorAll('.cls3741_btn');
+const panels = document.querySelectorAll('.cls3741_panel');
+const sideCards = document.querySelectorAll('.cls3741_sidecard');
+
+navBtns.forEach(btn => {
+  btn.addEventListener('click', () => {
+    const target = btn.getAttribute('data-target');
+
+    // إزالة الاكتف من الأزرار
+    navBtns.forEach(b => b.classList.remove('cls3741_btn_active'));
+    btn.classList.add('cls3741_btn_active');
+
+    // إخفاء كل البطاقات
+    panels.forEach(p => p.style.display = 'none');
+    sideCards.forEach(s => s.classList.remove('cls3741_sidecard_visible'));
+
+    // إظهار البطاقة المناسبة
+    const panel = document.querySelector(`.cls3741_panel_${target}`);
+    if (panel) panel.style.display = 'block';
+
+    const side = document.querySelector(`.cls3741_sidecard_${target}`);
+    if (side) side.classList.add('cls3741_sidecard_visible');
+  });
+});
+
+// اغلاق البطاقة الجانبية
+document.querySelectorAll('.cls3741_close_side').forEach(btn => {
+  btn.addEventListener('click', (e) => {
+    e.target.closest('.cls3741_sidecard').classList.remove('cls3741_sidecard_visible');
+  });
+});
+
+
+
+</script>
+  -->
+
+<!-- <script>
+/**
+ * showSendError(resData, options)
+ *   - resData: JSON response from backend { error: "...", reason: "..." }
+ *   - options: optional { wrapperSelector, onRetry, onSelectTemplate, autoDismissMs }
+ *
+ * Usage:
+ *   await resData = await res.json();
+ *   showSendError(resData, {
+ *     onRetry: () => sendMessageLocal(...),           // توصيل إعادة المحاولة لديك
+ *     onSelectTemplate: () => openTemplatePanel(),   // فتح واجهة اختيار القالب
+ *   });
+ */
+function showSendErrorchat(resData = {}, options = {}) {
+  const {
+    wrapperSelector = '.cls3741_chat_input_wrapper',
+    onRetry = null,
+    onSelectTemplate = null,
+    autoDismissMs = 8000
+  } = options;
+
+  const wrapper = document.querySelector(wrapperSelector);
+  if (!wrapper) return console.log('showSendError: wrapper not found:', wrapperSelector);
+    
+
+  // نصوص آمنة
+  const title = (resData.error && String(resData.error).trim()) || 'حدث خطأ أثناء الإرسال';
+  const reason = (resData.reason && String(resData.reason).trim()) || (resData.details && String(resData.details).trim()) || '';
+
+  // احذف أي بانر قديم
+  const existing = wrapper.querySelector('.error-banner');
+  if (existing) existing.remove();
+
+  // بناء العنصر
+
+  const el = document.createElement('div');
+  el.className = 'error-banner';
+  el.setAttribute('role', 'alert');
+  el.innerHTML = `
+    <div class="icon" aria-hidden="true">⚠️</div>
+    <div class="texts">
+      <div class="title">${escapeHtml(title)}</div>
+      <div class="reason">${escapeHtml(reason)}</div>
+      <div class="actions">
+        <button class="action-btn retry-btn" type="button"> Try again</button>
+        <span class="tpl-wrap">
+          <button class="action-btn secondary select-tpl-btn" type="button"> Select Templaite</button>
+          <span class="template-hint">مرّر هنا لإرسال قالب جاهز</span>
+        </span>
+      </div>
+    </div>
+    <button class="close-btn" aria-label="إغلاق">✕</button>
+  `;
+
+  // إدراج في DOM (نضعه أعلى المحتوى داخل wrapper)
+  wrapper.prepend(el);
+document.querySelector('.cls3741_chat_input_container').classList.add('d-none')
+  // أحداث الأزرار
+  const retryBtn = el.querySelector('.retry-btn');
+  const tplBtn = el.querySelector('.select-tpl-btn');
+  const closeBtn = el.querySelector('.close-btn');
+
+  let dismissTimer = null;
+  const startAutoDismiss = () => {
+    if (!autoDismissMs) return;
+    clearTimeout(dismissTimer);
+    dismissTimer = setTimeout(() => fadeOutAndRemove(el), autoDismissMs);
+  };
+  const stopAutoDismiss = () => clearTimeout(dismissTimer);
+
+//   el.addEventListener('mouseenter', stopAutoDismiss);
+//   el.addEventListener('mouseleave', startAutoDismiss);
+
+//   startAutoDismiss();
+
+  // Retry callback (اترك الفعل لك لربطه بدالتك)
+  retryBtn.addEventListener('click', (ev) => {
+    ev.preventDefault();
+    fadeOutAndRemove(el);
+    if (typeof onRetry === 'function') {
+      try { onRetry(); } catch (e) { console.error('onRetry failed', e); }
+    } else {
+      // إذا لم توفّر onRetry، نطلق حدثًا يمكن التقاطه من قِبل كود آخر
+      wrapper.dispatchEvent(new CustomEvent('chat9999:retry-send', { detail: { resData } }));
+    }
+  });
+
+  // Select template callback
+  tplBtn.addEventListener('click', (ev) => {
+    ev.preventDefault();
+    if (typeof onSelectTemplate === 'function') {
+      try { onSelectTemplate(); } catch (e) { console.error('onSelectTemplate failed', e); }
+    } else {
+      wrapper.dispatchEvent(new CustomEvent('chat9999:open-template', { detail: { resData } }));
+    }
+  });
+
+  // Close button
+  closeBtn.addEventListener('click', () => fadeOutAndRemove(el));
+
+  // helper functions
+  function fadeOutAndRemove(node) {
+    node.style.transition = 'opacity 220ms ease, transform 220ms ease';
+    node.style.opacity = '0';
+    node.style.transform = 'translateY(6px)';
+    setTimeout(() => { if (node && node.parentNode) node.parentNode.removeChild(node); }, 240);
+  }
+
+  // escaping (safety)
+  function escapeHtml(str) {
+    return String(str || '').replace(/[&<>"'`=\/]/g, function(s){
+      return ({
+        '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;','/':'&#x2F;','`':'&#x60;','=':'&#x3D;'
+      })[s];
+    });
+  }
+}
+</script> -->
+
+
+
+<div id="cls3741_add_channel_modal" class="cls3741_modal_overlay" style="display: none;">
+  <div class="cls3741_modal_content">
+      <div class="cls3741_modal_header">
+          <h3>إضافة قناة واتساب جديدة</h3>
+          <button onclick="closeAddChannelModal()" class="cls3741_modal_close">&times;</button>
+      </div>
+      
+      <div class="cls3741_modal_body">
+        <div class="form-group">
+            <label>اسم القناة (مثلاً: فرع دبي)</label>
+            <input type="text" id="new_ch_name" class="cls3741_input_field" placeholder="تسمية داخلية للقناة">
+        </div>
+    
+        <div style="text-align: center; margin-top: 20px;">
+            <div id="fb-root"></div>
+            <button onclick="launchWhatsAppSignup()" class="cls3741_btn_facebook">
+                <svg viewBox="0 0 24 24" width="20" height="20" fill="white" style="margin-right:8px; vertical-align:middle;">
+                    <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/>
+                </svg>
+                ربط حساب واتساب (Meta)
+            </button>
+            <p style="color:var(--text-secondary); font-size:12px; margin-top:10px;">
+                سيتم جلب الرقم والمعرفات تلقائياً.
+            </p>
+        </div>
+    </div>
+  </div>
+</div>
+ 
+
+<script>
+  // 1. فتح النافذة
+window.openAddChannelModal = function() {
+    const modal = document.getElementById('cls3741_add_channel_modal');
+    if(modal) modal.style.display = 'flex';
+};
+
+// 2. إغلاق النافذة
+window.closeAddChannelModal = function() {
+    const modal = document.getElementById('cls3741_add_channel_modal');
+    if(modal) modal.style.display = 'none';
+};
+
+// 3. إرسال البيانات للسيرفر
+window.submitNewChannel = async function() {
+    const name = document.getElementById('new_ch_name').value;
+    // const phone = document.getElementById('new_ch_phone').value;
+    // const pid = document.getElementById('new_ch_pid').value;
+    // const waba = document.getElementById('new_ch_waba').value;
+    // const token = document.getElementById('new_ch_token').value;
+
+    if (!name) {
+        alert("يرجى ملء جميع الحقول المطلوبة");
+        return;
+    }
+
+    try {
+        const response = await fetch('/discount/whatssapAPI/api/channels/create/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+            },
+            body: JSON.stringify({
+                name: name,
+                phone_number: phone,
+                phone_number_id: pid,
+                business_account_id: waba,
+                access_token: token
+            })
+        });
+
+        const data = await response.json();
+
+        if (response.ok && data.success) {
+            alert("تم إضافة القناة بنجاح! 🎉");
+            window.location.reload(); // إعادة تحميل الصفحة لتظهر القناة الجديدة
+        } else {
+            alert("فشل الإضافة: " + (data.error || "خطأ غير معروف"));
+        }
+
+    } catch (error) {
+        console.error("Error creating channel:", error);
+        alert("حدث خطأ في الاتصال");
+    }
+};
+
+
+
+
+
+window.fbAsyncInit = function() {
+    FB.init({
+      appId      : '843023434947245', // ✅ تم وضع الـ App ID الخاص بك
+      cookie     : true,
+      xfbml      : true,
+      version    : 'v24.0' // تأكد من النسخة، يفضل استخدام الأحدث
+    });
+    
+    console.log("✅ Facebook SDK Initialized!");
+};
+
+// 2. تحميل الـ SDK (بشكل غير متزامن)
+(function(d, s, id){
+     var js, fjs = d.getElementsByTagName(s)[0];
+     if (d.getElementById(id)) {return;}
+     js = d.createElement(s); js.id = id;
+     js.src = "https://connect.facebook.net/en_US/sdk.js";
+     fjs.parentNode.insertBefore(js, fjs);
+}(document, 'script', 'facebook-jssdk'));
+
+// 3. دالة التشغيل (مربوطة بالزر)
+window.launchWhatsAppSignup = function() {
+    // تحقق أمان إضافي: هل FB معرفة؟
+    if (typeof FB === 'undefined') {
+        alert("جاري تحميل Facebook SDK... يرجى الانتظار ثانية والمحاولة مجدداً.");
+        return;
+    }
+
+    // التحقق من اسم القناة
+    const nameInput = document.getElementById('new_ch_name');
+    const name = nameInput ? nameInput.value : '';
+    
+    if(!name) { 
+        alert("المرجو إدخال اسم للقناة أولاً"); 
+        if(nameInput) nameInput.focus();
+        return; 
+    }
+
+    // استدعاء Login
+    FB.login(function(response) {
+        if (response.authResponse) {
+            const accessToken = response.authResponse.accessToken;
+            console.log('✅ تم تسجيل الدخول، التوكن:', accessToken);
+            
+            // إرسال التوكن للباك إند
+            exchangeTokenForChannel(accessToken, name);
+        } else {
+            console.log('❌ ألغى المستخدم العملية.');
+        }
+    }, {
+        // الصلاحيات المطلوبة (تأكد أنك تطلبها)
+        scope: 'whatsapp_business_management, whatsapp_business_messaging',
+        extras: {
+            feature: 'whatsapp_embedded_signup',
+            version: 2
+        }
+    });
+};
+
+
+
+// 3. إرسال التوكن للباك إند
+async function exchangeTokenForChannel(token, channelName) {
+    try {
+      const response = await fetch('/discount/whatssapAPI/api/channels/connect_meta/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCsrfToken() // تأكد أن دالة التوكن متاحة
+            },
+            body: JSON.stringify({ 
+                access_token: token,
+                name: channelName
+            })
+        });
+
+        const data = await response.json();
+        
+        if (data.success) {
+            alert(`تم إضافة القناة "${data.phone_number}" بنجاح! 🎉`);
+            window.location.reload();
+        } else {
+            alert('فشل الربط: ' + data.error);
+        }
+    } catch (e) {
+        console.error(e);
+        alert('حدث خطأ في الاتصال بالسيرفر');
+    }
+}
+
+
+</script>
+
+<script> 
+    
+ 
+
+document.addEventListener("DOMContentLoaded", function() {
+  window.API_URLS = {
+    send: "{% url 'send_message' %}",
+    upload: "{% url 'upload_media' %}",
+    messages: "{% url 'get_messages' %}",
+    contacts: "{% url 'api_contacts' %}",
+    lastmsg:"{% url 'get_last_message' %}"
+  };  
+
+  (function(){
+    // العناصر - محدثة للعناصر الفعلية في الـDOM
+    const contactsListEl = document.getElementById('cls3741_contacts_list');
+    const messagesArea = document.getElementById('cls3741_messages_area');
+    const messageInput = document.getElementById('cls3741_message_input'); // تم التصحيح
+    const sendBtnmain = document.getElementById('cls3741_send_btn');
+    
+    // عناصر الوسائط من الواجهة الفعلية
+    const imageInput = document.getElementById('cls3741_image_input');
+    const videoInput = document.getElementById('cls3741_video_input');
+    const imageBtn = document.getElementById('cls3741_image_btn');
+    const videoBtn = document.getElementById('cls3741_video_btn');
+    const audioBtn = document.getElementById('cls3741_audio_btn');
+    const mediaPreview = document.getElementById('cls3741_media_preview');
+
+    let currentPhone = null;
+    let currentChannelId =  '{{ initial_channel_id }}' 
+    let lastMessageId = 0;
+    let contactsSnapshot = '';
+    let pollInterval = 5000;
+    let pollTimer = null;
+    let contactPollCounter = 0;
+
+    let queuedFile = null;
+    let queuedFileType = null;
+
+    // 🔥 متغيرات البحث والفلترة
+    let allContactsData = [];
+    let currentFilter = 'all';
+    let currentSearchQuery = '';
+
+    // حالة التسجيل الصوتي
+    let mediaRecorder = null;
+    let audioBlobs = [];
+    let isRecording = false;
+
+    // دالة لإنشاء أيقونة تحميل جميلة
+    function createLoadingSpinner() {
+      const spinner = document.createElement('div');
+      spinner.style.cssText = `
+        width: 40px;
+        height: 40px;
+        border: 3px solid #f3f4f6;
+        border-top: 3px solid #000000;
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+        margin: 20px auto;
+      `;
+      return spinner;
+    }
+
+    function createLoadingMessage() {
+      const container = document.createElement('div');
+      container.style.cssText = `
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        padding: 40px 20px;
+        color: var(--text-secondary);
+      `;
+      
+      container.innerHTML = `
+        ${createLoadingSpinner().outerHTML}
+        <div style="margin-top: 16px; font-size: 14px;">جاري تحميل المحادثة...</div>
+      `;
+      
+      return container;
+    }
+
+    function getCsrfToken(){
+      const tokenEl = document.querySelector('[name=csrfmiddlewaretoken]');
+      return tokenEl ? tokenEl.value : '';
+    }
+
+    function escapeHtml(s){
+      return (s||'').toString()
+        .replace(/&/g,'&amp;')
+        .replace(/</g,'&lt;')
+        .replace(/>/g,'&gt;')
+        .replace(/"/g,'&quot;')
+        .replace(/'/g,'&#039;');
+    }
+
+    function scrollToBottom(force=false){
+      if(!messagesArea) return;
+      const nearBottom = messagesArea.scrollTop + messagesArea.clientHeight >= messagesArea.scrollHeight - 80;
+      if(force || nearBottom) {
+        messagesArea.scrollTop = messagesArea.scrollHeight;
+      }
+    }
+
+  function existsMsgId(id){
+  if(!id) return false;
+  
+  // تجاهل الرسائل المؤقتة عند التحقق من التكرار
+  if (typeof id === 'string' && id.startsWith('temp_')) {
+    return false;
+  }
+  
+  return !!messagesArea.querySelector(`[data-msg-id="${id}"]`);
+}
+// 🔥 مشغل صوت مبسط وأنيق
+function initializeAdvancedAudioPlayer(messageWrapper) {
+  const audioElement = messageWrapper.querySelector('.audio-element');
+  const playBtn = messageWrapper.querySelector('.audio-play-btn');
+  const playIcon = messageWrapper.querySelector('.play-icon');
+  const pauseIcon = messageWrapper.querySelector('.pause-icon');
+  const progressBar = messageWrapper.querySelector('.audio-progress-fill');
+  const seekSlider = messageWrapper.querySelector('.audio-seek-slider');
+  const timeDisplay = messageWrapper.querySelector('.audio-time');
+  const durationDisplay = messageWrapper.querySelector('.audio-duration');
+
+  let isPlaying = false;
+  let animationFrame = null;
+
+  // تهيئة العنصر الصوتي
+  audioElement.addEventListener('loadedmetadata', () => {
+    const duration = audioElement.duration;
+    if (!isNaN(duration)) {
+      durationDisplay.textContent = formatTime(duration);
+      seekSlider.max = duration;
+    }
+  });
+
+  audioElement.addEventListener('error', (e) => {
+    console.error('Audio loading error:', e);
+    showAudioError(messageWrapper, 'خطأ في تحميل المقطع الصوتي');
+  });
+
+  // تحديث شريط التقدم
+  function updateProgress() {
+    if (audioElement.duration && !isNaN(audioElement.duration)) {
+      const progress = (audioElement.currentTime / audioElement.duration) * 100;
+      progressBar.style.width = progress + '%';
+      seekSlider.value = audioElement.currentTime;
+      timeDisplay.textContent = formatTime(audioElement.currentTime);
+    }
+
+    if (isPlaying) {
+      animationFrame = requestAnimationFrame(updateProgress);
+    }
+  }
+
+  // التحكم في التشغيل/الإيقاف
+  playBtn.addEventListener('click', () => {
+    if (isPlaying) {
+      pauseAudio();
+    } else {
+      playAudio();
+    }
+  });
+
+  // النقر على شريط التقدم للتنقل
+  const progressContainer = messageWrapper.querySelector('.audio-progress-container');
+  progressContainer.addEventListener('click', (e) => {
+    if (audioElement.duration) {
+      const rect = progressContainer.getBoundingClientRect();
+      const clickX = e.clientX - rect.left;
+      const percentage = clickX / rect.width;
+      const newTime = percentage * audioElement.duration;
+      audioElement.currentTime = Math.max(0, Math.min(newTime, audioElement.duration));
+      updateProgress();
+    }
+  });
+
+  function playAudio() {
+    if (audioElement.readyState >= 2) { // HAVE_CURRENT_DATA or better
+      audioElement.play().then(() => {
+        isPlaying = true;
+        messageWrapper.classList.add('playing');
+        showPauseIcon();
+        updateProgress();
+      }).catch(error => {
+        console.error('Audio play error:', error);
+        showAudioError(messageWrapper, 'خطأ في تشغيل المقطع الصوتي');
+      });
+    }
+  }
+
+  function pauseAudio() {
+    audioElement.pause();
+    isPlaying = false;
+    messageWrapper.classList.remove('playing');
+    showPlayIcon();
+    if (animationFrame) {
+      cancelAnimationFrame(animationFrame);
+    }
+  }
+
+  function showPlayIcon() {
+    playIcon.style.display = 'block';
+    pauseIcon.style.display = 'none';
+  }
+
+  function showPauseIcon() {
+    playIcon.style.display = 'none';
+    pauseIcon.style.display = 'block';
+  }
+
+  // تحريك شريط البحث
+  seekSlider.addEventListener('input', (e) => {
+    const time = e.target.value;
+    audioElement.currentTime = time;
+    updateProgress();
+  });
+
+  seekSlider.addEventListener('mousedown', () => {
+    if (isPlaying) {
+      audioElement.pause();
+    }
+  });
+
+  seekSlider.addEventListener('mouseup', () => {
+    if (isPlaying) {
+      audioElement.play();
+    }
+  });
+
+  // انتهاء الصوت
+  audioElement.addEventListener('ended', () => {
+    isPlaying = false;
+    messageWrapper.classList.remove('playing');
+    showPlayIcon();
+    progressBar.style.width = '0%';
+    seekSlider.value = 0;
+    timeDisplay.textContent = '0:00';
+
+    if (animationFrame) {
+      cancelAnimationFrame(animationFrame);
+    }
+  });
+
+  // تحميل الصوت
+  audioElement.addEventListener('canplaythrough', () => {
+    console.log('Audio ready for playback');
+  });
+
+
+  // تنسيق الوقت
+  function formatTime(seconds) {
+    if (isNaN(seconds)) return '0:00';
+    const minutes = Math.floor(seconds / 60);
+    const remainingSeconds = Math.floor(seconds % 60);
+    return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
+  }
+
+  // عرض خطأ
+  function showAudioError(wrapper, message) {
+    const container = wrapper.querySelector('.audio-container');
+    if (container) {
+      container.innerHTML = `
+        <div class="audio-error">
+          <svg viewBox="0 0 24 24" width="20" height="20">
+            <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/>
+          </svg>
+          <span>${message}</span>
+        </div>
+      `;
+    }
+  }
+
+  // إضافة keyboard shortcuts
+  messageWrapper.addEventListener('keydown', (e) => {
+    if (e.code === 'Space') {
+      e.preventDefault();
+      playBtn.click();
+    }
+  });
+
+  // جعل العنصر قابلاً للتركيز
+  playBtn.tabIndex = 0;
+  seekSlider.tabIndex = 0;
+}
+function getStatusIconHTML(status) {
+    // 1. أيقونة الانتظار (ساعة)
+    const pendingIcon = `
+        <svg viewBox="0 0 24 24" class="msg-status-icon pending" xmlns="http://www.w3.org/2000/svg">
+            <path d="M11.99 2C6.47 2 2 6.48 2 12s4.47 10 9.99 10C17.52 22 22 17.52 22 12S17.52 2 11.99 2zM12 20c-4.42 0-8-3.58-8-8s3.58-8 8-8 8 3.58 8 8-3.58 8-8 8zm.5-13H11v6l5.25 3.15.75-1.23-4.5-2.67z" fill="currentColor"></path>
+        </svg>`;
+
+    // 2. أيقونة مرسلة (صح واحد)
+    const sentIcon = `
+        <svg viewBox="0 0 24 24" class="msg-status-icon sent" xmlns="http://www.w3.org/2000/svg">
+            <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z" fill="currentColor"></path>
+        </svg>`;
+
+    // 3. أيقونة تم التسليم أو القراءة (صحين) - هذا الكود يضمن ظهور الاثنين
+    // نستخدم نفس الأيقونة للحالتين، واللون يتغير عبر CSS
+    const doubleCheckIcon = `
+        <svg viewBox="0 0 24 24" class="msg-status-icon ${status}" xmlns="http://www.w3.org/2000/svg">
+            <path d="M18 7l-1.41-1.41-6.34 6.34 1.41 1.41L18 7zm4.24-1.41L11.66 16.17 7.48 12l-1.41 1.41L11.66 19l12-12-1.42-1.41zM.41 13.41L6 19l1.41-1.41L1.83 12 .41 13.41z" fill="currentColor"></path>
+        </svg>`;
+
+    // 4. أيقونة فشل (تعجب)
+    const failedIcon = `
+        <svg viewBox="0 0 24 24" class="msg-status-icon failed" xmlns="http://www.w3.org/2000/svg">
+             <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z" fill="currentColor"></path>
+        </svg>`;
+
+    switch (status) {
+        case 'sent': return sentIcon;
+        case 'delivered': return doubleCheckIcon; // صحين (رمادي)
+        case 'read': return doubleCheckIcon;      // صحين (أزرق - سيأخذ اللون من CSS)
+        case 'failed': return failedIcon;
+        default: return pendingIcon;
+    }
+}
+
+    function makeMessageNode(m) {
+      const isMe = !!m.fromMe;
+      const wrapper = document.createElement('div');
+      wrapper.className = 'cls3741_msg_bubble' + (isMe ? ' me' : '');
+      if (m.id) wrapper.dataset.msgId = m.id;
+      const statusIconHTML = getStatusIconHTML(m.status);
+
+      const timeHtml = `<span class="cls3741_msg_time">${escapeHtml(m.time)}</span>`;
+      const msg_status = isMe ? `<span class="cls3741_msg_status" [data-msg-id="${m.id}"]  style="z-index:123; color:var(--wa-msg-muted); margin-top: 6px;">${statusIconHTML}</span>` : '';
+
+      if (m.type === 'audio') {
+        // 🔥 تحسين عرض الرسالة الصوتية مثل WhatsApp
+        const audioUrl = escapeHtml(m.url || '');
+        const isValidAudio = audioUrl && audioUrl.trim() !== '' && audioUrl !== 'None' && audioUrl !== 'null';
+
+        // تسجيل معلومات debug
+        if (!isValidAudio) {
+          console.warn('🎵 Invalid audio URL:', {
+            url: m.url,
+            escapedUrl: audioUrl,
+            type: m.type
+          });
+        }
+
+        wrapper.innerHTML = `
+          <div class="audio-message ${isMe ? 'fromMe' : 'fromThem'}" role="group" aria-label="audio message">
+            <div class="audio-container">
+              <!-- زر التشغيل/الإيقاف الكبير -->
+              <button class="audio-play-btn" type="button" aria-label="Play/Pause audio">
+                <svg class="play-icon" viewBox="0 0 24 24" width="24" height="24">
+                  <path d="M8 5v14l11-7z"/>
+                </svg>
+                <svg class="pause-icon" viewBox="0 0 24 24" width="24" height="24" style="display: none;">
+                  <path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/>
+                </svg>
+              </button>
+
+              <!-- شريط التقدم الأفقي -->
+              <div class="audio-progress-container">
+                <div class="audio-progress-bar">
+                  <div class="audio-progress-fill"></div>
+                </div>
+                <input type="range" class="audio-seek-slider" min="0" max="100" value="0" step="0.1">
+              </div>
+
+              <!-- الوقت والتحكم -->
+              <div class="audio-info">
+                <span class="audio-time">0:00</span>
+                <div class="audio-duration">--:--</div>
+              </div>
+
+              <!-- العنصر الصوتي المخفي -->
+              <audio preload="metadata" class="audio-element" style="display: none;">
+                ${isValidAudio ? `
+                  <source src="${audioUrl}" type="audio/ogg">
+                  <source src="${audioUrl}" type="audio/mpeg">
+                  <source src="${audioUrl}" type="audio/webm">
+                ` : ''}
+                متصفحك لا يدعم تشغيل الصوت.
+              </audio>
+            </div>
+          </div>
+          <div class="cls3741_msg_footer" style="display:flex; justify-content:flex-end; 
+    gap: 5px;">
+            ${timeHtml}
+            ${msg_status}
+          </div>
+        `;
+
+        // تهيئة مشغل الصوت المتقدم بعد إضافة العنصر إلى DOM
+        setTimeout(() => {
+          const audioElement = wrapper.querySelector('.audio-element');
+          if (audioElement && isValidAudio) {
+            initializeAdvancedAudioPlayer(wrapper);
+          } else if (!isValidAudio) {
+            // إذا لم يكن هناك رابط صوتي صحيح
+            const container = wrapper.querySelector('.audio-container');
+            if (container) {
+              container.innerHTML = `
+                <div class="audio-error">
+                  <svg viewBox="0 0 24 24" width="20" height="20">
+                    <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/>
+                  </svg>
+                  <span>المقطع الصوتي غير متوفر</span>
+                </div>
+              `;
+            }
+          }
+        }, 100);
+      } else if (m.type === 'image') {
+        wrapper.innerHTML = `
+          <img class="cls3741_media_image" src="${escapeHtml(m.url || '')}" alt="image" loading="lazy" />
+          <div class="cls3741_msg_footer" style="
+    display: flex;
+    gap: 5px;
+    z-index: 2343;
+    align-items: center;
+    justify-content: flex-end;
+">
+            ${timeHtml}
+            ${msg_status}
+          </div>
+        `;
+      } else if (m.type === 'video') {
+        wrapper.innerHTML = `
+          <video class="cls3741_media_video" controls preload="metadata">
+            <source src="${escapeHtml(m.url || '')}" type="${escapeHtml(m.mime || 'video/mp4')}">
+          </video>
+          <div class="cls3741_msg_footer" style="display: flex; justify-content: flex-end; 
+    gap: 5px;">
+            ${timeHtml}
+            ${msg_status}
+          </div>
+        `;
+      } else {
+        wrapper.innerHTML = `
+          <div class="cls3741_text">${escapeHtml(m.body || '')}</div>
+          <div class="cls3741_msg_footer" style="display:flex; justify-content: flex-end; 
+    gap: 5px;">
+            ${timeHtml}
+            ${msg_status}
+          </div>
+        `;
+      }
+
+      wrapper.style.opacity = '0';
+      wrapper.style.transform = 'translateY(10px)';
+      wrapper.style.transition = 'all 0.3s ease';
+
+      setTimeout(() => {
+        wrapper.style.opacity = '1';
+        wrapper.style.transform = 'translateY(0)';
+      }, 50);
+
+      return wrapper;
+    }
+
+    // دالة مساعدة لتنسيق الوقت
+    function formatTime(sec) {
+      if (isNaN(sec)) return '0:00';
+      const minutes = Math.floor(sec / 60);
+      const seconds = Math.floor(sec % 60);
+      return `${minutes}:${seconds < 10 ? '0' : ''}${seconds}`;
+    }
+
+    // دالة مساعدة لتشغيل الصوت
+    function initializeAudioPlayer(audio) {
+      const playBtn = audio.closest('.audio-message').querySelector('.audio-play');
+      const progressBar = audio.closest('.audio-message').querySelector('.bar');
+      const timeDisplay = audio.closest('.audio-message').querySelector('.audio-time');
+
+      audio.addEventListener('timeupdate', () => {
+        const current = formatTime(audio.currentTime);
+        const duration = formatTime(audio.duration);
+        timeDisplay.textContent = `${current} / ${duration || '0:00'}`;
+        if (!isNaN(audio.duration)) {
+          const percent = (audio.currentTime / audio.duration) * 100;
+          progressBar.style.width = percent + '%';
+        }
+      });
+
+      audio.addEventListener('ended', () => {
+        playBtn.textContent = '▶';
+        progressBar.style.width = '0%';
+      });
+
+      playBtn.addEventListener('click', () => {
+        if (audio.paused) {
+          audio.play();
+          playBtn.textContent = '⏸';
+        } else {
+          audio.pause();
+          playBtn.textContent = '▶';
+        }
+      });
+    }
+
+    // دالة مساعدة لتأمين النصوص
+    function escapeHtml(text) {
+      const div = document.createElement('div');
+      div.textContent = text;
+      return div.innerHTML;
+    }   // دالة محسنة لإضافة الرسائل
+    function appendMessagesws(msgArray){
+      if (!msgArray || !Array.isArray(msgArray)) return;
+      
+      msgArray.sort((a,b)=> (a.id||0) - (b.id||0));
+      let hasNewMessages = false;
+      
+      for(const m of msgArray){
+        if(m.id && existsMsgId(m.id)) {
+          if(m.id > (lastMessageId||0)) lastMessageId = m.id;
+          continue;
+        }
+        
+        const node = makeMessageNode(m);
+        messagesArea.appendChild(node);
+        if(m.id && m.id > (lastMessageId||0)) lastMessageId = m.id;
+        hasNewMessages = true;
+      }
+      
+      if (hasNewMessages) {
+        scrollToBottom(true);
+      }
+    }
+
+    // دالة محسنة لجلب الرسائل
+    async function fetchMessagesForCurrentws(){
+      if(!currentPhone) return;
+      
+      const url = `${window.API_URLS.messages}?phone=${encodeURIComponent(currentPhone)}&since_id=${encodeURIComponent(lastMessageId||0)}`;
+      try{
+        const res = await fetch(url, { 
+          cache: 'no-store', 
+          headers: { 'Accept': 'application/json' }
+        });
+
+
+          
+        
+        if(!res.ok) return;
+        
+        const data = await res.json();
+        const msgs = data.messages || [];
+        
+        if(!Array.isArray(msgs) || msgs.length === 0) return;
+        
+        appendMessagesws(msgs);
+        
+      }catch(e){ 
+        console.error('fetchMessagesForCurrentws', e); 
+      }
+    }
+
+
+    async function lastmsg(){
+      const url = `${window.API_URLS.lastmsg}?phone=${encodeURIComponent(currentPhone)}&since_id=${encodeURIComponent(lastMessageId||0)}`;
+      try{
+        const res = await fetch(url, { 
+          cache: 'no-store', 
+          headers: { 'Accept': 'application/json' }
+        });
+         if (res.status == 400) {
+            console.log('Send error detected');
+  const resData = await res.json();
+  // استدعِ العرض مع ربط إعادة المحاولة مباشرة إلى دالتك
+  showSendErrorchat(resData, {
+    onRetry: () => {
+      
+      sendMessageLocal(); // أو: sendMessageLocal(queuedFile, queuedFileType)
+    },
+    onSelectTemplate: () => {
+      window.openTemplatePanel();
+      // document.dispatchEvent(new CustomEvent('openTemplatePanel'));
+    },
+    autoDismissMs: 9000
+  });
+
+ 
+
+  // لا ترمي استثناء هنا — فقط ارجع بعد عرض الخطأ، أو استخدم return إذا أردت إيقاف تنفيذ الباقي
+  return;
+}
+          if (res.status == 200) {
+            const bannerer = document.querySelector('.error-banner');
+            if (bannerer) {
+              bannerer.remove();
+            document.querySelector('.cls3741_chat_input_container').classList.remove('d-none')
+            }
+          }
+
+}catch(e){console.error('fetchMessagesForCurrentws', e);} 
+
+        // if(!res.ok) return;
+      
+    }
+
+
+
+// let channelId = ''
+    
+//   // ------------------------- channel -------------------------- 
+// function switchChannel(channelId) {
+//   currentChannelId = document.querySelector('.workspace-item .active').getAttribute('currentChannelId')
+    
+//     if (currentChannelId === channelId) return;
+
+//     // 1. تحديث الشكل البصري (Active Class)
+//     document.querySelectorAll('.cls3741_channel_item').forEach(el => el.classList.remove('active'));
+//     event.currentTarget.classList.add('active');
+
+//     // 2. تحديث المتغير
+//     currentChannelId = channelId;
+    
+//     // 3. إظهار لودر التحميل في القائمة
+//     const contactsListEl = document.getElementById('cls3741_contacts_list');
+//     contactsListEl.innerHTML = '<div class="cls3741_loader_new">...</div>';
+
+//     // 4. طلب البيانات من السيرفر للقناة الجديدة
+//     // لاحظ: يجب تمرير channel_id في الطلب
+//     fetchInitialContacts(channelId); 
+    
+// }
+ 
+async function fetchInitialContacts(channelId) {
+    const url = `${window.API_URLS.contacts}?channel_id=${channelId}`;
+    const res = await fetch(url, { 
+        cache: 'no-store', 
+        headers: { 'Accept': 'application/json' }
+    });
+    if (!res.ok) throw new Error("Failed to fetch contacts");
+    const data = await res.json();
+    renderContactsList(data.contacts);
+    fetchContactsAndUpdateUIws(data.contacts, true);
+}
+ 
+
+ 
+fetchInitialContacts(currentChannelId);
+
+// دالة تهيئة (تستدعى عند فتح الصفحة)
+// async function initApp() {
+   
+//     await fetchContacts();
+// }
+
+// دالة تبديل القناة (عند النقر على الدائرة اليسرى)
+async function switchChannel(newChannelId) {
+    if(currentChannelId === newChannelId) return;
+    
+    currentChannelId = newChannelId;
+    
+    // تحديث الواجهة (Active Class)
+
+    document.querySelectorAll('.workspace-item').forEach(el => el.classList.remove('active'));
+    const ci =  document.querySelector(`[data-channel-id="${newChannelId}"]`).classList.add('active');
+    
+
+    // تنظيف الشات والقائمة الحالية
+    document.getElementById('cls3741_contacts_list').innerHTML = '<div class="loader">Loading...</div>';
+    document.getElementById('cls3741_messages_area').innerHTML = '';
+    
+    // جلب بيانات القناة الجديدة
+    await fetchContactsAndUpdateUIws( null , true);
+
+    if (typeof window.loadContactsListForChannel === 'function') {
+        window.loadContactsListForChannel(newChannelId);
+    }
+
+    // 🔥 تحديث قسم الـ Automation 🔥
+    if (window.automationsListInstance && typeof window.automationsListInstance.refreshForChannel === 'function') {
+        window.automationsListInstance.refreshForChannel(newChannelId);
+    }
+
+    if (typeof window.loadTemplates === 'function') {
+        // نمرر الـ ID الجديد أو نعتمد على المتغير العام الذي حدثناه في الأعلى
+        window.loadTemplates(newChannelId); 
+    }
+
+
+
+
+    const selectedBtn = document.querySelector(`.workspace-item[data-channel-id="${newChannelId}"]`);
+    
+    if (selectedBtn) {
+        // 2. استخراج البيانات من الـ attributes
+        const name = selectedBtn.getAttribute('data-name');
+        const agentsCount = selectedBtn.getAttribute('data-agents');
+        
+        // 3. تحديث عناصر الهيدر (DOM)
+        const logoEl = document.getElementById('current_channel_logo');
+        const nameEl = document.getElementById('current_channel_name');
+        const subEl = document.getElementById('current_channel_agents_count');
+
+        if (logoEl) logoEl.textContent = name.charAt(0).toUpperCase();
+        if (nameEl) nameEl.textContent = name;
+        if (subEl) subEl.textContent = `${agentsCount} Agents`;
+    }
+// 🔥 تحديث الداشبورد 🔥
+if (typeof window.loadDashboardData === 'function') {
+        window.loadDashboardData(newChannelId);
+    }
+
+}
+window.switchChannel = switchChannel;
+window.openAddChannelModal = openAddChannelModal;
+
+
+
+// دالة جلب جهات الاتصال (معدلة)
+// async function fetchContacts() {
+//     // نمرر channel_id في الرابط
+//     const url = `${window.API_URLS.contacts}?channel_id=${currentChannelId}`;
+//     const res = await fetch(url);
+//     const data = await res.json();
+    
+//     // تحديث currentChannelId إذا عاد من السيرفر (لأول مرة)
+//     if(data.current_channel) currentChannelId = data.current_channel;
+    
+//     renderContacts(data.contacts);
+// }
+
+
+
+// دالة جلب الرسائل (معدلة)
+// async function fetchMessagesForCurrent() {
+//     if(!currentPhone || !currentChannelId) return;
+    
+//     const url = `${window.API_URLS.messages}?phone=${currentPhone}&channel_id=${currentChannelId}`;
+//     // ... باقي الكود ...
+// }
+
+
+
+
+// ------------------------- contacts -------------------------- 
+async function fetchContactsAndUpdateUIws(wsData = null, loadFromApi = false) {
+    console.log('🔄 Update UI Triggered:', { wsData, loadFromApi });
+    
+    let contactsToProcess = [];
+
+    try {
+        // ==========================================
+        // الحالة 1: تحميل الصفحة (جلب الكل من السيرفر)
+        // ==========================================
+        if (loadFromApi) {
+            // const url = window.API_URLS.contacts;  
+            const url = `${window.API_URLS.contacts}?channel_id=${currentChannelId}`;
+            const res = await fetch(url, { 
+                cache: 'no-store', 
+                headers: { 'Accept': 'application/json' }
+            });
+            
+            
+            if (!res.ok) throw new Error("Failed to fetch contacts");
+            
+            const data = await res.json();
+            contactsToProcess = Array.isArray(data) ? data : (data.contacts || []);
+            console.log('loadFromApi' , data)
+            // 🔥 حفظ جميع جهات الاتصال للبحث والفلترة
+            allContactsData = contactsToProcess;
+            
+            // تنظيف القائمة القديمة فقط في حالة التحميل الكامل
+            const listContainer = document.getElementById('contacts-list'); // ضع ID القائمة هنا
+            if (listContainer) listContainer.innerHTML = ''; 
+        } 
+        
+        // ==========================================
+        // الحالة 2: مستخدم جديد من السوكت (بدون Fetch)
+        // ==========================================
+        else if (wsData) {
+            contactsToProcess = [wsData];
+            // 🔥 إضافة المستخدم الجديد إلى allContactsData
+            const existingIndex = allContactsData.findIndex(c => c.phone === wsData.phone);
+            if (existingIndex >= 0) {
+                allContactsData[existingIndex] = wsData;
+            } else {
+                allContactsData.unshift(wsData);
+            }
+        }
+
+        const contacts = Array.isArray(contactsToProcess) ? contactsToProcess : (contactsToProcess.contacts || []);
+        const snapshot = JSON.stringify(contacts.map(c => [c.phone, c.last_id, c.unread]));
+        
+        if(snapshot === contactsSnapshot && !loadFromApi) return;
+        contactsSnapshot = snapshot;
+
+        // 🔥 تطبيق البحث والفلترة
+        applySearchAndFilter();
+        
+      }catch(e){ 
+        console.error('fetchContactsAndUpdateUIws', e); 
+      }
+    
+    
+    }
+
+
+    // 🔥 دالة لعرض جهات الاتصال مع البحث والفلترة
+    function renderContactsList(contacts) {
+        const contactsListEl = document.getElementById('cls3741_contacts_list');
+        if (!contactsListEl) return;
+
+        // 🔥 تطبيق البحث والفلترة
+        let filtered = contacts.filter(c => {
+            // البحث
+            if (currentSearchQuery) {
+                const query = currentSearchQuery.toLowerCase();
+                const name = (c.name || '').toLowerCase();
+                const phone = (c.phone || '').toLowerCase();
+                const snippet = (c.snippet || '').toLowerCase();
+                if (!name.includes(query) && !phone.includes(query) && !snippet.includes(query)) {
+                    return false;
+                }
+            }
+
+            // الفلترة
+            if (currentFilter === 'unread') {
+                return c.unread && c.unread > 0;
+            } else if (currentFilter === 'read') {
+                return !c.unread || c.unread === 0;
+            }
+            return true; // 'all'
+        });
+
+        if (filtered.length === 0) {
+            contactsListEl.innerHTML = `
+                <div style="text-align:center;padding:60px 20px;color:var(--text-secondary)">
+                    <div style="font-size:48px;margin-bottom:16px;opacity:0.3">🔍</div>
+                    <div style="font-size:15px;font-weight:500">لا توجد نتائج</div>
+                    <div style="font-size:13px;margin-top:8px;opacity:0.7">جرب تغيير البحث أو الفلتر</div>
+                </div>
+            `;
+            return;
+        }
+
+    const frag = document.createDocumentFragment();
+        filtered.forEach(c => {
+    const item = document.createElement('div');
+    item.className = 'cls3741_contact_item';
+    item.setAttribute('data-phone', c.phone || '');
+    item.setAttribute('data-name', c.name || '');
+    item.setAttribute('timestamp_', c.timestamp || '');
+    console.log('🚀 ~ file: whatssap.html ~ line 255 ~ item.setAttribute ~ c.channel_id', c)
+            item.setAttribute('data-channel-id', c.channel_id || '');
+    const initial = (c.name || '').trim().charAt(0).toUpperCase() || '?';
+    const isUnread = c.unread && c.unread > 0;
+    const badge = isUnread ? `<div class="cls3741_contact_badge green">${c.unread}</div>` : '';
+    const snippetClass = isUnread ? 'cls3741_contact_snippet green' : 'cls3741_contact_snippet';
+    let statusIconHTML = '';
+
+    if (c.fromMe) { 
+        statusIconHTML = `<span class="sidebar-status-icon">${getStatusIconHTML(c.last_status || 'pending')}</span>`;
+    }
+
+    item.innerHTML = `
+        <div class="cls3741_contact_avatar" style="background:transparent;"><img src="https://cdn.pixabay.com/photo/2023/02/18/11/00/icon-7797704_640.png" style="border-radius:50px; width:100%;height:100%"> </div>
+        <div class="cls3741_contact_meta">
+                    <div class="cls3741_contact_name">${escapeHtml(c.name || c.phone || '')}</div>
+                    <div class="${snippetClass}">${escapeHtml(c.snippet || c.phone || '')} ${statusIconHTML} </div>
+        </div>
+        ${badge}
+    `;
+    frag.appendChild(item);
+});
+
+        contactsListEl.innerHTML = '';
+        contactsListEl.appendChild(frag);
+        
+        // 🔥 ربط النقر على العناصر
+        contactsListEl.querySelectorAll('.cls3741_contact_item').forEach(item => {
+            item.addEventListener('click', function() {
+                onContactSelected(item);
+            });
+        });
+    }
+
+    // 🔥 دالة تطبيق البحث والفلترة
+    function applySearchAndFilter() {
+        renderContactsList(allContactsData);
+    }
+
+// جعل الدالة عامة لتكون متاحة للسوكيت
+window.updateContactItemSingle = function(contactData) {
+    console.log('⚡ Updating Sidebar Item:', contactData);
+
+    const contactsListEl = document.getElementById('cls3741_contacts_list');
+    if (!contactsListEl) return;
+
+    // 1. تنظيف رقم الهاتف للمطابقة
+    const safePhone = (contactData.phone || '').replace(/^\+/, '').replace(/\s+/g, '');
+
+    // 2. البحث عن العنصر القديم (لحذفه لاحقاً)
+    let existingItem = contactsListEl.querySelector(`.cls3741_contact_item[data-phone="${safePhone}"]`);
+    if (!existingItem) {
+        // محاولة بحث أخرى بالرقم كما جاء
+        existingItem = contactsListEl.querySelector(`.cls3741_contact_item[data-phone="${contactData.phone}"]`);
+    }
+
+    // 3. تجهيز أيقونة الحالة (صح/ساعة)
+    // نتحقق من البيانات داخل contactData نفسها بدلاً من متغير منفصل
+    let statusIconHTML = '';
+    if (contactData.fromMe || (contactData.is_from_me)) { 
+        // تأكد أن getStatusIconHTML معرفة لديك
+        const status = contactData.last_status || contactData.status || 'pending';
+        if (typeof getStatusIconHTML === 'function') {
+          statusIconHTML = `<span class="sidebar-status-icon">${getStatusIconHTML(contactData.last_status || 'sent')}</span>`;
+        }
+    }
+// تذكير سريع: تأكد أن هذا السطر موجود في updateContactItemSingle
+ 
+    // 4. تجهيز شارة غير المقروء
+    const isUnread = contactData.unread && contactData.unread > 0;
+    const badgeHtml = isUnread ? `<div class="cls3741_contact_badge green">${contactData.unread}</div>` : '';
+    const snippetClass = isUnread ? 'cls3741_contact_snippet green' : 'cls3741_contact_snippet';
+
+    // 5. صورة البروفايل (مع صورة افتراضية في حال عدم وجودها)
+    const avatarSrc = contactData.profile_picture 
+        ? contactData.profile_picture 
+        : "https://cdn.pixabay.com/photo/2023/02/18/11/00/icon-7797704_640.png"; // تم تصحيح الرابط
+
+    // 6. إنشاء العنصر الجديد (HTML)
+    const newItem = document.createElement('div');
+    newItem.className = 'cls3741_contact_item';
+    
+    // نقل الكلاس "active" إذا كان هذا هو المستخدم المفتوح حالياً
+    if (window.getCurrentChatPhone && window.getCurrentChatPhone() === safePhone) {
+        newItem.classList.add('cls3741_btn_active');
+    }
+
+    // تعيين البيانات
+    newItem.setAttribute('data-phone', contactData.phone);
+    newItem.setAttribute('data-name', contactData.name);
+    newItem.setAttribute('data-channel-id', contactData.channel_id || '');
+
+    newItem.innerHTML = `
+        <div class="cls3741_contact_avatar">
+            <img src="${avatarSrc}" style="width:100%;height:100%;border-radius:50%;object-fit:cover;"> 
+        </div>
+        <div class="cls3741_contact_meta">
+            <div class="cls3741_contact_name">${escapeHtml(contactData.name || contactData.phone)}</div>
+            <div class="${snippetClass}" style="font-famliy:'tajawal';">
+                ${statusIconHTML} ${escapeHtml(contactData.snippet || '')}
+            </div>
+        </div>
+        <div style="display:flex; flex-direction:column; align-items:flex-end; gap:4px;">
+             <span class="cls3741_msg_time" style="font-size:10px; color:var(--text-secondary);">${contactData.timestamp || 'Now'}</span>
+             ${badgeHtml}
+        </div>
+    `;
+
+    // إضافة حدث النقر
+    newItem.addEventListener('click', function() {
+        if (window.__chatSelectPhone) window.__chatSelectPhone(contactData.phone, contactData.name);
+    });
+
+    // 7. التنفيذ في الـ DOM
+    if (existingItem) {
+        existingItem.remove(); // نحذف القديم من مكانه
+    }
+    
+    // نضيف الجديد في المقدمة دائماً
+    contactsListEl.prepend(newItem);
+
+    // ❌ حذفنا applySearchAndFilter() لأنها كانت تمسح كل شيء
+};
+
+// دالة مساعدة صغيرة إذا لم تكن موجودة
+function escapeHtml(s) {
+    return (s||'').toString().replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+
+
+
+    // دالة محسنة لاختيار جهة اتصال
+    function onContactSelected(el){
+      const phone = el.getAttribute('data-phone');
+      const name = el.getAttribute('data-name') || null;
+      const las_seen__ = el.getAttribute('timestamp_' || null);
+      const channelId = el.getAttribute('data-channel-id') || null; // 🔥 الحصول على channel_id
+      if(!phone) return;
+      
+      currentPhone = phone.replace(/^\+/, '').replace(/\s+/g,'');
+      currentChannelId = channelId; // 🔥 حفظ channel_id الحالي
+      lastMessageId = 0;
+      lastmsg();
+
+      const avatarEl = document.getElementById('cls3741_active_avatar');
+      if (avatarEl) avatarEl.textContent = (name||phone).trim().charAt(0).toUpperCase();
+      
+      const nameEl = document.getElementById('cls3741_active_name');
+      const last_seen_ = document.getElementById('last_seen_')
+      console.log(el)
+      if (last_seen_) last_seen_.textContent = 'last seen today at '+las_seen__
+      if (nameEl) nameEl.textContent = name || phone;
+      
+      const userAvatarEl = document.getElementById('cls3741_user_avatar');
+      if (userAvatarEl) userAvatarEl.textContent = (name||phone).trim().charAt(0).toUpperCase();
+      
+      const userNameEl = document.getElementById('cls3741_user_name');
+      if (userNameEl) userNameEl.textContent = name || phone;
+      
+      const userPhoneEl = document.getElementById('cls3741_user_phone');
+      if (userPhoneEl) userPhoneEl.textContent = '+' + currentPhone;
+
+      messagesArea.innerHTML = '';
+      messagesArea.appendChild(createLoadingMessage());
+      
+      fetchMessagesForCurrentws().then(()=>{
+
+        const item = contactsListEl.querySelector(`.cls3741_contact_item[data-phone="${phone}"]`);
+        if(item){
+          const allItems = contactsListEl.querySelectorAll('.cls3741_contact_item');
+          allItems.forEach(i => i.classList.remove('cls3741_btn_active'));
+          item.classList.add('cls3741_btn_active')
+          const badge = item.querySelector('.cls3741_contact_badge');
+          if(badge) {
+            badge.textContent = '—';
+            badge.style.opacity = '0';
+          }
+        }
+      });
+
+
+     
+    }
+
+ 
+function fileToBase64(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const result = reader.result.split(",")[1];
+      resolve(result);
+    };
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+
+async function sendMessageLocal_ws(fileObj = null, fileType = null) {
+  // 1. التحقق من الهاتف
+  if (!currentPhone) { 
+      alert('⚠️ يرجى اختيار محادثة أولاً'); 
+      return; 
+  }
+
+  // 2. التحقق من القناة (من المتغير العام)
+  const activeChannelId = window.currentChannelId;
+  console.log('📢 Sending on Channel:', activeChannelId); // للتأكد
+
+  if (!activeChannelId || activeChannelId === 'null') {
+      console.error('❌ Missing Channel ID');
+      alert('خطأ: القناة غير محددة. يرجى تحديث الصفحة.');
+      return;
+  }
+
+  // معالجة الملفات
+  if (fileObj instanceof Event) { fileObj = null; fileType = null; }
+  const fileToSend = fileObj || queuedFile;
+  const typeToSend = fileType || queuedFileType;
+
+  // تعطيل الزر
+  if (sendBtnmain) sendBtnmain.disabled = true;
+
+  try {
+    // إعداد البيانات الأساسية
+    const payload = {
+      type: fileToSend ? 'media_upload' : 'text',
+      to: currentPhone,
+      body: '',
+      channel_id: activeChannelId, // 🔥 تصحيح الاسم واستخدام المتغير العام
+      local_id: Date.now()
+    };
+
+    // ==========================================
+    // الحالة 1: وسائط (ملفات)
+    // ==========================================
+    if (fileToSend && typeToSend) {
+      const base64 = await fileToBase64(fileToSend);
+
+      payload.type = typeToSend; 
+      payload.file = base64;
+      payload.mime = fileToSend.type || ( typeToSend === 'image' ? 'image/jpeg' :
+        typeToSend === 'video' ? 'video/mp4' :
+        typeToSend === 'audio' ? 'audio/ogg' : 'application/octet-stream' );
+      payload.msg_type ='media_upload'; 
+    }  
+    // ==========================================
+    // الحالة 2: نص عادي
+    // ==========================================
+    else {
+      const text = messageInput ? messageInput.value.trim() : '';
+      
+      if (!text) { 
+          if (sendBtnmain) sendBtnmain.disabled = false; 
+          // alert('اكتب رسالة'); 
+          return; 
+      }
+      
+      // تنظيف الواجهة فوراً
+      if (messageInput) messageInput.value = '';
+      
+      payload.body = text;
+      payload.type = 'text';
+    }
+
+    // ==========================================
+    // عملية الإرسال عبر السوكيت
+    // ==========================================
+    
+    // التحقق من أن السوكيت موجود ومتصل
+    if (window.ChatSocket && window.ChatSocket.socket && window.ChatSocket.socket.readyState === WebSocket.OPEN) {
+        
+        await window.ChatSocket.send(
+            'send_message', 
+            payload
+        );
+
+        console.log("✅ Message Sent via Socket:", payload);
+
+        // تنظيف متغيرات الملفات بعد الإرسال الناجح
+        if (fileToSend) {
+            queuedFile = null;
+            queuedFileType = null;
+            if (mediaPreview) mediaPreview.innerHTML = '';
+        }
+
+    } else {
+        throw new Error("اتصال السوكيت غير متوفر (Disconnected)");
+    }
+
+  } catch (err) {
+    console.error('❌ sendMessageLocal error:', err);
+    alert('فشل الإرسال: ' + (err.message || "خطأ غير معروف"));
+    
+    // في حالة الفشل، قد نحتاج لإعادة النص لحقل الإدخال
+    // if (messageInput && payload.body) messageInput.value = payload.body;
+
+  } finally {
+    // إعادة تفعيل الزر دائماً
+    if (sendBtnmain) sendBtnmain.disabled = false;
+    // إعادة التركيز
+    if (messageInput) messageInput.focus();
+  }
+}
+
+
+
+
+// إدارة الوسائط في قائمة الانتظار
+    function renderMediaPreview(file, type) {
+      if (!mediaPreview) return;
+      
+      mediaPreview.innerHTML = '';
+      
+      const wrapper = document.createElement('div');
+      wrapper.className = 'cls3741_preview_item';
+      wrapper.style.cssText = `
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 12px;
+        background: var(--bg-tertiary, #f1f3f4);
+        border-radius: 12px;
+        margin: 8px 0;
+        border: 1px solid var(--border-color, #e5e7eb);
+      `;
+
+      let previewContent = '';
+      
+      if (type === 'image') {
+        previewContent = `
+          <img src="${URL.createObjectURL(file)}" style="width: 60px; height: 60px; border-radius: 8px; object-fit: cover;">
+          <div style="flex: 1;">
+            <div style="font-weight: 600; color: var(--text-primary);">صورة</div>
+            <div style="font-size: 12px; color: var(--text-secondary);">${file.name}</div>
+          </div>
+        `;
+      } else if (type === 'video') {
+        previewContent = `
+          <div style="width: 60px; height: 60px; border-radius: 8px; background: var(--accent); display: flex; align-items: center; justify-content: center; color: white;">
+            🎬
+          </div>
+          <div style="flex: 1;">
+            <div style="font-weight: 600; color: var(--text-primary);">فيديو</div>
+            <div style="font-size: 12px; color: var(--text-secondary);">${file.name}</div>
+          </div>
+        `;
+      } else if (type === 'audio') {
+        previewContent = `
+          <div style="width: 60px; height: 60px; border-radius: 8px; background: var(--accent); display: flex; align-items: center; justify-content: center; color: white;">
+            🎵
+          </div>
+          <div style="flex: 1;">
+            <div style="font-weight: 600; color: var(--text-primary);">مقطع صوتي</div>
+            <div style="font-size: 12px; color: var(--text-secondary);">${Math.round(file.size/1024)} KB</div>
+          </div>
+        `;
+      }
+
+      wrapper.innerHTML = previewContent + `
+        <button class="cls3741_preview_remove" style="background: none; border: none; color: var(--text-secondary); cursor: pointer; padding: 8px;" title="إزالة">
+          ✕
+        </button>
+      `;
+
+      wrapper.querySelector('.cls3741_preview_remove').addEventListener('click', () => {
+        queuedFile = null;
+        queuedFileType = null;
+        mediaPreview.innerHTML = '';
+      });
+
+      mediaPreview.appendChild(wrapper);
+    }
+
+    // رفع الصور والفيديوهات
+    if(imageBtn && imageInput) {
+      imageBtn.addEventListener('click', () => imageInput.click());
+      imageInput.addEventListener('change', (e) => {
+        const file = e.target.files[0];
+        if(file) {
+          queuedFile = file;
+          queuedFileType = 'image';
+          renderMediaPreview(file, 'image');
+        }
+        imageInput.value = '';
+      });
+    }
+
+    if(videoBtn && videoInput) {
+      videoBtn.addEventListener('click', () => videoInput.click());
+      videoInput.addEventListener('change', (e) => {
+        const file = e.target.files[0];
+        if(file) {
+          queuedFile = file;
+          queuedFileType = 'video';
+          renderMediaPreview(file, 'video');
+        }
+        videoInput.value = '';
+      });
+    }
+
+    // إدارة التسجيل الصوتي
+   // إدارة التسجيل الصوتي
+    if(audioBtn) {
+      audioBtn.addEventListener('click', async function(){
+        try{
+          if(!isRecording){
+            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            
+            // --- [بداية التعديل] تحديد الصيغة المناسبة للمتصفح ---
+            let mimeType = 'audio/webm'; // الافتراضي لكروم وأندرويد
+            let fileExtension = 'webm';
+
+            // فحص إذا كان سفاري (يدعم mp4)
+            if (MediaRecorder.isTypeSupported('audio/mp4')) {
+                mimeType = 'audio/mp4';
+                fileExtension = 'mp4'; // تغيير الامتداد لـ mp4
+            } 
+            // فحص احتياطي
+            else if (MediaRecorder.isTypeSupported('audio/webm;codecs=opus')) {
+                mimeType = 'audio/webm;codecs=opus';
+            }
+            // -----------------------------------------------------
+
+            // تمرير mimeType للإعدادات ضروري جداً
+            mediaRecorder = new MediaRecorder(stream, { mimeType: mimeType });
+            audioBlobs = [];
+            
+            mediaRecorder.ondataavailable = e => {
+                if (e.data.size > 0) audioBlobs.push(e.data);
+            };
+
+            mediaRecorder.onstop = () => {
+              // استخدام نفس الـ mimeType الذي حددناه في البداية
+              const blob = new Blob(audioBlobs, { type: mimeType });
+              
+              // استخدام الامتداد الصحيح (mp4 أو webm)
+              queuedFile = new File([blob], `voice_${Date.now()}.${fileExtension}`, { type: mimeType });
+              
+              queuedFileType = 'audio';
+              renderMediaPreview(queuedFile, 'audio');
+              stream.getTracks().forEach(track => track.stop());
+            };
+            
+            mediaRecorder.start();
+            isRecording = true;
+            audioBtn.classList.add('recording');
+          } else {
+            mediaRecorder.stop();
+            isRecording = false;
+            audioBtn.classList.remove('recording');
+          }
+        }catch(e){
+          console.error('خطأ في التسجيل:', e);
+          alert('لا يمكن الوصول إلى الميكروفون. يرجى التحقق من الأذونات.');
+        }
+      });
+    }
+    // ربط الأحداث الأساسية
+    contactsListEl?.addEventListener('click', function(e){
+      let el = e.target;
+      while(el && !el.classList.contains('cls3741_contact_item')) el = el.parentElement;
+      if(el) onContactSelected(el);
+    });
+
+    // معالج زر الإرسال - مبسط
+    if(sendBtnmain) {
+      console.log('زر الإرسال');
+      sendBtnmain.addEventListener('click', function(e) {
+        e.preventDefault();
+        console.log('🔄 زر الإرسال تم النقر عليه');
+        
+        if(queuedFile && queuedFileType) {
+          sendMessageLocal_ws(queuedFile, queuedFileType);
+        } else {
+          sendMessageLocal_ws();
+        }
+      });
+    }
+
+    // إرسال بالضغط على Enter
+    if(messageInput) {
+      messageInput.addEventListener('keydown', function(e) {
+        if(e.key === 'Enter' && !e.shiftKey) {
+          e.preventDefault();
+          console.log('⌨️ Enter تم الضغط عليه');
+          
+          if(queuedFile && queuedFileType) {
+            sendMessageLocal_ws(queuedFile, queuedFileType);
+          } else {
+            sendMessageLocal_ws();
+          }
+        }
+      });
+    }
+
+    // async function pollLoop(){
+    //   try{
+    //     if(currentPhone) await fetchMessagesForCurrentws();
+    //     contactPollCounter = (contactPollCounter + 1) % 3;
+    //     // if(contactPollCounter === 0) await fetchContactsAndUpdateUI();
+    //   }catch(e){
+    //     console.error('pollLoop', e);
+    //   } finally {
+    //     pollTimer = setTimeout(pollLoop, pollInterval);
+    //   }
+    // }
+
+    // 🔥 تهيئة البحث والفلترة
+ // ============================================================
+//  🔥 متغيرات الحالة للقائمة الجانبية (Sidebar State)
+// ============================================================
+let sidebarState = {
+    page: 1,
+    isLoading: false,
+    hasMore: true,
+    query: '',
+    filter: 'all', // all, unread, read
+    contacts: [] // لتخزين البيانات الحالية (اختياري)
+};
+
+// عناصر DOM الخاصة بالقائمة الجانبية
+const sidebarListEl = document.getElementById('cls3741_contacts_list');
+const sidebarSearchInput = document.getElementById('cls3741_search');
+const sidebarSearchClear = document.getElementById('cls3741_search_clear');
+const sidebarFilterBtns = document.querySelectorAll('.cls3741_filter_btn');
+
+// ============================================================
+//  🔥 الدالة الرئيسية: جلب البيانات من السيرفر (Fetch)
+// ============================================================
+async function loadSidebarContacts(reset = false) {
+    // 1. التحقق من القناة
+    const activeChannelId = window.currentChannelId;
+    if (!activeChannelId || activeChannelId === 'null') return;
+
+    // 2. إذا كان إعادة تعيين (بحث جديد أو فلتر جديد)، نصفر العدادات
+    if (reset) {
+        sidebarState.page = 1;
+        sidebarState.hasMore = true;
+        sidebarState.contacts = [];
+        // إذا كان إعادة تعيين، نظف القائمة واعرض اللودر
+        if(sidebarListEl) sidebarListEl.innerHTML = '<div class="cls3741_loader_new"><div class="cls3741_spinner"></div></div>';
+    }
+
+    // 3. شروط التوقف: إذا كنا نحمل حالياً أو لا يوجد المزيد
+    if (sidebarState.isLoading || !sidebarState.hasMore) return;
+
+    sidebarState.isLoading = true;
+
+    try {
+        // 4. بناء الرابط
+        // ملاحظة: نستخدم api_contacts2 التي حدثناها في الباك إند
+        let url = `${window.API_URLS.contacts}?channel_id=${activeChannelId}&page=${sidebarState.page}`;
+        
+        if (sidebarState.query) {
+            url += `&q=${encodeURIComponent(sidebarState.query)}`;
+        }
+        if (sidebarState.filter !== 'all') {
+            url += `&filter=${sidebarState.filter}`;
+        }
+
+        const res = await fetch(url, { headers: { 'Accept': 'application/json' } });
+        if (!res.ok) throw new Error("Failed to load contacts");
+
+        const data = await res.json();
+        const newContacts = data.contacts || [];
+
+        // 5. تحديث الحالة
+        sidebarState.hasMore = data.has_next || false; // السيرفر يخبرنا هل يوجد المزيد
+        sidebarState.page++;
+
+        // 6. الرسم
+        renderSidebarItems(newContacts, reset);
+
+    } catch (e) {
+        console.error("Sidebar Load Error:", e);
+        if (reset && sidebarListEl) {
+            sidebarListEl.innerHTML = `<div style="text-align:center;padding:20px;color:var(--danger);">خطأ في التحميل</div>`;
+        }
+    } finally {
+        sidebarState.isLoading = false;
+    }
+}
+
+// ============================================================
+//  🔥 دالة الرسم (Render)
+// ============================================================
+function renderSidebarItems(contacts, isReset) {
+    if (!sidebarListEl) return;
+
+    // إذا كان إعادة تعيين، نمسح المحتوى القديم (اللودر)
+    if (isReset) {
+        sidebarListEl.innerHTML = '';
+        if (contacts.length === 0) {
+            sidebarListEl.innerHTML = `
+                <div style="text-align:center;padding:40px 20px;color:var(--text-secondary)">
+                    <div style="font-size:24px;margin-bottom:8px;opacity:0.5">🔍</div>
+                    <div style="font-size:13px;">لا توجد نتائج</div>
+                </div>`;
+            return;
+        }
+    }
+
+    const frag = document.createDocumentFragment();
+
+    contacts.forEach(c => {
+        const item = document.createElement('div');
+        item.className = 'cls3741_contact_item';
+        // إضافة الكلاس النشط إذا كان هو المختار حالياً
+        if (window.getCurrentChatPhone && window.getCurrentChatPhone() === c.phone) {
+            item.classList.add('cls3741_btn_active');
+        }
+
+        item.setAttribute('data-phone', c.phone || '');
+        item.setAttribute('data-name', c.name || '');
+        item.setAttribute('data-channel-id', c.channel_id || '');
+
+        // أيقونة الحالة (إذا الرسالة مني)
+        let statusIcon = '';
+        if (c.fromMe) {
+            statusIcon = `<span class="sidebar-status-icon">${getStatusIconHTML(c.last_status || 'pending')}</span>`;
+        }
+
+        // شارة غير المقروء
+        const badgeHtml = (c.unread > 0) 
+            ? `<div class="cls3741_contact_badge green">${c.unread}</div>` 
+            : '';
+        
+        // تلوين النص إذا كان غير مقروء
+        const snippetClass = (c.unread > 0) ? 'cls3741_contact_snippet green' : 'cls3741_contact_snippet';
+
+        item.innerHTML = `
+            <div class="cls3741_contact_avatar">
+                <img src="${c.profile_picture || 'https://cdn.pixabay.com/photo/2023/02/18/11/00/icon-7797704_640.png'}" 
+                     style="width:100%; height:100%; border-radius:50%; object-fit:cover;">
+            </div>
+            <div class="cls3741_contact_meta">
+                <div class="cls3741_contact_name">${escapeHtml(c.name || c.phone)}</div>
+                <div class="${snippetClass}">
+                    ${statusIcon} ${escapeHtml(c.snippet || '')}
+                </div>
+            </div>
+            <div style="display:flex; flex-direction:column; align-items:flex-end; gap:4px;">
+                <span class="cls3741_msg_time" style="font-size:10px; color:var(--text-secondary);">${c.timestamp || ''}</span>
+                ${badgeHtml}
+            </div>
+        `;
+
+        item.addEventListener('click', () => {
+            if(window.__chatSelectPhone) window.__chatSelectPhone(c.phone, c.name);
+        });
+
+        frag.appendChild(item);
+    });
+
+    sidebarListEl.appendChild(frag);
+}
+
+// ============================================================
+//  🔥 معالجات الأحداث (Event Listeners)
+// ============================================================
+
+// 1. البحث (مع Debounce لتقليل الطلبات للسيرفر)
+let searchTimeout;
+if (sidebarSearchInput) {
+    sidebarSearchInput.addEventListener('input', (e) => {
+        const val = e.target.value.trim();
+        
+        // إظهار/إخفاء زر المسح
+        if (sidebarSearchClear) sidebarSearchClear.style.display = val ? 'flex' : 'none';
+
+        clearTimeout(searchTimeout);
+        searchTimeout = setTimeout(() => {
+            sidebarState.query = val;
+            loadSidebarContacts(true); // إعادة تحميل من البداية
+        }, 500); // انتظر نصف ثانية بعد توقف الكتابة
+    });
+}
+
+// زر مسح البحث
+if (sidebarSearchClear) {
+    sidebarSearchClear.addEventListener('click', () => {
+        sidebarSearchInput.value = '';
+        sidebarSearchInput.dispatchEvent(new Event('input')); // تفعيل حدث الإدخال أعلاه
+    });
+}
+
+// 2. أزرار الفلترة (الكل، غير مقروء، مقروء)
+sidebarFilterBtns.forEach(btn => {
+    btn.addEventListener('click', function() {
+        // تحديث الشكل
+        sidebarFilterBtns.forEach(b => b.classList.remove('active'));
+        this.classList.add('active');
+
+        // تحديث الحالة والتحميل
+        sidebarState.filter = this.getAttribute('data-filter');
+        loadSidebarContacts(true); // إعادة تحميل من البداية
+    });
+});
+
+// 3. التمرير اللانهائي (Infinite Scroll) 🔥
+if (sidebarListEl) {
+    sidebarListEl.addEventListener('scroll', function() {
+        // معادلة: هل وصلنا لأسفل القائمة؟ (مع هامش 50 بيكسل)
+        if (this.scrollTop + this.clientHeight >= this.scrollHeight - 50) {
+            // تحميل الصفحة التالية (append = true ضمنياً لأننا لم نمرر reset=true)
+            loadSidebarContacts(false); 
+        }
+    });
+}
+
+// ============================================================
+//  🔥 ربط مع النظام العام
+// ============================================================
+
+// تعريف دالة التحديث العامة لاستخدامها عند تغيير القناة
+window.fetchContactsAndUpdateUIws = function(wsData, isFullReload) {
+    if (isFullReload) {
+        // عند تغيير القناة، نعيد التحميل من الصفر
+        loadSidebarContacts(true);
+    } else if (wsData) {
+        // عند وصول رسالة جديدة عبر السوكيت
+        // هنا نضيف منطق "نقل المحادثة للأعلى" محلياً دون طلب السيرفر
+        updateContactItemSingle(wsData); 
+    }
+};
+
+// ملاحظة: دالة updateContactItemSingle يجب أن تبقى موجودة كما كتبناها سابقاً
+// لتقوم بتحديث السطر الواحد أو إضافته في الأعلى عند وصول Socket Eventذذذ
+
+
+
+
+
+    // التهيئة
+    // fetchContactsAndUpdateUI(extract = true);
+    fetchContactsAndUpdateUIws( null  ,  true);
+    // pollLoop();
+ 
+    window.fetchMessagesForCurrentws = fetchMessagesForCurrentws;
+    window.sendMessageLocal_ws = sendMessageLocal_ws;
+
+    window.__chatSelectPhone = function(phone, name){
+      const normalized = (phone||'').replace(/^\+/, '').replace(/\s+/g,'');
+      const item = contactsListEl.querySelector(`.cls3741_contact_item[data-phone="${normalized}"]`);
+      if(item){ 
+        
+        item.click(); 
+        return; 
+      }
+      
+      currentPhone = normalized;
+      // 🔥 محاولة الحصول على channel_id من contact item إذا كان موجوداً
+      const contactItem = contactsListEl?.querySelector(`.cls3741_contact_item[data-phone="${normalized}"]`);
+      if (contactItem) {
+        currentChannelId = contactItem.getAttribute('data-channel-id');
+      }
+      lastMessageId = 0;
+      const userPhoneEl = document.getElementById('cls3741_user_phone');
+      if (userPhoneEl) userPhoneEl.textContent = '+' + normalized;
+      
+      messagesArea.innerHTML = '';
+      messagesArea.appendChild(createLoadingMessage());
+      
+      fetchMessagesForCurrentws();
+       
+      // fetchContactsAndUpdateUI();
+       
+    };
+
+    // تعريف دالة setCurrentPhone للاستخدام من قائمة الاتصالات
+    window.__chatInput = window.__chatInput || {};
+    window.__chatInput.setCurrentPhone = function(phone, channelId = null) {
+      currentPhone = phone;
+      currentChannelId = channelId; // 🔥 حفظ channel_id
+      console.log('📱 تم تعيين الهاتف الحالي:', currentPhone, 'Channel ID:', currentChannelId);
+    };
+
+    console.log('✅ تم تحميل سكريبت المحادثة بنجاح');
+
+ 
+
+
+window.fetchMessagesForCurrentws = fetchMessagesForCurrentws;
+window.sendMessage = sendMessageLocal_ws;
+window.getStatusIconHTML =  getStatusIconHTML
+
+
+window.appendMessagesws = appendMessagesws; 
+window.updateContactItemSingle = updateContactItemSingle; 
+
+console.log('✅ Functions exposed to window successfully');
+
+
+window.getCurrentChatPhone = function() {
+    return currentPhone;
+};
+
+  })();  
+});
+
+
+
+</script> 

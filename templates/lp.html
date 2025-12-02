@@ -1,0 +1,785 @@
+{% extends "base.html" %}
+
+{% block title %}لوحة التحليلات{% endblock %}
+{% block content %}
+
+
+<style>
+    body {
+        margin: 0;
+        background-color: black;
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    }
+
+
+
+    .container-fluid {
+        padding: 0px !important;
+    }
+
+    .gift-container {
+        /* padding: 1rem; */
+        max-width: 100%;
+    }
+
+    /* زر الاختيار */
+
+    .gift-toggle-btn {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        width: 100%;
+        max-width: 400px;
+        padding: 8px 17px;
+        background: linear-gradient(135deg, #4a6bff 0%, #2541b2 100%);
+        color: white;
+        border: none;
+        border-radius: 10px;
+        font-size: 1rem;
+        font-weight: bold;
+        cursor: pointer;
+        box-shadow: 0 4px 12px rgba(37, 65, 178, 0.3);
+        transition: all 0.3s ease;
+        outline: none;
+        margin: 0 auto;
+        text-align: right;
+        direction: rtl;
+
+    }
+
+    .btn-texts {
+        text-align: right;
+        line-height: 1.2;
+    }
+
+    .btn-main-text {
+        font-size: 1.1rem;
+        font-weight: bold;
+    }
+
+    .btn-subtitle {
+        font-size: 0.8rem;
+        opacity: 0.9;
+    }
+
+    .arrow-icon {
+        transition: transform 0.3s ease;
+    }
+
+    .gift-toggle-btn.active .arrow-icon {
+        transform: rotate(180deg);
+    }
+
+
+    .btn-main-text {
+        font-size: 1.8rem;
+        font-weight: bold;
+        font-family: system-ui;
+    }
+
+    .btn-subtitle {
+        font-size: 0.8rem;
+        margin-top: 4px;
+        opacity: 0.9;
+        text-align: center;
+
+    }
+
+    /* شبكة المنتجات - 3 منتجات في السطر */
+    .gift-products-grid {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 8px;
+        padding-top: 9px;
+
+        max-height: 400px;
+        /* يمكنك تعديل هذا حسب الحاجة */
+        /* border: 3px solid #101b8b; */
+        border-bottom: 3px solid #101b8b;
+        border-right: 3px solid #101b8b;
+        border-left: 3px solid #101b8b;
+
+        border-radius: 12px;
+        overflow-y: auto;
+        /* تمكين التمرير الرأسي */
+    }
+
+    /* بطاقة المنتج */
+    .gift-product {
+        position: relative;
+        background-color: #fff;
+        border-radius: 8px;
+        overflow: hidden;
+        text-align: center;
+        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+    }
+
+    /* اسم المنتج */
+    .product-name {
+        position: absolute;
+        font-size: 0.8rem;
+        /* bottom: 37px; */
+        font-weight: bold;
+        bottom: 40px;
+
+
+
+        height: unset;
+        min-height: 22px;
+        max-height: 32px;
+        background: rgba(0, 0, 0, .6);
+        border-radius: 20px;
+        border: .5px solid hsla(0, 0%, 100%, .4);
+        font-size: 12px;
+        line-height: 14px;
+        color: #fff;
+        text-align: center;
+        font-weight: 400;
+        padding: 1px 6px;
+
+    }
+
+    /* صورة المنتج */
+    .product-image {
+        width: 100%;
+        /* height: 100px; */
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: #f9f9f9;
+
+    }
+
+    .product-image img {
+        max-width: 100%;
+        max-height: 100%;
+        object-fit: contain;
+    }
+
+    /* زر الاختيار */
+    .select-btn {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 6px;
+        padding: 0.2rem;
+        background: #f5f5f5;
+        color: #444;
+        font-size: 0.8rem;
+        cursor: pointer;
+        border-top: 1px solid #ddd;
+        justify-content: flex-end;
+
+    }
+
+    .select-btn:hover {
+        background: #e9e9e9;
+    }
+
+    /* علامة "مجاناً" */
+    .free-label {
+        position: absolute;
+        top: 1px;
+        right: 2px;
+        background: #e60202;
+        color: white;
+        padding: 0.2rem 0.6rem;
+        border-radius: 12px;
+        font-size: 0.7rem;
+        font-weight: bold;
+        z-index: 2;
+    }
+
+    /* تأثير التحديد */
+    .selection-overlay {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        display: none;
+        z-index: 1;
+    }
+
+    .selection-overlay {
+
+    top: auto; /* إزالة الموضع المطلق من الأعلى */
+    height: calc(100% - 40px); /* تعديل الارتفاع حسب مساحة الصورة */
+}
+    .gift-product.selected .selection-overlay {
+        display: block;
+    }
+
+    .gift-product.selected {
+        scale: 1.05;
+        z-index: 123;
+        /* border: 2px solid #4a6bff; */
+    }
+
+    .border {
+        width: 100%;
+        border-radius: 11px;
+        background: linear-gradient(135deg, #000000 0%, #05021b 100%);
+    }
+
+    .yJzVwB_r {
+        height: 24px;
+        position: relative;
+        width: 24px;
+        z-index: 10;
+    }
+
+    ._2H3wPen3 {
+        align-items: center;
+        -webkit-align-items: center;
+        cursor: pointer;
+        display: flex;
+        height: 32px;
+        background: #f5f5f5
+        ;
+
+        display: -webkit-flex;
+        flex-direction: row;
+        justify-content: center;
+        -webkit-justify-content: center;
+        max-width: 124px;
+        min-width: 43px;
+        padding: 0 6px;
+        position: relative;
+    }
+
+    ._2H3wPen3:before {
+        background: #fff;
+        border: 1px solid #222;
+        border-radius: 15px;
+        content: "";
+        height: 100%;
+        position: absolute;
+        left: 0;
+        top: 0;
+        width: 100%;
+    }
+
+    ._1EzykW0k {
+        display: inline-block;
+        /* background-color: currentColor; */
+        mask-repeat: no-repeat;
+        -webkit-mask-repeat: no-repeat;
+        mask-position: center;
+        -webkit-mask-position: center;
+        mask-size: contain;
+        -webkit-mask-size: contain;
+    }
+
+    ._3yljfR3_ span {
+        z-index: 10;
+        padding: 8px;
+        font-size: 1rem;
+        font-family: system-ui;
+    }
+
+    .position {
+        position: relative !important;
+    }
+
+    .fueater {
+        position: relative;
+        display: flex;
+        white-space: nowrap;
+        width: 100%;
+        flex-direction: row-reverse;
+        align-items: center;
+    }
+
+    .free_gift_ {
+        /* padding: 2px; */
+        width: 100%;
+        /* border: 2px solid red; */
+        /* border-style: groove; */
+        display: flex;
+        /* border-radius: 2px; */
+        flex-direction: row;
+        align-items: center;
+        white-space: nowrap;
+        justify-content: space-around;
+    }
+    .free-label2 {
+        background-color: rgb(11 202 55);
+        font-size: 14px;
+        font-weight: bold;
+        width: 90%;
+        border-radius: 43px;
+        color: white;
+        border: 1.3px rgb(89 255 127);
+        border-style: solid;
+    }
+.freaprc{
+        /* padding: 2px; */
+        width: 100%;
+        /* border: 2px solid red; */
+        /* border-style: groove; */
+        display: flex;
+        /* border-radius: 2px; */
+        flex-direction: row;
+        align-items: center;
+        white-space: nowrap;
+        justify-content: space-around;
+    
+    
+}
+    ._3WBDHjhZ {
+        align-items: baseline;
+        display: flex;
+        direction: rtl;
+
+        flex-direction: row-reverse;
+        flex-shrink: 0;
+        flex-wrap: wrap;
+        height: 22px;
+        justify-content: flex-end;
+        max-width: 100%;
+    }
+
+    ._2myxWHLi {
+        color: #222;
+        display: flex;
+        height: 22px;
+        line-height: 22px;
+        white-space: nowrap;
+    }
+
+    ._382YgpSF {
+        font-weight: 620;
+        line-height: 20px;
+        margin-top: 1px;
+    }
+
+    ._382YgpSF ._2de9ERAH {
+        font-size: 17px;
+
+    }
+
+    ._382YgpSF ._2k-sV0rH {
+        font-size: 11px;
+        font-weight: 400;
+    }
+
+    .stockwarning {
+        color: green;
+        font-family: system-ui;
+        font-weight: bold;
+        padding-top: 6px;
+        width: 100%;
+        border-radius: 36px;
+        padding-bottom: 5px;
+        background: #00000012;
+
+    }
+
+    .gift-product.selected {
+    opacity: 1;
+    filter: brightness(1);
+    border: 2px solid #4a6bff;
+}
+.gift-product {
+    transition: opacity 0.3s ease, filter 0.3s ease, border 0.3s ease;
+}
+
+/* عندما يكون هناك منتج محدد، ضع ضبابة على البقية */
+/* .gift-products-grid:has(.gift-product.selected) .gift-product:not(.selected) {
+    opacity: 0.6;
+    filter: brightness(0.9);
+    transition: all 0.3s ease;
+}
+
+.gift-product.selected {
+    opacity: 1;
+    filter: brightness(1);
+    border: 2px solid #4a6bff;
+} */
+</style>
+ 
+</head>
+<script src="https://boujema.pythonanywhere.com/static/store_js/ajax.js"></script>
+<link rel="stylesheet" href="https://boujema.pythonanywhere.com/static/store_js/ajax.js">
+<body>
+
+    <div class="gift-container">
+        <div class="border">
+
+            <button class="gift-toggle-btn" id="toggleBtn">
+                <svg class="arrow-icon" id="arrowIcon" viewBox="0 0 24 24" width="24" height="24" fill="none"
+                    stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="6 9 12 15 18 9"></polyline>
+                </svg>
+                <div class="btn-texts">
+                    <div class="btn-main-text">اختر هديتك المجانية</div>
+                    <div class="btn-subtitle">بدون رسوم - الهدية متضمنة مع طلبك</div>
+                </div>
+                <svg class="arrow-icon" id="arrowIcon" viewBox="0 0 24 24" width="24" height="24" fill="none"
+                    stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="6 9 12 15 18 9"></polyline>
+                </svg>
+            </button>
+
+            <!-- قائمة المنتجات -->
+
+            <div class="gift-products-grid" id="productsGrid">
+                <!-- سيتم إضافة المنتجات هنا ديناميكياً أو يدوياً -->
+                {% for product in products %}
+
+                <div class="gift-product" gift-sku="{{ product.sku }}" gift-name="{{ product.name }}">
+                    <div class="free-label">هدية مجانية</div>
+                    <div class="product-name" >{{ product.name }}</div>
+                    <div class="product-image">
+                        <img src="{{ product.image_url|default:'/static/default-product.png' }}"
+                            alt="{{ product.name }}" loading="lazy">
+                    </div>
+
+                    <div class="select-btn">
+                        <div class="fueater">
+
+                          <div class="free_gift_">
+                                <div class="freaprc flipping" id="flipping">
+
+                                    <div class="free-label2">
+                                        مجاناً
+                                    </div>
+                                    <div class="_3WBDHjhZ" data-ignore="true" bis_skin_checked="1">
+                                        <div class="_2myxWHLi" data-type="price" role="link" 
+                                            bis_skin_checked="1">
+                                            <div class="_382YgpSF" aria-hidden="true" bis_skin_checked="1"><span
+                                                    class="_2de9ERAH"> <s> {{ product.original_price|floatformat:"0" }}
+                                                    </s>
+                                                </span></span><span class="_21mW6kwi _2k-sV0rH" aria-hidden="true">
+                                                    ر.س</span></div>
+                                        </div>
+                                    </div>
+                                </div> 
+                                <div class="stockwarning stockElement tdisplay" style="direction: ltr;" >
+                                    متبقي فقط <strong> {{ product.stock }}</strong> قطعة
+                                </div>
+                                <div class="selection-confirm" style="display: none;">
+                                    تم التحديد بنجاح
+                                </div>
+                            </div>
+ 
+
+
+<style>
+    /* .tdisplay{
+        direction: rtl;
+        display: none;
+    }  */
+.free_gift_ {
+    position: relative;
+    height: auto;
+}
+
+.flipping,
+.stockElement   { direction: rtl;
+    display: flex
+;
+    align-items: center;
+    justify-content: center;
+    opacity: 1;
+    visibility: visible;
+    transition: transform 0.8s ease, opacity 0.8s ease;
+    position: absolute;
+    width: 100%;
+    text-align: center;
+    font-size: inherit;
+    flex-direction: row-reverse;
+}
+
+/* انزلاق الخروج ← الوجه الأول يخرج نحو اليسار */
+.flipping.slide-out-to-left {
+    transform: translateX(-100%);
+    opacity: 0;
+    visibility: hidden;
+}
+
+/* انزلاق الدخول ← الوجه الثاني يدخل من اليمين */
+.stockElement.slide-in-show {
+    transform: translateX(0);
+    opacity: 1;
+    visibility: visible;
+}
+
+.stockElement {
+    transform: translateX(100%);
+}
+
+.stockElement.slide-in-show {
+    transform: translateX(0);
+}
+
+/* في قسم الـ CSS */
+.cart-icon {
+    display: block;
+}
+.checkmark-icon {
+    display: none;
+}
+.gift-product.selected .cart-icon {
+    display: none;
+}
+.gift-product.selected .checkmark-icon {
+    display: block;
+    color: #04a70a; /* لون أزرق لتطابق تصميمك */
+}
+.stock-message-container {
+    position: relative;
+    height: 22px; /* ارتفاع ثابت لتجنب تغير التخطيط */
+}
+
+.stock-warning, .selection-confirm {
+    position: absolute;
+    width: 100%;
+    transition: all 0.3s ease;
+}
+
+.selection-confirm {
+    color: #0baa02; /* نفس لون الحد المحدد */
+    font-weight: bold;
+    display: none;
+}
+
+/* .gift-product.selected .stock-warning {
+    display: none;
+}
+
+.gift-product.selected .selection-confirm {
+    display: block;
+} */
+
+</style>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        const flipElements = document.querySelectorAll('.flipping');
+        const stockElements = document.querySelectorAll('.stockElement');
+    
+
+        // أولياً نعرض الأول ونخفي الثاني (بدون استخدام display)
+        flipElements.forEach(el => el.style.transform = 'translateX(0)');
+        stockElements.forEach(el => el.style.transform = 'translateX(100%)');
+    
+        let isFlipped = false;
+    
+        setInterval(() => {
+            if (!isFlipped) {
+                // ننتقل للواجهة الثانية
+                flipElements.forEach(el => {
+                    el.style.transform = 'translateX(-100%)';
+                });
+    
+                stockElements.forEach(el => {
+                    el.style.transform = 'translateX(0)';
+                });
+    
+            } else {
+                // نعود للواجهة الأولى
+                flipElements.forEach(el => {
+                    el.style.transform = 'translateX(0)';
+                });
+    
+                stockElements.forEach(el => {
+                    el.style.transform = 'translateX(100%)';
+                });
+            }
+    
+            isFlipped = !isFlipped;
+    
+        }, 5000);
+    });
+    </script>
+
+</div> 
+
+                        <!-- <div class="_2H3wPen3 _3yljfR3_">
+
+
+                            <svg xmlns='http://www.w3.org/2000/svg' class="yJzVwB_r _1EzykW0k" viewBox='0 0 1024 1024'
+                                fill='currentcolor' overflow='hidden'>
+                                <path
+                                    d='M614.5 758.8c-28.3 0-51.2 22.9-51.1 51.2 0 28.3 22.9 51.2 51.1 51.2 28.3 0 51.2-22.9 51.2-51.2 0-28.3-22.9-51.2-51.2-51.2zm-327.7 0c-28.3 0-51.2 22.9-51.2 51.2 0 28.3 22.9 51.2 51.2 51.2 28.3 0 51.2-22.9 51.1-51.2 0-28.3-22.9-51.2-51.1-51.2zm541-563.2c-18.1 0-36.7 3.5-56.9 15.6-19.3 11.6-34.7 29.3-44.4 52.8l-3.4 9-1.4 5.6-18.5 113.1L671.8 591c-3.4 20.9-20.4 36.7-41 39l-5.3.3H278.3c-21.3 0-39.6-14.3-45.3-35.1l-1.2-5.4-48.6-260.5c-3.9-20.8-23.9-34.6-44.8-30.7-19.2 3.6-32.4 21-31.3 40l.6 4.8 48.5 259.5c9.2 57.5 57.1 100.4 114.5 103.9l7.6.3h347.2c60.6 0 112.3-43.9 122.1-104L784 372.8l12.8-77.6 1-2.8c2.6-6 5.9-10.3 9.8-13.3l3-2.1c4.4-2.6 8.8-3.9 13-4.4l4.2-.2h85.3c21.2 0 38.4-17.2 38.4-38.4 0-19.6-14.6-35.7-33.6-38.1l-4.8-.3h-85.3zm-382.2-1.2c-19.6 0-35.7 14.6-38.1 33.6l-.3 4.8v72.5h-72.6c-21.2 0-38.4 17.2-38.4 38.4 0 19.6 14.6 35.7 33.6 38.1l4.8.3h72.6v72.5c0 21.2 17.2 38.4 38.4 38.4 19.6 0 35.7-14.6 38.1-33.5l.3-4.9v-72.5h72.5c21.2 0 38.4-17.2 38.4-38.4 0-19.6-14.6-35.7-33.6-38.1l-4.8-.3H484v-72.5c0-21.2-17.2-38.4-38.4-38.4z'
+                                    fill='%23000' />
+                            </svg>
+                        </div> -->
+                        <div class="_2H3wPen3 _3yljfR3_">
+                            <!-- أيقونة السلة (تظهر افتراضياً) -->
+                            <svg class="cart-icon yJzVwB_r _1EzykW0k" viewBox='0 0 1024 1024' fill='currentcolor' overflow='hidden'>
+                                <path d='M614.5 758.8c-28.3 0-51.2 22.9-51.1 51.2 0 28.3 22.9 51.2 51.1 51.2 28.3 0 51.2-22.9 51.2-51.2 0-28.3-22.9-51.2-51.2-51.2zm-327.7 0c-28.3 0-51.2 22.9-51.2 51.2 0 28.3 22.9 51.2 51.2 51.2 28.3 0 51.2-22.9 51.1-51.2 0-28.3-22.9-51.2-51.1-51.2zm541-563.2c-18.1 0-36.7 3.5-56.9 15.6-19.3 11.6-34.7 29.3-44.4 52.8l-3.4 9-1.4 5.6-18.5 113.1L671.8 591c-3.4 20.9-20.4 36.7-41 39l-5.3.3H278.3c-21.3 0-39.6-14.3-45.3-35.1l-1.2-5.4-48.6-260.5c-3.9-20.8-23.9-34.6-44.8-30.7-19.2 3.6-32.4 21-31.3 40l.6 4.8 48.5 259.5c9.2 57.5 57.1 100.4 114.5 103.9l7.6.3h347.2c60.6 0 112.3-43.9 122.1-104L784 372.8l12.8-77.6 1-2.8c2.6-6 5.9-10.3 9.8-13.3l3-2.1c4.4-2.6 8.8-3.9 13-4.4l4.2-.2h85.3c21.2 0 38.4-17.2 38.4-38.4 0-19.6-14.6-35.7-33.6-38.1l-4.8-.3h-85.3zm-382.2-1.2c-19.6 0-35.7 14.6-38.1 33.6l-.3 4.8v72.5h-72.6c-21.2 0-38.4 17.2-38.4 38.4 0 19.6 14.6 35.7 33.6 38.1l4.8.3h72.6v72.5c0 21.2 17.2 38.4 38.4 38.4 19.6 0 35.7-14.6 38.1-33.5l.3-4.9v-72.5h72.5c21.2 0 38.4-17.2 38.4-38.4 0-19.6-14.6-35.7-33.6-38.1l-4.8-.3H484v-72.5c0-21.2-17.2-38.4-38.4-38.4z'/>
+                            </svg>
+                            
+                            <!-- أيقونة التأكيد (مخفية افتراضياً) -->
+                            <svg class="checkmark-icon yJzVwB_r _1EzykW0k"  viewBox="0 0 24 24" fill="currentcolor">
+                                <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41L9 16.17z"/>
+                            </svg>
+                        </div>
+
+
+                    </div>
+                    <div class="selection-overlay"></div>
+                </div>
+                {% endfor %}
+            </div>
+<!-- حقل الإدخال الأصلي -->
+<input 
+    required 
+    placeholder="Enter your Note" 
+    name="note_label_placeholder" 
+    id="cx-note" 
+    type="text" 
+    class="cx-input cx-form-control"
+>
+
+
+
+
+
+            <!-- أضف المزيد من المنتجات إذا أردت -->
+
+        </div>
+    </div>
+
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            const productNames = document.querySelectorAll('.gift-product');
+            const inputField = document.getElementById('cx-note');
+            if (inputField) {
+            inputField.type = 'hidden'; // تحويل النوع إلى مخفي
+           }
+            productNames.forEach(function (element) {
+                element.addEventListener('click', function () {
+                    const sku = this.getAttribute('gift-sku');
+                    const name = this.getAttribute('gift-name');
+                    if (sku  && name){
+                        inputField.value = `SKU: ${sku}, Name: ${name}`; // أو أي تنسيق آخر تريده
+
+                    // مثال: طباعة البيانات في الـ Console
+                    console.log("SKU:", sku);
+                    console.log("الاسم:", name);
+                                     }
+   
+        
+                    // مثال: عرض رسالة للمستخدم
+                });
+            });
+        });
+        </script>
+
+
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            const productsGrid = document.getElementById('productsGrid');
+
+            const toggleBtn = document.getElementById('toggleBtn');
+            const arrowIcon = document.getElementById('arrowIcon');
+
+            toggleBtn.addEventListener('click', () => {
+                toggleBtn.classList.toggle('active');
+            });
+            // إخفاء الشبكة في البداية
+            productsGrid.style.display = 'none';
+
+            toggleBtn.addEventListener('click', function () {
+                this.classList.toggle('active');
+                productsGrid.style.display = productsGrid.style.display === 'none' ? 'grid' : 'none';
+            });
+
+
+
+
+
+        const productCards = document.querySelectorAll('.gift-product');
+    const originalContents = new Map();
+
+    // حفظ المحتوى الأصلي لكل بطاقة
+    productCards.forEach(card => {
+        const stockMessage = card.querySelector('.stockwarning');
+        if (stockMessage) {
+            originalContents.set(card, stockMessage.innerHTML);
+        }
+        
+        // التأكد من أن جميع المنتجات تبدأ بحالة واضحة
+        card.style.opacity = '1';
+        card.style.filter = 'brightness(1)';
+    });
+
+    productCards.forEach(card => {
+        card.addEventListener('click', function(event) {
+            // const sku = this.getAttribute('gift-sku');
+            //     const name = this.getAttribute('gift-name');
+    
+            //     // مثال: طباعة البيانات في الـ Console
+            //     console.log("SKU:", sku);
+            //     console.log("الاسم:", name);
+            event.stopPropagation();
+
+            const stockMessage = this.querySelector('.stockwarning');
+            
+            if (this.classList.contains('selected')) {
+                // إلغاء التحديد
+                resetAllCards();
+                return;
+            }
+
+            // تحديد المنتج الجديد
+            resetAllCards();
+            
+            this.classList.add('selected');
+            this.style.opacity = '1';
+            this.style.filter = 'brightness(1)';
+            
+            if (stockMessage) {
+                stockMessage.innerHTML = 'تم التحديد بنجاح';
+            }
+
+            console.log('تم اختيار المنتج:', this.getAttribute('gift-name') || 'غير معرف');
+        });
+    });
+
+    function resetAllCards() {
+        productCards.forEach(c => {
+            c.classList.remove('selected');
+            c.style.opacity = '1'; // جميع المنتجات واضحة عند عدم التحديد
+            c.style.filter = 'brightness(1)';
+            
+            // إعادة نص المخزون الأصلي
+            const msg = c.querySelector('.stockwarning');
+            if (msg && originalContents.has(c)) {
+                msg.innerHTML = originalContents.get(c);
+            }
+        });
+    }
+
+    // تطبيق الضبابة على المنتجات غير المحددة عند وجود منتج محدد
+    function updateCardStates() {
+        const hasSelected = document.querySelector('.gift-product.selected') !== null;
+        
+        productCards.forEach(card => {
+            if (hasSelected && !card.classList.contains('selected')) {
+                card.style.opacity = '0.6';
+                card.style.filter = 'brightness(0.9)';
+            } else {
+                card.style.opacity = '1';
+                card.style.filter = 'brightness(1)';
+            }
+        });
+    }
+
+    // تحديث الحالات عند أي تغيير
+    productCards.forEach(card => {
+        card.addEventListener('click', updateCardStates);
+    });
+});
+
+
+
+    </script>
+ 
+    {% endblock %}

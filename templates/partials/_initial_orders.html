@@ -1,0 +1,614 @@
+{% load static i18n %}
+
+<!-- أضف هذا في head إذا لم يكن موجودًا -->
+<!-- <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet"> -->
+<!-- <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css"> -->
+
+<div class="orders-container bg-white rounded shadow-sm mb-4">
+    <div class="orders-header p-3 border-bottom">
+        <div class="d-flex justify-content-between align-items-center flex-wrap gap-3">
+            <h5 class="mb-0 d-flex align-items-center">
+                <i class="fas fa-boxes me-2"></i>
+                <span id="orders-count">{{ orders|length }}</span> طلبية
+            </h5>
+            
+            <div class="d-flex flex-wrap gap-2 align-items-center">
+                <!-- فلتر البحث -->
+                <span class="badge bg-secondary">
+                    <i class="fas fa-filter me-1"></i>
+                    {% if request.GET.search_term %}
+                    "{{ request.GET.search_term }}"
+                    {% else %}
+                    الكل
+                    {% endif %}
+                </span>
+
+                <!-- فلتر الحالة -->
+                <div class="dropdown">
+                    <button class="btn btn-sm btn-outline-primary dropdown-toggle" type="button" 
+                            id="statusFilterDropdown" data-bs-toggle="dropdown">
+                        <i class="fas fa-tag me-1"></i>
+                        {% if request.GET.status %}
+                            {{ request.GET.status|title }}
+                        {% else %}
+                            جميع الحالات
+                        {% endif %}
+                    </button>
+                    <ul class="dropdown-menu" aria-labelledby="statusFilterDropdown">
+                        <li><a class="dropdown-item filter-option" href="#" data-status="">جميع الحالات</a></li>
+                        <li><hr class="dropdown-divider"></li>
+                        <!-- <li><a class="dropdown-item filter-option" href="#" data-status="pending">قيد الانتظار</a></li> -->
+                        <li><a class="dropdown-item filter-option" href="#" data-status="pending">تم الشحن</a></li>
+                        <li><a class="dropdown-item filter-option" href="#" data-status="delivered">تم التسليم</a></li>
+                        <li><a class="dropdown-item filter-option" href="#" data-status="Return">ملغاة</a></li>
+                    </ul>
+                </div>
+
+                <!-- فلتر التاريخ -->
+                <div class="dropdown">
+                    <button class="btn btn-sm btn-outline-primary dropdown-toggle" type="button" 
+                            id="dateFilterDropdown" data-bs-toggle="dropdown">
+                        <i class="fas fa-calendar me-1"></i>
+                        {% if request.GET.date_range %}
+                            {{ request.GET.date_range|title }}
+                        {% else %}
+                            جميع الفترات
+                        {% endif %}
+                    </button>
+                    <ul class="dropdown-menu" aria-labelledby="dateFilterDropdown">
+                        <li><a class="dropdown-item filter-option" href="#" data-date-range="">جميع الفترات</a></li>
+                        <li><hr class="dropdown-divider"></li>
+                        <li><a class="dropdown-item filter-option" href="#" data-date-range="today">اليوم</a></li>
+                        <li><a class="dropdown-item filter-option" href="#" data-date-range="week">هذا الأسبوع</a></li>
+                        <li><a class="dropdown-item filter-option" href="#" data-date-range="month">هذا الشهر</a></li>
+                        <li><a class="dropdown-item filter-option" href="#" data-date-range="year">هذه السنة</a></li>
+                    </ul>
+                </div>
+
+                <!-- زر التحديث -->
+                <button class="btn btn-sm btn-outline-secondary" id="applyFilters">
+                    <i class="fas fa-sync-alt" id="fa-sync-alt"></i>
+                </button>
+            </div>
+        </div>
+    </div>
+
+  
+    {% if orders %}
+    <div class="table-responsive">
+        <table class="table table-hover mb-0">
+            <thead class="table-light">
+                <tr>
+                    <th width="18%" class="ps-4">
+                        <i class="fas fa-barcode me-1"></i>
+                        رقم التتبع
+                    </th>
+                    <th width="22%">
+                        <i class="fas fa-user me-1"></i>
+                        العميل
+                    </th>
+                    <th width="18%">
+                        <i class="fas fa-phone me-1"></i>
+                        الهاتف
+                    </th>
+                    <th width="25%">
+                        <i class="fas fa-cube me-1"></i>
+                        المنتج
+                    </th>
+                    <th width="17%" class="text-center">
+                        <i class="fas fa-info-circle me-1"></i>
+                        الحالة
+                    </th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for order in orders %}
+                <tr class="order-row align-middle" 
+                    data-tracking="{{ order.tracking_number }}"
+                    data-status="{{ order.status }}">
+                    <td class="ps-4">
+                        <div class="d-flex align-items-center">
+                            <span class="badge bg-light text-dark me-2">
+                                {{ forloop.counter }}
+                            </span>
+                            <span class="tracking-number font-monospace">
+                                {{ order.tracking_number }}
+                            </span>
+                            <button class="btn btn-sm btn-link copy-btn ms-2" 
+                                    data-tracking="{{ order.tracking_number }}"
+                                    title="نسخ الرقم">
+                                <i class="far fa-copy"></i>
+                            </button>
+                        </div>
+                    </td>
+                    <td>
+                        <div class="d-flex align-items-center">
+                            <div class="avatar me-2">
+                                {{ order.customer_name|slice:":1"|upper }}
+                            </div>
+                            {{ order.customer_name|truncatechars:20 }}
+                        </div>
+                    </td>
+                    <td class="font-monospace">
+                        {{ order.customer_phone }}
+                    </td>
+                    <td>
+                        <div class="d-flex align-items-center">
+                            <div>
+                                <div class="fw-bold">{{ order.product_name|truncatechars:25 }}</div>
+                                <small class="text-muted">SKU: {{ order.sku }}</small>
+                            </div>
+                        </div>
+                    </td>
+                    <td class="text-center">
+                        <span class="badge status-badge status-{{ order.status|lower }}">
+                            <!-- order-status status-{{ order.status|lower }} -->
+                            {{ order.status }}
+                        </span>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+ 
+
+    <!-- </div> -->
+
+<!-- قسم عرض الطلبيات -->
+<!-- في قسم الترقيم الصفحي -->
+{% if orders.has_other_pages %}
+<nav aria-label="Page navigation">
+    <ul class="pagination justify-content-center">
+        {% if orders.has_previous %}
+        <li class="page-item">
+            <a class="page-link" 
+               href="?page={{ orders.previous_page_number }}&status={{ request.GET.status }}&date_range={{ request.GET.date_range }}&search_term={{ request.GET.search_term }}"
+               aria-label="Previous">
+                &laquo;
+            </a>
+        </li>
+        {% endif %}
+        
+        {% for num in orders.paginator.page_range %}
+        <li class="page-item {% if num == orders.number %}active{% endif %}">
+            <a class="page-link" data-order-page="{{ num }}"
+                        href="?page={{ num }}&status={{ request.GET.status }}&date_range={{ request.GET.date_range }}&search_term={{ request.GET.search_term }}"
+               aria-label="Page {{ num }}">
+
+              
+               {{ num }}
+            </a>
+        </li>
+        {% endfor %}
+        
+        {% if orders.has_next %}
+        <li class="page-item">
+            <a class="page-link" 
+               href="?page={{ orders.next_page_number }}&status={{ request.GET.status }}&date_range={{ request.GET.date_range }}&search_term={{ request.GET.search_term }}"
+               aria-label="Next">
+                &raquo;
+            </a>
+        </li>
+        {% endif %}
+    </ul>
+</nav>
+{% endif %}
+
+
+ 
+
+
+    {% else %}
+    <div class="no-orders p-5 text-center">
+        <div class="empty-state">
+            <!-- <img src="{% static 'images/empty-orders.svg' %}" 
+                 alt="لا توجد طلبيات" 
+                 class="img-fluid mb-4"
+                 style="max-height: 150px;"> -->
+            <h5 class="text-muted mb-3">لا توجد طلبيات لعرضها</h5>
+            <p class="text-muted mb-4">
+                {% if request.GET.search_term %}
+                لا توجد نتائج مطابقة لبحثك "{{ request.GET.search_term }}"
+                {% else %}
+                لم يتم العثور على أي طلبيات في النظام
+                {% endif %}
+            </p>
+            <button class="btn btn-primary" id="refresh-orders-main">
+                <i class="fas fa-sync-alt me-2"></i>تحديث البيانات
+            </button>
+        </div>
+    </div>
+    {% endif %}
+</div>
+<div id="notifications-container" class="position-fixed top-0 end-0 p-3" style="z-index: 9999"></div>
+<!-- تأكد من وجود هذه المكتبات في نهاية body
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+ -->
+
+
+
+
+
+
+ 
+
+<style>
+    /* تنسيقات الفلاتر */
+ 
+
+/* تنسيقات للعرض على الجوال */
+@media (max-width: 768px) {
+    .d-flex {
+        flex-wrap: wrap;
+        gap: 0.5rem !important;
+    }
+    
+    .dropdown-menu {
+        position: absolute !important;
+    }
+}
+
+    /* التنسيقات العامة */
+    .orders-container {
+        border: 1px solid #e0e0e0;
+        border-radius: 8px;
+        overflow: hidden;
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+    }
+    
+    .order-row {
+        transition: all 0.2s;
+        cursor: pointer;
+    }
+    
+    .order-row:hover {
+        background-color: #f8f9fa;
+        transform: translateY(-1px);
+        box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
+    }
+    
+    /* تنسيق الأزرار */
+    .copy-btn {
+        opacity: 0;
+        transition: opacity 0.3s;
+    }
+    
+    .order-row:hover .copy-btn {
+        opacity: 1;
+    }
+    
+    /* تنسيق الحالات */
+    .status-badge {
+        padding: 5px 10px;
+        border-radius: 20px;
+        font-size: 0.8rem;
+        min-width: 90px;
+    }
+    
+    .status-pending {
+        background-color: #fff3cd;
+        color: #856404;
+    }
+    
+    .status-shipped {
+        background-color: #cce5ff;
+        color: #004085;
+    }
+    
+    .status-delivered {
+        background-color: #d4edda;
+        color: #155724;
+    }
+    
+    .status-return {
+        background-color: #f8d7da;
+        color: #721c24;
+    }
+    
+    /* الصور المصغرة */
+    .product-thumb {
+        width: 40px;
+        height: 40px;
+        object-fit: cover;
+        border-radius: 4px;
+    }
+    
+    .avatar {
+        width: 30px;
+        height: 30px;
+        background-color: #4e73df;
+        color: white;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 0.8rem;
+    }
+    
+    /* حالة فارغة */
+    .empty-state {
+        padding: 2rem;
+    }
+</style>
+    <!-- <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script> -->
+    <!-- <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script> -->
+
+<!-- 
+
+<script>
+    // استبدل تعريف currentFilters بهذا الشرط
+if (!window.currentFilters) {
+    window.currentFilters = {
+        search_term: '',
+        status: '',
+        date_range: ''
+        
+    };
+}
+
+// بقية الكود يبقى كما هو تماماً
+function updateFilters() {
+    const activeStatus = document.querySelector('.dropdown-item[data-status].active');
+    window.currentFilters.status = activeStatus ? activeStatus.dataset.status : '';
+    
+    const activeDateRange = document.querySelector('.dropdown-item[data-date-range].active');
+    window.currentFilters.date_range = activeDateRange ? activeDateRange.dataset.dateRange : '';
+    
+    window.currentFilters.search_term = $('#live-search-input').val().trim();
+}
+
+function applyFilters() {
+    updateFilters();
+        // window.currentFilters.page = 1; 
+
+    console.log('Sending filters:', window.currentFilters);
+    
+    $('#orders-container').html(`
+        <div class="text-center py-4">
+            <div class="spinner-border text-primary" role="status">
+                <span class="sr-only">جاري التحميل...</span>
+            </div>
+        </div>
+    `);
+    
+    $.ajax({
+        url: '/tracking/filter/',
+        type: 'GET',
+        data: window.currentFilters,
+        success: function(response) {
+            if(response.status === 'success') {
+                $('#search-results-container').html(response.html);
+                updateActiveFiltersUI();
+            }
+        },
+        error: function(xhr) {
+            console.error('Error:', xhr.responseText);
+        }
+    });
+}
+
+function updateActiveFiltersUI() {
+    $(`.dropdown-item[data-status="${window.currentFilters.status}"]`).addClass('active').siblings().removeClass('active');
+    $(`#statusFilterDropdown`).html(
+        `<i class="fas fa-tag me-1"></i> ${
+            window.currentFilters.status ? $(`.dropdown-item[data-status="${window.currentFilters.status}"]`).text() : 'جميع الحالات'
+        }`
+    );
+    
+    $(`.dropdown-item[data-date-range="${window.currentFilters.date_range}"]`).addClass('active').siblings().removeClass('active');
+    $(`#dateFilterDropdown`).html(
+        `<i class="fas fa-calendar me-1"></i> ${
+            window.currentFilters.date_range ? $(`.dropdown-item[data-date-range="${window.currentFilters.date_range}"]`).text() : 'جميع الفترات'
+        }`
+    );
+}
+
+$(document).ready(function() {
+    $('.dropdown-toggle').dropdown();
+    
+    $('.dropdown-item[data-status]').click(function(e) {
+        e.preventDefault();
+        $('.dropdown-item[data-status]').removeClass('active');
+        $(this).addClass('active');
+        applyFilters();
+    });
+    
+    $('.dropdown-item[data-date-range]').click(function(e) {
+        e.preventDefault();
+        $('.dropdown-item[data-date-range]').removeClass('active');
+        $(this).addClass('active');
+        applyFilters();
+    });
+    
+    $('#live-search-input').on('input', function() {
+        applyFilters();
+    });
+    
+    $('#applyFilters').click(applyFilters);
+    
+    const urlParams = new URLSearchParams(window.location.search);
+    window.currentFilters = {
+        search_term: urlParams.get('search_term') || '',
+        status: urlParams.get('status') || '',
+        date_range: urlParams.get('date_range') || ''
+    };
+    
+    // if(urlParams.toString()) {
+    //     applyFilters();
+    // }
+});
+
+// function goToPage(pageNum) {
+//     window.currentFilters.page = pageNum;
+//     $.ajax({
+//         url: '/tracking/filter/',
+//         type: 'GET',
+//         data: window.currentFilters,
+//         success: function(response) {
+//             $('#search-results-container').html(response.html);
+//         }
+//     });
+// }
+// $(document).on('click', '.page-link', function(e) {
+//     e.preventDefault();
+//     const pageNum = $(this).data('page');
+//     if (!pageNum) {
+//         console.error('لا يوجد رقم صفحة للانتقال إليه');
+//         return;
+//     }
+//     goToPage(pageNum);
+// });
+
+</script> 
+ -->
+
+<script>
+    // تأكد من تحميل jQuery و Bootstrap أولاً
+$(document).ready(function() {
+    // متغير للتحكم في الطلبات
+    let isRequestPending = false;
+    
+    // دالة لتحميل المحتوى
+    function loadContent(url, container = '#search-results-container') {
+        if (isRequestPending) return;
+        
+        isRequestPending = true;
+        $(container).html(`
+            <div class="text-center py-4">
+                <div class="spinner-border text-primary" role="status">
+                    <span class="visually-hidden">جاري التحميل...</span>
+                </div>
+            </div>
+        `);
+        
+        $.ajax({
+            url: url,
+            type: 'GET',
+            success: function(response) {
+                if (response.html) {
+                    $(container).html(response.html);
+                } else {
+                    // إذا كانت استجابة عادية (غير AJAX)
+                    const $response = $(response);
+                    $(container).html($response.find('#search-results-container').html());
+                }
+                updateActiveFilters();
+                isRequestPending = false;
+            },
+            error: function(xhr) {
+                console.error('Error:', xhr.responseText);
+                isRequestPending = false;
+            }
+        });
+    }
+    
+    // دالة لتحديث الفلاتر النشطة
+    function updateActiveFilters() {
+        const urlParams = new URLSearchParams(window.location.search);
+        $('.filter-option').removeClass('active');
+        
+        // تحديث فلتر الحالة
+        if (urlParams.get('status')) {
+            $(`.filter-option[data-status="${urlParams.get('status')}"]`).addClass('active');
+        }
+        
+        // تحديث فلتر التاريخ
+        if (urlParams.get('date_range')) {
+            $(`.filter-option[data-date-range="${urlParams.get('date-range')}"]`).addClass('active');
+        }
+    }
+    
+    // أحداث الترقيم الصفحي (مع منع التكرار)
+    $(document).off('click', '.page-link').on('click', '.page-link', function(e) {
+        e.preventDefault();
+        const pageUrl = $(this).attr('href');
+        loadContent(pageUrl);
+        window.history.pushState({}, '', pageUrl);
+    });
+    
+    // أحداث الفلترة
+    $('#live-search-input').on('input', function() {
+        const searchTerm = $(this).val().trim();
+        const url = `/tracking/filter/?search_term=${encodeURIComponent(searchTerm)}`;
+        loadContent(url);
+    });
+    
+    $('.dropdown-menu').on('click', '.filter-option', function(e) {
+        e.preventDefault();
+        const type = $(this).data('status') ? 'status' : 'date_range';
+        const value = $(this).data(type) || '';
+        const url = `/tracking/filter/?${type}=${encodeURIComponent(value)}`;
+        loadContent(url);
+        window.history.pushState({}, '', url);
+    });
+    
+    // التهيئة الأولية
+    updateActiveFilters();
+    
+    // دعم زر الرجوع في المتصفح
+    window.onpopstate = function() {
+        loadContent(window.location.href);
+    };
+});
+</script>
+<script>
+// نسخ رقم التتبع - النسخة المحسنة
+$(document).on('click', '.copy-btn', function(e) {
+    e.stopPropagation();
+    e.preventDefault(); // إضافة هذه السطر لمنع أي سلوك افتراضي
+    
+    const trackingNum = $(this).closest('[data-tracking]').data('tracking') || $(this).data('tracking');
+    
+    if (!trackingNum) {
+        console.error('لا يوجد رقم تتبع للنسخ');
+        return;
+    }
+
+    // إنشاء عنصر textarea مؤقت للنسخ
+    const textArea = document.createElement('textarea');
+    textArea.value = trackingNum;
+    textArea.style.position = 'fixed';  // لمنع حدوث scroll غير مرغوب فيه
+    document.body.appendChild(textArea);
+    textArea.select();
+    
+    try {
+        const successful = document.execCommand('copy');
+        if (successful) {
+            // تغيير الأيقونة للإشارة إلى النجاح
+            const icon = $(this).find('i');
+            icon.removeClass('fa-copy').addClass('fa-check');
+            
+            // إعادة الأيقونة بعد ثانيتين
+            setTimeout(() => {
+                icon.removeClass('fa-check').addClass('fa-copy');
+            }, 2000);
+        } else {
+            console.error('فشل في نسخ النص');
+        }
+    } catch (err) {
+        console.error('خطأ في نسخ النص:', err);
+    } finally {
+        document.body.removeChild(textArea);
+    }
+});
+
+// تحديث البيانات - النسخة المحسنة
+$('#refresh-orders, #refresh-orders-main').click(function(e) {
+    e.preventDefault();
+    
+    // إضافة تأثير visual أثناء التحديث
+    const btn = $(this);
+    const icon = btn.find('i');
+    icon.addClass('fa-spin');
+    
+    // إعادة تحميل الصفحة بعد تأخير بسيط لإظهار التأثير
+    setTimeout(() => {
+        location.reload();
+    }, 500);
+});
+</script>

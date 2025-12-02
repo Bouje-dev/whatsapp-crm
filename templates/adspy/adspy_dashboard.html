@@ -1,0 +1,1711 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Order Tracking Dashboard</title>
+
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+  <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+
+  <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
+
+
+
+
+  <style>
+    /* CSS Variables - Monochrome with minimal accent */
+    :root {
+      --bs-secondary-color: rgba(133, 133, 133, 0.75) !important;
+      --background-primary: #121212;
+      /* Very dark background - unified for body and cards */
+      --text-light: #E0E0E0;
+      /* Light text color for main content/titles */
+      --text-muted: #A0A0A0;
+      /* Muted text color for secondary info/placeholders */
+      --accent-color: #00E676;
+      /* Neon Green (minimal use) */
+      --accent-color-transparent: rgba(0, 230, 118, 0.15);
+      /* Transparent accent for focus/active states */
+
+      /* Border as main separator */
+      --border-card: rgba(241, 241, 255, 0.151);
+      /* Primary border color (light grey transparent) */
+      --border-hover: hsla(0, 0%, 100%, 0.98);
+      /* Hover/active border color (near-white) */
+      --border-width: 1px;
+      /* Standard border width */
+      --border-width-focus: 0.5px;
+      /* Thinner border for focus-ring */
+
+      --border-radius-sm: 0.25rem;
+      /* 4px */
+      --border-radius-md: 0.5rem;
+      /* 8px */
+      --border-radius-lg: 0.75rem;
+      /* 12px */
+      --border-radius-input: 10px;
+      /* Specific for search input */
+
+      /* Font Sizes from user specification */
+      --font-size-xl: 1rem;
+      /* For main titles, card headers, table headers */
+      --line-height-xl: 1.75rem;
+      --letter-spacing-xl: -.005em;
+
+      --font-size-sm: .875rem;
+      /* For ALL other text: table cells, inputs, buttons, descriptions */
+      --line-height-sm: 1.25rem;
+      --letter-spacing-sm: 0;
+
+      /* Status colors (from previous design, but text will be dark) */
+      --status-shipped-bg: #17a2b8;
+      /* Info blue */
+      --status-delivered-bg: #28a745;
+      /* Success green */
+      --status-returned-bg: #dc3545;
+      /* Danger red */
+      --status-pending-bg: #ffc107;
+      /* Warning yellow */
+      --status-text-dark: var(--background-primary);
+      /* Dark text on badges */
+    }
+
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol';
+      background-color: var(--background-primary);
+      color: var(--text-light);
+      margin: 0;
+      padding: 0;
+      display: flex;
+      flex-direction: column;
+      min-height: 100vh;
+      overflow-y: auto;
+      /* Allow body to scroll */
+    }
+
+    /* Top Navigation Bar - Standard Bootstrap-like */
+    .top-navbar {
+      background-color: var(--background-primary);
+      padding: 1rem 2.5rem;
+      /* Adjusted padding to be more compact */
+      border-bottom: var(--border-width) solid var(--border-card);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      box-shadow: 0px 2px 5px rgba(0, 0, 0, 0.2);
+      /* Subtle shadow */
+      position: sticky;
+      top: 0;
+      z-index: 1000;
+    }
+
+    .top-navbar .logo {
+      font-size: 1.25rem;
+      /* Smaller logo */
+      font-weight: 700;
+      color: var(--text-light);
+      /* White logo */
+      text-decoration: none;
+    }
+
+    .top-navbar .nav-links .btn {
+      color: var(--text-muted);
+      /* Muted color for non-active links */
+      border: none;
+      padding: 0.5rem 1rem;
+      /* Smaller buttons */
+      border-radius: var(--border-radius-sm);
+      font-weight: 500;
+      transition: all 0.2s ease;
+      font-size: var(--font-size-sm);
+      /* Text-sm for top nav */
+    }
+
+    .top-navbar .nav-links .btn:hover {
+      background-color: rgba(255, 255, 255, 0.05);
+      /* Subtle hover */
+      color: var(--text-light);
+    }
+
+    .top-navbar .nav-links .btn.active {
+      background-color: transparent;
+      /* No background for active */
+      color: var(--accent-color);
+      /* Accent color for active */
+      border-bottom: 2px solid var(--accent-color);
+      /* Underline active tab */
+      border-radius: 0;
+      /* Remove border-radius for underline effect */
+    }
+
+    .padding-section-content {
+      padding: 0.1rem 2.5rem 2.5rem 2.5rem;
+
+    }
+
+    /* Main Content Area */
+    .main-content-area {
+      /* flex-grow: 1; */
+      padding: 0.1rem 2.5rem 2.5rem 2.5rem;
+
+      /* Adjusted padding to be more compact overall */
+      max-width: 100%;
+      /* Ensure responsiveness */
+    }
+
+    @media (max-width: 767.98px) {
+      .main-content-area {
+        padding: 1rem;
+      }
+    }
+
+    /* Page Tabs (formerly dashboard-nav-buttons) */
+    .page-tabs-nav {
+      display: flex;
+      margin-bottom: 2rem;
+      /* Space below tabs */
+      border-bottom: var(--border-width) solid var(--border-card);
+      /* Separator below tabs */
+    }
+
+    .page-tabs-nav .nav-link {
+      padding: 0.75rem 1.25rem;
+      color: var(--text-muted);
+      font-size: var(--font-size-sm);
+      /* Text-sm for tabs */
+      font-weight: 500;
+      text-decoration: none;
+      border-bottom: 2px solid transparent;
+      /* For active underline */
+      transition: color 0.2s ease, border-color 0.2s ease;
+      border-radius: var(--border-radius-sm) var(--border-radius-sm) 0 0;
+      /* Rounded top corners */
+    }
+
+    .page-tabs-nav .nav-link:hover {
+      color: var(--text-light);
+      background-color: rgba(255, 255, 255, 0.03);
+      /* Very subtle hover */
+    }
+
+    .page-tabs-nav .nav-link.active {
+      color: var(--text-light);
+      /* Active text is light */
+      border-bottom-color: var(--accent-color);
+      /* Accent underline */
+      background-color: rgba(255, 255, 255, 0.05);
+      /* Slightly darker background for active tab */
+    }
+
+    /* Main Page Title */
+    .page-main-title {
+      font-size: var(--font-size-xl);
+      line-height: var(--line-height-xl);
+      letter-spacing: var(--letter-spacing-xl);
+      font-weight: 700;
+      color: var(--text-light);
+      margin-bottom: 2rem;
+      /* Space below title */
+    }
+  </style>
+</head>
+
+<body>
+  <nav class="top-navbar">
+    <a href="#" class="logo">Waselytics</a>
+    <div class="nav-links">
+      <a href="/tracking/" class="btn nav_link ">Tracking</a>
+      <a href="{% url 'user' %}" class="btn nav_link">Account</a>
+      <a href="{% url 'analytics' %}" class="btn nav-link2">Analytics</a>
+      <a href="{% url 'Adspy' %}" class="btn nav-link2 active">Adspy</a>
+    </div>
+  </nav>
+
+
+  <div class="main-content-area">
+    <nav class="page-tabs-nav">
+      <a class="nav-link active" href="#" data-section="facebook-spy-section">Facebook spy</a>
+      <a class="nav-link" href="#" data-section="tiktok-spy-section">Tiktok spy </a>
+      <a class="nav-link" id="coll" href="#" data-section="collection-section">collection</a>
+      <a class="nav-link" href="#" data-section="future-features-1-section">soon</a>
+      <script>
+        document.querySelectorAll('.page-tabs-nav .nav-link').forEach(tab => {
+
+          tab.addEventListener('click', function (e) {
+
+            e.preventDefault();
+            // Remove active from all tabs
+            document.querySelectorAll('.page-tabs-nav .nav-link').forEach(t => t.classList.remove('active'));
+            this.classList.add('active');
+            // Hide all sections
+            document.querySelectorAll('.section-content').forEach(sec => sec.style.display = 'none');
+            // Show selected section
+            const sectionId = this.getAttribute('data-section');
+            const section = document.getElementById(sectionId);
+            if (section) section.style.display = 'block';
+          });
+        });
+        // Initial: show only facebook section
+        document.querySelectorAll('.section-content').forEach(sec => sec.style.display = 'none');
+        document.getElementById('facebook-spy-section').style.display = 'block';
+      </script>
+      <!-- <a class="nav-link" href="#" data-section="leads-created-section">soon</a> -->
+
+
+
+    </nav>
+
+    <div class="section-content active" id="facebook-spy-section">
+
+
+
+
+
+
+
+
+      <style>
+        .save-to-collection {
+          position: absolute;
+          bottom: 12px;
+          right: 0px;
+          transform: translateX(-50%);
+          background-color: color(display-p3 0.4088 0.888 0.5097);
+          color: #000000;
+          padding: 4px 7px;
+          border-radius: 8px;
+          cursor: pointer;
+          opacity: 0;
+          display: none;
+          pointer-events: none;
+          transition: opacity 0.2s;
+          /* #94a3b8 */
+        }
+
+        .tile-media:hover .save-to-collection {
+          opacity: 1;
+          display: flex;
+          pointer-events: auto;
+        }
+
+        :root {
+          --bg: #e6eef8;
+          --card: #ffffff;
+          --text: #0f172a;
+          --muted: #64748b;
+          --accent: #222121;
+          --textcolor: #f2f5f4;
+          --bgfor: white;
+        }
+
+        body.dark {
+          --bg: #1e1e1e;
+          --card: #1e1e1e;
+          --text: #e6eef8;
+          --muted: #9fb0c9;
+          --accent: #fbfbfb;
+          --textcolor: #0f172a;
+          --bgfor: rgba(115, 111, 111, 0.57);
+        }
+
+        .spy-wrapper {
+          display: flex;
+          gap: 18px;
+          font-family: Inter, system-ui, -apple-system, 'Segoe UI', Roboto, Arial;
+          color: var(--text);
+          background: transparent
+        }
+
+        .container {
+          padding: 12px;
+          background: var(--bg)
+        }
+
+        .spy-sidebar {
+          width: 320px;
+          background: var(--card);
+          border-radius: 12px;
+          padding: 14px;
+          box-shadow: 0 6px 18px rgba(15, 23, 42, 0.06);
+          height: 820px;
+          overflow: auto
+        }
+
+        .spy-main {
+          flex: 1
+        }
+
+        .top-controls {
+          display: flex;
+          gap: 12px;
+          align-items: center;
+          margin-bottom: 12px
+        }
+
+        .search-input {
+          flex: 1;
+          padding: 10px 12px;
+          border-radius: 10px;
+          border: 2px solid rgba(115, 111, 111, 0.57);
+          background: transparent;
+          color: var(--text)
+        }
+
+        .chips {
+          display: flex;
+          gap: 8px;
+          flex-wrap: wrap
+        }
+
+        .chip {
+          padding: 8px 12px;
+          color: var(--muted);
+          border-radius: 999px;
+          background: rgba(115, 111, 111, 0);
+          border: 1px solid rgba(77, 75, 75, 1);
+          cursor: pointer
+        }
+
+        .chip.active {
+          background: var(--accent);
+          color: var(--textcolor);
+          border-color: transparent
+        }
+
+        .spy-grid {
+          display: grid;
+          grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+          gap: 18px
+        }
+
+        .spy-tile {
+          background: var(--card);
+          border-radius: 10px;
+          overflow: hidden;
+          box-shadow: 0 6px 20px rgba(16, 24, 40, 0.06)
+        }
+
+        .tile-media {
+          position: relative;
+          background: var(--bg);
+          height: 320px;
+          display: flex;
+          align-items: center;
+          justify-content: center
+        }
+
+        .tile-media img {
+          width: 100%;
+          height: 100%;
+          object-fit: cover;
+          display: block
+        }
+
+        .tile-badge {
+          position: absolute;
+          right: 12px;
+          top: 12px;
+          background: rgba(8, 16, 36, 0.9);
+          color: #fff;
+          padding: 6px 10px;
+          border-radius: 999px;
+          font-size: 12px
+        }
+
+        .tile-play {
+          position: absolute;
+          left: 12px;
+          top: 12px;
+          background: rgba(255, 255, 255, 0.95);
+          padding: 8px;
+          border-radius: 999px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          width: 40px;
+          height: 40px
+        }
+
+        .tile-overlay {
+          position: absolute;
+          left: 12px;
+          bottom: 12px;
+          display: flex;
+          gap: 8px
+        }
+
+        .metric-pill {
+          background: rgba(0, 0, 0, 0.73);
+          color: #fff;
+          padding: 6px 8px;
+          border-radius: 8px;
+          font-size: 13px;
+          display: flex;
+          gap: 8px;
+          align-items: center
+        }
+
+        .tile-body {
+          padding: 12px
+        }
+
+        .tile-title {
+          font-weight: 700;
+          font-size: 15px;
+          margin-bottom: 6px;
+          white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis
+        }
+
+        .tile-domain {
+          font-size: 13px;
+          color: var(--muted);
+          margin-bottom: 6px
+        }
+
+        .tile-date {
+          font-size: 13px;
+          color: #94a3b8
+        }
+
+        .small-meta {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          margin-top: 10px
+        }
+
+        .action-btn {
+          background: var(--accent);
+          color: var(--textcolor);
+          padding: 8px 10px;
+          border-radius: 8px;
+          font-weight: 700;
+          border: none;
+          cursor: pointer
+        }
+
+        .copy-btn {
+          background: transparent;
+          color: var(--text);
+          border: 1px solid rgba(0, 0, 0, 0.06);
+          padding: 6px 8px;
+          border-radius: 8px
+        }
+
+        /* popover */
+        .popover {
+          position: absolute;
+          background: var(--card);
+          border: 1px solid rgba(0, 0, 0, 0.06);
+          box-shadow: 0 10px 30px rgba(2, 6, 23, 0.2);
+          border-radius: 10px;
+          padding: 12px;
+          z-index: 40;
+          width: 320px
+        }
+
+        .popover.hidden {
+          display: none
+        }
+
+        .popover .list {
+          max-height: 260px;
+          overflow: auto;
+          margin-top: 8px;
+          border-top: 1px solid rgba(0, 0, 0, 0.04);
+          padding-top: 8px
+        }
+
+        .popover .row {
+          display: flex;
+          align-items: center;
+          gap: 10px;
+          padding: 8px;
+          border-radius: 8px
+        }
+
+        .popover .search {
+          width: 100%;
+          padding: 8px;
+          border-radius: 8px;
+          border: 1px solid rgba(0, 0, 0, 0.06)
+        }
+
+        .popover .footer {
+          display: flex;
+          gap: 8px;
+          justify-content: space-between;
+          margin-top: 8px
+        }
+
+        .btn-ghost {
+          background: transparent;
+          border: 1px solid rgba(0, 0, 0, 0.06);
+          padding: 10px 14px;
+          border-radius: 10px;
+          cursor: pointer;
+          color: var(--text)
+        }
+
+        .btn-primary {
+          background: var(--accent);
+          color: var(--textcolor);
+          padding: 10px 14px;
+          border-radius: 10px;
+          border: none;
+          cursor: pointer
+        }
+
+        /* position helpers */
+        .relative {
+          position: relative
+        }
+
+        @media (max-width:980px) {
+          .spy-wrapper {
+            flex-direction: column
+          }
+
+          .spy-sidebar {
+            width: 100%;
+            height: auto
+          }
+        }
+      </style>
+
+      <!-- <div class="container"> -->
+      <div class="spy-wrapper">
+        <aside class="spy-sidebar">
+          <h3 style="margin:0 0 10px 0">Filters</h3>
+          <div style="margin-bottom:12px">
+            <label style="font-size:13px;color:var(--muted)">Search</label>
+            <input id="filter-search" class="search-input" placeholder="Search by advertiser or text...">
+          </div>
+
+          <div style="margin-bottom:12px">
+            <label style="font-size:13px;color:var(--muted)">Media Type</label>
+            <div style="display:flex;gap:8px;margin-top:8px">
+              <button class="chip active" data-filter-key="media" data-filter-value="all">All</button>
+              <button class="chip" data-filter-key="media" data-filter-value="video">Video</button>
+              <button class="chip" data-filter-key="media" data-filter-value="image">Image</button>
+            </div>
+          </div>
+
+          <div style="margin-bottom:12px">
+            <label style="font-size:13px;color:var(--muted)">Platform</label>
+            <div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap">
+              <button class="chip active" data-filter-key="platform" data-filter-value="all">All</button>
+              <button class="chip" data-filter-key="platform" data-filter-value="facebook">Facebook</button>
+              <button class="chip" data-filter-key="platform" data-filter-value="instagram">Instagram</button>
+              <button class="chip" data-filter-key="platform" data-filter-value="tiktok">TikTok</button>
+            </div>
+          </div>
+
+          <!-- CTA button that toggles popover -->
+          <div style="margin-bottom:12px" class="relative">
+            <button id="cta-toggle" class="chip" style="width:100%;text-align:left">CTAs ▾</button>
+            <div id="cta-pop" class="popover hidden" style="top:46px;left:0">
+              <div style="display:flex;justify-content:space-between;align-items:center">
+                <div style="font-weight:700">Suggestions</div>
+                <div style="font-size:12px;color:var(--muted)">Ecommerce CTAs</div>
+              </div>
+              <input id="cta-search" class="search" placeholder="Search CTAs...">
+              <div class="list" id="cta-list"></div>
+              <div class="footer">
+                <button id="cta-reset" class="btn-ghost">Reset</button>
+                <button id="cta-apply" class="btn-primary">Apply</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Countries button with popover -->
+          <div style="margin-bottom:12px" class="relative">
+            <button id="country-toggle" class="chip" style="width:100%;text-align:left">Countries ▾</button>
+            <div id="country-pop" class="popover hidden" style="top:46px;left:0">
+              <div style="font-weight:700">Countries</div>
+              <input id="country-search" class="search" placeholder="Search countries...">
+              <div class="list" id="country-list"></div>
+              <div class="footer">
+                <button id="country-reset" class="btn-ghost">Reset</button>
+                <button id="country-apply" class="btn-primary">Apply</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Date range remains outside popovers -->
+          <div class="date-panel" style="margin-top:6px;">
+            <div style="font-weight:700;margin-bottom:8px">Publication date range</div>
+            <div class="date-row" style="display:flex;gap:8px">
+              <input type="date" id="date-from"
+                style="flex:1;padding:8px;border-radius:8px;border:1px solid rgba(0,0,0,0.06)">
+              <input type="date" id="date-to"
+                style="flex:1;padding:8px;border-radius:8px;border:1px solid rgba(0,0,0,0.06)">
+            </div>
+            <div style="margin-top:8px;display:flex;gap:8px">
+              <button id="date-reset" class="btn-ghost">Reset</button>
+              <button id="date-apply" class="btn-primary">Apply</button>
+            </div>
+          </div>
+
+          <div style="margin-top:18px">
+            <button id="reset-filters" class="chip" style="width:100%;text-align:center">Reset all filters</button>
+          </div>
+
+          <hr style="margin:18px 0">
+          <div style="font-size:13px;color:var(--muted)">Tip: This demo uses local mock data. After validation we will
+            connect to Django backend or provide an API endpoint.</div>
+        </aside>
+
+        <main class="spy-main">
+          <div class="top-controls">
+            <input id="global-search" class="search-input" placeholder="Search ads, copy, page...">
+            <div style="display:flex;gap:8px;align-items:center">
+              <div class="chips" id="quick-tags">
+                <button class="chip" data-tag="summer">Summer Time</button>
+                <button class="chip" data-tag="weekly">Weekly Winners</button>
+                <button class="chip" data-tag="scale">Ready to scale</button>
+              </div>
+              <select id="sort-by" style="padding:8px;border-radius:8px;border:1px solid rgba(0,0,0,0.06)">
+                <option value="date_desc">Publication date ▾</option>
+                <option value="date_asc">Oldest</option>
+                <option value="spend_desc">Spend ▾</option>
+              </select>
+              <button id="theme-toggle" class="chip" title="Toggle theme">🌙</button>
+            </div>
+          </div>
+
+          <div id="ads-count" style="margin-bottom:10px;font-size:14px;color:var(--muted)">Showing <span
+              id="count-num">0</span> ads</div>
+          <div class="spy-grid" id="ads-grid"></div>
+        </main>
+      </div>
+      <!-- </div> -->
+
+      <script>
+        // Master lists
+        const ALL_CTAS = ['Buy Now', 'Shop Now', 'Learn More', 'Message Page', 'Sign Up', 'Get Offer', 'Download', 'Apply Now', 'Subscribe', 'WhatsApp Message', 'Get Quote', 'Event RSVP', 'Donate Now', 'Play Game', 'Contact Us', 'Get Directions', 'See Menu', 'Listen Now', 'Install App'];
+        const ALL_COUNTRIES = [{ code: 'US', name: 'United States' }, { code: 'EU', name: 'Europe' }, { code: 'MA', name: 'Morocco' }, { code: 'GB', name: 'United Kingdom' }, { code: 'CA', name: 'Canada' }, { code: 'AU', name: 'Australia' }];
+
+        const mockAds = []
+        // تعديل المسار حسب مشروعك:
+        const API_BASE = "api/ads/"; // أو "/api/ads/"
+
+        async function fetchAdsFromServer(q = "?page=1&page_size=50") {
+          const url = API_BASE + q.replace(/^\?/, "");
+          try {
+            const res = await fetch(API_BASE, { headers: { Accept: "application/json" }, credentials: "same-origin" });
+            if (!res.ok) {
+              const txt = await res.text();
+              console.error("Server returned", res.status, txt);
+              throw new Error("Server error " + res.status);
+            }
+            const contentType = res.headers.get("content-type") || "";
+            const raw = await res.text();
+            if (!raw) return null;
+            const cleaned = raw.replace(/^\)\]\}\'\n?/, ""); // defense against XSSI prefix
+            const data = contentType.includes("application/json") || cleaned.trim().startsWith("{") || cleaned.trim().startsWith("[")
+              ? JSON.parse(cleaned)
+              : null;
+            return data;
+          } catch (err) {
+            console.error("fetchAdsFromServer error:", err);
+            throw err;
+          }
+        }
+
+        // استبدال mockAds بالبيانات الحقيقية (تحقق من أسماء الحقول في API لديك)
+        fetchAdsFromServer("?page=1&page_size=50")
+          .then(data => {
+            console.log("Fetched ads raw:", data);
+            if (!data || !Array.isArray(data.results)) {
+              console.warn("No results array in response", data);
+              return;
+            }
+
+            // نفرغ الموك أدز ونملأها بالبيانات المستلمة بعد map
+            mockAds.length = 0;
+            mockAds.push(...data.results.map(item => ({
+              // عدّل الحقول هنا بحسب ما يعيده API عندك:
+              image: item.thumbnail || item.ad_snapshot_url || item.image || '',   // thumbnail fallback
+              page_name: item.page_name || (item.advertiser && item.advertiser.name) || '',
+              adsets: item.adsets_count || item.adsets || 0,
+              is_video: item.is_video === true || Boolean(item.is_video) || false,
+              impressions: item.impressions || 0,
+              spend: item.spend || 0,
+              url: item.ad_snapshot_url || item.landing_url || item.url || '',
+              published: item.published || item.ad_delivery_start_time || '',
+              cta: Array.isArray(item.ctas) && item.ctas.length ? item.ctas[0] : (item.cta || ''),
+              platform: item.platform || '',
+              country: (item.country && (item.country.code || item.country)) || item.country || '',
+              status: item.status || '',
+              tags: item.tags || [],
+              ad_id: item.ad_id || []
+            })));
+
+            console.log("mockAds replaced, count =", mockAds.length);
+            applyFilters();
+          })
+          .catch(err => {
+            alert("Failed to load ads. See console for details.");
+          });
+
+
+        // Mock ads with CTA and date ISO
+        // const mockAds = ads
+
+        // State
+        const grid = document.getElementById('ads-grid');
+        const countNum = document.getElementById('count-num');
+        let activeFilters = { media: 'all', platform: 'all', country_list: [], cta_list: [], status: 'all', search: '', tag: '', date_from: null, date_to: null };
+        let sortBy = 'date_desc';
+
+        function formatNumber(n) { return Number(n).toLocaleString(); }
+
+        function renderGrid(items) {
+          grid.innerHTML = '';
+          items.forEach(ad => {
+            console.log(ad)
+            const div = document.createElement('div'); div.className = 'spy-tile';
+            div.innerHTML = `
+      <div class="tile-media">
+         <div class="save-to-collection" id="save_ad" data-ad-id="${ad.ad_id}">Save</div>
+        <img src="${ad.image}" alt="${ad.page_name}">
+        <div class="tile-badge">${ad.adsets} adsets</div>
+        ${ad.is_video ? `<div class="tile-play" title="Video ad"> <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M8 5v14l11-7-11-7z" fill="#0f172a"/></svg></div>` : ''}
+        <div class="tile-overlay">
+          <div class="metric-pill">👁 ${formatNumber(ad.impressions)}</div>
+          <div class="metric-pill">${ad.spend ? '$' + ad.spend : '$0'}</div>
+        </div>
+      </div>
+      <div class="tile-body">
+        <div class="tile-title">${ad.page_name}</div>
+        <div class="tile-domain">${new URL(ad.url).hostname}</div>
+        <div class="tile-date">Published on: ${new Date(ad.published).toLocaleDateString()}</div>
+        <div style="margin-top:6px;color:var(--muted);font-size:13px">CTA: <strong>${ad.cta || '—'}</strong></div>
+        <div class="small-meta">
+          <div style="display:flex;gap:8px;align-items:center">
+            <button class="action-btn" onclick="openLanding('${ad.url}')">Open</button>
+            <button class="copy-btn" onclick="copyLink('${ad.url}')">Copy</button>
+          </div>
+          <div style="font-size:13px;color:var(--muted)">${ad.platform.toUpperCase()}</div>
+        </div>
+      </div>
+    `;
+            grid.appendChild(div);
+          });
+          countNum.textContent = items.length;
+        }
+
+        function applyFilters() {
+          let items = mockAds.slice();
+          if (activeFilters.media !== 'all') items = items.filter(a => (activeFilters.media === 'video') ? a.is_video : !a.is_video);
+          if (activeFilters.platform !== 'all') items = items.filter(a => a.platform === activeFilters.platform);
+          if (activeFilters.status !== 'all') items = items.filter(a => a.status === activeFilters.status);
+          if (activeFilters.country_list.length) items = items.filter(a => activeFilters.country_list.includes(a.country));
+          if (activeFilters.cta_list.length) items = items.filter(a => activeFilters.cta_list.includes(a.cta));
+          if (activeFilters.search) items = items.filter(a => (a.page_name + ' ' + (a.tags || []).join(' ') + ' ' + (a.cta || '') + ' ' + a.url).toLowerCase().includes(activeFilters.search.toLowerCase()));
+          if (activeFilters.tag) items = items.filter(a => (a.tags || []).includes(activeFilters.tag));
+          if (activeFilters.date_from) { const from = new Date(activeFilters.date_from); items = items.filter(a => new Date(a.published) >= from); }
+          if (activeFilters.date_to) { const to = new Date(activeFilters.date_to); items = items.filter(a => new Date(a.published) <= to); }
+          if (sortBy === 'date_desc') items.sort((x, y) => new Date(y.published) - new Date(x.published));
+          if (sortBy === 'date_asc') items.sort((x, y) => new Date(x.published) - new Date(y.published));
+          if (sortBy === 'spend_desc') items.sort((x, y) => (y.spend || 0) - (x.spend || 0));
+
+          renderGrid(items);
+        }
+
+        // populate popover lists
+        const ctaListEl = document.getElementById('cta-list');
+        const countryListEl = document.getElementById('country-list');
+        function renderCTAs(filterText = '') { ctaListEl.innerHTML = ''; const filtered = ALL_CTAS.filter(c => c.toLowerCase().includes(filterText.toLowerCase())); filtered.forEach(cta => { const row = document.createElement('div'); row.className = 'row'; row.innerHTML = `<label style="flex:1"><input type='checkbox' value='${cta}'> <span style='margin-left:8px'>${cta}</span></label>`; ctaListEl.appendChild(row); }); }
+        function renderCountries(filterText = '') { countryListEl.innerHTML = ''; const filtered = ALL_COUNTRIES.filter(c => c.name.toLowerCase().includes(filterText.toLowerCase()) || c.code.toLowerCase().includes(filterText.toLowerCase())); filtered.forEach(c => { const row = document.createElement('div'); row.className = 'row'; row.innerHTML = `<label style="flex:1"><input type='checkbox' value='${c.code}'> <span style='margin-left:8px'>${c.name}</span></label>`; countryListEl.appendChild(row); }); }
+        renderCTAs(); renderCountries();
+
+        // controls
+        document.querySelectorAll('.chip').forEach(ch => { ch.addEventListener('click', e => { const key = ch.dataset.filterKey; if (key) { document.querySelectorAll(`.chip[data-filter-key="${key}"]`).forEach(s => s.classList.remove('active')); ch.classList.add('active'); activeFilters[key] = ch.dataset.filterValue; applyFilters(); return; } if (ch.dataset.tag) { const tag = ch.dataset.tag; if (activeFilters.tag === tag) { activeFilters.tag = ''; ch.classList.remove('active'); } else { activeFilters.tag = tag; document.querySelectorAll('.chip[data-tag]').forEach(x => x.classList.remove('active')); ch.classList.add('active'); } applyFilters(); } if (ch.id === 'reset-filters') { resetFilters(); } }); });
+
+        document.getElementById('global-search').addEventListener('input', e => { activeFilters.search = e.target.value; applyFilters(); });
+        document.getElementById('filter-search').addEventListener('input', e => { activeFilters.search = e.target.value; applyFilters(); });
+        document.getElementById('sort-by').addEventListener('change', e => { sortBy = e.target.value; applyFilters(); });
+
+        // popover toggle and outside click
+        function togglePopover(popId, btn) {
+          const pop = document.getElementById(popId); pop.classList.toggle('hidden'); // close other popovers
+          document.querySelectorAll('.popover').forEach(p => { if (p.id !== popId) p.classList.add('hidden'); });
+        }
+
+        document.getElementById('cta-toggle').addEventListener('click', e => { togglePopover('cta-pop', e.target); });
+        document.getElementById('country-toggle').addEventListener('click', e => { togglePopover('country-pop', e.target); });
+
+        // click outside to close
+        document.addEventListener('click', e => { const popovers = Array.from(document.querySelectorAll('.popover')); const targets = [document.getElementById('cta-toggle'), document.getElementById('country-toggle')]; if (popovers.some(p => !p.classList.contains('hidden'))) { let insideAny = popovers.some(p => p.contains(e.target)); let clickedToggle = targets.some(t => t.contains(e.target) || t === e.target); if (!insideAny && !clickedToggle) popovers.forEach(p => p.classList.add('hidden')); } });
+
+        // CTA search and actions
+        document.getElementById('cta-search').addEventListener('input', e => renderCTAs(e.target.value));
+        document.getElementById('cta-reset').addEventListener('click', () => { ctaListEl.querySelectorAll('input[type=checkbox]').forEach(cb => cb.checked = false); });
+        document.getElementById('cta-apply').addEventListener('click', () => { const selected = Array.from(ctaListEl.querySelectorAll('input[type=checkbox]:checked')).map(i => i.value); activeFilters.cta_list = selected; applyFilters(); document.getElementById('cta-pop').classList.add('hidden'); });
+
+        // Country search and actions
+        document.getElementById('country-search').addEventListener('input', e => renderCountries(e.target.value));
+        document.getElementById('country-reset').addEventListener('click', () => { countryListEl.querySelectorAll('input[type=checkbox]').forEach(cb => cb.checked = false); });
+        document.getElementById('country-apply').addEventListener('click', () => { const selected = Array.from(countryListEl.querySelectorAll('input[type=checkbox]:checked')).map(i => i.value); activeFilters.country_list = selected; applyFilters(); document.getElementById('country-pop').classList.add('hidden'); });
+
+        // Date apply/reset
+        document.getElementById('date-apply').addEventListener('click', () => { const from = document.getElementById('date-from').value; const to = document.getElementById('date-to').value; activeFilters.date_from = from || null; activeFilters.date_to = to || null; applyFilters(); });
+        document.getElementById('date-reset').addEventListener('click', () => { document.getElementById('date-from').value = ''; document.getElementById('date-to').value = ''; activeFilters.date_from = null; activeFilters.date_to = null; applyFilters(); });
+
+        // Reset all filters
+        function resetFilters() { activeFilters = { media: 'all', platform: 'all', country_list: [], cta_list: [], status: 'all', search: '', tag: '', date_from: null, date_to: null }; document.querySelectorAll('.chip[data-filter-key]').forEach(c => { if (c.dataset.filterValue === 'all') c.classList.add('active'); else c.classList.remove('active'); }); document.getElementById('filter-search').value = ''; document.getElementById('global-search').value = ''; document.getElementById('cta-search').value = ''; renderCTAs(); ctaListEl.querySelectorAll('input[type=checkbox]').forEach(cb => cb.checked = false); document.getElementById('country-search').value = ''; renderCountries(); countryListEl.querySelectorAll('input[type=checkbox]').forEach(cb => cb.checked = false); document.getElementById('date-from').value = ''; document.getElementById('date-to').value = ''; applyFilters(); }
+        document.getElementById('reset-filters').addEventListener('click', resetFilters);
+
+        // quick tags
+        document.querySelectorAll('.chip[data-tag]').forEach(ch => ch.addEventListener('click', () => { const tag = ch.dataset.tag; if (activeFilters.tag === tag) { activeFilters.tag = ''; ch.classList.remove('active'); } else { activeFilters.tag = tag; document.querySelectorAll('.chip[data-tag]').forEach(x => x.classList.remove('active')); ch.classList.add('active'); } applyFilters(); }));
+
+        // theme toggle
+        const themeBtn = document.getElementById('theme-toggle');
+        function setTheme(dark) { if (dark) { document.body.classList.add('dark'); themeBtn.textContent = '☀️'; } else { document.body.classList.remove('dark'); themeBtn.textContent = '🌙'; } localStorage.setItem('spy_theme_dark', dark ? '1' : '0'); }
+        themeBtn.addEventListener('click', () => { const dark = !document.body.classList.contains('dark'); setTheme(dark); });
+        // load saved
+        if (localStorage.getItem('spy_theme_dark') === '1') setTheme(true);
+
+        // initial render
+        applyFilters();
+
+        // helpers
+        function openLanding(url) { if (!url) { alert('No landing URL'); return } window.open(url, '_blank'); }
+        function copyLink(url) { if (!navigator.clipboard) { alert('Clipboard not supported'); return } navigator.clipboard.writeText(url).then(() => { alert('Link copied') }).catch(() => { alert('Copy failed') }) }
+      </script>
+
+      <!-- Notes for Django integration later
+ - CTA popover can be prefilled with existing CTAs available in the database
+ - Countries popover can be populated server side or via /api/countries
+ - Theme persists in local storage
+-->
+
+
+
+
+    </div>
+
+
+
+
+
+
+    <div class="section-content padding-section-content" id="tiktok-spy-section">
+
+    </div>
+
+
+
+
+
+
+
+
+
+
+
+
+    <div class="section-content padding-section-content" id="collection-section">
+    
+    <!-- المكان الذي طلبته لعرض البطاقات -->
+    <div id="grid" class="row row-cols-1 row-cols-sm-2 row-cols-md-3 g-3 ad-grid"></div>
+  </div>
+    </div>
+
+ <!-- ===== Improved presentation & header for saved ads (English) ===== -->
+<style>
+  /* Presentation-only styles — scoped by prefix 'c123-' to avoid collisions */
+  .mb-2{
+    color:black
+  }
+  .c123-collection-header {
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:12px;
+    margin-bottom:18px;
+    padding:12px 8px;
+    border-radius:12px;
+    background:linear-gradient(180deg,#fff,#fbf9ff);
+    border:1px solid rgba(0,0,0,0.04);
+    box-shadow:0 6px 18px rgba(24,24,24,0.03);
+  }
+  .c123-collection-title { font-size:20px; font-weight:800; margin:0; color:#111827; }
+  .c123-collection-sub { font-size:13px; color:#6b7280; margin:0; }
+  .c123-collection-actions { display:flex; gap:8px; align-items:center; }
+
+  /* Card tweaks */
+  .c123-card { border-radius:12px; overflow:hidden; border:1px solid rgba(0,0,0,0.04); background:#fff; display:flex; flex-direction:column; height:100%; box-shadow:0 6px 18px rgba(24,24,24,0.04); }
+  .c123-card-media { position:relative; width:100%; aspect-ratio:1/1; overflow:hidden; background:#f7f7fb; }
+  .c123-card-media img { width:100%; height:100%; object-fit:cover; display:block; }
+  .c123-card-media .c123-badge-top { position:absolute; left:8px; top:8px; background:rgba(0,0,0,0.72); color:#fff; padding:6px 8px; border-radius:999px; font-size:12px; }
+  .c123-card-media .c123-overlay-right { position:absolute; right:8px; top:8px; display:flex; gap:8px; align-items:center; }
+  .c123-card-media .c123-circle { color:color(srgb 0.4191 0.4468 0.5032);background:rgba(255,255,255,0.98); padding:6px 10px; border-radius:999px; font-weight:700; font-size:12px; box-shadow:0 2px 6px rgba(0,0,0,0.06); }
+
+  .c123-card-body { padding:12px; display:flex; flex-direction:column; gap:8px; flex:1; }
+  .c123-card-title { font-size:14px; font-weight:800; color:#111827; margin:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .c123-card-domain { font-size:12px; color:#6b7280; }
+  .c123-card-meta { display:flex; gap:8px; align-items:center; font-size:12px; color:#6b7280; flex-wrap:wrap; }
+
+  .c123-card-footer { display:flex; gap:8px; align-items:center; padding:10px 12px; border-top:1px solid #f0f0f0; background:#fafafa; }
+  .c123-btn { padding:8px 12px; border-radius:8px; font-weight:700; font-size:13px; cursor:pointer; border:none; }
+  .c123-btn-primary { background:#0d6efd; color:#fff; }
+  .c123-btn-outline { background:transparent; border:1px solid rgba(13,110,253,0.12); color:#0d6efd; }
+  .c123-btn-danger { background:#dc3545; color:#fff; }
+
+  .c123-metric { color:color(srgb 0.4191 0.4468 0.5032);background:rgba(0,0,0,0.06); padding:6px 8px; border-radius:999px; font-weight:700; font-size:12px; }
+
+  .c123-placeholder { display:flex; align-items:center; justify-content:center; color:#9ca3af; font-weight:700; height:100%; padding:18px; }
+
+  /* small screen adjustments */
+  @media (max-width:576px) {
+    .c123-collection-header { flex-direction:column; align-items:flex-start; gap:6px; }
+    .c123-collection-actions { width:100%; justify-content:flex-start; }
+  }
+</style>
+
+<!-- <script>
+  // Insert header above #grid if not already present
+  (function ensureCollectionHeader() {
+    const grid = document.getElementById('grid');
+    if (!grid) return;
+    // Check if header exists
+    if (document.querySelector('.c123-collection-header')) return;
+
+    const header = document.createElement('div');
+    header.className = 'c123-collection-header';
+    header.innerHTML = `
+      <div>
+        <h2 class="c123-collection-title">Saved Ads</h2>
+        <p class="c123-collection-sub" id="c123-collection-sub">Your saved advertisements — loaded from your favorites</p>
+      </div>
+      <div class="c123-collection-actions">
+        <div id="c123-collection-count" class="c123-metric">0 ads</div>
+        <button id="c123-refresh-btn" class="c123-btn c123-btn-outline">Refresh</button>
+      </div>
+    `;
+    grid.parentNode.insertBefore(header, grid);
+
+    // Refresh handler (reuses your existing fetchSavedAds + renderAds)
+    const refreshBtn = header.querySelector('#c123-refresh-btn');
+    refreshBtn.addEventListener('click', async () => {
+      refreshBtn.disabled = true;
+      refreshBtn.textContent = 'Refreshing...';
+      try {
+        const ads = await fetchSavedAds();
+        renderAds(ads);
+      } finally {
+        refreshBtn.disabled = false;
+        refreshBtn.textContent = 'Refresh';
+      }
+    });
+  })();
+
+
+  // Replace/augment your renderAds function with presentation improvements.
+  // If renderAds already exists in your script, rename this to renderAds (or keep your current function)
+  // and ensure the new function is called by your code. Here we override the earlier renderAds to improve display.
+  function renderAds(ads) {
+    const grid = document.getElementById('grid');
+    if (!grid) return;
+    grid.innerHTML = '';
+
+    // Update header count
+    const countEl = document.getElementById('c123-collection-count');
+    if (countEl) countEl.textContent = `${Array.isArray(ads) ? ads.length : 0} ad${ads.length !== 1 ? 's' : ''}`;
+
+    if (!Array.isArray(ads) || ads.length === 0) {
+      const empty = document.createElement('div');
+      empty.className = 'col-12';
+      empty.innerHTML = `<div class="card p-3 text-center">No saved ads to display</div>`;
+      grid.appendChild(empty);
+      return;
+    }
+
+    ads.forEach((ad, idx) => {
+      const col = document.createElement('div');
+      col.className = 'col';
+
+      // compute safe fields
+      const thumbnail = ad.thumbnail ? escapeHtml(ad.thumbnail) : '';
+      const pageName = escapeHtml(ad.page_name || ad.advertiser || '—');
+      const adsetsCount = ad.adsets_count || 0;
+      const isVideo = !!ad.is_video;
+      const impressions = prettyNumber(ad.impressions);
+      const spend = ad.spend ? ('$' + escapeHtml(ad.spend)) : '$0';
+      const domain = escapeHtml(safeHostname(ad.ad_snapshot_url || ''));
+      const published = ad.published ? new Date(ad.published).toLocaleDateString() : '—';
+      const platform = escapeHtml((ad.platform || '').toUpperCase());
+      const savedAt = ad.saved_at ? new Date(ad.saved_at).toLocaleString() : null;
+      const snapshotAvailable = !!ad.ad_snapshot_url;
+
+      // structure
+      col.innerHTML = `
+        <div class="c123-card h-100">
+          <div class="c123-card-media">
+            ${ thumbnail ? `<img src="${thumbnail}" alt="${pageName}">` : `<div class="c123-placeholder">No preview</div>`}
+            <div class="c123-badge-top">${adsetsCount} adsets</div>
+            <div class="c123-overlay-right">
+              <div class="c123-circle">${impressions}</div>
+            </div>
+          </div>
+
+          <div class="c123-card-body">
+            <h3 class="c123-card-title" title="${pageName}">${pageName}</h3>
+            <div class="c123-card-domain">${domain || '—'}</div>
+
+            <div class="c123-card-meta">
+              <div>Published: ${escapeHtml(published)}</div>
+              <div>•</div>
+              <div>Platform: ${platform || '—'}</div>
+              <div>•</div>
+              <div>Status: ${escapeHtml(ad.status || '—')}</div>
+            </div>
+
+            ${ ad.note ? `<div style="font-size:13px;color:#6b7280;margin-top:6px">Note: ${escapeHtml(ad.note)}</div>` : '' }
+          </div>
+
+          <div class="c123-card-footer">
+            <button class="c123-btn c123-btn-outline open-btn" ${ snapshotAvailable ? '' : 'disabled' } data-snapshot="${escapeHtml(ad.ad_snapshot_url || '')}">Open</button>
+            <button class="c123-btn c123-btn-outline copy-btn" ${ snapshotAvailable ? '' : 'disabled' } data-snapshot="${escapeHtml(ad.ad_snapshot_url || '')}">Copy</button>
+            <button class="c123-btn c123-btn-primary details-btn">View details</button>
+            <button class="c123-btn c123-btn-danger remove-btn">Unsave</button>
+            <div style="margin-left:auto; font-size:12px; color:#6b7280; align-self:center;">${spend}</div>
+          </div>
+        </div>
+      `;
+
+      grid.appendChild(col);
+
+      // bind actions
+      const openBtn = col.querySelector('.open-btn');
+      const copyBtn = col.querySelector('.copy-btn');
+      const detailsBtn = col.querySelector('.details-btn');
+      const removeBtn = col.querySelector('.remove-btn');
+
+      openBtn?.addEventListener('click', () => {
+        if (ad.ad_snapshot_url) window.open(ad.ad_snapshot_url, '_blank');
+      });
+
+      copyBtn?.addEventListener('click', async () => {
+        if (!ad.ad_snapshot_url) return;
+        try {
+          await navigator.clipboard.writeText(ad.ad_snapshot_url);
+          // small toast (re-usable)
+          showSimpleToast('Link copied');
+        } catch (e) {
+          showSimpleToast('Could not copy link');
+        }
+      });
+
+      detailsBtn?.addEventListener('click', () => {
+        try {
+          showAdDetails(ad);
+        } catch (err) {
+          console.error(err);
+          showSimpleToast('Failed to open details');
+        }
+      });
+
+      // remove button: emit custom event for integration with backend later
+      removeBtn?.addEventListener('click', () => {
+        // fire a custom event with the ad id — backend integration comes later
+        const ev = new CustomEvent('savedAd:remove', { detail: { ad_id: ad.ad_id, ad } });
+        document.dispatchEvent(ev);
+        // optimistic UI: hide the card (will be replaced if backend removes fails)
+        col.style.opacity = '0.45';
+        col.style.transition = 'opacity .2s ease';
+        // option: remove from DOM after small delay (commented — prefer backend to confirm)
+        // setTimeout(()=>col.remove(), 350);
+      });
+
+    }); // end forEach
+  } // end renderAds
+
+  // small reusable toast helper (non-blocking)
+  function showSimpleToast(message, duration = 1400) {
+    try {
+      const t = document.createElement('div');
+      t.className = 'position-fixed top-0 end-0 p-3';
+      t.style.zIndex = 1080;
+      t.innerHTML = `<div class="toast align-items-center text-bg-dark border-0 show" role="alert"><div class="d-flex"><div class="toast-body">${escapeHtml(message)}</div><button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button></div></div>`;
+      document.body.appendChild(t);
+      setTimeout(() => t.remove(), duration);
+    } catch (e) {
+      // fallback
+      console.log('toast:', message);
+    }
+  }
+
+  // listen to remove events (example wiring stub — hook your backend here)
+  document.addEventListener('savedAd:remove', async (e) => {
+    const { ad_id } = e.detail || {};
+    // Example: you can perform fetch to DELETE endpoint and then re-fetch collection
+    // await fetch(`/saved/${encodeURIComponent(ad_id)}/`, { method: 'DELETE', credentials: 'same-origin' });
+    // fetchSavedAds().then(renderAds);
+
+    // For now show a toast to confirm event fired:
+    showSimpleToast('Unsave requested for: ' + (ad_id || 'unknown'));
+  });
+
+</script> -->
+
+ 
+
+    <!-- Modal Bootstrap لعرض تفاصيل الإعلان -->
+    <div class="modal fade" id="adDetailsModal" tabindex="-1" aria-labelledby="adDetailsLabel" aria-hidden="true">
+      <div class="modal-dialog modal-xl modal-dialog-scrollable">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 id="adDetailsLabel" class="modal-title">Ad Details</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+          </div>
+          <div class="modal-body">
+            <!-- سيتم ملؤه ديناميكياً -->
+            <div id="ad-details-content"></div>
+          </div>
+          <div class="modal-footer">
+            <a id="modal-open-snapshot" class="btn btn-outline-primary" target="_blank" role="button"
+              style="display:none">Open snapshot</a>
+            <button id="modal-copy-snapshot" class="btn btn-outline-secondary" style="display:none">Copy
+              snapshot</button>
+            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script>
+        (function ensureCollectionHeader() {
+    const grid = document.getElementById('grid');
+    if (!grid) return;
+    // Check if header exists
+    if (document.querySelector('.c123-collection-header')) return;
+
+    const header = document.createElement('div');
+    header.className = 'c123-collection-header';
+    header.innerHTML = `
+      <div>
+        <h2 class="c123-collection-title">Saved Ads</h2>
+        <p class="c123-collection-sub" id="c123-collection-sub">Your saved advertisements — loaded from your favorites</p>
+      </div>
+      <div class="c123-collection-actions">
+        <div id="c123-collection-count" class="c123-metric">0 ads</div>
+        <button id="c123-refresh-btn" class="c123-btn c123-btn-outline">Refresh</button>
+      </div>
+    `;
+    grid.parentNode.insertBefore(header, grid);
+
+    // Refresh handler (reuses your existing fetchSavedAds + renderAds)
+    const refreshBtn = header.querySelector('#c123-refresh-btn');
+    refreshBtn.addEventListener('click', async () => {
+      refreshBtn.disabled = true;
+      refreshBtn.textContent = 'Refreshing...';
+      try {
+        const ads = await fetchSavedAds();
+        renderAds(ads);
+      } finally {
+        refreshBtn.disabled = false;
+        refreshBtn.textContent = 'Refresh';
+      }
+    });
+  })();
+
+
+  
+      /* دوال مساعدة للحماية من حقن HTML */
+      function escapeHtml(s) {
+        if (s === null || s === undefined) return '';
+        return String(s)
+          .replace(/&/g, '&amp;')
+          .replace(/</g, '&lt;')
+          .replace(/>/g, '&gt;')
+          .replace(/"/g, '&quot;')
+          .replace(/'/g, '&#39;');
+      }
+      function safeHostname(url) {
+        try { return new URL(url).hostname; } catch (e) { return ''; }
+      }
+      function prettyNumber(n) {
+        if (n === null || n === undefined) return '0';
+        const num = Number(n);
+        if (Number.isNaN(num)) return String(n);
+        return num.toLocaleString();
+      }
+    /* دالة رئيسية لترندر الإعلانات باستخدام Bootstrap */
+    function renderAds(ads) {
+      const grid = document.getElementById('grid');
+      grid.innerHTML = '';
+
+      // Update header count
+      const countEl = document.getElementById('c123-collection-count');
+      if (countEl) countEl.textContent = `${Array.isArray(ads) ? ads.length : 0} ad${ads.length !== 1 ? 's' : ''}`;
+
+      if (!Array.isArray(ads) || ads.length === 0) {
+        const empty = document.createElement('div');
+        empty.className = 'col-12';
+        empty.innerHTML = `<div class="card p-3 text-center">No saved ads to display</div>`;
+        grid.appendChild(empty);
+        return;
+      }
+
+      ads.forEach((ad, idx) => {
+        const col = document.createElement('div');
+        col.className = 'col';
+        const adJson = JSON.stringify(ad || {});
+        const thumbnail = ad.thumbnail ? escapeHtml(ad.thumbnail) : '';
+        const pageName = escapeHtml(ad.page_name || '—');
+        const adsetsCount = ad.adsets_count || 0;
+        const isVideo = !!ad.is_video;
+        const impressions = prettyNumber(ad.impressions);
+        const spend = ad.spend ? ('$' + escapeHtml(ad.spend)) : '$0';
+        const domain = escapeHtml(safeHostname(ad.ad_snapshot_url || ''));
+        const published = ad.published ? new Date(ad.published).toLocaleDateString() : '—';
+        const ctas = (ad.ctas && ad.ctas.length) ? escapeHtml(ad.ctas.join(', ')) : '—';
+        const platform = (ad.platform || '').toUpperCase();
+        const isFav = !!ad.is_favorite || !!ad.saved;
+        const savedAt = ad.saved_at ? new Date(ad.saved_at).toLocaleString() : null;
+        const snapshotAvailable = !!ad.ad_snapshot_url;
+        const aiID = ad.id;
+
+       // structure
+    col.innerHTML = `
+      <div class="c123-card h-100">
+        <div class="c123-card-media">
+          ${ thumbnail ? `<img src="${thumbnail}" alt="${pageName}">` : `<div class="c123-placeholder">No preview</div>`}
+          <div class="c123-badge-top">${adsetsCount} adsets</div>
+          <div class="c123-overlay-right">
+            <div class="c123-circle"> impressions :${impressions}</div>
+          </div>
+        </div>
+
+        <div class="c123-card-body">
+          <h3 class="c123-card-title" title="${pageName}">${pageName}</h3>
+           <div class="c123-card-meta">
+          <div class="c123-card-domain">${domain || '—'} </div>
+          <div class="c123-card-ctas">${ctas || '—'}</div>
+          <div> Saved at: ${escapeHtml(savedAt || '—')} </div>
+
+          </div>
+          <div class="c123-card-meta">
+            <div>Published: ${escapeHtml(published)}</div>
+            <div>•</div>
+            <div>Platform: ${platform || '—'}</div>
+            <div>•</div>
+            <div>Status: ${escapeHtml(ad.status || '—')}</div>
+          </div>
+
+          ${ ad.note ? `<div style="font-size:13px;color:#6b7280;margin-top:6px">Note: ${escapeHtml(ad.note)}</div>` : '' }
+        </div>
+
+        <div class="c123-card-footer">
+          <button class="c123-btn c123-btn-outline open-btn" ${ snapshotAvailable ? '' : 'disabled' } data-snapshot="${escapeHtml(ad.ad_snapshot_url || '')}">Open</button>
+          <button class="c123-btn c123-btn-outline copy-btn" ${ snapshotAvailable ? '' : 'disabled' } data-snapshot="${escapeHtml(ad.ad_snapshot_url || '')}">Copy</button>
+          <button class="c123-btn c123-btn-primary details-btn">View details</button>
+          <button class="c123-btn c123-btn-danger remove-btn unsave_ad" data-id="${ad.id}">Unsave</button>
+          <div style="margin-left:auto; font-size:12px; color:#6b7280; align-self:center;"> Total spend: ${spend}</div>
+        </div>
+      </div>
+    `;
+
+          // Append and bind events
+          grid.appendChild(col);
+
+          const openBtn = col.querySelector('.open-btn');
+          const copyBtn = col.querySelector('.copy-btn');
+          const detailsBtn = col.querySelector('.details-btn');
+
+          openBtn?.addEventListener('click', () => {
+            if (ad.ad_snapshot_url) window.open(ad.ad_snapshot_url, '_blank');
+          });
+
+          copyBtn?.addEventListener('click', async () => {
+            if (!ad.ad_snapshot_url) return;
+            try {
+              await navigator.clipboard.writeText(ad.ad_snapshot_url);
+              // استخدم Toast من Bootstrap مبدئياً عبر alert بسيطة
+              const t = document.createElement('div');
+              t.className = 'position-fixed top-0 end-0 p-3';
+              t.style.zIndex = 1080;
+              t.innerHTML = `<div class="toast align-items-center text-bg-success border-0 show" role="alert"><div class="d-flex"><div class="toast-body">Link copied</div><button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button></div></div>`;
+              document.body.appendChild(t);
+              setTimeout(() => t.remove(), 1600);
+            } catch (e) {
+              alert('Could not copy link');
+            }
+          });
+
+          detailsBtn?.addEventListener('click', () => {
+            try {
+              showAdDetails(ad);
+            } catch (err) {
+              console.error(err);
+              alert('Failed to open details');
+            }
+          });
+        });
+      }
+
+      /* دالة لملء بيانات المودال وفتحه */
+      function showAdDetails(ad) {
+        const title = document.getElementById('adDetailsLabel');
+        const content = document.getElementById('ad-details-content');
+        const openSnapshot = document.getElementById('modal-open-snapshot');
+        const copySnapshot = document.getElementById('modal-copy-snapshot');
+
+        title.textContent = ad.page_name || 'Ad Details';
+
+        const impressions = prettyNumber(ad.impressions);
+        const spend = ad.spend ? ('$' + escapeHtml(ad.spend)) : '$0';
+        const published = ad.published ? new Date(ad.published).toLocaleString() : '—';
+        const savedAt = ad.saved_at ? new Date(ad.saved_at).toLocaleString() : '—';
+        const ctas = (ad.ctas && ad.ctas.length) ? escapeHtml(ad.ctas.join(', ')) : '—';
+        const hostname = safeHostname(ad.ad_snapshot_url || '');
+        const primaryText = ad.primaryText || ad.body || '—';
+        const headline = ad.headline || '—';
+        const creativeType = ad.creative_type || (ad.is_video ? 'video' : 'image');
+        const duration = ad.duration ? ad.duration : '—';
+        const tags = (ad.tags && ad.tags.length) ? ad.tags.join(', ') : '—';
+        const status = ad.status || '—';
+        const objective = ad.objective || '—';
+        const targeting = ad.targeting ? JSON.stringify(ad.targeting, null, 2) : '—';
+
+        // امن الاستبدال. نضع النصوص باستخدام textContent او escapeHtml.
+        content.innerHTML = `
+    <div class="row g-3">
+      <div class="col-12 col-lg-5">
+        ${ad.thumbnail ? `<img src="${escapeHtml(ad.thumbnail)}" alt="${escapeHtml(ad.page_name || '')}" class="img-fluid rounded">` : `<div class="border rounded p-3 text-center text-muted">No preview</div>`}
+        <ul class="list-group list-group-flush mt-3">
+          <li class="list-group-item"><strong>Page</strong> <div class="text-muted">${escapeHtml(ad.page_name || '—')}</div></li>
+          <li class="list-group-item"><strong>Platform</strong> <div class="text-muted">${escapeHtml((ad.platform || '').toUpperCase())}</div></li>
+          <li class="list-group-item"><strong>Impressions</strong> <div class="text-muted">${impressions}</div></li>
+          <li class="list-group-item"><strong>Spend</strong> <div class="text-muted">${spend}</div></li>
+          <li class="list-group-item"><strong>Published</strong> <div class="text-muted">${escapeHtml(published)}</div></li>
+          <li class="list-group-item"><strong>Saved at</strong> <div class="text-muted">${escapeHtml(savedAt)}</div></li>
+          <li class="list-group-item"><strong>Status</strong> <div class="text-muted">${escapeHtml(status)}</div></li>
+        </ul>
+      </div>
+
+      <div class="col-12 col-lg-7">
+        <div class="mb-2"><strong>Headline</strong><div class="text-muted">${escapeHtml(headline)}</div></div>
+        <div class="mb-2"><strong>CTA</strong><div class="text-muted">${escapeHtml(ctas)}</div></div>
+        <div class="mb-2"><strong>Primary text</strong><pre class="p-2 bg-white mb-3 rounded" style="white-space:pre-wrap ;border:var(--bs-border-width) var(--bs-border-style) var(--bs-border-color)!important;">${escapeHtml(primaryText)}</pre></div>
+
+        <div class="mb-2"><strong>Creative</strong> <div class="text-muted">${escapeHtml(creativeType)} ${duration !== '—' ? `· ${escapeHtml(duration)}` : ''}</div></div>
+        <div class="mb-2"><strong>Objective</strong> <div class="text-muted">${escapeHtml(objective)}</div></div>
+
+        <div class="mb-2"><strong>Targeting</strong>
+          <pre class="p-2 bg-white border rounded" style="max-height:200px;overflow:auto">${escapeHtml(targeting)}</pre>
+        </div>
+
+        <div class="mb-2"><strong>Hostname</strong> <div class="text-muted">${escapeHtml(hostname || '—')}</div></div>
+        <div class="mb-2"><strong>Tags</strong> <div class="text-muted">${escapeHtml(tags)}</div></div>
+        <div class="mt-3">
+          <a href="${ad.ad_snapshot_url || '#'}" id="details-snapshot-link" target="_blank" style="display:${ad.ad_snapshot_url ? 'inline-block' : 'none'}" class="btn btn-sm btn-outline-primary">Open snapshot</a>
+          <button id="details-copy-snapshot" style="display:${ad.ad_snapshot_url ? 'inline-block' : 'none'}" class="btn btn-sm btn-outline-secondary">Copy snapshot</button>
+          ${ad.ad_snapshot_url ? '' : `<span class="ms-2 text-muted">Snapshot unavailable</span>`}
+        </div>
+      </div>
+    </div>
+  `;
+
+        // إعداد أزرار المودال العامة
+        if (ad.ad_snapshot_url) {
+          openSnapshot.style.display = 'inline-block';
+          openSnapshot.href = ad.ad_snapshot_url;
+          copySnapshot.style.display = 'inline-block';
+          copySnapshot.onclick = async () => {
+            try {
+              await navigator.clipboard.writeText(ad.ad_snapshot_url);
+              // إشعار بسيط
+              const t = document.createElement('div');
+              t.className = 'position-fixed top-0 end-0 p-3';
+              t.style.zIndex = 1080;
+              t.innerHTML = `<div class="toast align-items-center text-bg-success border-0 show" role="alert"><div class="d-flex"><div class="toast-body">Link copied</div><button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button></div></div>`;
+              document.body.appendChild(t);
+              setTimeout(() => t.remove(), 1400);
+            } catch (e) {
+              alert('Could not copy link');
+            }
+          };
+        } else {
+          openSnapshot.style.display = 'none';
+          copySnapshot.style.display = 'none';
+        }
+
+        // أزرار داخل المحتوى
+        const internalCopyBtn = document.getElementById('details-copy-snapshot');
+        if (internalCopyBtn) {
+          internalCopyBtn.onclick = async () => {
+            try {
+              await navigator.clipboard.writeText(ad.ad_snapshot_url);
+              alert('Link copied');
+            } catch (e) {
+              alert('Could not copy link');
+            }
+          };
+        }
+
+        // فتح المودال
+        const modalEl = document.getElementById('adDetailsModal');
+        const bsModal = new bootstrap.Modal(modalEl);
+        bsModal.show();
+      }
+
+  
+      const COLLECTION_API = "api/saved-ads/";
+//       async function fetchSavedAds() { try { const res = await fetch(SAVED_ADS_API, { headers: { Accept: "application/json" }, credentials: "same-origin" }); if (!res.ok) throw new Error("Server error " + res.status); const data = await res.json(); return Array.isArray(data.results) ? data.results : []; } catch (err) { console.error("fetchSavedAds error:", err); return []; } }
+      
+// document.addEventListener('DOMContentLoaded', () => {
+//   document.getElementById('coll').addEventListener('click', () => { fetchSavedAds().then(renderSavedAdsGrid); });
+//   if (document.getElementById('collection-section').style.display === 'block') { fetchSavedAds().then(renderSavedAdsGrid); }
+// });
+//       renderAds(dataFromServer);
+
+
+ 
+  // const COLLECTION_API = "/collection/"; // رابط endpoint الخاص بدالة collection_view
+
+  // دالة جلب البيانات من السيرفر
+  async function fetchSavedAds() {
+    try {
+      const res = await fetch(COLLECTION_API, {
+        method: 'GET',
+        headers: {
+          Accept: 'application/json',
+        },
+        credentials: 'same-origin' // لإرسال الكوكيز الخاصة بالمستخدم
+      });
+
+      if (!res.ok) {
+        throw new Error(`Server error: ${res.status}`);
+      }
+
+      const data = await res.json();
+
+      // نتأكد أن البيانات موجودة بصيغة Array
+      return Array.isArray(data.collection) ? data.collection : [];
+
+    } catch (err) {
+      console.error("fetchSavedAds error:", err);
+      return [];
+    }
+  }
+
+  // استدعاء البيانات عند تحميل الصفحة أو عند الضغط على زر
+  document.addEventListener('DOMContentLoaded', () => {
+    const collBtn = document.getElementById('coll');
+    const collectionSection = document.getElementById('collection-section');
+
+    if (collBtn) {
+      collBtn.addEventListener('click', async () => {
+        const ads = await fetchSavedAds();
+        renderAds(ads);
+      });
+    }
+
+    // إذا كان قسم المفضلات ظاهر بالفعل عند التحميل
+    if (collectionSection && collectionSection.style.display === 'block') {
+      fetchSavedAds().then(renderAds);
+    }
+  });
+ 
+
+
+    </script> 
+
+
+<script>
+/* Helper: get cookie (CSRF) */
+function getCookie(name) {
+  const match = document.cookie.match(new RegExp('(^|; )' + name + '=([^;]+)'));
+  return match ? decodeURIComponent(match[2]) : null;
+}
+
+/* Delegated handler: listen on the grid container for clicks on buttons with .unsave_ad */
+(function setupUnsaveHandler() {
+  const grid = document.getElementById('grid') || document.body; // fallback to body
+  grid.addEventListener('click', async (event) => {
+    const btn = event.target.closest('.unsave_ad');
+    if (!btn) return; // click wasn't on an unsave button
+
+    // get ad id (trim whitespace) and guard
+    const adIdRaw = btn.getAttribute('data-id') || btn.dataset.id || '';
+    const ad_id = (adIdRaw || '').toString().trim();
+    if (!ad_id) {
+      console.warn('unsave_ad clicked but no ad_id found on button', btn);
+      return;
+    }
+
+    // prevent double clicks
+    if (btn.disabled) return;
+    btn.disabled = true;
+    const oldLabel = btn.innerHTML;
+    btn.innerHTML = 'Removing…';
+
+    const url = 'api/unsave-ad/'; // adjust endpoint if needed
+    const csrftoken = getCookie('csrftoken') || '';
+
+    try {
+      const res = await fetch(url, {
+        method: 'POST',
+        credentials: 'same-origin',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRFToken': csrftoken
+        },
+        body: JSON.stringify({ ad_id })
+      });
+
+      let json = null;
+      try { json = await res.json(); } catch (e) { /* ignore if no JSON */ }
+
+      if (res.ok && (json === null || json.success === true || json.status === 'ok')) {
+        // success: remove card from UI (or mark as unsaved)
+        const cardCol = btn.closest('.col') || btn.closest('.c123-card') || btn.closest('.card-1') || btn.parentElement;
+        if (cardCol) {
+          // nice fade-out then remove
+          cardCol.style.transition = 'opacity .25s ease, transform .25s ease';
+          cardCol.style.opacity = '0';
+          cardCol.style.transform = 'translateY(6px)';
+          setTimeout(() => {
+            if (cardCol && cardCol.remove) cardCol.remove();
+            // optional: refetch or update counter here
+            const countEl = document.getElementById('c123-collection-count');
+            if (countEl) {
+              const cur = parseInt(countEl.textContent) || 0;
+              countEl.textContent = Math.max(0, cur - 1) + ' ad' + (Math.max(0, cur-1) !== 1 ? 's' : '');
+            }
+          }, 260);
+        } else {
+          // fallback: change button state
+          btn.textContent = 'Unsaved';
+          btn.classList.add('disabled');
+        }
+
+        // show small toast
+        showSimpleToast('Ad removed from saved list');
+        return;
+      }
+
+      // handle error responses
+      const msg = (json && (json.error || json.message || json.detail)) || `Server error ${res.status}`;
+      showSimpleToast(msg);
+      console.error('Unsave failed:', res.status, json);
+    } catch (err) {
+      console.error('Network error while unsaving ad:', err);
+      showSimpleToast('Network error. Try again.');
+    } finally {
+      // restore unless we already removed card
+      if (btn && document.body.contains(btn)) {
+        btn.disabled = false;
+        btn.innerHTML = oldLabel;
+      }
+    }
+  });
+})();
+
+/* tiny toast helper used above (re-usable) */
+function showSimpleToast(message, duration = 1400) {
+  try {
+    const t = document.createElement('div');
+    t.className = 'position-fixed top-0 end-0 p-3';
+    t.style.zIndex = 1080;
+    t.innerHTML = `<div class="toast align-items-center text-bg-dark border-0 show" role="alert"><div class="d-flex"><div class="toast-body">${escapeHtml(message)}</div><button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button></div></div>`;
+    document.body.appendChild(t);
+    setTimeout(() => t.remove(), duration);
+  } catch (e) {
+    console.log('toast:', message);
+  }
+}
+</script>
+
+  </div>
+
+
+
+
+
+
+
+
+
+  <div class="section-content padding-section-content" id="update-section">
+
+  </div>
+
+  <div class="section-content padding-section-content" id="future-features-1-section">
+  </div>
+
+  </div>
+
+  <div id="update-success-message" class="alert alert-success d-none" role="alert"
+    style="     width: 232px;
+    position: fixed;
+    z-index: 12232321;
+    bottom: 14px; background-color: var(--accent-color); color: var(--background-primary); border-radius: var(--border-radius-md); font-size: var(--font-size-sm); margin-top: 1rem;">
+    Data updated seccessfully !
+  </div>
+
+
+
+
+
+  <script>
+    // save_ad 
+
+    async function save_to_collections(adID, note = null) {
+      try {
+        const res = await fetch('api/save-ad/', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': (document.cookie.match(/csrftoken=([^;]+)/) || [])[1] || ''
+          },
+          credentials: 'same-origin',
+          body: JSON.stringify({ ad_id: adID, note: note })
+        });
+        const data = await res.json();
+        if (res.ok || res.success == true) {
+          document.getElementById('update-success-message').classList.remove('d-none');
+          setTimeout(() => {
+            document.getElementById('update-success-message').classList.add('d-none');
+          }, 2000);
+          return data;
+        } else {
+          Swal.fire('Error', data.detail || 'Failed to save ad.', 'error');
+          return null;
+        }
+      } catch (err) {
+        Swal.fire('Error', err.message || 'Server error', 'error');
+        return null;
+      }
+    }
+
+    grid.addEventListener('click', function (e) {
+      if (e.target.classList.contains('save-to-collection')) {
+        const adId = e.target.dataset.adId;
+        save_to_collections(adId);
+        console.log(adId);
+      }
+    });
+
+  </script>
+
+</body>
+
+</html>

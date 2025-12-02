@@ -1,0 +1,3029 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Order Tracking Dashboard</title>
+    
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+    
+<!-- Socket tracking  -->
+ <script src="{% static 'js/socket_manager.js' %}"></script>
+ 
+ <!-- end socket  -->
+  <script>
+    // تشغيل السوكيت مرة واحدة عند فتح الموقع
+    document.addEventListener('DOMContentLoaded', function() {
+        ChatSocket.init('global_room'); 
+    
+    });
+ 
+
+    window.currentChannelId = '{{ initial_channel_id }}' 
+</script>
+
+   <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+  
+ 
+
+
+<script src="{% static 'js/script2.js' %}" ></script>
+<script src="{% static 'js/script1.js' %}" ></script>
+
+<script src="{% static 'js/ajax.js' %}" ></script>
+ 
+
+  <style>
+
+        /* CSS Variables - Monochrome with minimal accent */
+        :root {
+            --bs-secondary-color: rgba(133, 133, 133, 0.75)!important ;
+            --background-primary: #121212; /* Very dark background - unified for body and cards */
+            --text-light: #E0E0E0; /* Light text color for main content/titles */
+            --text-muted: #A0A0A0; /* Muted text color for secondary info/placeholders */
+            --accent-color: #00E676; /* Neon Green (minimal use) */
+            --accent-color-transparent: rgba(0, 230, 118, 0.15); /* Transparent accent for focus/active states */
+
+            /* Border as main separator */
+            --border-card: rgba(241, 241, 255, 0.151); /* Primary border color (light grey transparent) */
+            --border-hover: hsla(0, 0%, 100%, 0.98); /* Hover/active border color (near-white) */
+            --border-width: 1px; /* Standard border width */
+            --border-width-focus: 0.5px; /* Thinner border for focus-ring */
+
+            --border-radius-sm: 0.25rem; /* 4px */
+            --border-radius-md: 0.5rem; /* 8px */
+            --border-radius-lg: 0.75rem; /* 12px */
+            --border-radius-input: 10px; /* Specific for search input */
+
+            /* Font Sizes from user specification */
+            --font-size-xl: 1rem; /* For main titles, card headers, table headers */
+            --line-height-xl: 1.75rem;
+            --letter-spacing-xl: -.005em;
+
+            --font-size-sm: .875rem; /* For ALL other text: table cells, inputs, buttons, descriptions */
+            --line-height-sm: 1.25rem;
+            --letter-spacing-sm: 0;
+
+            /* Status colors (from previous design, but text will be dark) */
+            --status-shipped-bg: #17a2b8; /* Info blue */
+            --status-delivered-bg: #28a745; /* Success green */
+            --status-returned-bg: #dc3545; /* Danger red */
+            --status-pending-bg: #ffc107; /* Warning yellow */
+            --status-text-dark: var(--background-primary); /* Dark text on badges */
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol';
+            background-color: var(--background-primary);
+            color: var(--text-light);
+            margin: 0;
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
+            overflow-y: auto; /* Allow body to scroll */
+        }
+
+        /* Top Navigation Bar - Standard Bootstrap-like */
+        .top-navbar {
+            background-color: var(--background-primary);
+            padding: 1rem 2.5rem; /* Adjusted padding to be more compact */
+            border-bottom: var(--border-width) solid var(--border-card);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0px 2px 5px rgba(0, 0, 0, 0.2); /* Subtle shadow */
+            position: sticky;
+            top: 0;
+            z-index: 1000;
+        }
+
+        .top-navbar .logo {
+            font-size: 1.25rem; /* Smaller logo */
+            font-weight: 700;
+            color: var(--text-light); /* White logo */
+            text-decoration: none;
+        }
+
+        .top-navbar .nav-links .btn {
+            color: var(--text-muted); /* Muted color for non-active links */
+            border: none;
+            padding: 0.5rem 1rem; /* Smaller buttons */
+            border-radius: var(--border-radius-sm);
+            font-weight: 500;
+            transition: all 0.2s ease;
+            font-size: var(--font-size-sm); /* Text-sm for top nav */
+        }
+
+        .top-navbar .nav-links .btn:hover {
+            background-color: rgba(255, 255, 255, 0.05); /* Subtle hover */
+            color: var(--text-light);
+        }
+
+        .top-navbar .nav-links .btn.active {
+            background-color: transparent; /* No background for active */
+            color: var(--accent-color); /* Accent color for active */
+            border-bottom: 2px solid var(--accent-color); /* Underline active tab */
+            border-radius: 0; /* Remove border-radius for underline effect */
+        }
+
+.padding-section-content{
+    padding:0.1rem 2.5rem 2.5rem 2.5rem;
+
+}
+        /* Main Content Area */
+        .main-content-area {
+            /* flex-grow: 1; */
+            padding: 0.1rem 2.5rem 2.5rem 2.5rem;
+
+            /* Adjusted padding to be more compact overall */
+            max-width: 100%; /* Ensure responsiveness */
+        }
+        @media (max-width: 767.98px) {
+            .main-content-area {
+                padding: 1rem;
+            }
+        }
+
+        /* Page Tabs (formerly dashboard-nav-buttons) */
+        .page-tabs-nav {
+            display: flex;
+            margin-bottom: 2rem; /* Space below tabs */
+            border-bottom: var(--border-width) solid var(--border-card); /* Separator below tabs */
+        }
+
+        .page-tabs-nav .nav-link {
+            padding: 0.75rem 1.25rem;
+            color: var(--text-muted);
+            font-size: var(--font-size-sm); /* Text-sm for tabs */
+            font-weight: 500;
+            text-decoration: none;
+            border-bottom: 2px solid transparent; /* For active underline */
+            transition: color 0.2s ease, border-color 0.2s ease;
+            border-radius: var(--border-radius-sm) var(--border-radius-sm) 0 0; /* Rounded top corners */
+        }
+
+        .page-tabs-nav .nav-link:hover {
+            color: var(--text-light);
+            background-color: rgba(255, 255, 255, 0.03); /* Very subtle hover */
+        }
+
+        .page-tabs-nav .nav-link.active {
+            color: var(--text-light); /* Active text is light */
+            border-bottom-color: var(--accent-color); /* Accent underline */
+            background-color: rgba(255, 255, 255, 0.05); /* Slightly darker background for active tab */
+        }
+
+        /* Main Page Title */
+        .page-main-title {
+            font-size: var(--font-size-xl);
+            line-height: var(--line-height-xl);
+            letter-spacing: var(--letter-spacing-xl);
+            font-weight: 700;
+            color: var(--text-light);
+            margin-bottom: 2rem; /* Space below title */
+        }
+
+        /* Card Styles - Unified */
+        .card {
+            border: var(--border-width) solid var(--border-card);
+            background-color: var(--background-primary);
+            border-radius: var(--border-radius-lg); /* Larger border-radius for overall cards */
+            color: var(--text-light);
+            margin-bottom: 2rem; /* Spacing between cards */
+            box-shadow: none;
+        }
+
+        .card-header {
+            background-color: var(--background-primary);
+            border-bottom: var(--border-width) solid var(--border-card);
+            padding: 1.25rem 2rem; /* Reduced padding for header */
+            font-weight: 600;
+            font-size: var(--font-size-xl); /* Text-xl for card headers */
+            line-height: var(--line-height-xl);
+            letter-spacing: var(--letter-spacing-xl);
+            color: var(--text-light);
+            border-top-left-radius: var(--border-radius-lg);
+            border-top-right-radius: var(--border-radius-lg);
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .card-body {
+            padding: 1.3rem;
+            font-size: var(--font-size-sm); /* Text-sm for card body text */
+        }
+
+        /* Search Input Styling (Based on user provided class) */
+        .custom-search-input .form-control {
+            height: 36px; /* Equivalent to h-9 */
+            border-radius: var(--border-radius-input); /* 10px */
+            border: var(--border-width) solid var(--border-card); /* gray-alpha-200 */
+            background-color: transparent; /* bg-transparent */
+            padding: 0.25rem 0.75rem; /* px-3 py-1 */
+            font-size: var(--font-size-sm); /* text-sm */
+            box-shadow: none; /* shadow-none */
+            transition: border-color 0.2s ease, box-shadow 0.2s ease; /* transition-colors */
+            color: var(--text-light); /* Main text color */
+        }
+        .custom-search-input .form-control::placeholder {
+            color: var(--text-muted); /* placeholder:text-subtle */
+        }
+        .custom-search-input .form-control:focus {
+            border-color: var(--text-light); /* focus-visible:border-foreground */
+            box-shadow: 0 0 0 var(--border-width-focus) rgba(255, 255, 255, 0.5); /* focus-ring + focus-visible:ring-[0.5px] */
+            outline: none;
+        }
+        .custom-search-input .form-control:disabled {
+            cursor: not-allowed; /* disabled:cursor-not-allowed */
+            opacity: 0.5; /* disabled:opacity-50 */
+        }
+        /* No specific autofill shadow, as it's for `inset_0_0_0px_1000px_rgb(255,255,255)]`, which implies white background for autofill */
+        /* For the search button */
+        .custom-search-input .btn {
+            height: 36px; /* Match input height */
+            border-radius: var(--border-radius-input);
+            font-size: var(--font-size-sm);
+            background-color: rgba(255, 255, 255, 0.05);
+            border: var(--border-width) solid var(--border-card);
+            color: var(--text-light);
+            margin-left: 0.5rem; /* Spacing between input and button */
+        }
+        .custom-search-input .btn:hover {
+            background-color: rgba(255, 255, 255, 0.08);
+            border-color: var(--border-hover);
+            color: var(--text-light);
+        }
+
+        /* Orders List & Table Styles */
+        .orders-list-container {
+            background-color: var(--background-primary);
+            border-radius: var(--border-radius-md);
+            border: var(--border-width) solid var(--border-card);
+            overflow: hidden; /* Contains table's borders */
+            /* No overflow-x here, relying on column widths */
+        }
+        .orders-list-container.no-border-top { /* For when combined within a larger card */
+            border-top: none;
+            border-top-left-radius: 0;
+            border-top-right-radius: 0;
+        }
+
+        .custom-table {
+            width: 100%;
+            border-collapse: collapse; /* Use collapse for consistent borders */
+            color: var(--text-light);
+            margin-bottom: 0; /* Remove default table margin */
+        }
+
+        .custom-table thead th {
+            background-color: var(--background-primary);
+            color: var(--text-light);
+            font-weight: 600;
+            padding: 0.75rem 1.25rem; /* Slightly reduced padding for compactness */
+            text-align: left;
+            border-bottom: var(--border-width) solid var(--border-card);
+
+            font-size: var(--font-size-xl); /* Text-xl for table headers */
+            line-height: var(--line-height-xl);
+            letter-spacing: var(--letter-spacing-xl);
+        }
+        .custom-table thead th i {
+            font-size: 1rem; /* Keep icons proportional */
+            margin-right: 0.5rem;
+            color: var(--accent-color); /* Accent color for header icons */
+        }
+
+
+        .custom-table tbody tr {
+            background-color: var(--background-primary);
+            transition: background-color 0.2s ease;
+            border-bottom: var(--border-width) solid var(--border-card); /* Separator between rows */
+            cursor: pointer;
+        }
+
+        .custom-table tbody tr:hover {
+            background-color: rgba(255, 255, 255, 0.03); /* Subtle highlight on hover */
+        }
+        .custom-table tbody tr.active {
+            background-color: rgba(255, 255, 255, 0.08); /* More prominent highlight for active */
+        }
+        /* No left border on active row, border will be between table and iframe */
+
+
+        .custom-table tbody td {
+            padding: 0.75rem 1.25rem; /* Slightly reduced padding for compactness */
+            vertical-align: middle;
+            font-size: var(--font-size-sm); /* Text-sm for table cells */
+            line-height: var(--line-height-sm);
+            letter-spacing: var(--letter-spacing-sm);
+            color: var(--text-light);
+            /* No individual right border on table cells, column borders will handle separation */
+        }
+
+        .custom-table tbody tr:last-child {
+            border-bottom: none; /* No border for the last row */
+        }
+
+        .tracking-number {
+            font-family: 'SF Mono', monospace; /* Monospaced font */
+            font-weight: 500;
+            color: var(--accent-color); /* Accent color for tracking number */
+        }
+
+        .order-counter-badge {
+            background-color: transparent; /* No background */
+            color: var(--text-muted); /* Muted color */
+            font-size: var(--font-size-sm);
+            padding: 0.2em 0.5em;
+            border-radius: var(--border-radius-sm);
+            font-weight: 400;
+            flex-shrink: 0;
+            width: 28px; /* Fixed width for alignment */
+            text-align: center;
+        }
+
+        .copy-btn {
+            background: none;
+            border: none;
+            color: var(--text-muted);
+            font-size: var(--font-size-sm);
+            cursor: pointer;
+            transition: color 0.2s ease, opacity 0.2s ease;
+            padding: 0.2rem;
+            opacity: 0.8;
+            line-height: 1; /* Align icon better */
+        }
+        .copy-btn:hover {
+            color: var(--accent-color); /* Accent color on hover */
+            opacity: 1;
+        }
+
+        .status-badge {
+            font-weight: 500;
+            padding: 0.3em 0.7em;
+            border-radius: var(--border-radius-sm);
+            letter-spacing: 0.02em;
+            font-size: 0.7rem; /* Slightly smaller for badges, to keep within text-sm context */
+            opacity: 0.9;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.25rem;
+            color: var(--status-text-dark); /* Dark text on colored badges */
+        }
+        .status-badge.status-shipped { background-color: var(--status-shipped-bg); }
+        .status-badge.status-delivered { background-color: var(--status-delivered-bg); }
+        .status-badge.status-return { background-color: var(--status-returned-bg); }
+        .status-badge.status-pending { background-color: var(--status-pending-bg); }
+        .status-badge.status-new { background-color: rgb(4, 115, 167); }
+        .status-badge.status-assigned { background-color: rgb(158, 161, 162); }
+
+
+        .no-orders-message {
+            text-align: center;
+            padding: 2rem;
+            color: var(--text-muted);
+            font-size: var(--font-size-sm);
+        }
+        .no-orders-message i {
+            font-size: 3rem;
+            margin-bottom: 1rem;
+            color: var(--text-muted);
+        }
+        .no-orders-message h5 {
+            color: var(--text-light);
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+            font-size: 1.1rem; /* Slightly larger for emphasis, but within text-xl context */
+        }
+
+        /* Avatar for customer name initial */
+        .avatar {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            background-color: var(--accent-color-transparent);
+            color: var(--accent-color);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 0.9rem; /* Proportionate to text-sm */
+            flex-shrink: 0;
+        }
+        /* Iframe Container & Vertical Border */
+/*
+        .iframe-col {
+            border-left: var(--border-width) solid var(--border-card);
+            padding-left: 1.5rem;
+            padding-right: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-direction: column;
+            min-height: 450px;
+        }
+
+        .iframe-container {
+            position: relative;
+            padding: 1rem;
+            min-height: 400px;
+            width: 100%;
+            max-width: 400px;
+            margin: 0 auto;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .iframe-container iframe {
+            width: 100%;
+            height: 100%;
+            border: var(--border-width) solid var(--border-card);
+            border-radius: var(--border-radius-md);
+            background-color: var(--background-primary);
+            transition: opacity 0.3s ease;
+        } */
+/*
+        .iframe-loading {
+            position: relative;
+        }
+        .iframe-loading::after {
+            content: "Loading...";
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: var(--background-primary);
+            padding: 10px 20px;
+            border-radius: var(--border-radius-md);
+            z-index: 10;
+            color: var(--text-light);
+            font-size: var(--font-size-sm);
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            border: var(--border-width) solid var(--border-card);
+        }
+        .iframe-loading::before {
+            content: "";
+            border: 3px solid var(--accent-color);
+            border-top-color: transparent;
+            border-radius: 50%;
+            width: 20px;
+            height: 20px;
+            animation: spin 0.8s linear infinite;
+            margin-right: 0.5rem;
+        } */
+        /* @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .iframe-loading iframe {
+            opacity: 0.3;
+        }
+
+        .no-tracking-selected {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100%;
+            color: var(--text-muted);
+            font-size: var(--font-size-sm);
+            text-align: center;
+            padding: 2rem;
+        }
+        .no-tracking-selected i {
+            font-size: 3rem;
+            margin-bottom: 1.5rem;
+            color: var(--text-muted);
+        }
+        .no-tracking-selected p {
+            margin-bottom: 0;
+        } */
+
+
+
+/* Card Styles - Ensure full height for columns */
+.row > [class*="col-"] .card {
+    height: 100%; /* Make cards fill column height */
+}
+
+/* Specific border radius for side-by-side cards */
+.card.rounded-start-lg {
+    border-top-right-radius: 0 !important;
+    border-bottom-right-radius: 0 !important;
+    border-top-left-radius: var(--border-radius-lg) !important;
+    border-bottom-left-radius: var(--border-radius-lg) !important;
+}
+.card.rounded-end-lg {
+    border-top-left-radius: 0 !important;
+    border-bottom-left-radius: 0 !important;
+    border-top-right-radius: var(--border-radius-lg) !important;
+    border-bottom-right-radius: var(--border-radius-lg) !important;
+}
+
+/* Remove border-left for the iframe card as the column handles it */
+.card.border-start-0 {
+    border-left: none !important;
+}
+
+/* Column Border - The separator between the two cards */
+.row.g-0 > div[class*="col-"]:first-child {
+    /* This is the table column - no specific border-right here,
+       the next column's border-left will create the visual separation */
+}
+.row.g-0 > div[class*="col-"]:last-child {
+    border-left: var(--border-width) solid var(--border-card); /* Vertical border for iframe column */
+    padding-left: 0 !important; /* No padding from col, card takes care of it */
+    padding-right: 0 !important; /* No padding from col */
+}
+
+/* Adjusted padding for card-body inside the iframe card */
+.card-body.d-flex.flex-column {
+    padding: 1.5rem !important; /* Specific padding for the iframe card body */
+}
+
+/* Customer Info Display - for the new section */
+.customer-info-display {
+    font-size: var(--font-size-sm); /* All text inside is sm */
+    color: var(--text-light);
+}
+.customer-info-display h6 {
+    margin-bottom: 0.5rem; /* Space between lines */
+    color: var(--text-light) !important; /* Ensure headings are light */
+}
+.customer-info-display i {
+    color: var(--accent-color); /* Icons in customer info */
+}
+
+/* WhatsApp Button specific styling */
+.customer-info-display .btn-sm {
+    font-size: 0.75rem !important; /* Smaller text for button */
+    padding: 0.2rem 0.6rem !important; /* Smaller padding */
+    line-height: 1; /* Adjust line height for icon/text alignment */
+    vertical-align: middle; /* Align with text */
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+}
+.customer-info-display .btn-sm i {
+    font-size: 0.8rem; /* Icon size for button */
+    color: var(--background-primary); /* Dark icon on accent background */
+}
+.customer-info-display .btn-sm:hover {
+    opacity: 0.9;
+}
+
+/* Iframe Container & iframe - adjustments */
+.iframe-container {
+    position: relative;
+    padding: 1rem; /* Explicit padding for the container */
+    min-height: 400px; /* Ensure enough height for iframe */
+    width: 100%;
+    max-width: 400px; /* Phone-like max width */
+    margin: 0 auto; /* Center it */
+    display: flex; /* For internal loading/no-tracking message */
+    align-items: center;
+    justify-content: center;
+    flex-grow: 1; /* Allow it to grow in column flex */
+    /* Borders are now directly applied to the iframe-container itself as per user request */
+    border: var(--border-width) solid var(--border-card) !important; /* Override existing, apply border to container */
+    border-radius: var(--border-radius-md) !important;
+}
+.iframe-container iframe {
+    width: 100%;
+    height: 100%;
+    border: none !important; /* Remove individual iframe border as container has it */
+    border-radius: var(--border-radius-md) !important; /* Match container radius */
+    background-color: var(--background-primary);
+    transition: opacity 0.3s ease;
+}
+
+/* Responsive Adjustments for columns */
+@media (max-width: 991.98px) { /* Tablets and smaller */
+    /* Remove vertical border on small screens */
+    .row.g-0 > div[class*="col-"]:last-child {
+        border-left: none;
+        padding-left: 0.5rem !important; /* Default padding for columns */
+        padding-right: 0.5rem !important;
+        margin-top: 2rem; /* Add space between stacked table and iframe */
+    }
+    /* Ensure cards in columns have proper rounded corners when stacked */
+    .card.rounded-start-lg, .card.rounded-end-lg {
+        border-radius: var(--border-radius-lg) !important; /* Full rounded corners when stacked */
+    }
+    .card.border-start-0 {
+        border-left: var(--border-width) solid var(--border-card) !important; /* Re-add border-left if it was removed by class */
+    }
+    .customer-info-display {
+        padding: 1rem !important; /* Adjust padding for small screens */
+    }
+}
+
+
+
+
+
+
+
+
+        .section-content {
+            display: none;
+        }
+        .section-content.active {
+            display: block;
+        }
+
+        .product-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0.75rem 1rem;
+            margin-bottom: 0.5rem;
+            background-color: rgba(255, 255, 255, 0.02); /* Very subtle lighter background */
+            border-radius: var(--border-radius-sm);
+            font-size: var(--font-size-sm);
+            color: var(--text-light);
+            border: 1px solid var(--border-card);
+        }
+        .product-item strong {
+            color: var(--text-light); /* Strong will be light text */
+        }
+        .last-update-info {
+            font-size: 0.8em; /* Slightly smaller for meta info */
+            color: var(--text-muted);
+            margin-top: 1rem;
+            padding: 0.5rem 1rem;
+            background-color: rgba(255, 255, 255, 0.05);
+            border-radius: var(--border-radius-sm);
+            display: inline-block;
+            border: 1px solid var(--border-card);
+        }
+
+        .coming-soon-message {
+            text-align: center;
+            padding: 5rem;
+            color: var(--text-muted);
+        }
+        .coming-soon-message i {
+            font-size: 4rem;
+            margin-bottom: 1.5rem;
+            color: var(--text-muted);
+        }
+        .coming-soon-message h2 {
+            font-size: var(--font-size-xl); /* Text-xl for coming soon header */
+            color: var(--accent-color); /* Accent color for emphasis */
+            font-weight: 700;
+        }
+        .coming-soon-message p {
+            font-size: var(--font-size-sm); /* Text-sm for coming soon text */
+        }
+
+        /* Responsive Adjustments */
+        @media (max-width: 991.98px) { /* Tablets and smaller */
+            .top-navbar {
+                flex-direction: column;
+                align-items: flex-start;
+                padding: 1rem;
+            }
+            .top-navbar .nav-links {
+                margin-top: 1rem;
+                width: 100%;
+                display: flex;
+                flex-wrap: wrap;
+                justify-content: center;
+                gap: 0.5rem;
+            }
+            .top-navbar .nav-links .btn {
+                flex-grow: 1;
+            }
+
+            .iframe-col {
+                border-left: none; /* Remove vertical border on small screens */
+                padding-left: 1rem; /* Reset padding */
+                padding-right: 1rem;
+                margin-top: 2rem; /* Add space between table and iframe */
+            }
+        .card-body{
+            padding: 0.5rem;
+        }
+        .card-body.d-flex.flex-column{
+            padding: 0.5rem !important;
+        }
+         .card-header .row {
+        flex-wrap: wrap !important; /* اسمح للعناصر بالالتفاف */
+        gap: 1rem !important; /* مسافة بين الفلاتر عندما تتكدس */
+        margin-right: 0 !important; /* إزالة أي هوامش سلبية قد تسبب مشاكل */
+        margin-left: 0 !important;
+        /* تأكد أن هذا الصف يبدأ من سطر جديد ويدفع العنوان للأعلى إذا لزم الأمر */
+        width: 100%; /* تأكد من أن الصف يأخذ العرض الكامل */
+        display: flex;
+        flex-direction: column; /* جعل الفلاتر تتكدس عمودياً */
+        align-items: flex-start; /* محاذاة العناصر إلى اليسار */
+    }
+
+    /* جعل كل عنصر فلتر (select أو زر) يأخذ عرض 100% */
+    .card-header .row > [class*="col-"] {
+        flex: 0 0 100% !important;
+        max-width: 100% !important;
+        margin-bottom: 0.5rem !important; /* مسافة بين حقول الفلتر المكدسة */
+    }
+
+    /* لضمان أن زر "تطبيق التحديدات" يأخذ عرض 100% أيضًا */
+    #apply-filters-btn {
+        width: 100% !important;
+        margin-left: 0 !important; /* إزالة الهامش الأيسر الذي كان موجوداً في عرض سطح المكتب */
+    }
+
+
+        }
+            .table{
+background-color: transparent !important;
+--bs-table-bg:transparent !important;
+}
+.table .text-muted{
+color:#ede9e9 !important;
+}
+/* تصميم الترقيم (Pagination) */
+
+/* الحاوية الرئيسية للترقيم */
+.pagination {
+    padding-top: 18px; /* المسافة من أعلى كما طلبت */
+    margin-bottom: 0; /* لإزالة أي هامش سفلي افتراضي إذا كان موجودًا */
+    /* استخدام متغيرات Bootstrap للتحكم الشامل بالترقيم */
+    --bs-pagination-color: var(--text-muted); /* لون النص الافتراضي */
+    --bs-pagination-bg: transparent; /* خلفية شفافة للحاوية، الألوان للعناصر الفردية */
+    --bs-pagination-border-width: var(--border-width);
+    --bs-pagination-border-color: var(--border-card); /* لون الحدود الافتراضي */
+    --bs-pagination-border-radius: var(--border-radius-md); /* دائرية الحدود الكلية */
+
+    --bs-pagination-hover-color: var(--accent-color); /* لون النص عند التمرير */
+    --bs-pagination-hover-bg: rgba(255, 255, 255, 0.05); /* خلفية خفيفة عند التمرير */
+    --bs-pagination-hover-border-color: var(--accent-color); /* حدود عند التمرير */
+
+    --bs-pagination-focus-color: var(--accent-color);
+    --bs-pagination-focus-bg: rgba(255, 255, 255, 0.08);
+    --bs-pagination-focus-box-shadow: none; /* إزالة الظل عند التركيز */
+
+    --bs-pagination-active-color: var(--background-primary); /* لون النص للصفحة النشطة */
+    --bs-pagination-active-bg: var(--accent-color); /* خلفية الصفحة النشطة */
+    --bs-pagination-active-border-color: var(--accent-color); /* حدود الصفحة النشطة */
+
+    --bs-pagination-disabled-color: var(--text-muted); /* لون النص للصفحات المعطلة */
+    --bs-pagination-disabled-bg: var(--background-secondary); /* خلفية الصفحات المعطلة */
+    --bs-pagination-disabled-border-color: var(--border-card);
+}
+
+/* روابط صفحات الترقيم الفردية */
+.page-item .page-link {
+    font-size: var(--font-size-sm); /* حجم الخط */
+    padding: 0.5rem 0.75rem; /* مسافة داخلية (padding) */
+    transition: all 0.2s ease-in-out; /* انتقال سلس للحالات */
+    border-radius: var(--border-radius-sm); /* دائرية حدود العناصر الفردية */
+    margin: 0 0.2rem; /* مسافة صغيرة بين عناصر الترقيم */
+
+    /* تطبيق متغيرات Bootstrap المخصصة */
+    color: var(--bs-pagination-color);
+    background-color: var(--bs-pagination-bg);
+    border: var(--bs-pagination-border-width) solid var(--bs-pagination-border-color);
+}
+
+/* حالة الصفحة النشطة */
+.page-item.active .page-link {
+    z-index: 3; /* لجعل العنصر النشط يظهر فوق البقية */
+    color: var(--bs-pagination-active-color);
+    background-color: var(--bs-pagination-active-bg);
+    border-color: var(--bs-pagination-active-border-color);
+}
+
+/* حالة التمرير (Hover) والتركيز (Focus) */
+.page-item .page-link:hover,
+.page-item .page-link:focus {
+    color: var(--bs-pagination-hover-color);
+    background-color: var(--bs-pagination-hover-bg);
+    border-color: var(--bs-pagination-hover-border-color);
+    box-shadow: var(--bs-pagination-focus-box-shadow);
+}
+
+/* حالة العناصر المعطلة (مثل زر السابق/التالي في البداية/النهاية) */
+.page-item.disabled .page-link {
+    color: var(--bs-pagination-disabled-color);
+    background-color: var(--bs-pagination-disabled-bg);
+    border-color: var(--bs-pagination-disabled-border-color);
+    cursor: not-allowed; /* تغيير المؤشر */
+}
+
+/* إزالة تداخل الحدود الافتراضية لـ Bootstrap بين العناصر */
+.pagination .page-item:first-child .page-link {
+    border-top-left-radius: var(--border-radius-md);
+    border-bottom-left-radius: var(--border-radius-md);
+}
+.pagination .page-item:last-child .page-link {
+    border-top-right-radius: var(--border-radius-md);
+    border-bottom-right-radius: var(--border-radius-md);
+}
+
+/* إزالة الهامش الافتراضي من عناصر القائمة لكي تعمل مسافة الـ margin على page-link */
+.pagination li {
+    margin: 0;
+}
+    </style>
+
+</head>
+<body>
+    <nav class="top-navbar">
+        <a href="#" class="logo">Waselytics</a>
+        <div class="nav-links">
+           <a href="/tracking/" class="btn nav_link active" id="track1">Tracking</a>
+            <a href="{% url 'user' %}" class="btn nav_link">Account</a>
+            <a href="{% url 'analytics' %}" class="btn nav-link2">Analytics</a>
+            {% if request.user.is_team_admin or request.user.is_superuser %}
+            <a href="{% url 'Adspy' %}" class="btn nav-link2">Adspy</a>
+            <a href="{% url 'ads_dashboard' %}" class="btn nav-link2">Integrations</a>
+            {% endif %}
+            
+        </div>
+    </nav>
+ 
+
+<div class="main-content-area">
+        <nav class="page-tabs-nav">
+            <a class="nav-link active" href="#" data-section="order-tracking-section">Order tracking</a>
+            <a class="nav-link" href="#" data-section="leads-tracking-section">Lead Management</a>
+            <a class="nav-link" href="#" data-section="update-section">Inventory & Data Update</a>
+            <a class="nav-link" href="#" id="Codproduct" data-section="future-features-1-section">Product Hub</a>
+            <a class="nav-link" href="#" id="whatssap_API_cloud" class="btn nav-link2" data-section="future-whatssap_API">Whatssapp</a>
+
+{% if request.user.is_team_admin or user_permusstion.can_create_orders %}
+
+            <a class="nav-link" href="#" data-section="leads-created-section">Add Leads</a>
+
+           {% endif %}
+
+        </nav>
+
+        <div class="section-content" id="future-whatssap_API">
+             
+            <script src="{% static 'js/script2.js' %}" ></script>
+            
+            {% include 'whatssap/whatssap.html' %}
+            <script src="{% static 'js/main.js' %}"></script>
+            </div>
+
+
+
+           <div class="section-content active" id="order-tracking-section">
+            <div class="card">
+                <div class="card-header">
+                    <i class="fas fa-shipping-fast"></i> Order Tracking
+                </div>
+                <div class="card-body">
+
+                    <div class="search-box mb-4 custom-search-input">
+
+                     <div class="filters-container p-3" style="background: rgba(255,255,255,0.05); border-radius: 10px;">
+
+    <!-- Search bar -->
+    <div class="d-flex mb-3 gap-2 flex-wrap">
+        <div class="flex-grow-1 position-relative">
+            <input type="text"
+                   id="live-search-input"
+                   class="form-control form-control-sm"
+                   placeholder="Search by phone, name, or tracking number..."
+                   autocomplete="off"
+                   style="border-radius: 6px; padding-left: 35px;">
+            <i class="fas fa-search position-absolute" style="top: 50%; left: 10px; transform: translateY(-50%); color: #aaa;"></i>
+        </div>
+
+
+    </div>
+
+    <!-- Filters row -->
+    <div class="row g-2 align-items-center w-100">
+        <div class="col-md-2 col-sm-6">
+            <select class="form-select form-select-sm" id="status-filter" style="border-radius: 6px;">
+                <option value="">All Statuses</option>
+                <option value="Pending">Pending</option>
+                <option value="Delivered">Delivered</option>
+                <option value="Return">Returned</option>
+            </select>
+        </div>
+
+        <div class="col-md-2 col-sm-6">
+            <select class="form-select form-select-sm" id="period-filter" style="border-radius: 6px;">
+                <option value="All">All time</option>
+                <option value="today">Today</option>
+                <option value="week">This week</option>
+                <option value="month">This month</option>
+                <option value="custom">Custom</option>
+            </select>
+        </div>
+
+        <div id="custom-date-range" class="col-md-6 col-sm-12 d-none d-flex gap-2 mt-2 mt-md-0">
+            <input type="text" class="form-control form-control-sm" id="start-date-filter" placeholder="Start Date" style="border-radius: 6px;">
+            <input type="text" class="form-control form-control-sm" id="end-date-filter" placeholder="End Date" style="border-radius: 6px;">
+        </div>
+
+        <div class="col-md-2 col-sm-6">
+            <select class="form-select form-select-sm" id="product-filter" style="border-radius: 6px;">
+                <option value="">All Products</option>
+                {% for product in productslist %}
+                <option value="{{ product.sku }}" data-product-id="{{ product.id }}">{{ product.name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="col-md-2 col-sm-6">
+           <select class="form-select form-select-sm" id="country-filter" style="border-radius: 6px;">
+    <option value="">All Country</option>
+    {% for country in countries %}
+        <option value="{{ country }}">{{ country }}</option>
+    {% endfor %}
+</select>
+
+        </div>
+
+        <div class="col-md-2 col-sm-6 d-flex justify-content-start mt-2 mt-md-0">
+            <button type="button" id="apply-filters-btn" class="btn btn-sm" style="color: white; background-color: #4CAF50; border-radius: 6px; padding: 5px 15px;">
+             <i class="fas fa-search"></i>    Search
+            </button>
+        </div>
+                <div class="col-md-2 col-sm-2 d-flex justify-content-start mt-2 mt-md-0 d-flex" style="flex-direction: row-reverse;">
+   <button type="button" id="refresh-orders-btn" class="btn btn-outline-secondary btn-sm" title="Refresh Orders" style="border-radius: 6px;">
+            <i class="fas fa-sync-alt" id="refresh-orders-icon"></i> Refresh
+        </button>
+    </div>
+    </div>
+
+</div>
+
+                    </div>
+
+
+
+
+
+ <div class="row g-0">
+    <div class="col-lg-8">
+
+                            <div id="search-results-container" class="card h-100 rounded-start-lg rounded-end-0">
+
+                                <div class="card-header">
+                                    <i class="fas fa-list me-2"></i> Orders List
+
+
+                                </div>
+
+
+                                <div class="card-body p-0" id="settablehere"> {% if orders %}
+                                    <div class="table-responsive">
+                                        <table class="table custom-table mb-0">
+                                            <thead>
+                                                <tr>
+                                                    <th width="18%" class="ps-3">
+                                                        <i class="fas fa-barcode me-1"></i>
+                                                        Tracking Number
+                                                    </th>
+                                                    <th width="22%" class="{% if not request.user.is_is_team_admin %}d-none{% endif %}">
+                                                        <i class="fas fa-user me-1"></i>
+                                                        Customer
+                                                    </th>
+
+                                                    <th width="18%">
+                                                        <i class="fas fa-phone me-1"></i>
+                                                        Phone
+                                                    </th>
+                                                    <th width="25%">
+                                                        <i class="fas fa-cube me-1"></i>
+                                                        Product
+                                                    </th>
+                                                    <th width="17%" class="text-center">
+                                                        <i class="fas fa-info-circle me-1"></i>
+                                                        Status
+                                                    </th>
+
+                                                    <th width="17%" class="text-center  {% if request.user.is_is_team_admin %}d-none{% endif %}">
+                                                        <i class="fas fa-info-circle me-1"></i>
+                                                        Price
+                                                    </th>
+
+                                                </tr>
+                                            </thead>
+                                            <script>
+                                         // دالة لتحديث جدول الطلبات عند وصول رسالة
+function highlightOrderRow(phone) {
+    if (!phone) return;
+    const normalizedPhone = phone.replace(/^\+/, '').replace(/\s+/g, '');
+
+    // البحث عن السطر في الصفحة الحالية
+    const rows = document.querySelectorAll(`tr[data-customer-phone*="${normalizedPhone}"]`);
+    
+    let rowFound = false;
+
+    rows.forEach(row => {
+        const rowPhone = row.getAttribute('data-customer-phone').replace(/^\+/, '').replace(/\s+/g, '');
+        if (rowPhone === normalizedPhone) {
+            const badge = row.querySelector('.order-msg-badge');
+            if (badge) {
+                badge.style.display = 'inline-block';
+                rowFound = true; // وجدنا السطر!
+                
+                // حركة جمالية: وميض السطر بالكامل ليعرف الموظف مكانه
+                row.style.backgroundColor = '#f0fdf4';
+                setTimeout(() => row.style.backgroundColor = '', 1000);
+            }
+        }
+    });
+
+    // 🔥 إذا لم نجد السطر (لأنه في صفحة أخرى)، نظهر تنبيهاً عاماً 🔥
+    if (!rowFound) {
+        showGlobalNotification(phone);
+    }
+}
+
+// دالة بسيطة لإظهار تنبيه في زاوية الشاشة
+function showGlobalNotification(phone) {
+    // يمكنك استخدام مكتبة Toastify أو SweetAlert، أو إنشاء عنصر بسيط
+    const toast = document.createElement('div');
+    toast.style.cssText = `
+        position: fixed;
+        bottom: 20px;
+        right: 20px;
+        background: #1f2937;
+        color: white;
+        padding: 12px 20px;
+        border-radius: 8px;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+        z-index: 9999;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        animation: slideIn 0.3s ease;
+        cursor: pointer;
+    `;
+    
+    toast.innerHTML = `
+        <span style="background:#25d366; width:10px; height:10px; border-radius:50%;"></span>
+        <div>
+            <div style="font-weight:bold; font-size:12px;">رسالة جديدة</div>
+            <div style="font-size:14px;">${phone}</div>
+        </div>
+    `;
+
+    // عند النقر على التنبيه، يمكن فتح الشات مباشرة حتى لو الطلب غير ظاهر
+    toast.onclick = function() {
+        // نفتح الشات (قد تحتاج لجلب الاسم من السيرفر أو نكتفي بالرقم)
+        // openChat(phone, 'Unknown Name', ...); 
+        // أو ببساطة نخفيه
+        toast.remove();
+    };
+
+    document.body.appendChild(toast);
+
+    // إخفاء التنبيه بعد 5 ثواني
+    setTimeout(() => {
+        toast.style.opacity = '0';
+        setTimeout(() => toast.remove(), 300);
+    }, 5000);
+}
+
+// CSS Animation للتنبيه
+const style = document.createElement('style');
+style.innerHTML = `
+@keyframes slideIn {
+    from { transform: translateX(100%); opacity: 0; }
+    to { transform: translateX(0); opacity: 1; }
+}`;
+document.head.appendChild(style);
+                                            </script>
+                                            <style>
+                                                /* تنسيق نقطة الإشعار في جدول الطلبات */
+.order-msg-badge {
+    display: none; /* مخفية افتراضياً */
+    width: 10px;
+    height: 10px;
+    background-color: #ef4444; /* لون أحمر */
+    border-radius: 50%;
+    margin-left: 8px;
+    box-shadow: 0 0 0 2px rgba(239, 68, 68, 0.2); /* هالة خفيفة */
+    animation: pulse-red 2s infinite;
+    vertical-align: middle;
+}
+
+@keyframes pulse-red {
+    0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7); }
+    70% { box-shadow: 0 0 0 6px rgba(239, 68, 68, 0); }
+    100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
+}
+                                            </style>
+                                            <tbody>
+                                                {% for order in orders %}
+                                                <tr class="order-row align-middle"  id="setfiltertable"
+                                                    data-tracking="{{ order.tracking_number }}"
+                                                    data-status="{{ order.status }}"
+data-company="{% if order.tracking_number|slice:":2" == "60" %}imile{% elif order.tracking_number|slice:":5" == "INJAZ" %}injaz{% else %}unknown{% endif %}"
+
+
+
+data-customer-name="{{ order.customer_name }}"
+                                                    data-customer-phone="{{ order.customer_phone }}"
+                                                    data-product-name="{{ order.product.name }}" 
+                                                    
+                                                    onclick="openChat('{{ order.customer_phone }}', '{{ order.customer_name }}' ,'{{ order.product.name }}' ,'{{ order.tracking_number }}' , '{{ order.sku }}' , '{{ order.price }}')">
+                                                   
+                                                    <td class="ps-3 tracking-number-cell" data-label="Tracking Number">
+                                                        <div class="d-flex align-items-center">
+                                                            <span class="order-counter-badge me-2">
+                                                                {{ forloop.counter }}
+                                                            </span>
+                                                            <span class="tracking-number">
+                                                                {{ order.tracking_number }}
+                                                            </span>
+                                                            <button class="copy-btn ms-2"
+                                                                    data-tracking="{{ order.tracking_number }}"
+                                                                    title="Copy Number">
+                                                                <i class="far fa-copy"></i>
+                                                            </button>
+                                                        </div>
+                                                    </td>
+                                                   <td class="customer-name-cell  {% if not request.user.is_is_team_admin %}d-none{% endif %}" data-label="Customer">
+    <div class="d-flex align-items-center">
+        <div class="avatar me-2">
+            {{ order.customer_name|slice:":1"|upper }}
+        </div>
+        {{ order.customer_name|truncatechars:20 }}
+    </div>
+</td>
+
+
+                                                    <td class="font-monospace"  data-label="Phone">
+                                                        {{ order.customer_phone }}
+                                                       <script>
+                                                        console.log(' new testtttting {{ unread_phones }}')
+                                                       </script>
+                                                        <span class="order-msg-badge"></span>
+
+                                                    </td>
+                                                    <td data-label="Product">
+                                                        <div class="d-flex align-items-center">
+                                                            <div>
+                                                                <div class="fw-bold">{{ order.product_name|truncatechars:25 }}</div>
+                                                                <small class="text-muted">SKU: {{ order.sku }}</small>
+                                                            </div>
+                                                        </div>
+                                                    </td>
+                                                    <td class="text-center" data-label="Status">
+                                                        <span class="status-badge status-{{ order.status|lower }}">
+                                                            {{ order.status }}
+                                                        </span>
+                                                    </td>
+                                                    <td class="text-center {% if request.user.is_is_team_admin %}d-none{% endif %}  " data-label="Status">
+                                                        <span class="white-badge">
+                                                            {{ order.price }} <span class="text-muted">{{order.currency}}</span>
+                                                        </span>
+                                                    </td>
+
+
+
+
+                                                </tr>
+
+
+
+                                                {% endfor %}
+                                            </tbody>
+ 
+                                        </table>
+       <nav aria-label="Page navigation" style="padding-top: 18px;">
+    <ul class="pagination justify-content-center">
+        {# زر السابق #}
+        {% if orders.has_previous %}
+        <li class="page-item">
+            <a class="page-link"
+               href="#" {# نستخدم # لأن JS سيتعامل مع النقر #}
+               data-order-page="{{ orders.previous_page_number }}" {# نحفظ رقم الصفحة في data-page #}
+               aria-label="Previous">
+                &laquo;
+            </a>
+        </li>
+        {% endif %}
+
+        {# أرقام الصفحات #}
+        {% for num in orders.paginator.page_range %}
+            {% if num >= orders.number|add:-2 and num <= orders.number|add:2 %} {# عرض الصفحات القريبة من الحالية فقط #}
+                <li class="page-item {% if num == orders.number %}active{% endif %}">
+                    <a class="page-link"
+                       href="#" {# نستخدم # لأن JS سيتعامل مع النقر #}
+                       data-order-page="{{ num }}" {# نحفظ رقم الصفحة في data-page #}
+                       aria-label="Page {{ num }}">
+                       {{ num }}
+                    </a>
+                </li>
+            {% elif num == orders.paginator.page_range.0 and num != orders.number|add:-2 %} {# عرض الصفحة الأولى إذا كانت بعيدة #}
+                <li class="page-item">
+                    <a class="page-link" href="#" data-order-page="{{ num }}">{{ num }}</a>
+                </li>
+                {% if orders.number|add:-2 > orders.paginator.page_range.0|add:1 %}
+                    <li class="page-item disabled"><span class="page-link">...</span></li>
+                {% endif %}
+            {% elif num == orders.paginator.page_range|last and num != orders.number|add:2 %} {# عرض الصفحة الأخيرة إذا كانت بعيدة #}
+                {% if orders.number|add:2 < orders.paginator.page_range|last|add:-1 %}
+                    <li class="page-item disabled"><span class="page-link">...</span></li>
+                {% endif %}
+                <li class="page-item">
+                    <a class="page-link" href="#" data-order-page="{{ num }}">{{ num }}</a>
+                </li>
+            {% endif %}
+        {% endfor %}
+
+        {# زر التالي #}
+        {% if orders.has_next %}
+        <li class="page-item">
+            <a class="page-link"
+               href="#" {# نستخدم # لأن JS سيتعامل مع النقر #}
+               data-order-page="{{ orders.next_page_number }}" {# نحفظ رقم الصفحة في data-page #}
+               aria-label="Next">
+                &raquo;
+            </a>
+        </li>
+        {% endif %}
+    </ul>
+</nav>
+
+                                    </div>
+                                     {% else %}
+
+
+                                        <div class="no-orders-message" id="initial-orders-message">
+                                            <!-- <div> -->
+                                            <i class="fas fa-info-circle"></i>
+                                            <h5>No Orders Found---</h5>
+                                            <p>Start by searching or click an item to view details.</p>
+                                        <!-- </div> -->
+
+
+                                    {% endif %}
+
+                                <!-- </div> -->
+
+                            </div>
+
+
+
+
+
+
+                            </div>
+
+
+
+                        </div>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+                        <div class="col-lg-4 d-flex"> <div class="card flex-grow-1 rounded-end-lg rounded-start-0 border-start-0"> <div class="card-header">
+                                    <i class="fas fa-map-marked-alt me-2"></i> Tracking Details
+                                </div>
+<div class="d-flex gap-2 mb-3">
+    <button id="tracking-comp-btn" class="btn btn-sm activecard comp-btn" style="border-radius: 0px;
+    border: none;
+    border-bottom: 1px solid #343436;
+    color: #9d9d9d;
+">
+        Tracking
+    </button>
+    <button id="comp-analytics-btn" class="btn btn-sm comp-btn" style="border-radius: 0px;
+    border: none;
+    border-bottom: 1px solid #343436;
+    color: #9d9d9d;
+">
+        Analytics
+    </button>
+
+        <button id="chat-btn" class="btn btn-sm comp-btn" style="border-radius: 0px;border: none;border-bottom: 1px solid #343436;color: #9d9d9d;">
+        Chat
+    </button>
+</div>
+<div id="tracking-info-section">
+    <!-- معلومات الشحن الأصلية ستبقى هنا (كل ما بعد هذا العنصر) -->
+</div>
+<div id="chat-card-section" class="d-none comp-card chatcardup" >
+    <div class="card mt-3" style="padding:10px;">
+    {% include 'whatssap/chat.html' %}
+    </div>
+</div>
+
+<div id="analytics-card-section" class="d-none comp-card analyticscomp">
+    <div class="card mt-3">
+        <div class="card-header">
+            <i class="fas fa-chart-bar me-2"></i> Analytics Table
+        </div>
+        <div class="p-1">
+            <!-- هنا سيتم وضع جدول التحليلات لاحقاً -->
+            <!-- <div class="text-center text-muted py-4">
+
+                Analytics table will appear here.
+            </div> -->
+
+            <div class="shipping_table">
+
+            </div>
+        </div>
+    </div>
+</div>
+<style>
+    .dsfs32£:hover{
+text-decoration: underline ;
+    }
+    .activecard{
+
+    color: var(--text-light) !important;
+    border-bottom-color: var(--accent-color) !important;
+    background-color: rgba(255, 255, 255, 0.05);
+
+    }
+</style>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+
+     const comp_btn = document.querySelectorAll('.comp-btn');
+    const trackingBtn = document.getElementById('tracking-comp-btn');
+    const analyticsBtn = document.getElementById('comp-analytics-btn');
+    const trackingInfo = document.getElementById('tracking-info-section');
+    const analyticsCard = document.getElementById('analytics-card-section');
+
+    trackingBtn.addEventListener('click', function() {
+        trackingBtn.classList.add('active');
+        analyticsBtn.classList.remove('active');
+        trackingInfo.classList.remove('d-none');
+        analyticsCard.classList.add('d-none');
+    });
+
+    analyticsBtn.addEventListener('click', function() {
+        analyticsBtn.classList.add('active');
+        trackingBtn.classList.remove('active');
+        trackingInfo.classList.add('d-none');
+        analyticsCard.classList.remove('d-none');
+    });
+
+comp_btn.forEach(function(btn) {
+    btn.addEventListener('click', function() {
+        comp_btn.forEach(function(b) {
+            b.classList.remove('activecard');
+            // إخفاء جميع البطاقات
+            const comp_cards = document.querySelectorAll('.comp-card');
+            comp_cards.forEach(function(card) {
+                card.classList.add('d-none');
+            });
+        });
+        this.classList.add('activecard');
+        // إظهار البطاقة المرتبطة بالزر
+        if (this.id === 'tracking-comp-btn') {
+            document.querySelector('.analytics_sesty').classList.remove('d-none');
+
+        } else if (this.id === 'comp-analytics-btn') {
+            document.querySelector('.analyticscomp').classList.remove('d-none');
+        } else if (this.id == 'chat-btn')
+        document.querySelector('.chatcardup').classList.remove('d-none')
+    });
+});
+
+});
+</script>
+
+
+<!-- set tracking compny data on the table -->
+<script>
+ document.addEventListener('DOMContentLoaded', function () {
+
+
+
+    function trackCompanyData(period , product  , country) {
+    console.log('Selected Period:', period , 'Product:', product, 'Country:', country);
+
+    var table;
+    let startDate = '';
+    let endDate = '';
+
+    if (period === 'custom') {
+    startDate = document.getElementById('start-date-filter').value;
+    endDate = document.getElementById('end-date-filter').value;
+    }
+
+
+    fetch('{% url "get_tracking_company_data" %}', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({period : period ,startDate:startDate , endDate:endDate , product : product , country : country})
+    })
+    .then(response => response.json())
+    .then(data => {
+        table = document.querySelector('.shipping_table');
+        const orders = data.orders || [];
+
+        function getCompany(tracking_number) {
+            if (!tracking_number) return { company: 'Progress', site: '' };
+            if (tracking_number.startsWith('60')) return { company: 'imile', site: 'https://www.imile.com/track/' };
+            if (tracking_number.startsWith('INJAZ')) return { company: 'injaz', site: 'https://injaz-express.com/' };
+            if (/^\d{7}$/.test(tracking_number)) return { company: 'bosta', site: 'https://bosta.co/tracking-shipments' };
+            if (tracking_number.startsWith('JTE')) return { company: 'jtexpress', site: 'https://www.jtexpress-sa.com/' };
+            if (tracking_number.startsWith('IQFTMM')) return { company: 'iqfulfillment', site: 'https://track.iqfulfillment.com/' };
+            if (tracking_number.startsWith('EDCO')) return { company: 'chronodiali', site: 'https://www.chronodiali.ma/' };
+            if (/^\d{11}$/.test(tracking_number)) return { company: 'aramex', site: 'https://www.aramex.com/' };
+            if (tracking_number.startsWith('YCST')) return { company: 'youcan', site: 'https://ship.youcan.shop/en/' };
+            if (tracking_number.startsWith('S')) return { company: 'starlinks', site: 'https://www.starlinks-me.com/' };
+            if (tracking_number.startsWith('CRDSAL')) return { company: 'spl', site: 'https://splonline.com.sa/en/' };
+            if (tracking_number.startsWith('SD')) return { company: 'shipa', site: 'https://shipa.com/track/' };
+            if (tracking_number.startsWith('ALSASAF')) return { company: 'logistiq', site: 'https://logistiq.io/delivery-services/' };
+            if (tracking_number.startsWith('FXP')) return { company: 'flowpl', site: 'https://www.flowpl.com/ship-portal/' };
+            if (tracking_number.startsWith('812')) return { company: 'tawssil', site: 'https://tracking.tawssil.ma/' };
+            if (tracking_number.startsWith('3')) return { company: 'naqel', site: 'https://new.naqelksa.com/en/sa/tracking/' };
+            return { company: 'unknown', site: '' };
+        }
+
+        const companyNames = {
+            imile: 'Imile',
+            injaz: 'Injaz Express',
+            bosta: 'Bosta',
+            jtexpress: 'J&T Express',
+            iqfulfillment: 'IQ Fulfillment',
+            chronodiali: 'Chrono Diali',
+            aramex: 'Aramex',
+            youcan: 'YouCan Ship',
+            starlinks: 'Starlinks',
+            spl: 'Saudi Post SPL',
+            shipa: 'Shipa Delivery',
+            logistiq: 'Logistiq',
+            flowpl: 'Flow PL',
+            tawssil: 'Tawssil',
+            naqel: 'Naqel Express' ,
+            Progress:'Progress'
+        };
+
+        const stats = {};
+        orders.forEach(order => {
+            const compData = getCompany(order.tracking_number);
+            if (!stats[compData.company]) {
+                stats[compData.company] = { name: compData.company, total: 0, delivered: 0, site: compData.site };
+            }
+            stats[compData.company].total += 1;
+            if (order.status && order.status.toLowerCase() === 'delivered') {
+                stats[compData.company].delivered += 1;
+            }
+        });
+
+        const companies = Object.values(stats).sort((a, b) => b.total - a.total);
+
+
+
+// Header
+let html = `<div class="shipping-stats-list" style="width:100%;margin-top:1rem;">`;
+
+// Header
+html += `
+    <div class="shipping-stat-header d-flex align-items-center justify-content-between py-2 px-3" style="
+        border-bottom: 2px solid var(--border-card);
+        background: rgba(255,255,255,0.04);
+        font-size: var(--font-size-sm);
+        color: #9d9d9d;
+        font-weight: 600;">
+        <div style="min-width: 110px;">Company</div>
+        <div style="min-width: 80px;">Total Orders</div>
+        <div style="min-width: 80px;">Delivery Rate</div>
+    </div>
+`;
+
+// Rows per company
+companies.forEach(comp => {
+    const rate = comp.total > 0 ? Math.round((comp.delivered / comp.total) * 100) : 0;
+    html += `
+        <div class="shipping-stat-row d-flex align-items-center justify-content-between py-3 px-3" style="
+            border-bottom: 1.5px solid var(--border-card);
+            background: rgba(255,255,255,0.02);
+            border-radius: 0;
+            font-size: var(--font-size-sm);
+            color: var(--text-light);
+            transition: background 0.2s;">
+            <div class="fw-bold" style="color: #e0e0e0; min-width: 110px;">
+                <a style="color: ${companyNames[comp.name] == 'Progress' ? '#00E676':'#e0e0e0'}; text-decoration:none;" href="${comp.site}" target="_blank">
+                    ${companyNames[comp.name] || comp.name}
+                </a>
+            </div>
+            <div style="font-weight: 500; color: var(--text-light); min-width: 80px;">
+                ${comp.total}
+            </div>
+            <div style="font-weight: 600; color: ${rate > 70 ? '#00E676' : '#ffc107'}; min-width: 80px;">
+                ${rate}%
+            </div>
+        </div>
+    `;
+});
+
+// إجمالي الكل
+let grandTotal = 0;
+let grandDelivered = 0;
+companies.forEach(comp => {
+    grandTotal += comp.total;
+    grandDelivered += comp.delivered;
+});
+const grandRate = grandTotal > 0 ? Math.round((grandDelivered / grandTotal) * 100) : 0;
+
+// صف الإجمالي
+html += `
+    <div class="shipping-stat-footer d-flex align-items-center justify-content-between py-3 px-3" style="
+        border-top: 2px solid var(--border-card);
+        background: rgba(255,255,255,0.08);
+        font-size: var(--font-size-sm);
+        font-weight: 700;
+        color: #ffffff;">
+        <div style="min-width: 110px;">Total</div>
+        <div style="min-width: 80px;">${grandTotal}</div>
+        <div style="min-width: 80px; color: ${grandRate > 70 ? '#00E676' : '#ffc107'};">${grandRate}%</div>
+    </div>
+`;
+
+html += `</div>`;
+table.innerHTML = html;
+
+    });
+
+
+
+
+// عند تحميل الصفحة
+  };
+   // ربط زر التحديث
+    document.getElementById('apply-filters-btn').addEventListener('click', function () {
+        // قراءة قيمة الفلتر الخاص بالفترة
+        const period = document.getElementById('period-filter').value || 'all';
+
+        // قراءة المنتج المحدد
+const productSelect = document.getElementById('product-filter');
+const selectedOption = productSelect.options[productSelect.selectedIndex];
+const productId = selectedOption.getAttribute('data-product-id') || 'all';
+if(productId == ''){
+    productId = 'all';
+}
+
+        // قراءة الدولة إذا كان عندك فلتر دولة
+const country = document.getElementById('country-filter').value || 'all';
+        // const country = countrySelect ? (countrySelect.value || 'all') : 'all';
+         // استدعاء الدالة مع القيم التي حددها المستخدم
+        trackCompanyData(period, productId, country);
+    });
+
+        trackCompanyData(period = 'all', productId='all', country = 'all');
+});
+
+
+
+</script>
+
+
+                                <div class="card-body d-flex flex-column comp-card analytics_sesty" style="padding: 1.5rem;"> <div class="customer-info-display mb-4 p-3 rounded" style="border: var(--border-width) solid var(--border-card); background-color: rgba(255, 255, 255, 0.03);">
+                                        <h6 class="mb-2 text-light" style="font-size: var(--font-size-sm);"><i class="fas fa-user me-2"></i>Customer: <span id="customer-name-display" class="fw-bold">Not Selected</span></h6>
+                                        <h6 class="mb-2 text-light" style="font-size: var(--font-size-sm);"><i class="fas fa-phone me-2"></i>Phone: <span id="customer-phone-display" class="font-monospace">Not Selected</span>
+                                            <a id="whatsapp-link" href="#" target="_blank" class="btn btn-sm ms-2" style="background-color: var(--accent-color); color: var(--background-primary); border-radius: var(--border-radius-sm); font-size: 0.75rem; padding: 0.2rem 0.6rem; line-height: 1;">
+                                                <i class="fab fa-whatsapp me-1"></i> WhatsApp
+                                            </a>
+                                        </h6>
+                                        <h6 class="mb-0 text-light" style="font-size: var(--font-size-sm);"><i class="fas fa-box-open me-2"></i>Product: <span id="product-name-display" class="fw-bold">Not Selected</span></h6>
+                                        <div class="tracking-number-display mt-2 ms-auto text-muted" style="font-size: var(--font-size-sm);">
+                                            Current ID: <span id="current-tracking-number" class="text-light">Not Selected</span>
+                                        </div>
+                                    </div>
+
+                                    <div class="iframe-container flex-grow-1 d-flex flex-column" style="padding: 1rem; border: var(--border-width) solid var(--border-card); border-radius: var(--border-radius-md); overflow:auto; height: 10px;">
+                                        <div class="showInjazresult  flex-grow-1 d-none"> </div>
+                                        <div class="no-tracking-selected text-center" id="initial-iframe-message">
+                                            <i class="fas fa-hand-pointer"></i>
+                                            <p>Select an order from the list to view its tracking information.</p>
+                                        </div>
+
+
+                                        <iframe id="tracking-iframe"
+                                                src=""
+                                                frameborder="0"
+                                                allowfullscreen
+                                                class="rounded d-none flex-grow-1"></iframe>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+
+
+
+                    </div>
+                </div>
+            </div>
+        </div>
+
+
+
+
+
+
+ 
+    <div class="section-content padding-section-content" id="leads-created-section">
+        <div class="card">
+        <div class="card-header">
+            <i class="fas fa-plus-circle me-2" style="color: var(--accent-color);"></i>
+        Create new Leads
+        </div>
+
+        <div class="d-flex"> 
+        <!-- اختيار المنتج قبل إظهار النموذج -->
+        <div id="product-select-section" class="card-body px-3 py-4" style="background: rgba(255,255,255,0.01); border-radius: 1rem;">
+        <div class="mb-4 text-center">
+            <label for="select-product-dropdown" class="form-label text-light" style="font-size: 1.1rem;">
+            <i class="fas fa-box-open me-2" style="color: var(--accent-color);"></i>
+            Select Product to create Leads
+            </label>
+            <select id="select-product-dropdown" class="form-select modern-input mx-auto" style="max-width: 350px;">
+            <option selected value="" id="defaultsele">-- Select Products --</option>
+            {% for product in productslist %}
+                <option value="{{ product.sku }}" data-project="{{ product.project }}" data-name="{{ product.name }}">{{ product.name }} (SKU: {{ product.sku }})</option>
+            {% endfor %}
+            </select>
+        </div>
+
+<div class="card mb-4 shadow-sm" style="background: rgba(255,255,255,0.04); border-radius: 1rem; border: 1px solid var(--border-card); max-width: 820px; margin: 0 auto 18px auto;">
+            {% for account in order_users %}
+
+    <div class="card-body d-flex  align-items-center justify-content-between py-3 px-4">
+         <div class="d-flex align-items-center gap-3">
+            <span class="avatar" style="width: 38px; height: 38px; font-size: 1.1rem;">
+                <i class="fas fa-user-friends"></i>
+            </span>
+            <div>
+                <div class="fw-bold text-light" style="font-size: 1.05rem;">{{ account.user_name }}</div>
+                <small class="text-muted-" style="font-size: .92em;color: rgb(94, 95, 113);">{{ account.user.date_joined }} </small>
+            </div>
+        </div>
+        <div class="text-end">
+            <div class="mb-1">
+                <span class="badge bg-light text-dark" style="font-size: 0.97rem; border-radius: 8px;">
+                    <i class="fas fa-box me-1"></i> Orders: <span class="fw-bold">{{ account.order_count }}</span>
+                </span>
+            </div>
+        </div>
+     </div>
+
+
+     
+
+
+
+    <hr style="border-top: 1px solid var(--border-card); margin: 0.5rem 0;">
+             {% endfor %}
+    <!-- Reusable user card (Bootstrap 5.3)
+     Insert inside a loop. Django variables shown as example. -->
+{% for stat in stats %}
+
+     <div class="card user-card p-3 mb-3 shadow-sm">
+  <div class="d-flex justify-content-between align-items-start">
+    <div>
+      <h5 class="mb-1">{{ stat.user.user_name }}</h5>
+      <div class="text-muted small">Total orders <span class="fw-bold">{{ stat.total_orders|default:0 }}</span></div>
+    </div>
+
+    <div class="text-end">
+      {% if stat.today_orders|default:0 >= bonus_threshold %}
+        <span class="badge bg-success">Bonus</span>
+      {% else %}
+        <span class="badge bg-secondary">Active</span>
+      {% endif %}
+    </div>
+
+  </div>
+
+  <div class="mt-3">
+    <div class="d-flex justify-content-between small text-muted mb-2">
+      <div>This month <strong>{{ stat.this_month|default:0 }}</strong></div>
+      <div>Last month <strong>{{ stat.last_month|default:0 }}</strong></div>
+    </div>
+
+    <div class="mb-2">
+      <div class="d-flex justify-content-between align-items-center mb-1 small text-muted">
+        <div>Today <strong>{{ stat.today_orders|default:0 }}</strong></div>
+        <div class="muted-small">Goal <strong>{{ bonus_threshold }}</strong></div>
+      </div>
+
+      <div class="progress" style="height:10px; border-radius:999px;">
+     <div class="progress-bar" role="progressbar"
+     style="width: {{ stat.progress_percent }}%"
+     aria-valuenow="{{ stat.progress_percent }}" aria-valuemin="0" aria-valuemax="100">
+</div>
+
+      </div>
+    </div>
+
+    <div class="mt-3">
+      <button class="btn btn-sm btn-outline-primary" type="button" data-bs-toggle="collapse" data-bs-target="#orders-{{ user.id }}" aria-expanded="false" aria-controls="orders-{{ user.id }}">
+        Show orders
+      </button>
+    </div>
+
+    <div class="collapse mt-3" id="orders-{{ user.id }}">
+      <div class="table-responsive">
+        <table class="table table-sm align-middle mb-0">
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Product</th>
+              <th>Price</th>
+              <th>Qty</th>
+              <th>Customer</th>
+              <th>City</th>
+              <th>Date</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for order in stat.orders %}
+              <tr>
+                <td>{{ forloop.counter }}</td>
+                <td>{{ order.product }}</td>
+                <td>{{ order.product_price }}</td>
+                <td>{{ order.product_quantity }}</td>
+                <td>{{ order.customer_name }}</td>
+                <td>{{ order.customer_city }}</td>
+                <td>{{ order.order_date|date:'Y-m-d H:i' }}</td>
+              </tr>
+            {% empty %}
+              <tr><td colspan="7" class="text-center small text-muted">No orders</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Minimal custom CSS you can place in your styles file
+.user-card { transition: transform .12s ease, box-shadow .12s ease; }
+.user-card:hover { transform: translateY(-6px); box-shadow: 0 8px 30px rgba(21,33,62,0.08); }
+-->
+
+
+{% endfor %}
+
+</div>
+ 
+
+                
+            </div>
+
+            <!-- رسالة المنتج المحدد -->
+            <div id="selected-product-info" class="alert alert-success d-none" style="background: var(--accent-color); color: var(--background-primary); border-radius: 10px; font-size: 1.05rem; max-width: 700px; margin: 0 auto 18px auto; text-align: center; max-height: 71px;">
+                <span id="selected-product-name"></span>
+                <span class="badge bg-light text-dark ms-2" id="selected-product-sku"></span>
+                <button type="button" class="btn btn-sm btn-outline-light ms-3" id="change-product-btn" style="font-size: .95rem; border-radius: 8px;">
+                    <i class="fas fa-undo" id="refrish_ordersending" ></i> Change Product
+                </button>
+            </div>
+
+            <!-- نموذج الطلبية (مخفي افتراضياً) -->
+            <div id="order-form-section"  > 
+                <div class="card-body px-3 py-4" style="background: rgba(255,255,255,0.01); border-radius: 1rem;"> 
+                    <form method="post" id="order-form" autocomplete="off" style="max-width: 700px; margin: auto;">
+                        {% csrf_token %}
+                        <!-- إظهار اسم المنتج المحدد أعلى النموذج -->
+                        <div class="mb-3 text-center">
+                            <span class="fw-bold text-light"  style="font-size: 1.1rem;">
+                                <i class="fas fa-box-open me-2" style="color: var(--accent-color);">
+
+                                </i>
+                                Product Selected: <span id="form-product-name"></span>
+                            </span>
+                            <span class="badge bg-light text-dark ms-2" id="form-product-sku"></span>
+                        </div>
+                        <input type="hidden" name="selected_sku" id="hidden-selected-sku">
+                        <div class="row g-3 mb-3">
+                            <div class="col-md-6">
+                                <label class="form-label text-light">الاسم الكامل</label>
+                                <input type="text" name="name" class="form-control modern-input" required placeholder="مثال: محمد أحمد">
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label text-light">رقم الهاتف</label>
+                                <input type="number" name="phone" class="form-control modern-input" required placeholder="مثال: 06XXXXXXXX">
+                            </div>
+                        </div>
+                        <div class="row g-3 mb-3">
+                            <div class="col-md-2">
+                                <label class="form-label text-light">الدولة</label>
+                                <input type="text" name="country_code" class="form-control modern-input" value="SA" required placeholder="SA">
+                            </div>
+
+                            <div class="col-md-2">
+                                <label class="form-label text-light">الكمية</label>
+                                <input type="number" name="product_quantity" class="form-control modern-input" value="1" min="1" required>
+                            </div>
+                            <div class="col-md-2">
+                                <label class="form-label text-light">السعر</label>
+                                <input type="number" name="product_price" class="form-control modern-input"  required placeholder="0.00">
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label text-light">العنوان</label>
+                                <input type="text" name="address" class="form-control modern-input"  placeholder="المدينة، الحي، ...">
+                            </div>
+                        </div>
+                        <hr class="my-4" style="border-color: var(--border-card);">
+                        <div class="d-flex align-items-center mb-3">
+                            <h5 class="mb-0 text-light" style="font-size: 1.1rem;">
+                                <i class="fas fa-gift me-2" style="color: var(--accent-color);"></i>
+                                المنتجات والهدايا
+                            </h5>
+                            <button type="button" class="btn btn-outline-accent ms-auto" onclick="addItem()" style="font-size: .95rem; border-radius: 8px;">
+                                <i class="fas fa-plus"></i> إضافة منتج/هدية
+                            </button>
+                        </div>
+                        <div id="items-container"></div>
+                        <div class="d-grid mt-4">
+                            <button type="submit" id="submit-order-btn" class="btn" style="background: var(--accent-color); color: var(--background-primary); font-weight: 600; font-size: 1.1rem; border-radius: 10px;">
+                                <span id="order-submit-btn-content">
+                                <span id="order-submit-btn-spinner" class="spinner-border spinner-border-sm d-none" role="status" aria-hidden="true"></span> إرسال الطلبية
+                                </span>
+                             </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+    <!-- نافذة منبثقة لنجاح أو فشل إرسال الطلب -->
+                    <div id="order-submit-alert" class="alert d-none" role="alert" style="position: fixed; top: 30px; left: 50%; transform: translateX(-50%); z-index: 99999; min-width: 260px; max-width: 350px; text-align: center; font-size: 1.05rem; border-radius: 10px; box-shadow: 0 2px 16px rgba(0,0,0,0.18);">
+                        <span id="order-submit-icon" style="font-size: 2.2rem; display: block; margin-bottom: 0.5rem;"></span>
+                        <span id="order-submit-message"></span>
+                    </div>
+                  
+            <!-- قالب العنصر الديناميكي -->
+            <template id="item-template">
+                <div class="card mb-3 shadow-sm item" style="background: rgba(255,255,255,0.03); border-radius: 0.75rem; border: 1px solid var(--border-card);">
+                 
+                    <div class="card-body py-3 px-2">
+                        <div class="row g-3 align-items-end">
+                            <div class="col-md-3">
+                                <label class="form-label text-light">SKU</label>
+                                <input type="text" name="sku[]" class="form-control modern-input sku-input" required placeholder="SKU">
+                            </div>
+
+                            <div class="col-md-4">
+                                <label class="form-label text-light">اسم المنتج</label>
+                                <input type="text" name="product_name[]" class="form-control modern-input product-name-input" required placeholder="اسم المنتج">
+                            </div>
+                             
+                            <div class="col-md-2">
+                                <label class="form-label text-light">الكمية</label>
+                                <input type="number" name="quantity[]" readonly class="form-control modern-input" value="1" min="1" required>
+                            </div>
+                            <div class="col-md-2">
+                                <label class="form-label text-light">السعر</label>
+                                <input type="number" value="0" readonly step="0.01" name="price[]" class="form-control modern-input" value="0.00" required placeholder="0.00">
+                            </div>
+                            <div class="col-md-1">
+                                <label class="form-label text-light">هدية؟</label>
+                                <select name="is_gift[]" class="form-select modern-input">
+                                    <option value="false">لا</option>
+                                    <option selected value="true">نعم</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="text-end mt-2 d-flex" style="flex-direction: row-reverse;">
+                             <button type="button" class="btn btn-sm btn-danger" onclick="removeItem(this)" style="border-radius: 7px;">
+                                <i class="fas fa-trash-alt"></i> حذف
+                            </button>
+                                                        <div class="message d-none" id="notsame"></div>
+                                                        <style>
+                                                        #notsame {
+                                                            color: #ff9800 !important; /* برتقالي تحذيري */
+                                                            background: rgba(255, 152, 0, 0.12);
+                                                            border: 1px solid #ff9800;
+                                                            border-radius: 6px;
+                                                            padding: 0.35em 0.7em;
+                                                            margin-left: 1rem;
+                                                            font-size: 0.93em;
+                                                            font-weight: 500;
+                                                            display: inline-block;
+                                                        }
+                                                        </style>
+                        </div>
+                    </div>
+                </div>
+            </template>
+
+            <script>
+                let mainProductProject = "";  // سنخزن هنا project المنتج الرئيسي
+
+// عند اختيار المنتج الرئيسي:
+document.getElementById("select-product-dropdown").addEventListener("change", function() {
+  const selectedOption = this.selectedOptions[0];
+  mainProductProject = selectedOption.getAttribute("data-project") || "";
+  console.log("mainProductProject:", mainProductProject);
+});
+
+document.addEventListener("input", function(e) {
+  if (e.target.classList.contains("sku-input")) {
+    const skuInput = e.target;
+    const sku = skuInput.value.trim();
+
+    if (sku.length >= 7) {  // مثلاً لا نرسل إذا كان قصير جداً
+      fetch(`/get-product-info/?sku=${encodeURIComponent(sku)}`)
+        .then(response => response.json())
+        .then(data => {
+          const nameInput = skuInput.closest(".row").querySelector(".product-name-input");
+          if (data.success) {
+
+            nameInput.value = data.name;
+            const giftProject = data.project || "";
+            console.log( giftProject , mainProductProject);
+
+          // مقارنة موقع التخزين
+          if (giftProject !== mainProductProject) {
+            console.log( giftProject , mainProductProject);
+            document.getElementById("notsame").classList.remove("d-none");
+            document.getElementById("notsame").textContent = "⚠️ الهدية من مخزن مختلف عن المنتج الأساسي. يُفضل اختيار هدية من نفس المخزن.";
+          }
+          else {
+            document.getElementById("notsame").classList.add("d-none");
+          }
+
+          } else {
+            document.getElementById("notsame").classList.remove("d-none");
+            document.getElementById("notsame").textContent="⚠️ المنتج غير موجود.";
+            nameInput.value = "";
+
+            
+          }
+        })
+        .catch(error => {
+          console.error("خطأ في الجلب:", error);
+        });
+    }
+  }
+});
+</script>
+
+
+            <script>
+            document.addEventListener('DOMContentLoaded', function() {
+                // عند اختيار منتج من القائمة المنسدلة
+                document.getElementById('select-product-dropdown').addEventListener('change', function() {
+                    const selectedOption = this.options[this.selectedIndex];
+                    const sku = selectedOption.value;
+                    const name = selectedOption.getAttribute('data-name');
+                    if (sku) {
+                        // إظهار رسالة المنتج المحدد
+                        document.getElementById('selected-product-info').classList.remove('d-none');
+                        document.getElementById('selected-product-name').textContent = name;
+                        document.getElementById('selected-product-sku').textContent = 'SKU: ' + sku;
+                        // تعبئة النموذج المخفي بقيم المنتج
+                        document.getElementById('form-product-name').textContent = name;
+                        document.getElementById('form-product-sku').textContent = 'SKU: ' + sku;
+                        document.getElementById('hidden-selected-sku').value = sku;
+                        // إظهار النموذج
+                        document.getElementById('order-form-section').classList.remove('d-none');
+                        // إخفاء اختيار المنتج
+                        document.getElementById('product-select-section').classList.add('d-none');
+                    }
+                });
+
+                // زر تغيير المنتج
+                document.getElementById('change-product-btn').addEventListener('click', function() {
+                    document.getElementById('selected-product-info').classList.add('d-none');
+                    // document.getElementById('order-form-section').classList.add('d-none');
+                    document.getElementById('form-product-name').textContent = "Select a product"
+                    document.getElementById('form-product-sku').textContent = "";
+                    document.getElementById('product-select-section').classList.remove('d-none');
+                    // إعادة تعيين النموذج
+                    document.getElementById('order-form').reset();
+                    document.getElementById("select-product-dropdown").value = "";
+
+                     
+                    document.getElementById('items-container').innerHTML = '';
+                    addItem();
+                });
+            });
+            </script>
+
+            <style>
+                .modern-input {
+                    background: rgba(255,255,255,0.07) !important;
+                    border: 1px solid var(--border-card) !important;
+                    color: var(--text-light) !important;
+                    border-radius: 8px !important;
+                    font-size: .97rem !important;
+                    transition: border-color 0.2s;
+                }
+                .modern-input:focus {
+                    border-color: var(--accent-color) !important;
+                    background: rgba(255,255,255,0.13) !important;
+                    color: var(--text-light) !important;
+                    box-shadow: 0 0 0 2px var(--accent-color-transparent);
+                }
+                .btn-outline-accent {
+                    border: 1px solid var(--accent-color);
+                    color: var(--accent-color);
+                    background: transparent;
+                    transition: background 0.2s, color 0.2s;
+                }
+                .btn-outline-accent:hover, .btn-outline-accent:focus {
+                    background: var(--accent-color);
+                    color: var(--background-primary);
+                }
+            </style>
+
+<!-- ارسال الطلب عبر ajax   -->
+ <script>
+    function getCookie(name) {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+        const cookies = document.cookie.split(';');
+        for (let i = 0; i < cookies.length; i++) {
+            const cookie = cookies[i].trim();
+            if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                break;
+            }
+        }
+    }
+    return cookieValue;
+}
+const csrftoken = getCookie('csrftoken');
+
+            function showOrderSubmitAlert(success, message) {
+                    console.log("📣 عرض الرسالة:", message, "نجاح؟", success);
+
+                        const alertBox = document.getElementById('order-submit-alert');
+                        const icon = document.getElementById('order-submit-icon');
+                        const msg = document.getElementById('order-submit-message');
+                        if (success) {
+                            alertBox.className = "alert alert-success";
+                            icon.innerHTML = '<i class="fas fa-check-circle" style="color:var(--accent-color);"></i>';
+                        } else {
+                            alertBox.className = "alert alert-danger";
+                            icon.innerHTML = '<i class="fas fa-times-circle" style="color:#dc3545;"></i>';
+                        }
+                        msg.textContent = message;
+                        alertBox.classList.remove('d-none');
+                        setTimeout(() => { alertBox.classList.add('d-none'); }, 3500);
+                    }
+
+document.getElementById("order-form").addEventListener("submit", function(e) {
+    e.preventDefault(); // منع الإرسال العادي
+    
+    $('#submit-order-btn').prop('disabled', true); // تعطيل الزر
+$('#order-submit-btn-spinner').removeClass('d-none'); // إظهار اللودينغ
+
+
+    const form = e.target;
+    const formData = new FormData(form);
+
+    fetch("/submit-order/", {
+        method: "POST",
+        headers: {
+            "X-Requested-With": "XMLHttpRequest" ,
+              "X-CSRFToken": csrftoken
+        },
+        body: formData
+    })
+    .then(response => response.json())
+
+    .then(data => {
+            $('#submit-order-btn').prop('disabled', false); // إعادة تفعيل الزر
+$('#order-submit-btn-spinner').addClass('d-none'); // إخفاء اللودينغ
+
+
+
+        if (data.success) {
+            // console.log("✅ الطلبية أُرسلت بنجاح:", data);
+            showOrderSubmitAlert(true , data.message);
+            form.reset(); 
+            document.getElementById("items-container").innerHTML = ""; // حذف العناصر المضافة
+        } else {
+                        showOrderSubmitAlert(false , data.message);
+
+            // alert("⚠️ هناك مشكلة في إرسال الطلب. يرجى التحقق من البيانات.");
+        }
+    })
+    .catch(error => {
+        console.error("❌ فشل الاتصال:", error);
+        alert("حدث خطأ أثناء الإرسال، يرجى المحاولة لاحقًا.");
+    });
+});
+</script>
+
+
+<!-- جافاسكربت لإضافة/حذف العناصر -->
+<script>
+  function addItem() {
+    const template = document.getElementById("item-template").content.cloneNode(true);
+    document.getElementById("items-container").appendChild(template);
+  }
+
+  function removeItem(button) {
+    button.closest('.item').remove();
+  }
+
+  // عنصر افتراضي عند تحميل الصفحة
+  window.addEventListener('DOMContentLoaded', () => {
+    addItem();
+  });
+</script>
+
+
+            </div>
+        </div>
+        </div>
+
+ 
+
+
+
+
+
+
+
+
+
+
+        <div class="section-content padding-section-content" id="leads-tracking-section">
+            <div class="card">
+                <div class="card-header">
+                    <i class="fas fa-user-friends"></i> Leads Tracking
+                </div>
+                     <div class="card-body">
+
+       <div class="search-box mb-4 custom-search-input">
+
+                     <div class="filters-container p-3" style="background: rgba(255,255,255,0.05); border-radius: 10px;">
+
+    <!-- Search bar -->
+    <div class="d-flex mb-3 gap-2 flex-wrap">
+        <div class="flex-grow-1 position-relative">
+            <input type="text"
+                   id="live-search-leads"
+                   class="form-control form-control-sm"
+                   placeholder="Search by phone, name, or tracking number..."
+                   autocomplete="off"
+                   style="border-radius: 6px; padding-left: 35px;">
+            <i class="fas fa-search position-absolute" style="top: 50%; left: 10px; transform: translateY(-50%); color: #aaa;"></i>
+        </div>
+
+        <!-- <button type="button" id="refresh-orders-btn" class="btn btn-outline-secondary btn-sm" title="Refresh Orders" style="border-radius: 6px;">
+            <i class="fas fa-sync-alt" id="refresh-leads-icon">-</i>
+        </button> -->
+    </div>
+
+    <!-- Filters row -->
+    <div class="row g-2 align-items-center w-100">
+        <div class="col-md-2 col-sm-6">
+            <select class="form-select form-select-sm" id="status-leads-filter" style="border-radius: 6px;">
+                <option value="">All Statuses</option>
+                <option value="confirmed">confirmed</option>
+                <option value="cancelled">cancelled</option>
+                <option value="wrong">wrong</option>
+                <option value="cancelled price">cancelled price</option>
+            </select>
+        </div>
+
+        <div class="col-md-2 col-sm-6">
+            <select class="form-select form-select-sm" id="period-leads-filter" style="border-radius: 6px;">
+                <option value="All">All time</option>
+                <option value="today">Today</option>
+                <option value="week">This week</option>
+                <option value="month">This month</option>
+                <option value="custom">Custom</option>
+            </select>
+        </div>
+
+        <div id="custom-date-range" class="col-md-6 col-sm-12 d-none d-flex gap-2 mt-2 mt-md-0">
+            <input type="text" class="form-control form-control-sm" id="start-date-filter" placeholder="Start Date" style="border-radius: 6px;">
+            <input type="text" class="form-control form-control-sm" id="end-date-filter" placeholder="End Date" style="border-radius: 6px;">
+        </div>
+
+        <div class="col-md-2 col-sm-6">
+            <select class="form-select form-select-sm" id="product-leads-filter" style="border-radius: 6px;">
+                <option value="">All Products</option>
+                {% for product in productslist %}
+                <option value="{{ product.sku }}" data-product-id="{{ product.id }}">{{ product.name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="col-md-2 col-sm-6">
+           <select class="form-select form-select-sm" id="country-leads-filter" style="border-radius: 6px;">
+    <option value="">All Country</option>
+    {% for country in countries %}
+        <option value="{{ country }}">{{ country }}</option>
+    {% endfor %}
+</select>
+
+        </div>
+
+        <div class="col-md-2 col-sm-6 d-flex justify-content-start mt-2 mt-md-0">
+            <button type="button" id="apply-leads-filters-btn" class="btn btn-sm" style="color: white; background-color: #4CAF50; border-radius: 6px; padding: 5px 15px;">
+             <i class="fas fa-search"></i>    Search
+            </button>
+
+              
+        </div>
+        <div class="col-md-2 col-sm-2 d-flex justify-content-start mt-2 mt-md-0 d-flex" style="flex-direction: row-reverse;
+">
+
+         <button type="button" id="refresh-leads-btn" class="btn btn-outline-secondary btn-sm" title="Refresh Orders" style="border-radius: 6px;">
+            <i class="fas fa-sync-alt" id="refresh-leads-icon"></i> Refresh
+        </button>
+    </div> 
+    </div>
+
+</div>
+
+                    </div>
+        <div id="leads-container">
+            {% include "leads.html" %}
+        </div>
+       
+
+ </div>
+
+ <script>
+    
+(function(){
+  const debug = false;
+  const log = (...args) => { if (debug) console.log(...args); };
+
+  // تحقق إن المودال مفتوح
+  function isModalOpen(modal) {
+    if (!modal) return false;
+    return getComputedStyle(modal).display !== 'none';
+  }
+
+  // افتح مودال (يمكن تمرير العنصر مباشرة)
+  function openModal(modal) {
+    if (!modal) return console.error('❌ modal not found');
+    if (isModalOpen(modal)) return;
+    modal.style.display = 'flex';
+    modal.setAttribute('aria-hidden', 'false');
+    log('modal opened', modal);
+  }
+
+  // اغلق مودال
+  function closeModal(modal) {
+    if (!modal) return;
+    modal.style.display = 'none';
+    modal.setAttribute('aria-hidden', 'true');
+    log('modal closed', modal);
+  }
+
+  // المعالج الرئيسي للأحداث
+  function delegatedHandler(e) {
+    try {
+      // 1) زر فتح المودال داخل الجدول
+      const openBtn = e.target.closest('.show-order-btn');
+      if (openBtn) {
+        // البحث عن المودال في نفس الصف
+        const row = openBtn.closest('tr');
+        const modal = row ? row.querySelector('.order-Modal') : null;
+        openModal(modal);
+        return;
+      }
+
+      // 2) زر إغلاق المودال
+      const closeBtn = e.target.closest('.close2, .close, [data-modal-close]');
+      if (closeBtn) {
+        const modalParent = closeBtn.closest('.order-Modal');
+        closeModal(modalParent);
+        return;
+      }
+
+      // 3) الضغط على الخلفية (المنطقة الخارجية داخل المودال)
+      if (e.target.classList.contains('order-Modal')) {
+        closeModal(e.target);
+        return;
+      }
+    } catch(err) {
+      console.error(err);
+    }
+  }
+
+  // إضافة المستمع على document
+  document.addEventListener('click', delegatedHandler, true);
+
+  // غلق بالمفتاح ESC
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' || e.key === 'Esc') {
+      document.querySelectorAll('.order-modal').forEach(modal => {
+        if (isModalOpen(modal)) closeModal(modal);
+      });
+    }
+  });
+
+  log('delegatedHandler initialized');
+})();
+</script>
+
+
+
+ 
+<script>
+
+    document.addEventListener("DOMContentLoaded", function() { 
+ 
+
+function initLeads() {
+    
+ 
+    
+  const container = document.getElementById("leads-container");
+
+  // ✅ ميثود عامة تجلب البيانات من السيرفر
+  function fetchLeads(url) {
+    fetch(url, { headers: { "X-Requested-With": "XMLHttpRequest" } })
+      .then((res) => res.json())
+      .then((data) => {
+        container.innerHTML = data.html ;
+        attachPaginationEvents(); // إعادة تفعيل pagination بعد تحميل جديد
+      })
+      .catch((err) => console.error("Error fetching leads:", err));
+  }
+
+  // ✅ جمع كل قيم الفلاتر
+  function getFilterParams() {
+    const statusEl = document.getElementById("status-leads-filter");
+    const periodEl = document.getElementById("period-leads-filter");
+    const startDateEl = document.getElementById("start-date-filter");
+    const endDateEl = document.getElementById("end-date-filter");
+    const productEl = document.getElementById("product-leads-filter");
+    const countryEl = document.getElementById("country-leads-filter");
+    const searchEl = document.getElementById("live-search-leads");
+
+    const params = new URLSearchParams();
+
+    if (statusEl?.value) params.append("status", statusEl.value);
+    if (periodEl?.value && periodEl.value !== "All") {
+      params.append("period", periodEl.value);
+      if (periodEl.value === "custom") {
+        if (startDateEl?.value) params.append("start_date", startDateEl.value);
+        if (endDateEl?.value) params.append("end_date", endDateEl.value);
+      }
+    }
+    if (productEl?.value) params.append("product_sku", productEl.value);
+    if (countryEl?.value) params.append("country", countryEl.value);
+    if (searchEl?.value) params.append("search", searchEl.value);
+
+    return params;
+  }
+
+  // ✅ تشغيل الفلاتر
+  function attachFilters() {
+    const applyBtn = document.getElementById("apply-leads-filters-btn");
+    const periodEl = document.getElementById("period-leads-filter");
+
+    if (!applyBtn) return;
+
+    // toggle custom date inputs
+    periodEl?.addEventListener("change", () => {
+      const customRange = document.getElementById("custom-date-range");
+      if (customRange) {
+        customRange.classList.toggle("d-none", periodEl.value !== "custom");
+      }
+    });
+
+    applyBtn.addEventListener("click", () => {
+      const params = getFilterParams();
+      params.append("page", 1); // ابدأ من الصفحة الأولى
+      fetchLeads(`{% url 'filter_leads_api' %}?${params.toString()}`);
+    });
+  }
+ 
+  // ✅ pagination
+  function attachPaginationEvents() {
+    document.querySelectorAll(".leads-page-link").forEach((link) => {
+      link.addEventListener("click", function (e) {
+        e.preventDefault();
+        const page = this.getAttribute("data-page");
+        const params = getFilterParams();
+        params.append("page", page);
+        fetchLeads(`{% url 'filter_leads_api' %}?${params.toString()}`);
+      });
+    });
+  }
+
+  // ✅ تشغيل أول مرة
+  attachFilters();
+  attachPaginationEvents();
+  popup();
+ 
+ 
+}
+
+document.addEventListener("DOMContentLoaded", initLeads);
+
+
+function inistail_popup() {
+  const container = document.getElementById("leads-container");
+
+  container.addEventListener("click", function(event) {
+    const btn = event.target.closest(".openPopupBtn");
+    const closeBtn = event.target.closest(".close");
+
+    if (btn) {
+      const item = btn.closest(".lead-item");
+      const popup = item.querySelector(".popup");
+      popup.style.display = "block";
+    }
+
+    if (closeBtn) {
+      const popup = closeBtn.closest(".popup");
+      popup.style.display = "none";
+    }
+
+    // اغلاق عند الضغط خارج البوب أب
+    if (!event.target.closest(".popup") && !event.target.closest(".openPopupBtn")) {
+      document.querySelectorAll(".popup").forEach(p => p.style.display = "none");
+    }
+  });
+}
+
+document.addEventListener("DOMContentLoaded", inistail_popup);
+ });
+
+</script>
+ 
+ 
+</div>
+        </div>
+
+
+
+
+
+
+
+
+
+        <div class="section-content padding-section-content" id="update-section">
+            <div class="card">
+                <div class="card-header">
+                    <i class="fas fa-tools"></i> Product Data Update
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                         
+                          <div class="col-md-6">
+                            <h5 class="mb-3 text-light" style="font-size: var(--font-size-sm);">Product List</h5> 
+                            
+                            <div class="product-list-container mb-4" style="max-height: 300px; overflow-y: auto;">
+                                {% if productslist %}
+                                {% for product in productslist %}
+
+                                <div class="product-item">
+                                    <div class="product-info">
+                                        <div><strong>{{product.name}}</strong> (SKU: {{product.sku}})</div>
+                                        <small class="o" style="color:#a5a3af;">Available: <strong> {{product.stock}}  units</strong></small>
+                                    </div>
+                         
+                                </div>
+                                {% endfor %}
+                                {% else %}
+                                        <div class="col-12">
+            <div class="text-center py-5" style="background: rgba(255,255,255,0.05); border-radius: 12px; border: 1px solid rgba(255,255,255,0.15); min-height: 140px;">
+                <i class="fas fa-box-open mb-3" style="font-size: 3rem; color: var(--accent-color);"></i>
+                <h6 class="fw-bold text-light mb-2">No Products Available</h6>
+                <p class="mb-3 text-muted">Your inventory is currently empty. Add new products to get started.</p>
+                <a href="#update-section" id="proupdate" class="btn btn-sm" style="background-color: var(--accent-color); color: var(--background-primary); border-radius: 0.375rem; font-size: 0.9rem; padding: 0.4rem 1.4rem;">
+                    <i class="fas fa-plus me-1"></i> Add Product
+                </a>
+            </div>
+        </div>
+    {% endif %}
+
+                               
+                                </div>
+                            <div class="last-update-info">
+                                Last Updated: <span id="last-update-date">June 6, 2025 - 10:30 PM</span>
+                            </div>
+                        </div>
+
+                        <div class="col-md-6">
+                                                        
+
+                                
+
+                            <h5 class="mb-3 text-light" style="font-size: var(--font-size-sm);">Update Data</h5>
+                            <form method="post" id="update-sku-form">
+                                {% csrf_token %} <div class="mb-3">
+                                    <label for="sku-input" class="form-label" style="font-size: var(--font-size-sm);">Product SKU</label>
+                                    <input type="text" class="form-control"
+                                           name="sku"
+                                           id="sku-input"
+                                           placeholder="e.g., PRODX"
+                                           required style="font-size: var(--font-size-sm);">
+                                </div>
+                                <div class="mb-3">
+                                    <label for="new-stock-input" class="form-label" style="font-size: var(--font-size-sm);">New Stock Quantity (Optional)</label>
+                                    <input type="number" class="form-control"
+                                           name="new_stock"
+                                           id="new-stock-input"
+                                           placeholder="e.g., 200" style="font-size: var(--font-size-sm);">
+                                </div>
+                                {% if productslist %}
+                         
+                                <button type="submit"  id="proupdate" class="btn btn-primary w-100" style="font-size: var(--font-size-sm); background-color: var(--accent-color); border-color: var(--accent-color); color: var(--background-primary);">
+                                    <i class="fas fa-sync-alt me-2"></i> Update 
+                                </button>
+                                {% else %}
+                                <button type="submit" class="btn btn-primary w-100" style="font-size: var(--font-size-sm); background-color: var(--accent-color); border-color: var(--accent-color); color: var(--background-primary);">
+                                    <i class="fas fa-sync-alt me-2"></i> Update Data
+                                </button>
+                                {% endif %}
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="section-content padding-section-content" id="future-features-1-section">
+            <div class="card">
+                <div class="card-header">
+                    <i class="fas fa-chart-line"></i> Drop Products
+                </div>
+    <div class="card-body">
+
+<div class="search-filter-container" style="margin-bottom: 1rem;">
+    <!-- قسم البحث -->
+    <div class="search-section">
+        <form method="POST" class="search-form">
+            {% csrf_token %}
+            <div class="search-box-container">
+                <span class="search-icon">
+                    <i class="fas fa-search"></i>
+                </span>
+                <input 
+                    type="text" 
+                    id="searchInput"
+                    name="search" 
+                    class="search-input"
+                    placeholder="ابحث بالاسم، SKU أو الكود..." 
+                    aria-label="Search"
+                    autocomplete="off"
+                >
+                <button type="submit" id="searchBtnfilter" class="search-button" aria-label="Submit search">
+                    <i class="fas fa-arrow-left"></i>
+                </button>
+            </div>
+        </form>
+    </div>
+
+    <!-- أزرار التصفية -->
+    <div class="filter-section">
+        <div class="filter-buttons">
+            <div class="dropdown filter-dropdown">
+                <button class="filter-btn" type="button" 
+                    id="countryFilter" data-bs-toggle="dropdown" aria-expanded="false">
+                    <span id="selectedCountryText"><i class="fas fa-globe me-1"></i>كل الدول</span>
+                    <i class="fas fa-chevron-down ms-2"></i>
+                </button>
+                <ul class="dropdown-menu" aria-labelledby="countryFilter">
+                    <li><a class="dropdown-item country-option" href="#" data-country="">كل الدول</a></li>
+                    {% for country in countries %}
+                    <li><a class="dropdown-item country-option" href="#" data-country="{{ country }}">{{ country }}</a></li>
+                    {% endfor %}
+                </ul>
+            </div>
+            <div class="dropdown filter-dropdown">
+                <button class="filter-btn" type="button" 
+                    id="projectFilter" data-bs-toggle="dropdown" aria-expanded="false">
+                    <span id="selectedProjectText"><i class="fas fa-project-diagram me-1"></i>All projects</span>
+                    <i class="fas fa-chevron-down ms-2"></i>
+                </button>
+                <ul class="dropdown-menu" aria-labelledby="projectFilter">
+                    <li><a class="dropdown-item project-option" href="#" data-project="">All projects</a></li>
+                    {% for project in projects %}
+                    <li><a class="dropdown-item project-option" href="#" data-project="{{ project }}">{{ project }}</a></li>
+                    {% endfor %}
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <!-- قسم التحكم والتحديث -->
+    <div class="control-section">
+        <div class="control-elements">
+            <!-- أزرار العرض -->
+            <div class="view-toggle btn-group" role="group" aria-label="Toggle view">
+                <button class="view-btn" onclick="toggleView('grid')" title="عرض شبكي">
+                    <i class="fas fa-th-large"></i>
+                </button>
+                <button class="view-btn" onclick="toggleView('list')" title="عرض قائمة">
+                    <i class="fas fa-list"></i>
+                </button>
+            </div>
+   <div class="update-info">
+                    <small class="text-light">Last update</small>
+                    <span class="badge last-update" id="last-update" data-datetime="{{ last_update }}"></span>
+                </div>
+            <!-- زر التحديث الرئيسي -->
+            <div class="update-container">
+               
+                <button 
+                    type="button"
+                    id="updatethis"
+                    class="update-btn"
+                    title="تحديث المنتجات"
+                >
+                    <i class="fas fa-sync-alt"></i>
+                    <span> Update list</span>
+                </button>
+                <!-- معلومات التحديث -->
+                
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    /* التنسيق العام */
+    .search-filter-container {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 1rem;
+        flex-wrap: wrap;
+    }
+
+    .search-section, .filter-section, .control-section {
+        flex: 1;
+        min-width: 250px;
+    }
+
+    /* مربع البحث */
+    .search-box-container {
+        display: flex;
+        align-items: center;
+        background: #fff;
+        border-radius: 10px;
+        overflow: hidden;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        border: 1px solid #e0e0e0;
+        transition: all 0.3s ease;
+    }
+
+    .search-box-container:hover {
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        border-color: var(--accent-color);
+    }
+
+    .search-icon {
+        padding: 0.5rem 1rem;
+        color: var(--accent-color);
+        background: transparent;
+        border-right: 1px solid #e0e0e0;
+    }
+
+    .search-input {
+        flex: 1;
+        border: none;
+        padding: 0.75rem;
+        font-size: 0.95rem;
+        color: #333;
+        background: transparent;
+        min-width: 200px;
+    }
+
+    .search-input:focus {
+        outline: none;
+        box-shadow: none;
+    }
+
+    .search-button {
+        padding: 0.75rem 1.25rem;
+        background: var(--accent-color);
+        color: white;
+        border: none;
+        cursor: pointer;
+        transition: background 0.3s;
+    }
+
+    .search-button:hover {
+        background: #00c853;
+    }
+
+    /* أزرار التصفية */
+    .filter-buttons {
+        display: flex;
+        gap: 0.75rem;
+    }
+
+    .filter-dropdown {
+        flex: 1;
+    }
+
+    .filter-btn {
+        width: 100%;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 0.75rem 1rem;
+        background: white;
+        border: 1px solid #e0e0e0;
+        border-radius: 8px;
+        color: #555;
+        font-size: 0.9rem;
+        transition: all 0.3s;
+    }
+
+    .filter-btn:hover {
+        border-color: var(--accent-color);
+        color: var(--accent-color);
+    }
+
+    /* قسم التحكم */
+    .control-elements {
+        display: flex;
+        align-items: center;
+        justify-content: flex-end;
+        gap: 1rem;
+    }
+
+    .view-toggle {
+        display: flex;
+    }
+
+    .view-btn {
+        padding: 0.65rem 1rem;
+        background: white;
+        border: 1px solid #e0e0e0;
+        color: #555;
+        transition: all 0.3s;
+    }
+
+    .view-btn:first-child {
+        border-radius: 8px 0 0 8px;
+    }
+
+    .view-btn:last-child {
+        border-radius: 0 8px 8px 0;
+    }
+
+    .view-btn:hover, .view-btn.active {
+        background: var(--accent-color);
+        color: white;
+        border-color: var(--accent-color);
+    }
+
+    /* زر التحديث */
+    .update-container {
+        display: flex;
+        flex-direction: column;
+        align-items: flex-end;
+        gap: 0.25rem;
+    }
+
+    .update-btn {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.5rem;
+        padding: 0.65rem 1.25rem;
+        background: var(--accent-color);
+        color: white;
+        border: none;
+        border-radius: 8px;
+        font-size: 0.9rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.3s;
+        box-shadow: 0 2px 8px rgba(0, 230, 118, 0.2);
+    }
+
+    .update-btn:hover {
+        background: #00c853;
+        box-shadow: 0 4px 12px rgba(0, 230, 118, 0.3);
+        transform: translateY(-1px);
+    }
+
+    .update-btn i {
+        font-size: 0.95rem;
+    }
+
+    /* معلومات التحديث */
+    .update-info {
+        text-align: right;
+    }
+
+    .last-update {
+        background: #f5f5f5;
+        color: #555;
+        padding: 0.25rem 0.5rem;
+        border-radius: 4px;
+        font-size: 0.8rem;
+        font-weight: normal;
+    }
+
+    /* التكيف مع الشاشات الصغيرة */
+    @media (max-width: 992px) {
+        .search-filter-container {
+            flex-direction: column;
+            gap: 1rem;
+        }
+        
+        .search-section, .filter-section, .control-section {
+            width: 100%;
+        }
+        
+        .control-elements {
+            justify-content: space-between;
+        }
+    }
+
+    @media (max-width: 576px) {
+        .filter-buttons {
+            flex-direction: column;
+        }
+        
+        .search-input {
+            min-width: 150px;
+        }
+    }
+</style>
+
+<script>
+   
+
+
+    document.addEventListener('DOMContentLoaded', function () {
+        const el = document.getElementById('last-update');
+        if (el && el.dataset.datetime) {
+            try {
+                const isoString = el.dataset.datetime;
+                const date = new Date(isoString);
+
+                // استخراج اليوم والشهر والساعة والدقيقة
+                const day = date.getDate().toString().padStart(2, '0');
+                const month = (date.getMonth() + 1).toString().padStart(2, '0');
+                const hours = date.getHours().toString().padStart(2, '0');
+                const minutes = date.getMinutes().toString().padStart(2, '0');
+
+                // التنسيق النهائي
+                const formatted = `${day}/${month} ${hours}:${minutes}`;
+                el.textContent = formatted;
+            } catch (e) {
+                el.textContent = '';
+            }
+        }
+    });
+</script>
+
+
+
+
+
+
+         
+
+ 
+
+
+
+    <!-- عرض المنتجات -->
+  <div id="setproductlisther">
+
+</div>
+
+
+
+<script>
+    document.addEventListener('click', async (e) => {
+  const btn = e.target.closest('#Codproduct');
+  if (!btn) return;
+
+  // المكان الذي سيظهر فيه partial
+  const setproductlisther = document.getElementById('setproductlisther');
+  if (!setproductlisther) return;
+
+  try {
+    const response = await fetch("{% url 'load_products' %} "); 
+    if (!response.ok) throw new Error('خطأ في التحميل');
+    const html = await response.text();
+
+    setproductlisther.innerHTML = html; // إدخال partial في الصفحة
+    console.log('don!' , html)
+  } catch (err) {
+    console.error(err);
+  }
+});
+
+</script>
+
+
+            </div>
+        </div>
+
+
+ 
+    </div> 
+ 
+ 
+
+
+ 
+ <div id="update-success-message" class="alert alert-success d-none"  role="alert" style="     width: 232px;
+    position: fixed;
+    z-index: 12232321;
+    bottom: 14px; background-color: var(--accent-color); color: var(--background-primary); border-radius: var(--border-radius-md); font-size: var(--font-size-sm); margin-top: 1rem;">
+    Data updated seccessfully !
+</div>
+ 
+   <div id="update-lead-progr" class="alert alert-success d-none"  role="alert" style="     width: 232px;
+    position: fixed;
+    z-index: 12232321;
+    bottom: 14px; background-color: var(--accent-color); color: var(--background-primary); border-radius: var(--border-radius-md); font-size: var(--font-size-sm); margin-top: 1rem;">
+    Data updated seccessfully !
+</div>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+const refresh_leads = document.getElementById('refresh-leads-btn');
+refresh_leads.addEventListener('click', function() {
+   setprog = document.getElementById('update-lead-progr');
+   setprog.innerHTML = '<i class="fas fa-sync-alt fa-spin"></i> Updating...';
+
+   setprog.classList.remove('d-none');
+    document.getElementById('refresh-leads-icon').classList.add('fa-spin');
+const productsku = document.getElementById('product-leads-filter').value;
+fetch("{% url 'leadstracking' %}" , {
+    method: 'POST',
+    headers: {
+        'Content-Type': 'application/x-www-form-urlencoded'
+    } ,
+    body: new URLSearchParams({
+         'productsku': productsku
+     })
+})
+.then(response => response.json())
+.then(response => {
+    setprog.classList.add('d-none');
+    setprog.innerHTML = 'Data updated seccessfully !';
+    document.getElementById('refresh-leads-icon').classList.remove('fa-spin');
+    if (response.status === 'success') {
+        // Update the UI with the new leads data
+        document.getElementById('update-success-message').textContent = response.data;
+        setprog.classList.remove('d-none');
+
+        setInterval(function() {
+            setprog.classList.add('d-none');
+
+        }, 5000);
+
+    } else {
+        // Handle error case
+        console.error('Error fetching leads:', response.message);
+    }
+}); 
+}); 
+}); 
+
+</script>
+
+
+ 
+
+
+
+  
+
+
+ 
+
+ 
+
+ 
+
+
+ 
+</body>
+</html>

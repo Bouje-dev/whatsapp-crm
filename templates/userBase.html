@@ -1,0 +1,414 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Tracking and follow Up{% endblock %}</title>
+    
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700&display=swap" rel="stylesheet">
+    
+    <!-- Bootstrap 5 RTL -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.rtl.min.css" rel="stylesheet">
+    
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+    
+    <!-- Animate.css -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css">
+  
+    <style>
+        
+ :root {
+    --background-primary: #121212;
+    --text-light: #E0E0E0;
+    --text-muted: #A0A0A0;
+    --accent-color: #00E676;
+    --accent-color-transparent: rgba(0, 230, 118, 0.15);
+    --border-card: rgba(241, 241, 255, 0.151);
+    --border-hover: hsla(0, 0%, 100%, 0.98);
+    --border-width: 1px;
+    --border-width-focus: 0.5px;
+    --border-radius-sm: 0.25rem;
+    --border-radius-md: 0.5rem;
+    --border-radius-lg: 0.75rem;
+    --border-radius-input: 10px;
+    --font-size-xl: 1rem;
+    --line-height-xl: 1.75rem;
+    --letter-spacing-xl: -.005em;
+    --font-size-sm: .875rem;
+    --line-height-sm: 1.25rem;
+    --letter-spacing-sm: 0;
+    --status-shipped-bg: #17a2b8;
+    --status-delivered-bg: #28a745;
+    --status-returned-bg: #dc3545;
+    --status-pending-bg: #ffc107;
+    --status-text-dark: var(--background-primary);
+}
+        /* Top Navigation Bar */
+      .top-navbar1 {
+            background-color: #121212;
+            padding: 1rem 2.5rem; /* Adjusted padding to be more compact */
+            border-bottom: var(--border-width) solid var(--border-card);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0px 2px 5px rgba(0, 0, 0, 0.2); /* Subtle shadow */
+            position: sticky;
+            top: 0;
+            z-index: 1000;
+        }
+
+        .top-navbar1 .logo {
+            font-size: 1.25rem; /* Smaller logo */
+            font-weight: 700;
+            color: var(--text-light); /* White logo */
+            text-decoration: none;
+        }
+
+        .top-navbar1 .nav-links .btn {
+            color: var(--text-muted); /* Muted color for non-active links */
+            border: none;
+            padding: 0.5rem 1rem; /* Smaller buttons */
+            border-radius: var(--border-radius-sm);
+            font-weight: 500;
+            transition: all 0.2s ease;
+            font-size: var(--font-size-sm); /* Text-sm for top nav */
+        }
+
+        .top-navbar1 .nav-links .btn:hover {
+            background-color: rgba(255, 255, 255, 0.05); /* Subtle hover */
+            color: var(--text-light);
+        }
+
+        .top-navbar1 .nav-links .btn.active {
+            background-color: transparent; /* No background for active */
+            color: var(--accent-color); /* Accent color for active */
+            border-bottom: 2px solid var(--accent-color); /* Underline active tab */
+            border-radius: 0; /* Remove border-radius for underline effect */
+        }
+        :root {
+            --primary-color: #6c63ff;
+            --secondary-color: #4d44db;
+            --accent-color: #ff6584;
+            --light-bg: #f8f9fa;
+            --dark-text: #2d3748;
+            --light-text: #718096;
+        }
+        
+        body {
+            font-family: 'Tajawal', sans-serif;
+            background-color: #f5f7fa;
+            color: var(--dark-text);
+            direction: rtl;
+        }
+        
+        /* .navbar {
+            box-shadow: 0 2px 15px rgba(0, 0, 0, 0.1);
+            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+            padding: 0.8rem 1rem;
+direction: rtl;
+}        
+        .navbar-brand {
+            font-weight: 700;
+            font-size: 1.5rem;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .navbar-brand i {
+            font-size: 1.8rem;
+            color: white;
+        }
+        
+        .nav-link {
+            font-weight: 500;
+            padding: 0.5rem 1rem;
+            border-radius: 8px;
+            margin: 0 2px;
+            transition: all 0.3s ease;
+        }
+        
+        .nav-link:hover, .nav-link.active {
+            background-color: rgba(255, 255, 255, 0.2);
+            transform: translateY(-2px);
+        } */
+       
+        .card {
+            border: none;
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+            overflow: hidden;
+            background-color: white;
+        } 
+        
+        .card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+        }
+        
+        .card-header {
+            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+            color: white;
+            font-weight: 600;
+            border-bottom: none;
+            padding: 1rem 1.5rem;
+        }
+        
+        .btn-primary {
+            background-color: var(--primary-color);
+            border: none;
+            padding: 0.5rem 1.5rem;
+            border-radius: 8px;
+            font-weight: 500;
+            transition: all 0.3s ease;
+        }
+        
+        .btn-primary:hover {
+            background-color: var(--secondary-color);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(108, 99, 255, 0.3);
+        }
+        
+        .footer {
+            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+            color: white;
+            padding: 2rem 0;
+            margin-top: 3rem;
+            border-top-left-radius: 20px;
+            border-top-right-radius: 20px;
+        }
+        
+        .footer a {
+            color: rgba(255, 255, 255, 0.8);
+            transition: color 0.3s ease;
+        }
+        
+        .footer a:hover {
+            color: white;
+            text-decoration: none;
+        }
+        
+        .main-container {
+            min-height: calc(100vh - 150px);
+            /* padding: 2rem 0; */
+        }
+        
+        /* تأثيرات للعناصر */
+        .animate-hover:hover {
+            animation: pulse 1s;
+        }
+        
+        .gradient-text {
+            background: linear-gradient(135deg, var(--primary-color), var(--accent-color));
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+        }
+         */
+        /* زر الهامبرجر في الموبايل */
+    
+        /* تأثيرات دخول الصفحة */
+        .fade-in {
+            animation: fadeIn 0.5s ease-in;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .table>:not(caption)>*>*{
+            background-color: color(srgb 0.22 0.2134 0.2134) !important;
+        }
+    </style> 
+
+    {% block extra_head %}
+    {% endblock %}
+</head>
+<body>
+ 
+       <nav class="top-navbar1">
+        <a href="#" class="logo">Follow Up</a>
+         
+        <div class="nav-links">
+            <a href="/tracking/" class="btn nav-link2 active">Tracking</a>
+            <a href="{% url 'user' %}" class="btn nav-link2">Account</a>
+            <a href="{% url 'analytics' %}" class="btn nav-link2">Analytics</a>
+        </div>
+ 
+    </nav>
+   {% if not has_password %}
+        <div class="warn container-lg d-flex align-items-center justify-content-between p-1 my-3" style="padding-left:2rem; padding-right: 2rem; background-color:  rgba(220,53,69,0.12); border: 1px solid #dc3545; border-radius: 8px; margin-left: auto; margin-right: auto;">
+            <p class="Warning-text mb-0" style="color: #dc3545; font-weight: 500;">
+                Please set your password 
+            </p>
+<a href="#" class="btn btn-danger ms-3" data-bs-toggle="modal" data-bs-target="#setPasswordModal">Set password</a>
+        </div>
+        {% endif %}
+        
+
+
+<div class="modal fade"  id="setPasswordModal" tabindex="-1" aria-labelledby="setPasswordModalLabel" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <form method="post" action="">
+        {% csrf_token %}
+        <div class="modal-header">
+          <h5 class="modal-title" id="setPasswordModalLabel">Set a Password</h5>
+          <button type="button" style="margin: 0 !important;" class="btn-close" data-bs-dismiss="modal" aria-label="إغلاق"></button>
+        </div>
+        <div class="modal-body">
+          <div class="mb-3">
+             <label for="newPassword" class="form-label">New password</label>
+            <div class="d-flex">  
+            <input type="password" data-toggle="password" class="form-control password" id="newPassword" name="password1" required>
+          <span class="input-group-text" style="cursor: pointer;"  onclick="togglePassword('newPassword', 'eyeIcon1')">
+    <i class="fa fa-eye" id="eyeIcon1" ></i>
+  </span>
+ 
+</div>
+        </div>
+          <div class="mb-3">
+            <label for="confirmPassword" class="form-label"> Confirm password</label>
+                        <div class="d-flex">  
+
+            <input type="password" class="form-control" id="confirmPassword" name="password2" required>
+                <span class="input-group-text" style="cursor: pointer;" onclick="togglePassword('confirmPassword' ,'eyeIcon2' )">
+    <i class="fa fa-eye" id="eyeIcon2"></i>
+  </span>
+  <script>
+  function togglePassword(fieldId, iconId) {
+    const passwordInput = document.getElementById(fieldId);
+    const eyeIcon = document.getElementById(iconId);
+
+    if (passwordInput.type === "password") {
+      passwordInput.type = "text";
+      eyeIcon.classList.remove("fa-eye");
+      eyeIcon.classList.add("fa-eye-slash");
+    } else {
+      passwordInput.type = "password";
+      eyeIcon.classList.remove("fa-eye-slash");
+      eyeIcon.classList.add("fa-eye");
+    }
+  }
+    
+    // const eyeIcon = document.getElementById("eyeIcon");
+    // const isPassword = passwordInput.type === "password";
+    // passwordInput.type = isPassword ? "text" : "password";
+    // eyeIcon.className = isPassword ? "fa fa-eye-slash" : "fa fa-eye";
+//   }
+</script>
+</div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="submit" id="submitpass" class="btn btn-primary">Update</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+
+    <!-- المحتوى الأساسي -->
+    <main class="main-container fade-in">
+              
+        <!-- <div class="container"> -->
+            {% block content %}
+            {% endblock %}
+        <!-- </div> -->
+    </main>
+
+
+<!-- JS -->
+    <!-- <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script> -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        document.getElementById('submitpass').addEventListener('click', function(e) {
+            e.preventDefault();
+
+            // إزالة أي رسائل سابقة
+            let errorDiv = document.getElementById('password-error');
+            if (errorDiv) errorDiv.remove();
+
+            const password1 = document.getElementById('newPassword').value;
+            const password2 = document.getElementById('confirmPassword').value;
+
+            fetch('setpassword/', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                    'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+                },
+                body: `password1=${encodeURIComponent(password1)}&password2=${encodeURIComponent(password2)}`
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === "success") {
+                    this.disabled = true;
+                    this.textContent = "تم تغيير كلمة المرور بنجاح";
+                    setTimeout(() => {
+                        window.location.reload();
+                    }, 1200);
+                } else if (data.status === "error" && data.errors) {
+                    let errorHtml = `<div id="password-error" style="color:#dc3545; margin-top:10px;">`;
+                    data.errors.forEach(err => {
+                        errorHtml += `<div>${err}</div>`;
+                    });
+                    errorHtml += `</div>`;
+                    this.parentElement.insertAdjacentHTML('beforeend', errorHtml);
+                }
+            })
+            .catch(() => {
+                let errorHtml = `<div id="password-error" style="color:#dc3545; margin-top:10px;">حدث خطأ غير متوقع.</div>`;
+                this.parentElement.insertAdjacentHTML('beforeend', errorHtml);
+            });
+        });
+    });
+</script>
+ 
+    <script >
+        document.addEventListener('DOMContentLoaded', function() {
+    // تحديد الروابط الحالية
+    const currentPath = window.location.pathname;
+    
+    // تحديث حالة النشطة بناء على المسار الحالي
+    document.querySelectorAll('.nav-link2[href]').forEach(link => {
+        // إزالة الفئة النشطة من جميع الروابط
+        link.classList.remove('active');
+        
+        // التحقق إذا كان رابط التنقل يطابق المسار الحالي
+        if (link.getAttribute('href') === currentPath) {
+            link.classList.add('active');
+        }
+        
+        // إضافة معالج الحدث للنقر
+        link.addEventListener('click', function(e) {
+            // منع السلوك الافتراضي إذا كان رابطًا حقيقيًا
+            if (this.getAttribute('href').startsWith('http')) {
+                e.preventDefault();
+            }
+            
+            // تحديث الحالة النشطة
+            document.querySelectorAll('.nav-link2').forEach(l => l.classList.remove('active'));
+            this.classList.add('active');
+            
+            // إذا كان رابطًا داخليًا، يمكنك إضافة تنقل هنا
+        });
+    });
+});
+    </script>
+
+  
+
+
+    {% block extra_scripts %}
+    {% endblock %}
+</body>
+</html>

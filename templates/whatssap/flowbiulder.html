@@ -1,0 +1,3537 @@
+{% load static %}
+ 
+    <!-- Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@300;400;500;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/jerosoler/Drawflow@latest/dist/drawflow.min.css">
+
+    <style>
+        :root {
+            --primary: #7C3AED;
+            --primary-dark: #6D28D9;
+            --secondary: #10B981;
+            --danger: #EF4444;
+            --warning: #F59E0B;
+            --info: #3B82F6;
+            --background: #0F172A;
+            --surface: #1E293B;
+            --surface-light: #334155;
+            --surface-dark: #0F172A;
+            --text-primary: #F8FAFC;
+            --text-secondary: #CBD5E1;
+            --text-muted: #64748B;
+            --border: #334155;
+            --radius: 12px;
+            --shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5);
+            --sidebar-width: 320px;
+            --header-height: 60px;
+        }
+        /* تنسيق أدوات التحكم */
+/* 1. جعل الحاوية نافذة عرض فقط */
+/*  */
+
+.canvas-area:active {
+    cursor: grabbing;
+}
+
+/* 2. الحل الجذري: كانفاس عملاق جداً */
+#flow-canvas {
+    width: 5000px; /* عرض ضخم */
+    height: 5000px; /* ارتفاع ضخم */
+    position: absolute;
+    top: 0;
+    left: 0;
+    transform-origin: 0 0; /* نقطة الارتكاز في الزاوية */
+    
+    /* تصميم الشبكة (Grid) الاحترافي */
+    background-image: 
+        linear-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
+    background-size: 40px 40px; /* حجم المربعات */
+    background-color: #09090b;
+}
+
+/* 3. تصميم أزرار التحكم الاحترافي (Floating Dock) */
+.canvas-controls {
+    position: absolute;
+    bottom: 25px;
+    right: 25px; /* تم النقل لليمين */
+    z-index: 100;
+    
+    display: flex;
+    flex-direction: column; /* عمودي */
+    gap: 6px;
+    
+    background: #ffffff;
+    padding: 6px;
+    border-radius: 12px;
+    box-shadow: 0 10px 30px -5px rgba(0, 0, 0, 0.3);
+    border: 1px solid rgba(0,0,0,0.1);
+}
+
+.control-btn {
+    width: 36px;
+    height: 36px;
+    border: none;
+    background: transparent;
+    color: #18181b;
+    border-radius: 8px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1rem;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.control-btn:hover {
+    background: #f4f4f5;
+    color: #22c55e; /* أخضر عند التحويم */
+    transform: scale(1.05);
+}
+
+.control-btn:active {
+    transform: scale(0.95);
+}
+
+/* خط فاصل أنيق */
+.control-separator {
+    height: 1px;
+    background: #e4e4e7;
+    margin: 2px 4px;
+}
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Tajawal', sans-serif;
+            /* background: var(--background); */
+            color: var(--text-primary);
+            line-height: 1.6;
+            direction: ltr;
+        }
+
+        .none {
+            display: none !important;
+        }
+
+        /* Container for automations list */
+        .containerNew_auto {
+            max-width: 100%;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+
+        .containerNew_auto .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 2rem;
+            background-color: transparent;
+            height: auto;
+            padding: 0;
+        }
+
+        .containerNew_auto .title-section h1 {
+            font-size: 2rem;
+            font-weight: 700;
+            margin-bottom: 0.5rem;
+        }
+
+        .containerNew_auto .title-section p {
+            color: var(--text-secondary);
+            font-size: 1rem;
+        }
+
+        /* Buttons */
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.75rem 1.5rem;
+            border: none;
+            border-radius: 8px;
+            font-family: inherit;
+            font-size: 0.875rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            text-decoration: none;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+            color: white;
+        }
+
+        .btn-primary:hover:not(:disabled) {
+            transform: translateY(-1px);
+            box-shadow: 0 5px 15px rgba(124, 58, 237, 0.4);
+        }
+
+        .btn-secondary {
+            background: var(--surface-light);
+            color: var(--text-primary);
+            border: 1px solid var(--border);
+        }
+
+        .btn-secondary:hover:not(:disabled) {
+            background: var(--surface);
+            border-color: var(--primary);
+        }
+
+        .btn-danger {
+            background: var(--danger);
+            color: white;
+        }
+
+        .btn-sm {
+            padding: 0.5rem 0.875rem;
+            font-size: 0.75rem;
+        }
+
+        .btn-icon {
+            padding: 0.5rem;
+            width: 32px;
+            height: 32px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        /* Search */
+        .search-box {
+            margin-bottom: 2rem;
+        }
+
+        .search-input {
+            width: 100%;
+            padding: 0.75rem 1rem;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            color: var(--text-primary);
+            font-family: inherit;
+            font-size: 0.875rem;
+        }
+
+        .search-input:focus {
+            outline: none;
+            border-color: var(--primary);
+        }
+
+        /* Table */
+        .automations-table {
+            background: var(--surface);
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: var(--shadow);
+        }
+
+        .table-header {
+            display: grid;
+            grid-template-columns: 2fr 1fr 1fr 2fr 1fr;
+            gap: 1rem;
+            padding: 1rem 1.5rem;
+            background: var(--surface-light);
+            border-bottom: 1px solid var(--border);
+            font-weight: 600;
+            color: var(--text-secondary);
+        }
+
+        .table-row {
+            display: grid;
+            grid-template-columns: 2fr 1fr 1fr 2fr 1fr;
+            gap: 1rem;
+            padding: 1rem 1.5rem;
+            border-bottom: 1px solid var(--border);
+            align-items: center;
+        }
+
+        .table-row:last-child {
+            border-bottom: none;
+        }
+
+        .table-row:hover {
+            background: var(--surface-light);
+        }
+
+        /* Status Badges */
+        .status-active {
+            background: var(--secondary);
+            color: white;
+            padding: 0.25rem 0.75rem;
+            border-radius: 20px;
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+
+        .status-inactive {
+            background: var(--text-muted);
+            color: white;
+            padding: 0.25rem 0.75rem;
+            border-radius: 20px;
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+
+        /* Actions */
+        .actions {
+            display: flex;
+            gap: 0.5rem;
+        }
+
+        .menu-button {
+            position: relative;
+        }
+
+        .menu-dropdown {
+            position: absolute;
+            top: 100%;
+            right: 0;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 0.5rem;
+            min-width: 120px;
+            box-shadow: var(--shadow);
+            z-index: 100;
+            display: none;
+        }
+
+        .menu-dropdown.show {
+            display: block;
+        }
+
+        .menu-item {
+            display: block;
+            width: 100%;
+            padding: 0.5rem;
+            background: none;
+            border: none;
+            color: var(--text-primary);
+            text-align: right;
+            cursor: pointer;
+            border-radius: 4px;
+            font-family: inherit;
+        }
+
+        .menu-item:hover {
+            background: var(--surface-light);
+        }
+
+        /* Empty State */
+        .empty-state {
+            text-align: center;
+            padding: 3rem;
+            color: var(--text-secondary);
+        }
+
+        .empty-state .icon {
+            font-size: 4rem;
+            margin-bottom: 1rem;
+            opacity: 0.5;
+        }
+
+        /* Utility Classes */
+        .text-center {
+            text-align: center;
+        }
+
+        .text-muted {
+            color: var(--text-muted);
+        }
+
+        /* Flow Builder Styles */
+        .app-container {
+            display: none;
+            flex-direction: row;
+            height: 75vh;
+        }
+
+        .flow-builder-active {
+            display: flex !important;
+        }
+
+        /* Sidebar */
+        .sidebar {
+            width: var(--sidebar-width);
+            background: var(--surface-dark);
+            border-left: 1px solid var(--border);
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+            overflow: auto;
+        }
+
+        .sidebar-section {
+            padding: 1.5rem;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .section-title {
+            font-size: 0.875rem;
+            font-weight: 700;
+            color: var(--text-secondary);
+            margin-bottom: 1rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .section-title .icon {
+            font-size: 1rem;
+        }
+
+        /* Components Grid */
+        .components-grid {
+            display: grid;
+            gap: 0.75rem;
+        }
+
+        .component-item {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 1rem;
+            cursor: grab;
+            transition: all 0.2s ease;
+            text-align: right;
+            user-select: none;
+        }
+
+        .component-item:hover {
+            border-color: var(--primary);
+            transform: translateY(-2px);
+        }
+
+        .component-header {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .component-icon {
+            width: 24px;
+            height: 24px;
+            background: var(--primary);
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.75rem;
+        }
+
+        .component-title {
+            font-weight: 600;
+            font-size: 0.875rem;
+        }
+
+        .component-desc {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            line-height: 1.4;
+        }
+
+        /* Main Content */
+        .main-content {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            background: var(--background);
+        }
+
+        /* Header */
+        .header {
+            height: var(--header-height);
+            background: var(--surface);
+            border-bottom: 1px solid var(--border);
+            padding: 0 1.5rem;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .header-title {
+            font-size: 1.25rem;
+            font-weight: 700;
+        }
+
+        .header-actions {
+            display: flex;
+            gap: 0.75rem;
+            align-items: center;
+        }
+
+        /* Canvas Area */
+.canvas-area {
+    position: relative; /* ضروري لتحديد المواقع بداخله */
+    width: 100%;        /* يأخذ عرض الشاشة المتاح فقط */
+    height: 100%;       /* يأخذ ارتفاع الشاشة المتاح فقط */
+    overflow: hidden;   /* <--- هذا هو الحل! يخفي أي شيء زائد عن حجم الشاشة */
+    background-color: #0F172A;
+    cursor: grab;
+}
+
+
+   .canvas-area:active {
+    cursor: grabbing;
+}
+
+/* 2. الكانفاس العملاق (الخريطة): يتحرك داخل الإطار أعلاه */
+#flow-canvas {
+    width: 5000px;
+    height: 5000px;
+    position: absolute;
+    top: 0;
+    left: 0;
+    /* الإحداثيات التي وضعناها في JS ستضعه في المنتصف */
+    transform-origin: 0 0; 
+    background-image: 
+        linear-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
+    background-size: 20px 20px;
+}
+
+        /* Flow Node Styles */
+        .flow-node {
+            position: absolute;
+            width: 280px;
+            background: var(--surface);
+            border: 2px solid var(--border);
+            border-radius: 12px;
+            box-shadow: var(--shadow);
+            transition: all 0.3s ease;
+            cursor: move;
+            z-index: 100;
+        }
+
+        .flow-node:hover {
+            border-color: var(--primary);
+            transform: translateY(-2px);
+        }
+
+        .flow-node.selected {
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.2);
+        }
+
+        .node-header {
+            background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+            padding: 1rem;
+            border-radius: 10px 10px 0 0;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            color: white;
+        }
+
+        .node-icon {
+            width: 32px;
+            height: 32px;
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1rem;
+        }
+
+        .node-title {
+            flex: 1;
+            font-weight: 700;
+            font-size: 0.875rem;
+        }
+
+        .node-type {
+            font-size: 0.75rem;
+            opacity: 0.9;
+            background: rgba(255, 255, 255, 0.2);
+            padding: 0.25rem 0.5rem;
+            border-radius: 4px;
+        }
+
+        .node-body {
+            padding: 1rem;
+        }
+
+        .node-content {
+            font-size: 0.875rem;
+            color: var(--text-secondary);
+            margin-bottom: 1rem;
+        }
+
+        .node-properties {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        .node-property {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 0.75rem;
+            padding: 0.5rem;
+            background: var(--surface-light);
+            border-radius: 6px;
+        }
+
+        .node-footer {
+            padding: 1rem;
+            border-top: 1px solid var(--border);
+            display: flex;
+            gap: 0.5rem;
+            background: rgba(255, 255, 255, 0.02);
+        }
+
+        /* Overview Stats */
+        .overview-stats {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 0.75rem;
+            margin-bottom: 1rem;
+        }
+
+        .stat-item {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 0.75rem;
+            text-align: center;
+        }
+
+        .stat-value {
+            font-size: 1.25rem;
+            font-weight: 700;
+            color: var(--primary);
+            margin-bottom: 0.25rem;
+        }
+
+        .stat-label {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+        }
+
+        /* Form Elements */
+        .form-group {
+            margin-bottom: 1rem;
+        }
+
+        .form-label {
+            display: block;
+            font-size: 0.875rem;
+            font-weight: 500;
+            margin-bottom: 0.5rem;
+            color: var(--text-primary);
+        }
+
+        .form-input, .form-select, .form-textarea {
+            width: 100%;
+            padding: 0.75rem;
+            background: var(--surface-light);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            color: var(--text-primary);
+            font-family: inherit;
+            font-size: 0.875rem;
+            transition: all 0.2s ease;
+        }
+
+        .form-input:focus, .form-select:focus, .form-textarea:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.2);
+        }
+
+        /* Scrollbar */
+        ::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: var(--surface-light);
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: var(--border);
+            border-radius: 3px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: var(--text-muted);
+        }
+
+        /* Connection Styles */
+        .jtk-connector {
+            cursor: pointer;
+            z-index: 10;
+        }
+
+        .jtk-endpoint {
+            cursor: pointer;
+            z-index: 11;
+        }
+
+        .jtk-overlay {
+            cursor: pointer;
+            z-index: 12;
+        }
+
+        /* تأثيرات للعقدة في وضع الربط */
+        .flow-node.connection-source {
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7); }
+            70% { box-shadow: 0 0 0 10px rgba(16, 185, 129, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
+        }
+
+        /* تحسين مظهر الأزرار */
+        .btn-group {
+            display: flex;
+            gap: 0.75rem;
+        }
+
+        .w-full {
+            width: 100%;
+        }
+
+        /* أنماط عناصر التحكم في التكبير */
+        .zoom-controls {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 0.5rem;
+        }
+
+        .zoom-buttons {
+            display: flex;
+            align-items: center;
+            gap: 0.25rem;
+        }
+
+        .zoom-level {
+            font-size: 0.75rem;
+            font-weight: 600;
+            color: var(--text-primary);
+            min-width: 45px;
+            text-align: center;
+        }
+
+        /* أنماط الـ Trigger المتقدم */
+        .trigger-node {
+            width: 320px;
+        }
+
+        .trigger-conditions {
+            max-height: 200px;
+            overflow-y: auto;
+            margin-bottom: 1rem;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 0.75rem;
+        }
+
+        .condition-item {
+            background: var(--surface-light);
+            border-radius: 6px;
+            padding: 0.75rem;
+            margin-bottom: 0.5rem;
+            border-left: 3px solid var(--primary);
+        }
+
+        .condition-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 0.5rem;
+            font-size: 0.875rem;
+            font-weight: 600;
+        }
+
+        .trigger-actions {
+            border-top: 1px solid var(--border);
+            padding-top: 1rem;
+        }
+
+        .action-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0.5rem;
+            background: var(--surface-light);
+            border-radius: 6px;
+        }
+
+        /* أنماط الـ Modal */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.5);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 10000;
+        }
+
+        .modal-content {
+            background: var(--surface);
+            border-radius: 12px;
+            width: 90%;
+            max-width: 500px;
+            max-height: 80vh;
+            overflow: auto;
+        }
+
+        .modal-header {
+            padding: 1.5rem;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .modal-body {
+            padding: 1.5rem;
+        }
+
+        .modal-footer {
+            padding: 1.5rem;
+            border-top: 1px solid var(--border);
+            display: flex;
+            gap: 0.75rem;
+            justify-content: flex-end;
+        }
+
+        /* أنماط الوسوم */
+        .tags-list {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+            margin-bottom: 1rem;
+        }
+
+        .tag-item {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.5rem;
+            background: var(--surface-light);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .tag-item:hover {
+            border-color: var(--primary);
+        }
+
+        .tag-item.selected {
+            background: var(--primary);
+            color: white;
+        }
+
+        .tag-color {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+        }
+
+        .tag-name {
+            font-size: 0.875rem;
+        }
+
+        .tag-badge {
+            display: inline-flex;
+            align-items: center;
+            padding: 0.25rem 0.5rem;
+            background: var(--primary);
+            color: white;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            margin: 0.125rem;
+        }
+
+        .tag-selector {
+            display: flex;
+            gap: 0.5rem;
+            align-items: center;
+        }
+
+        .add-tag-section {
+            border-top: 1px solid var(--border);
+            padding-top: 1rem;
+            margin-top: 1rem;
+        }
+
+        .add-tag-section .form-group {
+            display: flex;
+            gap: 0.5rem;
+            align-items: center;
+        }
+
+        .add-tag-section input[type="text"] {
+            flex: 1;
+        }
+
+        .add-tag-section input[type="color"] {
+            width: 40px;
+            height: 40px;
+            padding: 0;
+            border: none;
+            background: transparent;
+        }
+
+        .mt-1 {
+            margin-top: 0.25rem;
+        }
+    </style>
+ 
+    <!-- Automations List -->
+    <div class="containerNew_auto" id="automations-container">
+        <!-- Header -->
+        <div class="header">
+            <div class="title-section">
+                <h1>My Automations</h1>
+                <p>Respond automatically to messages based on your own criteria</p>
+            </div>
+            <button class="btn btn-primary" id="new-automation-btn">
+                <span>+</span>
+                New Automation
+            </button>
+        </div>
+
+        <!-- Search -->
+        <div class="search-box">
+            <input type="text" class="search-input" placeholder="Search by name or trigger text" id="search-input">
+        </div>
+
+        <!-- Automations Table -->
+        <div class="automations-table">
+            <div class="table-header">
+                <div>Name</div>
+                <div class="text-center">Runs</div>
+                <div class="text-center">Status</div>
+                <div>Last Updated</div>
+                <div class="text-center">Actions</div>
+            </div>
+            <div id="automations-list" style="overflow: auto; max-height: 60vh;">
+                <!-- سيتم ملؤها بالبيانات -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Flow Builder -->
+    <div class="app-container none" id="flow-builder-container">
+
+         
+
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <!-- Header -->
+            <header class="header"> 
+                <div class="header-title">
+                <button class="btn btn-primary" id="back_to_auto">
+                <span> </span>
+                Back
+            </button>
+            <script>
+                document.getElementById('back_to_auto').addEventListener('click', function() {
+                    document.getElementById('flow-builder-container').classList.add('none');
+                     document.getElementById('flow-builder-container').classList.remove('flow-builder-active');
+
+                     
+                    document.getElementById('automations-container').classList.remove('none');
+                });
+            </script>
+        </div>
+                <div class="header-actions">
+                    <select class="form-select" id="flow-select" style="width: 200px;">
+                        <option value="">-- Select Flow --</option>
+                    </select>
+                    <button class="btn btn-secondary" id="load-flow-btn">Load</button>
+                    <button class="btn btn-primary" id="save-flow-btn">Save</button>
+                    <button class="btn btn-secondary" id="layout-btn">Auto Layout</button>
+                    <button class="btn btn-danger" id="clear-btn">Clear All</button>
+                </div>
+            </header>
+
+            <!-- Canvas Area -->
+            <div class="canvas-area">
+
+
+  <div class="canvas-controls">
+    <button class="control-btn" id="btn-zoom-in" title="Zoom In"><i class="fas fa-plus"></i></button>
+    <button class="control-btn" id="btn-zoom-reset" title="Reset"><i class="fas fa-expand"></i></button>
+    <button class="control-btn" id="btn-zoom-out" title="Zoom Out"><i class="fas fa-minus"></i></button>
+    
+    <div class="control-separator"></div> <button class="control-btn" id="btn-fullscreen" title="Full Screen"><i class="fas fa-compress"></i></button>
+</div>
+ 
+                <div id="flow-canvas">
+             
+
+  
+ 
+                    <div class="empty-state">
+                        <div class="icon">🎨</div>
+                        <h3>Welcome to Flow Builder</h3>
+                        <p>Drag components from the sidebar to start building your workflow</p>
+                        <div class="btn-group">
+                            <button class="btn btn-primary" id="sample-flow-btn">
+                                Create Sample Flow
+                            </button>
+                            <button class="btn btn-secondary" id="load-existing-btn">
+                                Load Existing Flow
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+        </main>
+
+        <!-- Sidebar -->
+        <aside class="sidebar">
+            <!-- Overview Section -->
+            <div class="sidebar-section">
+                <h3 class="section-title">
+                    <span class="icon">📊</span>
+                    Overview
+                </h3>
+                <div class="overview-stats">
+                    <div class="stat-item">
+                        <div class="stat-value" id="node-count">0</div>
+                        <div class="stat-label">Nodes</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-value" id="connection-count">0</div>
+                        <div class="stat-label">Connections</div>
+                    </div>
+                </div>
+                <button class="btn btn-primary w-full" id="add-variable-btn">
+                    <span>+</span>
+                    Add Variable
+                </button>
+            </div>
+
+            <!-- Messages Section -->
+            <div class="sidebar-section">
+                <h3 class="section-title">
+                    <span class="icon">💬</span>
+                    Messages
+                </h3>
+                <div class="components-grid">
+                    <div class="component-item" data-type="text-message" draggable="true">
+                        <div class="component-header">
+                            <div class="component-icon">📝</div>
+                            <div class="component-title">Text Message</div>
+                        </div>
+                        <div class="component-desc">Send a simple text message</div>
+                    </div>
+                    <div class="component-item" data-type="media-message" draggable="true">
+                        <div class="component-header">
+                            <div class="component-icon">🖼️</div>
+                            <div class="component-title">Media</div>
+                        </div>
+                        <div class="component-desc">Image, Video, Audio, File</div>
+                    </div>
+                    <div class="component-item" data-type="buttons-message" draggable="true">
+                        <div class="component-header">
+                            <div class="component-icon">🔘</div>
+                            <div class="component-title">Interactive Buttons</div>
+                        </div>
+                        <div class="component-desc">Button choices</div>
+                    </div>
+                    <div class="component-item" data-type="list-message" draggable="true">
+                        <div class="component-header">
+                            <div class="component-icon">📋</div>
+                            <div class="component-title">Interactive List</div>
+                        </div>
+                        <div class="component-desc">Dropdown list for selections</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Actions Section -->
+            <div class="sidebar-section">
+                <h3 class="section-title">
+                    <span class="icon">⚡</span>
+                    Actions
+                </h3>
+                <div class="components-grid">
+                    <div class="component-item" data-type="condition" draggable="true">
+                        <div class="component-header">
+                            <div class="component-icon">🔀</div>
+                            <div class="component-title">Condition</div>
+                        </div>
+                        <div class="component-desc">Branch based on a condition</div>
+                    </div>
+                    <div class="component-item" data-type="trigger" draggable="true">
+                        <div class="component-header">
+                            <div class="component-icon">🔔</div>
+                            <div class="component-title">Flow Trigger</div>
+                        </div>
+                        <div class="component-desc">Start flow when conditions are met</div>
+                    </div>
+                    <div class="component-item" data-type="delay" draggable="true">
+                        <div class="component-header">
+                            <div class="component-icon">⏱️</div>
+                            <div class="component-title">Delay</div>
+                        </div>
+                        <div class="component-desc">Delay before the next action</div>
+                    </div>
+                    <div class="component-item" data-type="webhook" draggable="true">
+                        <div class="component-header">
+                            <div class="component-icon">🌐</div>
+                            <div class="component-title">Webhook</div>
+                        </div>
+                        <div class="component-desc">Call external API</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Contact Management -->
+            <div class="sidebar-section">
+                <h3 class="section-title">
+                    <span class="icon">👥</span>
+                    Contact Management
+                </h3>
+                <div class="components-grid">
+                    <div class="component-item" data-type="add-contact" draggable="true">
+                        <div class="component-header">
+                            <div class="component-icon">➕</div>
+                            <div class="component-title">Add Contact</div>
+                        </div>
+                        <div class="component-desc">Add a contact to the group</div>
+                    </div>
+                    <div class="component-item" data-type="update-contact" draggable="true">
+                        <div class="component-header">
+                            <div class="component-icon">✏️</div>
+                            <div class="component-title">Update Contact</div>
+                        </div>
+                        <div class="component-desc">Update contact information</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tags Section -->
+            <div class="sidebar-section">
+                <h3 class="section-title">
+                    <span class="icon">🏷️</span>
+                    Tags
+                </h3>
+                <div class="components-grid">
+                    <div class="component-item" data-type="add-tags" draggable="true">
+                        <div class="component-header">
+                            <div class="component-icon">➕</div>
+                            <div class="component-title">Add Tags</div>
+                        </div>
+                        <div class="component-desc">Add tags to contacts</div>
+                    </div>
+                    <div class="component-item" data-type="remove-tags" draggable="true">
+                        <div class="component-header">
+                            <div class="component-icon">➖</div>
+                            <div class="component-title">Remove Tags</div>
+                        </div>
+                        <div class="component-desc">Remove tags from contacts</div>
+                    </div>
+                </div>
+            </div>
+        </aside>
+    </div>
+ <script src="https://cdn.jsdelivr.net/gh/jerosoler/Drawflow@latest/dist/drawflow.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jsPlumb/2.15.6/js/jsplumb.min.js"></script>
+  
+  
+  
+  <script>
+    // دالة عالمية للحصول على قيمة الكوكي
+    function getCookie(name) {
+        let cookieValue = null;
+        if (document.cookie && document.cookie !== '') {
+            const cookies = document.cookie.split(';');
+            for (let i = 0; i < cookies.length; i++) {
+                const cookie = cookies[i].trim();
+                if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                    break;
+                }
+            }
+        }
+        return cookieValue;
+    }
+
+    /**
+     * كلاس لإدارة قائمة التلقائيات
+     */
+    class AutomationsList {
+        constructor() {
+            this.apiBaseUrl = "/discount/whatssapAPI"; 
+            this.flows = [];
+            this.selectedFlowId = null;
+            this.initializeEventListeners();
+            this.loadAutomations();
+        }
+
+        initializeEventListeners() {
+            document.getElementById('new-automation-btn').addEventListener('click', () => this.showCreateFlowForm());
+            const searchInput = document.getElementById('search-input');
+            searchInput.addEventListener('input', this.debounce((e) => this.searchAutomations(e.target.value), 300));
+            document.addEventListener('click', (e) => {
+                if (!e.target.closest('.menu-button')) this.closeAllMenus();
+            });
+
+ 
+
+        }
+
+        debounce(func, delay) {
+            let timeout;
+            return (...args) => {
+                clearTimeout(timeout);
+                timeout = setTimeout(() => func(...args), delay);
+            };
+        }
+
+
+
+
+  
+
+      showCreateFlowForm() {
+    document.getElementById('createFlowModal').style.display = 'flex';
+
+    document.getElementById('cf-save').onclick = () => {
+        const flowName = document.getElementById('cf-name').value.trim();
+        const flowDescription = document.getElementById('cf-desc').value.trim();
+
+        if (!flowName) {
+            alert('Flow name is required');
+            return;
+        }
+
+        this.createNewFlow(flowName, flowDescription);
+        this.closeCreateFlowForm();
+    };
+
+    document.getElementById('cf-cancel').onclick = () => {
+        this.closeCreateFlowForm();
+    };
+}
+
+closeCreateFlowForm() {
+    document.getElementById('createFlowModal').style.display = 'none';
+    document.getElementById('cf-name').value = '';
+    document.getElementById('cf-desc').value = '';
+}
+
+
+        async createNewFlow(name, description = '') {
+            try {
+                const newFlow = {
+                    name,
+                    description,
+                    config: { nodes: [], connections: [] },
+                    active: false,
+                    count: 0 ,
+                    channel_id :  window.currentChannelId
+                };
+                const response = await this.apiPost(`${this.apiBaseUrl}/api/flows/create/`, newFlow);
+                if (response.success && response.item) {
+                    this.showSuccess('Automation created successfully');
+                    this.selectedFlowId = response.item.id;
+                    this.showFlowBuilder();
+                } else if (response.flow_id) {
+                    this.selectedFlowId = response.flow_id;
+                    this.showFlowBuilder();
+                }
+            } catch (error) {
+                console.error('Error creating flow:', error);
+                this.showError('Failed to create automation');
+            }
+        }
+
+        async loadAutomations() {
+            try {
+                const response = await this.apiGet(`${this.apiBaseUrl}/api/flows?channel_id=${window.currentChannelId}`);
+                this.flows = response.items || [];
+                this.renderAutomations(this.flows);
+            } catch (error) {
+                console.error('Failed to load automations:', error);
+                this.showError('Failed to load automations list');
+            }
+        }
+
+
+
+
+        async refreshForChannel(channelId) {
+        console.log("🔄 Reloading automations for channel:", channelId);
+        
+        // 1. تنظيف القائمة الحالية وعرض رسالة تحميل
+        const container = document.getElementById('automations-list');
+        if (container) {
+            container.innerHTML = '<div class="cls3741_loader_new"><div class="cls3741_spinner"></div></div>';
+        }
+
+        window.currentChannelId = channelId
+        // هذا السطر اختياري لأن loadAutomations يستخدم window.currentChannelId
+        
+        // 3. إعادة طلب البيانات
+        await this.loadAutomations();
+    }
+
+
+
+        renderAutomations(flows) {
+            const container = document.getElementById('automations-list');
+            if (!flows || flows.length === 0) {
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <div class="icon">🤖</div>
+                        <h3>No automations yet</h3>
+                        <p>Create your first automation to get started</p>
+                    </div>
+                `;
+                return;
+            }
+            container.innerHTML = flows.map(flow => `
+                <div class="table-row" data-flow-id="${flow.id}">
+                    <div class="flow-name">
+                        <strong>${this.escapeHtml(flow.name)}</strong>
+                        ${flow.description ? `<div class="flow-description">${this.escapeHtml(flow.description)}</div>` : ''}
+                    </div>
+                    <div class="text-center flow-runs">
+                        ${flow.count || 0}
+                    </div>
+                    <div class="text-center flow-status">
+                        <span class="${flow.active ? 'status-active' : 'status-inactive'}">
+                            ${flow.active ? 'Active' : 'Inactive'}
+                        </span>
+                    </div>
+                    <div class="flow-updated">
+                        ${this.formatDate(flow.updated_at || flow.created_at)}
+                    </div>
+                    <div class="text-center actions">
+                        <div class="menu-button">
+                            <button class="btn btn-secondary btn-icon menu-toggle-btn" data-flow-id="${flow.id}">
+                                ⋮
+                            </button>
+                            <div class="menu-dropdown" id="menu-${flow.id}">
+                                <button class="menu-item" data-action="toggle" id="toggle-${flow.id}" data-flow-id="${flow.id}">
+                                    ${flow.active ? '⏸️ Deactivate' : '▶️ Activate'}
+                                </button>
+                                <button class="menu-item" data-action="edit" data-flow-id="${flow.id}">
+                                    ✏️ Edit
+                                </button>
+                                <button class="menu-item" data-action="duplicate" data-flow-id="${flow.id}">
+                                    ⎘ Duplicate
+                                </button>
+                                <button class="menu-item" style="color: var(--danger);" data-action="delete" data-flow-id="${flow.id}">
+                                    🗑️ Delete
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+            document.querySelectorAll('.menu-toggle-btn').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    const flowId = e.target.dataset.flowId;
+                    this.toggleMenu(flowId);
+                });
+            });
+            document.querySelectorAll('.menu-item').forEach(item => {
+                item.addEventListener('click', (e) => {
+                    const action = e.target.dataset.action;
+                    const flowId = e.target.dataset.flowId;
+                    if (action === 'toggle') this.toggleFlow(flowId);
+                    else if (action === 'edit') this.editFlow(flowId);
+                    else if (action === 'duplicate') this.duplicateFlow(flowId);
+                    else if (action === 'delete') this.deleteFlow(flowId);
+                });
+            });
+        }
+
+      
+        toggleMenu(flowId) {
+            this.closeAllMenus();
+            const menu = document.getElementById(`menu-${flowId}`);
+            if (menu) menu.classList.toggle('show');
+        }
+
+        closeAllMenus() {
+            document.querySelectorAll('.menu-dropdown').forEach(menu => menu.classList.remove('show'));
+        }
+
+        async toggleFlow(flowId) {
+            try {
+                const flow = flowId
+                console.log('flow ' , flow)
+                if (!flow) return;
+                const updatedFlow = { ...flow, active: !flow.active };
+                const response = await this.apiPost(`${this.apiBaseUrl}/api/flows/${flowId}/turnoff/`, updatedFlow);
+                if (response.success && response.item) {
+                    this.showSuccess(`Automation ${updatedFlow.active ? 'activated' : 'deactivated'} successfully`);
+                    this.loadAutomations();
+                }
+            } catch (error) {
+                console.error('Error toggling flow:', error);
+                this.showError('Failed to change automation status');
+            }
+        }
+
+        editFlow(flowId) {
+            this.selectedFlowId = flowId;
+            this.showFlowBuilder();
+            if (window.flowBuilder) {
+                window.flowBuilder.currentFlowId = flowId;
+                window.flowBuilder.loadFlow(flowId);
+            }
+        }
+
+        async duplicateFlow(flowId) {
+            try {
+                const flow = this.flows.find(f => f.id === flowId);
+                if (!flow) return;
+                const newFlow = {
+                    name: `${flow.name} (Copy)`,
+                    description: flow.description ? `${flow.description} (Copy)` : '',
+                    config: flow.config,
+                    active: false,
+                    count: 0
+                };
+                const response = await this.apiPost(`${this.apiBaseUrl}/api/flows/create/`, newFlow);
+                if (response.success && response.item) {
+                    this.showSuccess('Automation duplicated successfully');
+                    this.loadAutomations();
+                }
+            } catch (error) {
+                console.error('Error duplicating flow:', error);
+                this.showError('Failed to duplicate automation');
+            }
+        }
+
+        async deleteFlow(flowId) {
+            if (!confirm('Are you sure you want to delete this automation? This action cannot be undone.')) return;
+            try {
+                const response = await this.apiPost(`${this.apiBaseUrl}/api/flows/${flowId}/delete/`, {});
+                if (response.ok || response.success) {
+                    this.showSuccess('Automation deleted successfully');
+                    this.loadAutomations();
+                }
+            } catch (error) {
+                console.error('Error deleting flow:', error);
+                this.showError('Failed to delete automation');
+            }
+        }
+
+        searchAutomations(query) {
+            const lowerQuery = query.toLowerCase();
+            const filteredFlows = this.flows.filter(flow =>
+                flow.name.toLowerCase().includes(lowerQuery) ||
+                (flow.description && flow.description.toLowerCase().includes(lowerQuery))
+            );
+            this.renderAutomations(filteredFlows);
+        }
+
+        showFlowBuilder() {
+            const automationsContainer = document.getElementById('automations-container');
+            const flowBuilderContainer = document.getElementById('flow-builder-container');
+            automationsContainer?.classList.add('none');
+            flowBuilderContainer?.classList.remove('none');
+            flowBuilderContainer?.classList.add('flow-builder-active');
+            if (window.flowBuilder) {
+                if (this.selectedFlowId) {
+                    window.flowBuilder.loadFlow(this.selectedFlowId);
+                } else {
+                    window.flowBuilder.clearCanvas();
+                }
+            }
+        }
+
+        showAutomationsList() {
+            this.selectedFlowId = null;
+            const automationsContainer = document.getElementById('automations-container');
+            const flowBuilderContainer = document.getElementById('flow-builder-container');
+            automationsContainer?.classList.remove('none');
+            flowBuilderContainer?.classList.add('none');
+            flowBuilderContainer?.classList.remove('flow-builder-active');
+        }
+
+        async apiGet(url) {
+            const response = await fetch(url, { headers: { 'Accept': 'application/json' } });
+            if (!response.ok) throw new Error(`HTTP ${response.status}: ${await response.text()}`);
+            return response.json();
+        }
+
+        async apiPost(url, data) {
+            const response = await fetch(url, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': getCookie('csrftoken')
+                },
+                body: JSON.stringify(data)
+            });
+            if (!response.ok) throw new Error(`HTTP ${response.status}: ${await response.text()}`);
+            return response.json();
+        }
+
+        escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        formatDate(dateString) {
+            if (!dateString) return 'Never';
+            const date = new Date(dateString);
+            const now = new Date();
+            const diffTime = Math.abs(now - date);
+            const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+            if (diffDays === 1) return 'Yesterday';
+            if (diffDays < 7) return `${diffDays} days ago`;
+            return date.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
+        }
+
+        showSuccess(message) {
+            this.showNotification(message, 'success');
+        }
+
+        showError(message) {
+            this.showNotification(message, 'error');
+        }
+
+        showNotification(message, type = 'info') {
+            const notification = document.createElement('div');
+            notification.style.cssText = `
+                position: fixed; top: 20px; right: 20px; padding: 12px 20px; border-radius: 8px;
+                color: white; font-weight: 500; z-index: 10000; transition: all 0.3s ease;
+                background: ${type === 'success' ? '#10B981' : type === 'error' ? '#EF4444' : '#3B82F6'};
+                box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5);
+            `;
+            notification.textContent = message;
+            document.body.appendChild(notification);
+            setTimeout(() => {
+                notification.style.opacity = '0';
+                setTimeout(() => notification.remove(), 300);
+            }, 3000);
+        }
+    }
+
+
+
+    document.addEventListener('DOMContentLoaded', () => {
+    // إنشاء الكائن
+    const automationsList = new AutomationsList();
+    
+    // 🔥 جعل الكائن عاماً 🔥
+    window.automationsListInstance = automationsList; 
+
+    // ... باقي كود التهيئة ...
+});
+ 
+
+ 
+ 
+
+class FlowBuilder {
+    constructor() {
+        this.csrfToken = getCookie('csrftoken');
+        this.selectedNode = null;
+        this.nodeCounter = 0;
+        this.currentFlowId = null;
+        this.currentFlowName = '';
+        this.currentFlowDescription = '';
+        this.jsPlumbInstance = null;
+        this.connectionMode = false;
+        this.connectionSource = null;
+        this.connectionBranch = null;
+        this.zoomLevel = 1.0;
+        this.zoomStep = 0.02;
+        this.minZoom = 0.3;
+        this.maxZoom = 3.0;
+        this.isLoadingFlow = false;
+        this.initializeElements();
+        this.initializeEventListeners();
+        this.initializeJsPlumb();
+        this.setupDragAndDrop();
+        this.initializeZoom();
+        this.updateStats();
+        this.initFileUploadListeners();
+
+
+this.connectionBranch = null;
+        
+        // --- أضف هذه الأسطر الجديدة هنا ---
+        this.zoomLevel = 1.0;
+        // ابدأ من منتصف الكانفاس العملاق (5000/2 = 2500 تقريباً)
+        this.pan = { x: -2000, y: -2000 }; 
+        this.isPanning = false;
+        // ----------------------------------
+
+        this.isLoadingFlow = false;
+
+
+    }
+
+    // ==========================================
+    // تهيئة العناصر الأساسية
+    // ==========================================
+    initializeElements() {
+        this.flowCanvas = document.getElementById('flow-canvas');
+        this.saveFlowBtn = document.getElementById('save-flow-btn');
+        this.clearBtn = document.getElementById('clear-btn');
+        this.layoutBtn = document.getElementById('layout-btn');
+        this.addVariableBtn = document.getElementById('add-variable-btn');
+        this.sampleFlowBtn = document.getElementById('sample-flow-btn');
+        // إخفاء العناصر غير المرغوبة
+        const loadFlowBtn = document.getElementById('load-flow-btn');
+        const flowSelect = document.getElementById('flow-select');
+        const loadExistingBtn = document.getElementById('load-existing-btn');
+        if (loadFlowBtn) loadFlowBtn.style.display = 'none';
+        if (flowSelect) flowSelect.style.display = 'none';
+        if (loadExistingBtn) loadExistingBtn.style.display = 'none';
+        this.nodeCountEl = document.getElementById('node-count');
+        this.connectionCountEl = document.getElementById('connection-count');
+    }
+
+    // ==========================================
+    // تهيئة Event Listeners
+    // ==========================================
+    initializeEventListeners() {
+        this.saveFlowBtn.addEventListener('click', () => this.saveFlow());
+        this.clearBtn.addEventListener('click', () => this.clearCanvas());
+        this.layoutBtn.addEventListener('click', () => this.autoLayout());
+        this.addVariableBtn.addEventListener('click', () => this.addVariable());
+        this.sampleFlowBtn.addEventListener('click', () => this.addSampleFlow());
+    }
+
+    // ==========================================
+    // تهيئة jsPlumb
+    // ==========================================
+    initializeJsPlumb() {
+        if (typeof jsPlumb === 'undefined') {
+            console.error('jsPlumb not loaded, retrying...');
+            setTimeout(() => this.initializeJsPlumb(), 100);
+            return;
+        }
+        this.jsPlumbInstance = jsPlumb.getInstance({
+            Connector: ["Flowchart", { cornerRadius: 5, stub: 5 }],
+            PaintStyle: {
+                stroke: "#7C3AED",
+                strokeWidth: 2,
+                outlineStroke: "transparent",
+                outlineWidth: 10
+            },
+            EndpointStyle: {
+                fill: "#7C3AED",
+                radius: 5
+            },
+            HoverPaintStyle: {
+                stroke: "#10B981",
+                strokeWidth: 3
+            },
+            ConnectionOverlays: [
+                ["Arrow", {
+                    location: 1,
+                    width: 12,
+                    length: 12,
+                    foldback: 0.8
+                }]
+            ],
+            Container: "flow-canvas",
+            DragOptions: { cursor: 'pointer', zIndex: 2000 },
+            DropOptions: { hoverClass: 'drag-hover' }
+        });
+        this.setupJsPlumbEvents();
+        console.log('✅ jsPlumb initialized successfully');
+    }
+
+    // ==========================================
+    // إعداد أحداث jsPlumb
+    // ==========================================
+    setupJsPlumbEvents() {
+        this.jsPlumbInstance.bind("connection", (info) => {
+            this.updateStats();
+            console.log('🔗 Connection established:', info);
+        });
+        this.jsPlumbInstance.bind("connectionDetached", (info) => {
+            this.updateStats();
+            console.log('🔗 Connection detached:', info);
+        });
+        this.jsPlumbInstance.bind("click", (conn, originalEvent) => {
+            if (confirm('Delete this connection?')) {
+                this.jsPlumbInstance.deleteConnection(conn);
+                this.showNotification('Connection deleted', 'success');
+            }
+        });
+        this.jsPlumbInstance.bind("connectionMoved", (info) => {
+            console.log('🔗 Connection moved:', info);
+        });
+    }
+
+    // ==========================================
+    // إعداد Drag & Drop
+    // ==========================================
+    setupDragAndDrop() {
+        const components = document.querySelectorAll('.component-item');
+      
+        components.forEach(component => {
+            component.addEventListener('dragstart', (e) => {
+                e.dataTransfer.setData('component-type', component.dataset.type);
+                e.dataTransfer.effectAllowed = 'copy';
+            });
+        });
+        this.flowCanvas.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            e.dataTransfer.dropEffect = 'copy';
+        });
+        this.flowCanvas.addEventListener('drop', (e) => {
+            e.preventDefault();
+            const componentType = e.dataTransfer.getData('component-type');
+            const rect = this.flowCanvas.getBoundingClientRect();
+            const x = (e.clientX - rect.left) / this.zoomLevel - 140;
+            const y = (e.clientY - rect.top) / this.zoomLevel - 50;
+          
+            this.createNode(componentType, x, y);
+        });
+    }
+
+    // ==========================================
+    // إنشاء عقدة جديدة (Drag & Drop)
+    // ==========================================
+    createNode(type, x, y) {
+        this.nodeCounter++;
+        const nodeId = `node-${this.nodeCounter}`;
+      
+        const node = document.createElement('div');
+        node.className = 'flow-node';
+        node.id = nodeId;
+        node.dataset.nodeType = type;
+        node.style.left = x + 'px';
+        node.style.top = y + 'px';
+      
+        const emptyState = this.flowCanvas.querySelector('.empty-state');
+        if (emptyState) {
+            emptyState.remove();
+        }
+      
+        node.innerHTML = this.getNodeTemplate(type)(nodeId);
+      
+        this.flowCanvas.appendChild(node);
+        this.initializeNodeSafe(node);
+        this.updateStats();
+      
+        return nodeId;
+    }
+
+    // ==========================================
+    // الحصول على قالب العقدة حسب النوع
+    // ==========================================
+    getNodeTemplate(type) {
+        const templates = {
+            'text-message': this.createTextMessageNodeTemplate,
+            'media-message': this.createMediaMessageNodeTemplate,
+            'buttons-message': this.createButtonsMessageNodeTemplate,
+            'list-message': this.createListMessageNodeTemplate,
+            'condition': this.createConditionNodeTemplate,
+            'delay': this.createDelayNodeTemplate,
+            'webhook': this.createWebhookNodeTemplate,
+            'add-contact': this.createAddContactNodeTemplate,
+            'update-contact': this.createUpdateContactNodeTemplate,
+            'add-tags': this.createAddTagsNodeTemplate,
+            'remove-tags': this.createRemoveTagsNodeTemplate,
+            'trigger': this.createTriggerNodeTemplate
+        };
+        return templates[type] || templates['text-message'];
+    }
+
+    // ==========================================
+    // قوالب العقد (Templates)
+    // ==========================================
+    createTextMessageNodeTemplate(nodeId) {
+        return `
+            <div class="node-header">
+                <div class="node-icon">📝</div>
+                <div class="node-title">Text Message</div>
+                <div class="node-type">text-message</div>
+            </div>
+            <div class="node-body">
+                <div class="node-content">
+                    <textarea class="message-content form-textarea" placeholder="Enter message text..." rows="3">Hello! How can I help you?</textarea>
+                </div>
+                <div class="node-properties">
+                    <div class="node-property">
+                        <span>Delay:</span>
+                        <input type="number" value="0" min="0" class="delay-input form-input" style="width: 60px;"> seconds
+                    </div>
+                </div>
+            </div>
+            <div class="node-footer">
+                <button class="btn btn-secondary btn-sm connect-btn" data-node-id="${nodeId}">Connect</button>
+                <button class="btn btn-danger btn-sm delete-node-btn">Delete</button>
+            </div>
+        `;
+    }
+
+    createMediaMessageNodeTemplate(nodeId) {
+        return `
+            <div class="node-header">
+                <div class="node-icon">🖼️</div>
+                <div class="node-title">Media Message</div>
+                <div class="node-type">media-message</div>
+            </div>
+            <div class="node-body">
+                <div class="node-content">
+                    <textarea class="caption-content form-textarea" placeholder="Caption (optional)..." rows="2"></textarea>
+                </div>
+                <div class="form-group">
+                    <select class="media-type form-select">
+                        <option value="image">Image</option>
+                        <option value="video">Video</option>
+                        <option value="audio">Audio</option>
+                        <option value="file">File</option>
+                    </select>
+                </div>
+                <div class="form-group set_media" id ="set_media">
+                    <input type="file" class="media-file form-input" accept="image/*,video/*,audio/*,.pdf">
+                </div>
+                <div class="node-properties">
+                    <div class="node-property">
+                        <span>Delay:</span>
+                        <input type="number" value="0" min="0" class="delay-input form-input" style="width: 60px;"> seconds
+                    </div>
+                </div>
+            </div>
+            <div class="node-footer">
+                <button class="btn btn-secondary btn-sm connect-btn" data-node-id="${nodeId}">Connect</button>
+                <button class="btn btn-danger btn-sm delete-node-btn">Delete</button>
+            </div>
+        `;
+    }
+
+    createButtonsMessageNodeTemplate(nodeId) {
+        return `
+            <div class="node-header">
+                <div class="node-icon">🔘</div>
+                <div class="node-title">Interactive Buttons</div>
+                <div class="node-type">buttons-message</div>
+            </div>
+            <div class="node-body">
+                <textarea class="message-content form-textarea" placeholder="Message text..." rows="2"></textarea>
+                <input type="text" class="buttons-list form-input" placeholder="Button labels (comma-separated, e.g., Yes,No)">
+                <div class="node-properties">
+                    <div class="node-property">
+                        <span>Delay:</span>
+                        <input type="number" value="0" min="0" class="delay-input form-input" style="width: 60px;"> seconds
+                    </div>
+                </div>
+            </div>
+            <div class="node-footer">
+                <button class="btn btn-secondary btn-sm connect-btn" data-node-id="${nodeId}">Connect</button>
+                <button class="btn btn-danger btn-sm delete-node-btn">Delete</button>
+            </div>
+        `;
+    }
+
+    createListMessageNodeTemplate(nodeId) {
+        return `
+            <div class="node-header">
+                <div class="node-icon">📋</div>
+                <div class="node-title">Interactive List</div>
+                <div class="node-type">list-message</div>
+            </div>
+            <div class="node-body">
+                <textarea class="message-content form-textarea" placeholder="List title..." rows="2"></textarea>
+                <textarea class="list-items form-textarea" placeholder="List items (one per line)" rows="3"></textarea>
+                <div class="node-properties">
+                    <div class="node-property">
+                        <span>Delay:</span>
+                        <input type="number" value="0" min="0" class="delay-input form-input" style="width: 60px;"> seconds
+                    </div>
+                </div>
+            </div>
+            <div class="node-footer">
+                <button class="btn btn-secondary btn-sm connect-btn" data-node-id="${nodeId}">Connect</button>
+                <button class="btn btn-danger btn-sm delete-node-btn">Delete</button>
+            </div>
+        `;
+    }
+
+    createConditionNodeTemplate(nodeId) {
+        return `
+            <div class="node-header">
+                <div class="node-icon">🔀</div>
+                <div class="node-title">Condition</div>
+                <div class="node-type">condition</div>
+            </div>
+            <div class="node-body">
+                <div class="form-group">
+                    <label class="form-label">Variable</label>
+                    <input type="text" class="form-input condition-variable" placeholder="Variable name">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Value</label>
+                    <input type="text" class="form-input condition-value" placeholder="Value to compare">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Comparison Type</label>
+                    <select class="form-select condition-operator">
+                        <option value="equals">Equals</option>
+                        <option value="contains">Contains</option>
+                        <option value="startsWith">Starts With</option>
+                        <option value="endsWith">Ends With</option>
+                        <option value="greaterThan">Greater Than</option>
+                        <option value="lessThan">Less Than</option>
+                    </select>
+                </div>
+            </div>
+            <div class="node-footer">
+                <button class="btn btn-secondary btn-sm connect-btn" data-node-id="${nodeId}" data-branch="true">True</button>
+                <button class="btn btn-secondary btn-sm connect-btn" data-node-id="${nodeId}" data-branch="false">False</button>
+                <button class="btn btn-danger btn-sm delete-node-btn">Delete</button>
+            </div>
+        `;
+    }
+
+    createDelayNodeTemplate(nodeId) {
+        return `
+            <div class="node-header">
+                <div class="node-icon">⏱️</div>
+                <div class="node-title">Delay</div>
+                <div class="node-type">delay</div>
+            </div>
+            <div class="node-body">
+                <div class="form-group">
+                    <label class="form-label">Delay Duration</label>
+                    <input type="number" class="form-input delay-duration" value="5" min="0" max="3600">
+                    <div class="text-muted" style="font-size: 0.75rem; margin-top: 0.25rem;">Seconds</div>
+                </div>
+            </div>
+            <div class="node-footer">
+                <button class="btn btn-secondary btn-sm connect-btn" data-node-id="${nodeId}">Connect</button>
+                <button class="btn btn-danger btn-sm delete-node-btn">Delete</button>
+            </div>
+        `;
+    }
+
+    createWebhookNodeTemplate(nodeId) {
+        return `
+            <div class="node-header">
+                <div class="node-icon">🌐</div>
+                <div class="node-title">Webhook</div>
+                <div class="node-type">webhook</div>
+            </div>
+            <div class="node-body">
+                <div class="form-group">
+                    <label class="form-label">URL</label>
+                    <input type="url" class="form-input webhook-url" placeholder="https://api.example.com/endpoint">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Method</label>
+                    <select class="form-select webhook-method">
+                        <option value="GET">GET</option>
+                        <option value="POST">POST</option>
+                        <option value="PUT">PUT</option>
+                        <option value="DELETE">DELETE</option>
+                    </select>
+                </div>
+            </div>
+            <div class="node-footer">
+                <button class="btn btn-secondary btn-sm connect-btn" data-node-id="${nodeId}">Connect</button>
+                <button class="btn btn-danger btn-sm delete-node-btn">Delete</button>
+            </div>
+        `;
+    }
+
+    createAddContactNodeTemplate(nodeId) {
+        return `
+            <div class="node-header">
+                <div class="node-icon">👤+</div>
+                <div class="node-title">Add Contact</div>
+                <div class="node-type">add-contact</div>
+            </div>
+            <div class="node-body">
+                <input type="text" class="contact-name form-input" placeholder="Contact name">
+                <input type="text" class="contact-phone form-input" placeholder="Phone number">
+            </div>
+            <div class="node-footer">
+                <button class="btn btn-secondary btn-sm connect-btn" data-node-id="${nodeId}">Connect</button>
+                <button class="btn btn-danger btn-sm delete-node-btn">Delete</button>
+            </div>
+        `;
+    }
+
+    createUpdateContactNodeTemplate(nodeId) {
+        return `
+            <div class="node-header">
+                <div class="node-icon">👤✏️</div>
+                <div class="node-title">Update Contact</div>
+                <div class="node-type">update-contact</div>
+            </div>
+            <div class="node-body">
+                <input type="text" class="contact-id form-input" placeholder="Contact ID or variable">
+                <input type="text" class="update-fields form-input" placeholder="Fields to update (JSON)">
+            </div>
+            <div class="node-footer">
+                <button class="btn btn-secondary btn-sm connect-btn" data-node-id="${nodeId}">Connect</button>
+                <button class="btn btn-danger btn-sm delete-node-btn">Delete</button>
+            </div>
+        `;
+    }
+
+    createAddTagsNodeTemplate(nodeId) {
+        return `
+            <div class="node-header">
+                <div class="node-icon">🏷️+</div>
+                <div class="node-title">Add Tags</div>
+                <div class="node-type">add-tags</div>
+            </div>
+            <div class="node-body">
+                <input type="text" class="tags-list form-input" placeholder="Tags (comma-separated)">
+            </div>
+            <div class="node-footer">
+                <button class="btn btn-secondary btn-sm connect-btn" data-node-id="${nodeId}">Connect</button>
+                <button class="btn btn-danger btn-sm delete-node-btn">Delete</button>
+            </div>
+        `;
+    }
+
+    createRemoveTagsNodeTemplate(nodeId) {
+        return `
+            <div class="node-header">
+                <div class="node-icon">🏷️-</div>
+                <div class="node-title">Remove Tags</div>
+                <div class="node-type">remove-tags</div>
+            </div>
+            <div class="node-body">
+                <input type="text" class="tags-list form-input" placeholder="Tags to remove (comma-separated)">
+            </div>
+            <div class="node-footer">
+                <button class="btn btn-secondary btn-sm connect-btn" data-node-id="${nodeId}">Connect</button>
+                <button class="btn btn-danger btn-sm delete-node-btn">Delete</button>
+            </div>
+        `;
+    }
+
+    createTriggerNodeTemplate(nodeId) {
+        return `
+            <div class="node-header">
+                <div class="node-icon">🔔</div>
+                <div class="node-title">Flow Trigger</div>
+                <div class="node-type">trigger</div>
+            </div>
+            <div class="node-body">
+                <div class="form-group">
+                    <label class="form-label">Trigger Type</label>
+                    <select class="form-select trigger-match-type">
+                        <option value="contains">Contains Keyword </option>
+                        <option value="exact">Exact Match </option>
+                        <option value="conversation_start">Conversation Start </option>
+                    </select>
+                </div>
+
+                <div class="form-group" id="kw_container_${nodeId}">
+                    <label class="form-label">Keywords</label>
+                    <input type="text" class="form-input trigger-keywords"
+                           placeholder="Enter keywords (e.g. hi, hello)">
+                    <div class="text-muted" style="font-size: 0.70rem; margin-top: 0.25rem;">
+                        Keywords separated by comma
+                    </div>
+                </div>
+            </div>
+            <div class="node-footer">
+                <button class="btn btn-secondary btn-sm connect-btn" data-node-id="${nodeId}">Connect</button>
+                <button class="btn btn-danger btn-sm delete-node-btn">Delete</button>
+            </div>
+        `;
+    }
+   
+    // ==========================================
+    // تهيئة عقدة واحدة بشكل آمن (النسخة المحسّنة)
+    // ==========================================
+    async initializeNodeSafe(nodeElement) {
+        return new Promise((resolve) => {
+            const nodeId = nodeElement.id;
+            if (!nodeId || !this.jsPlumbInstance) {
+                return resolve();
+            }
+            try {
+                // تنظيف أي إعدادات سابقة
+                this.jsPlumbInstance.unmakeSource(nodeId);
+                this.jsPlumbInstance.unmakeTarget(nodeId);
+              
+                // إزالة endpoints القديمة
+                const oldEndpoints = this.jsPlumbInstance.getEndpoints(nodeId);
+                if (oldEndpoints) {
+                    oldEndpoints.forEach(ep => this.jsPlumbInstance.deleteEndpoint(ep));
+                }
+                // تفعيل السحب والإفلات
+                this.jsPlumbInstance.draggable(nodeId, {
+                    containment: true,
+                    grid: [10, 10],
+                    stop: () => {
+                        this.jsPlumbInstance.revalidate(nodeId);
+                        this.jsPlumbInstance.repaint(nodeId);
+                    }
+                });
+                // إضافة نقطة المصدر (يمين)
+                this.jsPlumbInstance.addEndpoint(nodeId, {
+                    endpoint: "Dot",
+                    paintStyle: { fill: "#7C3AED", radius: 7 },
+                    hoverPaintStyle: { fill: "#10B981", radius: 8 },
+                    isSource: true,
+                    anchor: "RightMiddle",
+                    maxConnections: -1,
+                    connector: ["Flowchart", { stub: 5, gap: 5, cornerRadius: 5 }],
+                    connectorStyle: {
+                        stroke: "#7C3AED",
+                        strokeWidth: 2,
+                        outlineStroke: "transparent",
+                        outlineWidth: 10
+                    },
+                    connectorHoverStyle: {
+                        stroke: "#10B981",
+                        strokeWidth: 3
+                    }
+                });
+                // إضافة نقطة الهدف (يسار)
+                this.jsPlumbInstance.addEndpoint(nodeId, {
+                    endpoint: "Dot",
+                    paintStyle: { fill: "#10B981", radius: 7 },
+                    hoverPaintStyle: { fill: "#7C3AED", radius: 8 },
+                    isTarget: true,
+                    anchor: "LeftMiddle",
+                    maxConnections: -1
+                });
+                // ربط أزرار الاتصال
+                nodeElement.querySelectorAll('.connect-btn').forEach(btn => {
+                    const newBtn = btn.cloneNode(true);
+                    btn.parentNode.replaceChild(newBtn, btn);
+                  
+                    newBtn.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        this.connectNode(nodeId, e.target.dataset.branch);
+                    });
+                });
+                // ربط زر الحذف
+                const deleteBtn = nodeElement.querySelector('.delete-node-btn');
+                if (deleteBtn) {
+                    const newDeleteBtn = deleteBtn.cloneNode(true);
+                    deleteBtn.parentNode.replaceChild(newDeleteBtn, deleteBtn);
+                  
+                    newDeleteBtn.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        this.removeNode(nodeId);
+                    });
+                }
+                // التحقق من العقدة بعد التهيئة
+                setTimeout(() => {
+                    this.jsPlumbInstance.revalidate(nodeId);
+                    resolve();
+                }, 10);
+            } catch (err) {
+                console.error(`Error initializing node ${nodeId}:`, err);
+                resolve();
+            }
+       
+
+
+        // ============================================================
+            // [إضافة جديدة] منطق إخفاء/إظهار الكلمات المفتاحية حسب النوع
+            // ============================================================
+            console.log('Initializing trigger node logic for:', nodeId , nodeElement.dataset.nodeType);
+            if (nodeElement.dataset.nodeType === 'trigger') {
+                const typeSelect = nodeElement.querySelector('.trigger-match-type');
+                const kwContainer = nodeElement.querySelector(`#kw_container_${nodeId}`);
+
+                if (typeSelect && kwContainer) {
+                    // دالة للتحقق من القيمة وتغيير العرض
+                    const toggleVisibility = () => {
+                        if (typeSelect.value === 'conversation_start') {
+                            kwContainer.style.display = 'none'; // إخفاء
+                        } else {
+                            kwContainer.style.display = 'block'; // إظهار
+                        }
+                    };
+
+                    // استمع لأي تغيير يقوم به المستخدم
+                    typeSelect.addEventListener('change', toggleVisibility);
+
+                    // قم بتشغيل الدالة مرة واحدة في البداية (لضبط الحالة عند التحميل)
+                    toggleVisibility();
+                }
+            }
+            // ==========================================================
+   }); 
+ }
+
+    // استخدام نفس الدالة لـ initializeNode العادية
+    initializeNode(nodeElement) {
+        return this.initializeNodeSafe(nodeElement);
+    }
+
+
+    // دالة جديدة لتدمير النسخة وإعادة تهيئتها بالكامل
+    resetJsPlumb() {
+        if (this.jsPlumbInstance) {
+            // 1. مسح كل شيء من الذاكرة
+            this.jsPlumbInstance.reset(); 
+            // 2. تدمير المتغير
+            this.jsPlumbInstance = null;
+        }
+        // 3. تفريغ الحاوية يدوياً للتأكد
+        if (this.flowCanvas) {
+            this.flowCanvas.innerHTML = '';
+        }
+        
+        // 4. إعادة التهيئة من الصفر
+        this.initializeJsPlumb();
+    }
+    // ==========================================
+    // تحميل Flow كامل (النسخة المحسّنة)
+    // ==========================================
+    async loadFlow(flowId) {
+        this.resetJsPlumb(); 
+        // ---------------------------------------------------------
+
+        this.isLoadingFlow = true;
+        this.currentFlowId = flowId;
+        
+        // ... (باقي الكود كما هو: إظهار اللودر وجلب البيانات) ...
+        this.showLoadingIndicator('Loading flow...');
+
+        try {
+            this.isLoadingFlow = true;
+            this.currentFlowId = flowId;
+          
+            console.log(`📥 Loading flow ID: ${flowId}`);
+          
+            const response = await this.apiGet(`/discount/whatssapAPI/api/flows/${flowId}/`);
+            console.log('📦 Flow data received:', response);
+          
+            if (response.item) {
+                this.currentFlowName = response.item.name;
+                this.currentFlowDescription = response.item.description;
+                await this.renderFlow(response.item);
+            } else if (response.config) {
+                this.currentFlowName = response.name || 'Unnamed Flow';
+                this.currentFlowDescription = response.description || '';
+                await this.renderFlow(response);
+            } else {
+                throw new Error('Invalid flow data structure');
+            }
+          
+            this.showNotification('Flow loaded successfully! ✨', 'success');
+          
+        } catch (error) {
+            console.error('❌ Load flow error:', error);
+            this.showNotification('Failed to load flow: ' + error.message, 'error');
+        } finally {
+            this.isLoadingFlow = false;
+        }
+    }
+
+    // ==========================================
+    // رسم Flow كامل (الحل الشامل)
+    // ==========================================
+    // ==========================================
+    // رسم Flow كامل (مع إصلاح مشكلة الخطوط)
+    // ==========================================
+    async renderFlow(flowData) {
+        // إظهار مؤشر التحميل
+        this.showLoadingIndicator('Loading flow...');
+      
+        try {
+            this.clearCanvas(true);
+          
+            if (!flowData?.config?.nodes?.length) {
+                this.hideLoadingIndicator();
+                return;
+            }
+
+            const nodes = flowData.config.nodes;
+            const connections = flowData.config.connections || [];
+
+            // 1. إنشاء كل العقد في DOM
+            await this.createAllNodes(nodes);
+            
+            // 2. انتظار اكتمال DOM
+            await this.waitForDOMReady();
+
+            // ---------------------------------------------------------
+            // [الحل الجذري] الانتظار حتى يتم تحميل كافة الصور داخل العقد
+            // ---------------------------------------------------------
+            const images = Array.from(this.flowCanvas.querySelectorAll('img'));
+            if (images.length > 0) {
+                await Promise.all(images.map(img => {
+                    if (img.complete) return Promise.resolve();
+                    return new Promise(resolve => {
+                        img.onload = resolve;
+                        img.onerror = resolve; // نكمل حتى لو فشلت الصورة لكي لا يتوقف النظام
+                    });
+                }));
+            }
+            // ---------------------------------------------------------
+
+            // 3. تهيئة jsPlumb لكل العقد
+            await this.initializeAllNodes();
+
+            // 4. رسم الخطوط (الآن سيتم رسمها في المكان الصحيح لأن الصور أخذت حجمها)
+            await this.drawAllConnections(connections);
+
+            // 5. التحديثات النهائية
+            this.updateStats();
+            
+            // إعادة رسم أخيرة للتأكد (Safety Check)
+            setTimeout(() => {
+                if(this.jsPlumbInstance) this.jsPlumbInstance.repaintEverything();
+            }, 100);
+          
+            this.hideLoadingIndicator();
+          
+        } catch (error) {
+            console.error('Error in renderFlow:', error);
+            this.hideLoadingIndicator();
+            this.showNotification('Failed to load flow', 'error');
+        }
+    }
+    // ==========================================
+    // إنشاء كل العقد
+    // ==========================================
+    async createAllNodes(nodesData) {
+        const promises = nodesData.map(nodeData => this.createNodeInDOM(nodeData));
+        await Promise.all(promises);
+    }
+
+    // ==========================================
+    // إنشاء عقدة في DOM فقط (بدون jsPlumb)
+    // ==========================================
+    async createNodeInDOM(nodeData) {
+        return new Promise((resolve) => {
+            const nodeId = nodeData.id;
+            if (!nodeId) {
+                console.warn('Node without ID:', nodeData);
+                return resolve();
+            }
+            // تحديث العداد
+            const num = parseInt(nodeId.replace('node-', ''), 10);
+            if (!isNaN(num) && num > this.nodeCounter) {
+                this.nodeCounter = num;
+            }
+            // إنشاء عنصر العقدة
+            const node = document.createElement('div');
+            node.className = 'flow-node';
+            node.id = nodeId;
+            node.dataset.nodeType = nodeData.type;
+            node.style.left = `${nodeData.position?.x || 100}px`;
+            node.style.top = `${nodeData.position?.y || 100}px`;
+            // الحصول على القالب
+            const template = this.getNodeTemplate(nodeData.type);
+            node.innerHTML = typeof template === 'function'
+                ? template(nodeId)
+                : this.createTextMessageNodeTemplate(nodeId);
+            // إضافة للـ DOM
+            this.flowCanvas.appendChild(node);
+            // ملء المحتوى
+            let content = nodeData.content;
+            if (typeof content === 'string') {
+                try {
+                    content = JSON.parse(content);
+                } catch (e) {
+                    content = { text: content };
+                }
+            }
+            this.fillNodeContent(node, content);
+            resolve(nodeId);
+        });
+    }
+
+    // ==========================================
+    // انتظار اكتمال DOM
+    // ==========================================
+    async waitForDOMReady() {
+        return new Promise((resolve) => {
+            requestAnimationFrame(() => {
+                requestAnimationFrame(() => {
+                    requestAnimationFrame(() => {
+                        setTimeout(resolve, 50);
+                    });
+                });
+            });
+        });
+    }
+
+    // ==========================================
+    // تهيئة كل العقد مع jsPlumb
+    // ==========================================
+    async initializeAllNodes() {
+        const nodes = document.querySelectorAll('.flow-node');
+        console.log(`🔧 Initializing ${nodes.length} nodes with jsPlumb...`);
+      
+        for (const node of nodes) {
+            await this.initializeNodeSafe(node);
+        }
+    }
+
+    // ==========================================
+    // رسم كل الخطوط
+    // ==========================================
+    async drawAllConnections(connections) {
+        console.log(`🔗 Drawing ${connections.length} connections...`);
+      
+        if (!this.jsPlumbInstance || !connections || connections.length === 0) {
+            return;
+        }
+        for (const conn of connections) {
+            await this.drawSingleConnection(conn);
+        }
+        await new Promise(resolve => {
+            setTimeout(() => {
+                this.jsPlumbInstance.repaintEverything();
+                resolve();
+            }, 100);
+        });
+    }
+
+    // ==========================================
+    // رسم خط واحد
+    // ==========================================
+    async drawSingleConnection(conn) {
+        return new Promise((resolve) => {
+            try {
+                const sourceEl = document.getElementById(conn.source);
+                const targetEl = document.getElementById(conn.target);
+                if (!sourceEl || !targetEl) {
+                    console.warn(`❌ Missing nodes: ${conn.source} -> ${conn.target}`);
+                    return resolve();
+                }
+                const existingConnections = this.jsPlumbInstance.getConnections({
+                    source: conn.source,
+                    target: conn.target
+                });
+                if (existingConnections && existingConnections.length > 0) {
+                    console.log(`⚠️ Connection exists: ${conn.source} -> ${conn.target}`);
+                    return resolve();
+                }
+                const connection = this.jsPlumbInstance.connect({
+                    source: conn.source,
+                    target: conn.target,
+                    anchors: ["RightMiddle", "LeftMiddle"],
+                    endpoint: "Dot",
+                    connector: ["Flowchart", {
+                        stub: 5,
+                        gap: 5,
+                        cornerRadius: 5
+                    }],
+                    paintStyle: {
+                        stroke: "#7C3AED",
+                        strokeWidth: 2,
+                        outlineStroke: "transparent",
+                        outlineWidth: 10
+                    },
+                    hoverPaintStyle: {
+                        stroke: "#10B981",
+                        strokeWidth: 3
+                    },
+                    overlays: [
+                        ["Arrow", {
+                            location: 1,
+                            width: 12,
+                            length: 12,
+                            foldback: 0.8
+                        }]
+                    ]
+                });
+                if (connection && conn.data) {
+                    connection.setData(conn.data);
+                }
+                console.log(`✅ Connected: ${conn.source} -> ${conn.target}`);
+                resolve();
+            } catch (err) {
+                console.error(`❌ Failed: ${conn.source} -> ${conn.target}:`, err);
+                resolve();
+            }
+        });
+    }
+
+    // ==========================================
+    // ملء محتوى العقدة
+    // ==========================================
+    fillNodeContent(node, content) {
+        if (!content) return;
+      
+        const nodeType = node.dataset.nodeType;
+      
+        try {
+            switch(nodeType) {
+                case 'text-message':
+                    const textarea = node.querySelector('textarea');
+                    if (textarea && content.text) textarea.value = content.text;
+                  
+                    const delayInput = node.querySelector('.delay-input');
+                    if (delayInput && content.delay !== undefined) delayInput.value = content.delay;
+                    break;
+                  
+                case 'media-message':
+                    const captionTextarea = node.querySelector('textarea');
+                    if (captionTextarea && content.caption) captionTextarea.value = content.caption;
+                  
+                    const mediaTypeSelect = node.querySelector('.media-type');
+                    if (mediaTypeSelect && content.mediaType) mediaTypeSelect.value = content.mediaType;
+                  
+                    const mediaDelayInput = node.querySelector('.delay-input');
+                    if (mediaDelayInput && content.delay !== undefined) mediaDelayInput.value = content.delay;
+                    break;
+                  
+                case 'buttons-message':
+                    const messageTextarea = node.querySelector('.message-content');
+                    if (messageTextarea && content.text) messageTextarea.value = content.text;
+                  
+                    const buttonsInput = node.querySelector('.buttons-list');
+                    if (buttonsInput && content.buttons) buttonsInput.value = content.buttons;
+                  
+                    const buttonsDelayInput = node.querySelector('.delay-input');
+                    if (buttonsDelayInput && content.delay !== undefined) buttonsDelayInput.value = content.delay;
+                    break;
+                  
+                case 'list-message':
+                    const titleTextarea = node.querySelector('.message-content');
+                    if (titleTextarea && content.title) titleTextarea.value = content.title;
+                  
+                    const itemsTextarea = node.querySelector('.list-items');
+                    if (itemsTextarea && content.items) itemsTextarea.value = content.items;
+                  
+                    const listDelayInput = node.querySelector('.delay-input');
+                    if (listDelayInput && content.delay !== undefined) listDelayInput.value = content.delay;
+                    break;
+                  
+                case 'condition':
+                    const variableInput = node.querySelector('.condition-variable');
+                    if (variableInput && content.variable) variableInput.value = content.variable;
+                  
+                    const valueInput = node.querySelector('.condition-value');
+                    if (valueInput && content.value) valueInput.value = content.value;
+                  
+                    const operatorSelect = node.querySelector('.condition-operator');
+                    if (operatorSelect && content.operator) operatorSelect.value = content.operator;
+                    break;
+                  
+                case 'delay':
+                    const durationInput = node.querySelector('.delay-duration');
+                    if (durationInput && content.duration) durationInput.value = content.duration;
+                    break;
+                  
+                case 'webhook':
+                    const urlInput = node.querySelector('.webhook-url');
+                    if (urlInput && content.url) urlInput.value = content.url;
+                  
+                    const methodSelect = node.querySelector('.webhook-method');
+                    if (methodSelect && content.method) methodSelect.value = content.method;
+                    break;
+                  
+                case 'add-contact':
+                    const nameInput = node.querySelector('.contact-name');
+                    if (nameInput && content.name) nameInput.value = content.name;
+                  
+                    const phoneInput = node.querySelector('.contact-phone');
+                    if (phoneInput && content.phone) phoneInput.value = content.phone;
+                    break;
+                  
+                case 'update-contact':
+                    const idInput = node.querySelector('.contact-id');
+                    if (idInput && content.id) idInput.value = content.id;
+                  
+                    const fieldsInput = node.querySelector('.update-fields');
+                    if (fieldsInput && content.fields) fieldsInput.value = content.fields;
+                    break;
+                  
+                case 'add-tags':
+                case 'remove-tags':
+                    const tagsInput = node.querySelector('.tags-list');
+                    if (tagsInput && content.tags) tagsInput.value = content.tags;
+                    break;
+                  
+                case 'trigger':
+
+// 1. تعبئة الكلمات المفتاحية
+                const keywordsInput = node.querySelector('.trigger-keywords');
+                if (keywordsInput) keywordsInput.value = content.keywords || '';
+
+                // 2. تحديد نوع المحفز في القائمة
+                const typeSelect = node.querySelector('.trigger-match-type');
+                if (typeSelect && content.match_type) {
+                    typeSelect.value = content.match_type;
+                    
+                    // [هام جداً] إجبار الواجهة على تحديث نفسها (إخفاء الحقل)
+                    // نقوم يدوياً بتفعيل حدث التغيير ليقوم الكود الموجود في initializeNodeSafe بإخفاء الحقل
+                    typeSelect.dispatchEvent(new Event('change')); }
+                break;
+
+            }
+        } catch (error) {
+            console.error(`Error filling content for ${node.id}:`, error);
+        }
+    }
+
+    // ==========================================
+    // حفظ Flow
+    // ==========================================
+    async saveFlow() {
+        try {
+            const flowData = await this.collectFlowData();
+            let response;
+          
+            if (this.currentFlowId) {
+                const payload = {
+                    name: this.currentFlowName || '',
+                    description: this.currentFlowDescription || '',
+                    config: flowData,
+                    trigger_keywords: this.extractTriggerKeywords(flowData.nodes)
+                };
+              
+                response = await this.apiPost(
+                    `/discount/whatssapAPI/api/flows/${this.currentFlowId}/update/`,
+                    payload
+                );
+            } else {
+                const flowName = prompt('Enter flow name:');
+                if (!flowName) return;
+                const flowDescription = prompt('Enter flow description (optional):') || '';
+              
+                const payload = {
+                    name: flowName,
+                    description: flowDescription,
+                    config: flowData,
+                    trigger_keywords: this.extractTriggerKeywords(flowData.nodes)
+                };
+              
+                response = await this.apiPost('/discount/whatssapAPI/api/flows/create/', payload);
+              
+                if (response.item && response.item.id) {
+                    this.currentFlowId = response.item.id;
+                    this.currentFlowName = flowName;
+                    this.currentFlowDescription = flowDescription;
+                }
+            }
+          
+            if (response && (response.success || response.item)) {
+                this.showNotification('Flow saved successfully! ✨', 'success');
+                if (window.automationsList) {
+                    window.automationsList.loadAutomations();
+                }
+            } else {
+                throw new Error(response.error || 'Unknown error');
+            }
+        } catch (error) {
+            console.error('Save error:', error);
+            this.showNotification('Failed to save flow: ' + error.message, 'error');
+        }
+    }
+
+    // ==========================================
+    // جمع بيانات Flow
+    // ==========================================
+    async collectFlowData() {
+        const nodes = [];
+        const nodeElements = document.querySelectorAll('.flow-node');
+        for (const node of nodeElements) {
+            const nodeType = node.dataset.nodeType || 'text-message';
+            const nodeData = {
+                id: node.id,
+                type: nodeType,
+                position: {
+                    x: parseInt(node.style.left) || 0,
+                    y: parseInt(node.style.top) || 0
+                },
+                content: await this.getNodeContent(node, nodeType)
+            };
+            nodes.push(nodeData);
+        }
+        const connections = this.jsPlumbInstance
+            ? this.jsPlumbInstance.getAllConnections().map(conn => ({
+                  source: conn.sourceId,
+                  target: conn.targetId,
+                  data: conn.getData() || {}
+              }))
+            : [];
+        return {
+            nodes,
+            connections,
+            metadata: {
+                version: '1.0',
+                created: new Date().toISOString(),
+                nodeCount: nodes.length,
+                connectionCount: connections.length
+            }
+        };
+    }
+
+    // ==========================================
+    // الحصول على محتوى العقدة
+    // ==========================================
+    async getNodeContent(node, nodeType) {
+        const content = {};
+      
+        try {
+            switch(nodeType) {
+                case 'trigger':
+                    const keywordsInput = node.querySelector('.trigger-keywords');
+                    content.keywords = keywordsInput ? keywordsInput.value.trim() : '';
+                    // استخراج نوع المحفز (الإضافة الجديدة)
+                    const typeSelect = node.querySelector('.trigger-match-type');
+                    content.match_type = typeSelect ? typeSelect.value : 'contains'; // القيمة الافتراضية
+                    break;
+                  
+                case 'text-message':
+                    const textarea = node.querySelector('textarea');
+                    content.text = textarea ? textarea.value.trim() : '';
+                  
+                    const delayInput = node.querySelector('.delay-input');
+                    content.delay = delayInput ? parseInt(delayInput.value) || 0 : 0;
+                    break;
+                  
+                case 'media-message':
+                    content.caption = node.querySelector('textarea')?.value?.trim() || '';
+                    content.mediaType = node.querySelector('.media-type')?.value || 'image';
+                    content.delay = parseInt(node.querySelector('.delay-input')?.value) || 0;
+                    const fileInput = node.querySelector('.media-file');
+                    if (fileInput && fileInput.files && fileInput.files.length > 0) {
+                        const file = fileInput.files[0];
+                        content.media_name = file.name;
+                        const mediaUrl = await this.uploadMediaFile(file);
+                        content.media_url = mediaUrl;
+                    } else {
+                        content.media_url = "";
+                    }
+                    break;
+                  
+                case 'condition':
+                    content.variable = node.querySelector('.condition-variable')?.value?.trim() || '';
+                    content.value = node.querySelector('.condition-value')?.value?.trim() || '';
+                    content.operator = node.querySelector('.condition-operator')?.value || 'equals';
+                    break;
+                  
+                case 'delay':
+                    content.duration = parseInt(node.querySelector('.delay-duration')?.value) || 5;
+                    break;
+                  
+                case 'webhook':
+                    content.url = node.querySelector('.webhook-url')?.value?.trim() || '';
+                    content.method = node.querySelector('.webhook-method')?.value || 'POST';
+                    break;
+                  
+                default:
+                    const inputs = node.querySelectorAll('input, textarea, select');
+                    inputs.forEach(input => {
+                        if (input.type !== 'button' && input.type !== 'submit' && !input.classList.contains('connect-btn')) {
+                            const fieldName = this.getFieldName(input);
+                            if (fieldName) {
+                                content[fieldName] = input.value;
+                            }
+                        }
+                    });
+            }
+        } catch (error) {
+            console.error(`Error getting content for node ${node.id}:`, error);
+            content.error = error.message;
+        }
+      
+        return content;
+    }
+
+    // ==========================================
+    // الحصول على اسم الحقل
+    // ==========================================
+    getFieldName(element) {
+        const className = element.className;
+        if (className.includes('form-input') || className.includes('form-textarea') || className.includes('form-select')) {
+            const match = className.match(/(?:node-|form-)(\w+)/);
+            return match ? match[1] : element.name || 'unknown';
+        }
+        return null;
+    }
+
+    // ==========================================
+    // استخراج الكلمات المفتاحية
+    // ==========================================
+    extractTriggerKeywords(nodes) {
+        const triggerNode = nodes.find(node => node.type === 'trigger');
+        if (triggerNode && triggerNode.content) {
+            let content = triggerNode.content;
+            if (typeof content === 'string') {
+                try {
+                    content = JSON.parse(content);
+                } catch (e) {
+                    content = { keywords: content };
+                }
+            }
+            return content.keywords || '';
+        }
+        return '';
+    }
+
+    // ==========================================
+    // رفع ملف وسائط
+    // ==========================================
+    async uploadMediaFile(file) {
+        try {
+            const formData = new FormData();
+            formData.append('media', file);
+            const res = await fetch('{% url "upload_media" %}', {
+                method: 'POST',
+                body: formData,
+                headers: {
+                    'X-CSRFToken': this.csrfToken || ''
+                }
+            });
+            if (!res.ok) {
+                const text = await res.text();
+                throw new Error(`Upload failed ${res.status}: ${text}`);
+            }
+            const data = await res.json();
+            const url = data.url || data.data?.url || (data.success ? data.url : null);
+            if (!url) throw new Error('No URL returned from upload');
+            return url;
+        } catch (err) {
+            console.error('Upload error:', err);
+            return null;
+        }
+    }
+
+    // ==========================================
+    // معالجة رفع الملف
+    // ==========================================
+    async handleFileUpload(event) {
+        const fileInput = event.target;
+        const nodeEl = fileInput.closest('.flow-node');
+        if (!nodeEl) return;
+        if (!fileInput.files || fileInput.files.length === 0) return;
+        const file = fileInput.files[0];
+        // حالة الرفع (إنشاؤها إن لم توجد)
+        let status = nodeEl.querySelector('.upload-status');
+         
+        if (!status) {
+            status = document.createElement('span');
+            status.className = 'upload-status';
+            status.style.marginLeft = '8px';
+            status.style.fontSize = '0.9rem';
+            status.textContent = 'Uploading...';
+            fileInput.parentNode.appendChild(status);
+        } else {
+            status.textContent = 'Uploading...';
+        }
+        // call uploadMediaFile (موجود داخل نفس الكلاس)
+        const mediaUrl = await this.uploadMediaFile(file);
+        if (mediaUrl) {
+            // خزّن الرابط في data attribute للعقدة لكي يلتقطه collectFlowData / getNodeContent لاحقًا
+            const contentData = JSON.parse(nodeEl.dataset.content || '{}');
+            contentData.media_url = mediaUrl;
+            contentData.media_name = file.name;
+            nodeEl.dataset.content = JSON.stringify(contentData);
+            status.textContent = 'Uploaded';
+            let set_media = nodeEl.querySelector('.set_media')
+            let media_file_input = nodeEl.querySelector('.media-file')
+            const setimg = document.createElement('img')
+            media_file_input.style.display = 'none'
+            setimg.style.width = '100%'
+            // setimg.style.height = '100%'
+            setimg.src = mediaUrl
+            
+            const close_icon = document.createElement('span')
+            close_icon.innerHTML = '✕'
+            close_icon.style.cssText = `
+                position: absolute;
+                top: 5px;
+                right: 5px;
+                width: 24px;
+                height: 24px;
+                background: rgba(0, 0, 0, 0.6);
+                color: white;
+                border-radius: 50%;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                cursor: pointer;
+                font-weight: bold;
+                z-index: 10;
+                transition: all 0.2s ease;
+            `
+            
+            close_icon.addEventListener('mouseover', () => {
+                close_icon.style.background = 'rgba(239, 68, 68, 0.9)'
+            })
+            
+            close_icon.addEventListener('mouseout', () => {
+                close_icon.style.background = 'rgba(0, 0, 0, 0.6)'
+            })
+            
+            close_icon.addEventListener('click', () => {
+                setimg.remove()
+                close_icon.remove()
+                media_file_input.style.display = 'block'
+                media_file_input.value = ''
+                status?.remove()
+            })
+            
+            const container = document.createElement('div')
+            container.style.cssText = `
+                position: relative;
+                width: 100%;
+                // height: 150px;
+                margin-bottom: 0.75rem;
+            `
+            
+            container.appendChild(setimg)
+            container.appendChild(close_icon)
+            set_media.appendChild(container)
+            
+            setTimeout(() => { status?.remove() }, 2500)
+        } else {
+            status.textContent = 'Upload failed'
+        }
+    }
+
+    // ==========================================
+    // تهيئة listeners لرفع الملفات
+    // ==========================================
+    initFileUploadListeners() {
+        this.flowCanvas.addEventListener('change', (e) => {
+            if (e.target.classList.contains('media-file')) {
+                this.handleFileUpload(e);
+            }
+        });
+    }
+
+    // ==========================================
+    // مؤشرات التحميل
+    // ==========================================
+    showLoadingIndicator(message = 'Loading...') {
+        // إزالة أي مؤشر قديم
+        this.hideLoadingIndicator();
+      
+        const loader = document.createElement('div');
+        loader.id = 'flow-loader';
+        loader.style.cssText = `
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.7);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 99999;
+            backdrop-filter: blur(4px);
+        `;
+      
+        loader.innerHTML = `
+            <div style="
+                background: white;
+                padding: 30px 40px;
+                border-radius: 12px;
+                box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+                text-align: center;
+            ">
+                <div style="
+                    width: 50px;
+                    height: 50px;
+                    border: 4px solid #f3f3f3;
+                    border-top: 4px solid #7C3AED;
+                    border-radius: 50%;
+                    animation: spin 1s linear infinite;
+                    margin: 0 auto 20px;
+                "></div>
+                <div style="
+                    font-size: 16px;
+                    font-weight: 500;
+                    color: #333;
+                ">${message}</div>
+            </div>
+        `;
+      
+        // إضافة CSS للأنيميشن
+        if (!document.getElementById('loader-style')) {
+            const style = document.createElement('style');
+            style.id = 'loader-style';
+            style.textContent = `
+                @keyframes spin {
+                    0% { transform: rotate(0deg); }
+                    100% { transform: rotate(360deg); }
+                }
+            `;
+            document.head.appendChild(style);
+        }
+      
+        document.body.appendChild(loader);
+    }
+
+    hideLoadingIndicator() {
+        const loader = document.getElementById('flow-loader');
+        if (loader) {
+            loader.remove();
+        }
+    }
+
+    // ==========================================
+    // التحديثات الإحصائية
+    // ==========================================
+    updateStats() {
+        if (this.nodeCountEl) {
+            this.nodeCountEl.textContent = document.querySelectorAll('.flow-node').length;
+        }
+        if (this.connectionCountEl) {
+            this.connectionCountEl.textContent = this.jsPlumbInstance ? this.jsPlumbInstance.getAllConnections().length : 0;
+        }
+    }
+
+    // ==========================================
+    // تهيئة الزوم
+    // ==========================================
+// ==========================================
+    // تهيئة أدوات التحكم (الزوم والشاشة) - النسخة الجديدة
+    // ==========================================
+    
+    
+    
+initializeZoom() {
+        // 1. ربط أزرار التحكم
+        const btnIn = document.getElementById('btn-zoom-in');
+        const btnOut = document.getElementById('btn-zoom-out');
+        const btnReset = document.getElementById('btn-zoom-reset');
+        const btnFull = document.getElementById('btn-fullscreen');
+
+        if(btnIn) btnIn.onclick = () => this.applyZoom(0.1);
+        if(btnOut) btnOut.onclick = () => this.applyZoom(-0.1);
+        
+        // زر إعادة التعيين: يعيدك للمنتصف
+        if(btnReset) btnReset.onclick = () => {
+            this.zoomLevel = 1;
+            this.pan = { x: -2000, y: -2000 };
+            this.updateTransform();
+        };
+
+        if(btnFull) btnFull.onclick = () => this.toggleFullscreen();
+
+        // 2. منطق سحب الخلفية (Infinite Panning)
+        // نستخدم parentElement لأن flowCanvas أصبح يتحرك
+        const container = this.flowCanvas.parentElement; 
+        
+        container.addEventListener('mousedown', (e) => {
+            // التحريك فقط عند الضغط على الخلفية أو الكانفاس الفارغ
+            if (e.target === container || e.target === this.flowCanvas) {
+                this.isPanning = true;
+                this.lastMouse = { x: e.clientX, y: e.clientY };
+                container.style.cursor = 'grabbing';
+                e.preventDefault(); // منع تحديد النصوص
+            }
+        });
+
+        window.addEventListener('mousemove', (e) => {
+            if (!this.isPanning) return;
+            e.preventDefault();
+            
+            const dx = e.clientX - this.lastMouse.x;
+            const dy = e.clientY - this.lastMouse.y;
+            
+            this.pan.x += dx;
+            this.pan.y += dy;
+            
+            this.lastMouse = { x: e.clientX, y: e.clientY };
+            this.updateTransform();
+        });
+
+        window.addEventListener('mouseup', () => {
+            this.isPanning = false;
+            container.style.cursor = 'grab';
+        });
+    }
+
+    // دوال مساعدة جديدة (أضفها تحت initializeZoom)
+    applyZoom(delta) {
+        this.zoomLevel = Math.min(Math.max(0.4, this.zoomLevel + delta), 2.0);
+        this.updateTransform();
+    }
+
+    updateTransform() {
+        this.flowCanvas.style.transform = `translate(${this.pan.x}px, ${this.pan.y}px) scale(${this.zoomLevel})`;
+        // مهم جداً: تحديث jsPlumb ليعرف المقياس الجديد
+        if(this.jsPlumbInstance) this.jsPlumbInstance.setZoom(this.zoomLevel);
+    }
+
+    toggleFullscreen() {
+        const elem = document.getElementById('flow-builder-container');
+        if (!document.fullscreenElement) {
+            elem.requestFullscreen().catch(err => console.log(err));
+        } else {
+            document.exitFullscreen();
+        }
+    }
+
+    // دالة إعادة التعيين
+    resetZoom() {
+        this.zoomLevel = 1.0;
+        this.flowCanvas.style.transform = `scale(1)`;
+        this.flowCanvas.style.transformOrigin = "0 0";
+        if(this.jsPlumbInstance) {
+            this.jsPlumbInstance.setZoom(1);
+        }
+    }
+
+
+
+
+
+    saveNodePositions() {
+        // يمكن حفظ المواقع إذا لزم الأمر
+    }
+
+    addVariable() {
+        const variableName = prompt('Enter variable name:');
+        if (!variableName) return;
+        const variableValue = prompt('Enter variable value:');
+        this.showNotification(`Variable added: ${variableName}`, 'success');
+    }
+
+    clearCanvas(silent = false) {
+        if (!silent && !confirm('Are you sure you want to clear the canvas? All nodes and connections will be lost.')) {
+            return;
+        }
+        // إزالة جميع العقد
+        document.querySelectorAll('.flow-node').forEach(node => {
+            if (this.jsPlumbInstance) {
+                this.jsPlumbInstance.removeAllEndpoints(node.id);
+            }
+            node.remove();
+        });
+      
+        // إعادة تعيين العداد
+        this.nodeCounter = 0;
+        this.updateStats();
+      
+        if (!silent) {
+            this.showNotification('Canvas cleared successfully', 'success');
+        }
+    }
+
+    autoLayout() {
+        const nodes = document.querySelectorAll('.flow-node');
+        if (nodes.length === 0) {
+            this.showNotification('No nodes to arrange', 'warning');
+            return;
+        }
+      
+        const canvasWidth = this.flowCanvas.clientWidth;
+        const nodeWidth = 280;
+        const horizontalSpacing = 100;
+        const verticalSpacing = 120;
+      
+        let x = 100;
+        let y = 100;
+        let rowHeight = 0;
+      
+        nodes.forEach((node, index) => {
+            node.style.left = x + 'px';
+            node.style.top = y + 'px';
+          
+            const nodeHeight = node.offsetHeight;
+            rowHeight = Math.max(rowHeight, nodeHeight);
+          
+            x += nodeWidth + horizontalSpacing;
+          
+            if (x + nodeWidth > canvasWidth - 100) {
+                x = 100;
+                y += rowHeight + verticalSpacing;
+                rowHeight = 0;
+            }
+          
+            if (this.jsPlumbInstance) {
+                this.jsPlumbInstance.revalidate(node.id);
+            }
+        });
+      
+        if (this.jsPlumbInstance) {
+            this.jsPlumbInstance.repaintEverything();
+        }
+        this.showNotification('Nodes auto-arranged successfully', 'success');
+    }
+
+    removeNode(nodeId) {
+        if (confirm('Are you sure you want to delete this node?')) {
+            if (this.jsPlumbInstance) {
+                this.jsPlumbInstance.removeAllEndpoints(nodeId);
+                this.jsPlumbInstance.deleteConnectionsForElement(nodeId);
+            }
+          
+            document.getElementById(nodeId)?.remove();
+          
+            if (this.selectedNode && this.selectedNode.id === nodeId) {
+                this.selectedNode = null;
+            }
+          
+            this.updateStats();
+            this.showNotification('Node deleted', 'success');
+        }
+    }
+
+    connectNode(nodeId, branch = null) {
+        if (this.connectionMode && this.connectionSource === nodeId) {
+            this.cancelConnectionMode();
+        } else {
+            this.enableConnectionMode(nodeId, branch);
+        }
+    }
+
+    enableConnectionMode(sourceNodeId, branch = null) {
+        this.connectionMode = true;
+        this.connectionSource = sourceNodeId;
+        this.connectionBranch = branch;
+      
+        const sourceNode = document.getElementById(sourceNodeId);
+        if (sourceNode) {
+            sourceNode.style.boxShadow = '0 0 0 3px #10b981';
+            sourceNode.classList.add('connection-source');
+        }
+      
+        document.body.style.cursor = 'crosshair';
+        this.showNotification('Click on target node to connect. Press ESC to cancel.', 'info');
+      
+        this.escapeHandler = (e) => {
+            if (e.key === 'Escape') {
+                this.cancelConnectionMode();
+            }
+        };
+        document.addEventListener('keydown', this.escapeHandler);
+      
+        this.connectionClickHandler = (e) => this.handleConnectionTarget(e);
+        this.flowCanvas.addEventListener('click', this.connectionClickHandler);
+    }
+
+    cancelConnectionMode() {
+        this.connectionMode = false;
+        if (this.connectionSource) {
+            const sourceNode = document.getElementById(this.connectionSource);
+            if (sourceNode) {
+                sourceNode.style.boxShadow = '';
+                sourceNode.classList.remove('connection-source');
+            }
+        }
+        this.connectionSource = null;
+        this.connectionBranch = null;
+        document.body.style.cursor = '';
+      
+        if (this.escapeHandler) {
+            document.removeEventListener('keydown', this.escapeHandler);
+        }
+        if (this.connectionClickHandler) {
+            this.flowCanvas.removeEventListener('click', this.connectionClickHandler);
+        }
+      
+        this.showNotification('Connection mode cancelled', 'info');
+    }
+
+    handleConnectionTarget(e) {
+        if (!this.connectionMode) return;
+      
+        const targetNode = e.target.closest('.flow-node');
+        if (!targetNode) return;
+      
+        const targetNodeId = targetNode.id;
+      
+        if (targetNodeId === this.connectionSource) {
+            this.showNotification('Cannot connect to the same node', 'error');
+            return;
+        }
+      
+        this.createConnection(this.connectionSource, targetNodeId, this.connectionBranch);
+        this.cancelConnectionMode();
+    }
+
+    createConnection(sourceId, targetId, branch = null) {
+        console.log('Creating connection fromb-----------', sourceId, 'to', targetId);
+      
+        if (!this.jsPlumbInstance) return;
+        try {
+            const existing = this.jsPlumbInstance.getConnections({
+                source: sourceId,
+                target: targetId
+            });
+            if (existing && existing.length > 0) {
+                this.showNotification('Connection already exists', 'warning');
+                return;
+            }
+            const connection = this.jsPlumbInstance.connect({
+                source: sourceId,
+                target: targetId,
+                overlays: [
+                    ["Arrow", {
+                        location: 1,
+                        width: 12,
+                        length: 12,
+                        foldback: 0.8
+                    }]
+                ],
+                anchors: ["Right", "Left"],
+                paintStyle: {
+                    stroke: "#7C3AED",
+                    strokeWidth: 2
+                },
+                hoverPaintStyle: {
+                    stroke: "#10B981",
+                    strokeWidth: 3
+                }
+            });
+            if (connection) {
+                if (branch) {
+                    connection.setData({ branch: branch });
+                }
+                this.showNotification('Connection created successfully', 'success');
+                this.updateStats();
+            }
+        } catch (error) {
+            console.error('Error creating connection:', error);
+            this.showNotification('Failed to create connection', 'error');
+        }
+    }
+
+    selectNode(nodeId) {
+        if (this.selectedNode) {
+            this.selectedNode.classList.remove('selected');
+        }
+      
+        this.selectedNode = document.getElementById(nodeId);
+        if (this.selectedNode) {
+            this.selectedNode.classList.add('selected');
+        }
+    }
+
+    addSampleFlow() {
+        this.createNode('trigger', 100, 100);
+        this.createNode('text-message', 450, 100);
+        this.createNode('condition', 800, 100);
+        this.createNode('text-message', 600, 250);
+        this.createNode('media-message', 900, 250);
+    }
+
+    async apiGet(url) {
+        const response = await fetch(url, {
+            headers: { 'Accept': 'application/json' }
+        });
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        return response.json();
+    }
+
+    async apiPost(url, data) {
+        try {
+            const response = await fetch(url, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': this.csrfToken
+                },
+                body: JSON.stringify(data)
+            });
+            if (!response.ok) {
+                let errorMessage = `HTTP ${response.status}`;
+                try {
+                    const errorData = await response.json();
+                    errorMessage = errorData.error || errorData.details || errorMessage;
+                } catch (e) {
+                    const text = await response.text();
+                    errorMessage = text || errorMessage;
+                }
+                throw new Error(errorMessage);
+            }
+          
+            return await response.json();
+        } catch (error) {
+            console.error('API POST Error:', error);
+            throw error;
+        }
+    }
+
+    showNotification(message, type = 'info') {
+        const notification = document.createElement('div');
+        notification.style.cssText = `
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 12px 20px;
+            border-radius: 8px;
+            color: white;
+            font-weight: 500;
+            z-index: 10000;
+            transition: all 0.3s ease;
+            background: ${type === 'success' ? '#10B981' : type === 'error' ? '#EF4444' : '#3B82F6'};
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5);
+        `;
+        notification.textContent = message;
+        document.body.appendChild(notification);
+        setTimeout(() => {
+            notification.style.opacity = '0';
+            setTimeout(() => notification.remove(), 300);
+        }, 3000);
+    }
+}
+    // تهيئة التطبيق
+    let automationsList;
+    let flowBuilder;
+    document.addEventListener('DOMContentLoaded', () => {
+        automationsList = new AutomationsList();
+       
+        function initializeFlowBuilder() {
+            if (typeof jsPlumb !== 'undefined') {
+                flowBuilder = new FlowBuilder();
+                window.flowBuilder = flowBuilder;
+                console.log('✅ FlowBuilder initialized successfully');
+            } else {
+                console.log('⏳ Waiting for jsPlumb to load...');
+                setTimeout(initializeFlowBuilder, 100);
+            }
+        }
+       
+        initializeFlowBuilder();
+    });
+
+    function showAutomationsList() {
+        if (automationsList) {
+            automationsList.showAutomationsList();
+        }
+    }
+</script>
+
+
+
+<!-- Create Flow Modal -->
+<div id="createFlowModal" class="cf-modal">
+    <div class="cf-modal-content">
+        <h2 style="color: black;">Create New Flow</h2>
+
+        <label>Flow Name</label>
+        <input type="text" id="cf-name" class="cf-input" placeholder="Enter flow name">
+
+        <label>Description</label>
+        <textarea id="cf-desc" class="cf-textarea" placeholder="Enter description"></textarea>
+
+        <div class="cf-actions">
+            <button id="cf-cancel" class="cf-btn cf-cancel">Cancel</button>
+            <button id="cf-save" class="cf-btn cf-save">Save</button>
+        </div>
+    </div>
+</div>
+
+<style> 
+.cf-modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    display: none;
+    background: rgba(0,0,0,0.45);
+    backdrop-filter: blur(3px);
+    justify-content: center;
+    align-items: center;
+    z-index: 9999;
+}
+
+
+
+.cf-modal label {
+    font-size: 14px;
+    font-weight: 500;
+    margin-bottom: 6px;
+    display: block;
+    color:#0F172A;
+    font-family: 'Franklin Gothic Medium', 'Arial Narrow', Arial, sans-serif;
+}
+.cf-modal-content {
+    width: 380px;
+    background: #fff;
+    padding: 22px;
+    border-radius: 14px;
+    box-shadow: 0 8px 25px rgba(0,0,0,0.15);
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    font-family: sans-serif;
+}
+
+.cf-modal-content h2 {
+    margin: 0;
+    font-size: 20px;
+    font-weight: 600;
+}
+
+.cf-input, .cf-textarea {
+    width: 100%;
+    padding: 10px;
+    border-radius: 8px;
+    border: 1.5px solid #ddd;
+    font-size: 15px;
+}
+
+.cf-textarea {
+    min-height: 80px;
+    resize: vertical;
+}
+
+.cf-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+    margin-top: 8px;
+}
+
+.cf-btn {
+    padding: 10px 18px;
+    font-size: 15px;
+    border-radius: 8px;
+    cursor: pointer;
+    border: none;
+    transition: 0.2s;
+}
+
+.cf-cancel {
+    border: 1px solid #4b7cff;
+    color: black;
+    background: #0000002b;
+}
+
+.cf-cancel:hover {
+    background: #ddd;
+}
+
+.cf-save {
+    background: #4a7cff;
+    color: white;
+}
+
+.cf-save:hover {
+    background: #3a68d8;
+}
+
+
+ </style>
+ 

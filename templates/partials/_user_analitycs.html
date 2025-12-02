@@ -1,0 +1,2725 @@
+{% extends 'userBase.html' %}
+{% load static %}
+{% block content %}
+<!-- .script_sections{font-family:Inter,system-ui,Arial;margin:0;background:linear-gradient(180deg,#071427 0%, #0b1220 60%);color:#e6f3f7;} -->
+ 
+  <!-- <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script> -->
+    <!-- <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script> -->
+    <!-- <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet"> -->
+
+    <!-- <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script> -->
+
+
+<style>
+    .text-left{
+        display: flex;
+            align-items: flex-start;
+
+    }
+    #campaignChart {
+  width: 800px;
+  height: 400px;
+
+}
+
+        .main-container {
+            padding: 0px !important;
+        }
+       /* Cards within content sections */
+    .card {
+        border: 1px solid var(--border-color-light); /* Very light border */
+        background-color: var(--background-tertiary); /* Lighter dark for cards */
+        border-radius: var(--border-radius-md);
+        box-shadow: none; /* No strong shadows as per ElevenLabs */
+        margin-bottom: 1.5rem; /* Space between cards */
+        color: var(--text-light);
+    }
+
+    .card-header {
+        background-color: transparent; /* No distinct background */
+        border-bottom: 1px solid var(--border-color); /* Subtle divider */
+        padding: 1rem 1.5rem;
+        font-weight: 600;
+        font-size: .875rem; /* User specified font size */
+        color: var(--text-light);
+        border-radius: var(--border-radius-md) var(--border-radius-md) 0 0;
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+    }
+    .card-header i {
+        color: var(--text-muted); /* Muted icons in header */
+    }
+
+    .card-body {
+        padding: 1.5rem;
+    }
+    /* Import Google Fonts - Inter for general use */
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+    
+  
+
+    :root {
+        /* ElevenLabs inspired Dark Palette */
+        --background-primary: #1A1A1A; /* Deepest black for overall body background */
+        --background-secondary: #2B2B2B; /* Dark grey for sidebar, main content panels, and default buttons */
+        --background-tertiary: #3A3A3A; /* Slightly lighter dark grey for nested cards and input backgrounds */
+        
+        --text-light: hsl(0, 0%, 100%); /* Pure white for main headings and text */
+        --text-muted: rgba(255, 255, 255, 0.5) !important; /* White with transparency for secondary/muted text */
+        
+        --accent-color: #00E676; /* Neon Green (vibrant) */
+        --accent-color-hover: rgb(140, 200, 0); /* Slightly darker accent on hover */
+        --accent-color-transparent: rgba(182, 255, 0, 0.15); /* Accent with transparency for active states */
+        
+        --border-color: rgba(255, 255, 255, 0.1); /* Subtle white-transparent border */
+        --border-color-light: rgba(255, 255, 255, 0.05); /* Even lighter border for some elements */
+        
+        /* Specific status colors, adjusted for dark theme readability */
+        --status-success: #34C759; /* Green */
+        --status-warning: #FF9500; /* Orange */
+        --status-danger: #FF3B30; /* Red */
+        --status-info: #5AC8FA; /* Light Blue */
+
+        /* Border Radii */
+        --border-radius-lg: 12px; /* For main panels */
+        --border-radius-md: 8px; /* For cards */
+        --border-radius-sm: 4px; /* For buttons, inputs, badges */
+
+        /* Shadows */
+        --shadow-dark: 0 4px 15px rgba(0, 0, 0, 0.4); /* Deeper, subtle shadows */
+    }
+
+    body {
+        font-family: 'SF Pro Display', 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+        background-color: var(--background-primary);
+        color: var(--text-light);
+        line-height: 1.6;
+        min-height: 100vh;
+        display: flex;
+        flex-direction: column;
+        margin: 0;
+        direction: ltr;
+        padding: 0;
+        overflow-x: hidden; /* Prevent horizontal scroll */
+    }
+
+   
+
+     
+ 
+ 
+
+ 
+ 
+   
+
+    
+
+    /* Buttons - Shopify/ElevenLabs style */
+    .btn {
+        border-radius: var(--border-radius-sm); /* Small radius for buttons */
+        padding: 0.75rem 1.25rem;
+        font-weight: 500;
+        font-size: .875rem; /* User specified font size */
+        transition: all 0.15s ease-in-out;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.5rem;
+        text-decoration: none;
+        cursor: pointer;
+        line-height: 1; /* Ensure consistent height */
+    } 
+
+    .btn-primary {
+        background-color: var(--text-light); /* White background for primary CTAs */
+        border: 1px solid var(--text-light);
+        color: var(--background-primary); /* Dark text on white */
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3); /* Subtle shadow */
+    }
+    .btn-primary:hover {
+        background-color: var(--background-secondary); /* Dark background on hover */
+        border-color: var(--text-light);
+        color: var(--text-light); /* White text on hover */
+        transform: translateY(-1px);
+        box-shadow: 0 4px 10px rgba(0, 0, 0, 0.4);
+    }
+
+    /* Secondary/Outline Buttons */
+    .btn-secondary,
+    .btn-outline-dark { /* Used for generic secondary actions like cancel */
+        background-color: transparent;
+        border: 1px solid var(--border-color);
+        color: var(--text-light);
+    }
+    .btn-secondary:hover,
+    .btn-outline-dark:hover {
+        background-color: rgba(255, 255, 255, 0.1); /* Subtle dark hover */
+        border-color: rgba(255, 255, 255, 0.2);
+        color: var(--text-light);
+        transform: translateY(-1px);
+    }
+
+    @media (max-width: 991.98px) { /* Tablets and smaller */
+        .dashboard-layout {
+            flex-direction: column;
+            padding: 1rem;
+            gap: 1rem;
+        }
+        .sidebar {
+            width: 100%;
+            flex: none;
+            position: relative;
+            top: auto;
+            padding: 1rem;
+            height: auto; /* Allow sidebar to adjust height */
+        }
+        .sidebar .logo {
+            margin-bottom: 1.5rem;
+        }
+        .sidebar .nav-group-title {
+            margin-top: 1rem;
+            margin-bottom: 0.5rem;
+        }
+        .sidebar .nav-menu {
+            flex-grow: 0; /* Don't grow on small screens */
+        }
+        .main-content {
+            padding: 1.5rem;
+        }
+        .section-header-container {
+            padding-bottom: 1rem;
+            margin-bottom: 1.5rem;
+        }
+        .section-header {
+            font-size: 1.1rem;
+        }
+        .section-description {
+            font-size: 0.8rem;
+        }
+        .nav-tabs-custom {
+            margin-bottom: 0rem;
+        }
+        .card-body {
+            padding: 1rem;
+        }
+        .btn {
+            padding: 0.6rem 1rem;
+            font-size: 0.8rem;
+        }
+    }
+    .table-responsive {
+            max-height: 247px !important;
+
+    }
+
+    @media (max-width: 575.98px) { /* Mobile phones */
+        .dashboard-layout {
+            padding: 0.5rem;
+            gap: 0.5rem;
+        }
+        .sidebar {
+            padding: 0.75rem;
+            border-radius: var(--border-radius-md);
+        }
+        .sidebar .logo {
+            font-size: 1.3rem;
+            margin-bottom: 1rem;
+        }
+        .sidebar .nav-link {
+            padding: 0.6rem 0.75rem;
+            font-size: 0.8rem;
+        }
+        .main-content {
+            padding: 1rem;
+            border-radius: var(--border-radius-md);
+        }
+        .section-header {
+            font-size: 1rem;
+        }
+        .nav-tabs-custom .nav-link {
+            padding: 0.6rem 0.8rem;
+            font-size: 0.75rem;
+        }
+        .card-header {
+            padding: 0.8rem 1rem;
+        }
+        .card-body {
+            padding: 0.8rem;
+        }
+        .empty-state {
+            padding: 1.5rem;
+            min-height: 200px;
+        }
+        .empty-state-icon {
+            font-size: 2.5rem;
+        }
+    }
+    .btn-primary i{
+        color: color(srgb 0.2274 0.2275 0.2274) !important;
+    }
+    .btn-group {
+direction: rtl;
+}
+</style>
+ 
+
+ 
+
+
+ 
+  
+  <!-- Tailwind Play CDN - good for prototypes (no build step). Replace with compiled Tailwind in production. -->
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+  <style>
+    /* small custom tweaks */
+    .card-shadow { box-shadow: 0 6px 18px rgba(15, 23, 42, 0.08); }
+    .badge-platform { font-weight: 600; padding: 0.25rem 0.6rem; border-radius: 9999px; }
+    .tiny { font-size: 0.78rem; color: #6b7280; } /* gray-500 */
+    table thead th { font-weight: 700; }
+   /* small transition for collapsing details */
+   
+ 
+ 
+  </style>
+  
+  <style>
+    /* Recommendation card — updated, place in your existing styles */
+.rec-grid {
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: 1fr;
+}
+@media(min-width:768px){ .rec-grid { grid-template-columns: repeat(2, 1fr); } }
+@media(min-width:1200px){ .rec-grid { grid-template-columns: repeat(3, 1fr); } }
+
+.rec-card {
+  background: linear-gradient(180deg,#ffffff,#fbfdff);
+  border-radius: 12px;
+  padding: 14px;
+  box-shadow: 0 12px 30px rgba(11, 22, 39, 0.06);
+  border: 1px solid rgba(15,23,42,0.04);
+  display:flex; flex-direction:column; gap:10px;
+  transition: transform .12s ease, box-shadow .12s ease;
+}
+.rec-card:hover { transform: translateY(-6px); box-shadow: 0 18px 40px rgba(11,22,39,0.09); }
+
+.rec-header { display:flex; gap:12px; align-items:flex-start; }
+.rec-accent {
+  min-width:52px; min-height:52px; border-radius:10px;
+  display:flex; align-items:center; justify-content:center; color:#fff; font-weight:700;
+  flex-shrink:0; font-size:1.05rem;
+}
+.rec-meta { flex:1; }
+.rec-title { font-size:1rem; font-weight:600; color:#0f172a; margin:0; }
+.rec-sub { color:#6b7280; font-size:.88rem; margin-top:6px; }
+
+.rec-badges { display:flex; gap:8px; margin-top:10px; flex-wrap:wrap; }
+.rec-badge {
+  background: rgba(15,23,42,0.04);
+  color:#0f172a;
+  padding:6px 8px;
+  border-radius:999px;
+  font-weight:600;
+  font-size:.78rem;
+}
+
+/* confidence progress */
+.conf-wrap { margin-top:10px; display:flex; gap:12px; align-items:center; }
+.conf-percent { font-weight:700; color:#0f172a; font-size:.95rem; min-width:44px; text-align:right; }
+.conf-bar { height:10px; background:#eef2ff; border-radius:999px; overflow:hidden; flex:1; }
+.conf-fill { height:100%; background: linear-gradient(90deg,#34d399,#60a5fa); width:0%; transition: width .6s cubic-bezier(.2,.9,.2,1); }
+
+/* actions */
+.rec-actions { display:flex; gap:8px; justify-content:flex-end; margin-top:8px; }
+.btn-rec { padding:8px 12px; border-radius:8px; font-weight:700; font-size:.9rem; cursor:pointer; border:none; }
+.btn-rec-apply { background: linear-gradient(90deg,#06b6d4,#3b82f6); color:#fff; box-shadow: 0 6px 18px rgba(59,130,246,0.12); }
+.btn-rec-ignore { background: transparent; border:1px solid rgba(15,23,42,0.06); color:#0f172a; }
+.btn-rec-details { background:#f8fafc; border:1px solid rgba(15,23,42,0.03); color:#374151; }
+
+/* details collapsed / open */
+.rec-details-block { max-height:0; overflow:hidden; transition: max-height .28s ease; border-top:1px dashed rgba(15,23,42,0.04); padding-top:0; margin-top:8px; color:#334155; font-size:.9rem; white-space:pre-wrap; }
+.rec-details-open { max-height: 640px; padding-top:10px; }
+
+
+
+
+
+
+
+
+
+/* ============================
+   Responsive base container
+   ============================ */
+.container {
+  width: 100%;
+  margin-left: auto;
+  margin-right: auto;
+  padding-left: 16px;
+  padding-right: 16px;
+  box-sizing: border-box;
+}
+/* breakpoints: adjust max-width per viewport */
+@media (min-width: 640px) {
+  .container { max-width: 640px; }
+}
+@media (min-width: 768px) {
+  .container { max-width: 768px; padding-left: 20px; padding-right: 20px; }
+}
+@media (min-width: 1024px) {
+  .container { max-width: 1024px; padding-left: 24px; padding-right: 24px; }
+}
+@media (min-width: 1280px) {
+  .container { max-width: 1280px; padding-left: 28px; padding-right: 28px; }
+}
+@media (min-width: 1536px) {
+  .container { max-width: 1536px; padding-left: 32px; padding-right: 32px; }
+}
+
+/* ============================
+   Global typography + small helpers
+   ============================ */
+.tiny { font-size: .82rem; color: #6b7280; }
+.font-medium { font-weight: 600; color: #0f172a; }
+.card-shadow { box-shadow: 0 8px 30px rgba(11,22,39,0.06); border-radius: 12px; }
+
+/* ============================
+   Recommendation grid & cards
+   - grid is responsive: 1 column mobile, 2 tablet, 3 desktop
+   ============================ */
+.rec-grid {
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: 1fr;
+}
+@media (min-width: 768px) { /* md */
+  .rec-grid { grid-template-columns: repeat(2, 1fr); }
+}
+@media (min-width: 1200px) { /* lg+ */
+  .rec-grid { grid-template-columns: repeat(3, 1fr); }
+}
+
+.rec-card {
+  background: linear-gradient(180deg,#ffffff,#fbfdff);
+  border-radius: 12px;
+  padding: 14px;
+  display:flex;
+  flex-direction:column;
+  gap:10px;
+  border: 1px solid rgba(15,23,42,0.04);
+  transition: transform .12s ease, box-shadow .12s ease;
+}
+.rec-card:hover { transform: translateY(-6px); box-shadow: 0 18px 40px rgba(11,22,39,0.08); }
+
+.rec-header { display:flex; gap:12px; align-items:flex-start; }
+.rec-accent { min-width:52px; min-height:52px; border-radius:10px; display:flex; align-items:center; justify-content:center; color:#fff; font-weight:700; flex-shrink:0; font-size:1.05rem; }
+.rec-meta { flex:1; }
+.rec-title { font-size:1rem; font-weight:600; margin:0; color:#0f172a; }
+.rec-sub { color:#6b7280; font-size:.88rem; margin-top:6px; }
+.rec-badges { display:flex; gap:8px; margin-top:10px; flex-wrap:wrap; }
+.rec-badge { background: rgba(15,23,42,0.04); color:#0f172a; padding:6px 8px; border-radius:999px; font-weight:600; font-size:.78rem; }
+
+/* confidence bar */
+.conf-wrap { margin-top:10px; display:flex; gap:12px; align-items:center; }
+.conf-percent { font-weight:700; color:#0f172a; font-size:.95rem; min-width:44px; text-align:right; }
+.conf-bar { height:10px; background:#eef2ff; border-radius:999px; overflow:hidden; flex:1; }
+.conf-fill { height:100%; background: linear-gradient(90deg,#34d399,#60a5fa); width:0%; transition: width .6s cubic-bezier(.2,.9,.2,1); }
+
+/* actions */
+.rec-actions { display:flex; gap:8px; justify-content:flex-end; margin-top:8px; flex-wrap:wrap; }
+.btn-rec { padding:8px 12px; border-radius:8px; font-weight:700; font-size:.9rem; cursor:pointer; border:none; }
+.btn-rec-apply { background: linear-gradient(90deg,#06b6d4,#3b82f6); color:#fff; box-shadow: 0 6px 18px rgba(59,130,246,0.12); }
+.btn-rec-ignore { background: transparent; border:1px solid rgba(15,23,42,0.06); color:#0f172a; }
+.btn-rec-details { background:#f8fafc; border:1px solid rgba(15,23,42,0.03); color:#374151; }
+
+/* details */
+.rec-details-block { max-height:0; overflow:hidden; transition: max-height .28s ease; border-top:1px dashed rgba(15,23,42,0.04); padding-top:0; margin-top:8px; color:#334155; font-size:.9rem; white-space:pre-wrap; }
+.rec-details-open { max-height: 640px; padding-top:10px; }
+
+/* ============================
+   Table responsive tweaks
+   - make table scroll horizontally on small screens
+   ============================ */
+.table-wrap { width:100%; overflow-x:auto; -webkit-overflow-scrolling:touch; }
+.table { width:100%; border-collapse:collapse; min-width:720px; } /* min-width to keep columns readable */
+.table th, .table td { padding:10px 12px; text-align:left; border-bottom: 1px solid rgba(15,23,42,0.03); font-size:.92rem; color:#0f172a; }
+.table thead th { font-weight:700; background: #fbfdff; }
+
+/* smaller screens: tighten paddings */
+@media (max-width:520px) {
+  .table th, .table td { padding:8px 10px; font-size:.85rem; }
+  .rec-accent { min-width:44px; min-height:44px; }
+  .rec-card { padding:10px; }
+}
+
+/* ============================
+   Chart canvas responsiveness
+   - ensures charts resize nicely inside grid/cards
+   ============================ */
+.chart-card { position:relative; width:100%; display:block; }
+.chart-card canvas { width:100% !important; height: 260px; } /* default height, can be overridden */
+@media (min-width:1280px) {
+  .chart-card canvas { height: 320px; }
+}
+
+/* ============================
+   Small utilities
+   ============================ */
+.text-right { text-align:right; }
+.text-center { text-align:center; }
+.muted { color:#6b7280; font-size:.88rem; }
+
+/* ============================
+   Accessibility / focus ring for keyboard users
+   ============================ */
+.focus-ring:focus { outline: none; box-shadow: 0 0 0 4px rgba(59,130,246,0.12); border-radius: 8px; }
+
+/* ============================
+   Print friendly adjustments (optional)
+   ============================ */
+@media print {
+  .rec-actions, .btn-rec, .refresh-controls { display:none !important; }
+  .container { padding-left:4px; padding-right:4px; max-width:100% !important; }
+}
+
+  </style>
+
+<!-- 
+<style>
+
+        /* Top Navigation Bar - Standard Bootstrap-like */
+        .top-navbar {
+            background-color: var(--background-primary);
+            padding: 1rem 2.5rem; /* Adjusted padding to be more compact */
+            border-bottom: var(--border-width) solid var(--border-card);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0px 2px 5px rgba(0, 0, 0, 0.2); /* Subtle shadow */
+            position: sticky;
+            top: 0;
+            z-index: 1000;
+        }
+
+        .top-navbar .logo {
+            font-size: 1.25rem; /* Smaller logo */
+            font-weight: 700;
+            color: var(--text-light); /* White logo */
+            text-decoration: none;
+        }
+
+        .top-navbar .nav-links .btn {
+            color: var(--text-muted); /* Muted color for non-active links */
+            border: none;
+            padding: 0.5rem 1rem; /* Smaller buttons */
+            border-radius: var(--border-radius-sm);
+            font-weight: 500;
+            transition: all 0.2s ease;
+            font-size: var(--font-size-sm); /* Text-sm for top nav */
+        }
+
+        .top-navbar .nav-links .btn:hover {
+            background-color: rgba(255, 255, 255, 0.05); /* Subtle hover */
+            color: var(--text-light);
+        }
+
+        .top-navbar .nav-links .btn.active {
+            background-color: transparent; /* No background for active */
+            color: var(--accent-color); /* Accent color for active */
+            border-bottom: 2px solid var(--accent-color); /* Underline active tab */
+            border-radius: 0; /* Remove border-radius for underline effect */
+        }
+
+.padding-section-content{
+    padding:0.1rem 2.5rem 2.5rem 2.5rem;
+
+}
+</style> -->
+</head>
+<body class="bg-gray-50 text-gray-800">
+
+     <nav class="analytyc-tabs-nav">
+  <a class="nav-link active" href="#" data-section="Performance-data">Performance</a>
+
+  <a class="nav-link" href="#" data-section="script-setting-up">Set Up Script</a>
+  <a class="nav-link" href="#" data-section="facebook-data">Facebook Ads Data</a>
+
+   
+</nav>
+<style>
+  .analytyc-tabs-nav {
+    background-color: #121212;
+            display: flex;
+            /* margin-bottom: 2rem; Space below tabs */
+            border-bottom: var(--border-width)
+ solid rgb(52 52 54); /* Separator below tabs */
+        }
+        .analytyc-tabs-nav .nav-link.active {
+    color: #e0e0e0;
+    border-bottom-color: #00e677;
+    background-color: rgba(255, 255, 255, 0.05);
+}
+
+.analytyc-tabs-nav .nav-link {
+    padding: 0.60rem 1.25rem;
+    color: var(--text-muted);
+    font-size: .875rem;
+    font-weight: 500;
+    text-decoration: none;
+    border-bottom: 2px solid transparent;
+    transition: color 0.2s ease, border-color 0.2s ease;
+    border-radius: 0.25rem 0.25rem 0 0;
+}
+
+</style>
+<!-- script for capturing visit  -->
+<div id="script-setting-up" class="tab-section script_sections" style="display: none;"> 
+
+
+
+<style>
+/* Professional UI (compact) - classes end with -S to avoid conflicts */
+:root{--bg:#071427;--muted:#94a3b8;--accent:#06b6d4;--accent-2:#0ea5a4;--success:#16a34a;--danger:#ef4444;--radius:12px;}
+.script_sections{font-family:Inter,system-ui,Arial;margin:0;background:linear-gradient(180deg,#071427 0%, #0b1220 60%);color:#e6f3f7; padding:28px 0; min-height:100vh;}
+.container-S{max-width:1100px;margin:0 auto;}
+.header-S{display:flex;align-items:center;justify-content:space-between;margin-bottom:18px;}
+.h-title-S{font-size:20px;font-weight:700;}
+.h-sub-S{color:var(--muted);font-size:13px;}
+.btn-S{border:0;padding:10px 14px;border-radius:10px;cursor:pointer;font-weight:600;font-size:14px;}
+.btn-primary-S{background:linear-gradient(90deg,var(--accent-2),var(--accent));color:#02121a;}
+.dashboard-wrap-S{display:grid;grid-template-columns:1fr 360px;gap:18px;}
+.list-col-S{background:linear-gradient(180deg, rgba(255,255,255,0.02), transparent);border-radius:var(--radius);padding:18px;border:1px solid rgba(255,255,255,0.03);}
+.empty-S{display:flex;align-items:center;justify-content:center;gap:18px;flex-direction:column;padding:40px;color:var(--muted);border:1px dashed rgba(255,255,255,0.03);border-radius:10px;}
+.scripts-grid-S{display:flex;flex-direction:column;gap:12px;}
+.script-card-S{background:linear-gradient(90deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));border-radius:10px;padding:12px;display:flex;align-items:center;justify-content:space-between;gap:12px;border:1px solid rgba(255,255,255,0.03);}
+.script-meta-S{flex:1 1 auto;display:flex;flex-direction:column;gap:6px;text-align:right;}
+.script-title-S{font-weight:700;font-size:15px;}
+.script-sub-S{color:var(--muted);font-size:13px;}
+.status-dot-S{width:12px;height:12px;border-radius:50%;display:inline-block;margin-left:8px;}
+.dot-on-S{background:var(--success);}
+.dot-off-S{background:var(--danger);}
+.card-actions-S{display:flex;gap:8px;align-items:center;}
+.icon-btn-S{background:transparent;color:var(--muted);border:1px solid rgba(255,255,255,0.02);padding:8px;border-radius:8px;cursor:pointer;font-weight:700;}
+.preview-S{background:#020617;color:#bfeef6;padding:8px;border-radius:8px;font-family:monospace;font-size:12px;max-width:240px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;}
+.side-col-S{background:linear-gradient(180deg, rgba(255,255,255,0.015), transparent);border-radius:var(--radius);padding:14px;border:1px solid rgba(255,255,255,0.03);height:fit-content;}
+.slide-panel-S{position:fixed;right:24px;top:24px;width:520px;max-width:calc(100% - 48px);height:calc(100% - 48px);background:linear-gradient(180deg,#021223,#051220);border-radius:14px;box-shadow:0 30px 80px rgba(2,6,23,0.7);transform:translateY(12px) translateX(20px) scale(.99);opacity:0;pointer-events:none;transition:all 260ms cubic-bezier(.2,.9,.3,1);display:flex;flex-direction:column;overflow:hidden;border:1px solid rgba(255,255,255,0.04);z-index:1200;}
+.slide-panel-S.open{transform:translateY(0) translateX(0) scale(1);opacity:1;pointer-events:auto;}
+.panel-header-S{padding:16px 18px;display:flex;gap:12px;align-items:center;justify-content:space-between;border-bottom:1px solid rgba(255,255,255,0.02);}
+.panel-body-S{padding:16px;overflow:auto;display:grid;gap:12px;}
+.field-S{display:flex;flex-direction:column;gap:6px;}
+.input-S{padding:10px 12px;border-radius:8px;border:1px solid rgba(255,255,255,0.04);background:transparent;color:#e6f3f7;outline:none;}
+.select-S{padding:10px 12px;border-radius:8px;border:1px solid rgba(255,255,255,0.04);background:transparent;color:#e6f3f7;}
+.small-muted-S{color:var(--muted);font-size:13px;}
+.form-row-S{display:flex;gap:12px;align-items:center;flex-wrap:wrap;}
+.col-half-S{flex:1 1 48%;min-width:140px;}
+.col-full-S{flex:1 1 100%;}
+.coupon-row-S{display:flex;gap:8px;align-items:center;}
+.generated-area-S{background:#02101a;border-radius:8px;padding:10px;color:#9fe8ef;font-family:monospace;font-size:12px;max-height:240px;overflow:auto;white-space:pre-wrap;}
+.kv-S{display:flex;gap:8px;color:var(--muted);font-size:13px;align-items:center;}
+@media(max-width:980px){.dashboard-wrap-S{grid-template-columns:1fr;} .slide-panel-S{left:24px;right:24px;top:24px;width:auto;} }
+</style>
+
+<!-- <div class="container-all">  -->
+<div class="container-S">
+  <div class="header-S">
+    <div>
+      <div class="h-title-S">Flows Dashboard</div>
+      <div class="h-sub-S">Server-backed flows: create, edit, deploy scripts</div>
+    </div>
+    <div>
+      <button id="addBtn-S" class="btn-S btn-primary-S">＋ Add Script</button>
+    </div>
+  </div>
+
+  <div class="dashboard-wrap-S">
+    <div class="list-col-S">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+        <div style="font-weight:800;">Your Flows</div>
+        <div style="color:var(--muted);font-size:13px;">Manage server flows</div>
+      </div>
+      <div id="scriptsArea-S" class="scripts-grid-S"></div>
+    </div>
+
+    
+    <aside class="side-col-S">
+      <div style="font-weight:800;margin-bottom:8px;">Quick Info</div>
+      <div class="kv-S"><strong>•</strong> Flows are stored on server and belong to your account.</div>
+      <div class="kv-S"><strong>•</strong> The generated script contains  flow_id . Optionally include API key.</div>
+      <div class="kv-S"><strong>•</strong> Only visits from your allowed domains are tracked, with no duplicates for repeated visits from the same user.</div>
+      <div class="kv-S"><strong>•</strong> Visits are tracked from allowed domains only.   </div>
+      <div class="kv-S"><strong>•</strong> Each visitor gets a unique ID stored in their browser to avoid duplicates, even if they revisit the same page.  </div>
+      <div class="kv-S"> <strong>•</strong> This ensures accurate tracking of real user activity.</div>
+
+      <div style="height:10px;"></div>
+      <div style="font-weight:700;margin-bottom:8px;">Saved Flows</div>
+      <div id="count-S" class="kv-S">0 flows</div>
+    </aside>
+  </div>
+</div>
+
+<!-- slide panel (create/edit) -->
+<div id="panel-S" class="slide-panel-S" aria-hidden="true">
+  <div class="panel-header-S">
+    <div id="panelTitle-S" style="font-weight:800;">Create Flow</div>
+    <div><button id="closePanel-S" class="icon-btn-S">✕</button></div>
+  </div>
+
+  <div class="panel-body-S">
+    <div class="field-S col-full-S">
+      <label class="small-muted-S">Flow name</label>
+      <input id="flowName-S" class="input-S" placeholder="Internal name" />
+    </div>
+
+    <div class="field-S col-full-S">
+      <label class="small-muted-S">Allowed domains (comma separated)</label>
+      <input id="allowedDomains-S" class="input-S" placeholder="yourstore.com,shop.other.com" />
+      <div class="small-muted-S">Server will validate request origin if API key omitted.</div>
+    </div>
+
+    <div class="field-S col-full-S">
+      <label class="small-muted-S">Store URL (merchant)</label>
+      <input id="storeUrl-S" class="input-S" placeholder="https://merchant.example" />
+    </div>
+
+    <div class="form-row-S">
+      <div class="field-S col-half-S">
+        <label class="small-muted-S">Enable Smart Discount</label>
+        <select id="enableDiscount-S" class="select-S"><option value="no">No</option><option value="yes">Yes</option></select>
+      </div>
+      <div class="field-S col-half-S">
+        <label class="small-muted-S">Block repeat order (48h)</label>
+        <select id="blockRepeat-S" class="select-S"><option value="no">No</option><option value="yes">Yes</option></select>
+      </div>
+    </div>
+
+    <div id="discountBlock-S" style="display:none;">
+      <div class="form-row-S">
+        <div class="field-S col-half-S"><label class="small-muted-S">Show after visits</label><input id="visitsThreshold-S" class="input-S" type="number" min="1" value="2" /></div>
+        <div class="field-S col-half-S"><label class="small-muted-S">Coupon mode</label><select id="couponMode-S" class="select-S"><option value="show">Show only</option><option value="auto">Auto-apply</option></select></div>
+      </div>
+
+      <div class="form-row-S">
+        <div class="field-S col-half-S"><label class="small-muted-S">Discount (%)</label><input id="discountPercent-S" class="input-S" type="number" min="0" max="100" value="10" /></div>
+        <div class="field-S col-half-S"><label class="small-muted-S">Tiers (visit:percent)</label><input id="tiers-S" class="input-S" placeholder="2:10,3:15" /></div>
+      </div>
+
+      <div class="form-row-S">
+        <div class="field-S col-half-S"><label class="small-muted-S">Alternate product page?</label><select id="alternatePage-S" class="select-S"><option value="no">No</option><option value="yes">Yes</option></select></div>
+        <div class="field-S col-half-S" id="altWrap-S" style="display:none;"><label class="small-muted-S">Alternate Page URL</label><input id="altUrl-S" class="input-S" placeholder="https://merchant.example/alt" /></div>
+      </div>
+
+      <div class="field-S col-full-S">
+        <label class="small-muted-S">Coupon code (leave empty to auto-generate)</label>
+        <div style="display:flex;gap:8px;">
+          <input id="couponCode-S" class="input-S" placeholder="AUTO-XXXX" />
+          <button id="genCoupon-S" class="btn-S">Generate</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="form-row-S">
+      <div class="field-S col-half-S"><label class="small-muted-S">Visitor Source</label><select id="visitorSource-S" class="select-S"><option value="all">All</option><option value="tiktok">TikTok</option><option value="facebook">Facebook</option></select></div>
+      <div class="field-S col-half-S"><label class="small-muted-S">Audience</label><select id="audience-S" class="select-S"><option value="public">Public</option><option value="tiktok">TikTok only</option><option value="facebook">Facebook only</option></select></div>
+    </div>
+
+    <div class="field-S col-full-S"><label class="small-muted-S">Add-ons (notes)</label><textarea id="addons-S" class="input-S" rows="3" placeholder="e.g. SMS notify"></textarea></div>
+
+    <div style="display:flex;gap:8px;align-items:center;">
+      <button id="createBtn-S" class="btn-S btn-primary-S">Create Script (Save Flow)</button>
+      <label style="margin-left:auto;display:flex;align-items:center;gap:8px;color:var(--muted);font-size:13px;">
+        <input id="includeKey-S" type="checkbox" /> Include API key in script
+      </label>
+    </div>
+
+    <div style="height:8px;"></div>
+    <div style="font-weight:700;margin-bottom:6px;">Generated Script</div>
+    <div id="generated-S" class="generated-area-S">// Script will appear here after create</div>
+
+    <div style="display:flex;gap:8px;margin-top:10px;">
+      <button id="copyBtn-S" class="btn-S btn-primary-S">Copy Script</button>
+      <button id="saveBtn-S" class="btn-S">Save script to flow</button>
+    </div>
+  </div>
+</div>
+
+<script>
+/*
+  Server-backed Flows UI
+  - Change ENDPOINTS below if necessary
+  - Server endpoints assumed:
+      POST /discount/marketing/api/flows/create/   -> create flow (returns {flow_id, api_key})
+      GET  /discount/marketing/api/flows/          -> list flows (returns {flows: [...]})
+      PATCH/DELETE /discount/marketing/api/flows/<flow_id>/  -> modify/delete
+  - Endpoints should use session auth (login_required). CSRF token read from cookie.
+*/
+
+// --- CONFIG: change if needed ---
+const FLOW_CREATE_ENDPOINT = '/discount/marketing/api/flows/create/';
+const LIST_FLOWS_ENDPOINT = '/discount/marketing/api/flows/';
+const FLOW_DETAIL_ENDPOINT = id => `/discount/marketing/api/flows/${id}/`;
+const CAPTURE_VISIT_ENDPOINT = window.location.origin + '/discount/marketing/api/capture-visit/';
+const COLLECTOR_ENDPOINT = '/collect';
+// console.log(CAPTURE_VISIT_ENDPOINT)
+// --- DOM refs ---
+const addBtn = document.getElementById('addBtn-S');
+const panel = document.getElementById('panel-S');
+const closePanel = document.getElementById('closePanel-S');
+const createBtn = document.getElementById('createBtn-S');
+const generatedDiv = document.getElementById('generated-S');
+const copyBtn = document.getElementById('copyBtn-S');
+const saveBtn = document.getElementById('saveBtn-S');
+
+const flowName = document.getElementById('flowName-S');
+const allowedDomains = document.getElementById('allowedDomains-S');
+const storeUrl = document.getElementById('storeUrl-S');
+const enableDiscount = document.getElementById('enableDiscount-S');
+const discountBlock = document.getElementById('discountBlock-S');
+const visitsThreshold = document.getElementById('visitsThreshold-S');
+const couponMode = document.getElementById('couponMode-S');
+const discountPercent = document.getElementById('discountPercent-S');
+const tiers = document.getElementById('tiers-S');
+const alternatePage = document.getElementById('alternatePage-S');
+const altWrap = document.getElementById('altWrap-S');
+const altUrl = document.getElementById('altUrl-S');
+const couponCode = document.getElementById('couponCode-S');
+const genCoupon = document.getElementById('genCoupon-S');
+const visitorSource = document.getElementById('visitorSource-S');
+const audience = document.getElementById('audience-S');
+const addons = document.getElementById('addons-S');
+const includeKey = document.getElementById('includeKey-S');
+
+const scriptsArea = document.getElementById('scriptsArea-S');
+const countBox = document.getElementById('count-S');
+
+let editingFlowId = null; // if editing
+
+// CSRF helper
+function getCookie(name){
+  const m = document.cookie.match('(^|;)\\s*' + name + '\\s*=\\s*([^;]+)');
+  return m ? m.pop() : '';
+}
+const CSRF = getCookie('csrftoken') || '';
+
+// UI interactions
+addBtn.addEventListener('click', () => openPanelForCreate());
+closePanel.addEventListener('click', () => closePanelFn());
+enableDiscount.addEventListener('change', () => { discountBlock.style.display = enableDiscount.value === 'yes' ? '' : 'none'; });
+alternatePage.addEventListener('change', () => { altWrap.style.display = alternatePage.value === 'yes' ? '' : 'none'; });
+genCoupon.addEventListener('click', (e)=> { e.preventDefault(); couponCode.value = 'AUTO-'+Math.random().toString(36).slice(2,7).toUpperCase(); });
+
+// open / close panel
+function openPanelForCreate(){
+  editingFlowId = null;
+  panel.classList.add('open'); panel.setAttribute('aria-hidden','false');
+  document.getElementById('panelTitle-S').textContent = 'Create Flow';
+  clearForm();
+  generatedDiv.textContent = '// Script will appear here after create';
+}
+function openPanelForEdit(flow){
+  editingFlowId = flow.flow_id;
+  panel.classList.add('open'); panel.setAttribute('aria-hidden','false');
+  document.getElementById('panelTitle-S').textContent = 'Edit Flow';
+  // populate form from flow.config if present otherwise best-effort
+  flowName.value = flow.name || '';
+  allowedDomains.value = flow.allowed_domains || (flow.config && flow.config.allowedDomains) || '';
+  storeUrl.value = (flow.config && flow.config.storeUrl) || '';
+  enableDiscount.value = (flow.config && flow.config.enableDiscount) ? 'yes' : 'no';
+  discountBlock.style.display = enableDiscount.value === 'yes' ? '' : 'none';
+  if(flow.config){
+    visitsThreshold.value = flow.config.visitsThreshold || 2;
+    couponMode.value = flow.config.couponMode || 'show';
+    discountPercent.value = flow.config.discountPercent || 10;
+    tiers.value = (flow.config.tiers || []).map(t => t.join(':')).join(',');
+    alternatePage.value = flow.config.alternatePage ? 'yes' : 'no';
+    altWrap.style.display = alternatePage.value === 'yes' ? '' : 'none';
+    altUrl.value = flow.config.altPageUrl || '';
+    couponCode.value = flow.config.couponCode || '';
+    visitorSource.value = flow.config.visitorSource || 'all';
+    audience.value = flow.config.audience || 'public';
+    addons.value = flow.config.addons || '';
+  }
+  generatedDiv.textContent = flow.script || '// script preview';
+}
+
+function closePanelFn(){
+  panel.classList.remove('open'); panel.setAttribute('aria-hidden','true');
+  editingFlowId = null;
+}
+
+// clear form
+function clearForm(){
+  flowName.value=''; allowedDomains.value=''; storeUrl.value='';
+  enableDiscount.value='no'; discountBlock.style.display='none';
+  visitsThreshold.value=2; couponMode.value='show'; discountPercent.value=10; tiers.value='';
+  alternatePage.value='no'; altWrap.style.display='none'; altUrl.value=''; couponCode.value='';
+  visitorSource.value='all'; audience.value='public'; addons.value=''; includeKey.checked=false;
+}
+
+// escape html
+function esc(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+// --- build config from form
+function buildConfigFromForm(){
+  const cfg = {};
+  cfg.storeUrl = (storeUrl.value||'').trim();
+  cfg.storeHash = cfg.storeUrl ? btoa(cfg.storeUrl).slice(0,12) : 's_default';
+  cfg.enableDiscount = enableDiscount.value === 'yes';
+  cfg.blockRepeat = document.getElementById('blockRepeat-S') ? (document.getElementById('blockRepeat-S').value === 'yes') : false;
+  cfg.visitorSource = visitorSource.value; cfg.audience = audience.value; cfg.addons = addons.value.trim();
+  if(cfg.enableDiscount){
+    cfg.visitsThreshold = parseInt(visitsThreshold.value || '2', 10);
+    cfg.couponMode = couponMode.value;
+    cfg.discountPercent = parseInt(discountPercent.value || '0', 10);
+    cfg.tiers = [];
+    (tiers.value||'').split(',').map(s=>s.trim()).filter(Boolean).forEach(pair=>{
+      const [v,p] = pair.split(':').map(x=>x.trim()); if(v && p) cfg.tiers.push([parseInt(v,10), parseInt(p,10)]);
+    });
+    cfg.alternatePage = alternatePage.value === 'yes';
+    cfg.altPageUrl = cfg.alternatePage ? (altUrl.value||'').trim() : '';
+    cfg.couponCode = (couponCode.value||'').trim() || ('AUTO-'+Math.random().toString(36).slice(2,7).toUpperCase());
+    cfg.couponMessage = `You got ${cfg.discountPercent}% off! Use ${cfg.couponCode}`;
+  }
+  cfg.createdAt = new Date().toISOString();
+  return cfg;
+}
+
+// --- buildCombinedScript (same pattern used earlier)
+function buildCombinedScript(cfg){
+  const safeCfg = JSON.stringify(cfg).replace(/</g,'\\u003c');
+  const script = `
+  // STORE TRACKER (auto-generated, combined)
+
+(function(){
+  window.__STORE_TRACKER_CFG = ${safeCfg};
+
+  // --- Local keys / config ---
+  const visitorKey = '__visitor_id';
+  const createdKey = '__visitor_created_at';
+  const visitsKeyPrefix = '__sv_visits_';
+  const collectorUrlDefault = '/collect';
+  const captureVisitEndpointDefault = '/discount/marketing/api/capture-visit/';
+  const QUEUE_KEY = '__st_phone_capture_queue_v1';
+  const SENT_MARK_KEY = '__st_phone_last_sent_v1';
+  const DEDUP_MS = 24*60*60*1000; // 24h
+
+  // --- ensure visitor id + createdAt (same behaviour as original) ---
+  let visitor_Id = null;
+  let visitorCreatedAt = null;
+  (function ensureVisitor(){
+    try{
+      visitor_Id = localStorage.getItem(visitorKey);
+      if(!visitor_Id){
+        visitor_Id = Math.random().toString(36).substr(2);
+        localStorage.setItem(visitorKey, visitor_Id);
+      }
+      visitorCreatedAt = localStorage.getItem(createdKey);
+      if(!visitorCreatedAt){
+        visitorCreatedAt = new Date().toISOString();
+        localStorage.setItem(createdKey, visitorCreatedAt);
+      }
+    }catch(e){
+      // ignore storage errors
+    }
+  })();
+
+  // --- small helpers ---
+  function trySendBeacon(url, bodyObj){
+    try{
+      const payload = typeof bodyObj === 'string' ? bodyObj : JSON.stringify(bodyObj);
+      if(navigator.sendBeacon){
+        try{ const ok = navigator.sendBeacon(url, payload); if(ok) return true; }catch(e){}
+      }
+      try { fetch(url, {method:'POST', headers:{'Content-Type':'application/json'}, body: payload, keepalive:true}).catch(()=>{}); return true; } catch(e){ return false; }
+    }catch(e){ return false; }
+  }
+  function getParam(name){
+    try{
+      name = name.replace(/[[]]/g,'$&');
+      const regex = new RegExp('[?&]'+name+'=([^&#]*)');
+      const results = regex.exec(location.search);
+      return results ? decodeURIComponent(results[1].replace(/\\+/g,' ')) : '';
+    }catch(e){ return ''; }
+  }
+  function collectUtm(){
+    return {
+      utm_campaign: getParam('utm_campaign') || getParam('utm_campaign_id') || '',
+      utm_source: getParam('utm_source') || '',
+      utm_medium: getParam('utm_medium') || '',
+      ad_id: getParam('ad_id') || '',
+      site_source_name: getParam('site_source_name') || '',
+      ad_name: getParam('ad_name') || ''
+    };
+  }
+  function normalizePhone(raw){
+    if(!raw) return '';
+    let s = raw.trim();
+    if(s.startsWith('+')) s = '+' + s.slice(1).replace(/[^\\d]/g,'');
+    else s = s.replace(/[^\\d]/g,'');
+    return s;
+  }
+  function simpleValid(phone){
+    const digits = phone.replace(/[^\\d]/g,'');
+    return digits.length >= 7;
+  }
+  function readCfg(){ try{ return window.__STORE_TRACKER_CFG || {}; }catch(e){ return {}; } }
+
+  // --- initial pageview (same fields as original) ---
+  (function sendInitialPageview(){
+    try{
+      const cfg = readCfg();
+      const key = visitsKeyPrefix + (cfg.storeHash || 'default');
+      let v = parseInt(localStorage.getItem(key) || '0', 10);
+      v = (isNaN(v) ? 1 : v + 1);
+      localStorage.setItem(key, v);
+
+      const utm = collectUtm();
+      const payload = {
+        event: 'pageview',
+        ts: Date.now(),
+        visitorId: visitor_Id,
+        url: location.href,
+        key: key,
+        referrer: document.referrer || null,
+        visits: v,
+        store: cfg.storeUrl || null,
+        utm_campaign: utm.utm_campaign,
+        utm_source: utm.utm_source,
+        utm_medium: utm.utm_medium,
+        ad_id: utm.ad_id,
+        site_source_name: utm.site_source_name,
+        ad_name: utm.ad_name,
+        userAgent: navigator.userAgent || null,
+        flow_id: cfg.flow_id || null
+      };
+
+      const target = cfg.captureVisitEndpoint || captureVisitEndpointDefault || cfg.collectorUrl || collectorUrlDefault;
+      trySendBeacon(target, payload);
+    }catch(e){}
+  })();
+
+  // --- queue for failed sends (phone payloads) ---
+  function enqueuePayload(payload){
+    try{
+      const q = JSON.parse(localStorage.getItem(QUEUE_KEY) || '[]');
+      q.push({ payload: payload, attempts:0, next: Date.now() });
+      localStorage.setItem(QUEUE_KEY, JSON.stringify(q));
+    }catch(e){}
+  }
+  async function attemptSend(payload){
+    try{
+      const cfg = readCfg();
+      const url = cfg.captureVisitEndpoint || captureVisitEndpointDefault || cfg.collectorUrl || collectorUrlDefault;
+      const body = JSON.stringify(payload);
+      if(navigator.sendBeacon){
+        try{ const ok = navigator.sendBeacon(url, body); if(ok) return { ok:true, method:'beacon' }; }catch(e){}
+      }
+      try{
+        const resp = await fetch(url, { method:'POST', headers:{'Content-Type':'application/json'}, body, keepalive:true });
+        if(resp && resp.ok) return { ok:true, status: resp.status, method:'fetch' };
+        return { ok:false, status: resp && resp.status };
+      }catch(err){
+        return { ok:false, error: err && err.message };
+      }
+    }catch(e){ return { ok:false, error: String(e) }; }
+  }
+  async function processQueueOnce(){
+    try{
+      const raw = localStorage.getItem(QUEUE_KEY);
+      if(!raw) return;
+      let q = JSON.parse(raw || '[]');
+      if(!Array.isArray(q) || q.length === 0) return;
+      const now = Date.now();
+      const remaining = [];
+      for(const entry of q){
+        if(entry.next && entry.next > now){ remaining.push(entry); continue; }
+        const res = await attemptSend(entry.payload);
+        if(res.ok){
+          try{ localStorage.setItem(SENT_MARK_KEY, JSON.stringify({ phone: entry.payload.raw_phone, ts: Date.now() })); }catch(e){}
+        } else {
+          entry.attempts = (entry.attempts||0) + 1;
+          entry.next = Date.now() + Math.min(60000 * Math.pow(2, Math.min(entry.attempts,6)), 60*60*1000);
+          if(entry.attempts <= 8) remaining.push(entry);
+        }
+        await new Promise(r => setTimeout(r, 150));
+      }
+      localStorage.setItem(QUEUE_KEY, JSON.stringify(remaining));
+    }catch(e){}
+  }
+  window.addEventListener('online', processQueueOnce);
+  setInterval(processQueueOnce, 30 * 1000);
+
+  // --- prevent duplicate local sends ---
+  function wasRecentlySent(phone){
+    try{
+      const o = JSON.parse(localStorage.getItem(SENT_MARK_KEY) || 'null');
+      return o && o.phone === phone && (Date.now() - o.ts) < DEDUP_MS;
+    }catch(e){ return false; }
+  }
+  function markSent(phone){
+    try{ localStorage.setItem(SENT_MARK_KEY, JSON.stringify({ phone, ts: Date.now() })); }catch(e){}
+  }
+
+  // --- attach to external button: read phone on click and send (no UI changes) ---
+  function attachToExternalButton(){
+    try{
+      const form = document.querySelector('form#express-checkout-form') || document.querySelector('form');
+      if(!form) return;
+      const externalBtn = document.querySelector('.single-submit') || document.querySelector('button[type="button"]');
+      if(!externalBtn) return;
+
+      externalBtn.addEventListener('click', function(){
+        try{
+          const phoneEl = form.querySelector('input[name="phone"]');
+          if(!phoneEl) return;
+          const raw = phoneEl.value || '';
+          const phone = normalizePhone(raw);
+          if(!phone) return;
+          if(wasRecentlySent(phone)) return;
+
+          // build payload similar to original but event typed
+          const cfg = readCfg();
+          const utm = collectUtm();
+          const payload = {
+            event: 'phone_capture',
+            raw_phone: phone,
+            visitorId: localStorage.getItem(visitorKey) || visitor_Id || null,
+            url: location.href,
+            referrer: document.referrer || null,
+            store: cfg.storeUrl || null,
+            utm_campaign: utm.utm_campaign,
+            utm_source: utm.utm_source,
+            utm_medium: utm.utm_medium,
+            ad_id: utm.ad_id,
+            site_source_name: utm.site_source_name,
+            ad_name: utm.ad_name,
+            userAgent: navigator.userAgent || null,
+            flow_id: cfg.flow_id || null,
+            ts: Date.now()
+          };
+
+          // try immediate send -> if fail enqueue
+          (async function(){
+            try{
+              const res = await attemptSend(payload);
+              if(res.ok){ markSent(phone); return; }
+              enqueuePayload(payload);
+            }catch(e){
+              enqueuePayload(payload);
+            }
+          })();
+        }catch(e){}
+        // do not block or prevent default: let platform handle form/submit normally
+      }, { passive: true });
+    }catch(e){}
+  }
+
+  if(document.readyState === 'loading'){
+    document.addEventListener('DOMContentLoaded', attachToExternalButton);
+  } else {
+    attachToExternalButton();
+  }
+
+})();
+`;
+return script;
+
+}
+
+// --- Server interactions ---
+
+async function createFlowOnServer(name, allowed_domains, config){
+  const body = { name: name||'', allowed_domains: allowed_domains||'', config: config||{} };
+  const resp = await fetch(FLOW_CREATE_ENDPOINT, {
+    method: 'POST',
+    credentials: 'include',
+    headers: { 'Content-Type': 'application/json', 'X-CSRFToken': CSRF },
+    body: JSON.stringify(body)
+  });
+  const data = await resp.json();
+  if(!resp.ok) throw new Error(data.error || 'Create flow failed');
+  return data; // expect { flow_id, api_key, created_at }
+}
+
+async function listFlowsFromServer(){
+  const resp = await fetch(LIST_FLOWS_ENDPOINT, { method: 'GET', credentials: 'include', headers: { 'Accept': 'application/json' } });
+  const data = await resp.json();
+  if(!resp.ok) throw new Error(data.error || 'Failed to list flows');
+  return data.flows || [];
+}
+
+async function patchFlowOnServer(flowId, patchObj){
+  const resp = await fetch(FLOW_DETAIL_ENDPOINT(flowId), {
+    method: 'PATCH',
+    credentials: 'include',
+    headers: { 'Content-Type': 'application/json', 'X-CSRFToken': CSRF },
+    body: JSON.stringify(patchObj)
+  });
+  const data = await resp.json();
+  if(!resp.ok) throw new Error(data.error || 'Update failed');
+  return data;
+}
+
+async function deleteFlowOnServer(flowId){
+  const resp = await fetch(FLOW_DETAIL_ENDPOINT(flowId), {
+    method: 'DELETE',
+    credentials: 'include',
+    headers: { 'X-CSRFToken': CSRF }
+  });
+  if(!resp.ok) { const data = await resp.json(); throw new Error(data.error || 'Delete failed'); }
+  return true;
+}
+
+// --- UI: render flows list from server ---
+async function renderFlows(){
+  try {
+    const flows = await listFlowsFromServer();
+    countBox.textContent = `${flows.length} flow${flows.length!==1 ? 's':''}`;
+    if(!flows.length){
+      scriptsArea.innerHTML = `<div class="empty-S"><div style="font-weight:700;color:#cfeff3">No flows yet</div><div style="color:var(--muted);max-width:320px;text-align:center;">Create your first flow — press “＋ Add Script”.</div></div>`;
+      return;
+    }
+    scriptsArea.innerHTML = '';
+    flows.forEach(f => {
+      const card = document.createElement('div');
+      card.className = 'script-card-S';
+      card.innerHTML = `
+        <div class="script-meta-S">
+          <div style="display:flex;align-items:center;justify-content:flex-end;gap:8px;">
+            <div style="text-align:right;">
+              <div class="script-title-S">${esc(f.name || (f.config && f.config.storeUrl) || 'Untitled')}</div>
+              <div class="script-sub-S">flow: ${esc(f.flow_id)} • created: ${esc(f.createdAt)} • ${f.active ? 'Active' : 'Inactive'}</div>
+            </div>
+            <div style="display:flex;align-items:center;">
+              <span class="status-dot-S ${f.active ? 'dot-on-S':'dot-off-S'}" title="${f.active ? 'Active':'Inactive'}"></span>
+            </div>
+          </div>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:8px;align-items:flex-end;">
+          <div class="preview-S">${esc((f.script||'').slice(0,120))}</div>
+          <div class="card-actions-S">
+            <button class="icon-btn-S btn-toggle-S" data-id="${f.flow_id}">${f.active ? 'Stop' : 'Start'}</button>
+            <button class="icon-btn-S btn-edit-S" data-id="${f.flow_id}">Edit</button>
+            <button class="icon-btn-S btn-copy-S" data-id="${f.flow_id}">Copy</button>
+            <button class="icon-btn-S btn-delete-S" data-id="${f.flow_id}">Delete</button>
+          </div>
+        </div>
+
+       `;
+      scriptsArea.appendChild(card);
+    });
+
+    // attach handlers
+    scriptsArea.querySelectorAll('.btn-toggle-S').forEach(b => b.addEventListener('click', async (e) => {
+      const id = e.currentTarget.dataset.id;
+      try {
+        // toggle: fetch current list to get the flow object; simpler: call list and find
+        const flows = await listFlowsFromServer();
+        const flow = flows.find(x => x.flow_id === id);
+        if(!flow) throw new Error('Flow not found');
+        await patchFlowOnServer(id, { active: !flow.active });
+        renderFlows();
+      } catch(err){ console.error(err); alert('Toggle failed: '+err.message); }
+    }));
+
+    scriptsArea.querySelectorAll('.btn-edit-S').forEach(b => b.addEventListener('click', async (e) => {
+      const id = e.currentTarget.dataset.id;
+      try {
+        const flows = await listFlowsFromServer();
+        const flow = flows.find(x => x.flow_id === id);
+        if(!flow) throw new Error('Flow not found');
+        openPanelForEdit(flow);
+      } catch(err){ console.error(err); alert('Edit failed: '+err.message); }
+    }));
+
+    scriptsArea.querySelectorAll('.btn-copy-S').forEach(b => b.addEventListener('click', async (e) => {
+      const id = e.currentTarget.dataset.id;
+      try {
+        const flows = await listFlowsFromServer();
+        const flow = flows.find(x => x.flow_id === id);
+        if(!flow || !flow.script) return alert('No script available to copy');
+        await navigator.clipboard.writeText(flow.script);
+        alert('Script copied to clipboard');
+      } catch(err){ console.error(err); fallbackCopy(flow && flow.script || ''); }
+    }));
+
+    scriptsArea.querySelectorAll('.btn-delete-S').forEach(b => b.addEventListener('click', async (e) => {
+      const id = e.currentTarget.dataset.id;
+      if(!confirm('Delete this flow?')) return;
+      try { await deleteFlowOnServer(id); renderFlows(); } catch(err){ console.error(err); alert('Delete failed: '+err.message); }
+    }));
+
+  } catch(err){
+    console.error('renderFlows error', err);
+    scriptsArea.innerHTML = `<div class="empty-S"><div style="font-weight:700;color:#fca5a5">Error loading flows</div><div style="color:var(--muted);max-width:320px;text-align:center;">${esc(err.message || 'Failed to load')}</div></div>`;
+  }
+}
+
+// --- Create / Update flow flow ---
+createBtn.addEventListener('click', async (e) => {
+  e.preventDefault();
+  const name = (flowName.value||'').trim();
+  const allowed = (allowedDomains.value||'').trim();
+  const cfg = buildConfigFromForm();
+  cfg.storeUrl = (storeUrl.value||'').trim();
+  cfg.collectorUrl = COLLECTOR_ENDPOINT;
+  cfg.captureVisitEndpoint = CAPTURE_VISIT_ENDPOINT;
+
+  if(!cfg.storeUrl) return alert('Store URL is required');
+
+  createBtn.disabled = true;
+  createBtn.textContent = 'Processing...';
+
+  try {
+    if(!editingFlowId){
+      // create flow on server
+      const serverResp = await createFlowOnServer(name, allowed, cfg);
+      const flowId = serverResp.flow_id;
+      const apiKey = serverResp.api_key;
+      if(!flowId) throw new Error('No flow_id returned from server');
+      // attach flow info to config
+      cfg.flow_id = flowId;
+      if(includeKey.checked) cfg.flow_api_key = apiKey;
+      // generate script
+      const scriptText = buildCombinedScript(cfg);
+      generatedDiv.textContent = scriptText;
+      // save script back to server
+      await patchFlowOnServer(flowId, { script: scriptText, config: cfg, allowed_domains: allowed, name });
+      alert('Flow created. Flow ID: ' + flowId + (apiKey ? '\\nAPI key shown once; copy it if needed.' : ''));
+      // show api key to user (only once)
+      if(apiKey) {
+        // show small modal via prompt (one-time)
+        prompt('Flow API Key (copy it now):', apiKey);
+      }
+    } else {
+      // editing existing flow: update config + regenerate script + patch
+      const flowId = editingFlowId;
+      cfg.flow_id = flowId; // re-use existing id
+      // do NOT re-issue api key here
+      // generate script
+      const scriptText = buildCombinedScript(cfg);
+      generatedDiv.textContent = scriptText;
+      await patchFlowOnServer(flowId, { script: scriptText, config: cfg, allowed_domains: allowed, name });
+      alert('Flow updated.');
+    }
+    closePanelFn();
+    await renderFlows();
+  } catch(err){
+    console.error(err);
+    alert('Operation failed: ' + (err.message || err));
+  } finally {
+    createBtn.disabled = false;
+    createBtn.textContent = editingFlowId ? 'Save Changes' : 'Create Script (Save Flow)';
+  }
+});
+
+// Save script to flow button (explicit)
+saveBtn.addEventListener('click', async () => {
+  if(!editingFlowId) return alert('No flow selected to save into.');
+  const cfg = buildConfigFromForm();
+  cfg.storeUrl = (storeUrl.value||'').trim();
+  const scriptText = buildCombinedScript(cfg);
+  try {
+    await patchFlowOnServer(editingFlowId, { script: scriptText, config: cfg, name: flowName.value || '' });
+    alert('Script saved to flow.');
+    closePanelFn(); renderFlows();
+  } catch(err){ console.error(err); alert('Save failed: '+err.message); }
+});
+
+// copy generated
+copyBtn.addEventListener('click', async () => {
+  const txt = generatedDiv.textContent || '';
+  if(!txt) return alert('No script to copy');
+  try { await navigator.clipboard.writeText(txt); alert('Copied to clipboard'); } catch(e){ fallbackCopy(txt); }
+});
+
+// fallback copy
+function fallbackCopy(text){ const ta = document.createElement('textarea'); ta.value = text; document.body.appendChild(ta); ta.select(); try{ document.execCommand('copy'); alert('Copied (fallback)'); }catch(e){ alert('Copy failed'); } ta.remove(); }
+
+// initial load
+renderFlows();
+
+// utility escape (again)
+function escapeHtml(s){ return esc(s); }
+</script>
+
+<!-- </div> -->
+
+  
+ 
+
+
+</div>
+
+<div id="facebook-data" class="tab-section" style="display: none;">
+  <h2>Facebook Ads Data Section</h2>
+  <p>هنا محتوى فيسبوك.</p>
+</div>
+ 
+
+
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+  const links = document.querySelectorAll(".analytyc-tabs-nav .nav-link");
+  const sections = document.querySelectorAll(".tab-section");
+
+  links.forEach(link => {
+    link.addEventListener("click", function (e) {
+      e.preventDefault();
+      this.classList.add("active");
+      links.forEach(link => {
+        if (link !== this) {
+          link.classList.remove("active");
+        }
+      });
+      
+      // إخفاء كل البطاقات
+      sections.forEach(section => section.style.display = "none");
+
+      // جلب الـ id من data-section
+      const targetId = this.getAttribute("data-section");
+      const targetSection = document.getElementById(targetId);
+
+      if (targetSection) {
+        targetSection.style.display = "block"; // إظهار البطاقة المطلوبة
+        targetSection.scrollIntoView({ behavior: "smooth" }); // النزول لها
+      }
+    });
+  });
+});
+</script>
+
+<div id="Performance-data" class="tab-section" >
+
+  <div class="max-w-7xl mx-auto p-6">
+    <!-- HEADER -->
+    <header class="flex items-center justify-between mb-6">
+      <div>
+        <h1 class="text-2xl font-semibold">Ad Campaigns Performance</h1>
+        <p class="tiny mt-1">Real-time insights to spot winning and losing campaigns</p>
+      </div>
+
+      <div class="flex items-center gap-3">
+        <!-- Platform badge (changes when filter selected) -->
+        <div id="platformBadge" class="badge-platform bg-blue-100 text-blue-800">All Platforms</div>
+
+        <!-- Refresh button -->
+        <button id="refreshBtn" class="inline-flex items-center gap-2 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded card-shadow">
+          🔄 Refresh
+        </button>
+
+        <!-- Export CSV -->
+        <button id="exportBtn" class="px-3 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded card-shadow">Export CSV</button>
+      </div>
+    </header>
+
+    <!-- KPIs -->
+    <section class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+      <div class="bg-white p-4 rounded-lg card-shadow">
+        <div class="flex justify-between">
+          <div>
+            <div class="text-sm text-gray-500">Total Spend</div>
+            <div id="kpiSpend" class="text-xl font-bold">$0</div>
+          </div>
+          <div class="text-right tiny text-gray-500">Last 7 days</div>
+        </div>
+      </div>
+
+      <div class="bg-white p-4 rounded-lg card-shadow">
+        <div class="flex justify-between">
+          <div>
+            <div class="text-sm text-gray-500">Orders</div>
+            <div id="kpiOrders" class="text-xl font-bold">0</div>
+          </div>
+          <div class="text-right tiny text-gray-500">Confirmed + Delivered</div>
+        </div>
+      </div>
+
+      <div class="bg-white p-4 rounded-lg card-shadow">
+        <div class="flex justify-between">
+          <div>
+            <div class="text-sm text-gray-500">Avg Conversion Rate</div>
+            <div id="kpiConversion" class="text-xl font-bold">0%</div>
+          </div>
+          <div class="text-right tiny text-gray-500">Visitors → Orders</div>
+        </div>
+      </div>
+
+      <div class="bg-white p-4 rounded-lg card-shadow">
+        <div class="flex justify-between">
+          <div>
+            <div class="text-sm text-gray-500">Avg Delivery Rate</div>
+            <div id="kpiDelivery" class="text-xl font-bold">0%</div>
+          </div>
+          <div class="text-right tiny text-gray-500">Delivered / Confirmed</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Controls -->
+    <section class="flex flex-col md:flex-row items-start md:items-center gap-3 mb-6">
+      <div class="flex items-center gap-3">
+        <label class="tiny">Platform:</label>
+        <select id="platformSelect" class="px-3 py-2 rounded border">
+          <option value="all">All Platforms</option>
+          <option value="facebook">Facebook</option>
+          <option value="google">Google</option>
+          <option value="tiktok">TikTok</option>
+          <option value="snapchat">Snapchat</option>
+        </select>
+      </div>
+
+      <div class="flex items-center gap-3">
+        <label class="tiny">Period:</label>
+        <select id="periodSelect" class="px-3 py-2 rounded border">
+          <option value="7">Last 7 days</option>
+          <option value="30">Last 30 days</option>
+          <option value="90">Last 90 days</option>
+        </select>
+      </div>
+
+      <div class="ml-auto tiny text-gray-600">
+        <span id="lastUpdate">Last update: --</span>
+      </div>
+    </section>
+
+    <!-- CHARTS -->
+    <section class="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-6">
+      <div class="col-span-2 bg-white p-4 rounded-lg card-shadow">
+        <div class="flex items-center justify-between mb-2">
+          <h3 class="font-semibold">Conversions & Orders Over Time</h3>
+          <div class="tiny text-gray-500">Trend</div>
+        </div>
+        <div style="height: 340px;">
+          <canvas id="mainChart" style="height: 100%; width: 100%;"></canvas>
+        </div>
+      </div>
+
+      <div class="bg-white p-4 rounded-lg card-shadow">
+        <h3 class="font-semibold mb-3">Recommendations</h3>
+        <div style="height: 260px;">
+ 
+
+</div>
+        <p class="tiny mt-3 text-gray-500">Shows ratio of delivery rate vs confirmation rate for selected platform</p>
+      </div>
+
+      <!-- Recommendations panel -->
+  
+
+    </section>
+<!-- Recommendations panel -->
+<!-- Recommendations panel (enhanced) -->
+<!-- <div id="platformComparisons" class="mb-4"></div> -->
+<!-- Recommendations area (place inside dashboard) -->
+<div id="recommendations">
+  <div>
+    <div style="display:flex; gap:12px; align-items:flex-start;">
+      <div class="rec-accent" style="background:linear-gradient(90deg,#34d399,#10b981)">FB</div>
+      <div style="flex:1;">
+        <h4 class="font-medium">Platform outperforming — Facebook • Summer Promo</h4>
+        <div class="tiny text-gray-600">Facebook brings higher confirmations and delivery — suggest scaling 15% budget.</div>
+        <div class="meta-row" style="margin-top:8px;">
+          <div class="badge">Score 85</div>
+          <div class="badge">Sample: 1,240 visits</div>
+          <div class="badge">Confirmed: 312</div>
+        </div>
+        <div style="margin-top:12px;">
+          <div class="conf-label">Confidence</div>
+          <div class="conf-bar"><div class="conf-fill" style="width:84%"></div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="actions">
+      <button class="btn btn-details">Details</button>
+      <button class="btn btn-ignore">Ignore</button>
+      <button class="btn btn-apply">Apply</button>
+    </div>
+
+    <div class="rec-details" style="display:none;">
+      Example details: platform_stats: { visits:1240, confirmed:312, delivery_rate:0.76, conversion_rate:0.25 }
+    </div>
+  </div>
+</div>
+
+    <!-- TABLE -->
+  <!-- TABLE -->
+<section class="bg-white p-4 rounded-lg card-shadow">
+  <div class="flex items-center justify-between mb-3">
+    <h3 class="font-semibold">Campaigns</h3>
+    <div class="tiny text-gray-500">Showing top campaigns by orders</div>
+  </div>
+
+  <div class="overflow-x-auto">
+    <table class="min-w-full divide-y" role="table" aria-live="polite">
+      <thead class="bg-gray-50">
+        <tr>
+          <!-- adjusted header to match renderTable output -->
+          <th class="px-4 py-3 text-left tiny">Campaign Name</th>
+          <th class="px-4 py-3 text-center tiny">Campaign ID</th>
+          <th class="px-4 py-3 text-center tiny">Orders</th>
+          <th class="px-4 py-3 text-center tiny">Confirmed</th>
+          <th class="px-4 py-3 text-center tiny">Delivery Rate</th>
+          <th class="px-4 py-3 text-center tiny">Visitors</th>
+          <th class="px-4 py-3 text-center tiny">Conversion Rate</th>
+        </tr>
+      </thead>
+
+      <!-- tbody will be populated by renderTable(campaigns, visitsMap) -->
+      <tbody id="campaignTableBody" class="bg-white divide-y">
+        <!-- empty state row (will be removed when JS fills rows) -->
+        <tr id="noCampaignsRow">
+          <td class="px-4 py-6 text-left tiny text-gray-500" colspan="7">No campaigns to show — click <button id="refreshBtnInline" class="underline">Refresh</button> to load data.</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="mt-4 flex justify-end tiny text-gray-600">
+    <span id="tableInfo">0 campaigns</span>
+  </div>
+</section>
+
+    <!-- FOOTER / small note -->
+    <footer class="mt-6 tiny text-gray-500">
+      <p>Prototype dashboard — connect <code>/api/dashboard-data</code> to supply live data. See comments in JS for expected JSON shape.</p>
+    </footer>
+  </div>
+  </div>
+
+ 
+
+ 
+
+
+
+
+
+
+  <script>
+  // ---------- State ----------
+ // بدّل تعريف state الحالي إلى هذا
+const state = {
+  data: {
+    kpis: { spend:0, total_orders:0, confirmation_rate:0, delivery_rate:0 },
+    orders: [],
+    campaigns: [],
+    visits: [],
+    last_update: new Date().toISOString()
+  },
+  selectedPlatform: 'all',
+  periodDays: 7,
+  charts: { main: null, donut: null }
+};
+
+
+  // ---------- Helpers ----------
+  function safeNumber(v){ return (v === null || v === undefined || isNaN(Number(v))) ? 0 : Number(v); }
+  const safeNum = safeNumber;
+
+  function formatPercent(x){
+    if (x === null || x === undefined || isNaN(Number(x))) return '-';
+    const n = Number(x);
+    const value = (n <= 1 ? n * 100 : n);
+    return value.toFixed(1) + '%';
+  }
+
+  function escapeHtml(str){ if (str === null || str === undefined) return ''; return String(str).replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;').replaceAll('"','&quot;'); }
+
+  // CSRF helper for Django POSTs
+  function getCookie(name) {
+    const v = document.cookie.match('(^|;)\\s*' + name + '\\s*=\\s*([^;]+)');
+    return v ? v.pop() : '';
+  }
+
+  // ---------- Extract orders robustly from backend payload ----------
+  function extractOrdersFromPayload(payload){
+    // console.log('[debug] extractOrdersFromPayload payload keys:', payload && typeof payload === 'object' ? Object.keys(payload) : typeof payload, payload);
+    if (!payload || typeof payload !== 'object') return [];
+    if (Array.isArray(payload.orders)) {  return payload.orders; }
+    for (const key of ['orders_data','items','rows','results','leads','data']){
+      if (Array.isArray(payload[key])) {  return payload[key]; }
+    }
+    if (Array.isArray(payload.data)) {  return payload.data; }
+    if (payload.data && Array.isArray(payload.data.orders)) {  return payload.data.orders; }
+    // fallback: find any array of objects that looks like orders
+    for (const k of Object.keys(payload)){
+      const v = payload[k];
+      if (Array.isArray(v) && v.length>0 && typeof v[0] === 'object'){
+        const sample = v[0];
+        if ('status' in sample || 'phone_normalized' in sample || 'external_order_id' in sample || 'matched_visit__utm_campaign' in sample) {
+          
+          return v;
+        }
+      }
+    }
+    return [];
+  }
+
+  // ---------- Convert orders -> campaigns (flexible) ----------
+  function convertOrdersToCampaigns(orders, visitsMap = {}){
+    if (!Array.isArray(orders) || orders.length === 0) return [];
+    const campaignMap = {};
+    function pick(o, keys){
+      for (const k of keys){
+        if (k.includes('__')){ if (Object.prototype.hasOwnProperty.call(o,k) && o[k] !== undefined && o[k] !== null && o[k] !== '') return o[k]; }
+        else { if (Object.prototype.hasOwnProperty.call(o,k) && o[k] !== undefined && o[k] !== null && o[k] !== '') return o[k]; const parts = k.split('.'); if (parts.length>1){ let cur=o; let ok=true; for(const p of parts){ if (cur && Object.prototype.hasOwnProperty.call(cur,p)) cur=cur[p]; else { ok=false; break; } } if (ok && cur!==undefined && cur!==null && cur!=='') return cur; } }
+      }
+      return null;
+    }
+
+    orders.forEach(order => {
+      const campaignKey = pick(order, ['matched_visit__utm_campaign','matched_visit__campaign','utm_campaign','campaign_name','matched_visit.utm_campaign','campaign']) || 'Unknown Campaign';
+      const platform = pick(order, ['platform','matched_visit__utm_source','site_source_name','utm_source']) || 'unknown';
+      const campaignId = pick(order, ['matched_visit__ad_id','campaign_id','matched_visit__campaign_id','ad_id','id']) || '';
+      if (!campaignMap[campaignKey]){
+        campaignMap[campaignKey] = { campaign_name: campaignKey, campaign_id: campaignId, platform: platform, platform_label: (typeof platform==='string' && platform.length)?(platform.charAt(0).toUpperCase()+platform.slice(1)):'Platform', total_orders:0, confirmed_orders:0, delivered_orders:0, cancelled_orders:0, meta_orders:[] };
+      }
+      const node = campaignMap[campaignKey];
+      node.total_orders += 1; node.meta_orders.push(order);
+      const status = (pick(order, ['status','order_status'])||'').toString().toLowerCase();
+      if (status==='confirmed') node.confirmed_orders +=1;
+      if (status==='delivered') node.delivered_orders +=1;
+      if (status==='cancelled' || status==='canceled') node.cancelled_orders +=1;
+    });
+
+    const campaigns = Object.values(campaignMap).map(c => {
+      const t = safeNum(c.total_orders); const confirmed = safeNum(c.confirmed_orders); const delivered = safeNum(c.delivered_orders);
+      const confirmation_rate = t>0 ? (confirmed / t) : 0; const delivery_rate = confirmed>0 ? (delivered / confirmed) : 0; const visits = safeNum(visitsMap[c.campaign_name]||0);
+      let conversion_rate = null; if (visits>0) conversion_rate = confirmed / visits; else conversion_rate = (t>0? (confirmed / t) : 0);
+      return { campaign_name: c.campaign_name, campaign_id: c.campaign_id||'', platform: c.platform, platform_label: c.platform_label, total_orders: t, orders: t, confirmed_orders: confirmed, delivered_orders: delivered, cancelled_orders: safeNum(c.cancelled_orders), confirmation_rate: Number(confirmation_rate), delivery_rate: Number(delivery_rate), conversion_rate: Number(conversion_rate), visits: visits };
+    });
+    campaigns.sort((a,b)=> (b.orders||0)-(a.orders||0));
+    return campaigns;
+  }
+
+ 
+
+
+
+
+  // ---------- Renderers ----------
+  function renderKPIs(kpis){
+    document.getElementById('kpiSpend').innerText = '$' + (kpis.spend ? Number(kpis.spend).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2}) : '0.00');
+    document.getElementById('kpiOrders').innerText = String(kpis.total_orders || kpis.orders || 0);
+    document.getElementById('kpiConversion').innerText = formatPercent(kpis.confirmation_rate || kpis.conversion_rate || 0);
+    // compute delivery rate from kpis if provided, else 0
+    let delivery = 0;
+    if (typeof kpis.delivery_rate !== 'undefined') delivery = kpis.delivery_rate; else if (kpis.confirmed_orders && kpis.delivered_orders) delivery = (kpis.delivered_orders / kpis.confirmed_orders || 0);
+    document.getElementById('kpiDelivery').innerText = formatPercent(delivery);
+  }
+
+  function renderPlatformBadge(platformKey){ const el = document.getElementById('platformBadge'); if (!el) return; if (platformKey==='all'){ el.innerText='All Platforms'; el.className='badge-platform bg-blue-100 text-blue-800'; } else{ el.innerText = platformKey.charAt(0).toUpperCase()+platformKey.slice(1); el.className='badge-platform bg-gray-100 text-gray-800'; } }
+
+  function makeToggleButton(targetId){ const b = document.createElement('button'); b.className='px-2 py-1 mr-2 text-sm rounded bg-gray-100'; b.innerText='▶'; b.addEventListener('click', ()=>{ const el = document.getElementById(targetId); if (!el) return; if (el.style.display === 'none' || !el.style.display){ el.style.display = 'table-row'; b.innerText='▼'; } else { el.style.display = 'none'; b.innerText='▶'; } }); return b; }
+
+  // renderTable adapted to analytics_view_data payload
+  function renderTable(campaigns, visitsMap = {}){
+    const tbody = document.getElementById('campaignTableBody'); if (!tbody) return; tbody.innerHTML = '';
+    const rows = Array.isArray(campaigns) ? campaigns : [];
+    if (rows.length === 0){ tbody.innerHTML = '<tr><td class="px-4 py-6 text-left tiny text-gray-500" colspan="7">No campaigns to show</td></tr>'; document.getElementById('tableInfo').innerText = '0 campaigns'; return; }
+    rows.forEach((c, campaignIndex)=>{
+      const campaignRowId = `campaign-row-${campaignIndex}`; const campaignDetailsId = `campaign-details-${campaignIndex}`;
+      const campaignName = c.campaign_name || c.name || 'Unknown Campaign'; const platformLabel = c.platform_label || c.platform || 'Platform'; const campaignId = c.campaign_id || c.id || '';
+      const orders = safeNumber(c.orders || 0); const confirmedOrders = safeNumber(c.confirmed_orders || 0); const deliveredOrders = safeNumber(c.delivered_orders || 0); const deliveryRate = safeNumber(c.delivery_rate || 0);
+      const visits = safeNumber((typeof c.visits !== 'undefined') ? c.visits : (visitsMap && visitsMap[campaignName]) || 0);
+      const conversionRate = (typeof c.conversion_by_visits !== 'undefined' && c.conversion_by_visits !== null) ? Number(c.conversion_by_visits) : (typeof c.conversion_by_orders !== 'undefined' && c.conversion_by_orders !== null) ? Number(c.conversion_by_orders) : (visits>0? (confirmedOrders / visits) : (orders>0? (confirmedOrders / orders) : 0));
+
+      const tr = document.createElement('tr'); tr.id = campaignRowId; tr.className='bg-white';
+      const firstTd = document.createElement('td'); firstTd.className='px-4 py-3 text-left';
+      const hasAdsets = Array.isArray(c.adsets) && c.adsets.length>0; if (hasAdsets){ const toggle = makeToggleButton(campaignDetailsId); firstTd.appendChild(toggle); const spacer = document.createElement('span'); spacer.style.marginLeft='8px'; firstTd.appendChild(spacer); } else { const spacer = document.createElement('span'); spacer.style.display='inline-block'; spacer.style.width='22px'; firstTd.appendChild(spacer); }
+      const campaignHtml = document.createElement('div'); campaignHtml.innerHTML = `<div class="font-medium">${escapeHtml(campaignName)}</div><div class="tiny text-gray-500">${escapeHtml(platformLabel)}</div>`; firstTd.appendChild(campaignHtml); tr.appendChild(firstTd);
+      const idTd = document.createElement('td'); idTd.className='px-4 py-3 text-center tiny'; idTd.innerText = campaignId; tr.appendChild(idTd);
+      const ordersTd = document.createElement('td'); ordersTd.className='px-4 py-3 text-center font-semibold'; ordersTd.innerText = String(orders); tr.appendChild(ordersTd);
+      const confirmedTd = document.createElement('td'); confirmedTd.className='px-4 py-3 text-center'; confirmedTd.innerText = String(confirmedOrders); tr.appendChild(confirmedTd);
+      const deliveryRateTd = document.createElement('td'); deliveryRateTd.className='px-4 py-3 text-center'; deliveryRateTd.innerText = formatPercent(deliveryRate); tr.appendChild(deliveryRateTd);
+      const visitsTd = document.createElement('td'); visitsTd.className='px-4 py-3 text-center'; visitsTd.innerText = String(visits); tr.appendChild(visitsTd);
+      const convTd = document.createElement('td'); convTd.className='px-4 py-3 text-center'; convTd.innerText = (conversionRate !== null ? formatPercent(conversionRate) : '-'); tr.appendChild(convTd);
+      tbody.appendChild(tr);
+
+      // details
+      const detailsTr = document.createElement('tr'); detailsTr.id = campaignDetailsId; detailsTr.style.display='none'; detailsTr.className='bg-gray-50'; const detailsTd = document.createElement('td'); detailsTd.colSpan=7; const container = document.createElement('div'); container.style.padding='8px 0';
+      if (hasAdsets){ const adsetsTable = document.createElement('table'); adsetsTable.style.width='100%'; adsetsTable.className='min-w-full'; adsetsTable.innerHTML = `<thead><tr class="tiny text-gray-600"><th class="px-3 py-2 text-left">AdSet / Ad</th><th class="px-3 py-2 text-center">AdSet ID / Ad ID</th><th class="px-3 py-2 text-center">Orders</th><th class="px-3 py-2 text-center">Confirmed</th><th class="px-3 py-2 text-center">Visits</th><th class="px-3 py-2 text-center">Conversion</th><th class="px-3 py-2 text-center">Placements</th></tr></thead>`; const adsetsTbody = document.createElement('tbody');
+        c.adsets.forEach((as, adsetIndex)=>{
+          const adsetRowId = `${campaignDetailsId}-adset-${adsetIndex}`; const adsetDetailsId = `${adsetRowId}-details`;
+          const adsetName = as.ad_adset_name || as.ad_name || as.ad_id || as.name || 'AdSet'; const adsetId = as.adset_id || as.ad_id || as.id || '';
+          const asOrders = safeNumber(as.orders || 0); const asConfirmed = safeNumber(as.confirmed_orders || 0); const asVisits = safeNumber(as.visits || 0);
+          let asConv = null; if (typeof as.conversion_by_visits !== 'undefined' && as.conversion_by_visits !== null) asConv = Number(as.conversion_by_visits); else if (typeof as.conversion_by_orders !== 'undefined' && as.conversion_by_orders !== null) asConv = Number(as.conversion_by_orders); else if (asVisits>0) asConv = asConfirmed / asVisits; else if (asOrders>0) asConv = asConfirmed / asOrders; else asConv = 0;
+          const ar = document.createElement('tr'); ar.className='bg-white'; const aFirst = document.createElement('td'); aFirst.className='px-3 py-2 text-left'; const hasAds = Array.isArray(as.ads) && as.ads.length>0; if (hasAds){ const toggle = makeToggleButton(adsetDetailsId); aFirst.appendChild(toggle); aFirst.appendChild(document.createElement('span')).style.marginLeft='6px'; } else { const spacer = document.createElement('span'); spacer.style.display='inline-block'; spacer.style.width='22px'; aFirst.appendChild(spacer); }
+          const an = document.createElement('div'); an.innerHTML = `<div class="font-medium">${escapeHtml(adsetName)}</div><div class="tiny text-gray-500">${escapeHtml(platformLabel)}</div>`; aFirst.appendChild(an); ar.appendChild(aFirst);
+          const aidTd = document.createElement('td'); aidTd.className='px-3 py-2 text-center tiny'; aidTd.innerText = adsetId; ar.appendChild(aidTd);
+          const aOrdersTd = document.createElement('td'); aOrdersTd.className='px-3 py-2 text-center'; aOrdersTd.innerText = String(asOrders); ar.appendChild(aOrdersTd);
+          const aConfTd = document.createElement('td'); aConfTd.className='px-3 py-2 text-center'; aConfTd.innerText = String(asConfirmed); ar.appendChild(aConfTd);
+          const aVisitsTd = document.createElement('td'); aVisitsTd.className='px-3 py-2 text-center'; aVisitsTd.innerText = String(asVisits); ar.appendChild(aVisitsTd);
+          const aConvTd = document.createElement('td'); aConvTd.className='px-3 py-2 text-center'; aConvTd.innerText = (asConv!==null?formatPercent(asConv):'-'); ar.appendChild(aConvTd);
+          const aPlacTd = document.createElement('td'); aPlacTd.className='px-3 py-2 text-center'; ar.appendChild(aPlacTd);
+          if (Array.isArray(as.placements) && as.placements.length>0){ const list = document.createElement('div'); list.className='tiny text-gray-700'; as.placements.forEach(pl=>{ const pLabel = pl.placement||pl.site_source_name||pl.platform||pl.name||'placement'; const pOrders = safeNumber(pl.orders||0); const pVisits = safeNumber(pl.visits||0); const line = document.createElement('div'); line.innerText = `${pLabel} — orders: ${pOrders}${pVisits? ' — visits: '+pVisits : ''}`; list.appendChild(line); }); aPlacTd.appendChild(list); }
+          adsetsTbody.appendChild(ar);
+          const adsetDetailsTr = document.createElement('tr'); adsetDetailsTr.id = adsetDetailsId; adsetDetailsTr.style.display='none'; adsetDetailsTr.className='bg-gray-50'; const adsetDetailsTd = document.createElement('td'); adsetDetailsTd.colSpan = 7;
+          if (Array.isArray(as.ads) && as.ads.length>0){ const adsTable = document.createElement('table'); adsTable.style.width='100%'; adsTable.className='min-w-full'; adsTable.innerHTML = `<thead><tr class="tiny text-gray-600"><th class="px-2 py-1 text-left">Ad / Ad ID</th><th class="px-2 py-1 text-center">Orders</th><th class="px-2 py-1 text-center">Confirmed</th><th class="px-2 py-1 text-center">Visits</th><th class="px-2 py-1 text-center">Conversion</th><th class="px-2 py-1 text-center">Placements</th></tr></thead>`; const adsTbody = document.createElement('tbody');
+            as.ads.forEach(ad=>{ const adName = ad.ad_name||ad.name||''; const adId = ad.ad_id||ad.id||''; const adOrders = safeNumber(ad.orders||0); const adConfirmed = safeNumber(ad.confirmed_orders||0); const adVisits = safeNumber(ad.visits||0); let adConv = null; if (typeof ad.conversion_by_visits!=='undefined' && ad.conversion_by_visits!==null) adConv = Number(ad.conversion_by_visits); else if (typeof ad.conversion_by_orders!=='undefined' && ad.conversion_by_orders!==null) adConv = Number(ad.conversion_by_orders); else if (adVisits>0) adConv = adConfirmed/adVisits; else if (adOrders>0) adConv = adConfirmed/adOrders; else adConv = 0; const adr = document.createElement('tr'); adr.className='bg-white'; adr.innerHTML = `<td class="px-2 py-1 text-left"><div class="font-medium">${escapeHtml(adName)}</div><div class="tiny text-gray-500">${escapeHtml(adId)}</div></td><td class="px-2 py-1 text-center">${adOrders}</td><td class="px-2 py-1 text-center">${adConfirmed}</td><td class="px-2 py-1 text-center">${adVisits}</td><td class="px-2 py-1 text-center">${adConv!==null?formatPercent(adConv):'-'}</td><td class="px-2 py-1 text-center"></td>`; if (Array.isArray(ad.placements) && ad.placements.length>0){ const placementsCell = adr.querySelector('td:last-child'); const list = document.createElement('div'); list.className='tiny text-gray-700'; ad.placements.forEach(pl=>{ const pLabel = pl.placement||pl.site_source_name||pl.platform||pl.name||'placement'; const pOrders = safeNumber(pl.orders||0); const pVisits = safeNumber(pl.visits||0); const line = document.createElement('div'); line.innerText = `${pLabel} — orders: ${pOrders}${pVisits? ' — visits: '+pVisits : ''}`; list.appendChild(line); }); placementsCell.appendChild(list); } adsTbody.appendChild(adr); }); adsTable.appendChild(adsTbody); adsetDetailsTd.appendChild(adsTable); } else { adsetDetailsTd.innerHTML = `<div class="tiny text-gray-500">No ads data for this adset.</div>`; } adsetDetailsTr.appendChild(adsetDetailsTd); adsetsTbody.appendChild(adsetDetailsTr);
+        }); adsetsTable.appendChild(adsetsTbody); container.appendChild(adsetsTable);
+      } else { container.innerHTML = `<div class="tiny text-gray-500">No adsets data for this campaign.</div>`; }
+      detailsTd.appendChild(container); detailsTr.appendChild(detailsTd); tbody.appendChild(detailsTr);
+    });
+    const info = document.getElementById('tableInfo'); if (info) info.innerText = `${rows.length} campaigns`; 
+  }
+
+  // ---------- charts helpers ----------
+  function destroyChartsIfExist(){ try{ if (typeof Chart !== 'undefined' && Chart.getChart){ const existingMain = Chart.getChart('mainChart'); if (existingMain) existingMain.destroy(); const existingDonut = Chart.getChart('smallDonut'); if (existingDonut) existingDonut.destroy(); } }catch(e){} if (state.charts.main){ try{ state.charts.main.destroy(); }catch(e){} state.charts.main=null;} if (state.charts.donut){ try{ state.charts.donut.destroy(); }catch(e){} state.charts.donut=null; }
+  }
+
+  // Build timeseries for last N days from orders (orders must have created_at string)
+  function generateTimeSeriesFromOrders(orders, days = state.periodDays){
+    const labels = []; const dateCounts = {}; const convCounts = {};
+    const now = new Date(); for (let i = days-1; i>=0; i--){ const d = new Date(now); d.setDate(now.getDate()-i); const key = d.toISOString().slice(0,10); labels.push(key); dateCounts[key]=0; convCounts[key]=0; }
+    if (Array.isArray(orders)){
+      orders.forEach(o => {
+        const created = o.created_at || o.created || o.date;
+        if (!created) return;
+        const d = new Date(created);
+        if (isNaN(d)) return;
+        const k = d.toISOString().slice(0,10);
+        if (k in dateCounts) dateCounts[k] += 1;
+        // treat confirmed as conversion
+        const status = (o.status||'').toString().toLowerCase(); if (status==='confirmed') convCounts[k] += 1;
+      });
+    }
+    const ordersArr = labels.map(l => dateCounts[l] || 0); const convArr = labels.map(l => convCounts[l] || 0);
+    return { labels, orders: ordersArr, conversions: convArr };
+  }
+ 
+  function initCharts(){ 
+
+ destroyChartsIfExist(); const canvasMain = document.getElementById('mainChart'); if (canvasMain){ const ts = generateTimeSeriesFromOrders(state.data && state.data.orders ? state.data.orders : [], state.periodDays); state.charts.main = new Chart(canvasMain, { type:'line', data:{ labels: ts.labels, datasets:[ { label:'Orders', data: ts.orders, borderColor:'#3b82f6', backgroundColor:'#bfdbfe', tension:0.35 }, { label:'Conversions', data: ts.conversions, borderColor:'#10b981', backgroundColor:'#bbf7d0', tension:0.35 } ] }, options:{ responsive:true, maintainAspectRatio:false, scales:{ y:{ beginAtZero:true } }, plugins:{ legend:{ position:'top' } } } }); }
+    const canvasDonut = document.getElementById('smallDonut'); if (canvasDonut){ const k = state.data && state.data.kpis ? state.data.kpis : {}; const deliveryPct = (k.confirmed_orders && k.delivered_orders) ? (k.delivered_orders / k.confirmed_orders * 100) : 0; state.charts.donut = new Chart(canvasDonut, { type:'doughnut', data:{ labels:['Delivery','Remaining'], datasets:[{ data:[deliveryPct, Math.max(0,100-deliveryPct)], backgroundColor:['#6366f1','#e5e7eb'] }] }, options:{ responsive:true, maintainAspectRatio:false, plugins:{ legend:{ display:false }, tooltip:{ callbacks:{ label: (ctx)=> ctx.label + ': ' + Number(ctx.raw).toFixed(1) + '%' } } }} }); }
+  }
+
+  function updateCharts(){ if (!state.charts.main && !state.charts.donut){ initCharts(); return; } const ts = generateTimeSeriesFromOrders(state.data && state.data.orders ? state.data.orders : [], state.periodDays); if (state.charts.main){ state.charts.main.data.labels = ts.labels; if (Array.isArray(state.charts.main.data.datasets) && state.charts.main.data.datasets.length>=2){ state.charts.main.data.datasets[0].data = ts.orders; state.charts.main.data.datasets[1].data = ts.conversions; } state.charts.main.update(); } if (state.charts.donut){ const k = state.data && state.data.kpis ? state.data.kpis : {}; const deliveryPct = (k.confirmed_orders && k.delivered_orders) ? (k.delivered_orders / k.confirmed_orders * 100) : 0; state.charts.donut.data.datasets[0].data = [deliveryPct, Math.max(0,100-deliveryPct)]; state.charts.donut.update(); } }
+
+  // ---------- Network helpers ----------
+  async function fetchWithRetry(url, opts={}, retries=2, backoff=400){ for (let attempt=0; attempt<=retries; attempt++){ try{ const res = await fetch(url, opts); if (!res.ok){ if (res.status>=400 && res.status<500) throw new Error(`HTTP ${res.status}`); throw new Error('HTTP '+res.status); } return await res.json(); } catch(err){ if (attempt===retries) throw err; await new Promise(r=>setTimeout(r, backoff*Math.pow(2,attempt))); } } }
+
+  async function fetchDashboardData(){ const platform = encodeURIComponent(state.selectedPlatform || 'all'); const period = encodeURIComponent(state.periodDays || 7); const url = `/discount/marketing/api/dashboard-data?platform=${platform}&period=${period}`; try{ const payload = await fetchWithRetry(url, { credentials:'same-origin' }, 2, 400);  return payload; } catch(e){ console.warn('fetchDashboardData failed, using empty mock', e); return { kpis:{spend:0,total_orders:0,confirmation_rate:0,delivery_rate:0}, orders:[], campaigns:[], visits:[], last_update: new Date().toISOString() }; } }
+
+  async function ajaxFetchOrders(endpoint='/discount/marketing/api/fetch-orders/', body={}){
+    const btn = document.getElementById('refreshBtn'); if (btn){ btn.disabled = true; btn.dataset.prevText = btn.innerText; btn.innerText = '🔄 Refreshing...'; }
+    try{
+      const res = await fetch(endpoint, { method:'POST', credentials:'same-origin', headers:{ 'Content-Type':'application/json', 'X-CSRFToken': getCookie('csrftoken') }, body: JSON.stringify(body) });
+      const text = await res.text(); let json = null; try{ json = text ? JSON.parse(text) : null; }catch(e){ json = null; }
+      if (!res.ok) throw new Error(`HTTP ${res.status} ${res.statusText} — ${text}`);
+      return json;
+    } finally {
+      if (btn){ btn.disabled = false; btn.innerText = btn.dataset.prevText || '🔄 Refresh'; delete btn.dataset.prevText; }
+    initCharts();
+    }
+  }
+
+  // ---------- Main refresh ----------
+  function prepareVisitsMap(payload){ const visitsMap = {}; if (payload.visits && Array.isArray(payload.visits)){ payload.visits.forEach(v => { const key = v.utm_campaign || v.campaign || v.campaign_name || ''; const cnt = v.count || v.visits || v.value || 0; if (key) visitsMap[key] = safeNum(cnt); }); } else if (payload.total_visits && typeof payload.total_visits === 'object'){ Object.assign(visitsMap, payload.total_visits); } return visitsMap; }
+
+  async function refreshData(){ const btn = document.getElementById('refreshBtn'); if (btn){ btn.disabled = true; btn.dataset.prevText = btn.innerText; btn.innerText = '🔄 Refreshing...'; }
+    try{
+      const payload = await fetchDashboardData(); state.data = payload; 
+      const visitsMap = prepareVisitsMap(payload);
+      // extract orders or use campaigns directly
+      const ordersList = extractOrdersFromPayload(state.data);
+      let campaigns = [];
+      if (Array.isArray(state.data.campaigns) && state.data.campaigns.length>0){  campaigns = state.data.campaigns; }
+      else if (Array.isArray(ordersList) && ordersList.length>0){ campaigns = convertOrdersToCampaigns(ordersList, visitsMap); }
+      else { campaigns = []; }
+      // apply filter
+      let filtered = campaigns;
+      if (state.selectedPlatform && state.selectedPlatform !== 'all') filtered = campaigns.filter(c => (c.platform||'').toLowerCase() === state.selectedPlatform.toLowerCase());
+      renderKPIs(state.data.kpis || {}); renderPlatformBadge(state.selectedPlatform); renderTable(filtered, visitsMap);
+      // charts
+      updateCharts();
+      const last = document.getElementById('lastUpdate'); if (last) last.innerText = 'Last update: ' + (state.data.last_update || new Date().toISOString());
+       
+    } catch(err){ console.error('خطأ في تحديث البيانات:', err); alert('Error fetching dashboard data: ' + (err.message || err)); }
+    finally{ if (btn){ btn.disabled = false; btn.innerText = btn.dataset.prevText || '🔄 Refresh'; delete btn.dataset.prevText; } }
+  }
+
+  // ---------- Bind events ----------
+  function bindEvents(){ const refreshBtn = document.getElementById('refreshBtn'); if (refreshBtn) refreshBtn.addEventListener('click', async function(){ try{ // option: call ajaxFetchOrders() to pull fresh orders from partner (uncomment if needed)
+        await ajaxFetchOrders();
+        await refreshData(); } catch(e){ console.error('refresh click error', e); } }); const exportBtn = document.getElementById('exportBtn'); if (exportBtn) exportBtn.addEventListener('click', ()=>exportVisibleTableToCSV()); const platformSelect = document.getElementById('platformSelect'); if (platformSelect) platformSelect.addEventListener('change', (e)=>{ state.selectedPlatform = e.target.value; let campaigns = Array.isArray(state.data && state.data.campaigns) && state.data.campaigns.length ? state.data.campaigns : convertOrdersToCampaigns(state.data && state.data.orders ? state.data.orders : [], {}); if (state.selectedPlatform !== 'all') campaigns = campaigns.filter(c => (c.platform||'').toLowerCase() === state.selectedPlatform.toLowerCase()); renderTable(campaigns); renderPlatformBadge(state.selectedPlatform); }); const periodSelect = document.getElementById('periodSelect'); if (periodSelect) periodSelect.addEventListener('change', (e)=>{ state.periodDays = parseInt(e.target.value,10) || 7; }); const refreshInline = document.getElementById('refreshBtnInline'); if (refreshInline) refreshInline.addEventListener('click', ()=>{ document.getElementById('refreshBtn').click(); }); }
+
+  // ---------- Export CSV ----------
+  function exportVisibleTableToCSV(filename = 'campaigns.csv'){ const rows = [['Campaign Name','Campaign ID','Orders','Confirmed','Delivery Rate','Visitors','Conversion Rate']]; (state.data && state.data.campaigns ? state.data.campaigns : []).forEach(c => { rows.push([c.campaign_name||'', c.campaign_id||'', c.orders||0, c.confirmed_orders||0, formatPercent(c.delivery_rate||0), c.visits||0, (typeof c.conversion_by_visits!=='undefined' && c.conversion_by_visits!==null) ? formatPercent(c.conversion_by_visits) : (typeof c.conversion_by_orders!=='undefined' && c.conversion_by_orders!==null) ? formatPercent(c.conversion_by_orders) : '-']); }); const csv = rows.map(r => r.map(v => `"${String(v).replace(/"/g,'""')}"`).join(',')).join('\n'); const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' }); const link = document.createElement('a'); link.href = URL.createObjectURL(blob); link.download = filename; link.style.display = 'none'; document.body.appendChild(link); link.click(); document.body.removeChild(link); }
+
+  // ---------- Init ----------
+  document.addEventListener('DOMContentLoaded', function(){ bindEvents(); // initial render (empty or mock)
+    renderKPIs({}); renderTable([]); initCharts(); // try to fetch real data
+    refreshData().catch(err=> console.warn('Initial refresh failed:', err)); });
+  </script>
+
+<!-- reccomondations script -->
+
+
+<script>
+(function(){
+  // ----------------- Helpers -----------------
+function escapeHtml(str){
+  if (str === null || str === undefined) return '';
+  return String(str).replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;').replaceAll('"','&quot;');
+}
+
+function formatPercent(x){
+  if (x === null || x === undefined || isNaN(Number(x))) return '-';
+  return (Number(x) * 100).toFixed(1) + '%';
+}
+  function safeNum(v){ return Number(v || 0); }
+
+  function getCookie(name) {
+    const v = document.cookie.match('(^|;)\\s*' + name + '\\s*=\\s*([^;]+)');
+    return v ? v.pop() : '';
+  }
+
+  // ----------------- Renderers (must be defined BEFORE fetch) -----------------
+  function renderPlatformComparisons(platforms_summary) {
+    const container = document.getElementById('platformComparisons');
+    if (!container) return;
+    container.innerHTML = '';
+    const keys = Object.keys(platforms_summary || {});
+    if (keys.length === 0) {
+      container.innerHTML = '<div class="tiny text-gray-500">No platform data available.</div>';
+      return;
+    }
+
+    const table = document.createElement('table');
+    table.className = 'min-w-full divide-y';
+    table.innerHTML = `<thead><tr class="tiny text-gray-600">
+        <th class="px-2 py-1 text-left">Platform</th>
+        <th class="px-2 py-1 text-center">Visits</th>
+        <th class="px-2 py-1 text-center">Confirmed</th>
+        <th class="px-2 py-1 text-center">Conv Rate</th>
+        <th class="px-2 py-1 text-center">Delivery Rate</th>
+        <th class="px-2 py-1 text-center">Avg CPA</th>
+      </tr></thead>`;
+    const tbody = document.createElement('tbody');
+    keys.forEach(k => {
+      const s = platforms_summary[k] || {};
+      const tr = document.createElement('tr');
+      tr.className = 'bg-white';
+      tr.innerHTML = `<td class="px-2 py-1 text-left font-medium">${escapeHtml(k)}</td>
+        <td class="px-2 py-1 text-center">${safeNum(s.visits)}</td>
+        <td class="px-2 py-1 text-center">${safeNum(s.confirmed)}</td>
+        <td class="px-2 py-1 text-center">${formatPercent(s.conversion_rate||0)}</td>
+        <td class="px-2 py-1 text-center">${formatPercent(s.delivery_rate||0)}</td>
+        <td class="px-2 py-1 text-center">${s.avg_cpa ? '$' + Number(s.avg_cpa).toFixed(2) : '-'}</td>`;
+      tbody.appendChild(tr);
+    });
+    table.appendChild(tbody);
+    container.appendChild(table);
+  }
+
+  function renderGranularRecommendations(recs) {
+    const container = document.getElementById('recommendations');
+    if (!container) return;
+    container.innerHTML = '';
+    if (!Array.isArray(recs) || recs.length === 0) {
+      container.innerHTML = '<div class="tiny text-gray-500">No recommendations at this time (not enough signal).</div>';
+      return;
+    }
+    recs.forEach(r => {
+      const card = document.createElement('div');
+      card.className = 'bg-gray-50 p-3 rounded';
+      const title = document.createElement('div');
+      title.className = 'flex justify-between items-start';
+      const left = document.createElement('div');
+      left.innerHTML = `<div class="font-medium">${escapeHtml((r.type||'').replace(/_/g,' '))} ${r.platform ? ' — ' + escapeHtml(r.platform) : ''} ${r.campaign ? ' — ' + escapeHtml(r.campaign) : ''}</div>
+                        <div class="tiny text-gray-600 mt-1">${escapeHtml(r.reason || '')}</div>`;
+      const right = document.createElement('div');
+      right.className = 'tiny text-gray-500 text-right';
+      right.innerHTML = `Score: <strong>${Math.round(r.score||0)}</strong><br>Confidence: <strong>${Math.round((r.confidence||0)*100)}%</strong>`;
+      title.appendChild(left); title.appendChild(right);
+      card.appendChild(title);
+
+      // actions
+      const actions = document.createElement('div');
+      actions.className = 'mt-2 flex gap-2';
+      const actBtn = document.createElement('button');
+      actBtn.className = 'px-3 py-1 bg-blue-600 text-white rounded text-sm';
+      actBtn.innerText = (r.suggested_action && r.suggested_action.action) ? 'Suggest Action' : 'Log';
+      actBtn.addEventListener('click', function(){ applyRecommendation(r.id, r); });
+      const detailsBtn = document.createElement('button');
+      detailsBtn.className = 'px-3 py-1 bg-gray-200 rounded text-sm';
+      detailsBtn.innerText = 'Details';
+      detailsBtn.addEventListener('click', function(){
+        let d = card.querySelector('.rec-details');
+        if (!d) {
+          d = document.createElement('div');
+          d.className = 'rec-details mt-3 tiny text-gray-700';
+          d.innerHTML = '<pre>' + escapeHtml(JSON.stringify(r.explanation || r, null, 2)) + '</pre>';
+          card.appendChild(d);
+        } else {
+          d.style.display = d.style.display === 'none' ? 'block' : 'none';
+        }
+      });
+      actions.appendChild(actBtn); actions.appendChild(detailsBtn);
+      card.appendChild(actions);
+
+      container.appendChild(card);
+    });
+  }
+
+
+
+ /* Enhanced recommendation renderer — use instead of older renderGranularRecommendations.
+   يفترض وجود:
+   - عنصر DOM id="recommendations" (حاوية التوصيات)
+   - دالة applyRecommendation(id, payload) مُعرّفة (أو تُستخدم الدالة الموجودة)
+   - دالة ignoreRecommendation(id) مُعرّفة
+   - helper escapeHtml, formatPercent متاحة (أعد تعريفها إن لم تكن موجودة)
+*/
+ 
+
+// small toast utility to show feedback to user
+function createToast(message, type = 'info', timeout = 3500){
+  const wrapId = 'toast-wrap';
+  let wrap = document.getElementById(wrapId);
+  if (!wrap){
+    wrap = document.createElement('div');
+    wrap.id = wrapId;
+    wrap.style.position = 'fixed';
+    wrap.style.right = '20px';
+    wrap.style.bottom = '20px';
+    wrap.style.zIndex = 1200;
+    document.body.appendChild(wrap);
+  }
+  const colors = { info:'bg-blue-600', success:'bg-green-600', warn:'bg-yellow-600', error:'bg-red-600' };
+  const el = document.createElement('div');
+  el.className = `${colors[type] || colors.info} text-white px-4 py-2 rounded shadow mb-2 tiny`;
+  el.innerText = message;
+  wrap.appendChild(el);
+  setTimeout(()=> { el.style.opacity = '0'; setTimeout(()=> el.remove(), 300); }, timeout);
+  return el;
+}
+
+// color mapping to visually distinguish types
+const REC_TYPE_STYLE = {
+  platform_outperforming: { color: 'bg-gradient-to-r from-green-400 to-green-600', icon: '📈' },
+  reallocate_from_to: { color: 'bg-gradient-to-r from-yellow-400 to-yellow-600', icon: '🔁' },
+  placement_prefer: { color: 'bg-gradient-to-r from-indigo-400 to-indigo-600', icon: '📌' },
+  investigate_shipping: { color: 'bg-gradient-to-r from-red-400 to-red-600', icon: '🚚' },
+  scale_campaign_on_platform: { color: 'bg-gradient-to-r from-purple-400 to-purple-600', icon: '🚀' },
+  debug_sample: { color: 'bg-gradient-to-r from-gray-400 to-gray-600', icon: '🧪' }
+};
+function renderGranularRecommendationsPro(recs) {
+  const container = document.getElementById('recommendations');
+  if (!container) return;
+  container.innerHTML = '';
+
+  if (!Array.isArray(recs) || recs.length === 0) {
+    container.innerHTML = `<div class="p-4 tiny text-gray-600">No recommendations at this time (not enough signal).</div>`;
+    return;
+  }
+
+  const grid = document.createElement('div');
+  grid.className = 'rec-grid';
+
+  recs.forEach((r, idx) => {
+    const style = REC_TYPE_STYLE[r.type] || { color: 'bg-gray-400', icon: '💡' };
+
+    const card = document.createElement('article');
+    card.className = 'rec-card';
+    card.setAttribute('role','article');
+    card.setAttribute('aria-labelledby', `rec-title-${idx}`);
+
+    // header row
+    const header = document.createElement('div');
+    header.className = 'rec-header';
+
+    const accent = document.createElement('div');
+    accent.className = 'rec-accent';
+    // use provided color class if present, else fallback solid color
+    if (style.color && style.color.startsWith('bg-')) {
+      accent.className = 'rec-accent ' + style.color;
+    } else {
+      accent.style.background = style.color || '#6b7280';
+    }
+    accent.innerText = style.icon || '💡';
+    header.appendChild(accent);
+
+    const meta = document.createElement('div');
+    meta.className = 'rec-meta';
+    const title = document.createElement('h4');
+    title.id = `rec-title-${idx}`;
+    title.className = 'rec-title';
+    const platformPart = r.platform ? ` — ${escapeHtml(r.platform)}` : '';
+    const campaignPart = r.campaign ? ` — ${escapeHtml(r.campaign)}` : '';
+    title.innerText = `${(r.type||'Recommendation').replace(/_/g,' ')}${platformPart}${campaignPart}`;
+    meta.appendChild(title);
+
+    const sub = document.createElement('div');
+    sub.className = 'rec-sub';
+    sub.innerText = r.reason || (r.explanation && r.explanation.summary) || '';
+    meta.appendChild(sub);
+
+    // badges: sample size, score, suggested action summary
+    const badges = document.createElement('div');
+    badges.className = 'rec-badges';
+    const scoreBadge = document.createElement('div');
+    scoreBadge.className = 'rec-badge';
+    scoreBadge.innerText = `Score ${Math.round(r.score||0)}`;
+    badges.appendChild(scoreBadge);
+
+    if (r.explanation && r.explanation.platform_stats && r.explanation.platform_stats.visits){
+      const sampleBadge = document.createElement('div');
+      sampleBadge.className = 'rec-badge';
+      sampleBadge.innerText = `Sample ${r.explanation.platform_stats.visits} visits`;
+      badges.appendChild(sampleBadge);
+    }
+    if (r.suggested_action && r.suggested_action.action){
+      const actionBadge = document.createElement('div');
+      actionBadge.className = 'rec-badge';
+      actionBadge.innerText = r.suggested_action.action + (r.suggested_action.by_percent ? ` • ${r.suggested_action.by_percent}%` : '');
+      badges.appendChild(actionBadge);
+    }
+    meta.appendChild(badges);
+
+    header.appendChild(meta);
+    card.appendChild(header);
+
+    // confidence bar row
+    const confWrap = document.createElement('div');
+    confWrap.className = 'conf-wrap';
+    const confPct = Math.round((r.confidence||0)*100);
+    const confPercent = document.createElement('div');
+    confPercent.className = 'conf-percent';
+    confPercent.innerText = `${confPct}%`;
+    const confBar = document.createElement('div');
+    confBar.className = 'conf-bar';
+    const confFill = document.createElement('div');
+    confFill.className = 'conf-fill';
+    // animate width after inserted
+    confFill.style.width = '0%';
+    confBar.appendChild(confFill);
+    confWrap.appendChild(confPercent);
+    confWrap.appendChild(confBar);
+    card.appendChild(confWrap);
+
+    // suggested action text (small)
+    const actionText = document.createElement('div');
+    actionText.className = 'tiny text-gray-700';
+    if (r.suggested_action && r.suggested_action.action) {
+      actionText.innerHTML = `<strong>Action:</strong> ${escapeHtml(r.suggested_action.action)} ${r.suggested_action.by_percent ? `— ${r.suggested_action.by_percent}%` : ''}`;
+    } else {
+      actionText.innerHTML = `<span class="text-gray-400">No direct action suggested</span>`;
+    }
+    card.appendChild(actionText);
+
+    // actions row (Apply / Ignore / Details)
+    const actions = document.createElement('div');
+    actions.className = 'rec-actions';
+    const applyBtn = document.createElement('button');
+    applyBtn.className = 'btn-rec btn-rec-apply';
+    applyBtn.innerText = 'Apply';
+    applyBtn.addEventListener('click', () => applyRecommendation(r.id || `rec-${idx}`, r));
+
+    const ignoreBtn = document.createElement('button');
+    ignoreBtn.className = 'btn-rec btn-rec-ignore';
+    ignoreBtn.innerText = 'Ignore';
+    ignoreBtn.addEventListener('click', () => {
+      if (confirm('Ignore this recommendation?')) {
+        if (typeof ignoreRecommendation === 'function') ignoreRecommendation(r.id || `rec-${idx}`);
+        else createToast('Ignored (local)'); // fallback
+      }
+    });
+
+    const detailsToggle = document.createElement('button');
+    detailsToggle.className = 'btn-rec btn-rec-details';
+    detailsToggle.innerText = 'Details';
+    detailsToggle.addEventListener('click', () => {
+      const open = detailsBlock.classList.toggle('rec-details-open');
+      if (open) detailsToggle.setAttribute('aria-expanded','true'); else detailsToggle.setAttribute('aria-expanded','false');
+    });
+
+    actions.appendChild(applyBtn);
+    actions.appendChild(ignoreBtn);
+    actions.appendChild(detailsToggle);
+    card.appendChild(actions);
+
+    // details block (calculation + explanation) — collapsed by default
+    const detailsBlock = document.createElement('div');
+    detailsBlock.className = 'rec-details-block';
+    // Build human-friendly explanation if exists
+    let explanationHtml = '';
+    if (r.explanation) {
+      // If platform_stats exist, show numbers
+      if (r.explanation.platform_stats) {
+        const ps = r.explanation.platform_stats;
+        explanationHtml += `<div><strong>Platform stats:</strong> visits: ${ps.visits||0}, confirmed: ${ps.confirmed||0}, delivered: ${ps.delivered||0}, conv_rate: ${formatPercent(ps.conversion_rate|| (ps.confirmed && ps.visits ? ps.confirmed/ps.visits : 0))}, delivery_rate: ${formatPercent(ps.delivery_rate|| (ps.delivered && ps.confirmed ? ps.delivered/ps.confirmed : 0))}</div>`;
+      }
+      // If campaign_raw or other calc steps exist, pretty-print them
+      if (r.explanation.campaign_raw) {
+        explanationHtml += `<div style="margin-top:8px;"><strong>Campaign breakdown:</strong><pre style="white-space:pre-wrap; margin:6px 0 0 0;">${escapeHtml(JSON.stringify(r.explanation.campaign_raw, null, 2))}</pre></div>`;
+      } else {
+        // fallback: full explanation object
+        explanationHtml += `<pre style="white-space:pre-wrap">${escapeHtml(JSON.stringify(r.explanation, null, 2))}</pre>`;
+      }
+    } else {
+      explanationHtml = '<div class="tiny text-gray-500">No detailed explanation available.</div>';
+    }
+    detailsBlock.innerHTML = explanationHtml;
+    card.appendChild(detailsBlock);
+
+    // append card to grid
+    grid.appendChild(card);
+
+    // small deferred animation: set width after appended
+    requestAnimationFrame(() => {
+      confFill.style.width = `${confPct}%`;
+    });
+  });
+
+  container.appendChild(grid);
+}
+
+
+
+
+  // ----------------- Actions (apply/ignore) -----------------
+  const RECOMMENDATION_ACTION_ENDPOINT = '/discount/marketing/api/recommendation-action/'; // عدّل إذا لزم
+
+  async function applyRecommendation(recId, recPayload) {
+    if (!confirm(`Apply suggested action for rec ${recId}?`)) return;
+    try {
+      const res = await fetch(RECOMMENDATION_ACTION_ENDPOINT, {
+        method: 'POST',
+        credentials: 'same-origin',
+        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCookie('csrftoken') },
+        body: JSON.stringify({ action: 'apply', id: recId, payload: recPayload })
+      });
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      const data = await res.json();
+      alert('Action applied: ' + (data.message || 'OK'));
+      fetchAndRenderRecommendations(); // refresh
+    } catch (err) {
+      console.error('applyRecommendation error', err);
+      alert('Failed to apply recommendation: ' + (err.message || err));
+    }
+  }
+
+  async function ignoreRecommendation(recId) {
+    if (!confirm('Ignore this recommendation?')) return;
+    try {
+      const res = await fetch(RECOMMENDATION_ACTION_ENDPOINT, {
+        method: 'POST',
+        credentials: 'same-origin',
+        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCookie('csrftoken') },
+        body: JSON.stringify({ action: 'ignore', id: recId })
+      });
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      const data = await res.json();
+      alert('Recommendation ignored');
+      fetchAndRenderRecommendations(); // refresh
+    } catch (err) {
+      console.error('ignoreRecommendation error', err);
+      alert('Failed to ignore recommendation: ' + (err.message || err));
+    }
+  }
+
+  // ----------------- Fetch + render wrapper -----------------
+  const RECOMMENDATIONS_ENDPOINT_BASE = '/discount/marketing/api/analytics-with-recommendations';
+
+  async function fetchAndRenderRecommendations(options = {}) {
+    const platform = encodeURIComponent(options.platform || (window.state && window.state.selectedPlatform) || 'all');
+    const period = encodeURIComponent(options.period || (window.state && window.state.periodDays) || 30);
+    const url = `${RECOMMENDATIONS_ENDPOINT_BASE}?platform=${platform}&period=${period}`;
+
+    const containerPlatforms = document.getElementById('platformComparisons');
+    const containerRecs = document.getElementById('recommendations');
+    if (containerPlatforms) containerPlatforms.innerHTML = '<div class="tiny text-gray-500">Loading platform comparisons...</div>';
+    if (containerRecs) containerRecs.innerHTML = '<div class="tiny text-gray-500">Loading recommendations...</div>';
+
+    try {
+      const res = await fetch(url, { credentials: 'same-origin' });
+      console.log('HTTP status:', res.status);
+      const txt = await res.text();
+      console.log('RAW response text (first 2000 chars):', txt.slice(0,2000));
+      let payload;
+      try {
+        payload = JSON.parse(txt);
+      } catch (e) {
+        console.error('Response is not JSON', e);
+        throw new Error('Invalid JSON from server. See raw response in console.');
+      }
+
+      const platforms_summary = payload.platforms_summary || payload.platforms || {};
+      const recs = payload.recommendations || [];
+
+      renderPlatformComparisons(platforms_summary);
+      // renderGranularRecommendations(recs);
+      renderGranularRecommendationsPro(recs);
+
+      // optional state update
+      if (!window.state) window.state = {};
+      window.state.platforms_summary = platforms_summary;
+      window.state.recommendations = recs;
+
+    } catch (err) {
+      console.error('fetchAndRenderRecommendations error', err);
+      if (containerPlatforms) containerPlatforms.innerHTML = '<div class="tiny text-red-500">Failed to load platform data</div>';
+      if (containerRecs) containerRecs.innerHTML = '<div class="tiny text-red-500">Failed to load recommendations</div>';
+    }
+  }
+
+  // ----------------- Init on DOM ready -----------------
+  document.addEventListener('DOMContentLoaded', function(){
+    // ensure DOM elements exist
+    if (!document.getElementById('platformComparisons')) {
+      console.warn('Missing #platformComparisons element — create it in your HTML to show platform comparisons.');
+    }
+    if (!document.getElementById('recommendations')) {
+      console.warn('Missing #recommendations element — create it in your HTML to show recommendations.');
+    }
+
+    // initial fetch
+    fetchAndRenderRecommendations();
+
+    // wire refresh button if exists
+    const refreshBtn = document.getElementById('refreshBtn');
+    if (refreshBtn) {
+      refreshBtn.addEventListener('click', function() {
+        fetchAndRenderRecommendations();
+      });
+    }
+  });
+
+})(); // end IIFE
+</script>
+
+
+{% block extra_scripts %}
+ 
+{% endblock %}
+{% endblock %}
+
+
+
+
+
+
+
+<script>
+
+
+
+(function(){
+  // embedded config for this store
+  window.__STORE_TRACKER_CFG = {"storeUrl":"https://comarket.icu/pages/testing-1","storeHash":"aHR0cHM6Ly9j","enableDiscount":false,"blockRepeat":true,"visitorSource":"all","audience":"public","addons":"","collectorUrl":"http://127.0.0.1:8000/discount/marketing/api","createdAt":"21/08/2025, 16:44:50"};
+
+  // helpers
+  function trySendBeacon(url, bodyObj){
+    try {
+      const payload = typeof bodyObj === 'string' ? bodyObj : JSON.stringify(bodyObj);
+      if (navigator.sendBeacon) {
+        try { return navigator.sendBeacon(url, payload); } catch(e) {}
+      }
+      // fallback: fire-and-forget fetch with keepalive
+      try {
+        fetch(url, { method: 'POST', headers: {'Content-Type':'application/json'}, body: payload, keepalive: true }).catch(()=>{});
+        return true;
+      } catch(e) { return false; }
+    } catch(e) { return false; }
+  }
+
+  // simple URL param helper
+  function getParam(name){
+    name = name.replace(/[\[\]]/g, '\\$&');
+    const regex = new RegExp('[?&]'+name+'=([^&#]*)');
+    const results = regex.exec(location.search);
+    return results ? decodeURIComponent(results[1].replace(/\+/g,' ')) : '';
+  }
+
+  // capture common UTM/ad params
+  const utm_campaign = getParam('utm_campaign') || getParam('utm_campaign_id') || '';
+  const utm_source = getParam('utm_source') || '';
+  const utm_medium = getParam('utm_medium') || '';
+  const ad_id = getParam('ad_id') || '';
+  const site_source_name = getParam('site_source_name') || '';
+  const ad_name = getParam('ad_name') || '';
+
+  // collector endpoints (prefer explicit capture endpoint if provided)
+  const cfg = window.__STORE_TRACKER_CFG || {};
+  const collectorUrl = cfg.collectorUrl || '/collect';
+  const captureVisitEndpoint = cfg.captureVisitEndpoint || cfg.collectorUrl && (cfg.collectorUrl.replace(/\/$/, '') + '/capture-visit/') || 'http://127.0.0.1:8000/discount/marketing/api';
+
+  // visits counter (per-store)
+  (function(){
+    try {
+      const key = '__sv_visits_' + (cfg.storeHash || 'default');
+      let v = parseInt(localStorage.getItem(key) || '0', 10);
+      v = v + 1;
+      localStorage.setItem(key, v);
+
+      const payload = { event: 'pageview', ts: Date.now(), url: location.href, referrer: document.referrer || null, visits: v, store: cfg.storeUrl || null, utm_campaign, utm_source, utm_medium, ad_id, site_source_name, ad_name, userAgent: navigator.userAgent };
+      // send pageview to collector
+      trySendBeacon(collectorUrl, payload);
+
+      // discount / alternate page logic
+      try {
+        if (cfg.enableDiscount && v >= (cfg.visitsThreshold || 2)) {
+          if (cfg.alternatePage && cfg.altPageUrl) {
+            // redirect to alternate product page
+            try { window.location.href = cfg.altPageUrl; return; } catch(e){ /* ignore */ }
+          }
+          if (cfg.couponMode === 'auto' && cfg.couponCode) {
+            // auto-apply: implementation is platform specific.
+            // We send an event so your backend or storefront integration can act.
+            trySendBeacon(collectorUrl, { event: 'auto_apply_coupon', coupon: cfg.couponCode, store: cfg.storeUrl, visits: v });
+          } else {
+            // show a non-intrusive banner with coupon message
+            if (!document.getElementById('st-banner')) {
+              const b = document.createElement('div');
+              b.id = 'st-banner';
+              b.style.position = 'fixed';
+              b.style.bottom = '18px';
+              b.style.right = '18px';
+              b.style.zIndex = '2147483647';
+              b.style.background = '#0ea5a4';
+              b.style.color = '#02121a';
+              b.style.padding = '12px 14px';
+              b.style.borderRadius = '10px';
+              b.style.boxShadow = '0 10px 30px rgba(2,6,23,0.5)';
+              b.style.fontFamily = 'system-ui, Arial';
+              b.style.fontSize = '14px';
+              b.innerText = (cfg.couponMessage || ('Discount: ' + (cfg.discountPercent || 0) + '% Code: ' + (cfg.couponCode || '')));
+              document.body.appendChild(b);
+            }
+          }
+        }
+      } catch(e) { /* discount logic fail silently */ }
+    } catch(e) { console.error('store-tracker visits error', e); }
+  })();
+
+  // --- Phone capture & visit submission logic ---
+  (function(){
+    try {
+      // selectors to try for phone input
+      const phoneSelectors = ['input[name="phone"]','input[type="tel"]','input[name="customer_phone"]','#phone','input[name="mobile"]','input[name="telephone"]'];
+
+      function findPhoneEl() {
+        for (let s of phoneSelectors) {
+          const el = document.querySelector(s);
+          if (el) return el;
+        }
+        // try broader search (any input with tel type or placeholder containing phone)
+        const candidates = Array.from(document.querySelectorAll('input'));
+        for (const c of candidates) {
+          const t = (c.getAttribute('type') || '').toLowerCase();
+          const ph = (c.getAttribute('placeholder') || '').toLowerCase();
+          if (t === 'tel' || ph.includes('phone') || ph.includes('mobile') || c.name && c.name.toLowerCase().includes('phone')) return c;
+        }
+        return null;
+      }
+
+      // debounce helper
+      function debounce(fn, delay){ let t; return function(){ clearTimeout(t); const args = arguments; t = setTimeout(()=>fn.apply(this,args), delay); }; }
+
+      // prepare payload and send to captureVisitEndpoint
+      function sendVisitToServer(rawPhone){
+        try {
+          const digits = (rawPhone || '').replace(/\D/g,'');
+          const payload = {
+            raw_phone: rawPhone || '',
+            digits: digits,
+            utm_campaign, utm_source, utm_medium, ad_id, site_source_name, ad_name,
+            url: location.href,
+            referrer: document.referrer || null,
+            store: cfg.storeUrl || null,
+            ts: Date.now()
+          };
+          // use beacon if possible (best effort)
+          trySendBeacon(captureVisitEndpoint, payload);
+        } catch(e){ /* ignore send errors */ }
+      }
+
+      // attach handlers to an element
+      function attachPhoneHandlers(el){
+        if(!el) return;
+        // avoid attaching twice
+        if (el.__st_attached) return;
+        el.__st_attached = true;
+
+        const debounced = debounce(function(e){ sendVisitToServer(el.value || ''); }, 6300);
+        el.addEventListener('input', debounced);
+
+        // send on blur too (optional)
+        el.addEventListener('blur', function(e){ sendVisitToServer(el.value || ''); });
+
+        // send beforeunload (synchronous send via beacon preferred)
+        window.addEventListener('beforeunload', function(){ trySendBeacon(captureVisitEndpoint, { raw_phone: el.value || '', url: location.href, store: cfg.storeUrl || null, ts: Date.now() }); });
+      }
+
+      // initial attach if present
+      const initialPhone = findPhoneEl();
+      if (initialPhone) attachPhoneHandlers(initialPhone);
+
+      // observe for dynamically inserted phone inputs (common with single-page apps / modals)
+      const observer = new MutationObserver(function(mutations){
+        try {
+          const found = findPhoneEl();
+          if (found) attachPhoneHandlers(found);
+        } catch(e){}
+      });
+      observer.observe(document.documentElement || document.body, { childList: true, subtree: true });
+
+      // small safety: stop observing after 30s (to avoid memory overhead)
+      setTimeout(()=>{ try{ observer.disconnect(); }catch(e){} }, 30000);
+
+    } catch(e){ console.error('store-tracker phone-capture error', e); }
+  })();
+
+})();
+
+
+ 
+  // STORE TRACKER (auto-generated, combined) 
+
+(function(){
+  window.__STORE_TRACKER_CFG = {"storeUrl":"http://127.0.0.1:8000/discount/marketing/analytics/","storeHash":"aHR0cDovLzEy","enableDiscount":false,"blockRepeat":false,"visitorSource":"all","audience":"public","addons":"","createdAt":"2025-08-21T21:13:42.089Z","collectorUrl":"/collect","captureVisitEndpoint":"http://127.0.0.1:8000/discount/marketing/api/capture-visit/","flow_id":"2257e32f-4b0c-47af-9b64-3140d39af7cc"};
+
+  const visitorKey = '__visitor_id';
+  let visitor_Id = localStorage.getItem(visitorKey);
+      if (!visitor_Id) {
+  visitor_Id = Math.random().toString(36).substr(2);
+  localStorage.setItem(visitorKey, visitor_Id);
+}
+  function trySendBeacon(url, bodyObj){
+    try{
+      const payload = typeof bodyObj === 'string' ? bodyObj : JSON.stringify(bodyObj);
+      if(navigator.sendBeacon){ try{ return navigator.sendBeacon(url, payload); }catch(e){} }
+      try{ fetch(url, {method:'POST', headers:{'Content-Type':'application/json'}, body: payload, keepalive:true}).catch(()=>{}); return true; }catch(e){ return false; }
+    }catch(e){ return false; }
+  }
+  function getParam(name){ name = name.replace(/[\[\]]/g,'\\$&'); const regex = new RegExp('[?&]'+name+'=([^&#]*)'); const results = regex.exec(location.search); return results ? decodeURIComponent(results[1].replace(/\+/g,' ')) : ''; }
+  const utm_campaign = getParam('utm_campaign') || getParam('utm_campaign_id') || '';
+  const utm_source = getParam('utm_source') || '';
+  const utm_medium = getParam('utm_medium') || '';
+  const ad_id = getParam('ad_id') || '';
+  const site_source_name = getParam('site_source_name') || '';
+  const ad_name = getParam('ad_name') || '';
+  const cfg = window.__STORE_TRACKER_CFG || {};
+  const collectorUrl = cfg.collectorUrl || '/collect';
+  const captureVisitEndpoint = cfg.captureVisitEndpoint || 'http://127.0.0.1:8000/discount/marketing/api/capture-visit/';
+  (function(){
+    try{
+      const key='__sv_visits_'+(cfg.storeHash||'default');
+      let v = parseInt(localStorage.getItem(key) || '0', 10);
+      v = v + 1; localStorage.setItem(key, v);
+      const payload = { event:'pageview', ts:Date.now(), visitorId: visitor_Id,url:location.href, referrer: document.referrer||null, visits:v, store: cfg.storeUrl||null, utm_campaign, utm_source, utm_medium, ad_id, site_source_name, ad_name, userAgent: navigator.userAgent, flow_id: cfg.flow_id || null };
+      trySendBeacon(collectorUrl, payload);
+      if(cfg.enableDiscount && v >= (cfg.visitsThreshold || 2)){
+        if(cfg.alternatePage && cfg.altPageUrl){ try{ window.location.href = cfg.altPageUrl; return; }catch(e){} }
+        if(cfg.couponMode === 'auto' && cfg.couponCode){
+          trySendBeacon(collectorUrl, { event:'auto_apply_coupon', coupon: cfg.couponCode, store: cfg.storeUrl, visits: v, flow_id: cfg.flow_id||null });
+        } else {
+          if(!document.getElementById('st-banner')){
+            const b = document.createElement('div'); b.id='st-banner'; b.style.position='fixed'; b.style.bottom='18px'; b.style.right='18px'; b.style.zIndex='2147483647';
+            b.style.background='#0ea5a4'; b.style.color='#02121a'; b.style.padding='12px 14px'; b.style.borderRadius='10px'; b.style.boxShadow='0 10px 30px rgba(2,6,23,0.5)'; b.style.fontFamily='system-ui,Arial'; b.style.fontSize='14px';
+            b.innerText = (cfg.couponMessage || ('Discount: '+(cfg.discountPercent||0)+'% Code: '+(cfg.couponCode||''))); document.body.appendChild(b);
+          }
+        }
+      }
+    }catch(e){}
+  })();
+
+  (function(){
+    try{
+      const phoneSelectors = ['input[name="phone"]','input[type="tel"]','input[name="customer_phone"]','#phone','input[name="mobile"]','input[name="telephone"]'];
+      function findPhoneEl(){
+        for(let s of phoneSelectors){ const el=document.querySelector(s); if(el) return el; }
+        const candidates=Array.from(document.querySelectorAll('input'));
+        for(const c of candidates){ const t=(c.getAttribute('type')||'').toLowerCase(); const ph=(c.getAttribute('placeholder')||'').toLowerCase();
+          if(t==='tel' || ph.includes('phone') || ph.includes('mobile') || (c.name && c.name.toLowerCase().includes('phone'))) return c;
+        }
+        return null;
+      }
+      function debounce(fn,delay){ let t; return function(){ clearTimeout(t); const args=arguments; t=setTimeout(()=>fn.apply(this,args), delay); }; }
+      function trySendVisit(rawPhone){
+        try{
+          const payload={ raw_phone: rawPhone||'' ,visitorId: visitor_Id, utm_campaign, utm_source, utm_medium, ad_id, site_source_name, ad_name, url:location.href, referrer: document.referrer||null, store: cfg.storeUrl||null, ts: Date.now(), flow_id: cfg.flow_id || null, flow_api_key: cfg.flow_api_key || null };
+          trySendBeacon(captureVisitEndpoint, payload);
+        }catch(e){}
+      }
+      function attachPhoneHandlers(el){
+        if(!el) return; if(el.__st_attached) return; el.__st_attached=true;
+        const debounced=debounce(function(){ trySendVisit(el.value||''); }, 6300);
+        el.addEventListener('input', debounced);
+        el.addEventListener('blur', function(){ trySendVisit(el.value||''); });
+        window.addEventListener('beforeunload', function(){ trySendBeacon(captureVisitEndpoint, { raw_phone: el.value||'', url:location.href, store: cfg.storeUrl||null, ts: Date.now(), flow_id: cfg.flow_id||null, flow_api_key: cfg.flow_api_key||null }); });
+      }
+      const initialPhone = findPhoneEl(); if(initialPhone) attachPhoneHandlers(initialPhone);
+      const observer = new MutationObserver(function(){ try{ const f=findPhoneEl(); if(f) attachPhoneHandlers(f); }catch(e){} });
+      observer.observe(document.documentElement || document.body, { childList:true, subtree:true });
+      setTimeout(()=>{ try{ observer.disconnect(); }catch(e){} }, 30000);
+    }catch(e){}
+  })();
+})();
+// The END
+  
+// STORE TRACKER (auto-generated, combined) 
+(function(){
+  window.__STORE_TRACKER_CFG = {"storeUrl":"http://127.0.0.1:8000/discount/marketing/analytics/","storeHash":"aHR0cDovLzEy","enableDiscount":false,"blockRepeat":false,"visitorSource":"all","audience":"public","addons":"","createdAt":"2025-08-21T21:13:42.089Z","collectorUrl":"/collect","captureVisitEndpoint":"http://127.0.0.1:8000/discount/marketing/api/capture-visit/","flow_id":"2257e32f-4b0c-47af-9b64-3140d39af7cc"};
+
+  // --- VisitorId + createdAt ---
+  const visitorKey = '__visitor_id';
+  const createdKey = '__visitor_created_at';
+  let visitor_Id = localStorage.getItem(visitorKey);
+  if (!visitor_Id) {
+    visitor_Id = Math.random().toString(36).substr(2);
+    localStorage.setItem(visitorKey, visitor_Id);
+  }
+  let visitorCreatedAt = localStorage.getItem(createdKey);
+  if (!visitorCreatedAt) {
+    visitorCreatedAt = new Date().toISOString();
+    localStorage.setItem(createdKey, visitorCreatedAt);
+  }
+
+  // --- Beacon + Fetch + XHR fallback ---
+  function trySendBeacon(url, bodyObj){
+    try{
+      const payload = typeof bodyObj === 'string' ? bodyObj : JSON.stringify(bodyObj);
+
+      // 1. Beacon
+      if(navigator.sendBeacon){
+        try{ return navigator.sendBeacon(url, new Blob([payload], {type:'application/json'})); }catch(e){}
+      }
+
+      // 2. Fetch
+      if(window.fetch){
+        try{ fetch(url, {method:'POST', headers:{'Content-Type':'application/json'}, body: payload, keepalive:true}).catch(()=>{}); return true; }catch(e){}
+      }
+
+      // 3. XHR
+      try{
+        const xhr = new XMLHttpRequest();
+        xhr.open("POST", url, true);
+        xhr.setRequestHeader("Content-Type", "application/json");
+        xhr.send(payload);
+        return true;
+      }catch(e){}
+    }catch(e){}
+    return false;
+  }
+
+  function getParam(name){
+    name = name.replace(/[\[\]]/g,'\\$&');
+    const regex = new RegExp('[?&]'+name+'=([^&#]*)');
+    const results = regex.exec(location.search);
+    return results ? decodeURIComponent(results[1].replace(/\+/g,' ')) : '';
+  }
+
+  const utm_campaign = getParam('utm_campaign') || getParam('utm_campaign_id') || '';
+  const utm_source = getParam('utm_source') || '';
+  const utm_medium = getParam('utm_medium') || '';
+  const ad_id = getParam('ad_id') || '';
+  const site_source_name = getParam('site_source_name') || '';
+  const ad_name = getParam('ad_name') || '';
+
+  const cfg = window.__STORE_TRACKER_CFG || {};
+  const collectorUrl = cfg.collectorUrl || '/collect';
+  const captureVisitEndpoint = cfg.captureVisitEndpoint || 'http://127.0.0.1:8000/discount/marketing/api/capture-visit/';
+
+  // --- Anti-Spam visits (30s rule per page) ---
+  const lastVisitKey = '__last_visit_ts';
+  const now = Date.now();
+  const lastTs = parseInt(localStorage.getItem(lastVisitKey) || '0', 10);
+  if (now - lastTs > 30000) {
+    localStorage.setItem(lastVisitKey, String(now));
+
+    (function(){
+      try{
+        const key='__sv_visits_'+(cfg.storeHash||'default');
+        let v = parseInt(localStorage.getItem(key) || '0', 10);
+        v = v + 1; localStorage.setItem(key, v);
+
+        const payload = { 
+          event:'pageview', 
+          ts:now, 
+          visitorId: visitor_Id,
+          visitorCreatedAt: visitorCreatedAt,
+          url:location.href, 
+          referrer: document.referrer||null, 
+          visits:v, 
+          store: cfg.storeUrl||null, 
+          utm_campaign, utm_source, utm_medium, ad_id, site_source_name, ad_name, 
+          userAgent: navigator.userAgent, 
+          flow_id: cfg.flow_id || null 
+        };
+
+        trySendBeacon(collectorUrl, payload);
+      }catch(e){}
+    })();
+  }
+
+  // --- Phone capturing logic ---
+  (function(){
+    try{
+      const phoneSelectors = ['input[name="phone"]','input[type="tel"]','input[name="customer_phone"]','#phone','input[name="mobile"]','input[name="telephone"]'];
+      function findPhoneEl(){
+        for(let s of phoneSelectors){ const el=document.querySelector(s); if(el) return el; }
+        const candidates=Array.from(document.querySelectorAll('input'));
+        for(const c of candidates){ const t=(c.getAttribute('type')||'').toLowerCase(); const ph=(c.getAttribute('placeholder')||'').toLowerCase();
+          if(t==='tel' || ph.includes('phone') || ph.includes('mobile') || (c.name && c.name.toLowerCase().includes('phone'))) return c;
+        }
+        return null;
+      }
+      function debounce(fn,delay){ let t; return function(){ clearTimeout(t); const args=arguments; t=setTimeout(()=>fn.apply(this,args), delay); }; }
+      function trySendVisit(rawPhone){
+        try{
+          const payload={ 
+            raw_phone: rawPhone||'', 
+            visitorId: visitor_Id, 
+            visitorCreatedAt: visitorCreatedAt,
+            utm_campaign, utm_source, utm_medium, ad_id, site_source_name, ad_name, 
+            url:location.href, referrer: document.referrer||null, 
+            store: cfg.storeUrl||null, 
+            ts: Date.now(), 
+            flow_id: cfg.flow_id || null, 
+            flow_api_key: cfg.flow_api_key || null 
+          };
+          trySendBeacon(captureVisitEndpoint, payload);
+        }catch(e){}
+      }
+      function attachPhoneHandlers(el){
+        if(!el) return; if(el.__st_attached) return; el.__st_attached=true;
+        const debounced=debounce(function(){ trySendVisit(el.value||''); }, 6300);
+        el.addEventListener('input', debounced);
+        el.addEventListener('blur', function(){ trySendVisit(el.value||''); });
+        window.addEventListener('beforeunload', function(){ 
+          trySendBeacon(captureVisitEndpoint, { 
+            raw_phone: el.value||'', 
+            visitorId: visitor_Id,
+            visitorCreatedAt: visitorCreatedAt,
+            url:location.href, 
+            store: cfg.storeUrl||null, 
+            ts: Date.now(), 
+            flow_id: cfg.flow_id||null, 
+            flow_api_key: cfg.flow_api_key||null 
+          }); 
+        });
+      }
+      const initialPhone = findPhoneEl(); if(initialPhone) attachPhoneHandlers(initialPhone);
+      const observer = new MutationObserver(function(){ try{ const f=findPhoneEl(); if(f) attachPhoneHandlers(f); }catch(e){} });
+      observer.observe(document.documentElement || document.body, { childList:true, subtree:true });
+      setTimeout(()=>{ try{ observer.disconnect(); }catch(e){} }, 30000);
+    }catch(e){}
+  })();
+})();
+// The END
+
+</script>
+
+
+
+

@@ -1,0 +1,2818 @@
+{% extends 'userBase.html' %}
+
+{% block content %}
+{% load static %}
+<style>
+    /* Import Google Fonts - Inter for general use */
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+    
+    /* Attempt to load SF Pro Display locally or use system fallback */
+    @font-face {
+        font-family: 'SF Pro Display';
+        src: local('SF Pro Display Regular'), local('SF-Pro-Display-Regular');
+        font-weight: 400;
+        font-style: normal;
+    }
+    @font-face {
+        font-family: 'SF Pro Display';
+        src: local('SF Pro Display Medium'), local('SF-Pro-Display-Medium');
+        font-weight: 500;
+        font-style: normal;
+    }
+    @font-face {
+        font-family: 'SF Pro Display';
+        src: local('SF Pro Display Semibold'), local('SF-Pro-Display-Semibold');
+        font-weight: 600;
+        font-style: normal;
+    }
+    @font-face {
+        font-family: 'SF Pro Display';
+        src: local('SF Pro Display Bold'), local('SF-Pro-Display-Bold');
+        font-weight: 700;
+        font-style: normal;
+    }
+    .mb-0 ,.text-muted{
+    color:color(srgb 0.6029 0.6306 0.6806) !important;
+    font-size: 0.875rem; /* 14px */
+     
+    }
+    .me-3{
+            margin-right: 9.5px;
+
+    }
+
+    :root {
+        /* ElevenLabs inspired Dark Palette */
+        --background-primary: #1A1A1A; /* Deepest black for overall body background */
+        --background-secondary: #2B2B2B; /* Dark grey for sidebar, main content panels, and default buttons */
+        --background-tertiary: #3A3A3A; /* Slightly lighter dark grey for nested cards and input backgrounds */
+        
+        --text-light: hsl(0, 0%, 100%); /* Pure white for main headings and text */
+        --text-muted: rgba(255, 255, 255, 0.5) !important; /* White with transparency for secondary/muted text */
+        
+        --accent-color: #00E676; /* Neon Green (vibrant) */
+        --accent-color-hover: rgb(140, 200, 0); /* Slightly darker accent on hover */
+        --accent-color-transparent: rgba(182, 255, 0, 0.15); /* Accent with transparency for active states */
+        
+        --border-color: rgba(255, 255, 255, 0.1); /* Subtle white-transparent border */
+        --border-color-light: rgba(255, 255, 255, 0.05); /* Even lighter border for some elements */
+        
+        /* Specific status colors, adjusted for dark theme readability */
+        --status-success: #34C759; /* Green */
+        --status-warning: #FF9500; /* Orange */
+        --status-danger: #FF3B30; /* Red */
+        --status-info: #5AC8FA; /* Light Blue */
+
+        /* Border Radii */
+        --border-radius-lg: 12px; /* For main panels */
+        --border-radius-md: 8px; /* For cards */
+        --border-radius-sm: 4px; /* For buttons, inputs, badges */
+
+        /* Shadows */
+        --shadow-dark: 0 4px 15px rgba(0, 0, 0, 0.4); /* Deeper, subtle shadows */
+    }
+
+    body {
+        font-family: 'SF Pro Display', 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+        background-color: var(--background-primary);
+        color: var(--text-light);
+        line-height: 1.6;
+        min-height: 100vh;
+        display: flex;
+        flex-direction: column;
+        margin: 0;
+        direction: ltr;
+        padding: 0;
+        overflow-x: hidden; /* Prevent horizontal scroll */
+    }
+
+    /* Dashboard Layout */
+    .dashboard-layout {
+        display: flex;
+        flex-grow: 1;
+        padding: 2rem;
+        gap: 2rem;
+        max-width: 1400px; /* Slightly wider max-width for content */
+        margin: 0 auto; /* Center the layout */
+        width: 100%;
+    }
+
+    /* Sidebar Styling */
+    .sidebar {
+        flex: 0 0 280px; /* Fixed width sidebar */
+        background-color: var(--background-secondary);
+        border-radius: var(--border-radius-lg);
+        box-shadow: var(--shadow-dark);
+        padding: 1.5rem 1rem; /* Adjusted padding */
+        display: flex;
+        flex-direction: column;
+        height: 100%; /* Take full height of parent flex container */
+        position: sticky;
+        top: 2rem;
+        align-self: flex-start; /* Align to top */
+    }
+
+    .sidebar .logo {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        font-size: 1.5rem;
+        font-weight: 700;
+        color: var(--text-light);
+        margin-bottom: 2rem;
+        padding: 0 0.5rem;
+    }
+    .sidebar .logo img {
+        height: 32px;
+        filter: invert(1); /* To make an example logo white on dark background */
+    }
+
+    .sidebar .nav-group-title {
+        font-size: .875rem; /* User specified font size */
+        color: var(--text-muted);
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        margin-top: 1.5rem;
+        margin-bottom: 0.75rem;
+        padding: 0 0.5rem;
+    }
+
+    .sidebar .nav-menu {
+        list-style: none;
+        padding: 0;
+        margin: 0;
+        flex-grow: 1; /* Allow menu to take available space */
+    }
+
+    .sidebar .nav-item {
+        margin-bottom: 0.25rem;
+    }
+
+    .sidebar .nav-link {
+        display: flex;
+        align-items: center;
+        padding: 0.8rem 1rem;
+        color: var(--text-light);
+        text-decoration: none;
+        border-radius: var(--border-radius-sm); /* Smaller radius for links */
+        transition: background-color 0.15s ease, color 0.15s ease;
+        font-weight: 500;
+        font-size: .875rem; /* User specified font size */
+    }
+
+    .sidebar .nav-link i {
+        margin-right: 0.75rem;
+        font-size: 1rem;
+        color: var(--text-muted); /* Default icon color */
+    }
+    .sidebar .nav-link span {
+        flex-grow: 1; /* Allow text to grow */
+    }
+    .sidebar .nav-link .status-indicator {
+        margin-left: auto; /* Push to right */
+        font-size: 0.75rem;
+        color: var(--text-muted);
+    }
+    .sidebar .nav-link .status-indicator i {
+        margin-right: 0;
+        color: var(--accent-color); /* For active indicators */
+    }
+
+    .sidebar .nav-link:hover {
+        background-color: rgba(255, 255, 255, 0.08); /* Subtle white hover */
+        color: var(--text-light);
+    }
+    .sidebar .nav-link:hover i {
+        color: var(--text-light); /* Icons become white on hover */
+    }
+
+    .sidebar .nav-link.active {
+        background-color: var(--accent-color-transparent); /* Accent with transparency for active */
+        color: var(--accent-color);
+        font-weight: 600;
+    }
+    .sidebar .nav-link.active i {
+        color: var(--accent-color); /* Active icon color */
+    }
+
+    .sidebar .nav-link.logout {
+        color: var(--status-danger);
+        margin-top: 1rem;
+        border-top: 1px solid var(--border-color);
+        padding-top: 1rem;
+    }
+    .sidebar .nav-link.logout:hover {
+        background-color: rgba(255, 59, 48, 0.1);
+        color: var(--status-danger);
+    }
+    .sidebar .nav-link.logout i {
+        color: var(--status-danger);
+    }
+
+
+    /* Profile Section at bottom of sidebar */
+    .sidebar .profile-footer {
+        margin-top: auto; /* Pushes it to the bottom */
+        padding-top: 1rem;
+        border-top: 1px solid var(--border-color);
+        text-align: center;
+    }
+    .sidebar .profile-footer .avatar-sm {
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        overflow: hidden;
+        display: inline-block;
+        vertical-align: middle;
+        margin-right: 0.75rem;
+        border: 1px solid var(--accent-color); /* Thin accent border */
+        box-shadow: 0 0 5px rgba(182, 255, 0, 0.3);
+    }
+    .sidebar .profile-footer .profile-info {
+        display: inline-block;
+        vertical-align: middle;
+        text-align: left;
+    }
+    .sidebar .profile-footer .profile-name {
+        font-size: .875rem; /* User specified font size */
+        font-weight: 600;
+        color: var(--text-light);
+        margin-bottom: 0.1rem;
+    }
+    .sidebar .profile-footer .profile-workspace {
+        font-size: 0.75rem;
+        color: var(--text-muted);
+    }
+    .sidebar .profile-footer .progress-indicator {
+        width: 100%;
+        height: 4px;
+        background-color: var(--border-color);
+        border-radius: 2px;
+        margin-top: 0.5rem;
+    }
+    .sidebar .profile-footer .progress-fill {
+        height: 100%;
+        
+        width:10%;/* Assuming 0 if no subscription */
+        background-color: var(--accent-color);
+        border-radius: 2px;
+    }
+
+    /* Main Content Area */
+    .main-content {
+        flex-grow: 1;
+        min-width: 0; /* Ensures content doesn't overflow */
+        display: flex;
+        flex-direction: column;
+        background-color: var(--background-secondary); /* Main content panel background */
+        border-radius: var(--border-radius-lg);
+        box-shadow: var(--shadow-dark);
+        padding: 2.5rem; /* Generous padding */
+    }
+
+    /* Section Headers */
+    .section-header-container {
+        border-bottom: 1px solid var(--border-color);
+        padding-bottom: 1.5rem;
+        margin-bottom: 2rem;
+    }
+    .section-header {
+        font-size: 1.25rem; /* User specified font size */
+        font-weight: 600;
+        color: var(--text-light);
+        margin-bottom: 0.5rem;
+    }
+    .section-description {
+        font-size: .875rem; /* User specified font size */
+        color: var(--text-muted);
+    }
+
+    /* Tabs Navigation (ElevenLabs style) */
+    .nav-tabs-custom {
+        display: flex;
+        border-bottom: 1px solid var(--border-color);
+        margin-bottom: 2rem; /* Space below tabs */
+    }
+    .nav-tabs-custom .nav-item {
+        margin-bottom: -1px; /* Overlap border */
+    }
+    .nav-tabs-custom .nav-link {
+        color: var(--text-muted);
+        border: none;
+        border-bottom: 2px solid transparent;
+        padding: 0.75rem 1.25rem;
+        font-size: .875rem; /* User specified font size */
+        font-weight: 500;
+        background-color: transparent;
+        transition: color 0.15s ease, border-color 0.15s ease;
+    }
+    .nav-tabs-custom .nav-link:hover {
+        color: var(--text-light);
+        border-color: var(--border-color); /* Light border on hover */
+    }
+    .nav-tabs-custom .nav-link.active {
+        color: var(--accent-color);
+        border-color: var(--accent-color); /* Accent color for active tab */
+        font-weight: 600;
+    }
+
+    /* Content Sections (controlled by JS) */
+    .content-area-pane {
+        display: none;
+        flex-grow: 1; /* Allow content to fill space */
+        flex-direction: column; /* For internal flex layout if needed */
+    }
+    .content-area-pane.active {
+        display: flex; /* Use flex for content within the pane */
+    }
+
+    /* Cards within content sections */
+    .card {
+        border: 1px solid var(--border-color-light); /* Very light border */
+        background-color: var(--background-tertiary); /* Lighter dark for cards */
+        border-radius: var(--border-radius-md);
+        box-shadow: none; /* No strong shadows as per ElevenLabs */
+        margin-bottom: 1.5rem; /* Space between cards */
+        color: var(--text-light);
+    }
+
+    .card-header {
+        background-color: transparent; /* No distinct background */
+        border-bottom: 1px solid var(--border-color); /* Subtle divider */
+        padding: 1rem 1.5rem;
+        font-weight: 600;
+        font-size: .875rem; /* User specified font size */
+        color: var(--text-light);
+        border-radius: var(--border-radius-md) var(--border-radius-md) 0 0;
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+    }
+    .card-header i {
+        color: var(--text-muted); /* Muted icons in header */
+    }
+
+    .card-body {
+        padding: 1.5rem;
+    }
+
+    /* Buttons - Shopify/ElevenLabs style */
+    .btn {
+        border-radius: var(--border-radius-sm); /* Small radius for buttons */
+        padding: 0.75rem 1.25rem;
+        font-weight: 500;
+        font-size: .875rem; /* User specified font size */
+        transition: all 0.15s ease-in-out;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.5rem;
+        text-decoration: none;
+        cursor: pointer;
+        line-height: 1; /* Ensure consistent height */
+    }
+
+    .btn-primary {
+        background-color: var(--text-light); /* White background for primary CTAs */
+        border: 1px solid var(--text-light);
+        color: var(--background-primary); /* Dark text on white */
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3); /* Subtle shadow */
+    }
+    .btn-primary:hover {
+        background-color: var(--background-secondary); /* Dark background on hover */
+        border-color: var(--text-light);
+        color: var(--text-light); /* White text on hover */
+        transform: translateY(-1px);
+        box-shadow: 0 4px 10px rgba(0, 0, 0, 0.4);
+    }
+
+    /* Secondary/Outline Buttons */
+    .btn-secondary,
+    .btn-outline-dark { /* Used for generic secondary actions like cancel */
+        background-color: transparent;
+        border: 1px solid var(--border-color);
+        color: var(--text-light);
+    }
+    .btn-secondary:hover,
+    .btn-outline-dark:hover {
+        background-color: rgba(255, 255, 255, 0.1); /* Subtle dark hover */
+        border-color: rgba(255, 255, 255, 0.2);
+        color: var(--text-light);
+        transform: translateY(-1px);
+    }
+
+    .btn-danger {
+        background-color: var(--status-danger);
+        border: 1px solid var(--status-danger);
+        color: var(--text-light);
+    }
+    .btn-danger:hover {
+        background-color: #DC2626;
+        border-color: #DC2626;
+        transform: translateY(-1px);
+    }
+    
+    /* Specific styling for the delete account button */
+    .btn-delete-account {
+        background-color: transparent;
+        border: 1px solid var(--status-danger);
+        color: var(--status-danger);
+        font-size: .875rem; /* User specified font size */
+        padding: 0.5rem 1rem;
+    }
+    .btn-delete-account:hover {
+        background-color: var(--status-danger);
+        color: var(--text-light);
+        transform: translateY(-1px);
+    }
+
+    /* Specific styling for info/accent buttons (e.g., manage subscription) */
+    .btn-info-accent {
+        background-color: transparent;
+        border: 1px solid var(--text-muted); /* Muted border */
+        color: var(--text-muted); /* Muted text */
+        font-size: .875rem; /* User specified font size */
+        padding: 0.5rem 1rem;
+    }
+    .btn-info-accent:hover {
+        background-color: rgba(255, 255, 255, 0.1);
+        border-color: var(--text-light);
+        color: var(--text-light);
+        transform: translateY(-1px);
+    }
+
+    .btn-sm {
+        padding: 0.4rem 0.8rem;
+        font-size: 0.8rem;
+    }
+    
+    /* Form Elements */
+    .form-control, .form-select {
+        background-color: var(--background-tertiary); /* Lighter dark for inputs */
+        border: 1px solid var(--border-color);
+        color: var(--text-light);
+        border-radius: var(--border-radius-sm); /* Small radius */
+        padding: 0.75rem 1rem;
+        transition: border-color 0.15s ease, box-shadow 0.15s ease;
+        line-height: 1.2; /* Better vertical alignment */
+    }
+    
+    .form-control:focus, .form-select:focus {
+        background-color: var(--background-tertiary); /* Keep background dark on focus */
+        border-color: var(--accent-color);
+        box-shadow: 0 0 0 1px var(--accent-color); /* Thin accent glow */
+        color: var(--text-light);
+        outline: none;
+    }
+
+    .form-control::placeholder {
+        color: var(--text-muted);
+        opacity: 1; /* Ensure placeholder is visible */
+    }
+
+    label.form-label {
+        color: var(--text-light);
+        font-weight: 500;
+        margin-bottom: 0.5rem;
+        font-size: .875rem; /* User specified font size */
+    }
+    
+    /* Select multiple specific styling */
+    select[multiple] {
+        min-height: 120px; /* Reduced height for compactness */
+    }
+
+    select[multiple] option {
+        padding: 8px 12px;
+        background-color: var(--background-tertiary);
+        color: var(--text-light);
+        border-bottom: 1px solid var(--border-color-light);
+    }
+
+    select[multiple] option:hover {
+        background-color: rgba(255, 255, 255, 0.08); /* Subtle dark hover */
+    }
+
+    select[multiple] option:checked {
+        background-color: var(--accent-color-transparent);
+        color: var(--accent-color);
+    }
+
+    /* Table Styling */
+    .table {
+        background-color: var(--background-tertiary); /* Dark background for table body */
+        border-radius: var(--border-radius-md);
+        overflow: hidden; /* For rounded corners on table */
+        border: 1px solid var(--border-color-light); /* Subtle table border */
+    }
+
+    .table th {
+        background-color: var(--background-tertiary); /* Same as card body for headers to blend */
+        color: var(--text-muted); /* Muted header text */
+        border-bottom: 1px solid var(--border-color);
+        font-weight: 500; /* Lighter weight for headers */
+        padding: 0.8rem 1.2rem;
+        font-size: .875rem; /* User specified font size */
+        text-transform: uppercase;
+        letter-spacing: 0.02em;
+    }
+
+    .table td {
+        border-top: 1px solid var(--border-color-light); /* Lighter border for rows */
+        color: var(--text-light);
+        padding: 0.8rem 1.2rem;
+        vertical-align: middle;
+        font-size: .875rem; /* User specified font size */
+    }
+    .table td .badge {
+        font-size: 0.75rem; /* Smaller badges in table */
+        padding: 0.25em 0.5em;
+    }
+
+    .table-hover tbody tr:hover {
+        background-color: rgba(255, 255, 255, 0.05); /* Very subtle hover effect */
+    }
+
+    /* Badges */
+    .badge {
+        font-weight: 500;
+        padding: 0.3em 0.7em;
+        border-radius: var(--border-radius-sm);
+        letter-spacing: 0.02em;
+        font-size: 0.8rem;
+        opacity: 0.9;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.25rem;
+    }
+
+    .badge-success { background-color: var(--status-success); color: white; }
+    .badge-warning { background-color: var(--status-warning); color: white; }
+    .badge-danger { background-color: var(--status-danger); color: white; }
+    .badge-info { background-color: var(--status-info); color: white; } /* For platform e.g. */
+    .badge-primary { background-color: var(--accent-color); color: var(--background-primary); } /* Accent for primary badge */
+    .badge-secondary { background-color: rgba(255, 255, 255, 0.1); color: var(--text-light); } /* Muted dark badge */
+    
+    /* Progress Bar (for plan) */
+    .progress-compact {
+        height: 6px;
+        border-radius: 3px;
+        background-color: var(--border-color); /* Dark track */
+        margin-top: 0.5rem;
+    }
+    
+    .progress-bar-fill {
+        background-color: var(--accent-color); /* Accent color for bar */
+        border-radius: 3px;
+    }
+
+    /* List Group (for profile details) */
+    .list-group-item {
+        background-color: transparent;
+        border-color: var(--border-color-light);
+        color: var(--text-light);
+        padding: 0.8rem 1.2rem;
+        font-size: .875rem; /* User specified font size */
+    }
+    .list-group-item span:first-child {
+        color: var(--text-muted); /* Label text muted */
+    }
+    .list-group-item span:last-child {
+        color: var(--text-light); /* Value text light */
+        font-weight: 500;
+    }
+    .list-group-item:hover {
+        background-color: rgba(255, 255, 255, 0.03); /* Very subtle hover */
+    }
+    
+    /* Empty State */
+    .empty-state {
+        padding: 2rem;
+        text-align: center;
+        background-color: var(--background-tertiary);
+        border-radius: var(--border-radius-md);
+        box-shadow: none;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        min-height: 250px;
+        color: var(--text-muted);
+        border: 1px solid var(--border-color-light);
+    }
+    
+    .empty-state-icon {
+        font-size: 3rem;
+        color: var(--text-muted);
+        margin-bottom: 1rem;
+    }
+
+    .empty-state h5 {
+        font-weight: 600;
+        color: var(--text-light);
+        margin-bottom: 0.5rem;
+        font-size: 1rem; /* Smaller heading in empty state */
+    }
+
+    .empty-state p {
+        color: var(--text-muted);
+        max-width: 400px;
+        margin-bottom: 1.5rem;
+        font-size: .875rem; /* User specified font size */
+    }
+
+    /* Modal Styling */
+    .modal-content {
+        background-color: var(--background-secondary);
+        border-radius: var(--border-radius-md);
+        box-shadow: var(--shadow-dark);
+        color: var(--text-light);
+        border: none;
+    }
+
+    .modal-header {
+        border-bottom: 1px solid var(--border-color);
+        padding: 1rem 1.5rem;
+    }
+
+    .modal-title {
+        font-weight: 600;
+        color: var(--text-light);
+        font-size: 1rem; /* Smaller modal title */
+    }
+
+    .modal-body {
+        padding: 1.5rem;
+    }
+
+    .modal-footer {
+        border-top: 1px solid var(--border-color);
+        padding: 1rem 1.5rem;
+    }
+
+    .modal .btn-close {
+        filter: invert(1);
+        opacity: 0.7;
+    }
+    .modal .btn-close:hover {
+        opacity: 1;
+    }
+
+    /* Toast Message */
+    .toast {
+        border-radius: var(--border-radius-md);
+        box-shadow: var(--shadow-dark);
+        background-color: rgba(52, 199, 89, 0.9); /* Green with transparency */
+        color: white;
+        border: none;
+    }
+    .toast .btn-close {
+        filter: invert(1);
+    }
+
+    /* Responsive adjustments */
+    @media (max-width: 991.98px) { /* Tablets and smaller */
+        .dashboard-layout {
+            flex-direction: column;
+            padding: 1rem;
+            gap: 1rem;
+        }
+        .sidebar {
+            width: 100%;
+            flex: none;
+            position: relative;
+            top: auto;
+            padding: 1rem;
+            height: auto; /* Allow sidebar to adjust height */
+        }
+        .sidebar .logo {
+            margin-bottom: 1.5rem;
+        }
+        .sidebar .nav-group-title {
+            margin-top: 1rem;
+            margin-bottom: 0.5rem;
+        }
+        .sidebar .nav-menu {
+            flex-grow: 0; /* Don't grow on small screens */
+        }
+        .main-content {
+            padding: 1.5rem;
+        }
+        .section-header-container {
+            padding-bottom: 1rem;
+            margin-bottom: 1.5rem;
+        }
+        .section-header {
+            font-size: 1.1rem;
+        }
+        .section-description {
+            font-size: 0.8rem;
+        }
+        .nav-tabs-custom {
+            margin-bottom: 0rem;
+        }
+        .card-body {
+            padding: 1rem;
+        }
+        .btn {
+            padding: 0.6rem 1rem;
+            font-size: 0.8rem;
+        }
+    }
+    .table-responsive {
+            max-height: 247px !important;
+
+    }
+
+    @media (max-width: 575.98px) { /* Mobile phones */
+        .dashboard-layout {
+            padding: 0.5rem;
+            gap: 0.5rem;
+        }
+        .sidebar {
+            padding: 0.75rem;
+            border-radius: var(--border-radius-md);
+        }
+        .sidebar .logo {
+            font-size: 1.3rem;
+            margin-bottom: 1rem;
+        }
+        .sidebar .nav-link {
+            padding: 0.6rem 0.75rem;
+            font-size: 0.8rem;
+        }
+        .main-content {
+            padding: 1rem;
+            border-radius: var(--border-radius-md);
+        }
+        .section-header {
+            font-size: 1rem;
+        }
+        .nav-tabs-custom .nav-link {
+            padding: 0.6rem 0.8rem;
+            font-size: 0.75rem;
+        }
+        .card-header {
+            padding: 0.8rem 1rem;
+        }
+        .card-body {
+            padding: 0.8rem;
+        }
+        .empty-state {
+            padding: 1.5rem;
+            min-height: 200px;
+        }
+        .empty-state-icon {
+            font-size: 2.5rem;
+        }
+    }
+    .btn-primary i{
+        color: color(srgb 0.2274 0.2275 0.2274) !important;
+    }
+    .btn-group {
+direction: rtl;
+}
+</style>
+<!-- JavaScript (at the end of body for performance) -->
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
+ <div class="dashboard-layout">
+    <!-- Sidebar -->
+    <aside class="sidebar">
+        <div class="logo">
+            <!-- Replace with your actual logo if available, or keep text -->
+            <img src="https://placehold.co/32x32/1A1A1A/FFFFFF?text=L" alt="Logo">
+            <span>Follow UP</span>
+        </div>
+
+        <ul class="nav-menu">
+            <li class="nav-item">
+                <a href="#home-dashboard" class="nav-link active" data-section="home-dashboard">
+                    <i class="fas fa-home"></i>
+                    <span>Home</span>
+                </a>
+            </li>
+            <li class="nav-item">
+                <a href="#profile-settings" class="nav-link" data-section="profile-settings">
+                    <i class="fas fa-user-cog"></i>
+                    <span>Profile Settings</span>
+                </a>
+            </li>
+            {% if request.user.is_team_admin %}
+            <li class="nav-item">
+                <a href="#current-plan" class="nav-link" data-section="current-plan">
+                    <i class="fas fa-crown"></i>
+                    <span>Current Plan</span>
+                </a>
+            </li>
+            <li class="nav-item">
+                <a href="#team-management" class="nav-link" data-section="team-management">
+                    <i class="fas fa-users"></i>
+                    <span>Team Management</span>
+                </a>
+            </li>
+            <li class="nav-item" id="ApiToken">
+                <a href="#api-tokens"  class="nav-link" data-section="api-tokens">
+                    <i class="fas fa-key"></i>
+                    <span>API Tokens</span>
+                </a>
+            </li>
+<script>
+$(document).ready(function() {
+   if (window.location.hash === "#Token") {
+    $("#ApiToken").trigger('click');
+}
+
+});
+</script>
+            {% endif %}
+            <!-- This part of the sidebar would typically be populated dynamically based on your product categories -->
+            <li class="nav-group-title">Products</li>
+            <li class="nav-item">
+                <a href="#" class="nav-link">
+                    <i class="fas fa-microchip"></i>
+                    <span>Product A</span>
+                </a>
+            </li>
+            <li class="nav-item">
+                <a href="#" class="nav-link">
+                    <i class="fas fa-robot"></i>
+                    <span>Product B</span>
+                </a>
+            </li>
+            <li class="nav-item">
+                <a href="#" class="nav-link">
+                    <i class="fas fa-code-branch"></i>
+                    <span>Product C</span>
+                </a>
+            </li>
+        </ul>
+
+        <!-- Profile Section at the very bottom of the sidebar -->
+        <div class="profile-footer">
+            <div class="d-flex align-items-center justify-content-center mb-2">
+                <div class="avatar-sm">
+                    <img src="{{ user.profile.image.url }}" alt="Profile Image" class="img-fluid rounded-circle" style="width: 100%; height: 100%; object-fit: cover;">
+                </div>
+                <div class="profile-info">
+                    <div class="profile-name">{{ user.user_name }}</div>
+                    <div class="profile-workspace">My Workspace</div>
+                </div>
+            </div>
+            <div class="progress-indicator">
+                <div class="progress-fill"></div>
+            </div>
+        </div>
+    </aside>
+
+    <!-- Main Content Area -->
+    <main class="main-content">
+        <!-- Home Dashboard Section (Example) -->
+        <div id="home-dashboard" class="content-area-pane active">
+            <div class="section-header-container">
+                <h1 class="section-header">Dashboard Overview</h1>
+                <p class="section-description">Welcome back! Here's a quick look at your account and activities.</p>
+            </div>
+            <div class="row g-4">
+                <div class="col-md-6 w-100">
+                    <div class="card h-100">
+                        <div class="card-header">
+                            <i class="fas fa-chart-line"></i> Recent Activity
+                        </div>
+                        <!-- <div class="card-body">
+                            {% if activities%}
+                            {% for activity in activities %}
+                            <div class="d-flex align-items-center"> 
+                                <div class="flex-shrink-0 d-flex align-items-center justify-content-center">
+                                    <i class="fas fa-circle text-{{ activity.color }} me-2"></i>
+                                    {% if  activity.activity_type %}
+                                    <div class="fw-bold d-flex"><span>{{ activity.user.user_name }} </span>  <span>  {{ activity.activity_type }} </span>  </div>
+                                    {% else %}
+
+                                    <div class="fw-bold">{{ activity.user.user_name }}</div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            {% endfor %}
+                            {% else %}
+                            
+                            <p class="text-muted">No recent activities to display.</p>
+                            {% endif %}
+                        </div> -->
+  <div class="card-body" style="overflow-x: auto; overflow-y: auto; max-height: 200px; font-family: monospace; white-space: nowrap; padding-left: 0px !important; padding-right: 0px !important; padding-top: 7px;">
+    {% if activities %}
+        <ul class="list-unstyled mb-0" style="    padding-left: 11px;">
+            {% for activity in activities %}
+                <li class="mb-2 border-bottom pb-2">
+
+                    {% if activity.activity_type == 'login' %}
+                        <span class="text-success"> "LOGIN" </span> — 
+                        <span class="text-dark">User "{{ activity.user.username|default:'System' }}"</span>
+                        <i class="fas fa-sign-in-alt text-success ms-2"></i>
+
+                    {% elif activity.activity_type == 'logout' %}
+                        <i class="fas fa-sign-out-alt text-warning ms-2"></i>
+
+                        <span class="text-warning"> "LOGOUT" </span> — 
+                        <span class="text-dark">User "{{ activity.user.username|default:'System' }}"</span>
+
+                    {% elif activity.activity_type == 'product_filter' %}  
+                        <i class="fas fa-plus-circle text-primary ms-2"></i>
+                    <span class="text-muted">[<span style="color:#df3079 !important">{{ activity.timestamp|date:"H:i:s" }}</span>]</span>
+
+                        <span class="text-primary"> "{{ activity.activity_type }}" </span>
+                        <span class="text-dark" style="color:#5AC8FA !important">- {% if activity.user.is_stuff %} Stuff {% else %} User {% endif %}</span>
+                        <span class="text-dark">by "{{ activity.user.user_name|default:'System' }}"</span>
+
+ 
+
+                        {% elif activity.activity_type == 'tracking :' %}
+                    <i class="fas fa-search text-info ms-2"></i>
+                    <span class="text-muted">[<span style="color:#15ae1a !important">{{ activity.timestamp|date:"H:i:s" }}</span>]</span>
+
+                        <span class="text-info"> "tracking" </span> — 
+                        <span class="text-dark">by "{{ activity.user.username|default:'System' }}"</span>
+
+                    {% elif activity.activity_type == 'order_updated' %}
+                                            <i class="fas fa-edit text-info ms-2"></i>
+                    <span class="text-muted">[<span style="color:#df3079 !important">{{ activity.timestamp|date:"H:i:s" }}</span>]</span>
+
+                        <span class="text-info"> "ORDER UPDATED" </span> — 
+                        <span class="text-dark">by "{{ activity.user.username|default:'System' }}"</span>
+
+                    {% elif activity.activity_type == 'order_deleted' %}
+                        <span class="text-danger"> "ORDER DELETED" </span> — 
+                        <span class="text-dark">by "{{ activity.user.username|default:'System' }}"</span>
+                        <i class="fas fa-trash-alt text-danger ms-2"></i>
+
+                    {% elif activity.activity_type == 'user_created' %}
+                        <span class="text-success"> "USER CREATED" </span> — 
+                        <span class="text-dark">User "{{ activity.content_object.username|default:'Unknown' }}"</span>
+                        <i class="fas fa-user-plus text-success ms-2"></i>
+
+                    {% elif activity.activity_type == 'user_updated' %}
+                        <span class="text-info"> "USER UPDATED" </span> — 
+                        <span class="text-dark">User "{{ activity.content_object.username|default:'Unknown' }}"</span>
+                        <i class="fas fa-user-edit text-info ms-2"></i>
+
+                    {% elif activity.activity_type == 'user_deleted' %}
+                        <span class="text-danger"> "USER DELETED" </span> — 
+                        <span class="text-dark">User "{{ activity.content_object.username|default:'Unknown' }}"</span>
+                        <i class="fas fa-user-times text-danger ms-2"></i>
+
+                    {% elif activity.activity_type == 'password_changed' %}
+                        <span class="text-warning"> "PASSWORD CHANGED" </span> — 
+                        <span class="text-dark">User "{{ activity.user.user_name|default:'System' }}"</span>
+                        <i class="fas fa-key text-warning ms-2"></i>
+
+                    {% elif activity.activity_type == '2fa_enabled' %}
+                        <span class="text-success"> "2FA ENABLED" </span> — 
+                        <span class="text-dark">User "{{ activity.user.user_name|default:'System' }}"</span>
+                        <i class="fas fa-shield-alt text-success ms-2"></i>
+
+                    {% elif activity.activity_type == '2fa_disabled' %}
+                        <span class="text-danger"> "2FA DISABLED" </span> — 
+                        <span class="text-dark">User "{{ activity.user.user_name|default:'System' }}"</span>
+                        <i class="fas fa-shield-alt text-danger ms-2"></i>
+
+                    {% elif activity.activity_type == 'heartbeat' %}
+                        <span class="text-secondary"> "HEARTBEAT" </span> — 
+                        <span class="text-dark">System check</span>
+                        <i class="fas fa-heartbeat text-secondary ms-2"></i>
+
+                    {% elif activity.activity_type == 'active_segment' %}
+                        <span class="text-primary"> "SESSION ACTIVE" </span> — 
+                        <span class="text-dark">User "{{ activity.user.user_name|default:'System' }}"</span>
+                        <i class="fas fa-clock text-primary ms-2"></i>
+
+                        {% if activity.duration_ms %}
+                            <br>
+                            <span class="text-muted small ms-4">Duration: 
+                                {% widthratio activity.duration_ms 1000 1 as duration_seconds %}
+                                {% if duration_seconds >= 60 %}
+                                    {{ duration_seconds|divisibleby:60 }}m s
+                                {% else %}
+                                    {{ duration_seconds }}s
+                                {% endif %}
+                            </span>
+                        {% endif %}
+
+                    {% else %}
+                                        <i class="fas fa-search text-info ms-2"></i>
+
+                                        <span class="text-muted">[<span style="color:#df3079 !important">{{ activity.timestamp|date:"M:d :H:i:s" }}</span>]</span>
+
+                        <span class="text-muted"> {{ activity.get_activity_type_display }} </span> — 
+                        <span class="text-muted" >by <strong style="color: white !important; ">   {{ activity.user.user_name|default:'System' }} </strong></span>
+                     {% endif %}
+
+                    {% if activity.description %}
+                        <div class="small text-secondary ms-4">{{ activity.description }}</div>
+                    {% endif %}
+<!-- 
+                    {% if activity.ip_address %}
+                        <div class="small text-muted ms-4">IP: {{ activity.ip_address }}</div>
+                    {% endif %} -->
+                </li>
+            {% endfor %}
+        </ul>
+    {% else %}
+        <p class="text-muted text-center">No recent activities to display.</p>
+    {% endif %}
+</div>
+
+
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="card h-100">
+                        <div class="card-header">
+                            <i class="fas fa-info-circle"></i> Quick Links
+                        </div>
+                        <div class="card-body">
+                            <ul class="list-unstyled">
+                                <li class="mb-2"><a href="#" class="btn btn-outline-dark btn-sm w-100">View Invoices</a></li>
+                                <li class="mb-2"><a href="#" class="btn btn-outline-dark btn-sm w-100">Contact Support</a></li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="card h-100">
+                        <div class="card-header">
+                            <i class="fas fa-bullhorn"></i> Announcements
+                        </div>
+                        <div class="card-body">
+                            <p class="text-muted">No new announcements at the moment.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+  
+  
+  
+        <!-- Profile Settings Section -->
+        <div id="profile-settings" class="content-area-pane">
+            <div class="section-header-container">
+                <h1 class="section-header">Profile Settings</h1>
+                <p class="section-description">Manage your profile information and account security.</p>
+            </div>
+
+            <!-- Tabs for Profile Settings -->
+            <ul class="nav nav-tabs-custom" id="profileSettingsTabs" role="tablist">
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link active" id="profile-tab" data-bs-toggle="tab" data-bs-target="#profile-details" type="button" role="tab" aria-controls="profile-details" aria-selected="true">Profile</button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="security-tab" data-bs-toggle="tab" data-bs-target="#profile-security" type="button" role="tab" aria-controls="profile-security" aria-selected="false">Security</button>
+                </li>
+                <!-- Empty tab for future features -->
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="empty-tab" data-bs-toggle="tab" data-bs-target="#profile-empty" type="button" role="tab" aria-controls="profile-empty" aria-selected="false">Advanced (Soon)</button>
+                </li>
+            </ul>
+
+            <!-- Tab Content -->
+            <div class="tab-content" id="profileSettingsTabContent">
+                <!-- Profile Details Tab -->
+                 <div class="tab-pane fade show active d-none" id="profile-update01" aria-labelledby="profile-tab"> 
+                 <div class="card">
+                        <div class="card-header">
+                            <i class="fas fa-id-card"></i> Personal Information
+                        </div>
+                         <div class="card-body p-4">
+                    <!-- <div class="tab-pane fade show active p-4" id="profile-details-Edit" role="tabpanel" aria-labelledby="profile-details-tab"> -->
+    <form id="userProfileForm" method="POST" >
+        {% csrf_token %}
+        <h4 class="mb-4">personal information :</h4>
+        
+        <div class="row mb-3">
+            <div class="col-md-6">
+                <label for="fullName" class="form-label">Full Name</label>
+                <input type="text" class="form-control" id="fullName" name="full_name" value=" {% if user.user_name %} {{ user.user_name }} {% else %}  {% endif %}" required>
+            </div>
+            <div class="col-md-6">
+                <label for="email" class="form-label">Email address </label>
+                <input type="email" class="form-control" id="email" name="email" value="{{ user.email }}" required>
+            </div>
+        </div>
+        
+        <div class="row mb-3">
+            <div class="col-md-6">
+                <label for="phone" class="form-label">Phone number: </label>
+                <input type="text" class="form-control" id="phone" name="phone" value=" {% if user.phone %}  {{ user.phone }} {% else %}  {% endif %}">
+            </div>
+            <div class="col-md-6">
+                <label for="address" class="form-label">Address :</label>
+                <input type="text" class="form-control" id="address" name="address" value="{% if user.address %} {{ user.address }} {% else %} {% endif %}">
+            </div>
+        </div>
+
+        <div class="d-flex justify-content-end mt-4 mb-4">
+            <button type="reset" class="btn btn-outline-secondary me-2" id="cancelForm">cancel</button>
+            <button type="submit" class="btn btn-primary">Save Change</button>
+        </div>
+    </form>
+</div>
+</div>
+
+                </div>
+
+
+                <div class="tab-pane fade show active" id="profile-details" role="tabpanel" aria-labelledby="profile-tab">
+                    <div class="card">
+                        <div class="card-header">
+                            <i class="fas fa-id-card"></i> Personal Information
+                        </div>
+                        <div class="card-body">
+                            <ul class="list-group list-group-flush mb-4">
+                                <li class="list-group-item d-flex justify-content-between align-items-center">
+                                    <span><i class="fas fa-user me-3"></i>Username</span>
+                                    <span>{{ user.user_name }}</span>
+                                </li>
+                                <li class="list-group-item d-flex justify-content-between align-items-center">
+                                    <span><i class="fas fa-envelope me-3"></i>Email Address</span>
+                                    <span>{{ user.email }}</span>
+                                </li>
+                                <li class="list-group-item d-flex justify-content-between align-items-center">
+                                    <span><i class="fas fa-calendar-alt me-3"></i>Join Date</span>
+                                    <span>{{ user.date_joined|date:"Y/m/d" }}</span>
+                                </li>
+                                <li class="list-group-item d-flex justify-content-between align-items-center">
+                                    <span><i class="fas fa-clock me-3"></i>Last Login</span>
+                                    <span>{{ user.last_login|date:"Y/m/d H:i"|default:"-" }}</span>
+                                </li>
+                                <li class="list-group-item d-flex justify-content-between align-items-center">
+                                    <span><i class="fas fa-shield-alt me-3"></i>Account Status</span>
+                                    <span class="badge {% if user.is_active %}badge-success{% else %}badge-danger{% endif %}">
+                                        {% if user.is_active %}Active{% else %}Inactive{% endif %}
+                                    </span>
+                                </li>
+                            </ul>
+                            <div class="d-flex justify-content-end gap-3">
+                                <botton id="Edit_profile" class="btn btn-secondary" >
+                                    <i class="fas fa-edit"></i> Edit Profile
+                                </botton>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <script>
+                    $("#Edit_profile").click(function() {
+                       
+                        $("#profile-update01").removeClass("d-none");
+                        $("#profile-details").addClass("d-none");
+                     });
+                     $(".nav-item").each(function() {
+                        $(this).click(function() {
+                            $("#profile-update01").addClass("d-none");
+                            $("#profile-details").removeClass("d-none");
+                        });
+                    });
+
+                     $("#cancelForm").click (function(){$("#profile-update01").addClass("d-none"); $("#profile-details").removeClass("d-none");})
+                </script>
+
+                <!-- Security Tab -->
+                <div class="tab-pane fade" id="profile-security" role="tabpanel" aria-labelledby="security-tab">
+                    <div class="card mb-4">
+                        <div class="card-header">
+                            <i class="fas fa-lock"></i> Account Security
+                        </div>
+                        <div class="card-body d-none" id="changePasswordSection">
+                        <div class="mb-3 " >
+                                <form id="changePasswordForm" method="POST">
+                                    {% csrf_token %}
+                                    <div class="mb-3">
+                                        <label for="oldPassword" class="form-label">Old Password</label>
+                                        <input type="password" class="form-control" id="oldPassword" name="old_password" required>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label for="newPassword" class="form-label">New Password</label>
+                                        <input type="password" class="form-control" id="newPassword" name="new_password" required>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label for="confirmPassword" class="form-label">Confirm New Password</label>
+                                        <input type="password" class="form-control" id="confirmPassword" name="confirm_password" required>
+                                    </div>
+
+                                    <div class="d-flex justify-content-end">
+                                        <button type="submit" class="btn btn-primary">Change Password</button>
+                                         <botton id="changePasswordCancel" class="btn btn-info-accent">
+                                    Cancel 
+                                </botton>
+                                    </div>
+                                </form>
+                            </div>
+                    </div>
+                        <div class="card-body" id="two-factorEnfo">
+                            <div class="mb-4 d-flex justify-content-between align-items-center">
+                                <div>
+                                    <h6 class="mb-1" style="color: var(--text-light);">Two-Factor Authentication</h6>
+                                    <p class="text-muted mb-0">Add an extra layer of security to your account.</p>
+                                </div>
+                                <button class="btn btn-info-accent disabled">
+                                    Add Two-Factor Authentication
+                                </button>
+                            </div>
+                            
+
+                            <div class="mb-4 d-flex justify-content-between align-items-center">
+                                <div>
+                                    {% if has_password  %}
+                                    <h6 class="mb-1" style="color: var(--text-light);">Change Password</h6>
+                                    <p class="text-muted mb-0">Update your password regularly to keep your account secure.</p>
+                                </div>
+                                <botton id="changePassword" class="btn btn-info-accent">
+                                    Change Password
+                                </botton>
+                                  
+                                
+                                {% else %}
+                                <h6 class="mb-1" style="color: var(--text-light);">Add Password</h6>
+                                    <p class="text-muted mb-0">Add your password regularly to keep your account secure.</p>
+                                </div>
+                                <a href="{% url 'change_password' %}" class="btn btn-info-accent">
+                                    Add Password
+                                </a>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                    <div class="card">
+                        <div class="card-header">
+                            <i class="fas fa-trash-alt"></i> Delete Account
+                        </div>
+                        <div class="card-body">
+                            <p class="text-muted mb-4">Deleting your account is permanent. You will no longer be able to create an account with this email.</p>
+                            <button class="btn btn-delete-account">
+                                Delete Account
+                            </button>
+                            <a href="{% url 'logout' %}" class="btn btn-info-accent">
+                                Logout
+                            </a>
+                        </div>
+                    </div>
+                </div>
+                <script>
+                    $("#changePassword").click(function() {
+                        $("#changePasswordSection").removeClass("d-none");
+                        $("#two-factorEnfo").addClass("d-none");})
+                        $("#changePasswordCancel").click(function() {
+                            $("#changePasswordSection").addClass("d-none");
+                            $("#two-factorEnfo").removeClass("d-none");
+                        })
+                       
+                </script>
+                <script>
+              
+           function submitforms(url, formSelector) {
+    $.ajax({
+        type: "POST",
+        url: url,
+        data: $(formSelector).serialize(),
+        success: function(response) {
+            if (response.success) {
+                Swal.fire({
+                    icon: 'success',
+                    title: 'تم بنجاح',
+                    text: response.message,
+                    background: 'var(--background-secondary)',
+                    color: 'var(--text-light)',
+                    confirmButtonColor: 'var(--accent-color)'
+                });
+                $(formSelector)[0].reset();
+            } else {
+                Swal.fire({
+                    icon: 'error',
+                    title: 'خطأ',
+                    text: response.message,
+                    background: 'var(--background-secondary)',
+                    color: 'var(--text-light)',
+                    confirmButtonColor: 'var(--accent-color)'
+                });
+            }
+        },
+        error: function(xhr, status, error) {
+            let errorMessage = "An error occurred. Please try again.";
+            if (xhr.responseJSON && xhr.responseJSON.message) {
+                errorMessage = xhr.responseJSON.message;
+            } else if (xhr.responseText) {
+                errorMessage = xhr.responseText;
+            }
+            Swal.fire({
+                icon: 'error',
+                title: 'Error',
+                text: errorMessage,
+                background: 'var(--background-secondary)',
+                color: 'var(--text-light)',
+                confirmButtonColor: 'var(--accent-color)'
+            });
+        }
+    });
+}
+
+
+                    $("#changePasswordForm").submit(function(e) {
+                        e.preventDefault();
+                        submitforms("{% url 'change_password' %}" ,"#changePasswordForm"); });
+            
+
+           $("#userProfileForm").submit(function(e) {
+                        e.preventDefault();
+                        submitforms("{% url 'update_profile' %}" ,"#userProfileForm"); });
+
+            </script>
+                <!-- Empty Tab Content -->
+                <div class="tab-pane fade" id="profile-empty" role="tabpanel" aria-labelledby="empty-tab">
+                    <div class="empty-state">
+                        <div class="empty-state-icon"><i class="fas fa-hourglass-half"></i></div>
+                        <h5>Coming Soon!</h5>
+                        <p class="text-muted">Exciting new features will be available here shortly.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        {% if request.user.is_team_admin %}
+        <!-- Current Plan Section -->
+        <div id="current-plan" class="content-area-pane">
+            <div class="section-header-container">
+                <h1 class="section-header">Current Plan</h1>
+                <p class="section-description">View your current subscription details and upgrade your plan.</p>
+            </div>
+            <div class="card">
+                <div class="card-header">
+                    <i class="fas fa-credit-card"></i> Subscription Details
+                </div>
+                <div class="card-body">
+                    <div class="row align-items-center">
+                        <div class="col-md-6">
+                            <h5 class="mb-2" style="color: var(--text-light);">{{ user.subscription.plan.name }}</h5>
+                            <p class="mb-1 text-muted">Start Date: <span style="color: var(--text-light);">{{ user.subscription.start_date|date:"Y/m/d" }}</span></p>
+                            <p class="mb-1 text-muted">End Date: <span style="color: var(--text-light);">{{ user.subscription.end_date|date:"Y/m/d" }}</span></p>
+                            <p class="mb-0 text-muted">Status: 
+                                <span class="badge {% if user.subscription.is_active %}badge-success{% else %}badge-warning{% endif %}">
+                                    {% if user.subscription.is_active %}Active{% else %}Expired{% endif %}
+                                </span>
+                            </p>
+                        </div>
+                        <div class="col-md-6 text-md-end mt-3 mt-md-0">
+                            <div class="progress-compact mb-2">
+                                <div class="progress-bar-fill" role="progressbar" 
+                                    style="width: 10%" 
+                                    aria-valuenow="10%" 
+                                    aria-valuemin="0" aria-valuemax="100">
+                                </div>
+                            </div>
+                            <p class="text-muted mb-3">{{ user.subscription.days_remaining }} days remaining</p>
+                            <a href="{% url 'upgrade_plan' %}" class="btn btn-info-accent">
+                                <i class="fas fa-arrow-up"></i> Upgrade Plan
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Team Management Section -->
+        <div id="team-management" class="content-area-pane">
+            <div class="section-header-container">
+                <h1 class="section-header">Team Management</h1>
+                <p class="section-description">Manage your team members, roles, and permissions.</p>
+            </div>
+
+            <div class="row g-4 mb-4">
+                <div class="col-md-4">
+                    <div class="card h-100">
+                        <div class="card-header">
+                            <i class="fas fa-users-cog"></i> Team Overview
+                        </div>
+                        <div class="card-body text-center">
+                            <h2 style="font-size: 2.5rem; font-weight: 700; color: var(--accent-color);">{{ team_invitations|length }}</h2>
+                            <p class="text-muted mb-0">Total Members</p>
+                        </div>
+                        
+              
+
+                    </div>
+                </div>
+                <div class="col-md-8">
+                    <div class="card h-100">
+                        <div class="card-header d-flex justify-content-between align-items-center">
+                            <i class="fas fa-user-plus"></i> Invite New Member
+                            <button class="btn btn-primary btn-sm" id="add_stuff_btn_header">
+                                <i class="fas fa-plus"></i> Invite
+                            </button>
+                        </div>
+                        <div class="card-body">
+                            <div id="stuffFormSect" class="d-none">
+                                <form class="stuff_form" method="post" id="stuff_forms">
+                                    {% csrf_token %}
+                                    <input type="hidden" name="form_type" value="stuff_form">
+                                    
+                                    <div class="row g-3">
+                                        <div class="col-md-6">
+                                            <label for="stuff_email" class="form-label">Member Email</label>
+                                            <input type="email" name="email" placeholder="member@example.com" class="form-control" required>
+                                        </div>
+                                    
+                                        <div class="col-md-6">
+                                            <label for="stuff_name" class="form-label">Member Name</label>
+                                            <input type="text" name="name" placeholder="John Doe" class="form-control" required>
+                                        </div>
+
+                                        <div class="col-md-6">
+                                            <label class="form-label">Role</label>
+                                            <select class="form-select" name="role" required>
+                                                <option value="" disabled selected>Select Role</option>
+                                                <option value="shopify" selected>Order Management</option>
+                                                <!-- Add other roles as needed -->
+                                            </select>
+                                        </div>
+
+                                        <div class="col-md-6">
+                                            <label for="productlist" class="form-label">Product Permissions</label>
+                                        <!-- Custom multi-select with checkboxes for easier selection (no Ctrl/Cmd needed) -->
+                                        <div id="productlist-multiselect" class="form-control" tabindex="0" style="position: relative; min-height: 44px; cursor: pointer;">
+                                            <div id="productlist-selected" style="min-height: 22px; display: flex; flex-wrap: wrap; gap: 4px;"></div>
+                                            <div id="productlist-dropdown" style="display: none; position: absolute; left: 0; right: 0; top: 100%; z-index: 10; background: var(--background-tertiary); border: 1px solid var(--border-color); border-radius: 4px; max-height: 220px; overflow-y: auto; margin-top: 2px;">
+                                                <label class="d-block px-2 py-1" style="cursor:pointer;">
+                                                    <input type="checkbox" value="all" class="me-2" /> All Products
+                                                </label>
+                                                {% if Productslist %}
+                                                    {% for product in Productslist %}
+                                                        <label class="d-block px-2 py-1" style="cursor:pointer;">
+                                                            <input type="checkbox" value="{{ product.id }}" class="me-2" /> {{ product.name }}
+                                                        </label>
+                                                    {% empty %}
+                                                        <div class="px-2 py-1 text-muted">No products available</div>
+                                                    {% endfor %}
+                                                {% endif %}
+                                            </div>
+                                            <!-- Hidden input to submit selected values -->
+                                            <input type="hidden" name="products" id="productlist-hidden" />
+                                        </div>
+                                  
+
+
+
+
+                                            <small class="text-muted">Hold Ctrl/Cmd to select multiple products</small>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="d-flex justify-content-end gap-3 mt-4">
+                                        <button type="button" class="btn btn-secondary" id="hideStuffFormBtn">
+                                            <i class="fas fa-times"></i> Cancel
+                                        </button>
+                                        <button type="submit" class="btn btn-primary">
+                                            <i class="fas fa-paper-plane"></i> Send Invitation
+                                        </button>
+                                    </div>
+                                </form>
+                            </div>
+                            <!-- <div id="add_stuff_initial_message" class="text-center {% if team_invitations %}d-none{% endif %}">
+                                <p class="text-muted mb-3">Invite new members to your team to collaborate on projects.</p>
+                                <button class="btn btn-primary" id="add_stuff_empty_state">
+                                    <i class="fas fa-user-plus"></i> Invite First Member
+                                </button>
+                            </div> -->
+                            <div id="team_member_list_container">
+                                {% if team_invitations %}
+                                <div class="table-responsive">
+                                    <table class="table table-hover mb-0">
+                                        <thead>
+                                            <tr>
+                                                <th>Name</th>
+                                                <th>Email</th>
+                                                <th>Status</th>
+                                                <th>Actions</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {% for account in team_invitations %}
+                                            <tr>
+                                                <td>
+                                                    <span class="badge badge-info">
+                                                        <i class="{{ account.get_platform_icon }} me-1"></i>
+                                                        {{ account.user_name }}
+                                                    </span>
+                                                </td>
+                                                <td>{{ account.email }}</td>
+                                                <td>
+                                                    <span class="badge {% if account.is_active %}badge-success{% else %}badge-danger{% endif %}">
+                                                        {% if account.is_active %}Active{% else %}Inactive{% endif %}
+                                                    </span>
+                                                </td>
+                                                <td>
+                                                    <div class="btn-group btn-group-sm">
+                                                        <button class="btn btn-outline-dark" data-bs-toggle="modal" data-bs-target="#accountModal{{ account.id }}" title="View Details">
+                                                            <i class="fas fa-info-circle"></i>
+                                                        </button>
+                                                        <a href="{% url 'unlink_user' account.id %}" class="btn btn-outline-dark" title="Remove Member">
+                                                            <i class="fas fa-user-times"></i>
+                                                        </a>
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                            {% endfor %}
+                                        </tbody>
+                                    </table>
+                                </div>
+                                {% else %}
+                                <div class="empty-state d-none" id="no_members_message"> <!-- Initially hidden, shown if no members AND form is hidden -->
+                                    <div class="empty-state-icon">
+                                        <i class="fas fa-users-slash"></i>
+                                    </div>
+                                    <h5>No Team Members Found</h5>
+                                    <p class="text-muted mb-4">Invite team members to collaborate on your account and manage their access.</p>
+                                   <button class="btn btn-primary" id="add_stuff_empty_state">
+                                    <i class="fas fa-user-plus"></i> Invite First Member
+                                </button>
+                                </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Empty Third Column - Placeholder for future features -->
+            <div class="row g-4">
+                <div class="col-12">
+                    <div class="card h-100">
+                        <div class="card-header">
+                            <i class="fas fa-ellipsis-h"></i> Future Team Features
+                        </div>
+                        <div class="card-body">
+                            <!-- <div class="empty-state">
+                                <div class="empty-state-icon">
+                                    <i class="fas fa-sparkles"></i>
+                                </div>
+                                <h5>More Features Coming Soon!</h5>
+                                <p class="text-muted">This area is reserved for advanced team management functionalities.</p>
+                            Team Order Limits Management -->
+                            {% if team_accounts %} 
+                            <div class="card-footer bg-transparent border-0 pt-4">
+                                <h5 class="text-center mb-4" style="color: var(--text-light); font-weight: 600;">
+                                    Manage Team Members 
+                                </h5>
+                                <div class="table-responsive">
+                                    <table class="table align-middle mb-0" style="background: transparent;"> 
+                                        <thead>
+                                            <tr style="background: var(--background-tertiary);">
+                                                <th class="text-center" style="color: var(--text-muted); font-size: .95rem;">User Name</th>
+                                                <th class="text-center" style="color: var(--text-muted); font-size: .95rem;">Email</th>
+                                                <th class="text-center" style="color: var(--text-muted); font-size: .95rem;">Daily Orders</th>
+                                                <th class="text-center" style="color: var(--text-muted); font-size: .95rem;">Permission</th>
+                                            </tr>
+                                        </thead> 
+                                        <tbody>
+                                            {% for team_Account in team_accounts %}
+                                            <tr style="border-bottom: 1px solid var(--border-color-light);">
+                                                <td class="text-center" style="color: var(--text-light); font-weight: 500;">
+                                                    {{ team_Account.username }}
+                                                </td>
+                                                <td class="text-center" style="color: var(--text-light); font-size: .93rem;">
+                                                    {{ team_Account.email }}
+                                                </td>
+                                                <td class="text-center">
+                                                    <form method="POST" class="d-inline-flex align-items-center gap-2 order-limit-form" style="min-width: 120px;">
+                                                        {% csrf_token %}
+                                                        <div class="input-group input-group-sm" style="width: 110px; direction: rtl;">
+                                                            <input type="number" name="order_limit"
+                                                                value="{{ team_Account.daily_order_limit }}"
+                                                                min="0"
+                                                                class="form-control form-control-sm text-center"
+                                                                style="background: var(--background-tertiary); color: var(--text-light); border: 1px solid var(--border-color);"
+                                                                oninput="this.form.querySelector('button[type=&quot;submit&quot;]').classList.remove('d-none');">
+                                                            <input type="hidden" name="account_id" value="{{ team_Account.id }}">
+                                                            <button type="submit" class="btn btn-success btn-sm d-none" style="font-size: .85rem;">
+                                                                <i class="fas fa-save"></i>
+                                                            </button>
+                                                        </div>
+                                                    </form>
+                                                    <script>
+                                                    $(document).ready(function(){
+                                                        $('.order-limit-form').on('submit', function(e){
+                                                            e.preventDefault();
+                                                            var $form = $(this);
+                                                            var $btn = $form.find('button[type="submit"]');
+                                                            var formData = $form.serialize();
+                                                            $btn.prop('disabled', true).html('<span class="spinner-border spinner-border-sm"></span>');
+                                                            $.ajax({
+                                                                type: 'POST',
+                                                                url: '{% url "update_order_limit" %}',
+                                                                data: formData,
+                                                                success: function(response){
+                                                                    if(response.success){
+                                                                        $btn.addClass('d-none');
+                                                                        Swal.fire({
+                                                                            icon: 'success',
+                                                                            title: 'تم التحديث بنجاح',
+                                                                            text: response.message || 'تم حفظ الحد اليومي للطلبات.',
+                                                                            timer: 1500,
+                                                                            showConfirmButton: false,
+                                                                            background: 'var(--background-secondary)',
+                                                                            color: 'var(--text-light)'
+                                                                        });
+                                                                    }else{
+                                                                        Swal.fire({
+                                                                            icon: 'error',
+                                                                            title: 'خطأ',
+                                                                            text: response.message || 'حدث خطأ أثناء الحفظ.',
+                                                                            background: 'var(--background-secondary)',
+                                                                            color: 'var(--text-light)'
+                                                                        });
+                                                                    }
+                                                                },
+                                                                error: function(xhr){
+                                                                    Swal.fire({
+                                                                        icon: 'error',
+                                                                        title: 'خطأ في الاتصال',
+                                                                        text: xhr.responseJSON?.message || 'حدث خطأ غير متوقع.',
+                                                                        background: 'var(--background-secondary)',
+                                                                        color: 'var(--text-light)'
+                                                                    });
+                                                                },
+                                                                complete: function(){
+                                                                    $btn.prop('disabled', false).html('<i class="fas fa-save"></i>');
+                                                                }
+                                                            });
+                                                        });
+                                                    });
+                                                    </script>
+                                                </td>
+                                               <td class="text-center">
+  <button class="btn btn-outline-dark btn-sm manage-perm-btn"
+          data-user-id="{{ team_Account.id }}"
+          style="font-size: .85rem;">
+    <i class="fas fa-cog me-1"></i> Manage
+  </button>
+</td>
+
+                                            </tr>
+                                            {% endfor %}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                            {% else %}
+                            <div class="empty-state mt-3">
+                                <div class="empty-state-icon">
+                                    <i class="fas fa-users-slash"></i>
+                                </div>
+                                <h5>Ther is no active momber now</h5>
+                            </div>
+                            {% endif %}
+
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+
+
+        <!-- API Tokens Section -->
+        <div id="api-tokens" class="content-area-pane">
+            <div class="section-header-container">
+                <h1 class="section-header">API Tokens</h1>
+                <p class="section-description">Manage your API keys to integrate with external platforms and services.</p>
+            </div>
+
+            <!-- Add API Token Form -->
+            <div class="card mb-4 d-none" id="tokenFormSection">
+                <div class="card-header">
+                    <i class="fas fa-plus-circle"></i> Add New API Token
+                </div>
+                <div class="card-body">
+                    <form method="post" class="token-form">
+                        {% csrf_token %}
+                        <input type="hidden" name="form_type" value="token_form">
+                        
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <label for="{{ tokenform.platform.id_for_label }}" class="form-label">Platform</label>
+                                <select class="form-select" id="{{ tokenform.platform.id_for_label }}" name="{{ tokenform.platform.name }}" required>
+                                    <option value="" disabled selected>Select Platform</option>
+                                    <option value="COD Network">COD Network</option>
+                                    <!-- Add other platforms as needed -->
+                                </select>
+                            </div>
+                            
+                            <div class="col-md-6">
+                                <label for="token_name" class="form-label">Token Name</label>
+                                <input type="text" class="form-control" name="token_name" id="token_name" 
+                                    name="{{ tokenform.token_name.name }}" placeholder="e.g., My Shopify Token">
+                            </div>
+                            
+                            <div class="col-12">
+                                <label for="{{ tokenform.access_token.id_for_label }}" class="form-label">Access Token</label>
+                                <div class="input-group">
+                                    <input type="password" class="form-control" id="{{ tokenform.access_token.id_for_label }}" 
+                                        name="{{ tokenform.access_token.name }}" placeholder="Enter your access token" required>
+                                    <button class="btn btn-secondary toggle-token" type="button" title="Toggle visibility">
+                                        <i class="fas fa-eye"></i>
+                                    </button>
+                                </div>
+                                <small class="text-muted mt-2">This token will be encrypted and stored securely.</small>
+                            </div>
+                        </div>
+                        
+                        <div class="d-flex justify-content-end gap-3 mt-4">
+                            <button type="button" class="btn btn-secondary" id="hideTokenFormBtn">
+                                <i class="fas fa-times"></i> Cancel
+                            </button>
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-save"></i> Save Token
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <!-- API Tokens List -->
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <span><i class="fas fa-key"></i> Your API Tokens</span>
+                    <button class="btn btn-primary btn-sm" id="showTokenFormBtn_header">
+                        <i class="fas fa-plus"></i> Add Token
+                    </button>
+                </div>
+                <div class="card-body">
+                    {% if tokens %}
+                    <div class="table-responsive">
+                        <table class="table table-hover mb-0">
+                            <thead>
+                                <tr>
+                                    <th>Platform</th>
+                                    <th>Token Name</th>
+                                    <th>Created</th>
+                                    <th>Status</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for token in tokens %}
+                                <tr>
+                                    <td>
+                                        <span class="badge" style="background-color: #e16c15;">
+                                            <i class="{{ token.platform }} me-1"></i>
+                                            {{ token.platform|capfirst }}
+                                        </span>
+                                    </td>
+                                    <td>{{ token.token_name|default:"Unnamed" }}</td>
+                                    <td>{{ token.created_at|date:"M d, Y" }}</td>
+                                    <td>
+                                        <span class="badge {% if token.token_status %}badge-success{% else %}badge-warning{% endif %}">
+                                            {% if token.token_status %}Active{% else %}Inactive{% endif %}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <div class="btn-group btn-group-sm">
+                                            <button class="btn btn-outline-dark" data-bs-toggle="modal" data-bs-target="#tokenModal{{ token.id }}" title="View Details">
+                                                <i class="fas fa-info-circle"></i>
+                                            </button>
+                                            <a href="{% url 'delete_token' token.id %}" class="btn btn-outline-dark" title="Delete Token">
+                                                <i class="fas fa-trash-alt"></i>
+                                            </a>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <div class="empty-state" id="no_tokens_message">
+                        <div class="empty-state-icon">
+                            <i class="fas fa-key"></i>
+                        </div>
+                        <h5>No API Tokens Found</h5>
+                        <p class="text-muted mb-4">Integrate with external services by adding API tokens here.</p>
+                        <button class="btn btn-primary" id="showTokenFormBtn_empty_state">
+                            <i class="fas fa-plus-circle"></i> Add First Token
+                        </button>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        {% else %}
+        <!-- Restricted Access Message for non-admins -->
+        <div id="access-restricted" class="content-area-pane">
+            <div class="section-header-container">
+                <h1 class="section-header">Access Restricted</h1>
+                <p class="section-description">This section requires administrator privileges.</p>
+            </div>
+            <div class="empty-state">
+                <div class="empty-state-icon">
+                    <i class="fas fa-lock"></i>
+                </div>
+                <h5>Administrator Access Required</h5>
+                <p class="text-muted mb-4">This section is only available for team administrators. Please contact your administrator for more information.</p>
+                <a href="{% url 'contact_support' %}" class="btn btn-primary">
+                    <i class="fas fa-headset"></i> Contact Support
+                </a>
+            </div>
+        </div>
+        {% endif %}
+    </main>
+</div>
+<!-- Permission modal - append to body once -->
+<!-- Bulk permissions modal -->
+<div id="permBulkModal" class="perm-modal" style="display:none;" aria-hidden="true" role="dialog">
+  <div class="perm-modal-backdrop"></div>
+  <div class="perm-modal-panel" role="document">
+    <header class="perm-modal-header">
+      <h3 id="permBulkTitle">Manage user products & permissions</h3>
+      <button id="permBulkClose" class="perm-modal-close" aria-label="Close">&times;</button>
+    </header>
+
+    <div class="perm-modal-body">
+      <div id="permBulkContent">
+        <div class="tiny muted" id="permBulkLoading">Loading...</div>
+
+        <!-- Dual lists -->
+        <div style="display:flex; gap:16px; margin-top:12px; align-items:flex-start; flex-wrap:wrap;">
+          <!-- Available products -->
+          <div style="flex:1; min-width:300px;">
+            <div class="font-mediumه">Available Products</div>
+            <div id="availableList" style="margin-top:8px; border:1px dashed rgba(15,23,42,0.06); border-radius:8px; padding:8px; max-height:360px; overflow:auto;"></div>
+          </div>
+
+          <!-- Assigned products -->
+          <div style="flex:1; min-width:380px;">
+            <div class="font-medium" id="assigneduser">Assigned to user : {{target_user}}</div>
+            <div id="assignedList" style="margin-top:8px; border:1px dashed rgba(15,23,42,0.06); border-radius:8px; padding:8px; max-height:360px; overflow:auto;"></div>
+          </div>
+        </div>
+
+        <!-- Global user permissions -->
+        <div style="margin-top:14px;">
+          <div class="font-medium">User-level permissions</div>
+          <div style="display:flex; gap:12px; align-items:center; margin-top:8px; flex-wrap:wrap;">
+            <label class="tiny" style="display:flex; gap:8px; align-items:center;">
+              <input type="checkbox" id="perm_can_create_orders"> Can create orders
+            </label>
+            <label class="tiny" style="display:flex; gap:8px; align-items:center;">
+              <input type="checkbox" id="perm_can_view_analytics"> Can view analytics
+            </label>
+            <!-- space to add more global flags -->
+            <div id="perm_extra_flags" style="margin-left:8px;"></div>
+          </div>
+        </div>
+
+        <!-- status + actions -->
+        <div style="margin-top:14px; display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap;">
+          <div id="permBulkStatus" class="tiny muted"></div>
+          <div style="display:flex; gap:8px;">
+            <button id="permBulkCancel" class="btn btn-secondary">Cancel</button>
+            <button id="permBulkUpdate" class="btn btn-primary">Update</button>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+</div>
+
+ 
+ 
+<style>
+/* Scoped, high-specificity styles for the permissions modal
+   Paste after bootstrap and any other theme CSS so it overrides them.
+   Uses the modal ID to avoid global conflicts. */
+
+#permBulkModal.perm-modal {
+  position: fixed ;
+  inset: 0 !important;
+  z-index: 13000 !important;
+  display: flex;
+  align-items: center !important;
+  justify-content: center !important;
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
+}
+
+/* Backdrop */
+#permBulkModal .perm-modal-backdrop {
+  position: absolute !important;
+  inset: 0 !important;
+  background: rgba(0,0,0,0.45) !important;
+}
+
+/* Panel: force a light panel and dark readable text for everything inside */
+#permBulkModal .perm-modal-panel {
+  position: relative !important;
+  width: 94% !important;
+  max-width: 1100px !important;
+  background: #ffffff !important;          /* force white background */
+  color: #0f172a !important;               /* dark text */
+  border-radius: 10px !important;
+  padding: 16px !important;
+  box-shadow: 0 20px 60px rgba(2,6,23,0.18) !important;
+  border: 1px solid rgba(15,23,42,0.06) !important;
+}
+
+/* Make all descendant text dark and override inherited white text */
+#permBulkModal .perm-modal-panel, 
+#permBulkModal .perm-modal-panel * {
+  color: #0f172a !important;
+  /* background-color: transparent !important; reset backgrounds if necessary */
+}
+
+/* Header */
+#permBulkModal .perm-modal-header { display:flex !important; justify-content:space-between !important; align-items:center !important; gap:12px !important; }
+#permBulkModal .perm-modal-header h3 { margin:0 !important; font-size:1.05rem !important; color:#0f172a !important; }
+
+/* Close button (ensure visible) */
+#permBulkModal .perm-modal-close {
+  background: transparent !important;
+  border: none !important;
+  font-size: 1.2rem !important;
+  color: #0f172a !important;
+  cursor: pointer !important;
+}
+
+/* Body */
+#permBulkModal .perm-modal-body { margin-top: 10px !important; color:#0f172a !important; }
+
+/* List rows (scoped) */
+#permBulkModal .available-row, 
+#permBulkModal .assigned-row {
+  display:flex !important;
+  justify-content:space-between !important;
+  align-items:center !important;
+  gap:8px !important;
+  padding:10px !important;
+  border-radius:8px !important;
+  background: #ffffff !important;
+  border: 1px solid rgba(15,23,42,0.04) !important;
+  color: #f1f3f7 !important;
+  margin-bottom:8px !important;
+}
+
+/* If some theme sets the card background to dark, override it */
+#permBulkModal .available-row,
+#permBulkModal .assigned-row {
+  background-color: #ffffff !important;
+  box-shadow: 0 6px 18px rgba(2,6,23,0.04) !important;
+}
+
+/* Buttons inside modal: scope to modal so bootstrap .btn doesn't override color invisibly */
+#permBulkModal .btn-add, 
+#permBulkModal .btn-remove {
+  border: none !important;
+  color: #fff !important;
+  font-weight: 700 !important;
+  cursor: pointer !important;
+  padding: 6px 10px !important;
+  border-radius: 6px !important;
+  min-width: 34px !important;
+  line-height: 1 !important;
+}
+
+/* specific colors */
+#permBulkModal .btn-add { background: #06d42f !important; box-shadow: 0 6px 18px rgba(6,182,212,0.12) !important; }
+#permBulkModal .btn-remove { background: #ef4444 !important; box-shadow: 0 6px 18px rgba(239,68,68,0.12) !important; }
+
+/* Small inputs/selects */
+#permBulkModal .input-small, 
+#permBulkModal .select-small {
+  width: 96px !important;
+  padding: 6px 8px !important;
+  border-radius: 6px !important;
+  border: 1px solid rgba(15,23,42,0.06) !important;
+  background: #fff !important;
+  color: #0f172a !important;
+}
+
+/* tiny muted text */
+#permBulkModal .tiny.muted { color: #6b7280 !important; }
+
+/* Force contrast for any .btn inside modal */
+#permBulkModal button.btn, #permBulkModal .btn {
+  background: transparent !important;
+  color: #0f172a !important;
+  border: 1px solid rgba(15,23,42,0.06) !important;
+}
+
+/* Focus outlines for accessibility */
+#permBulkModal .perm-modal-panel button:focus,
+#permBulkModal .perm-modal-panel input:focus,
+#permBulkModal .perm-modal-panel select:focus {
+  outline: 3px solid rgba(6,182,212,0.18) !important;
+  outline-offset: 2px !important;
+}
+
+/* Responsive small screens */
+@media (max-width: 900px) {
+  #permBulkModal .perm-modal-panel { padding: 12px !important; max-width: 92% !important; }
+  #permBulkModal .available-row, #permBulkModal .assigned-row { padding: 8px !important; flex-direction: column !important; align-items: flex-start !important; gap:6px !important; }
+  #permBulkModal .available-row > div:last-child, #permBulkModal .assigned-row > div:last-child { align-self: flex-end !important; }
+}
+
+/* In case page uses dark mode / theme that flips colors, force the modal to stay light */
+@media (prefers-color-scheme: dark) {
+  #permBulkModal .perm-modal-panel { background: #ffffff !important; color: #0f172a !important; border-color: rgba(15,23,42,0.06) !important; }
+  #permBulkModal .available-row, #permBulkModal .assigned-row { background: #ffffff !important; color: #0f172a !important; }
+  #permBulkModal .input-small, #permBulkModal .select-small { background: #fff !important; color: #0f172a !important; border: 1px solid rgba(15,23,42,0.06) !important; }
+}
+
+    </style>
+<script>
+(function(){
+  // ========== CONFIG - غيّر المسارات حسب مشروعك ==========
+  const GET_USER_PERMS_URL = '/discount/marketing/api/product-permissions/user/';      // GET ?user_id=...
+  const GET_ALL_PRODUCTS_URL = '/discount/marketing/api/products/list/';              // GET -> {products: [{id, name}, ...]}
+  const BULK_UPDATE_URL = '/discount/marketing/api/product-permissions/bulk_update/'; // POST bulk updates
+  // =======================================================
+
+  // ========== DOM refs ==========
+  const modal = document.getElementById('permBulkModal');
+  const btnClose = document.getElementById('permBulkClose');
+  const btnCancel = document.getElementById('permBulkCancel');
+  const btnUpdate = document.getElementById('permBulkUpdate');
+  const availableList = document.getElementById('availableList');
+  const assignedList = document.getElementById('assignedList');
+  const statusEl = document.getElementById('permBulkStatus');
+  const loadingEl = document.getElementById('permBulkLoading');
+  const canCreateOrdersCheckbox = document.getElementById('perm_can_create_orders');
+  const canViewAnalyticsCheckbox = document.getElementById('perm_can_view_analytics');
+  // extra flags container if you want to add later
+  const extraFlags = document.getElementById('perm_extra_flags');
+
+  // client state
+  let state = {
+    user_id: null,
+    allProducts: [],        // all {id, name}
+    assignedMap: {},        // keyed by product_id -> { product_id, role, daily_order_limit }
+    availableMap: {},       // keyed by product_id -> {id, name}
+    removed: new Set(),     // product_ids removed in this session
+    globalPermissions: {}   // e.g. {can_create_orders: true, can_view_analytics: false}
+  };
+
+  // ========== tiny helpers ==========
+  function qs(s, el=document){ return el.querySelector(s); }
+  function qsa(s, el=document){ return Array.from(el.querySelectorAll(s)); }
+  function getCookie(name) {
+    const m = document.cookie.match('(^|;)\\s*' + name + '\\s*=\\s*([^;]+)');
+    return m ? m.pop() : '';
+  }
+  function setStatus(msg, isError=false){
+    statusEl.innerText = msg || '';
+    statusEl.style.color = isError ? '#dc2626' : '#16a34a';
+  }
+
+  // ========== UI helpers: render rows ==========
+  function makeAvailableRow(prod){
+    // prod: {id, name}
+    const row = document.createElement('div');
+    row.className = 'available-row';
+    row.dataset.productId = prod.id;
+    row.innerHTML = `
+      <div style="flex:1; font-weight:600;">${escapeHtml(prod.name)}</div>
+      <div style="flex:0 0 auto;">
+        <button class="btn-add" title="Add">+</button>
+      </div>
+    `;
+    // add handler
+    row.querySelector('.btn-add').addEventListener('click', () => {
+      // move to assigned with defaults
+      addAssignedProduct(prod.id, prod.name);
+    });
+    return row;
+  }
+
+  function makeAssignedRow(prodId, entry){
+    // entry: { product_id, role, daily_order_limit, product_name }
+    const row = document.createElement('div');
+    row.className = 'assigned-row';
+    row.dataset.productId = prodId;
+    // role select and limit input
+    row.innerHTML = `
+      <div style="flex:1;">
+        <div style="font-weight:600;">${escapeHtml(entry.product_name)}</div>
+        <div class="tiny muted">Product ID: ${escapeHtml(String(prodId))}</div>
+      </div>
+      <div style="flex:0 0 220px; display:flex; gap:8px; align-items:center; justify-content:flex-end;">
+        <select class="select-small role-select">
+          <option value="viewer">Viewer</option>
+          <option value="editor">Editor</option>
+          <option value="manager">Manager</option>
+          <option value="owner">Owner</option>
+        </select>
+        <input class="input-small limit-input" type="number" min="0" value="${Number(entry.daily_order_limit||0)}" />
+        <button class="btn-remove" title="Remove">−</button>
+      </div>
+    `;
+    // set role value
+    row.querySelector('.role-select').value = entry.role || 'viewer';
+    // remove handler
+    row.querySelector('.btn-remove').addEventListener('click', () => {
+      removeAssignedProduct(prodId);
+    });
+    return row;
+  }
+
+  function escapeHtml(str){
+    if (!str && str !== 0) return '';
+    return String(str).replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;').replaceAll('"','&quot;');
+  }
+
+  // ========== state operations ==========
+  function rebuildLists(){
+    // clear
+    availableList.innerHTML = '';
+    assignedList.innerHTML = '';
+
+    // build available from availableMap
+    Object.values(state.availableMap).forEach(p => {
+      const r = makeAvailableRow(p);
+      availableList.appendChild(r);
+    });
+
+    // build assigned from assignedMap (order preserved by insertion order of keys)
+    Object.values(state.assignedMap).forEach(entry => {
+      const r = makeAssignedRow(entry.product_id, entry);
+      assignedList.appendChild(r);
+    });
+  }
+
+  function addAssignedProduct(product_id, product_name){
+    // remove from availableMap
+    delete state.availableMap[product_id];
+    // add to assigned map with defaults if not exists
+    if (!state.assignedMap[product_id]){
+      state.assignedMap[product_id] = {
+        product_id: product_id,
+        product_name: product_name,
+        role: 'viewer',
+        daily_order_limit: 0
+      };
+    }
+    // mark as added (if was previously removed, unmark)
+    state.removed.delete(product_id);
+    rebuildLists();
+  }
+
+  function removeAssignedProduct(product_id){
+    // if product existed initially and is being removed, mark in removed
+    if (state.allProducts.some(p => String(p.id) === String(product_id))) {
+      // move back to available
+      const prod = state.allProducts.find(p => String(p.id) === String(product_id));
+      if (prod) state.availableMap[product_id] = prod;
+    } else {
+      // it may be a temporary item — still move to available to allow re-add
+    }
+    // add to removed set if it was formerly assigned on server
+    // We'll track removals by presence in initialAssignedIds
+    if (!state.initialAssignedIds) state.initialAssignedIds = new Set();
+    if (state.initialAssignedIds.has(String(product_id))){
+      state.removed.add(String(product_id));
+    }
+    // remove from assignedMap
+    delete state.assignedMap[product_id];
+    rebuildLists();
+  }
+
+  // update entry values from DOM before sending
+  function collectAssignedFromDOM(){
+    // iterate assignedList rows
+    const rows = assignedList.querySelectorAll('.assigned-row');
+    const assignments = [];
+    rows.forEach(r => {
+      const pid = r.dataset.productId;
+      const role = r.querySelector('.role-select').value;
+      const limit = Number(r.querySelector('.limit-input').value || 0);
+      const name = state.assignedMap[pid] ? state.assignedMap[pid].product_name : (state.availableMap[pid] ? state.availableMap[pid].name : '');
+      assignments.push({ product_id: pid, product_name: name, role, daily_order_limit: limit });
+    });
+    return assignments;
+  }
+
+  // ========== network helpers ==========
+  async function getJSON(url){
+    const res = await fetch(url, { credentials: 'same-origin' });
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    return res.json();
+  }
+
+  async function postJSON(url, body){
+    const res = await fetch(url, {
+      method: 'POST',
+      credentials: 'same-origin',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-CSRFToken': getCookie('csrftoken'),
+      },
+      body: JSON.stringify(body)
+    });
+    const txt = await res.text();
+    try {
+      const data = txt ? JSON.parse(txt) : {};
+      if (!res.ok) throw new Error('HTTP ' + res.status + ' - ' + txt);
+      return data;
+    } catch(e){
+      throw e;
+    }
+  }
+
+  // ========== load data for user and initialize ==========
+  async function openForUser(user_id){
+    try {
+      // reset state
+      state.user_id = String(user_id);
+      state.allProducts = [];
+      state.assignedMap = {};
+      state.availableMap = {};
+      state.removed = new Set();
+      state.initialAssignedIds = new Set();
+      loadingEl.style.display = 'block';
+      setStatus('');
+
+      // fetch products + permissions in parallel
+      const [productsResp, permsResp] = await Promise.all([
+        getJSON(GET_ALL_PRODUCTS_URL),
+        getJSON(`${GET_USER_PERMS_URL}?user_id=${encodeURIComponent(user_id)}`)
+      ]);
+
+      // productsResp: { products: [{id, name}, ...] }
+      state.allProducts = (productsResp && productsResp.products) ? productsResp.products : [];
+
+      // build availableMap initial
+      state.availableMap = {};
+      state.allProducts.forEach(p => { state.availableMap[String(p.id)] = p; });
+
+      // permsResp: { status: 'ok', user_id, permissions: [{product_id, product_name, role, daily_order_limit}], global_permissions: {...} }
+      const perms = (permsResp && permsResp.permissions) ? permsResp.permissions : [];
+      // fill assignedMap
+      perms.forEach(p => {
+        const pid = String(p.product_id);
+        state.assignedMap[pid] = {
+          product_id: pid,
+          product_name: p.product_name || (state.availableMap[pid] ? state.availableMap[pid].name : ''),
+          role: p.role || 'viewer',
+          daily_order_limit: p.daily_order_limit || 0
+        };
+        // remove from availableMap
+        delete state.availableMap[pid];
+        state.initialAssignedIds.add(pid);
+      });
+
+      // global perms
+      const g = permsResp.global_permissions || {};
+      state.globalPermissions = g;
+      canCreateOrdersCheckbox.checked = !!g.can_create_orders;
+      canViewAnalyticsCheckbox.checked = !!g.can_view_analytics;
+
+      rebuildLists();
+      loadingEl.style.display = 'none';
+      setStatus('');
+      // show modal
+      modal.style.display = 'flex';
+      modal.setAttribute('aria-hidden','false');
+    } catch (err) {
+      console.error('openForUser error', err);
+      loadingEl.style.display = 'none';
+      setStatus('Failed to load data: ' + (err.message || err), true);
+    }
+  }
+
+  // ========== collect and send bulk update ==========
+  btnUpdate.addEventListener('click', async function(){
+    setStatus('Preparing update...');
+    try {
+      // collect assigned entries from DOM
+      const assignments = collectAssignedFromDOM(); // [{product_id, role, daily_order_limit}]
+      // compute removals (from initialAssignedIds but not in assignments)
+      const assignedIdsNow = new Set(assignments.map(a => String(a.product_id)));
+      const removals = Array.from(state.initialAssignedIds).filter(x => !assignedIdsNow.has(String(x)));
+
+      // collect global flags
+      const globalPermissions = {
+        can_create_orders: !!canCreateOrdersCheckbox.checked,
+        can_view_analytics: !!canViewAnalyticsCheckbox.checked
+      };
+
+      // payload
+      const payload = {
+        user_id: state.user_id,
+        assignments: assignments,   // full list to create/update
+        removals: removals,         // product_ids to delete
+        global_permissions: globalPermissions
+      };
+
+      setStatus('Sending update...');
+      const resp = await postJSON(BULK_UPDATE_URL, payload);
+      setStatus('Saved successfully.');
+      // update initialAssignedIds to reflect new state
+      state.initialAssignedIds = new Set(assignments.map(a => String(a.product_id)));
+      // clear removed
+      state.removed = new Set();
+      // close modal after brief success
+      setTimeout(()=>{ modal.style.display='none'; modal.setAttribute('aria-hidden','true'); }, 600);
+    } catch (err) {
+      console.error('bulk update failed', err);
+      setStatus('Update failed: ' + (err.message || err), true);
+    }
+  });
+
+  btnCancel.addEventListener('click', function(){
+    modal.style.display = 'none';
+    modal.setAttribute('aria-hidden','true');
+  });
+  btnClose.addEventListener('click', function(){ modal.style.display='none'; modal.setAttribute('aria-hidden','true'); });
+
+  // ========== attach to existing manage buttons via delegation ==========
+  document.addEventListener('click', function(e){
+    const btn = e.target.closest && e.target.closest('.manage-perm-btn');
+    if (!btn) return;
+    const user_id = btn.getAttribute('data-user-id');
+    if (!user_id) { alert('Missing user id'); return; }
+    openForUser(user_id);
+  });
+
+})();
+</script>
+
+
+<!-- Success Message Toast -->
+<div class="position-fixed bottom-0 end-0 p-3" style="z-index: 11">
+    <div id="successToast" class="toast align-items-center text-white bg-success border-0" role="alert" aria-live="assertive" aria-atomic="true">
+        <div class="d-flex">
+            <div class="toast-body">
+                <i class="fas fa-check-circle me-2"></i>
+                <span id="toastMessage"></span>
+            </div>
+            <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
+        </div>
+    </div>
+</div>
+
+<!-- Modal for Token Details -->
+{% for token in tokens %}
+<div class="modal fade" id="tokenModal{{ token.id }}" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">API Token Details</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <ul class="list-group list-group-flush">
+                    <li class="list-group-item d-flex justify-content-between align-items-center">
+                        <span class="fw-medium">Platform:</span>
+                        <span>{{ token.platform }}</span>
+                    </li>
+                    <li class="list-group-item d-flex justify-content-between align-items-center">
+                        <span class="fw-medium">Token Name:</span>
+                        <span>{{ token.token_name|default:"Unnamed" }}</span>
+                    </li>
+                    <li class="list-group-item d-flex justify-content-between align-items-center">
+                        <span class="fw-medium">Created:</span>
+                        <span>{{ token.created_at|date:"M d, Y H:i" }}</span>
+                    </li>
+                    <li class="list-group-item d-flex justify-content-between align-items-center">
+                        <span class="fw-medium">Last Used:</span>
+                        <span>{{ token.last_used|default:"Never used" }}</span>
+                    </li>
+                    <li class="list-group-item d-flex justify-content-between align-items-center">
+                        <span class="fw-medium">Status:</span>
+                        <span class="badge {% if token.token_status %}badge-success{% else %}badge-warning{% endif %}">
+                            {% if token.token_status %}Active{% else %}Inactive{% endif %}
+                        </span>
+                    </li>
+                </ul>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endfor %}
+
+<!-- Modal for Account Details (Team Members) -->
+{% for account in team_invitations %}
+<div class="modal fade" id="accountModal{{ account.id }}" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Team Member Details</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <ul class="list-group list-group-flush">
+                    <li class="list-group-item d-flex justify-content-between align-items-center">
+                        <span class="fw-medium">Name:</span>
+                        <span>{{ account.user_name }}</span>
+                    </li>
+                    <li class="list-group-item d-flex justify-content-between align-items-center">
+                        <span class="fw-medium">Email:</span>
+                        <span>{{ account.email }}</span>
+                    </li>
+                    <li class="list-group-item d-flex justify-content-between align-items-center">
+                        <span class="fw-medium">Role:</span>
+                        <span>{{ account.get_user_type_display }}</span>
+                    </li>
+                    <li class="list-group-item d-flex justify-content-between align-items-center">
+                        <span class="fw-medium">Status:</span>
+                        <span class="badge {% if account.is_active %}badge-success{% else %}badge-danger{% endif %}">
+                            {% if account.is_active %}Active{% else %}Inactive{% endif %}
+                        </span>
+                    </li>
+                 {% if account.products %}
+                    <li class="list-group-item">
+                        <span class="fw-medium">Product Permissions:</span>
+                        <ul class="list-unstyled mt-2 mb-0">
+                            {% for product in account.products.all %}
+                                <li><span class="badge badge-secondary">{{ product.name }}</span></li>
+                            {% endfor %}
+                        </ul>
+                    </li>
+                    {% else %}
+                     
+                    <li class="list-group-item">
+                        <span class="fw-medium">Product Permissions:</span>
+                        <span>All Products</span>
+                    </li>
+                    {%  endif %}
+                
+                </ul>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                <!-- Add Save/Delete/Cancel buttons relevant to the modal if needed -->
+                <!-- Example: -->
+                <button type="button" class="btn btn-primary btn-sm">Save Changes</button>
+                <button type="button" class="btn btn-danger btn-sm">Delete Member</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endfor %}
+ 
+<script>
+$(document).ready(function(){
+    // Initialize Bootstrap tooltips
+    $('[data-bs-toggle="tooltip"]').tooltip();
+    
+    // Initialize Bootstrap toast
+    const successToastEl = document.getElementById('successToast');
+    const successToast = successToastEl ? new bootstrap.Toast(successToastEl) : null;
+    
+    // Function to show toast messages
+    function showToast(message) {
+        if (successToast) {
+            $('#toastMessage').text(message);
+            successToast.show();
+            setTimeout(() => successToast.hide(), 3000);
+        }
+    }
+
+    // Check for success messages in URL on load
+    const urlParams = new URLSearchParams(window.location.search);
+    const newUrl = window.location.origin + window.location.pathname; // URL without query params
+
+    if (urlParams.has('user_deleted')) {
+        showToast('Team member removed successfully!');
+        window.history.replaceState({}, document.title, newUrl);
+    }
+    
+    if (urlParams.has('invitation_deleted')) {
+        showToast('Invitation deleted successfully!');
+        window.history.replaceState({}, document.title, newUrl);
+    }
+    
+    if (urlParams.has('token_deleted')) {
+        showToast('API Token deleted successfully!');
+        window.history.replaceState({}, document.title, newUrl);
+    }
+
+    // Sidebar navigation logic: Show/Hide content sections
+    $('.sidebar .nav-link').on('click', function(e) {
+        e.preventDefault();
+        // Remove active class from all sidebar links
+        $('.sidebar .nav-link').removeClass('active');
+        // Add active class to the clicked link
+        $(this).addClass('active');
+
+        // Get the target content section ID from data-section attribute
+        const targetSectionId = $(this).data('section');
+        
+        // Hide all content panes
+        $('.content-area-pane').removeClass('active');
+        // Show the target content pane
+        $('#' + targetSectionId).addClass('active');
+
+        // For small screens, scroll to the top of the content section
+        if ($(window).width() < 992) {
+            $('html, body').animate({
+                scrollTop: $('.main-content').offset().top - 20 // Scroll to main content start
+            }, 300);
+        }
+    });
+
+    // Toggle token visibility in input fields
+    $('.toggle-token').click(function() {
+        const input = $(this).closest('.input-group').find('input');
+        const icon = $(this).find('i');
+        
+        if (input.attr('type') === 'password') {
+            input.attr('type', 'text');
+            icon.removeClass('fa-eye').addClass('fa-eye-slash');
+        } else {
+            input.attr('type', 'password');
+            icon.removeClass('fa-eye-slash').addClass('fa-eye');
+        }
+    });
+    
+    // Show/hide API Token form logic
+    // Buttons that can trigger the token form display
+    $('#showTokenFormBtn_header, #showTokenFormBtn_empty_state').click(function() {
+        $('#tokenFormSection').removeClass('d-none');
+        // Hide both buttons that can trigger the form
+        $('#showTokenFormBtn_header').addClass('d-none');
+        $('#showTokenFormBtn_empty_state').addClass('d-none');
+        // Also hide the empty state message if it's visible
+        $('#no_tokens_message').addClass('d-none'); 
+
+        // Scroll to the form
+        $('html, body').animate({
+            scrollTop: $('#tokenFormSection').offset().top - 30 
+        }, 500);
+    });
+    
+    $('#hideTokenFormBtn').click(function() {
+        $('#tokenFormSection').addClass('d-none');
+        // Show the "Add Token" button in the header again
+        $('#showTokenFormBtn_header').removeClass('d-none'); 
+        
+        // If there are no tokens in the table, show the empty state message again
+        if ($('#api-tokens .table tbody tr').length === 0) {
+            $('#no_tokens_message').removeClass('d-none');
+        }
+    });
+    
+    // Show/hide Team Member form logic
+    // Buttons that can trigger the team member form display
+    $('#add_stuff_btn_header, #add_stuff_empty_state').click(function(e) { 
+        e.preventDefault();
+        $('#stuffFormSect').removeClass('d-none');
+        // Hide both buttons that can trigger the form
+        $('#add_stuff_btn_header').addClass('d-none');
+        $('#add_stuff_empty_state').addClass('d-none');
+        // Also hide the initial message for adding stuff
+        $('#add_stuff_initial_message').addClass('d-none');
+        // If there are no members and the empty state is visible, hide it
+        $('#no_members_message').addClass('d-none');
+
+        // Scroll to the form
+        $('html, body').animate({
+            scrollTop: $('#stuffFormSect').offset().top - 30 
+        }, 500);
+    });
+    
+    $('#hideStuffFormBtn').click(function(e) { 
+        e.preventDefault();
+        $('#stuffFormSect').addClass('d-none');
+        // Show the "Add Member" button in the header again
+        $('#add_stuff_btn_header').removeClass('d-none');
+
+        // If there are no team members, show the empty state message
+        if ($('#team-management .table tbody tr').length === 0) {
+             $('#no_members_message').removeClass('d-none');
+             $('#add_stuff_initial_message').addClass('d-none'); // Hide initial message if empty state is visible
+        } else {
+             $('#add_stuff_initial_message').removeClass('d-none'); // Show initial message if members exist
+        }
+    });
+    
+    // Submit team member form via AJAX
+    $('.stuff_form').submit(function(e) {
+        e.preventDefault();
+        const form = $(this);
+        const csrfToken = form.find('input[name="csrfmiddlewaretoken"]').val();
+        
+        $.ajax({
+            type: 'POST',
+            url: '{% url "invite_staff" %}',
+            data: form.serialize(),
+            headers: {
+                'X-CSRFToken': csrfToken
+            },
+            beforeSend: function() {
+                form.find('button[type="submit"]').prop('disabled', true)
+                    .html('<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Sending...');
+            },
+            success: function(response) {
+                if (response.success) {
+                    Swal.fire({
+                        icon: 'success',
+                        title: 'Invitation Sent!',
+                        text: response.message,
+                        timer: 2000,
+                        showConfirmButton: false,
+                        background: 'var(--background-secondary)',
+                        color: 'var(--text-light)',
+                        confirmButtonColor: 'var(--accent-color)'
+                    }).then(() => {
+                        location.reload();
+                    });
+                } else {
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Error Sending Invitation',
+                        text: response.message,
+                        background: 'var(--background-secondary)',
+                        color: 'var(--text-light)',
+                        confirmButtonColor: 'var(--accent-color)'
+                    });
+                }
+            },
+            error: function(xhr) {
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Request Failed',
+                    text: xhr.responseJSON?.message || 'An unexpected error occurred. Please try again.',
+                    background: 'var(--background-secondary)',
+                    color: 'var(--text-light)',
+                    confirmButtonColor: 'var(--accent-color)'
+                });
+            },
+            complete: function() {
+                form.find('button[type="submit"]').prop('disabled', false)
+                    .html('<i class="fas fa-paper-plane"></i> Send Invitation');
+            }
+        });
+    });
+    
+    // Submit token form via AJAX
+    $('.token-form').submit(function(e) {
+        e.preventDefault();
+        const form = $(this);
+        const csrfToken = form.find('input[name="csrfmiddlewaretoken"]').val(); 
+        
+        $.ajax({
+            type: 'POST',
+            url: '{% url "access_token" %}',
+            data: form.serialize(),
+            headers: {
+                'X-CSRFToken': csrfToken 
+            },
+            beforeSend: function() {
+                form.find('button[type="submit"]').prop('disabled', true)
+                    .html('<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Saving...');
+            },
+            success: function(response) {
+                if (response.success) {
+                    Swal.fire({
+                        icon: 'success',
+                        title: 'Token Saved!',
+                        text: response.message,
+                        timer: 2000,
+                        showConfirmButton: false,
+                        background: 'var(--background-secondary)',
+                        color: 'var(--text-light)',
+                        confirmButtonColor: 'var(--accent-color)'
+                    }).then(() => {
+                        location.reload();
+                    });
+                } else {
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Error Saving Token',
+                        text: response.message,
+                        background: 'var(--background-secondary)',
+                        color: 'var(--text-light)',
+                        confirmButtonColor: 'var(--accent-color)'
+                    });
+                }
+            },
+            error: function(xhr) {
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Request Failed',
+                    text: xhr.responseJSON?.message || 'An unexpected error occurred. Please try again.',
+                    background: 'var(--background-secondary)',
+                    color: 'var(--text-light)',
+                    confirmButtonColor: 'var(--accent-color)'
+                });
+            },
+            complete: function() {
+                form.find('button[type="submit"]').prop('disabled', false)
+                    .html('<i class="fas fa-save"></i> Save Token');
+            }
+        });
+    });
+
+    // Handle initial state of forms and empty messages in Team Management and API Tokens
+    // Team Management
+    if ($('#team-management .table tbody tr').length === 0) {
+        // No team members, show the empty state invite button by default
+        $('#add_stuff_empty_state').removeClass('d-none');
+        $('#add_stuff_btn_header').addClass('d-none');
+        $('#no_members_message').removeClass('d-none'); // Ensure empty state is visible
+    } else {
+        // Team members exist, show the header invite button
+        $('#add_stuff_btn_header').removeClass('d-none');
+        $('#add_stuff_empty_state').addClass('d-none');
+        $('#add_stuff_initial_message').removeClass('d-none'); // Show initial message if members exist
+        $('#no_members_message').addClass('d-none'); // Hide empty state if members exist
+    }
+
+    // API Tokens
+    if ($('#api-tokens .table tbody tr').length === 0) {
+        // No tokens, show the empty state add token button by default
+        $('#showTokenFormBtn_empty_state').removeClass('d-none');
+        $('#showTokenFormBtn_header').addClass('d-none');
+        $('#no_tokens_message').removeClass('d-none'); // Ensure empty state is visible
+    } else {
+        // Tokens exist, show the header add token button
+        $('#showTokenFormBtn_header').removeClass('d-none');
+        $('#showTokenFormBtn_empty_state').addClass('d-none');
+        $('#no_tokens_message').addClass('d-none'); // Hide empty state if tokens exist
+    }
+
+
+
+                                            const multiselect = document.getElementById('productlist-multiselect');
+                                            const dropdown = document.getElementById('productlist-dropdown');
+                                            const selectedDiv = document.getElementById('productlist-selected');
+                                            const hiddenInput = document.getElementById('productlist-hidden');
+                                            let selected = [];
+
+                                            // Toggle dropdown
+                                            multiselect.addEventListener('click', function(e) {
+                                                if (e.target.tagName !== 'INPUT') {
+                                                    dropdown.style.display = dropdown.style.display === 'block' ? 'none' : 'block';
+                                                }
+                                            });
+
+                                            // Hide dropdown on outside click
+                                            document.addEventListener('click', function(e) {
+                                                if (!multiselect.contains(e.target)) {
+                                                    dropdown.style.display = 'none';
+                                                }
+                                            });
+
+                                            // Handle checkbox selection
+                                            dropdown.addEventListener('change', function(e) {
+                                                const checkboxes = dropdown.querySelectorAll('input[type="checkbox"]');
+                                                if (e.target.value === 'all') {
+                                                    // If "All Products" is checked, uncheck others
+                                                    if (e.target.checked) {
+                                                        checkboxes.forEach(cb => {
+                                                            if (cb.value !== 'all') cb.checked = false;
+                                                        });
+                                                        selected = ['all'];
+                                                    } else {
+                                                        selected = [];
+                                                    }
+                                                } else {
+                                                    // If any other is checked, uncheck "All Products"
+                                                    dropdown.querySelector('input[value="all"]').checked = false;
+                                                    selected = Array.from(checkboxes)
+                                                        .filter(cb => cb.checked && cb.value !== 'all')
+                                                        .map(cb => cb.value);
+                                                }
+                                                updateSelectedDisplay();
+                                            });
+
+                                            function updateSelectedDisplay() {
+                                                selectedDiv.innerHTML = '';
+                                                if (selected.length === 0) {
+                                                    selectedDiv.innerHTML = '<span class="text-muted">Select products...</span>';
+                                                    hiddenInput.value = '';
+                                                } else if (selected.includes('all')) {
+                                                    selectedDiv.innerHTML = '<span class="badge badge-primary">All Products</span>';
+                                                    hiddenInput.value = 'all';
+                                                } else {
+                                                    selected.forEach(val => {
+                                                        // Find label text
+                                                        const label = dropdown.querySelector('input[value="' + val + '"]').parentNode.textContent.trim();
+                                                        const badge = document.createElement('span');
+                                                        badge.className = 'badge badge-secondary';
+                                                        badge.textContent = label;
+                                                        selectedDiv.appendChild(badge);
+                                                    });
+                                                    hiddenInput.value = selected.join(',');
+                                                }
+                                            }
+                                            // Initialize
+                                            updateSelectedDisplay();
+ 
+
+
+});
+ 
+</script>
+{% endblock %}

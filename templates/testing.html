@@ -1,0 +1,450 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+    <head>
+    <script src="https://cdn.jsdelivr.net/npm/htmx.org@2.0.8/dist/htmx.min.js" integrity="sha384-/TgkGk7p307TH7EXJDuUlgG3Ce1UVolAOFopFekQkkXihi5u/6OCvVKyz1W+idaz" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/htmx-ext-ws@2.0.4" integrity="sha384-1RwI/nvUSrMRuNj7hX1+27J8XDdCoSLf0EjEyF69nacuWyiJYoQ/j39RT1mSnd2G" crossorigin="anonymous"></script>
+</head>
+
+<body style="background-color:black; color:white !important;  display: flex;   align-items: center;
+    justify-content: space-around; ">
+
+
+ 
+<div class="chat-container">
+    <!-- Chat Header -->
+    <div class="chat-header">
+        <div class="header-left">
+            <div class="status-indicator online"></div>
+            <div class="header-info">
+                <h3 class="chat-title"><stron>User:</stron> {{ request.user.username }}</h3>
+                <span class="online-count">5 online</span>
+            </div>
+        </div>
+        <div class="header-actions">
+            <button class="header-btn" title="Call">📞</button>
+            <button class="header-btn" title="Video">📹</button>
+            <button class="header-btn" title="Info">ℹ️</button>
+        </div>
+    </div>
+
+    <!-- Chat Participants Info -->
+    <div class="participants-info">
+        <div class="participant">
+            <div class="avatar">JD</div>
+            <div class="participant-details">
+                <strong>John Doe</strong>
+                <small>You</small>
+            </div>
+        </div>
+        <div class="divider"></div>
+        <div class="participant">
+            <div class="avatar">JS</div>
+            <div class="participant-details">
+                <strong>Jane Smith</strong>
+                <small>Online</small>
+            </div>
+        </div>
+    </div>
+
+    <!-- Messages Area -->
+    <div class="chat-messages">
+        {% if chat_messages %}
+            {% for message in chat_messages %}
+                {% if message.auther == request.user %}
+                    <!-- Sent Message -->
+                    <div class="message-group sent">
+                        <div class="message-bubble">
+                            <p>{{ message.message }}</p>
+                            <span class="message-time">Just now</span>
+                        </div>
+                    </div>
+                {% else %}
+                    <!-- Received Message -->
+                    <div class="message-group received">
+                        <div class="avatar-small">{{ message.auther.username|slice:":1"|upper }}</div>
+                        <div class="message-bubble">
+                            <strong>{{ message.auther }}</strong>
+                            <p>{{ message.message }}</p>
+                            <span class="message-time">Just now</span>
+                        </div>
+                    </div>
+                {% endif %}
+            {% endfor %}
+        {% else %}
+            <div class="empty-state">
+                <div class="empty-icon">💬</div>
+                <p>No messages yet. Start the conversation!</p>
+            </div>
+        {% endif %}
+    </div>
+
+    <!-- Input Area -->
+    <div class="chat-input">
+        <div class="input-wrapper">
+            <button class="input-btn attach" title="Attach file">📎</button>
+            <textarea id="messageInput" placeholder="Type a message..." rows="2"></textarea>
+            <button class="input-btn send" id="sendBtn" title="Send">➤</button>
+        </div>
+        <small class="input-hint">Press Enter to send, Shift+Enter for new line</small>
+    </div>
+</div>
+
+
+<script>
+   
+
+    const websocket_protocol = window.location.protocol === 'https:' ? 'wss' : 'ws';
+    const roomName =  '{{ chat_name.group_name }}';
+    const Socket = new WebSocket(
+        websocket_protocol + '://'
+        + window.location.host
+        + '/ws/chat/' + roomName + '/'
+    );
+
+    Socket.onopen = function(e) {
+        console.log("WebSocket connection established.");
+    };
+
+    document.getElementById('sendBtn').addEventListener('click', function() {
+        const messageInputDom = document.getElementById('messageInput');
+        const message = messageInputDom.value;
+        Socket.send(JSON.stringify({
+            'message': message,
+            'group_name' :'{{ roomname.group_name }}',
+            'user' : '{{ user }}'
+        }));
+        messageInputDom.value = '';
+    });
+
+    
+    Socket.addEventListener('message', function(event) {
+        const data = JSON.parse(event.data);
+        console.log('Message received from server:', data);
+        if (data.user === '{{ user }}') {
+            // Sent message
+            document.querySelector('.chat-messages').innerHTML += `
+        <div class="message-group sent">
+            <div class="message-bubble">
+                <p>${data.message}</p>
+                <span class="message-time">Just now</span>
+            </div>
+        </div>
+       `;
+            return;
+        }
+        // Received message
+       document.querySelector('.chat-messages').innerHTML += `
+        <div class="message-group received">
+            <div class="avatar-small">${data.user.charAt(0).toUpperCase()}</div>
+            <div class="message-bubble">
+                <strong>${data.user}</strong>
+                <p>${data.message}</p>
+                <span class="message-time">Just now</span>
+            </div>
+        </div>
+       `;
+    });
+
+
+
+
+</script>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<style>
+    /* ===== Base Container ===== */
+.chat-container {
+  max-width: 420px;
+  height: 680px;
+  margin: 40px auto;
+  background: #0f172a;
+  border-radius: 20px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  color: #fff;
+}
+
+/* ===== Header ===== */
+.chat-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 18px;
+  background: linear-gradient(135deg, #1e293b, #020617);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.header-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.status-indicator {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: #22c55e;
+  box-shadow: 0 0 0 4px rgba(34, 197, 94, 0.15);
+}
+
+.chat-title {
+  font-size: 18px;
+  margin: 0;
+  font-weight: 600;
+}
+
+.online-count {
+  font-size: 12px;
+  color: #94a3b8;
+}
+
+.header-actions {
+  display: flex;
+  gap: 10px;
+}
+
+.header-btn {
+  width: 36px;
+  height: 36px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.05);
+  border: none;
+  color: #e5e7eb;
+  font-size: 16px;
+  cursor: pointer;
+  transition: 0.2s ease-in-out;
+}
+
+.header-btn:hover {
+  background: rgba(255, 255, 255, 0.12);
+  transform: translateY(-1px) scale(1.05);
+}
+
+/* ===== Participants ===== */
+.participants-info {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 12px 16px;
+  background: #020617;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.participant {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.avatar {
+  width: 44px;
+  height: 44px;
+  border-radius: 14px;
+  background: linear-gradient(135deg, #22c55e, #16a34a);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 14px;
+  color: white;
+}
+
+.participant-details strong {
+  font-size: 14px;
+}
+
+.participant-details small {
+  font-size: 12px;
+  color: #94a3b8;
+}
+
+.divider {
+  flex: 1;
+  height: 1px;
+  background: rgba(255, 255, 255, 0.08);
+  margin: 0 6px;
+}
+
+/* ===== Messages Area ===== */
+.chat-messages {
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px;
+  background: radial-gradient(circle at top, #020617, #020617);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+/* Scrollbar */
+.chat-messages::-webkit-scrollbar {
+  width: 6px;
+}
+.chat-messages::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: 10px;
+}
+
+/* Message Bubbles */
+.message-group {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+}
+
+.message-group.sent {
+  justify-content: flex-end;
+}
+
+.message-group.received {
+  justify-content: flex-start;
+}
+
+.avatar-small {
+  width: 32px;
+  height: 32px;
+  border-radius: 10px;
+  background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: bold;
+}
+
+/* Bubble Style */
+.message-bubble {
+  max-width: 75%;
+  padding: 12px 14px;
+  border-radius: 16px;
+  font-size: 14px;
+  line-height: 1.5;
+  position: relative;
+  backdrop-filter: blur(6px);
+}
+
+.sent .message-bubble {
+  background: linear-gradient(135deg, #22c55e, #16a34a);
+  border-bottom-right-radius: 6px;
+}
+
+.received .message-bubble {
+  background: rgba(255, 255, 255, 0.08);
+  border-bottom-left-radius: 6px;
+}
+
+.message-bubble strong {
+  display: block;
+  font-size: 12px;
+  margin-bottom: 4px;
+  color: #e5e7eb;
+}
+
+.message-time {
+  display: block;
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.6);
+  margin-top: 6px;
+  text-align: right;
+}
+
+/* ===== Empty State ===== */
+.empty-state {
+  margin: auto;
+  text-align: center;
+  opacity: 0.6;
+}
+
+.empty-icon {
+  font-size: 40px;
+  margin-bottom: 10px;
+}
+
+/* ===== Input Area ===== */
+.chat-input {
+  padding: 12px 14px;
+  background: #020617;
+  border-top: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.input-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: #020617;
+  border-radius: 16px;
+  padding: 10px 12px;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+#messageInput {
+  flex: 1;
+  resize: none;
+  background: transparent;
+  border: none;
+  outline: none;
+  color: white;
+  font-size: 14px;
+}
+
+#messageInput::placeholder {
+  color: #475569;
+}
+
+.input-btn {
+  width: 36px;
+  height: 36px;
+  border-radius: 12px;
+  border: none;
+  background: rgba(255, 255, 255, 0.05);
+  color: white;
+  cursor: pointer;
+  transition: 0.2s ease-in-out;
+}
+
+.input-btn.send {
+  background: linear-gradient(135deg, #22c55e, #16a34a);
+}
+
+.input-btn:hover {
+  transform: scale(1.05);
+}
+
+.input-hint {
+  display: block;
+  text-align: center;
+  font-size: 11px;
+  color: #475569;
+  margin-top: 6px;
+}
+
+</style>
+</body>
+</html>

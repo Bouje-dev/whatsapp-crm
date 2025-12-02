@@ -1,0 +1,105 @@
+<!-- templates/base.html -->
+
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}لوحة تحكم الهدايا المجانية{% endblock %}</title>
+<!-- في الـ head -->
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+<link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+
+<!-- في نهاية الـ body -->
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <!-- Bootstrap 5 RTL -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap @5.3.2/dist/css/bootstrap.rtl.min.css" rel="stylesheet">
+
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js "></script>
+
+    <!-- Font Awesome -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css " rel="stylesheet">
+
+
+    <!-- Bootstrap 5 Bundle JS -->
+
+<!-- Font Awesome -->
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css ">
+
+<!-- Optional: إذا كنت تستخدم أي كود JS خاص بك -->
+    <!-- CSS مخصص -->
+    <style>
+        body {
+            direction: ltr;
+            background-color: #f9f9f9;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        .navbar-brand {
+            font-weight: bold;
+        }
+
+        .card {
+            border-radius: 10px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.05);
+        }
+
+        .footer {
+            padding: 1rem;
+            background-color: #f1f1f1;
+            text-align: center;
+            margin-top: 3rem;
+        }
+    </style>
+
+    {% block extra_head %}
+    {% endblock %}
+</head>
+<body class="p-3">
+
+    <!-- الشريط العلوي -->
+    <nav class="navbar navbar-expand-lg navbar-dark bg-primary mb-4">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="#">🎁 هدايا مجانية</a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse justify-content-end" id="navbarNav">
+                <ul class="navbar-nav">
+                    <li class="nav-item">
+                        <a class="nav-link active" href="/">الرئيسية</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="/analytics/">التحليلات</a>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <!-- المحتوى الأساسي -->
+    <div class="container-fluid">
+        {% block content %}
+        {% endblock %}
+    </div>
+
+    <!-- الفوتر -->
+    <footer class="footer mt-auto py-3 bg-light">
+        <div class="container">
+            <span class="text-muted">© {{ year }} مشروع الهدايا المجانية | تم التطوير بواسطة <strong>فريقك</strong></span>
+        </div>
+    </footer>
+
+    <!-- JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap @5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+
+    <!-- توكن سري (يمكن استخدامه في الطلبات الخارجية) -->
+    <script>
+        const API_SECRET_KEY = "your-secret-key-here"; // استبدلها بواحد آمن
+    </script>
+
+    {% block extra_scripts %}
+    {% endblock %}
+</body>
+</html>

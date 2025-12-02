@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Accept Invitation | Order Tracking System</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        :root {
+            --primary-color: #4e44de;
+            --secondary-color: #6c757d;
+            --accent-color: #00c851;
+        }
+        
+        body {
+            background-color: #f8f9fa;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        
+        .invitation-container {
+            max-width: 600px;
+            margin: 5% auto;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
+            overflow: hidden;
+        }
+        
+        .invitation-header {
+            background: linear-gradient(135deg, var(--primary-color), #3a32b8);
+            color: white;
+            padding: 2rem;
+            text-align: center;
+        }
+        
+        .invitation-body {
+            padding: 2rem;
+        }
+        
+        .inviter-card {
+            display: flex;
+            align-items: center;
+            background: #f8f9fa;
+            border-radius: 8px;
+            padding: 1.5rem;
+            margin-bottom: 2rem;
+        }
+        
+        .inviter-avatar {
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            background-color: var(--primary-color);
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+            margin-right: 1.5rem;
+            flex-shrink: 0;
+        }
+        
+        .permission-badge {
+            display: inline-block;
+            background-color: rgba(78, 68, 222, 0.1);
+            color: var(--primary-color);
+            padding: 6px 12px;
+            border-radius: 20px;
+            margin-right: 8px;
+            margin-bottom: 8px;
+            font-size: 0.85rem;
+        }
+        
+        .form-control {
+            padding: 12px 15px;
+            border-radius: 8px;
+            border: 1px solid #e0e0e0;
+            transition: all 0.3s;
+        }
+        
+        .form-control:focus {
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 3px rgba(78, 68, 222, 0.2);
+        }
+        
+        .btn-accept {
+            background-color: var(--accent-color);
+            border: none;
+            padding: 12px;
+            width: 100%;
+            border-radius: 8px;
+            color: white;
+            font-weight: 600;
+            transition: all 0.3s;
+        }
+        
+        .btn-accept:hover {
+            background-color: #007e33;
+            transform: translateY(-2px);
+        }
+        
+        .project-description {
+            background-color: #f8f9fa;
+            border-left: 4px solid var(--primary-color);
+            padding: 1rem;
+            margin: 2rem 0;
+            border-radius: 0 8px 8px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="invitation-container">
+            <div class="invitation-header">
+                <h2><i class="fas fa-envelope-open-text me-2"></i>Team Invitation</h2>
+                <p class="mb-0">You've been invited to collaborate</p>
+            </div>
+            
+            <div class="invitation-body">
+                <!-- Inviter Information -->
+                <div class="inviter-card">
+                    <div class="inviter-avatar">
+                        <i class="fas fa-user"></i>
+                    </div>
+                    <div>
+                        <h5 class="mb-1">{% if inviter.user_name %} {{ inviter.user_name }} {% else %} {{inviter.username}} {% endif %}</h5>
+                        <p class="text-muted mb-2">{% if inviter.email %} {{ inviter.email }} {% else %} {{inviter.username}} {% endif %}</p>
+                        <div>
+                            <span class="permission-badge"><i class="fas fa-user-shield me-1"></i> {{ invetations.role }} </span>
+                            <span class="permission-badge"><i class="fas fa-chart-line me-1"></i> 
+                                
+
+  {% if invetations.products %}
+    {% if invetations.products|length > 0 %}
+      {% for product in invetations.products %}
+        {{ product.sku }}
+      {% endfor %}
+    {% else %}
+      Follow Up
+    {% endif %}
+  {% else %}
+    Follow Up
+  {% endif %}
+                            
+                            </span>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Project Description -->
+                <div class="project-description">
+                    <h5><i class="fas fa-box-open me-2"></i>About the Project</h5>
+                    <p class="mb-0">This system is designed to track customer orders from placement to delivery, providing real-time updates and analytics to ensure smooth operations and customer satisfaction.</p>
+                </div>
+          
+                <!-- Acceptance Form -->
+                 {% if not error_message %}
+                <form id="acceptanceForm" method="post">
+                    {% csrf_token %}
+                    <div class="mb-3">
+                        <label for="fullName" class="form-label">Your Full Name</label>
+                        <input type="text" class="form-control" id="fullName" placeholder="Enter your name" required>
+                    </div>
+                    
+                    <div class="d-grid gap-2">
+                        <button type="submit" class="btn btn-accept">
+                            <i class="fas fa-check-circle me-2"></i> Accept Invitation
+                        </button>
+                    </div>
+                </form>
+                {% else %}
+                <div class="alert alert-warning mt-3" role="alert">
+                    <i class="fas fa-exclamation-circle me-2"></i> You cannot accept this invitation at the moment.
+                    Please try again later.
+                </div>
+                {% endif %}
+
+            </div>
+        </div>
+    </div>
+
+    <!-- JavaScript Libraries -->
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    
+    <script>
+    $(document).ready(function() {
+        // Form submission handler
+        $('#acceptanceForm').submit(function(e) {
+            e.preventDefault();
+            
+            const fullName = $('#fullName').val().trim();
+            
+            if (!fullName) {
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Oops...',
+                    text: 'Please enter your full name',
+                });
+                return;
+            }
+            
+            // Show loading state
+            const submitBtn = $(this).find('button[type="submit"]');
+            submitBtn.prop('disabled', true);
+            submitBtn.html('<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Processing...');
+            
+            // Simulate API call (replace with actual AJAX call)
+
+    // استخراج التوكن من الرابط
+    const pathParts = window.location.pathname.split('/');
+    const token = pathParts[pathParts.length - 2]; // استخراج التوكن من الرابط
+
+    $.ajax({
+        type: 'POST',
+        url: `/accept-invite/${token}/`,
+        data: {
+            full_name: fullName, // إذا كنت ترسل الاسم مثلاً
+            csrfmiddlewaretoken: $('input[name="csrfmiddlewaretoken"]').val()
+        },
+        success: function(response) {
+            Swal.fire({
+                icon: 'success',
+                title: 'تم قبول الدعوة!',
+                text: `مرحبًا ${fullName}، يمكنك الآن الدخول إلى النظام.`,
+                confirmButtonColor: '#4e44de',
+            }).then(() => {
+                window.location.href = '/tracking/'; // إعادة التوجيه إلى صفحة التتبع
+            });
+        },
+        error: function(xhr, status, error) {
+            Swal.fire({
+                icon: 'error',
+                title: 'حدث خطأ',
+                text: `تعذر قبول الدعوة: ${xhr.responseJSON.message || error}`,
+            });
+        }
+    });
+
+
+            // });
+             
+            // setTimeout(() => {
+            //     Swal.fire({
+            //         icon: 'success',
+            //         title: 'Invitation Accepted!',
+            //         text: `Welcome ${fullName}, you now have access to the order tracking system.`,
+            //         confirmButtonColor: '#4e44de',
+            //     }).then(() => {
+            //         // Redirect to dashboard or next page
+            //         window.location.href = '/dashboard';
+            //     });
+            // }, 1500);
+        });
+    });
+    </script>
+</body>
+</html>

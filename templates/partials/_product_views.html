@@ -1,0 +1,206 @@
+<div id="products-view">
+    <div class="row" id="grid-view">
+  
+
+        {% for product in productslists %}
+        <div class="col-lg-3 col-md-4 col-sm-6 mb-4">
+            <div class="card product-card" style="height: 92%;">
+                <div class="badge bg-danger position-absolute" style="top: 10px; right: 10px">
+                    {{ product.stock }} متبقي
+                </div>
+
+
+                {% if product.productImage %}
+                <img src="{{ product.productImage.url|default:'https://via.placeholder.com/300  ' }}"
+                    class="card-img-top" alt="{{ product.name }}" style="object-fit: contain;">{% else %}
+                <img src="https://via.placeholder.com/300 " alt="لا توجد صورة" class="img-fluid">
+                {% endif %}
+
+
+
+                <div class="card-body d-flex flex-column justify-content-between p-3" style="min-height: 210px;">
+                    <!-- Product Name & Project -->
+                    <div class="mb-2">
+                        <h6 class="fw-bold mb-1"
+                            style="font-size: 1rem; color: var(--text-light);     white-space: normal;">
+                            {{ product.name }}
+                        </h6>
+                        <span class="badge bg-secondary"
+                            style="font-size: 0.8rem; background: rgba(0,230,118,0.12); color: var(--accent-color); border-radius: 6px;     white-space: normal;">
+                            {{ product.project }}
+                        </span>
+                    </div>
+                    <!-- Prices -->
+                    <div class="mb-2">
+                        <div class="d-flex align-items-center justify-content-between mb-1">
+                            <span class="text-muted" style="font-size: 0.92rem; color:#707477 !important;">Original
+                                Price:</span>
+                            <span class="fw-bold" style="color: #fbc02d;">${{ product.product_cost }}</span>
+                        </div>
+                        <div class="d-flex align-items-center justify-content-between">
+                            <span class="text-muted" style="font-size: 0.92rem; color:#707477 !important ;">Selling
+                                Price:</span>
+                            <span class="fw-bold" style="color: var(--accent-color);">{{ product.original_price }}
+                                SAR</span>
+                        </div>
+                        <div class="d-flex align-items-center justify-content-between">
+                            <span class="text-muted" style="font-size: 0.92rem; color:#707477 !important ;"> Sku:</span>
+                            <span class="fw-bold" style="color: #c6c6c6;">{{ product.sku }}</span>
+                       <button type="button" class="btn btn-link btn-sm p-0 ms-2" title="نسخ SKU"
+    onclick="copyToClipboard('{{ product.sku }}', this)"
+    onmouseover="this.previousElementSibling.style.color='#007bff';"
+    onmouseout="this.previousElementSibling.style.color='#c6c66';">
+    <i class="fas fa-copy"></i>
+</button>
+                            <script>
+
+        /**
+ * نسخ نص إلى الحافظة مع إظهار تأكيد النسخ
+ * @param {string} sku - نص SKU المراد نسخه
+ * @param {HTMLElement} buttonElement - عنصر الزر الذي تم النقر عليه
+ */
+document.addEventListener('DOMContentLoaded', function() {
+    // تأكد من تحميل DOM بالكامل قبل إضافة المستمعات
+ 
+function copyToClipboard(sku, buttonElement) {
+    // إنشاء عنصر input مؤقت لننسخ النص منه
+    const tempInput = document.createElement('input');
+    tempInput.value = sku;
+    document.body.appendChild(tempInput);
+    
+    // تحديد النص في عنصر input
+    tempInput.select();
+    tempInput.setSelectionRange(0, 99999); // للهواتف المحمولة
+    
+    try {
+        // تنفيذ أمر النسخ
+        const successful = document.execCommand('copy');
+        
+        if (successful) {
+            // تغيير أيقونة الزر إلى علامة صح للإشارة إلى نجاح النسخ
+            const icon = buttonElement.querySelector('i.fa-copy');
+            if (icon) {
+                icon.classList.remove('fa-copy');
+                icon.classList.add('fa-check');
+                
+                // إعادة الأيقونة إلى وضعها الأصلي بعد ثانيتين
+                setTimeout(() => {
+                    icon.classList.remove('fa-check');
+                    icon.classList.add('fa-copy');
+                }, 2000);
+            }
+        }
+    } catch (err) {
+        console.error('فشل في نسخ النص: ', err);
+    }
+    
+    // إزالة عنصر input المؤقت
+    document.body.removeChild(tempInput);
+}
+});
+     
+</script>
+                        </div>
+                    </div>
+                    <!-- Edit Button -->
+                    <div class="mt-auto d-flex justify-content-end">
+                        <button class="btn btn-outline-secondary btn-sm px-3 py-1"
+                            style="border-radius: 7px; font-size: 0.92rem; transition: background 0.18s, color 0.18s;"
+                            onclick="openEditModal('{{ product.id }}', '{{ product.name }}', '{{ product.image_url }}')">
+                            <i class="fas fa-edit me-1"></i> تعديل
+                        </button>
+                    </div>
+                </div>
+
+
+
+            </div>
+        </div>
+        {% empty %}
+        <div class="col-12 text-center py-5" style="    display: flex
+;
+    /* align-items: center; */
+    align-content: space-around;
+    flex-wrap: wrap;
+    flex-direction: column;">
+            <h4 class="text-muted">لا توجد منتجات متاحة</h4>
+            <a href="#" class="btn update-btn mt-3" style="width: 200px;">
+                <i class="fas fa-sync-alt"></i> تحديث القائمة
+            </a>
+        </div>
+        {% endfor %}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+        <!-- نافذة التعديل Modal -->
+        <div class="modal fade" id="editProductModal" tabindex="-1" aria-labelledby="editProductModalLabel"
+            aria-hidden="true">
+            <div class="modal-dialog">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title" style="color:#121212" id="editProductModalLabel">Update product :</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="إغلاق"></button>
+                    </div>
+                    <div class="modal-body">
+                        <input type="hidden" id="modal-product-id">
+
+                        <!-- تعديل الاسم -->
+                        <div class="mb-3">
+                            <label class="form-label" style="color:#121212">Product name :</label>
+                            <input type="text" class="form-control" id="modal-product-name">
+                        </div>
+
+                        <!-- رفع الصورة -->
+                        <div class="mb-3">
+                            <label class="form-label" style="color:#121212"> Product img :</label>
+                            <input type="file" class="form-control" id="modal-product-image" accept="image/*">
+                        </div>
+                    </div><!-- نافذة عرض الصورة -->
+                    <img id="modal-product-img" src="" alt="صورة المنتج"
+                        style="width: 100%; max-height: 300px; object-fit: contain;">
+                    <div class="modal-footer">
+
+                        <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Close</button>
+                        <button type="button" class="btn btn-primary btn-sm" onclick="saveProductChanges()">Save
+                            Changes</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+
+    </div>
+
+    <!-- عرض تفاصيل المنتج (Modal) -->
+    <div class="modal fade" id="productModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="modalTitle"></h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body" id="modalBody">
+                    <!-- يتم تعبئته بالـ JavaScript -->
+
+                    <img src="" alt="">
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

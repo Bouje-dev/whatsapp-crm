@@ -1,0 +1,56 @@
+{# orders/_pagination_controls.html #}
+<nav aria-label="Page navigation" style="padding-top: 18px;">
+    <ul class="pagination justify-content-center">
+        {# زر السابق #}
+        {% if orders.has_previous %}
+        <li class="page-item">
+            <a class="page-link"
+               href="#" {# نستخدم # لأن JS سيتعامل مع النقر #}
+               data-order-page="{{ orders.previous_page_number }}" {# نحفظ رقم الصفحة في data-page #}
+               aria-label="Previous">
+                &laquo;
+            </a>
+        </li>
+        {% endif %}
+        
+        {# أرقام الصفحات #}
+        {% for num in orders.paginator.page_range %}
+            {% if num >= orders.number|add:-2 and num <= orders.number|add:2 %} {# عرض الصفحات القريبة من الحالية فقط #}
+                <li class="page-item {% if num == orders.number %}active{% endif %}">
+                    <a class="page-link" 
+                       href="#" {# نستخدم # لأن JS سيتعامل مع النقر #}
+                       data-order-page="{{ num }}" {# نحفظ رقم الصفحة في data-page #}
+                       aria-label="Page {{ num }}">
+                       {{ num }}
+                    </a>
+                </li>
+            {% elif num == orders.paginator.page_range.0 and num != orders.number|add:-2 %} {# عرض الصفحة الأولى إذا كانت بعيدة #}
+                <li class="page-item">
+                    <a class="page-link" href="#" data-order-page="{{ num }}">{{ num }}</a>
+                </li>
+                {% if orders.number|add:-2 > orders.paginator.page_range.0|add:1 %}
+                    <li class="page-item disabled"><span class="page-link">...</span></li>
+                {% endif %}
+            {% elif num == orders.paginator.page_range|last and num != orders.number|add:2 %} {# عرض الصفحة الأخيرة إذا كانت بعيدة #}
+                {% if orders.number|add:2 < orders.paginator.page_range|last|add:-1 %}
+                    <li class="page-item disabled"><span class="page-link">...</span></li>
+                {% endif %}
+                <li class="page-item">
+                    <a class="page-link" href="#" data-order-page="{{ num }}">{{ num }}</a>
+                </li>
+            {% endif %}
+        {% endfor %}
+        
+        {# زر التالي #}
+        {% if orders.has_next %}
+        <li class="page-item">
+            <a class="page-link" 
+               href="#" {# نستخدم # لأن JS سيتعامل مع النقر #}
+               data-order-page="{{ orders.next_page_number }}" {# نحفظ رقم الصفحة في data-page #}
+               aria-label="Next">
+                &raquo;
+            </a>
+        </li>
+        {% endif %}
+    </ul>
+</nav>

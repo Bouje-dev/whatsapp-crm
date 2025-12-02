@@ -1,0 +1,175 @@
+{% load static i18n %}
+{% load i18n %}
+{% for order in orders %}
+
+        <tr class="order-row align-middle" 
+                                                    data-tracking="{{ order.tracking_number }}"
+                                                    data-status="{{ order.status }}"
+data-company="{% if order.tracking_number|slice:":2" == "60" %}imile{% elif order.tracking_number|slice:":5" == "INJAZ" %}injaz{% else %}unknown{% endif %}"
+
+
+
+data-customer-name="{{ order.customer_name }}"
+                                                    data-customer-phone="{{ order.customer_phone }}"
+                                                    data-product-name="{{ order.product_name }}">
+                                                    <td class="ps-3 tracking-number-cell" data-label="Tracking Number">
+                                                        <div class="d-flex align-items-center">
+                                                            <span class="order-counter-badge me-2">
+                                                                {{ forloop.counter }}
+                                                            </span>
+                                                            <span class="tracking-number">
+                                                                {{ order.tracking_number }}
+                                                            </span>
+                                                            <button class="copy-btn ms-2" 
+                                                                    data-tracking="{{ order.tracking_number }}"
+                                                                    title="Copy Number">
+                                                                <i class="far fa-copy"></i>
+                                                            </button>
+                                                        </div>
+                                                    </td>
+                                                    <td class="customer-name-cell" data-label="Customer">
+                                                        <div class="d-flex align-items-center">
+                                                            <div class="avatar me-2">
+                                                                {{ order.customer_name|slice:":1"|upper }}
+                                                            </div>
+                                                            {{ order.customer_name|truncatechars:20 }}
+                                                        </div>
+                                                    </td>
+                                                    <td class="font-monospace" data-label="Phone">
+                                                        {{ order.customer_phone }}
+                                                    </td>
+                                                    <td data-label="Product">
+                                                        <div class="d-flex align-items-center">
+                                                            <div>
+                                                                <div class="fw-bold">{{ order.product_name|truncatechars:25 }}</div>
+                                                                <small class="text-muted">SKU: {{ order.sku }}</small>
+                                                            </div>
+                                                        </div>
+                                                    </td>
+                                                    <td class="text-center" data-label="Status">
+                                                        <span class="status-badge status-{{ order.status|lower }}">
+                                                            {{ order.status }}
+                                                        </span>
+                                                    </td>
+                                                        <td class="text-center {% if request.user.is_is_team_admin %}d-none{% endif %}  " data-label="Status">
+                                                        <span class="white-badge">
+                                                            {{ order.price }} <span class="text-muted">{{order.currency}}</span>
+                                                        </span>
+                                                    </td>
+                                                </tr>
+
+
+{% empty %}
+{# هذا الجزء يتم تنفيذه إذا كانت قائمة 'orders' فارغة. #}
+{# لكن JavaScript في الواجهة الأمامية يتعامل مع رسالة "No Orders Found" #}
+{# لذلك يمكنك ترك هذا الجزء فارغًا أو إزالته إذا كنت تعتمد بالكامل على JavaScript لعرض رسالة "لا توجد طلبات". #}
+{% endfor %}
+
+<!-- 
+<style>
+    /* التنسيقات العامة */
+    .orders-container {
+        border: 1px solid #dee2e6;
+        border-radius: 8px;
+        overflow: hidden;
+        box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.05);
+    }
+    
+    .order-row {
+        transition: all 0.2s;
+        cursor: pointer;
+    }
+    
+    .order-row:hover {
+        background-color: #f8f9fa;
+        transform: translateY(-1px);
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+    }
+    
+    /* تنسيق الحالات */
+    .status-pending {
+        background-color: #fff3cd;
+        color: #856404;
+    }
+    
+    .status-shipped {
+        background-color: #cce5ff;
+        color: #004085;
+    }
+    
+    .status-delivered {
+        background-color: #d4edda;
+        color: #155724;
+    }
+    
+    .status-return {
+        background-color: #f8d7da;
+        color: #721c24;
+    }
+    
+    /* العناصر التفاعلية */
+    .avatar {
+        width: 32px;
+        height: 32px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: bold;
+    }
+    
+    .product-thumb {
+        width: 40px;
+        height: 40px;
+        object-fit: cover;
+        border-radius: 4px;
+        border: 1px solid #dee2e6;
+    }
+    
+    .copy-btn {
+        opacity: 0;
+        transition: opacity 0.3s;
+    }
+    
+    .order-row:hover .copy-btn {
+        opacity: 1;
+    }
+    
+    /* الحالة الفارغة */
+    .empty-state {
+        max-width: 500px;
+        margin: 0 auto;
+    }
+    
+    .empty-state-icon {
+        opacity: 0.6;
+    }
+</style> -->
+<!-- 
+<script>
+    // نسخ رقم التتبع
+    $(document).on('click', '.copy-btn', function(e) {
+        e.stopPropagation();
+        const trackingNum = $(this).data('tracking');
+        copyToClipboard(trackingNum, $(this).find('i'));
+    });
+    
+    function copyToClipboard(text, icon) {
+        navigator.clipboard.writeText(text).then(() => {
+            icon.removeClass('fa-copy').addClass('fa-check');
+            setTimeout(() => {
+                icon.removeClass('fa-check').addClass('fa-copy');
+            }, 2000);
+        });
+    }
+    
+    function resetSearch() {
+        $('#live-search-input').val('');
+        performSearch();
+    }
+    
+    function loadSampleData() {
+        // يمكنك إضافة وظيفة لتحميل بيانات تجريبية هنا
+        alert('سيتم تحميل بيانات تجريبية');
+    }
+</script> -->

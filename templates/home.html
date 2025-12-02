@@ -1,0 +1,851 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Waselytics — The COD Operating System</title>
+  <meta name="description" content="Stop optimizing for clicks. Waselytics attributes ad spend to real cash collected and automates COD order confirmation via AI WhatsApp Agents." />
+  
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
+
+   <style>
+    /* ---------- 1. DESIGN SYSTEM & VARIABLES ---------- */
+    :root {
+      --bg-dark: #030014; /* Deep space dark */
+      --bg-card: rgba(255, 255, 255, 0.03);
+      --bg-card-hover: rgba(255, 255, 255, 0.06);
+      
+      --primary: #7c3aed; /* Violet */
+      --primary-glow: rgba(124, 58, 237, 0.5);
+      
+      --accent: #00f0ff; /* Cyan/Neon */
+      --whatsapp: #25D366;
+      
+      --text-main: #ffffff;
+      --text-muted: #94a3b8;
+      
+      --border: rgba(255, 255, 255, 0.08);
+      --radius: 20px;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; outline: none; }
+    
+    html { scroll-behavior: smooth; }
+    
+    body {
+      font-family: 'Inter', sans-serif;
+      background-color: var(--bg-dark);
+      color: var(--text-main);
+      overflow-x: hidden;
+      line-height: 1.6;
+    }
+
+    h1, h2, h3, h4 { font-family: 'Space Grotesk', sans-serif; letter-spacing: -0.02em; }
+    a { text-decoration: none; color: inherit; transition: 0.3s; }
+    ul { list-style: none; }
+
+    /* ---------- 2. BACKGROUND FX ---------- */
+    .orb-canvas {
+      position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: -1;
+      background: var(--bg-dark);
+      overflow: hidden;
+    }
+    .orb {
+      position: absolute; border-radius: 50%; filter: blur(80px); opacity: 0.4;
+      animation: drift 20s infinite alternate;
+    }
+    .orb-1 { width: 400px; height: 400px; background: var(--primary); top: -100px; left: -100px; }
+    .orb-2 { width: 500px; height: 500px; background: #2563eb; bottom: -150px; right: -100px; animation-delay: -5s; }
+    .orb-3 { width: 300px; height: 300px; background: var(--whatsapp); top: 40%; left: 40%; opacity: 0.15; animation-duration: 30s; }
+
+    @keyframes drift { from { transform: translate(0,0); } to { transform: translate(50px, 30px); } }
+
+    /* ---------- 3. UTILITIES & COMPONENTS ---------- */
+    .container { max-width: 1200px; margin: 0 auto; padding: 0 24px; }
+    
+    .btn {
+      display: inline-flex; align-items: center; gap: 8px;
+      padding: 14px 28px; border-radius: 12px; font-weight: 600; cursor: pointer; transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+      border: 1px solid transparent; font-size: 15px;
+    }
+    .btn-primary {
+      background: linear-gradient(135deg, var(--primary), #4f46e5);
+      color: white; box-shadow: 0 4px 20px rgba(124, 58, 237, 0.3);
+    }
+    .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 8px 30px rgba(124, 58, 237, 0.5); }
+    .btn-glass {
+      background: rgba(255,255,255,0.05); border: 1px solid var(--border); color: white;
+      backdrop-filter: blur(10px);
+    }
+    .btn-glass:hover { background: rgba(255,255,255,0.1); border-color: white; }
+
+    .badge {
+      display: inline-block; padding: 6px 12px; border-radius: 100px;
+      font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em;
+      margin-bottom: 20px;
+    }
+    .badge-purple { background: rgba(124, 58, 237, 0.15); color: #a78bfa; border: 1px solid rgba(124, 58, 237, 0.3); }
+
+    /* Glass Cards */
+    .card {
+      background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius);
+      padding: 30px; transition: 0.4s; position: relative; overflow: hidden;
+    }
+    .card:hover { background: var(--bg-card-hover); border-color: rgba(255,255,255,0.15); transform: translateY(-5px); }
+    
+    /* Grid Layouts */
+    .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 40px; }
+    .grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px; }
+
+    /* ---------- 4. HEADER ---------- */
+    header {
+      position: fixed; top: 0; width: 100%; z-index: 100;
+      backdrop-filter: blur(16px); background: rgba(3,0,20,0.6); border-bottom: 1px solid var(--border);
+    }
+    .nav-inner { height: 70px; display: flex; align-items: center; justify-content: space-between; }
+    .logo { font-size: 20px; font-weight: 700; display: flex; align-items: center; gap: 8px; }
+    .logo span { color: var(--accent); }
+    
+    .nav-menu { display: flex; gap: 30px; }
+    .nav-link { font-size: 14px; font-weight: 500; color: var(--text-muted); position: relative; }
+    .nav-link:hover { color: white; }
+
+    /* ---------- 5. HERO SECTION ---------- */
+    .hero {
+      padding-top: 160px; padding-bottom: 100px;
+      display: flex; flex-direction: column; align-items: center; text-align: center;
+      position: relative;
+    }
+    .hero h1 {
+      font-size: 64px; line-height: 1.1; margin-bottom: 24px; max-width: 900px;
+      background: linear-gradient(to bottom, #fff, #94a3b8); -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    }
+    .hero p { font-size: 20px; color: var(--text-muted); max-width: 600px; margin-bottom: 40px; }
+    
+    /* Hero Visual - Dashboard Mockup */
+    .hero-visual {
+      margin-top: 60px; width: 100%; max-width: 1000px; height: 500px;
+      background: #0f172a; border-radius: 20px; border: 1px solid var(--border);
+      box-shadow: 0 50px 100px -20px rgba(0,0,0,0.8);
+      position: relative; perspective: 1000px;
+      /* Background Grid */
+      background-image: radial-gradient(var(--border) 1px, transparent 1px); background-size: 30px 30px;
+    }
+
+    /* Floating UI Elements */
+    .float-card {
+      position: absolute; background: rgba(15, 23, 42, 0.9); backdrop-filter: blur(10px);
+      border: 1px solid var(--border); border-radius: 12px; padding: 16px;
+      box-shadow: 0 20px 40px rgba(0,0,0,0.5);
+    }
+    .fc-analytics {
+      top: 15%; left: 10%; width: 220px;
+      animation: float-y 6s ease-in-out infinite;
+    }
+    .fc-whatsapp {
+      bottom: 20%; right: 10%; width: 280px;
+      border-color: rgba(37, 211, 102, 0.3);
+      animation: float-y 7s ease-in-out infinite 1s;
+    }
+    .fc-center {
+      top: 50%; left: 50%; transform: translate(-50%, -50%);
+      width: 400px; height: 250px; background: linear-gradient(180deg, rgba(255,255,255,0.03), transparent);
+    }
+
+    @keyframes float-y { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-15px); } }
+
+    /* ---------- 6. FEATURES (BENTO GRID) ---------- */
+    .section-title { margin-bottom: 60px; text-align: center; }
+    .section-title h2 { font-size: 42px; margin-bottom: 16px; }
+    .section-title span { color: var(--accent); }
+
+    .bento-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      grid-template-rows: repeat(2, 300px);
+      gap: 20px;
+    }
+    /* Cell Styling */
+    .cell {
+      background: var(--bg-card); border: 1px solid var(--border); border-radius: 24px;
+      padding: 30px; position: relative; overflow: hidden;
+      display: flex; flex-direction: column; justify-content: space-between;
+    }
+    .cell:hover .cell-bg { transform: scale(1.1); }
+    .cell-bg {
+      position: absolute; top: 0; right: 0; width: 100%; height: 100%; opacity: 0.1; transition: 0.5s; z-index: 0;
+      background-size: cover; background-position: center;
+    }
+    .cell-content { position: relative; z-index: 1; }
+    .cell-icon { font-size: 30px; margin-bottom: 15px; display: block; }
+    
+    .span-2 { grid-column: span 2; }
+    .span-4 { grid-column: span 4; } /* Full width if needed */
+    .row-2 { grid-row: span 2; }
+
+    /* ---------- 7. WHATSAPP AI DEEP DIVE ---------- */
+    .wa-section {
+      margin-top: 120px; padding: 100px 0;
+      background: linear-gradient(180deg, transparent, rgba(37, 211, 102, 0.05), transparent);
+      border-top: 1px solid var(--border); border-bottom: 1px solid var(--border);
+    }
+    .chat-interface {
+      max-width: 380px; margin: 0 auto; background: #0b141a; border-radius: 30px;
+      border: 4px solid #333; overflow: hidden; box-shadow: 0 20px 50px rgba(0,0,0,0.6);
+    }
+    .chat-header { background: #202c33; padding: 15px; display: flex; align-items: center; gap: 10px; color: white; }
+    .chat-body { 
+      height: 400px; padding: 20px; display: flex; flex-direction: column; gap: 10px; 
+      background-image: url('https://user-images.githubusercontent.com/15075759/28719144-86dc0f70-73b1-11e7-911d-60d70fcded21.png'); opacity: 0.9;
+    }
+    .msg {
+      max-width: 80%; padding: 10px 14px; border-radius: 8px; font-size: 13px; line-height: 1.4;
+      opacity: 0; transform: translateY(10px); animation: msg-appear 0.5s forwards;
+    }
+    .msg-in { background: #202c33; align-self: flex-start; border-top-left-radius: 0; }
+    .msg-out { background: #005c4b; align-self: flex-end; border-top-right-radius: 0; color: #e9edef; }
+
+    @keyframes msg-appear { to { opacity: 1; transform: translateY(0); } }
+
+    /* ---------- 8. PRICING & FOOTER ---------- */
+    .pricing-card {
+      text-align: center; border: 1px solid var(--border); padding: 40px; border-radius: 24px;
+      background: var(--bg-card);
+    }
+    .pricing-card.featured { border-color: var(--primary); background: rgba(124, 58, 237, 0.05); }
+    .price { font-size: 48px; font-weight: 700; margin: 20px 0; color: white; }
+    .price small { font-size: 16px; color: var(--text-muted); font-weight: 400; }
+
+    footer { padding: 80px 0 40px; border-top: 1px solid var(--border); margin-top: 100px; color: var(--text-muted); font-size: 14px; }
+    .footer-grid { display: grid; grid-template-columns: 2fr 1fr 1fr 1fr; gap: 40px; margin-bottom: 60px; }
+
+    /* ---------- RESPONSIVE ---------- */
+    @media (max-width: 1024px) {
+      .bento-grid { grid-template-columns: 1fr 1fr; grid-template-rows: auto; }
+      .span-2 { grid-column: span 1; }
+      .row-2 { grid-row: span 1; }
+      .hero h1 { font-size: 48px; }
+      .grid-2 { grid-template-columns: 1fr; }
+    }
+    @media (max-width: 768px) {
+      .bento-grid { grid-template-columns: 1fr; }
+      .nav-menu { display: none; }
+      .hero-visual { display: none; } /* Hide complex visual on mobile, show simple image instead */
+    }
+
+    /* JS Reveal Classes */
+    .reveal { opacity: 0; transform: translateY(30px); transition: all 0.8s ease; }
+    .reveal.active { opacity: 1; transform: translateY(0); }
+    /* تأثير نبض خفيف للنص المهم */
+@keyframes pulse-red { 0% { opacity: 0.7; } 50% { opacity: 1; text-shadow: 0 0 10px rgba(239, 68, 68, 0.6); } 100% { opacity: 0.7; } }
+@keyframes pulse-green { 0% { opacity: 0.7; } 50% { opacity: 1; text-shadow: 0 0 10px rgba(37, 211, 102, 0.6); } 100% { opacity: 0.7; } }
+
+.kill-text { animation: pulse-red 2s infinite; font-weight: 800; }
+.scale-text { animation: pulse-green 2s infinite; font-weight: 800; }
+  </style>
+</head>
+<body>
+
+  <div class="orb-canvas">
+    <div class="orb orb-1"></div>
+    <div class="orb orb-2"></div>
+    <div class="orb orb-3"></div>
+  </div>
+
+  <header>
+    <div class="container nav-inner">
+      <div class="logo">
+        <div style="width:24px;height:24px;background:var(--primary);border-radius:4px;"></div>
+        Waselytics
+      </div>
+      <nav class="nav-menu">
+        <a href="#analytics" class="nav-link">Attribution</a>
+        <a href="#whatsapp" class="nav-link">AI Agents</a>
+        <a href="#pricing" class="nav-link">Pricing</a>
+      </nav>
+      <div style="display:flex;gap:12px">
+        <button class="btn btn-glass" style="padding:10px 16px; font-size:13px">Log in</button>
+        <button class="btn btn-primary" style="padding:10px 16px; font-size:13px">Start Trial</button>
+      </div>
+    </div>
+  </header>
+
+  <main>
+    <section class="container hero">
+      <div class="badge badge-purple reveal">New: WhatsApp Auto-Confirmation</div>
+      <h1 class="reveal" style="transition-delay:0.1s">
+        The Operating System for <br>Cash-On-Delivery Scale
+      </h1>
+      <p class="reveal" style="transition-delay:0.2s">
+        Clicks don't pay the bills. Waselytics tracks your ads all the way to <strong>delivered cash</strong> and uses AI agents to confirm orders, reduce returns, and upsell via WhatsApp.
+      </p>
+      
+      <div class="reveal" style="transition-delay:0.3s; display:flex; gap:16px; justify-content:center;">
+        <button class="btn btn-primary">
+          <span>Get Free Audit</span>
+          <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+        </button>
+        <button class="btn btn-glass">Watch Demo</button>
+      </div>
+
+      <div class="hero-visual reveal" style="transition-delay:0.5s">
+        <div class="float-card fc-analytics">
+          <div style="font-size:12px; color:var(--text-muted); margin-bottom:8px">Campaign #293 Performance</div>
+          <div style="display:flex; justify-content:space-between; align-items:flex-end">
+            <div>
+              <div style="font-size:10px; color:#ef4444">Pixel ROAS</div>
+              <div style="font-weight:700; color:#ef4444">1.2x (Loss)</div>
+            </div>
+            <div style="text-align:right">
+              <div style="font-size:10px; color:var(--whatsapp)">Real Cash ROI</div>
+              <div style="font-weight:700; color:var(--whatsapp)">3.4x (Profit)</div>
+            </div>
+          </div>
+          <div style="height:4px; background:#333; margin-top:8px; border-radius:2px; overflow:hidden">
+            <div style="width:70%; height:100%; background:var(--whatsapp)"></div>
+          </div>
+        </div>
+
+        <div class="float-card fc-center">
+          <div style="display:flex; gap:8px; align-items:center; margin-bottom:20px">
+            <div style="width:12px; height:12px; border-radius:50%; background:#ef4444"></div>
+            <div style="width:12px; height:12px; border-radius:50%; background:#f59e0b"></div>
+            <div style="width:12px; height:12px; border-radius:50%; background:#10b981"></div>
+          </div>
+          <svg viewBox="0 0 300 100" style="width:100%; height:80%; stroke:var(--primary); fill:none; stroke-width:2;">
+            <path d="M0,80 C50,80 50,30 100,30 C150,30 150,60 200,40 C250,20 250,10 300,5" />
+            <linearGradient id="g" x1="0" x2="0" y1="0" y2="1"><stop offset="0%" stop-color="var(--primary)" stop-opacity="0.2"/><stop offset="100%" stop-color="transparent"/></linearGradient>
+            <path d="M0,80 C50,80 50,30 100,30 C150,30 150,60 200,40 C250,20 250,10 300,5 V100 H0 Z" style="stroke:none; fill:url(#g)" />
+          </svg>
+        </div>
+
+        <div class="float-card fc-whatsapp">
+          <div style="display:flex; gap:10px; align-items:center">
+            <div style="width:30px; height:30px; background:#005c4b; border-radius:50%; display:flex; align-items:center; justify-content:center">🤖</div>
+            <div>
+              <div style="font-size:12px; font-weight:700; color:white">AI Agent</div>
+              <div style="font-size:10px; color:#bbb">Order #9921 Confirmed ✅</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="analytics" class="container reveal" style="margin-top:40px">
+      <div class="section-title">
+        <h2>Uncover the <span style="text-decoration: underline; text-decoration-color: var(--primary);">Real Truth</span></h2>
+        <p style="color:var(--text-muted)">Platforms show you clicks. We show you the <span style="color:#25d366;">moneny</span>.</p>
+      </div>
+
+      <div class="bento-grid">
+        <div class="cell span-2 row-2">
+          <div class="cell-bg" style="background-image: linear-gradient(45deg, rgba(124,58,237,0.1) 25%, transparent 25%, transparent 50%, rgba(124,58,237,0.1) 50%, rgba(124,58,237,0.1) 75%, transparent 75%, transparent);"></div>
+          <div class="cell-content">
+            <span class="cell-icon">🎯</span>
+            <h3>Deep Pixel Attribution</h3>
+            <p style="color:var(--text-muted); margin-top:10px">
+              Most COD orders get returned. Facebook Pixel doesn't know that. Waselytics links your Ad ID to the final status (Delivered/Returned). 
+              <br><br>
+              <strong>Result:</strong> You see which creative is actually generating cash, not just "Purchase Events".
+            </p>
+<div style="margin-top:auto; padding-top:20px;">
+  <div style="background:rgba(0,0,0,0.3); padding:15px; border-radius:12px; font-family:'Space Grotesk', monospace; font-size:13px; border:1px solid rgba(255,255,255,0.05)">
+    <div style="color:#ef4444; margin-bottom:6px">
+      - Ad Set A: 40% Returns = <span class="kill-text">KILL 💀</span>
+    </div>
+    <div style="color:var(--whatsapp)">
+      + Ad Set B: 5% Returns = <span class="scale-text">SCALE 🚀</span>
+    </div>
+  </div>
+</div>
+          </div>
+        </div>
+
+        <div class="cell">
+          <div class="cell-content">
+            <span class="cell-icon">🚛</span>
+            <h3>Courier Scoring</h3>
+            <p style="color:var(--text-muted); font-size:14px">We grade your shipping companies. Automatically route orders to the fastest courier per city.</p>
+          </div>
+        </div>
+
+        <div class="cell">
+          <div class="cell-content">
+            <span class="cell-icon">📦</span>
+            <h3>Stock Forecasting</h3>
+            <p style="color:var(--text-muted); font-size:14px">AI predicts when you'll stock out based on current ad spend velocity. Never pause a winning ad due to zero stock.</p>
+          </div>
+        </div>
+
+        <div class="cell span-2">
+          <div class="cell-content">
+            <span class="cell-icon">💰</span>
+            <h3>Profit & Loss Dashboard</h3>
+            <p style="color:var(--text-muted)">Real-time view of Product Costs (COGS) + Ad Spend + Shipping Fees = Net Profit.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="whatsapp" class="wa-section">
+      <div class="container grid-2" style="align-items:center">
+        <div class="reveal">
+          <div class="badge" style="background:rgba(37, 211, 102, 0.1); color:#4ade80; border-color:rgba(37, 211, 102, 0.2)">24/7 Automation</div>
+          <h2 style="font-size:48px; line-height:1.1">
+            Turn WhatsApp into a <br>
+            <span style="color:var(--whatsapp)">Sales Machine</span>
+          </h2>
+          <p style="color:var(--text-muted); font-size:18px; margin:20px 0 30px;">
+            Don't hire a call center. Our AI Agent contacts customers instantly after they order to confirm details, reducing fake orders by up to 40%.
+          </p>
+
+          <div style="display:flex; flex-direction:column; gap:20px">
+            <div style="display:flex; gap:16px;">
+              <div style="width:40px; height:40px; background:#202c33; border-radius:8px; display:flex; align-items:center; justify-content:center; color:var(--whatsapp)">1</div>
+              <div>
+                <h4 style="color:white">Instant Confirmation</h4>
+                <p style="color:var(--text-muted); font-size:14px">Customer orders -> AI sends WhatsApp immediately -> Confirms Address.</p>
+              </div>
+            </div>
+            <div style="display:flex; gap:16px;">
+              <div style="width:40px; height:40px; background:#202c33; border-radius:8px; display:flex; align-items:center; justify-content:center; color:var(--whatsapp)">2</div>
+              <div>
+                <h4 style="color:white">Delivery Updates</h4>
+                <p style="color:var(--text-muted); font-size:14px">"Your order is out for delivery". Reduces failed delivery attempts.</p>
+              </div>
+            </div>
+            <div style="display:flex; gap:16px;">
+              <div style="width:40px; height:40px; background:#202c33; border-radius:8px; display:flex; align-items:center; justify-content:center; color:var(--whatsapp)">3</div>
+              <div>
+                <h4 style="color:white">Win-Back & Upsell</h4>
+                <p style="color:var(--text-muted); font-size:14px">Send broadcast offers to previous customers with one click.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="reveal" style="transition-delay:0.2s">
+          <div class="chat-interface">
+            <div class="chat-header">
+              <div style="width:30px; height:30px; background:white; border-radius:50%"></div>
+              <div>
+                <div style="font-weight:bold; font-size:14px">Store Support</div>
+                <div style="font-size:10px; opacity:0.8">Online | Automated</div>
+              </div>
+            </div>
+            <div class="chat-body" id="chatSim">
+              </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="pricing" class="container reveal" style="padding:80px 0">
+      <div class="section-title">
+        <h2>Simple Pricing</h2>
+      </div>
+      <div class="grid-3">
+        <div class="pricing-card">
+          <h3>Starter</h3>
+          <div class="price">$49<small>/mo</small></div>
+          <ul style="text-align:left; color:var(--text-muted); display:flex; flex-direction:column; gap:10px; margin-bottom:30px">
+            <li>• 1 Store Integration</li>
+            <li>• Basic Pixel Analysis</li>
+            <li>• 500 WhatsApp Msgs</li>
+          </ul>
+          <button class="btn btn-glass" style="width:100%">Choose Starter</button>
+        </div>
+        
+        <div class="pricing-card featured">
+          <div style="color:var(--primary); font-weight:700; margin-bottom:10px">RECOMMENDED</div>
+          <h3>Growth</h3>
+          <div class="price">$149<small>/mo</small></div>
+          <ul style="text-align:left; color:#e2e8f0; display:flex; flex-direction:column; gap:10px; margin-bottom:30px">
+            <li>• 5 Store Integrations</li>
+            <li>• <strong>AI Order Confirmation</strong></li>
+            <li>• Unlimited WhatsApp</li>
+            <li>• Courier Scoring</li>
+          </ul>
+          <button class="btn btn-primary" style="width:100%">Start Free Trial</button>
+        </div>
+
+        <div class="pricing-card">
+          <h3>Enterprise</h3>
+          <div class="price">Custom</div>
+          <ul style="text-align:left; color:var(--text-muted); display:flex; flex-direction:column; gap:10px; margin-bottom:30px">
+            <li>• Custom API</li>
+            <li>• Dedicated Server</li>
+            <li>• Custom AI Training</li>
+          </ul>
+          <button class="btn btn-glass" style="width:100%">Contact Sales</button>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <footer>
+    <div class="container">
+      <div class="footer-grid">
+        <div>
+          <div class="logo" style="margin-bottom:20px;">Waselytics</div>
+          <p>The only platform that connects your ad spend to your bank account deposits for COD businesses.</p>
+        </div>
+        <div>
+          <h4 style="color:white; margin-bottom:20px">Product</h4>
+          <ul style="display:flex; flex-direction:column; gap:10px">
+            <li><a href="#">Attribution</a></li>
+            <li><a href="#">WhatsApp AI</a></li>
+            <li><a href="#">Inventory</a></li>
+          </ul>
+        </div>
+        <div>
+          <h4 style="color:white; margin-bottom:20px">Resources</h4>
+          <ul style="display:flex; flex-direction:column; gap:10px">
+            <li><a href="#">Blog</a></li>
+            <li><a href="#">Case Studies</a></li>
+            <li><a href="#">Help Center</a></li>
+          </ul>
+        </div>
+        <div>
+          <h4 style="color:white; margin-bottom:20px">Legal</h4>
+          <ul style="display:flex; flex-direction:column; gap:10px">
+            <li><a href="#">Privacy</a></li>
+            <li><a href="#">Terms</a></li>
+          </ul>
+        </div>
+      </div>
+      <div style="text-align:center; padding-top:40px; border-top:1px solid rgba(255,255,255,0.05)">
+        © 2025 Waselytics Inc. All rights reserved.
+      </div>
+    </div>
+  </footer>
+
+  <script>
+    // 1. Scroll Reveal Animation
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach(entry => {
+        if (entry.isIntersecting) {
+          entry.target.classList.add('active');
+        }
+      });
+    }, { threshold: 0.1 });
+    
+    document.querySelectorAll('.reveal').forEach(el => observer.observe(el));
+
+    // 2. Chat Simulator Loop
+    const messages = [
+      { text: "Hello Ahmed! We received your order for the Smart Watch Ultra.", type: "out", delay: 500 },
+      { text: "Please confirm your address: Villa 4, Main St, Dubai.", type: "out", delay: 1500 },
+      { text: "Yes, that's correct.", type: "in", delay: 3000 },
+      { text: "Great! It's confirmed. You will receive it within 24 hours via SMSA Express 🚀", type: "out", delay: 4500 }
+    ];
+
+    const chatContainer = document.getElementById('chatSim');
+    
+    function runChat() {
+      chatContainer.innerHTML = '';
+      let totalDelay = 0;
+
+      messages.forEach(msg => {
+        totalDelay += msg.delay;
+        setTimeout(() => {
+          const div = document.createElement('div');
+          div.className = `msg msg-${msg.type}`;
+          div.innerText = msg.text;
+          chatContainer.appendChild(div);
+        }, totalDelay);
+      });
+
+      // Restart animation loop
+      setTimeout(runChat, totalDelay + 4000);
+    }
+    
+    // Start Chat when section is visible
+    const chatObserver = new IntersectionObserver((entries) => {
+      if(entries[0].isIntersecting) {
+        runChat();
+        chatObserver.disconnect(); // Run once or keep running
+      }
+    });
+    chatObserver.observe(document.querySelector('.wa-section'));
+
+    // 3. Parallax Effect on Hero Visual
+    document.addEventListener('mousemove', (e) => {
+      const x = (window.innerWidth - e.pageX) / 50;
+      const y = (window.innerHeight - e.pageY) / 50;
+      const visual = document.querySelector('.hero-visual');
+      if(visual) {
+        visual.style.transform = `rotateY(${x}deg) rotateX(${y}deg)`;
+      }
+    });
+
+  </script>
+</body>
+</html>
+
+<!-- 
+<script>
+  // STORE TRACKER - combined (pageview on load + send phone on external button click)
+// Paste this after DOM or at end of body
+
+(function(){
+  // ---------- Configuration (عدل إذا لزم) ----------
+  window.__STORE_TRACKER_CFG = window.__STORE_TRACKER_CFG || {
+    storeUrl: "store.example/com",
+    storeHash: "c3RvcmUuZXhh",
+    enableDiscount: false,
+    blockRepeat: true,
+    visitorSource: "all",
+    audience: "public",
+    addons: "",
+    createdAt: new Date().toISOString(),
+    collectorUrl: "/collect",
+    captureVisitEndpoint: "https://boujema.pythonanywhere.com/discount/marketing/api/capture-visit/",
+    flow_id: null // ضع هنا flow_id إن أردت إرساله (ليس flow_api_key)
+  };
+
+  const cfg = window.__STORE_TRACKER_CFG;
+  const collectorUrl = cfg.captureVisitEndpoint || cfg.collectorUrl || '/collect';
+
+  // ---------- LocalStorage keys ----------
+  const VISITOR_KEY = '__visitor_id';
+  const CREATED_KEY = '__visitor_created_at';
+  const VISITS_KEY_PREFIX = '__sv_visits_';
+  const QUEUE_KEY = '__st_phone_capture_queue_v1';
+  const SENT_MARK_KEY = '__st_phone_last_sent_v1';
+  const DEDUP_MS = 24*60*60*1000; // منع إرسال نفس الرقم خلال 24 ساعة
+
+  // ---------- helper: try send beacon / fetch ----------
+  function trySendBeacon(url, bodyObj){
+    try{
+      const payload = typeof bodyObj === 'string' ? bodyObj : JSON.stringify(bodyObj);
+      if(navigator.sendBeacon){
+        try{
+          const ok = navigator.sendBeacon(url, payload);
+          if(ok) return true;
+        }catch(e){}
+      }
+      try {
+        fetch(url, { method:'POST', headers:{'Content-Type':'application/json'}, body: payload, keepalive:true }).catch(()=>{});
+        return true;
+      } catch(e){ return false; }
+    }catch(e){ return false; }
+  }
+
+  // ---------- visitor id creation if missing ----------
+  function ensureVisitor(){
+    try{
+      let vid = localStorage.getItem(VISITOR_KEY);
+      if(!vid){
+        vid = Math.random().toString(36).substr(2);
+        localStorage.setItem(VISITOR_KEY, vid);
+      }
+      let created = localStorage.getItem(CREATED_KEY);
+      if(!created){
+        created = new Date().toISOString();
+        localStorage.setItem(CREATED_KEY, created);
+      }
+      return { visitorId: vid, createdAt: created };
+    }catch(e){
+      return { visitorId: null, createdAt: null };
+    }
+  }
+
+  // ---------- utility: get URL param ----------
+  function getParam(name){
+    try{
+      name = name.replace(/[[]]/g,'$&');
+      const regex = new RegExp('[?&]'+name+'=([^&#]*)');
+      const results = regex.exec(location.search);
+      return results ? decodeURIComponent(results[1].replace(/\+/g,' ')) : '';
+    }catch(e){ return ''; }
+  }
+
+  // ---------- collect UTM/ad fields ----------
+  function collectUtm(){
+    return {
+      utm_campaign: getParam('utm_campaign') || getParam('utm_campaign_id') || '',
+      utm_source: getParam('utm_source') || '',
+      utm_medium: getParam('utm_medium') || '',
+      ad_id: getParam('ad_id') || '',
+      site_source_name: getParam('site_source_name') || '',
+      ad_name: getParam('ad_name') || ''
+    };
+  }
+
+  // ---------- pageview: increment visits and send event ----------
+  (function sendInitialPageview(){
+    try{
+      const storeHash = cfg.storeHash || 'default';
+      const visitsKey = VISITS_KEY_PREFIX + storeHash;
+      let v = parseInt(localStorage.getItem(visitsKey) || '0', 10);
+      v = isNaN(v) ? 1 : v + 1;
+      localStorage.setItem(visitsKey, v);
+
+      const vidObj = ensureVisitor();
+      const utm = collectUtm();
+      const payload = {
+        event: 'pageview',
+        ts: Date.now(),
+        visitorId: vidObj.visitorId,
+        url: location.href,
+        key: visitsKey,
+        referrer: document.referrer || null,
+        visits: v,
+        store: cfg.storeUrl || null,
+        ...utm,
+        userAgent: navigator.userAgent || null,
+        flow_id: cfg.flow_id || null
+      };
+
+      trySendBeacon(collectorUrl, payload);
+    }catch(e){}
+  })();
+
+  // ---------- phone normalization and validation ----------
+  function normalizePhone(raw){
+    if(!raw) return '';
+    let s = raw.trim();
+    if(s.startsWith('+')) s = '+' + s.slice(1).replace(/[^\d]/g,'');
+    else s = s.replace(/[^\d]/g,'');
+    return s;
+  }
+  function simpleValid(phone){
+    const digits = phone.replace(/[^\d]/g,'');
+    return digits.length >= 7; // عدّل حسب حاجتك السوقية
+  }
+
+  // ---------- queue for failed phone sends ----------
+  function enqueuePayload(payload){
+    try{
+      const q = JSON.parse(localStorage.getItem(QUEUE_KEY) || '[]');
+      q.push({ payload, attempts:0, next: Date.now() });
+      localStorage.setItem(QUEUE_KEY, JSON.stringify(q));
+    }catch(e){}
+  }
+
+  async function attemptSend(payload){
+    const body = JSON.stringify(payload);
+    try{
+      if(navigator.sendBeacon){
+        const ok = navigator.sendBeacon(collectorUrl, body);
+        if(ok) return { ok:true, method:'beacon' };
+      }
+    }catch(e){}
+    try{
+      const resp = await fetch(collectorUrl, { method:'POST', headers:{'Content-Type':'application/json'}, body, keepalive:true });
+      if(resp && resp.ok) return { ok:true, status: resp.status, method:'fetch' };
+      return { ok:false, status: resp && resp.status };
+    }catch(err){
+      return { ok:false, error: err && err.message };
+    }
+  }
+
+  async function processQueueOnce(){
+    try{
+      const raw = localStorage.getItem(QUEUE_KEY);
+      if(!raw) return;
+      let q = JSON.parse(raw || '[]');
+      if(!Array.isArray(q) || q.length === 0) return;
+      const now = Date.now();
+      const remaining = [];
+      for(const entry of q){
+        if(entry.next && entry.next > now){ remaining.push(entry); continue; }
+        const res = await attemptSend(entry.payload);
+        if(res.ok){
+          try{ localStorage.setItem(SENT_MARK_KEY, JSON.stringify({ phone: entry.payload.raw_phone, ts: Date.now() })); }catch(e){}
+        } else {
+          entry.attempts = (entry.attempts||0) + 1;
+          entry.next = Date.now() + Math.min(60000 * Math.pow(2, Math.min(entry.attempts,6)), 60*60*1000);
+          if(entry.attempts <= 8) remaining.push(entry);
+        }
+        await new Promise(r => setTimeout(r, 150));
+      }
+      localStorage.setItem(QUEUE_KEY, JSON.stringify(remaining));
+    }catch(e){}
+  }
+
+  window.addEventListener('online', processQueueOnce);
+  setInterval(processQueueOnce, 30 * 1000);
+
+  // ---------- prevent duplicate sends local ----------
+  function wasRecentlySent(phone){
+    try{
+      const o = JSON.parse(localStorage.getItem(SENT_MARK_KEY) || 'null');
+      return o && o.phone === phone && (Date.now() - o.ts) < DEDUP_MS;
+    }catch(e){ return false; }
+  }
+  function markSent(phone){
+    try{ localStorage.setItem(SENT_MARK_KEY, JSON.stringify({ phone, ts: Date.now() })); }catch(e){}
+  }
+
+  // ---------- collect extra context to match original payload ----------
+  function collectContext(){
+    const cfgLocal = cfg || {};
+    const utm = collectUtm();
+    return {
+      referrer: document.referrer || null,
+      store: cfgLocal.storeUrl || null,
+      flow_id: cfgLocal.flow_id || null,
+      userAgent: navigator.userAgent || null,
+      ...utm
+    };
+  }
+
+  // ---------- send phone payload (called on external button click) ----------
+  async function sendPhone(phone){
+    if(!phone) return;
+    if(!simpleValid(phone)) return;
+    if(wasRecentlySent(phone)) return;
+
+    const vid = localStorage.getItem(VISITOR_KEY) || null;
+    const ctx = collectContext();
+    const payload = Object.assign({}, ctx, {
+      event: 'phone_capture',
+      raw_phone: phone,
+      visitorId: vid,
+      url: location.href,
+      ts: Date.now()
+    });
+
+    try{
+      const res = await attemptSend(payload);
+      if(res.ok){ markSent(phone); return; }
+      enqueuePayload(payload);
+    }catch(e){
+      enqueuePayload(payload);
+    }
+  }
+
+  // ---------- attach to external button without blocking UI ----------
+  function attachToExternalButton(){
+    const form = document.querySelector('form#express-checkout-form') || document.querySelector('form');
+    if(!form) return;
+    // زركما الخارجي حسب الهيكل: .single-submit أو أي button[type="button"] تحت الصفحة
+    const externalBtn = document.querySelector('.single-submit') || document.querySelector('button[type="button"]');
+    if(!externalBtn) return;
+
+    externalBtn.addEventListener('click', function(){
+      try{
+        const phoneEl = form.querySelector('input[name="phone"]');
+        if(!phoneEl) return;
+        const raw = phoneEl.value || '';
+        const phone = normalizePhone(raw);
+        // لا نعرض أخطاء أو نمنع submit. فقط نحاول إرسال الهاتف إذا موجود وصالح.
+        sendPhone(phone);
+      }catch(e){}
+    }, { passive: true });
+  }
+
+  if(document.readyState === 'loading'){
+    document.addEventListener('DOMContentLoaded', attachToExternalButton);
+  } else {
+    attachToExternalButton();
+  }
+
+})();
+
+</script> -->

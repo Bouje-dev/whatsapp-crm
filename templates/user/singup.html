@@ -1,0 +1,368 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Create Account — Waselytics</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
+  
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+  <style>
+    /* ---------- DESIGN SYSTEM (Global) ---------- */
+    :root {
+      --bg-dark: #030014;
+      --bg-card: rgba(255, 255, 255, 0.03);
+      --primary: #7c3aed;
+      --whatsapp: #25D366;
+      --danger: #ef4444;
+      --text-main: #ffffff;
+      --text-muted: #94a3b8;
+      --border: rgba(255, 255, 255, 0.08);
+      --radius: 16px;
+    }
+
+    * { box-sizing: border-box; outline: none; }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: 'Inter', sans-serif;
+      background-color: var(--bg-dark);
+      color: var(--text-main);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+
+    h1, h2, h3, h4 { font-family: 'Space Grotesk', sans-serif; letter-spacing: -0.02em; }
+
+    /* ---------- BACKGROUND FX ---------- */
+    .orb-canvas {
+      position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: -1;
+      background: var(--bg-dark);
+    }
+    .orb {
+      position: absolute; border-radius: 50%; filter: blur(80px); opacity: 0.4;
+      animation: drift 20s infinite alternate;
+    }
+    .orb-1 { width: 400px; height: 400px; background: var(--primary); top: -100px; left: -100px; }
+    .orb-2 { width: 500px; height: 500px; background: #2563eb; bottom: -150px; right: -100px; animation-delay: -5s; }
+    @keyframes drift { from { transform: translate(0,0); } to { transform: translate(50px, 30px); } }
+
+    /* ---------- WRAPPER ---------- */
+    .auth-wrapper {
+      width: 100%;
+      max-width: 1000px;
+      display: grid;
+      grid-template-columns: 1.1fr 0.9fr;
+      background: rgba(15, 23, 42, 0.6);
+      backdrop-filter: blur(20px);
+      border: 1px solid var(--border);
+      border-radius: 24px;
+      box-shadow: 0 50px 100px -20px rgba(0,0,0,0.6);
+      overflow: hidden;
+      min-height: 600px;
+    }
+
+    /* ---------- LEFT: FORM AREA ---------- */
+    .form-area { padding: 50px; display: flex; flex-direction: column; justify-content: center; }
+    
+    .brand { display: flex; align-items: center; gap: 10px; margin-bottom: 30px; font-weight: 700; font-size: 18px; font-family: 'Space Grotesk', sans-serif; }
+    .brand-icon { width: 28px; height: 28px; background: var(--primary); border-radius: 6px; color: white; display: flex; align-items: center; justify-content: center; }
+
+    .page-title { font-size: 26px; margin: 0 0 8px; font-weight: 700; }
+    .page-desc { color: var(--text-muted); font-size: 14px; margin-bottom: 30px; }
+
+    /* Inputs */
+    .input-group { margin-bottom: 18px; }
+    .form-label { display: block; font-size: 13px; color: var(--text-muted); margin-bottom: 8px; font-weight: 500; }
+    .form-control {
+      width: 100%; padding: 12px 16px; background: rgba(0,0,0,0.3); border: 1px solid var(--border);
+      border-radius: 10px; color: white; font-size: 15px; transition: 0.3s; font-family: 'Inter', sans-serif;
+    }
+    .form-control:focus { border-color: var(--primary); box-shadow: 0 0 0 4px rgba(124, 58, 237, 0.1); }
+    .form-control::placeholder { color: rgba(255,255,255,0.2); }
+
+    /* Password Toggle */
+    .pwd-wrap { position: relative; }
+    .pwd-toggle { position: absolute; right: 14px; top: 50%; transform: translateY(-50%); background: none; border: none; color: var(--text-muted); cursor: pointer; }
+    .pwd-toggle:hover { color: white; }
+
+    .btn-submit {
+      width: 100%; padding: 14px; margin-top: 10px; background: linear-gradient(135deg, var(--primary), #4f46e5);
+      border: none; border-radius: 10px; color: white; font-weight: 600; font-size: 15px; cursor: pointer;
+      transition: 0.3s; box-shadow: 0 4px 20px rgba(124, 58, 237, 0.3);
+    }
+    .btn-submit:hover { transform: translateY(-2px); box-shadow: 0 8px 30px rgba(124, 58, 237, 0.5); }
+    .btn-submit:disabled { opacity: 0.7; cursor: not-allowed; transform: none; }
+    
+    .btn-outline {
+      background: transparent; border: 1px solid var(--border); color: var(--text-muted); padding: 10px 16px; border-radius: 8px; cursor: pointer; transition: 0.2s;
+    }
+    .btn-outline:hover { border-color: white; color: white; }
+
+    .bottom-link { text-align: center; margin-top: 24px; font-size: 14px; color: var(--text-muted); }
+    .bottom-link a { color: var(--primary); text-decoration: none; font-weight: 600; }
+
+    /* Alert Box */
+    .alert-box {
+      background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.2);
+      color: #fca5a5; padding: 12px; border-radius: 8px; font-size: 13px; margin-bottom: 20px;
+    }
+
+    /* ---------- RIGHT: VISUAL AREA ---------- */
+    .visual-area {
+      background: rgba(255, 255, 255, 0.02);
+      border-left: 1px solid var(--border);
+      padding: 50px;
+      display: flex; flex-direction: column; justify-content: center;
+    }
+    
+    .insight-card {
+      background: rgba(0, 0, 0, 0.4); border: 1px solid var(--border); border-radius: 16px; padding: 24px;
+      margin-bottom: 30px; font-family: 'Space Grotesk', monospace;
+    }
+    .kill { color: var(--danger); font-weight: 700; animation: pulse-red 2s infinite; }
+    .scale { color: var(--whatsapp); font-weight: 700; animation: pulse-green 2s infinite; }
+    @keyframes pulse-red { 0%, 100% { opacity: 0.7; } 50% { opacity: 1; text-shadow: 0 0 10px rgba(239, 68, 68, 0.6); } }
+    @keyframes pulse-green { 0%, 100% { opacity: 0.7; } 50% { opacity: 1; text-shadow: 0 0 10px rgba(37, 211, 102, 0.6); } }
+    
+    .row-stat { display: flex; justify-content: space-between; margin-bottom: 12px; padding-bottom: 12px; border-bottom: 1px solid rgba(255,255,255,0.05); }
+    .row-stat:last-child { border: 0; margin: 0; padding: 0; }
+
+    .feature-row { display: flex; gap: 15px; align-items: center; margin-bottom: 20px; }
+    .f-icon { width: 40px; height: 40px; background: rgba(255,255,255,0.05); border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 18px; }
+
+    @media (max-width: 900px) {
+      .auth-wrapper { grid-template-columns: 1fr; max-width: 500px; }
+      .visual-area { display: none; }
+      .form-area { padding: 30px; }
+    }
+  </style>
+</head>
+<body>
+
+  <div class="orb-canvas">
+    <div class="orb orb-1"></div>
+    <div class="orb orb-2"></div>
+  </div>
+
+  <div class="auth-wrapper">
+    
+    <div class="form-area">
+      <div class="brand">
+        <div class="brand-icon">W</div>
+        Waselytics
+      </div>
+
+      {% if user.is_authenticated and not user.email_verified %}
+        <h2 class="page-title">Verify Account</h2>
+        <p class="page-desc">
+          We sent a code to <strong style="color:white">{{ user.email }}</strong>.<br>
+          Not you? <a href="{% url 'logout' %}" style="color:var(--primary)">Log out</a>
+        </p>
+
+        <form id="verificode" autocomplete="off">
+          {% csrf_token %}
+          
+          <div class="input-group">
+            <label class="form-label">Verification Code</label>
+            <input id="code" name="code" type="text" class="form-control" placeholder="123456" maxlength="6" style="letter-spacing:4px; font-weight:bold; text-align:center" required>
+          </div>
+
+          <div style="display:grid; grid-template-columns: 2fr 1fr; gap:10px;">
+            <button id="ActivationBtn" class="btn-submit" style="margin:0" type="submit">
+              Activate
+            </button>
+            <button id="resendcode" class="btn-outline" type="button">
+              <i id="spin" class="fas fa-spinner fa-spin" style="display:none; margin-right:5px"></i> Resend
+            </button>
+          </div>
+          
+          <div id="activationMessage" style="margin-top:15px; font-size:13px; text-align:center; min-height:20px;"></div>
+        </form>
+
+      {% else %}
+        <h2 class="page-title">Start Free Trial</h2>
+        <p class="page-desc">Join 500+ COD merchants scaling with AI.</p>
+
+        <form method="post" action="{% url 'singup' %}" novalidate>
+          {% csrf_token %}
+
+          {% if form.errors %}
+            <div class="alert-box">
+              {% for field, errors in form.errors.items %}
+                {% for error in errors %}<div>{{ error }}</div>{% endfor %}
+              {% endfor %}
+            </div>
+          {% endif %}
+
+          <div class="input-group">
+            <label class="form-label">Email Address</label>
+            <input name="email" type="email" class="form-control" placeholder="you@store.com" required>
+          </div>
+
+          <div class="input-group">
+            <label class="form-label">Full Name</label>
+            <input name="user_name" type="text" class="form-control" placeholder="e.g. Ahmed Ali" required>
+          </div>
+
+          <div class="input-group">
+            <label class="form-label">Password</label>
+            <div class="pwd-wrap">
+              <input id="id_password1" name="password1" type="password" class="form-control" placeholder="Create a strong password" required>
+              <button class="pwd-toggle" type="button" id="togglePwd"><i class="fa fa-eye"></i></button>
+            </div>
+          </div>
+
+          <button type="submit" class="btn-submit">Create Account</button>
+
+          <div class="bottom-link">
+            Already have an account? <a href="{% url 'login' %}">Sign in</a>
+          </div>
+        </form>
+      {% endif %}
+    </div>
+
+    <div class="visual-area">
+      <div class="insight-card">
+        <div style="font-size:11px; text-transform:uppercase; letter-spacing:1px; color:var(--text-muted); margin-bottom:15px;">Waselytics Logic</div>
+        
+        <div class="row-stat">
+          <span style="color:#cbd5e1">Ad Set #1 (40% Returns)</span>
+          <div class="kill">KILL 💀</div>
+        </div>
+        <div class="row-stat">
+          <span style="color:#cbd5e1">Ad Set #2 (95% Delivery)</span>
+          <div class="scale">SCALE 🚀</div>
+        </div>
+      </div>
+
+      <h3 style="font-size:22px; margin-bottom:15px;">Why Merchants Switch?</h3>
+      
+      <div class="feature-row">
+        <div class="f-icon">🤖</div>
+        <div>
+          <div style="font-weight:600; font-size:14px; color:white">AI WhatsApp Agents</div>
+          <div style="font-size:13px; color:var(--text-muted)">Auto-confirm orders & reduce returns.</div>
+        </div>
+      </div>
+
+      <div class="feature-row">
+        <div class="f-icon">📊</div>
+        <div>
+          <div style="font-weight:600; font-size:14px; color:white">Real Profit Tracking</div>
+          <div style="font-size:13px; color:var(--text-muted)">Don't trust the Pixel. Trust the Cash.</div>
+        </div>
+      </div>
+
+      <div class="feature-row">
+        <div class="f-icon">📦</div>
+        <div>
+          <div style="font-weight:600; font-size:14px; color:white">Inventory Forecast</div>
+          <div style="font-size:13px; color:var(--text-muted)">Never run out of your winning product.</div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+
+  <script>
+    // --- CSRF Token Helper ---
+    function getCookie(name) {
+      let cookieValue = null;
+      if (document.cookie && document.cookie !== '') {
+        const cookies = document.cookie.split(';');
+        for (let i = 0; i < cookies.length; i++) {
+          const cookie = cookies[i].trim();
+          if (cookie.substring(0, name.length + 1) === (name + '=')) {
+            cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+            break;
+          }
+        }
+      }
+      return cookieValue;
+    }
+
+    // --- AJAX Verification Logic ---
+    function virecode(url, codeVal) {
+      const btn = $("#ActivationBtn");
+      const resendBtn = $("#resendcode");
+      const spinner = $("#spin");
+      const msgBox = $("#activationMessage");
+
+      btn.prop("disabled", true);
+      resendBtn.prop("disabled", true);
+      spinner.show();
+      msgBox.text("").hide();
+
+      $.ajax({
+        url: url,
+        type: "POST",
+        headers: { "X-CSRFToken": getCookie('csrftoken') },
+        data: { code: codeVal },
+        success: function(response) {
+          msgBox.text(response.message || "Success! Redirecting...").css("color", response.success ? "#4ade80" : "#fca5a5").show();
+          if (response.success) {
+            setTimeout(function(){ window.location.href = "{% url 'tracking' %}"; }, 1000);
+          } else {
+            btn.prop("disabled", false);
+            resendBtn.prop("disabled", false);
+            spinner.hide();
+          }
+        },
+        error: function(xhr) {
+          let errorMsg = "Connection error. Please try again.";
+          try {
+            const json = JSON.parse(xhr.responseText);
+            if (json.message) errorMsg = json.message;
+          } catch(e) {}
+          msgBox.text(errorMsg).css("color", "#fca5a5").show();
+          btn.prop("disabled", false);
+          resendBtn.prop("disabled", false);
+          spinner.hide();
+        }
+      });
+    }
+
+    $(document).ready(function(){
+      // Password Toggle
+      $("#togglePwd").on("click", function(){
+        const inp = $("#id_password1");
+        const icon = $(this).find("i");
+        if (inp.attr("type") === "password"){
+          inp.attr("type","text");
+          icon.removeClass("fa-eye").addClass("fa-eye-slash");
+        } else {
+          inp.attr("type","password");
+          icon.removeClass("fa-eye-slash").addClass("fa-eye");
+        }
+      });
+
+      // Resend Code Click
+      $("#resendcode").on("click", function(e){
+        e.preventDefault();
+        virecode("{% url 'resend_activation_email' %}", "");
+      });
+
+      // Verification Submit
+      $("#verificode").on("submit", function(e){
+        e.preventDefault();
+        const code = $("#code").val().trim();
+        if(code.length < 4) {
+          $("#activationMessage").text("Invalid code length").css("color","#fca5a5").show();
+          return;
+        }
+        virecode("{% url 'verify_code' %}", code);
+      });
+    });
+  </script>
+</body>
+</html>
