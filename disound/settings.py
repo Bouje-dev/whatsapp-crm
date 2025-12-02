@@ -199,7 +199,7 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
 EMAIL_HOST = 'smtp-relay.brevo.com'
-EMAIL_PORT = 587
+# EMAIL_PORT = 587
 EMAIL_USE_TLS = True
 
 # 🔥 القراءة من متغيرات البيئة (وليس كتابة القيم مباشرة)
