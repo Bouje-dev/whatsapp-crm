@@ -187,40 +187,133 @@ import string
 #         email.content_subtype = "html"
 #         email.send(fail_silently=False)
 
+import threading
+from django.core.mail import EmailMessage
+from django.shortcuts import get_object_or_404
+from django.http import JsonResponse
+from django.conf import settings
+
+def _send_email_in_thread(email):
+    """تنفيذ الإرسال في ثريد منفصل لعدم حظر السيرفر."""
+    try:
+        # نستخدم fail_silently=True لضمان عدم انهيار الثريد
+        email.send(fail_silently=True) 
+    except Exception as e:
+        # يجب تسجيل الخطأ هنا لتتبعه في logs Railway
+        print(f"❌ Threaded Email Error: {e}")
 def resend_activation_email(request):
     user = request.user
-    # code = generate_verification_code()
+    
+    if not user.is_authenticated:
+        return JsonResponse({'error': 'User not authenticated'}, status=401)
+
+    # 1. توليد الكود
     code = user.generate_verification_code() 
 
+    # 2. بناء الرابط الديناميكي (لحل مشكلة http://127.0.0.1)
+    # نستخدم معلومات الطلب لإنشاء رابط حي (Live URL)
+    current_host = request.get_host()
+    protocol = 'https' if request.is_secure() else 'http'
+    
+    # تأكد أن المسار 'activate' معرف في urls.py
+    activation_link = f'{protocol}://{current_host}/activate/{user.id}/' 
+
+    # 3. بناء محتوى الإيميل
     subject = 'كود التحقق من حسابك'
-    message = f'كود التحقق الخاص بك هو: {code}  اضغط هنا لتفعيل حسابك: http://127.0.0.1:8000/activate/{user.id}/'
+    message_body = f"""
+    <!DOCTYPE html>
+    <html lang="ar" dir="rtl">
+    <head>
+        <style>
+            body {{ font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f4f4f5; margin: 0; padding: 0; }}
+            .email-container {{ max-width: 600px; margin: 40px auto; background-color: #ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 12px rgba(0,0,0,0.05); border: 1px solid #e4e4e7; }}
+            .header {{ background-color: #7c3aed; padding: 30px; text-align: center; }}
+            .header h1 {{ color: #ffffff; margin: 0; font-size: 24px; letter-spacing: 1px; }}
+            .content {{ padding: 40px 30px; color: #3f3f46; line-height: 1.6; text-align: center; }}
+            .welcome-text {{ font-size: 18px; font-weight: 600; margin-bottom: 20px; color: #18181b; }}
+            .code-box {{ background-color: #f3f0ff; color: #7c3aed; font-size: 32px; font-weight: bold; letter-spacing: 5px; padding: 15px; border-radius: 8px; margin: 30px 0; display: inline-block; border: 2px dashed #ddd6fe; }}
+            .btn-activate {{ display: inline-block; background-color: #7c3aed; color: #ffffff; text-decoration: none; padding: 12px 30px; border-radius: 8px; font-weight: bold; margin-top: 20px; transition: background 0.3s; }}
+            .btn-activate:hover {{ background-color: #6d28d9; }}
+            .footer {{ background-color: #fafafa; padding: 20px; text-align: center; font-size: 12px; color: #a1a1aa; border-top: 1px solid #f4f4f5; }}
+            .link-fallback {{ font-size: 12px; color: #a1a1aa; margin-top: 20px; word-break: break-all; }}
+        </style>
+    </head>
+    <body>
+        <div class="email-container">
+            <div class="header">
+                <h1>Waselytics</h1>
+            </div>
+            
+            <div class="content">
+                <div class="welcome-text">مرحباً {user.user_name or user.email} 👋</div>
+                <p>شكراً لتسجيلك معنا! لإكمال إعداد حسابك والبدء في تتبع أرباحك، يرجى استخدام كود التحقق أدناه:</p>
+                
+                <div class="code-box">{code}</div>
+                
+                <p>أو يمكنك الضغط على الزر التالي لتفعيل الحساب مباشرة:</p>
+                <a href="{activation_link}" class="btn-activate">تفعيل الحساب الآن</a>
+                
+                <div class="link-fallback">
+                    إذا لم يعمل الزر، انسخ الرابط التالي:<br>
+                    <a href="{activation_link}" style="color:#7c3aed;">{activation_link}</a>
+                </div>
+            </div>
+            
+            <div class="footer">
+                &copy; 2025 Waselytics. جميع الحقوق محفوظة.<br>
+                هذا إيميل آلي، الرجاء عدم الرد عليه.
+            </div>
+        </div>
+    </body>
+    </html>
+    """
+    
     email = EmailMessage(
-        subject,
-        body = message,
-        from_email='bojamaabayad2001@gmail.com',
-        to = [user.email],
-    )
+            subject,
+            body=message_body , 
+            from_email=settings.DEFAULT_FROM_EMAIL,
+            to=[user.email],
+        )
     email.content_subtype = "html"
-    email.send(fail_silently=False)
-    return JsonResponse({'success': True, 'message': 'تم إرسال رابط التفعيل لبريدك الإلكتروني'})
+
+    
+    print("⏳ Attempting to send email via Brevo...")
+    email.send(fail_silently=False)  
+    print("✅ Email Sent Successfully!")
+    if not request.user.is_authenticated:
+        login(request, user)
+        print('tring to log in  user ')
+
+
+    
+ 
+
+        
+    # 4. 🔥 الإرسال غير المتزامن (Fixes 500 Timeout)
+    email_thread = threading.Thread(target=_send_email_in_thread, args=(email,))
+    email_thread.start() 
+
+    # 5. الرد الفوري للواجهة
+    return JsonResponse({'success': True, 'message': 'تم إرسال رابط التفعيل لبريدك الإلكتروني. الرجاء التحقق من البريد.'})
 
 def activate_account(request, user_id=None):
     code = request.POST.get('code' , None)
     user = request.user
     if code is not None :
-        if user.email_verification_code == code:
+        if user.email_verification_code == code: # نفترض وجود هذا الحقل
             user.is_active = True
             user.is_verified = True
             user.save()
-
             return JsonResponse({'success': True, 'message': 'Your account has been activated successfully'})
         else: return JsonResponse({'success': False, 'message': 'Invalid activation code'})
     else:
-        user = get_object_or_404(CustomUser, pk=user_id)
+        # حالة النقر على الرابط المباشر
+        user = get_object_or_404(CustomUser, pk=user_id) # نفترض CustomUser معرفة
         user.email_verified = True
         user.is_active = True
         user.save()
-        return redirect('tracking')  # أو أي صفحة بعد التفعيل
+        return redirect('tracking')
+
 
 def verify_code(request):
     code = request.POST.get('code' , None)
@@ -235,8 +328,6 @@ def verify_code(request):
             
         else: return JsonResponse({'success': False, 'message': 'Invalid activation code'})
   
-
-
 def register_user(email, password, user_name):
     if CustomUser.objects.filter(email=email).exists():
         raise ValueError('البريد الإلكتروني مسجل مسبقاً')
@@ -246,19 +337,29 @@ def register_user(email, password, user_name):
         email=email,
         password=password,
         user_name=user_name,
-        is_verified=False,  
-        is_team_admin=True 
+        
+        
+        # 🔥 التغيير هنا: نجعله نشطاً ليتمكن من الدخول
+        is_active=True, 
+        
+        # ونعتمد على هذا الحقل لمنعه من دخول الداشبورد
+        is_verified=True,
+        
+        is_team_admin=True
 
     )
+    print('user'  ,user)
     
     # إنشاء ملف تعريف المستخدم
     # CustomUserCreationForm.objects.create(user=user)
+    
     # إرسال كود التحقق
     # send_verification_email(user)
     
     return user
 
-
+from django.contrib.auth import login
+from django.contrib.auth import authenticate, login
 
 def singup(request):
     if request.method == 'POST':
@@ -269,37 +370,40 @@ def singup(request):
             password = form.cleaned_data['password1']
 
             try:
+                # 1. إنشاء المستخدم
                 user = register_user(email=email, password=password, user_name=user_name)
+                try :
+                    login(request, user, backend='django.contrib.auth.backends.ModelBackend')
+                except Exception as e:
+                    print(f"❌ Login Error: {e}")
+                    
+                resend_activation_email(request)
+              
+                    
+                return redirect('singup')
+              
             except ValueError as e:
+                print(f"❌ Registration Error: {e}")
+               
                 form.add_error('email', str(e))
                 return render(request, 'user/singup.html', {'form': form})
-            
-            login(request, user)
-            resend_activation_email(request)
-            return redirect('singup')
         else:
+            print(f"❌ Form is INVALID. Errors: {form.errors}")
             return render(request, 'user/singup.html', {'form': form})
     
     else:
+        # GET Request
+
+        print(f"🔎 Checking session: Is Authenticated? {request.user.is_authenticated}")
+        
+        if request.user.is_authenticated and not getattr(request.user, 'is_verified', False):
+            return render(request, 'user/singup.html', {'form': CustomUserCreationForm()})
+            
         form = CustomUserCreationForm()
     
     return render(request, 'user/singup.html', {'form': form})
 
-
-
-# def login_user(request, email, password):
-#     user = authenticate(request, username=email, password=password)
-    
-#     if user is None:
-#         raise ValueError('بيانات الدخول غير صحيحة')
-    
-#     if not user.is_verified:
-#         raise ValueError('الحساب غير مفعل، يرجى التحقق من بريدك الإلكتروني')
-    
-#     # login(request, user)
-#     # return user
-
-
+ 
 
 
 

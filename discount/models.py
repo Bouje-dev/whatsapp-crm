@@ -117,6 +117,7 @@ class CustomUser(AbstractUser):
     user_name = models.CharField(max_length=255, blank=True, null=True, unique=False)  # يمكن استخدام هذا الحقل كاسم المستخدم
     phone = models.CharField(max_length=15, blank=True, null=True)
     is_verified = models.BooleanField(default=False)
+     
     stuff_momber  = models.BooleanField(default=False)
     is_team_admin = models.BooleanField(default=False)
     email_verification_code = models.CharField(max_length=6, blank=True, null=True)

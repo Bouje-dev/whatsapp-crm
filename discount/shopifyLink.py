@@ -677,6 +677,7 @@ def tracking(request,leades = None):
 
     # productslist = Products.objects.filter(user_permissions__user=request.user)
     if request.user.is_authenticated:
+        print('f👀' , request.user , request.user)
         if request.user.is_team_admin:
             productslist = Products.objects.filter(admin=request.user)
         else:
@@ -992,7 +993,7 @@ def getSearch(request):
             filtered_orders = filtered_orders.filter(sku=product_filter)
 
         # فلترة الطلبات حسب صلاحيات المستخدم
-        if request.user.is_staff_member and not request.user.is_team_admin:
+        if request.user.is_staff_member and not request.user.is_is_team_admin:
             productslist = Products.objects.filter(user_permissions__user=request.user)
             if product_filter and product_filter != 'all':
                 filtered_products = productslist.filter(sku=product_filter)

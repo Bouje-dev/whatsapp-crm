@@ -27,7 +27,7 @@ MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 SECRET_KEY = 'django-insecure-8*lzwv5+jl80b65ev5=atx-bn2&-bf^jk7)y&886_xbf2)m_%('
 
 # SECURITY WARNING: don't run with debug turned on in production!
-# DEBUG = True
+DEBUG = True
 
 # ALLOWED_HOSTS = []
 CSRF_TRUSTED_ORIGINS = [
@@ -195,26 +195,42 @@ STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
  
+
+# EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+# EMAIL_HOST = 'smtp-relay.brevo.com'
+# # EMAIL_PORT = 587
+# EMAIL_USE_TLS = True
+
+# # 🔥 القراءة من متغيرات البيئة (وليس كتابة القيم مباشرة)
+# EMAIL_HOST_USER = os.environ.get('EMAIL_HOST_USER') 
+# EMAIL_HOST_PASSWORD = os.environ.get('EMAIL_HOST_PASSWORD')
+# DEFAULT_FROM_EMAIL = os.environ.get('DEFAULT_FROM_EMAIL', EMAIL_HOST_USER)
+
+
+
+# settings.py
+# settings.py
+# EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
+
+# EMAIL_HOST = os.environ.get('EMAIL_HOST', 'smtp-relay.brevo.com')
+# EMAIL_PORT = int(os.environ.get('EMAIL_PORT', 587))
  
+# قراءة المستخدم وكلمة المرور من السيرفر
+# EMAIL_HOST_USER = os.environ.get('EMAIL_HOST_USER' , 'bojamaabayad2001@gmail.com')
+# EMAIL_HOST_PASSWORD = os.environ.get('EMAIL_HOST_PASSWORD' , 'bskmB4ob7FzW3GM')
+
+# المرسل الافتراضي
+# DEFAULT_FROM_EMAIL = os.environ.get('DEFAULT_FROM_EMAIL', EMAIL_HOST_USER)
+
+
+# settings.py
 
 EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
 EMAIL_HOST = 'smtp-relay.brevo.com'
-# EMAIL_PORT = 587
+EMAIL_PORT = 587
 EMAIL_USE_TLS = True
 
-# 🔥 القراءة من متغيرات البيئة (وليس كتابة القيم مباشرة)
-EMAIL_HOST_USER = os.environ.get('EMAIL_HOST_USER') 
-EMAIL_HOST_PASSWORD = os.environ.get('EMAIL_HOST_PASSWORD')
-DEFAULT_FROM_EMAIL = os.environ.get('DEFAULT_FROM_EMAIL', EMAIL_HOST_USER)
-
-
-SITE_URL = "http://localhost:8000"
-
-                    
  
-
-
-# DEBUG = False
 ALLOWED_HOSTS = ['*']  
  
 
@@ -234,23 +250,27 @@ FILE_UPLOAD_MAX_MEMORY_SIZE = 104857600  # 100 MB
 
 
 
+ 
 
+ 
+ 
+ALLOWED_HOSTS = ['*']
+CSRF_TRUSTED_ORIGINS = ['https://*.up.railway.app']
 
-# meta thing 
-# settings.py
-META_APP_ID = '843023434947245'      # App ID الخاص بك
-    # App Secret الذي جلبته
-META_API_VERSION = 'v24.0'
 
 
  
+if not DEBUG:
+    # إعدادات السيرفر (HTTPS)
+    SECURE_SSL_REDIRECT = True
+    SESSION_COOKIE_SECURE = True
+    CSRF_COOKIE_SECURE = True
+    SECURE_BROWSER_XSS_FILTER = True
+else:
+    # إعدادات Localhost (HTTP)
+    SECURE_SSL_REDIRECT = False
+    SESSION_COOKIE_SECURE = False
+    CSRF_COOKIE_SECURE = False
 
 
-
-
-# نقرأ DEBUG من السيرفر، وإذا لم نجدها نعتبرها False (للحماية)
-DEBUG = os.environ.get('DEBUG', 'False') == 'True'
-
-# السماح لـ Railway بالوصول للموقع
-ALLOWED_HOSTS = ['*']
-CSRF_TRUSTED_ORIGINS = ['https://*.up.railway.app']
+AUTH_USER_MODEL = 'discount.CustomUser'
