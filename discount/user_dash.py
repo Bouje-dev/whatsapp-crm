@@ -193,109 +193,74 @@ from django.shortcuts import get_object_or_404
 from django.http import JsonResponse
 from django.conf import settings
 
-def _send_email_in_thread(email):
-    """تنفيذ الإرسال في ثريد منفصل لعدم حظر السيرفر."""
+# دالة المساعدة للإرسال عبر API (وليس SMTP)
+def _send_brevo_api_background(payload, api_key):
+    url = "https://api.brevo.com/v3/smtp/email"
+    headers = {
+        "accept": "application/json",
+        "api-key": api_key,
+        "content-type": "application/json"
+    }
     try:
-        # نستخدم fail_silently=True لضمان عدم انهيار الثريد
-        email.send(fail_silently=True) 
+        response = requests.post(url, json=payload, headers=headers, timeout=10)
+        if response.status_code in [200, 201, 202]:
+            print("✅ Email sent via API successfully!")
+        else:
+            print(f"❌ Brevo API Error: {response.text}")
     except Exception as e:
-        # يجب تسجيل الخطأ هنا لتتبعه في logs Railway
-        print(f"❌ Threaded Email Error: {e}")
+        print(f"❌ API Connection Error: {e}")
+
 def resend_activation_email(request):
     user = request.user
-    
     if not user.is_authenticated:
         return JsonResponse({'error': 'User not authenticated'}, status=401)
 
-    # 1. توليد الكود
-    code = user.generate_verification_code() 
-
-    # 2. بناء الرابط الديناميكي (لحل مشكلة http://127.0.0.1)
-    # نستخدم معلومات الطلب لإنشاء رابط حي (Live URL)
+    # 1. تجهيز البيانات
+    code = user.generate_verification_code()
     current_host = request.get_host()
     protocol = 'https' if request.is_secure() else 'http'
+    activation_link = f'{protocol}://{current_host}/activate/{user.id}/'
     
-    # تأكد أن المسار 'activate' معرف في urls.py
-    activation_link = f'{protocol}://{current_host}/activate/{user.id}/' 
+    # 2. قراءة مفتاح API من البيئة
+    brevo_key = os.environ.get('BREVO_API_KEY') # أو من settings
+    if not brevo_key:
+        print("⚠️ Missing BREVO_API_KEY")
+        return JsonResponse({'success': False, 'message': 'Server Config Error'})
 
-    # 3. بناء محتوى الإيميل
-    subject = 'كود التحقق من حسابك'
-    message_body = f"""
-    <!DOCTYPE html>
-    <html lang="ar" dir="rtl">
-    <head>
-        <style>
-            body {{ font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f4f4f5; margin: 0; padding: 0; }}
-            .email-container {{ max-width: 600px; margin: 40px auto; background-color: #ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 12px rgba(0,0,0,0.05); border: 1px solid #e4e4e7; }}
-            .header {{ background-color: #7c3aed; padding: 30px; text-align: center; }}
-            .header h1 {{ color: #ffffff; margin: 0; font-size: 24px; letter-spacing: 1px; }}
-            .content {{ padding: 40px 30px; color: #3f3f46; line-height: 1.6; text-align: center; }}
-            .welcome-text {{ font-size: 18px; font-weight: 600; margin-bottom: 20px; color: #18181b; }}
-            .code-box {{ background-color: #f3f0ff; color: #7c3aed; font-size: 32px; font-weight: bold; letter-spacing: 5px; padding: 15px; border-radius: 8px; margin: 30px 0; display: inline-block; border: 2px dashed #ddd6fe; }}
-            .btn-activate {{ display: inline-block; background-color: #7c3aed; color: #ffffff; text-decoration: none; padding: 12px 30px; border-radius: 8px; font-weight: bold; margin-top: 20px; transition: background 0.3s; }}
-            .btn-activate:hover {{ background-color: #6d28d9; }}
-            .footer {{ background-color: #fafafa; padding: 20px; text-align: center; font-size: 12px; color: #a1a1aa; border-top: 1px solid #f4f4f5; }}
-            .link-fallback {{ font-size: 12px; color: #a1a1aa; margin-top: 20px; word-break: break-all; }}
-        </style>
-    </head>
-    <body>
-        <div class="email-container">
-            <div class="header">
-                <h1>Waselytics</h1>
+    # 3. تجهيز البايلود (Payload) حسب وثائق Brevo
+    email_payload = {
+        "sender": {"name": "Waselytics", "email": settings.DEFAULT_FROM_EMAIL},
+        "to": [{"email": user.email, "name": user.user_name or "User"}],
+        "subject": "كود تفعيل حسابك",
+        "htmlContent": f"""
+        <!DOCTYPE html>
+        <html lang="ar" dir="rtl">
+        <head>
+            <style>
+                body {{ font-family: sans-serif; background-color: #f4f4f5; padding: 20px; }}
+                .box {{ max-width: 500px; margin: 0 auto; background: white; padding: 30px; border-radius: 10px; text-align: center; }}
+                .code {{ font-size: 30px; font-weight: bold; color: #7c3aed; letter-spacing: 5px; margin: 20px 0; }}
+                .btn {{ background: #7c3aed; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; display: inline-block; }}
+            </style>
+        </head>
+        <body>
+            <div class="box">
+                <h2>مرحباً بك! 👋</h2>
+                <p>كود التفعيل الخاص بك هو:</p>
+                <div class="code">{code}</div>
+                <a href="{activation_link}" class="btn">تفعيل الحساب</a>
             </div>
-            
-            <div class="content">
-                <div class="welcome-text">مرحباً {user.user_name or user.email} 👋</div>
-                <p>شكراً لتسجيلك معنا! لإكمال إعداد حسابك والبدء في تتبع أرباحك، يرجى استخدام كود التحقق أدناه:</p>
-                
-                <div class="code-box">{code}</div>
-                
-                <p>أو يمكنك الضغط على الزر التالي لتفعيل الحساب مباشرة:</p>
-                <a href="{activation_link}" class="btn-activate">تفعيل الحساب الآن</a>
-                
-                <div class="link-fallback">
-                    إذا لم يعمل الزر، انسخ الرابط التالي:<br>
-                    <a href="{activation_link}" style="color:#7c3aed;">{activation_link}</a>
-                </div>
-            </div>
-            
-            <div class="footer">
-                &copy; 2025 Waselytics. جميع الحقوق محفوظة.<br>
-                هذا إيميل آلي، الرجاء عدم الرد عليه.
-            </div>
-        </div>
-    </body>
-    </html>
-    """
-    
-    email = EmailMessage(
-            subject,
-            body=message_body , 
-            from_email=settings.DEFAULT_FROM_EMAIL,
-            to=[user.email],
-        )
-    email.content_subtype = "html"
+        </body>
+        </html>
+        """
+    }
 
-    
-    print("⏳ Attempting to send email via Brevo...")
-    email.send(fail_silently=False)  
-    print("✅ Email Sent Successfully!")
-    if not request.user.is_authenticated:
-        login(request, user)
-        print('tring to log in  user ')
+    # 4. الإرسال في الخلفية (Threading) لضمان السرعة
+    # نستخدم دالة الـ API الجديدة بدلاً من دالة الـ SMTP
+    thread = threading.Thread(target=_send_brevo_api_background, args=(email_payload, brevo_key))
+    thread.start()
 
-
-    
- 
-
-        
-    # 4. 🔥 الإرسال غير المتزامن (Fixes 500 Timeout)
-    email_thread = threading.Thread(target=_send_email_in_thread, args=(email,))
-    email_thread.start() 
-
-    # 5. الرد الفوري للواجهة
-    return JsonResponse({'success': True, 'message': 'تم إرسال رابط التفعيل لبريدك الإلكتروني. الرجاء التحقق من البريد.'})
-
+    return JsonResponse({'success': True, 'message': 'تم إرسال الكود بنجاح'})
 def activate_account(request, user_id=None):
     code = request.POST.get('code' , None)
     user = request.user
