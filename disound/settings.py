@@ -195,37 +195,7 @@ STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
  
-
-# EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
-# EMAIL_HOST = 'smtp-relay.brevo.com'
-# # EMAIL_PORT = 587
-# EMAIL_USE_TLS = True
-
-# # 🔥 القراءة من متغيرات البيئة (وليس كتابة القيم مباشرة)
-# EMAIL_HOST_USER = os.environ.get('EMAIL_HOST_USER') 
-# EMAIL_HOST_PASSWORD = os.environ.get('EMAIL_HOST_PASSWORD')
-# DEFAULT_FROM_EMAIL = os.environ.get('DEFAULT_FROM_EMAIL', EMAIL_HOST_USER)
-
-
-
-# settings.py
-# settings.py
-# EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
-
-# EMAIL_HOST = os.environ.get('EMAIL_HOST', 'smtp-relay.brevo.com')
-# EMAIL_PORT = int(os.environ.get('EMAIL_PORT', 587))
  
-# قراءة المستخدم وكلمة المرور من السيرفر
-# EMAIL_HOST_USER = os.environ.get('EMAIL_HOST_USER' , 'bojamaabayad2001@gmail.com')
-# EMAIL_HOST_PASSWORD = os.environ.get('EMAIL_HOST_PASSWORD' , 'bskmB4ob7FzW3GM')
-
-# المرسل الافتراضي
-# DEFAULT_FROM_EMAIL = os.environ.get('DEFAULT_FROM_EMAIL', EMAIL_HOST_USER)
-
-
-# settings.py
-
-EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
 EMAIL_HOST = 'smtp-relay.brevo.com'
 EMAIL_PORT = 587
 EMAIL_USE_TLS = True
@@ -238,8 +208,8 @@ DATA_UPLOAD_MAX_MEMORY_SIZE = 104857600  # 100 MB
 FILE_UPLOAD_MAX_MEMORY_SIZE = 104857600  # 100 MB
 
  
+ 
 
-# Channels Configuration
  
 
 
@@ -248,6 +218,25 @@ FILE_UPLOAD_MAX_MEMORY_SIZE = 104857600  # 100 MB
 
 
 
+
+DEFAULT_FROM_EMAIL = 'bojamaabayad2001@gmail.com'
+
+
+
+EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+EMAIL_HOST = os.environ.get('EMAIL_HOST', 'smtp-relay.brevo.com')
+EMAIL_PORT = int(os.environ.get('EMAIL_PORT', 587))
+EMAIL_USE_TLS = os.environ.get('EMAIL_USE_TLS', 'True') == 'True'
+EMAIL_USE_SSL = os.environ.get('EMAIL_USE_SSL', 'False') == 'True'
+
+# قراءة البيانات الحساسة من البيئة (Environment Variables)
+EMAIL_HOST_USER = os.environ.get('EMAIL_HOST_USER')
+EMAIL_HOST_PASSWORD = os.environ.get('EMAIL_HOST_PASSWORD')
+DEFAULT_FROM_EMAIL = os.environ.get('DEFAULT_FROM_EMAIL')
+
+# التحقق (للتطوير فقط - سيطبع تحذيراً إذا كانت القيم مفقودة)
+if not EMAIL_HOST_PASSWORD:
+    print("⚠️ تحذير: لم يتم العثور على EMAIL_HOST_PASSWORD في متغيرات البيئة.")
 
 
  
