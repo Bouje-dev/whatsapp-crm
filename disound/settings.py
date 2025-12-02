@@ -195,10 +195,7 @@ STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
  
- 
-EMAIL_HOST = 'smtp-relay.brevo.com'
 EMAIL_PORT = 587
-EMAIL_USE_TLS = True
 
  
 ALLOWED_HOSTS = ['*']  
@@ -209,17 +206,6 @@ FILE_UPLOAD_MAX_MEMORY_SIZE = 104857600  # 100 MB
 
  
  
-
- 
-
-
-
-
-
-
-
-
-DEFAULT_FROM_EMAIL = 'bojamaabayad2001@gmail.com'
 
 
 
