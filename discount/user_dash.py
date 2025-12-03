@@ -601,7 +601,7 @@ def link_token(request):
         name = request.POST.get("token_name")
 
         is_valid =verify_token(token)
-        # تحقق من صحة التوكن (مثلاً عبر API خارجي)
+        
         if not is_valid:
             return JsonResponse({
                 "success": False,
@@ -674,80 +674,99 @@ def team_dashboard(request):
 
 
 
-
-
-
-from sib_api_v3_sdk import ApiClient, Configuration, TransactionalEmailsApi, SendSmtpEmail
+ 
 from sib_api_v3_sdk.rest import ApiException
 from django.conf import settings
 from django.urls import reverse
-
-# def send_invitation_email(invitation):
-#     """
-#     ترسل دعوة عبر البريد الإلكتروني باستخدام Sendinblue API بناءً على كائن TeamInvitation.
-#     """
-#     invite_url = f"{settings.SITE_URL}{reverse('accept_invite', kwargs={'token': invitation.token})}"
-
-#     subject = f"دعوة للانضمام إلى فريق {invitation.admin.user_name or invitation.admin.email}"
-    
-#     html_content = f"""
-#     <html>
-#         <body>
-#             <p>مرحباً {invitation.name or invitation.email},</p>
-#             <p>لقد دعاك <strong>{invitation.admin.user_name or invitation.admin.email}</strong> للانضمام إلى فريقه.</p>
-#             <p>للانضمام، اضغط على الزر التالي:</p>
-#             <p><a href="{invite_url}" style="background-color: #007bff; color: white; padding: 10px 15px; text-decoration: none; border-radius: 5px;">قبول الدعوة</a></p>
-#             <p>إذا لم يعمل الزر، انسخ الرابط التالي وضعه في المتصفح:</p>
-#             <p>{invite_url}</p>
-#             <br>
-#             <p>مع تحيات فريق الدعم</p>
-#         </body>
-#     </html>
-#     """
-
-#     # إعداد التهيئة مع مفتاح API
-#     configuration = Configuration()
-#     configuration.api_key['api-key'] = settings.SENDINBLUE_API_KEY
-
-#     api_instance = TransactionalEmailsApi(ApiClient(configuration))
-
-#     send_smtp_email = SendSmtpEmail(
-#         to=[{"email": invitation.email, "name": invitation.name or ""}],
-#         sender={"email": settings.DEFAULT_FROM_EMAIL, "name": "فريق الدعم"},
-#         subject=subject,
-#         html_content=html_content
-#     )
-
-#     try:
-#         api_response = api_instance.send_transac_email(send_smtp_email)
-#         print("Email sent successfully:", api_response)
-#         return True
-#     except ApiException as e:
-#         return False
-#         print("Exception when calling Sendinblue API:", e)
-
-
-
+ 
+  
+ 
+ 
 
 
  
 
-def send_invitation_email(invitation):
-    invite_url = f"{settings.SITE_URL}{reverse('accept_invite', kwargs={'token': invitation.token})}"
-    subject = f"دعوة للانضمام إلى فريق {invitation.admin.user_name or invitation.admin.email}"
+from django.urls import reverse
+from django.core.mail import EmailMessage
 
+
+
+
+
+from django.urls import reverse
+from django.core.mail import EmailMessage
+from django.conf import settings
+
+def send_invitation_email(request, invitation):
+    # 1. بناء الرابط الديناميكي
+    relative_link = reverse('accept_invite', kwargs={'token': invitation.token})
+    invite_url = request.build_absolute_uri(relative_link)
+
+    # بيانات المرسل والمستقبل
+    admin_name = invitation.admin.user_name or "The Team Admin"
+    recipient_name = invitation.name or "There" # "Hi There" إذا لم يوجد اسم
+    
+    # عنوان الرسالة (Subject)
+    subject = f"Invitation to join {admin_name}'s team on Waselytics"
+
+    # تصميم القالب (HTML Template)
+    # ملاحظة: نستخدم Inline CSS لأن برامج الإيميل لا تدعم External CSS جيداً
+    # 
     html_content = f"""
+    <!DOCTYPE html>
     <html>
-        <body>
-            <p>مرحباً {invitation.name or invitation.email},</p>
-            <p>لقد دعاك <strong>{invitation.admin.user_name or invitation.admin.email}</strong> للانضمام إلى فريقه.</p>
-            <p>للانضمام، اضغط على الزر التالي:</p>
-            <p><a href="{invite_url}" style="background-color: #007bff; color: white; padding: 10px 15px; text-decoration: none; border-radius: 5px;">قبول الدعوة</a></p>
-            <p>إذا لم يعمل الزر، انسخ الرابط التالي وضعه في المتصفح:</p>
-            <p>{invite_url}</p>
-            <br>
-            <p>مع تحيات فريق الدعم</p>
-        </body>
+    <head>
+        <meta charset="utf-8">
+        <style>
+            body {{ font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; line-height: 1.6; color: #333; margin: 0; padding: 0; background-color: #f4f4f7; }}
+            .container {{ width: 100%; max-width: 600px; margin: 0 auto; padding: 20px; }}
+            .email-card {{ background-color: #ffffff; padding: 40px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); border: 1px solid #eaeaec; }}
+            .btn {{ display: inline-block; background-color: #2563EB; color: #ffffff !important; padding: 12px 24px; font-size: 16px; font-weight: 600; text-decoration: none; border-radius: 6px; margin-top: 20px; }}
+            .btn:hover {{ background-color: #1d4ed8; }}
+            .footer {{ margin-top: 24px; text-align: center; font-size: 12px; color: #6b7280; }}
+            .link-box {{ margin-top: 24px; padding: 12px; background-color: #f9fafb; border-radius: 4px; word-break: break-all; font-size: 12px; color: #6b7280; }}
+        </style>
+    </head>
+    <body>
+        <div class="container">
+            <div style="text-align: center; margin-bottom: 24px;">
+                <h2 style="color: #2563EB; margin: 0;">Waselytics</h2>
+            </div>
+
+            <div class="email-card">
+                <h2 style="margin-top: 0; font-size: 24px; color: #111827;">You've been invited to join a team</h2>
+                
+                <p style="font-size: 16px; color: #374151;">Hello <strong>{recipient_name}</strong>,</p>
+                
+                <p style="font-size: 16px; color: #374151;">
+                    <strong>{admin_name}</strong> has invited you to collaborate on their workspace. 
+                    Join the team to start managing orders, tracking leads, and accessing shared resources.
+                </p>
+
+                <div style="text-align: center; margin: 32px 0;">
+                    <a href="{invite_url}" class="btn">Accept Invitation</a>
+                </div>
+                
+                <p style="font-size: 14px; color: #6b7280;">
+                    If you were not expecting this invitation, you can safely ignore this email.
+                </p>
+
+                <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 32px 0;">
+
+                <p style="font-size: 13px; color: #6b7280; margin-bottom: 8px;">
+                    Button not working? Copy and paste the following link into your browser:
+                </p>
+                <div class="link-box">
+                    <a href="{invite_url}" style="color: #2563EB; text-decoration: none;">{invite_url}</a>
+                </div>
+            </div>
+
+            <div class="footer">
+                <p>&copy; {settings.CURRENT_YEAR if hasattr(settings, 'CURRENT_YEAR') else '2025'} Waselytics Inc. All rights reserved.</p>
+                <p>This is an automated message, please do not reply.</p>
+            </div>
+        </div>
+    </body>
     </html>
     """
 
@@ -755,16 +774,18 @@ def send_invitation_email(invitation):
         email = EmailMessage(
             subject=subject,
             body=html_content,
-            from_email='bojamaabayad2001@gmail.com',
+            # يفضل استخدام إيميل رسمي هنا مثل no-reply@yourdomain.com
+            from_email='bojamaabayad2001@gmail.com', 
             to=[invitation.email],
         )
         email.content_subtype = "html"
         email.send(fail_silently=False)
-        print("📧 تم إرسال الدعوة بنجاح")
+        print(f"📧 Invitation sent successfully to: {invitation.email}")
         return True
     except Exception as e:
-        print("❌ فشل في إرسال الدعوة:", e)
+        print("❌ Failed to send invitation:", e)
         return False
+
 
 
 
@@ -815,16 +836,16 @@ def invite_staff(request):
         # إنشاء الدعوة
         invitation = TeamInvitation.objects.create(
             email=email,
-            admin=request.user,
+            admin= request.user ,
             role=role,
             name=name,
         )
         invitation.products.set(selected_products)
 
-        send_invitation_email(invitation)
+        send_invitation_email(request, invitation)
         invitation.save()
 
-        if not send_invitation_email(invitation):
+        if not send_invitation_email(request, invitation):
             return JsonResponse({'error': 'فشل في إرسال البريد الإلكتروني'}, status=500)
         else:        
             return JsonResponse({'success': 'تم إرسال الدعوة بنجاح'}, status=200)
@@ -835,6 +856,8 @@ def invite_staff(request):
 
 
     return render(request, 'team/invite_staff.html')
+
+
 from django.contrib.auth import login
 from django.http import JsonResponse
 

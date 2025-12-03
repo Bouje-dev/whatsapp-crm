@@ -19,7 +19,7 @@
     };
 </script>
   
-  
+  {% if user_channels %}
     <div class="cls3741_container">
       <aside class="workspace-sidebar">
       
@@ -2654,6 +2654,133 @@ window.loadDashboardData = loadDashboardData;
 </main>
 
   </div>
+{% else %}
+<div class="empty-whatsapp-state">
+  <div class="empty-content">
+      <div class="icon-container">
+          <i class="fab fa-whatsapp"></i>
+          <span class="status-dot"></span>
+      </div>
+
+      <h3 class="empty-title">There are no WhatsApp accounts</h3>
+      <p class="empty-subtitle">
+          You can add a new WhatsApp account by clicking the button below.
+      </p>
+
+      <div class="action-area">
+          <div class="workspace-item add-new" onclick="openAddChannelModal()">
+              <svg viewBox="0 0 24 24" width="24" height="24" stroke="currentColor" stroke-width="2" fill="none">
+                  <line x1="12" y1="5" x2="12" y2="19"></line>
+                  <line x1="5" y1="12" x2="19" y2="12"></line>
+              </svg>
+              <span class="btn-label"> Add now</span>
+          </div>
+      </div>
+  </div>
+</div>
+<style>
+  /* حاوية تضمن التوسط في الصفحة */
+.empty-whatsapp-state {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 400px; /* ارتفاع مناسب لملء الفراغ */
+    width: 100%;
+    text-align: center;
+    background-color: transparent;
+}
+
+/* بطاقة المحتوى */
+.empty-content {
+    background: rgba(255, 255, 255, 0.03); /* خلفية خفيفة جداً */
+    border: 1px dashed var(--border-card); /* حدود متقطعة عصرية */
+    border-radius: 20px;
+    padding: 3rem 2rem;
+    max-width: 450px;
+    width: 100%;
+    transition: transform 0.3s ease;
+}
+
+.empty-content:hover {
+    border-color: var(--accent-color);
+    background: rgba(255, 255, 255, 0.05);
+}
+
+/* تنسيق الأيقونة */
+.icon-container {
+    position: relative;
+    display: inline-block;
+    margin-bottom: 1.5rem;
+}
+
+.icon-container i {
+    font-size: 4rem;
+    color: var(--text-muted); /* لون باهت */
+    opacity: 0.5;
+}
+
+.status-dot {
+    position: absolute;
+    bottom: 5px;
+    right: -5px;
+    width: 15px;
+    height: 15px;
+    background-color: #ffc107; /* لون تنبيه برتقالي */
+    border: 3px solid var(--background-primary);
+    border-radius: 50%;
+}
+
+/* تنسيق النصوص */
+.empty-title {
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: var(--text-light);
+    margin-bottom: 0.5rem;
+}
+
+.empty-subtitle {
+    font-size: 0.9rem;
+    color: var(--text-muted);
+    line-height: 1.6;
+    margin-bottom: 2rem;
+}
+
+/* تنسيق زر الإضافة الخاص بك */
+.workspace-item.add-new {
+    background: var(--accent-color); /* اللون الأساسي للموقع */
+    color: #fff; /* لون الأيقونة والنص */
+    width: auto; /* ليتناسب مع النص */
+    height: auto;
+    padding: 12px 24px;
+    border-radius: 50px; /* حواف دائرية بالكامل */
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    cursor: pointer;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: 0 4px 15px rgba(0, 230, 118, 0.2); /* ظل ناعم بلون الأكسنت */
+}
+
+.workspace-item.add-new:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 8px 25px rgba(0, 230, 118, 0.3);
+}
+
+.workspace-item.add-new:active {
+    transform: translateY(-1px);
+}
+
+.workspace-item.add-new svg {
+    stroke-width: 2.5; /* جعل خطوط الزائد أكثر وضوحاً */
+}
+
+.btn-label {
+    font-weight: 600;
+    font-size: 0.95rem;
+}
+</style>
+{% endif %}
 
 <style>
 /* متغيرات الألوان — يمكنك تعديلها بسهولة */

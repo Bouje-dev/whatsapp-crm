@@ -244,7 +244,12 @@
 
 .kill-text { animation: pulse-red 2s infinite; font-weight: 800; }
 .scale-text { animation: pulse-green 2s infinite; font-weight: 800; }
+
+ 
   </style>
+
+
+
 </head>
 <body>
 
@@ -266,8 +271,15 @@
         <a href="#pricing" class="nav-link">Pricing</a>
       </nav>
       <div style="display:flex;gap:12px">
-        <button class="btn btn-glass" style="padding:10px 16px; font-size:13px">Log in</button>
-        <button class="btn btn-primary" style="padding:10px 16px; font-size:13px">Start Trial</button>
+        {% if user.is_authenticated %}
+        <button class="btn btn-glass" style="padding:10px 16px; font-size:13px" onclick="window.location.href='/tracking/'">Dashboard</button>   
+         
+        {% else %}
+
+        <button class="btn btn-glass login" style="padding:10px 16px; font-size:13px" onclick="window.location.href='/auth/login/'">Log in</button>
+        <button class="btn btn-primary sinup" style="padding:10px 16px; font-size:13px" onclick="window.location.href='/auth/singup/'" >Start Trial</button>
+        {% endif %}
+      
       </div>
     </div>
   </header>
@@ -486,43 +498,9 @@
 
   </main>
 
-  <footer>
-    <div class="container">
-      <div class="footer-grid">
-        <div>
-          <div class="logo" style="margin-bottom:20px;">Waselytics</div>
-          <p>The only platform that connects your ad spend to your bank account deposits for COD businesses.</p>
-        </div>
-        <div>
-          <h4 style="color:white; margin-bottom:20px">Product</h4>
-          <ul style="display:flex; flex-direction:column; gap:10px">
-            <li><a href="#">Attribution</a></li>
-            <li><a href="#">WhatsApp AI</a></li>
-            <li><a href="#">Inventory</a></li>
-          </ul>
-        </div>
-        <div>
-          <h4 style="color:white; margin-bottom:20px">Resources</h4>
-          <ul style="display:flex; flex-direction:column; gap:10px">
-            <li><a href="#">Blog</a></li>
-            <li><a href="#">Case Studies</a></li>
-            <li><a href="#">Help Center</a></li>
-          </ul>
-        </div>
-        <div>
-          <h4 style="color:white; margin-bottom:20px">Legal</h4>
-          <ul style="display:flex; flex-direction:column; gap:10px">
-            <li><a href="#">Privacy</a></li>
-            <li><a href="#">Terms</a></li>
-          </ul>
-        </div>
-      </div>
-      <div style="text-align:center; padding-top:40px; border-top:1px solid rgba(255,255,255,0.05)">
-        © 2025 Waselytics Inc. All rights reserved.
-      </div>
-    </div>
-  </footer>
 
+  {% include 'footer.html' %}
+   
   <script>
     // 1. Scroll Reveal Animation
     const observer = new IntersectionObserver((entries) => {

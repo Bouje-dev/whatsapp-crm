@@ -62,6 +62,10 @@ urlpatterns = [
 
 #    for dash 
 path('api/dashboard/stats/', views.api_dashboard_stats, name='api_dashboard_stats'),
+
+
+
+
 ]
 
 

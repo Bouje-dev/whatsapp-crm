@@ -220,11 +220,7 @@ EMAIL_HOST_USER = os.environ.get('EMAIL_HOST_USER')
 EMAIL_HOST_PASSWORD = os.environ.get('EMAIL_HOST_PASSWORD')
 DEFAULT_FROM_EMAIL = os.environ.get('DEFAULT_FROM_EMAIL')
 
-# التحقق (للتطوير فقط - سيطبع تحذيراً إذا كانت القيم مفقودة)
-if not EMAIL_HOST_PASSWORD:
-    print("⚠️ تحذير: لم يتم العثور على EMAIL_HOST_PASSWORD في متغيرات البيئة.")
-
-
+ 
  
 
  
@@ -254,3 +250,5 @@ AUTH_USER_MODEL = 'discount.CustomUser'
 # EAALZBubBgmq0BQHmIewxaHrZBwF67lMsRRj012KOo8hNl8ab6agSmVSHqkzZCNbhHZChionX5hJwiXHMYu7pLI7ZANqxFKoBZAgrBv6X0jarDAwIyMBEYoEvQNXzWKrQocyG7cR7m8Hftt9fTtvPAZCimPA9qMKfXo20qz0MQlzjzUnLbyVzx5PSzbaYA7oyfNK6AZDZD
 
 
+
+KEY = 'k76TMkpykna7wyWyNS4KYdZC-NK_XfoXvWMPLacwVAY='

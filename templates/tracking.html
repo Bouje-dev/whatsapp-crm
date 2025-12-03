@@ -884,6 +884,7 @@ color:#ede9e9 !important;
 
 
            <div class="section-content active" id="order-tracking-section">
+            {% if orders %}
             <div class="card">
                 <div class="card-header">
                     <i class="fas fa-shipping-fast"></i> Order Tracking
@@ -1647,6 +1648,221 @@ const country = document.getElementById('country-filter').value || 'all';
                     </div>
                 </div>
             </div>
+            {% else %}
+            <div class="empty-state-wrapper">
+                <div class="empty-state-card">
+                    <div class="empty-icon-container">
+                        <i class="fas fa-box-open"></i>
+                        <span class="notification-dot"></span>
+                    </div>
+            
+                    <h3 class="empty-headline">Ready to start shipping?</h3>
+                    <p class="empty-subheadline">
+                        You don't have any orders yet. Integrate your store API to sync orders automatically, or upload your list manually to get started.
+                    </p>
+            
+                    <div class="empty-actions">
+                        <div class="action-btn primary-action" onclick="openApiModal()">
+                            <div class="btn-icon">
+                                <i class="fas fa-plug"></i>
+                            </div>
+                            <div class="btn-text" onclick="window.location.href = '/tracking/user/';">
+                                <span>Connect Store API</span>
+                                <small>Auto-sync orders</small>
+                            </div>
+                        </div>
+            
+                        <div class="action-btn secondary-action" onclick="openUploadListModal()">
+                            <div class="btn-icon">
+                                <i class="fas fa-file-upload"></i>
+                            </div>
+                            <div class="btn-text">
+                                <span>Upload Order List</span>
+                                <small>Import CSV / Excel</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+    <style>
+        /* Container Layout */
+.empty-state-wrapper {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 450px;
+    width: 100%;
+    padding: 2rem;
+}
+
+/* Main Card Style */
+.empty-state-card {
+    background: rgba(255, 255, 255, 0.02);
+    border: 1px dashed var(--border-card);
+    border-radius: 24px;
+    padding: 3.5rem 2.5rem;
+    max-width: 600px;
+    width: 100%;
+    text-align: center;
+    transition: all 0.3s ease;
+}
+
+.empty-state-card:hover {
+    border-color: rgba(255, 255, 255, 0.2);
+    background: rgba(255, 255, 255, 0.04);
+}
+
+/* Icon Styling */
+.empty-icon-container {
+    position: relative;
+    display: inline-block;
+    margin-bottom: 2rem;
+}
+
+.empty-icon-container i {
+    font-size: 4.5rem;
+    color: var(--text-muted);
+    opacity: 0.4;
+}
+
+.notification-dot {
+    position: absolute;
+    top: 0;
+    right: -5px;
+    width: 18px;
+    height: 18px;
+    background-color: var(--accent-color); /* Neon Green */
+    border: 4px solid var(--background-primary);
+    border-radius: 50%;
+    box-shadow: 0 0 10px var(--accent-color-transparent);
+}
+
+/* Typography */
+.empty-headline {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: var(--text-light);
+    margin-bottom: 0.75rem;
+    letter-spacing: -0.5px;
+}
+
+.empty-subheadline {
+    font-size: 0.95rem;
+    color: var(--text-muted);
+    line-height: 1.6;
+    margin-bottom: 2.5rem;
+    max-width: 80%;
+    margin-left: auto;
+    margin-right: auto;
+}
+
+/* Action Buttons Container */
+.empty-actions {
+    display: flex;
+    justify-content: center;
+    gap: 1.5rem;
+    flex-wrap: wrap;
+}
+
+/* General Button Style */
+.action-btn {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding: 0.8rem 1.5rem;
+    border-radius: 16px;
+    cursor: pointer;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    min-width: 200px;
+    text-align: left;
+    border: 1px solid transparent;
+}
+
+/* Button 1: Primary (API) */
+.primary-action {
+    background: var(--accent-color);
+    color: var(--background-primary);
+    box-shadow: 0 4px 20px rgba(0, 230, 118, 0.25);
+}
+
+.primary-action:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 8px 25px rgba(0, 230, 118, 0.4);
+}
+
+.primary-action .btn-icon {
+    font-size: 1.2rem;
+    background: rgba(0, 0, 0, 0.1);
+    width: 40px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 12px;
+}
+
+/* Button 2: Secondary (Upload) */
+.secondary-action {
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid var(--border-card);
+    color: var(--text-light);
+}
+
+.secondary-action:hover {
+    transform: translateY(-4px);
+    background: rgba(255, 255, 255, 0.1);
+    border-color: var(--text-light);
+}
+
+.secondary-action .btn-icon {
+    font-size: 1.2rem;
+    color: var(--text-muted);
+    background: rgba(255, 255, 255, 0.05);
+    width: 40px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 12px;
+}
+
+.secondary-action:hover .btn-icon {
+    color: var(--text-light);
+}
+
+/* Text inside buttons */
+.btn-text {
+    display: flex;
+    flex-direction: column;
+}
+
+.btn-text span {
+    font-weight: 700;
+    font-size: 0.95rem;
+}
+
+.btn-text small {
+    font-size: 0.75rem;
+    opacity: 0.8;
+    font-weight: 400;
+}
+
+/* Responsive adjustments */
+@media (max-width: 576px) {
+    .empty-actions {
+        flex-direction: column;
+    }
+    .action-btn {
+        width: 100%;
+        justify-content: center;
+    }
+    .empty-state-card {
+        padding: 2rem 1.5rem;
+    }
+}
+    </style>
+            {% endif %}
         </div>
 
 

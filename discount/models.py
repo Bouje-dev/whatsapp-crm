@@ -221,6 +221,10 @@ CustomUsers = get_user_model()
 
 
 
+from django.db import models
+from django.conf import settings  # <--- هام جداً: استيراد الإعدادات
+import uuid
+
 class TeamInvitation(models.Model):
     ROLE_CHOICES = [
         ('viewer', 'مشاهد'),
@@ -229,19 +233,25 @@ class TeamInvitation(models.Model):
     ]
 
     email = models.EmailField()
-    admin = models.ForeignKey(CustomUsers, on_delete=models.CASCADE, related_name='sent_invitations')
+    
+    # التعديل هنا: استخدمنا settings.AUTH_USER_MODEL بدلاً من كتابة اسم الكلاس
+    admin = models.ForeignKey(
+        settings.AUTH_USER_MODEL, 
+        on_delete=models.CASCADE, 
+        related_name='sent_invitations'
+    )
+    
     token = models.UUIDField(default=uuid.uuid4, unique=True)
     is_used = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
     name = models.CharField(max_length=255, blank=True, null=True)
     role = models.CharField(max_length=20, choices=ROLE_CHOICES, default='viewer')
     
-    # ربط مع المنتجات التي له صلاحية عليها
+    # تأكد من أن اسم مودل المنتجات صحيح أيضاً (Products أو Product)
     products = models.ManyToManyField('Products', blank=True, related_name='invited_users')
 
     def __str__(self):
-        return f"Invitation to {self.email} by {self.admin.username} as {self.get_role_display()}"
-
+        return f"Invitation to {self.email}"
 
 
 # team Permission 

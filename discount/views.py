@@ -624,3 +624,26 @@ def get_tracking_company_data(request):
         
         return JsonResponse({'error': 'Invalid request method'}, status=405)
  
+
+
+
+
+
+
+
+
+
+
+# footer lins 
+def privacy_policy(request):
+    return render(request, 'privacy_policy.html')
+
+def terms(request):
+    return render(request, 'terms.html')    
+
+def data_deletion(request):
+    return render(request, 'data_deletion.html')
+
+def contact(request):
+    return render(request, 'contact.html')
+

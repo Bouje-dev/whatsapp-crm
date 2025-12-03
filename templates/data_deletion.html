@@ -1,0 +1,31 @@
+{% extends 'footerbase.html' %}
+
+{% block content %}
+<div class="container" style="padding: 80px 20px; max-width: 600px; text-align: center; color: var(--text-primary);">
+    <h1 style="margin-bottom: 20px;">Data Deletion Request</h1>
+    <p style="margin-bottom: 40px; color: var(--text-muted);">
+        According to Facebook Platform rules, we provide a way for users to request their data deletion.
+    </p>
+
+    <div style="background: var(--bg-card); padding: 30px; border-radius: 16px; border: 1px solid var(--border); text-align: left;">
+        <h3>How to delete your data?</h3>
+        <p>If you wish to remove your account and all associated data from Waselytics, you can do so by following these steps:</p>
+        <ol style="padding-left: 20px; margin-bottom: 20px;">
+            <li>Log in to your Waselytics account.</li>
+            <li>Go to <strong>Settings</strong> > <strong>Profile</strong>.</li>
+            <li>Click on the "Delete Account" button at the bottom of the page.</li>
+        </ol>
+        
+        <p>Alternatively, you can submit a manual deletion request:</p>
+        <ol style="padding-left: 20px;">
+            <li>Send an email to <a href="mailto:admin@waselytics.com" style="color: var(--primary);">admin@waselytics.com</a>.</li>
+            <li>Subject: "Data Deletion Request".</li>
+            <li>Please include your registered email address.</li>
+        </ol>
+        
+        <p style="margin-top: 20px; font-size: 13px; color: var(--text-muted);">
+            * We will process your request and permanently delete your data within 30 days.
+        </p>
+    </div>
+</div>
+{% endblock %}

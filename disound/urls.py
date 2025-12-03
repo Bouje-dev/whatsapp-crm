@@ -99,6 +99,14 @@ urlpatterns = [
     path("testing/" , tests.testing_Chanels , name="testing" ) ,
     path('send_msgtesting/', tests.send_msgtesting, name='send_msgtesting'),
 
+    # footer pages 
+    # footer pages 
+path('privacy-policy/', views.privacy_policy, name='privacy_policy'),
+path('terms/', views.terms, name='terms'),
+path('data-deletion/', views.data_deletion, name='data_deletion'),
+path('contact/', views.contact, name='contact'),
+
+
 ]+ static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
 
 if not settings.DEBUG:

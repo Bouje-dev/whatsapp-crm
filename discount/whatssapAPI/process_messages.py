@@ -811,6 +811,7 @@ def whatsapp_webhook(request):
     elif request.method == "POST":
         try:
             data = json.loads(request.body.decode("utf-8"))
+            print('👀🥰😘 recived' , data)
         
             print("📨 Received WhatsApp webhook:", data) 
             for entry in data.get("entry", []):
@@ -819,6 +820,8 @@ def whatsapp_webhook(request):
                     # 🔥 1. استخراج معرف الرقم الذي استقبل الرسالة 🔥
                     metadata = value.get('metadata', {})
                     phone_number_id = metadata.get('phone_number_id')
+                    
+
                     
                     # 🔥 2. البحث عن القناة في قاعدة بياناتنا 🔥
                     try:

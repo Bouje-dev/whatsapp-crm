@@ -2,7 +2,7 @@
 
 
 // update order from server
-  $(document).ready(function () {
+$(document).ready(function () {
 
     flatpickr("#start-date-filter", {
     dateFormat: "Y-m-d", // هذا التنسيق (سنة-شهر-يوم) يسهل التعامل معه في Django

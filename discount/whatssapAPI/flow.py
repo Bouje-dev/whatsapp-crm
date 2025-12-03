@@ -1072,6 +1072,8 @@ def autobot_delete_flow(request):
 @require_http_methods(["GET"])
 def api_list_flows(request):
     channel_id = request.GET.get("channel_id")
+    if channel_id == 'null':
+        return JsonResponse({"items": []})
     if channel_id:
         qs = Flow.objects.filter(channel_id=channel_id).order_by("-created_at")
     else:

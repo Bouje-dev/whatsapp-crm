@@ -2663,7 +2663,7 @@ def api_dashboard_stats(request):
             received_count = all_msgs.filter(is_from_me=False).count() # رسائل العملاء
                 
 
-                
+
             sent_count = daily_msgs.filter(is_from_me=True).count()
             received_count = daily_msgs.filter(is_from_me=False).count()
             
@@ -2693,3 +2693,13 @@ def api_dashboard_stats(request):
         return JsonResponse({'error': str(e)}, status=500)
 
 
+
+
+
+
+# path('privacy-policy/', views.privacy_policy, name='privacy_policy'),
+# path('terms/', views.terms, name='terms'),
+# path('data-deletion/', views.data_deletion, name='data_deletion'),
+# path('contact/', views.contact, name='contact'),
+
+ 
