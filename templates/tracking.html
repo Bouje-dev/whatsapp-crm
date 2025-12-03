@@ -1032,6 +1032,7 @@ function highlightOrderRow(phone) {
 
     rows.forEach(row => {
         const rowPhone = row.getAttribute('data-customer-phone').replace(/^\+/, '').replace(/\s+/g, '');
+        if (!rowPhone) return;
         if (rowPhone === normalizedPhone) {
             const badge = row.querySelector('.order-msg-badge');
             if (badge) {
@@ -1042,6 +1043,9 @@ function highlightOrderRow(phone) {
                 row.style.backgroundColor = '#f0fdf4';
                 setTimeout(() => row.style.backgroundColor = '', 1000);
             }
+            else{
+               rowFound = false;
+            }
         }
     });
 
@@ -1051,7 +1055,7 @@ function highlightOrderRow(phone) {
     }
 }
 
-window.highlightOrderRow =highlightOrderRow;
+
 // دالة بسيطة لإظهار تنبيه في زاوية الشاشة
 function showGlobalNotification(phone) {
     // يمكنك استخدام مكتبة Toastify أو SweetAlert، أو إنشاء عنصر بسيط
