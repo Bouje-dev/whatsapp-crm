@@ -194,6 +194,9 @@ from django.http import JsonResponse
 from django.conf import settings
 import os
 import requests
+
+
+ 
 # دالة المساعدة للإرسال عبر API (وليس SMTP)
 def _send_brevo_api_background(payload, api_key):
     url = "https://api.brevo.com/v3/smtp/email"
