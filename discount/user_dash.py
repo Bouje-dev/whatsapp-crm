@@ -771,6 +771,11 @@ def send_invitation_email(request, invitation):
     """
 
     try:
+        brevo_key = os.environ.get('BREVO_API_KEY') # أو من settings
+        if not brevo_key:
+                print("⚠️ Missing BREVO_API_KEY")
+                return JsonResponse({'success': False, 'message': 'Server Config Error'})
+
         email = EmailMessage(
             subject=subject,
             body=html_content,
@@ -780,6 +785,8 @@ def send_invitation_email(request, invitation):
         )
         email.content_subtype = "html"
         email.send(fail_silently=False)
+        thread = threading.Thread(target=_send_brevo_api_background, args=(html_content, brevo_key))
+        thread.start()
         print(f"📧 Invitation sent successfully to: {invitation.email}")
         return True
     except Exception as e:
