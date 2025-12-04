@@ -48,7 +48,7 @@ zope.interface==8.1.1
 django-cloudinary-storage
 ffmpeg-python  
 pydub
- 
+cloudinary
 gunicorn
 psycopg2-binary
 dj-database-url
