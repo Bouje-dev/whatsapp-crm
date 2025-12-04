@@ -160,13 +160,22 @@ USE_I18N = True
 
 USE_TZ = True
 
+# ✅ الإعدادات الجديدة والصحيحة لـ Django 4.2+
+STORAGES = {
+    # 1. إعدادات الوسائط (صور/فيديو) -> تذهب لـ Cloudinary
+    "default": {
+        "BACKEND": "cloudinary_storage.storage.MediaCloudinaryStorage",
+    },
+    # 2. إعدادات الملفات الثابتة (CSS/JS) -> تذهب لـ Whitenoise
+    "staticfiles": {
+        "BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage",
+    },
+}
  
 
 STATIC_URL = 'static/'
 STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
 STATICFILES_DIRS = [os.path.join(BASE_DIR, 'static')]
-
-STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
@@ -210,10 +219,7 @@ CLOUDINARY_STORAGE = {
     'API_SECRET': os.environ.get('CLOUDINARY_API_SECRET', 'GvMaKElwPaJrZyMV7fPWXTjN-Rc'),
 }
 
-
-DEFAULT_FILE_STORAGE = 'cloudinary_storage.storage.MediaCloudinaryStorage'
-
-
+ 
  
 if not DEBUG:
     # إعدادات السيرفر (HTTPS)
