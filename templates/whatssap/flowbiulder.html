@@ -3027,8 +3027,8 @@ initializeZoom() {
         
         // زر إعادة التعيين: يعيدك للمنتصف
         if(btnReset) btnReset.onclick = () => {
-            this.zoomLevel = 1;
-            this.pan = { x: -2000, y: -2000 };
+            this.zoomLevel = 0.8;
+            this.pan = { x: 1, y:1 };
             this.updateTransform();
         };
 
@@ -3044,7 +3044,7 @@ initializeZoom() {
                 this.isPanning = true;
                 this.lastMouse = { x: e.clientX, y: e.clientY };
                 container.style.cursor = 'grabbing';
-                e.preventDefault(); // منع تحديد النصوص
+                e.preventDefault();  
             }
         });
 
