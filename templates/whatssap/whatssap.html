@@ -3395,36 +3395,20 @@ function initializeAdvancedAudioPlayer(messageWrapper) {
   let isPlaying = false;
   let animationFrame = null;
 
-  // تهيئة العنصر الصوتي
+  // 1. تهيئة البيانات عند التحميل (لإظهار المدة)
   audioElement.addEventListener('loadedmetadata', () => {
     const duration = audioElement.duration;
-    if (!isNaN(duration)) {
+    if (!isNaN(duration) && duration !== Infinity) {
       durationDisplay.textContent = formatTime(duration);
       seekSlider.max = duration;
     }
   });
 
-  audioElement.addEventListener('error', (e) => {
-    console.error('Audio loading error:', e);
-    showAudioError(messageWrapper, 'خطأ في تحميل المقطع الصوتي');
-  });
-
-  // تحديث شريط التقدم
-  function updateProgress() {
-    if (audioElement.duration && !isNaN(audioElement.duration)) {
-      const progress = (audioElement.currentTime / audioElement.duration) * 100;
-      progressBar.style.width = progress + '%';
-      seekSlider.value = audioElement.currentTime;
-      timeDisplay.textContent = formatTime(audioElement.currentTime);
-    }
-
-    if (isPlaying) {
-      animationFrame = requestAnimationFrame(updateProgress);
-    }
-  }
-
-  // التحكم في التشغيل/الإيقاف
-  playBtn.addEventListener('click', () => {
+  // 2. معالجة النقر على زر التشغيل
+  playBtn.addEventListener('click', (e) => {
+    e.stopPropagation(); // منع انتشار الحدث
+    console.log('Play/Pause Clicked. State:', isPlaying);
+    
     if (isPlaying) {
       pauseAudio();
     } else {
@@ -3432,33 +3416,30 @@ function initializeAdvancedAudioPlayer(messageWrapper) {
     }
   });
 
-  // النقر على شريط التقدم للتنقل
-  const progressContainer = messageWrapper.querySelector('.audio-progress-container');
-  progressContainer.addEventListener('click', (e) => {
-    if (audioElement.duration) {
-      const rect = progressContainer.getBoundingClientRect();
-      const clickX = e.clientX - rect.left;
-      const percentage = clickX / rect.width;
-      const newTime = percentage * audioElement.duration;
-      audioElement.currentTime = Math.max(0, Math.min(newTime, audioElement.duration));
-      updateProgress();
-    }
-  });
-
+  // 3. دالة التشغيل (تم إصلاحها)
   function playAudio() {
-    if (audioElement.readyState >= 2) { // HAVE_CURRENT_DATA or better
-      audioElement.play().then(() => {
+    // 🔥 التصحيح: أزلنا شرط if (audioElement.readyState >= 2)
+    // نطلب التشغيل مباشرة، والمتصفح سيتكفل بالتحميل
+    
+    const playPromise = audioElement.play();
+
+    if (playPromise !== undefined) {
+      playPromise.then(() => {
+        // نجح التشغيل
         isPlaying = true;
         messageWrapper.classList.add('playing');
         showPauseIcon();
         updateProgress();
-      }).catch(error => {
-        console.error('Audio play error:', error);
-        showAudioError(messageWrapper, 'خطأ في تشغيل المقطع الصوتي');
+      })
+      .catch(error => {
+        console.error('Audio play failed:', error);
+        // في حال فشل التشغيل (مثلاً الرابط خطأ)
+        if(isPlaying) pauseAudio(); 
       });
     }
   }
 
+  // 4. دالة الإيقاف
   function pauseAudio() {
     audioElement.pause();
     isPlaying = false;
@@ -3469,89 +3450,75 @@ function initializeAdvancedAudioPlayer(messageWrapper) {
     }
   }
 
-  function showPlayIcon() {
-    playIcon.style.display = 'block';
-    pauseIcon.style.display = 'none';
+  // 5. تحديث شريط التقدم
+  function updateProgress() {
+    if (!isNaN(audioElement.duration)) {
+      const currentTime = audioElement.currentTime;
+      const duration = audioElement.duration;
+      const progressPercent = (currentTime / duration) * 100;
+      
+      progressBar.style.width = `${progressPercent}%`;
+      seekSlider.value = currentTime;
+      timeDisplay.textContent = formatTime(currentTime);
+      
+      // تحديث المدة أيضاً في حال لم تظهر في البداية
+      if(durationDisplay.textContent === '--:--' || durationDisplay.textContent === '0:00') {
+          durationDisplay.textContent = formatTime(duration);
+          seekSlider.max = duration;
+      }
+    }
+
+    if (isPlaying) {
+      animationFrame = requestAnimationFrame(updateProgress);
+    }
   }
 
-  function showPauseIcon() {
-    playIcon.style.display = 'none';
-    pauseIcon.style.display = 'block';
-  }
-
-  // تحريك شريط البحث
+  // 6. التحكم بشريط السحب (Seek)
   seekSlider.addEventListener('input', (e) => {
-    const time = e.target.value;
+    const time = parseFloat(e.target.value);
     audioElement.currentTime = time;
-    updateProgress();
+    // تحديث العرض يدوياً أثناء السحب
+    const progressPercent = (time / seekSlider.max) * 100;
+    progressBar.style.width = `${progressPercent}%`;
+    timeDisplay.textContent = formatTime(time);
   });
 
+  // إيقاف مؤقت عند السحب
   seekSlider.addEventListener('mousedown', () => {
-    if (isPlaying) {
-      audioElement.pause();
-    }
+     audioElement.pause(); 
   });
-
+  
+  // استئناف عند ترك السحب (إذا كان يعمل)
   seekSlider.addEventListener('mouseup', () => {
-    if (isPlaying) {
-      audioElement.play();
-    }
+    if (isPlaying) audioElement.play();
   });
 
-  // انتهاء الصوت
+  // 7. عند انتهاء المقطع
   audioElement.addEventListener('ended', () => {
-    isPlaying = false;
-    messageWrapper.classList.remove('playing');
-    showPlayIcon();
+    pauseAudio(); // تعيد الأيقونة وتوقف الأنيميشن
+    audioElement.currentTime = 0;
     progressBar.style.width = '0%';
     seekSlider.value = 0;
     timeDisplay.textContent = '0:00';
-
-    if (animationFrame) {
-      cancelAnimationFrame(animationFrame);
-    }
   });
 
-  // تحميل الصوت
-  audioElement.addEventListener('canplaythrough', () => {
-    console.log('Audio ready for playback');
-  });
+  // دوال مساعدة للأيقونات
+  function showPlayIcon() {
+    if(playIcon) playIcon.style.display = 'block';
+    if(pauseIcon) pauseIcon.style.display = 'none';
+  }
 
+  function showPauseIcon() {
+    if(playIcon) playIcon.style.display = 'none';
+    if(pauseIcon) pauseIcon.style.display = 'block';
+  }
 
-  // تنسيق الوقت
   function formatTime(seconds) {
-    if (isNaN(seconds)) return '0:00';
+    if (isNaN(seconds) || !isFinite(seconds)) return '0:00';
     const minutes = Math.floor(seconds / 60);
     const remainingSeconds = Math.floor(seconds % 60);
     return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
   }
-
-  // عرض خطأ
-  function showAudioError(wrapper, message) {
-    const container = wrapper.querySelector('.audio-container');
-    if (container) {
-      container.innerHTML = `
-        <div class="audio-error">
-          <svg viewBox="0 0 24 24" width="20" height="20">
-            <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/>
-          </svg>
-          <span>${message}</span>
-        </div>
-      `;
-    }
-  }
-
-  // إضافة keyboard shortcuts
-  messageWrapper.addEventListener('keydown', (e) => {
-    if (e.code === 'Space') {
-      e.preventDefault();
-      playBtn.click();
-    }
-  });
-
-  // جعل العنصر قابلاً للتركيز
-  playBtn.tabIndex = 0;
-  seekSlider.tabIndex = 0;
 }
 function getStatusIconHTML(status) {
     // 1. أيقونة الانتظار (ساعة)
@@ -3735,18 +3702,18 @@ function getStatusIconHTML(status) {
 
     // دالة مساعدة لتشغيل الصوت
     function initializeAudioPlayer(audio) {
-      const playBtn = audio.closest('.audio-message').querySelector('.audio-play');
+      const playBtn = audio.closest('.audio-message').querySelector('.audio-play-btn');
       const progressBar = audio.closest('.audio-message').querySelector('.bar');
       const timeDisplay = audio.closest('.audio-message').querySelector('.audio-time');
 
       audio.addEventListener('timeupdate', () => {
         const current = formatTime(audio.currentTime);
-        const duration = formatTime(audio.duration);
+        // const duration = formatTime(audio.duration);
         timeDisplay.textContent = `${current} / ${duration || '0:00'}`;
-        if (!isNaN(audio.duration)) {
-          const percent = (audio.currentTime / audio.duration) * 100;
-          progressBar.style.width = percent + '%';
-        }
+        // if (!isNaN(audio.duration)) {
+        //   const percent = (audio.currentTime / audio.duration) * 100;
+        //   progressBar.style.width = percent + '%';
+        // }
       });
 
       audio.addEventListener('ended', () => {

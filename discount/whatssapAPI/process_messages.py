@@ -24,7 +24,7 @@ import datetime as _dt
  
 import re
 
-from discount.models import Flow, Message ,Contact , WhatsAppChannel
+from discount.models import CustomUser, Flow, Message ,Contact , WhatsAppChannel
 from django.utils import timezone
 from ..channel.socket_utils import send_socket
 
@@ -847,15 +847,27 @@ def whatsapp_webhook(request):
 
                         if phone:
                             try:
-                                active_channel = WhatsAppChannel.objects.get(phone_number_id=phone_number_id)
+                                active_channel = WhatsAppChannel.objects.filter(phone_number_id=phone_number_id).first()
+                               
                             except WhatsAppChannel.DoesNotExist:
                                 print(f"❌ Error: Channel not found for ID {phone_number_id}")
                                 return HttpResponse("Channel not found", status=200) 
+                            channel_owner = active_channel.owner
+                            
                             contact, created = Contact.objects.get_or_create(
-    phone=phone,
-    channel=active_channel  # 🔥 الإضافة الضرورية: ربط العميل بالقناة
-)
-                                                    
+                            phone=phone,
+                            defaults={
+                                'user': channel_owner,       
+                                'channel': active_channel,  
+                                'name': safe_name     
+                            }
+                        )
+
+                       
+                        if not created and not contact.channel:
+                            contact.channel = active_channel
+                            contact.user = channel_owner
+                            contact.save()        
                            
                             if safe_name and (created or contact.name != safe_name):
                                 contact.name = safe_name
@@ -1151,11 +1163,9 @@ def send_message_socket(sreciver,  user ,channel_id ,  message, msg_type,
     #     return {"ok": False, "error": "Server configuration missing"}
 
     try:
-        # ----------------------------------------
-        # حالة الوسائط (upload) — نقبل request أو dict
-        # ----------------------------------------
+     
         if msg_type == "media_upload":
-            # قراءة body/type/file من request أو من message dict
+            media_url =''
             if request is not None:
                 body = request.POST.get("body", "")
                 media_type = request.POST.get("type", "text")
@@ -1219,11 +1229,12 @@ def send_message_socket(sreciver,  user ,channel_id ,  message, msg_type,
             # تحويل للصيغ المطلوبة إن لزم (مثلاً audio -> ogg)
             if media_type == "audio":
                 try:
-                    temp_conv = convert_audio_to_ogg(temp_input_path)  # افترض لديك هذه الدالة
+                    temp_conv = convert_audio_to_ogg(temp_input_path)   
                     if temp_conv:
                         temp_input_path = temp_conv
                         saved_filename = "voice_message.ogg"
                         saved_mime = "audio/ogg"
+
                 except Exception as e:
                     print("Audio conversion failed:", e)
 
@@ -1343,9 +1354,7 @@ def send_message_socket(sreciver,  user ,channel_id ,  message, msg_type,
         try:
             msg_kwargs = {"sender": to, "is_from_me": True}
             
-            # ========================================================
-            # 🔥 الجزء المضاف: استخراج وحفظ معرف واتساب (wamid)
-            # ========================================================
+          
             try:
                 # 1. تحويل الرد إلى JSON
                 response_data = r.json() 
@@ -1358,7 +1367,7 @@ def send_message_socket(sreciver,  user ,channel_id ,  message, msg_type,
                     # تأكد أن اسم الحقل في المودل هو 'message_id'
                     msg_kwargs["message_id"] = wa_message_id 
                     
-                    print(f"✅ Extracted WhatsApp ID: {wa_message_id}")
+                  
             except Exception as json_err:
                 print(f"⚠️ Failed to extract WhatsApp ID: {json_err}")
             # ========================================================
@@ -1373,11 +1382,22 @@ def send_message_socket(sreciver,  user ,channel_id ,  message, msg_type,
                 if media_id:
                     msg_kwargs["media_id"] = media_id
 
-            # الحفظ الآن سيتضمن الـ message_id الصحيح
             saved_message = Message.objects.create(channel = channel , **msg_kwargs)
-            saved_message_id = saved_message.id
 
-            # ... (باقي كود حفظ الملفات محلياً كما هو) ...
+            saved_message_id = saved_message.id
+            media_url = ""
+            print('saved_message' , saved_message.media_type , saved_message.media_url , saved_message.media_file)
+            if saved_message_id:
+                try:
+                 
+                    msg_obj = Message.objects.get(id=saved_message_id)
+                    print('🥰😜😜😜msg' , msg_obj)
+                    if msg_obj.media_file:
+                        media_url = msg_obj.media_file.url
+
+                except Exception:
+                    pass
+ 
             if saved_local_bytes and hasattr(saved_message, "media_file"):
                 try:
                     ext = ""
@@ -1389,6 +1409,7 @@ def send_message_socket(sreciver,  user ,channel_id ,  message, msg_type,
                         elif "pdf" in saved_mime: ext = ".pdf"
                     fname = f"{media_id or 'file'}{ext}"
                     saved_message.media_file.save(fname, ContentFile(saved_local_bytes), save=True)
+                    media_url = saved_message.media_file.url
                 except Exception as ex_save:
                     print("Error saving local file:", ex_save)
 
@@ -1401,10 +1422,12 @@ def send_message_socket(sreciver,  user ,channel_id ,  message, msg_type,
     # تنظيف نهائي
     _cleanup_paths(temp_input_path, temp_converted_path)
     snippet = body or ""
-    if media_type == 'image': snippet = '📷 صورة'
-    elif media_type == 'video': snippet = '🎥 فيديو'
-    elif media_type == 'audio': snippet = '🎤 صوت'
-    elif media_type == 'template': snippet = f"📄 {template_data.get('name')}"
+    if media_type == 'image': snippet = 'image'
+    elif media_type == 'video': snippet = 'vedio'
+    elif media_type == 'audio': snippet = 'audio'
+    elif media_type == 'template': 
+        tpl_name = template_data.get('name') if template_data else "Template"
+        snippet = f"📄 {tpl_name}"
 
     final_payload = {
         "status": status_code,
@@ -1414,6 +1437,8 @@ def send_message_socket(sreciver,  user ,channel_id ,  message, msg_type,
         "body": body,
         "to": to,
         "media_type": media_type,
+        "url": media_url,  # ✅ أضفنا الرابط هنا لكي يعرضه المتصفح
+        "media_url": media_url # ✅ نسخة احتياطية حسب تسمية الجافاسكربت لديك
     }
     sidebar_payload = {
         "phone": to, # رقم المستقبل

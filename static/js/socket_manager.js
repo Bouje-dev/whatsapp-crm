@@ -95,8 +95,11 @@ const ChatSocket = {
             break;
 
         case 'new_message_received':
+            if (typeof window.highlightOrderRow === 'function'){
+
+          
            window.highlightOrderRow(payload.contact.phone);
-            
+              }
             
             if (typeof window.updateContactItemSingle === 'function') {
               

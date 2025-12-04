@@ -349,9 +349,7 @@ from django.contrib.contenttypes.models import ContentType
 class Activity(models.Model):
     # المستخدم الذي قام بالنشاط
     user = models.ForeignKey(CustomUser, on_delete=models.CASCADE, related_name='activities', null=True, blank=True)
-    
-    # نوع النشاط (مثلاً: 'login', 'logout', 'order_created', 'order_updated', 'user_added', 'user_deleted')
-    # يمكنك تعريف قائمة ثابتة لأنواع الأنشطة لتجنب الأخطاء الإملائية
+     
     ACTIVITY_TYPES = (
         ('login', 'User Login'),
         ('logout', 'User Logout'),
