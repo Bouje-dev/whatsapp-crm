@@ -3745,6 +3745,7 @@ function getStatusIconHTML(status) {
       let hasNewMessages = false;
       
       for(const m of msgArray){
+        if(!m) continue;
         if(m.id && existsMsgId(m.id)) {
           if(m.id > (lastMessageId||0)) lastMessageId = m.id;
           continue;
