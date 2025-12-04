@@ -56,7 +56,10 @@ INSTALLED_APPS = [
 ]
 
   
- 
+if 'cloudinary_storage' not in INSTALLED_APPS:
+    INSTALLED_APPS.insert(0, 'cloudinary_storage')
+if 'cloudinary' not in INSTALLED_APPS:
+    INSTALLED_APPS.append('cloudinary')
 
 
 MIDDLEWARE = [
@@ -113,38 +116,16 @@ CHANNEL_LAYERS = {
     },
 }
 
-# Database
-# https://docs.djangoproject.com/en/4.2/ref/settings/#databases
-
-# DATABASES = {
-#     'default': {
-#         'ENGINE': 'django.db.backends.sqlite3',
-#         'NAME': BASE_DIR / 'db.sqlite3',
-#     }
-# }
+ 
 DATABASES = {
     'default': dj_database_url.config(
-        # إذا كنا في السيرفر، نستخدم رابط DATABASE_URL
-        # إذا كنا في حاسوبك، نستخدم SQLite العادية
         default=os.environ.get('DATABASE_URL', f'sqlite:///{BASE_DIR / "db.sqlite3"}'),
         conn_max_age=600
     )
 }
 
 
-# DATABASES = {
-#     'default': {
-#         'ENGINE': 'django.db.backends.mysql',
-#         'NAME': 'boujema$default',
-#         'USER': 'boujema',
-#         'PASSWORD': 'mirgE1-rubgym-sedcif',
-#         'HOST': 'boujema.mysql.pythonanywhere-services.com',
-#         'PORT': '3306',
-#         'OPTIONS': {
-#             'init_command': "SET sql_mode='STRICT_TRANS_TABLES'",
-#         },
-#     }
-# }
+ 
 
 
 
@@ -178,15 +159,7 @@ USE_I18N = True
 
 USE_TZ = True
 
-
-# Static files (CSS, JavaScript, Images)
-# https://docs.djangoproject.com/en/4.2/howto/static-files/
-
-# STATIC_URL = 'static/'
-# STATICFILES_DIRS = [BASE_DIR / "static"]
-
-# STATIC_ROOT = BASE_DIR / 'staticfiles'  # سيتم ملؤه تلقائياً
-
+ 
 
 STATIC_URL = 'static/'
 STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
@@ -218,7 +191,6 @@ EMAIL_PORT = int(os.environ.get('EMAIL_PORT', 587))
 EMAIL_USE_TLS = os.environ.get('EMAIL_USE_TLS', 'True') == 'True'
 EMAIL_USE_SSL = os.environ.get('EMAIL_USE_SSL', 'False') == 'True'
 
-# قراءة البيانات الحساسة من البيئة (Environment Variables)
 EMAIL_HOST_USER = os.environ.get('EMAIL_HOST_USER')
 EMAIL_HOST_PASSWORD = os.environ.get('EMAIL_HOST_PASSWORD')
 DEFAULT_FROM_EMAIL = os.environ.get('DEFAULT_FROM_EMAIL')
