@@ -846,8 +846,16 @@ def whatsapp_webhook(request):
                         safe_name = remove_emojis(raw_name)
 
                         if phone:
-                            contact , created = Contact.objects.get_or_create(phone=phone)
-                          
+                            try:
+                                active_channel = WhatsAppChannel.objects.get(phone_number_id=phone_number_id)
+                            except WhatsAppChannel.DoesNotExist:
+                                print(f"❌ Error: Channel not found for ID {phone_number_id}")
+                                return HttpResponse("Channel not found", status=200) 
+                            contact, created = Contact.objects.get_or_create(
+    phone=phone,
+    channel=active_channel  # 🔥 الإضافة الضرورية: ربط العميل بالقناة
+)
+                                                    
                            
                             if safe_name and (created or contact.name != safe_name):
                                 contact.name = safe_name

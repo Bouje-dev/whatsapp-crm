@@ -1,35 +1,23 @@
-from django.http import JsonResponse
-from django.shortcuts import render ,get_object_or_404
-from .models import CustomUser , GroupMessages , groupchat
-from django.contrib.auth.decorators import login_required
+import requests
 
-@login_required
-def testing_Chanels(request):
-    # grop = groupchat.objects.create( group_name = "Test Group Chtee123" ).save()
-    # # grop.members.add( request.user )
-    # buby = GroupMessages.objects.create(auther = request.user , Group = grop , message = "This is a test message from testing endpoint" )
-    # buby.save()
-    groupcha = get_object_or_404(groupchat, group_name="Test Group Chat")
+# ضع البيانات هنا
+ACCESS_TOKEN ="EAALZBubBgmq0BQHmIewxaHrZBwF67lMsRRj012KOo8hNl8ab6agSmVSHqkzZCNbhHZChionX5hJwiXHMYu7pLI7ZANqxFKoBZAgrBv6X0jarDAwIyMBEYoEvQNXzWKrQocyG7cR7m8Hftt9fTtvPAZCimPA9qMKfXo20qz0MQlzjzUnLbyVzx5PSzbaYA7oyfNK6AZDZD"
 
-    chat_messages = GroupMessages.objects.filter(Group=groupcha).order_by('created')
-   
+WABA_ID = "838444915721462"
 
-    return render( request, "testing.html", {'chat_name' :groupcha, 'chat_messages': chat_messages } )
-import json
-def send_msgtesting(request):
-    if request.method == "POST":
-        groupcha = get_object_or_404(groupchat, group_name="Test Group Chat")
-        data = json.loads(request.body)
-        message_text = data.get("message")
+url = f"https://graph.facebook.com/v18.0/{WABA_ID}/subscribed_apps"
 
-        
-        if message_text:
-            new_message = GroupMessages.objects.create(
-                auther=request.user,
-                Group=groupcha,
-                message=message_text
-            )
-            new_message.save()
-            if new_message:
-                return JsonResponse({"status": "success"})
-    return JsonResponse({"status": "success"})
+headers = {
+    "Authorization": f"Bearer {ACCESS_TOKEN}",
+    "Content-Type": "application/json"
+}
+
+response = requests.post(url, headers=headers)
+
+print(f"Status Code: {response.status_code}")
+print(f"Response: {response.text}")
+
+if response.status_code == 200:
+    print("✅ تم تفعيل الويب هوك للرقم الجديد بنجاح! جرب الآن.")
+else:
+    print("❌ حدث خطأ، تأكد من WABA ID والتوكن.")

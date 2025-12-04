@@ -96,8 +96,8 @@ urlpatterns = [
 
     # path('tracking/leadstracking/', user_dash.displayleads, name='displayleads'),  
 
-    path("testing/" , tests.testing_Chanels , name="testing" ) ,
-    path('send_msgtesting/', tests.send_msgtesting, name='send_msgtesting'),
+    # path("testing/" , tests.testing_Chanels , name="testing" ) ,
+    # path('send_msgtesting/', tests.send_msgtesting, name='send_msgtesting'),
 
     # footer pages 
     # footer pages 
