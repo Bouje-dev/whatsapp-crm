@@ -1,6 +1,5 @@
 RUN apt-get update && apt-get install -y ffmpeg
-# 1. استخدام نسخة بايثون خفيفة
-FROM python:3.11-slim
+
 
 # 2. منع بايثون من كتابة ملفات pyc وتفعيل السجلات
 ENV PYTHONDONTWRITEBYTECODE 1
