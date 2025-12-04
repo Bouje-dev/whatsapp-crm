@@ -176,15 +176,17 @@ MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 # =========================================================
 
 if not DEBUG:
+    # إعدادات السيرفر (HTTPS)
+    SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https') # 🔥 هذا هو السطر المنقذ
     SECURE_SSL_REDIRECT = True
     SESSION_COOKIE_SECURE = True
     CSRF_COOKIE_SECURE = True
     SECURE_BROWSER_XSS_FILTER = True
 else:
+    # إعدادات Localhost
     SECURE_SSL_REDIRECT = False
     SESSION_COOKIE_SECURE = False
     CSRF_COOKIE_SECURE = False
-
 # إعدادات أخرى
 DATA_UPLOAD_MAX_MEMORY_SIZE = 104857600  # 100 MB
 FILE_UPLOAD_MAX_MEMORY_SIZE = 104857600  # 100 MB
