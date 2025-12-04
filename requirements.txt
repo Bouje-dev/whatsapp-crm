@@ -54,3 +54,4 @@ psycopg2-binary
 dj-database-url
 whitenoise
 channels_redis
+python-dotenv
