@@ -1031,7 +1031,7 @@ class AutoReply(models.Model):
     )
     response_text = models.TextField(blank=True, help_text="نص الرد (إذا كان نوع الرد نص)")
     media_file = models.FileField(upload_to='autoreply_media/', null=True, blank=True, help_text="ملف وسائط يُستخدم في الرد إذا تطلب الأمر")
-    
+     
     # حقول إضافية للتحكم
     delay = models.IntegerField(default=0, help_text="تأخير الإرسال بالثواني")
     active = models.BooleanField(default=True)
