@@ -46,7 +46,8 @@ zope.interface==8.1.1
 
 
 
-
+ffmpeg-python  
+pydub
  
 gunicorn
 psycopg2-binary
