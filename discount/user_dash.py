@@ -1112,7 +1112,7 @@ from datetime import timedelta
 
 def sendlead(request, cname, cphone, caddress, country_code, items):
     payload = {
-        "phone": "",
+        "phone": cphone,
         "name": cname,
         "country": country_code,
         "address": caddress,
