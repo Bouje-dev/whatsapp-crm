@@ -1224,14 +1224,14 @@
       min-height:520px;
       padding:12px;
       box-sizing:border-box;
-      background-color: var(--bg-secondary);
+      background-color: transparent !important;
     }
 
     /* 🔥 left contacts column - تصميم احترافي محسّن */
     .cls3741_contacts_col{
       width:320px;
       min-width:280px;
-      background:var(--bg-primary);
+      background: transparent !important;
       border-radius:var(--card-radius);
       padding:0;
       box-shadow:var(--shadow-lg);
@@ -1240,12 +1240,13 @@
       overflow:hidden;
       border: 1px solid var(--border-color);
       backdrop-filter: blur(10px);
+
     }
 
     /* 🔥 شريط البحث والفلترة الجديد */
     .cls3741_search_filter_bar {
       padding: 16px;
-      background: var(--bg-primary);
+      background: transparent !important;
       border-bottom: 1px solid var(--border-color);
       display: flex;
       flex-direction: column;

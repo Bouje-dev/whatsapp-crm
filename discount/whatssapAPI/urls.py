@@ -62,7 +62,7 @@ urlpatterns = [
 
 #    for dash 
 path('api/dashboard/stats/', views.api_dashboard_stats, name='api_dashboard_stats'),
-
+path('api/dashboard/team/', views.api_team_stats, name='api_team_stats'),
 
 
 
