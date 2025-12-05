@@ -509,58 +509,58 @@ function escapeHtml(text) {
 
      <script>
       // update badge_chats 
-      window.updateinterface = function(msg) {
-    // 1. تحديد الزر المستهدف (هل هو 'chats' للرسائل أم 'orders'؟)
-    // لقد جعلته 'chats' لأنه الأنسب للرسائل، يمكنك تغييره لـ 'orders' إذا أردت
-    const targetName = 'chats'; 
-    const targetBtn = document.querySelector(`[data-target="${targetName}"]`);
+//       window.updateinterface = function(msg) {
+//     // 1. تحديد الزر المستهدف (هل هو 'chats' للرسائل أم 'orders'؟)
+//     // لقد جعلته 'chats' لأنه الأنسب للرسائل، يمكنك تغييره لـ 'orders' إذا أردت
+//     const targetName = 'chats'; 
+//     const targetBtn = document.querySelector(`[data-target="${targetName}"]`);
     
-    if (!targetBtn) return;
+//     if (!targetBtn) return;
 
-    // 2. التحقق: هل نحن فاتحين هذا التبويب الآن؟
-    // (اختياري: إذا أردت التحديث حتى لو كان مفتوحاً، احذف هذا الشرط)
-    // if (targetBtn.classList.contains('cls3741_btn_active')) return;
+//     // 2. التحقق: هل نحن فاتحين هذا التبويب الآن؟
+//     // (اختياري: إذا أردت التحديث حتى لو كان مفتوحاً، احذف هذا الشرط)
+//     // if (targetBtn.classList.contains('cls3741_btn_active')) return;
 
-    // 3. البحث عن البادج (Badge) أو إنشاؤه إذا لم يكن موجوداً
-    let badge = targetBtn.querySelector('.cls3741_badge');
+//     // 3. البحث عن البادج (Badge) أو إنشاؤه إذا لم يكن موجوداً
+//     let badge = targetBtn.querySelector('.cls3741_badge');
     
-    if (!badge) {
-        // إنشاء العنصر ديناميكياً إذا لم يكن موجوداً في HTML
-        badge = document.createElement('span');
-        badge.className = 'cls3741_badge';
-        // إضافة تنسيق افتراضي سريع (أو يعتمد على CSS الخاص بك)
-        badge.style.cssText = `
-            background: #ef4444; 
-            color: white; 
-            padding: 2px 8px; 
-            border-radius: 12px; 
-            font-size: 11px; 
-            font-weight: bold;
-            margin-left: auto;
-        `;
-        targetBtn.appendChild(badge);
-    }
+//     if (!badge) {
+//         // إنشاء العنصر ديناميكياً إذا لم يكن موجوداً في HTML
+//         badge = document.createElement('span');
+//         badge.className = 'cls3741_badge';
+//         // إضافة تنسيق افتراضي سريع (أو يعتمد على CSS الخاص بك)
+//         badge.style.cssText = `
+//             background: #ef4444; 
+//             color: white; 
+//             padding: 2px 8px; 
+//             border-radius: 12px; 
+//             font-size: 11px; 
+//             font-weight: bold;
+//             margin-left: auto;
+//         `;
+//         targetBtn.appendChild(badge);
+//     }
 
-    // 4. استخراج العدد (دعم صيغ مختلفة للبيانات)
-    // أحياناً تأتي msg.count وأحياناً msg.unread_count
-    const count = msg.count || msg.unread_count || msg.unread || 0;
+//     // 4. استخراج العدد (دعم صيغ مختلفة للبيانات)
+//     // أحياناً تأتي msg.count وأحياناً msg.unread_count
+//     const count = msg.count || msg.unread_count || msg.unread || 0;
 
-    // 5. التحديث والعرض
-    if (count > 0) {
-        badge.textContent = count;
-        badge.style.display = 'inline-flex';
+//     // 5. التحديث والعرض
+//     if (count > 0) {
+//         badge.textContent = count;
+//         badge.style.display = 'inline-flex';
         
-        // ومضة بسيطة لجذب الانتباه (Animation)
-        badge.animate([
-            { transform: 'scale(1)' },
-            { transform: 'scale(1.3)' },
-            { transform: 'scale(1)' }
-        ], { duration: 200 });
+//         // ومضة بسيطة لجذب الانتباه (Animation)
+//         badge.animate([
+//             { transform: 'scale(1)' },
+//             { transform: 'scale(1.3)' },
+//             { transform: 'scale(1)' }
+//         ], { duration: 200 });
         
-    } else {
-        badge.style.display = 'none'; // إخفاء إذا كان 0
-    }
-};
+//     } else {
+//         badge.style.display = 'none'; // إخفاء إذا كان 0
+//     }
+// };
      
 
       </script>
