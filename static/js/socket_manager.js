@@ -128,7 +128,7 @@ const ChatSocket = {
                 }
             }
             
-            if ( typeof window.updateinterface === 'function') window.updateinterface(window.updateinterface(msg))
+            if ( typeof window.updateinterface === 'function') window.updateinterface(window.updateinterface(payload.message))
             
             
             const cleanIncoming = incomingPhone.replace(/\D/g, '');
