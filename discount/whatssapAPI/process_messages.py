@@ -369,7 +369,7 @@ def get_media_extension(media_type):
 
 
 # ---------------------Save sms----------------
-def save_incoming_message(msg , sender = None , channel = None):
+def save_incoming_message(msg , sender = None , channel = None  , name = None):
     """
     حفظ الرسالة الواردة في قاعدة البيانات
     """
@@ -466,11 +466,11 @@ def save_incoming_message(msg , sender = None , channel = None):
         contact_payload = {
             "channel_id": channel.id if channel else None, # هام للفرونت إند - مع التحقق من None
             "phone": message_obj.sender,
-            "name": message_obj.sender, # أو الاسم المخزن في جدول Contact
+            "name": name if name else message_obj.sender, # أو الاسم المخزن في جدول Contact
             "snippet": snippet,
             "unread": unread_count,
             "last_id": message_obj.id,
-            "timestamp": message_obj.created_at.strftime("%H:%M")
+            "timestamp": message_obj.created_at.strftime("%H:%M") 
         }
 
         # 3. إرسال باكيج موحد يحتوي على الاثنين
@@ -875,7 +875,7 @@ def whatsapp_webhook(request):
                                 contact.save()
                  
                     if 'messages' in value:
-                        process_messages(value.get("messages", []) , channel=active_channel)
+                        process_messages(value.get("messages", []) , channel=active_channel , name = raw_name )
 
                     if 'statuses' in value:
 
@@ -890,7 +890,7 @@ def whatsapp_webhook(request):
             return HttpResponse("ERROR", status=500)
 
 
-def process_messages(messages , channel = None):
+def process_messages(messages , channel = None , name = None):
     """
     معالجة الرسائل الواردة - تدعم الإعلانات (Referral)
     """
@@ -930,7 +930,7 @@ def process_messages(messages , channel = None):
             print(f"📩 Processing from {sender}: '{body}' (Type: {message_type}, Referral: {is_referral})")
             
             # حفظ الرسالة (تأكد من أن دالة الحفظ لديك تدعم الحقول الفارغة)
-            save_incoming_message(msg , channel = channel ) 
+            save_incoming_message(msg , channel = channel , name =name ) 
  
             flow = None
             

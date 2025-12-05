@@ -145,7 +145,7 @@ const ChatSocket = {
                 // استدعاء دالة الإشعار التي بنيناها
                 if (typeof window.showNotification === 'function') {
                     window.showNotification(
-                        `رسالة من ${payload.contact.name || incomingPhone}`, // العنوان
+                        ` Message from ${payload.contact.name || incomingPhone}`, // العنوان
                         messageText, // النص
                         
                         // عند النقر على الإشعار: نفتح الشات
