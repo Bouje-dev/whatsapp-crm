@@ -279,15 +279,30 @@
 
 <script>
   // طلب الإذن عند فتح الموقع
-if ("Notification" in window) {
-    if (Notification.permission !== "granted" && Notification.permission !== "denied") {
+// دالة لطلب الإذن (تستدعى عند النقر)
+function askForNotificationPermission() {
+    if (!("Notification" in window)) return;
+    
+    if (Notification.permission === "default") {
         Notification.requestPermission().then(permission => {
             if (permission === "granted") {
-                console.log("✅ تم تفعيل إشعارات سطح المكتب");
+                console.log("✅ تم تفعيل الإشعارات بنجاح!");
+                // تجربة إشعار ترحيبي
+                new Notification("مرحباً بك", { 
+                    body: "تم تفعيل التنبيهات بنجاح ✅", 
+                    icon: 'https://cdn-icons-png.flaticon.com/512/733/733585.png'
+                });
             }
         });
     }
 }
+
+// 🔥 الحل السحري: طلب الإذن عند أول نقرة في أي مكان في الصفحة 🔥
+document.addEventListener('click', function() {
+    if (Notification.permission === 'default') {
+        askForNotificationPermission();
+    }
+}, { once: true }); // once: true تعني أن هذا الحدث سيعمل مرة واحدة فقط
   // دالة إظهار الإشعار وتشغيل الصوت
   window.showNotification = function(title, message, onClickCallback) {
     // 1. تشغيل الصوت (كما كان)
