@@ -217,6 +217,7 @@ CLOUDINARY_STORAGE = {
     'CLOUD_NAME': os.environ.get('CLOUDINARY_CLOUD_NAME' ,'drgajh9av'),
     'API_KEY': os.environ.get('CLOUDINARY_API_KEY' , '483893926833897'),
     'API_SECRET': os.environ.get('CLOUDINARY_API_SECRET', 'GvMaKElwPaJrZyMV7fPWXTjN-Rc'),
+    'RESOURCE_TYPE': 'auto',
 }
 
  
