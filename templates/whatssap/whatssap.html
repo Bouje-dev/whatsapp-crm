@@ -278,48 +278,72 @@
 
 
 <script>
+  // طلب الإذن عند فتح الموقع
+if ("Notification" in window) {
+    if (Notification.permission !== "granted" && Notification.permission !== "denied") {
+        Notification.requestPermission().then(permission => {
+            if (permission === "granted") {
+                console.log("✅ تم تفعيل إشعارات سطح المكتب");
+            }
+        });
+    }
+}
   // دالة إظهار الإشعار وتشغيل الصوت
-window.showNotification = function(title, message, onClickCallback) {
-    // 1. تشغيل الصوت
+  window.showNotification = function(title, message, onClickCallback) {
+    // 1. تشغيل الصوت (كما كان)
     const audio = document.getElementById('notification_sound');
     if (audio) {
         audio.currentTime = 0;
-        audio.play().catch(e => console.log("Audio play blocked (user interaction needed)"));
+        audio.play().catch(e => console.log("Audio blocked"));
     }
 
-    // 2. تغيير عنوان الصفحة مؤقتاً
+    // 2. تغيير العنوان (كما كان)
     const originalTitle = document.title;
     document.title = `💬 ${title}`;
     setTimeout(() => document.title = originalTitle, 3000);
 
-    // 3. إنشاء الإشعار البصري (Toast)
+    // 3. الإشعار الداخلي (Toast - كما كان)
     const container = document.getElementById('toast_container');
-    if (!container) return;
+    if (container) {
+        const toast = document.createElement('div');
+        toast.className = 'cls3741_toast';
+        toast.innerHTML = `
+            <div class="cls3741_toast_icon">🔔</div>
+            <div class="cls3741_toast_content">
+                <div class="cls3741_toast_title">${title}</div>
+                <div class="cls3741_toast_msg">${message}</div>
+            </div>
+        `;
+        toast.onclick = function() {
+            if (onClickCallback) onClickCallback();
+            toast.remove();
+        };
+        container.appendChild(toast);
+        setTimeout(() => toast.remove(), 5000);
+    }
 
-    const toast = document.createElement('div');
-    toast.className = 'cls3741_toast';
-    
-    toast.innerHTML = `
-        <div class="cls3741_toast_icon">🔔</div>
-        <div class="cls3741_toast_content">
-            <div class="cls3741_toast_title">${title}</div>
-            <div class="cls3741_toast_msg">${message}</div>
-        </div>
-    `;
+    // 4. 🔥 الإضافة الجديدة: إشعار سطح المكتب (Desktop Notification) 🔥
+    // نتحقق إذا كان المتصفح يدعمها وإذا وافق المستخدم
+    if ("Notification" in window && Notification.permission === "granted") {
+        
+        // نتحقق: هل الصفحة مخفية؟ (لأننا لا نريد إزعاج المستخدم بإشعارين لو كان فاتحاً للموقع)
+        if (document.hidden) { 
+            const notification = new Notification(title, {
+                body: message,
+                icon: 'https://cdn-icons-png.flaticon.com/512/733/733585.png', // أيقونة واتساب أو شعار موقعك
+                tag: 'new-message' // لمنع تكرار الإشعارات فوق بعضها
+            });
 
-    // عند النقر على الإشعار
-    toast.onclick = function() {
-        if (onClickCallback) onClickCallback();
-        toast.remove();
-    };
-
-    container.appendChild(toast);
-
-    // الحذف التلقائي بعد 5 ثواني
-    setTimeout(() => {
-        if (toast.parentElement) toast.remove();
-    }, 5000);
+            // عند النقر على الإشعار الخارجي
+            notification.onclick = function() {
+                window.focus(); // إعادة التركيز على نافذة المتصفح
+                if (onClickCallback) onClickCallback();
+                this.close();
+            };
+        }
+    }
 };
+
 </script>
       <nav class="cls3741_nav" aria-label="Main menu">
         <button class="cls3741_btn cls3741_btn_active" data-target="dashboard">Dashboard
