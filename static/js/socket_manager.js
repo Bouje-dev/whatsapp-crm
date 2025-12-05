@@ -45,12 +45,14 @@ const ChatSocket = {
     
  handleIncomingMessage: function(data) {
     const type = data.data_type;  
-    const payload = data.payload;
+    
 
     
 
     switch (type) {
-        case "finished":
+        case "finished":{
+            
+        const payload = data.payload;
     console.log('💯👀 msg sent succ', payload);
 
     const formattedMsg = {
@@ -74,11 +76,13 @@ const ChatSocket = {
         // 🔥 لاحظ الأقواس المربعة [ ] هنا لتحويلها لمصفوفة
         window.appendMessagesws([formattedMsg]); 
     }
+
     break;
+}
 
 
-
-        case 'message_status_update':
+        case 'message_status_update':{
+            const payload = data.payload;
             console.log('Message ststus' , payload)
             const msgStatusIcon = document.querySelector(`[data-msg-id="${data.payload.message_id}"] .cls3741_msg_status`);
             
@@ -86,25 +90,27 @@ const ChatSocket = {
         const newIconSVG = window.getStatusIconHTML(data.payload.status);
         msgStatusIcon.innerHTML = newIconSVG;
             }
+       
             break;
+ }
 
 
 
 
-
-        case  'existing_customer_message':
+        case  'existing_customer_message':{
+            const payload = data.payload;
              if (typeof window.updateContactItemSingle === 'function') {
                 window.updateContactItemSingle(payload.message);
             }
             break;
 
 
+}
 
 
 
 
-
-        case 'new_message_received':
+        case 'new_message_received': {
             const payload = data.payload;
             const incomingPhone = payload.contact.phone;
             const messageText = payload.message.body || "صورة/ملف";
@@ -128,7 +134,7 @@ const ChatSocket = {
                 }
             }
             
-            if ( typeof window.updateinterface === 'function') window.updateinterface(window.updateinterface(payload.message))
+            if ( typeof window.updateinterface === 'function') window.updateinterface(window.updateinterface(payload))
             
             
             const cleanIncoming = incomingPhone.replace(/\D/g, '');
@@ -164,6 +170,7 @@ const ChatSocket = {
                 // هنا يمكنك تشغيل صوت تنبيه بسيط
             }
             break;
+        }
 
         default:
             console.warn("Unknown message type:", type);

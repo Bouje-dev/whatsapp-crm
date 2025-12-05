@@ -277,6 +277,7 @@
 <div id="toast_container" class="cls3741_toast_container"></div>
 
 
+ 
 <script>
   // طلب الإذن عند فتح الموقع
 // دالة لطلب الإذن (تستدعى عند النقر)
@@ -396,7 +397,7 @@ document.addEventListener('click', function() {
       const data_target = document.querySelector(`[data-target="orders"]`);
       if (!data_target.classList.contains('cls3741_btn_active')) {
       const badge = data_target.querySelector('.cls3741_badge');
-      badge.textContent = msg|| 0;
+      badge.textContent = msg.count || 0;
       }
       }
       window.updateinterface = updateinterface
