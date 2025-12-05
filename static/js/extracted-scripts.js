@@ -1242,7 +1242,7 @@ let currentIframeLoadedUrl = '';
 
         $(document).ready(function() {
             // Initial load: show order tracking section
-            showSection('order-tracking-section');
+            showSection('whatssap_API_cloud');
 
             // Page Tabs navigation link handler
             $('.page-tabs-nav .nav-link').on('click', function(e) {

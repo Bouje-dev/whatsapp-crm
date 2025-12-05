@@ -859,12 +859,12 @@ color:#ede9e9 !important;
 
 <div class="main-content-area">
         <nav class="page-tabs-nav">
-            <a class="nav-link active" href="#" data-section="order-tracking-section">Order tracking</a>
+            <a class="nav-link active" href="#" id="whatssap_API_cloud" class="btn nav-link2" data-section="future-whatssap_API">Whatssapp</a>
+            <a class="nav-link" href="#" data-section="order-tracking-section">Order tracking</a>
             <a class="nav-link" href="#" data-section="leads-tracking-section">Lead Management</a>
             <a class="nav-link" href="#" data-section="update-section">Inventory & Data Update</a>
             <a class="nav-link" href="#" id="Codproduct" data-section="future-features-1-section">Product Hub</a>
-            <a class="nav-link" href="#" id="whatssap_API_cloud" class="btn nav-link2" data-section="future-whatssap_API">Whatssapp</a>
-
+             
 {% if request.user.is_team_admin or user_permusstion.can_create_orders %}
 
             <a class="nav-link" href="#" data-section="leads-created-section">Add Leads</a>
@@ -873,7 +873,7 @@ color:#ede9e9 !important;
 
         </nav>
 
-        <div class="section-content" id="future-whatssap_API">
+        <div class="section-content active" id="future-whatssap_API">
              
             <script src="{% static 'js/script2.js' %}" ></script>
             
@@ -883,7 +883,7 @@ color:#ede9e9 !important;
 
 
 
-           <div class="section-content active" id="order-tracking-section">
+           <div class="section-content" id="order-tracking-section">
             {% if orders %}
             <div class="card">
                 <div class="card-header">

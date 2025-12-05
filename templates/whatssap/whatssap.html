@@ -206,37 +206,166 @@
         </div>
     </div>
       <!-- </div> -->
+<!-- notifications  -->
+ <style>
+  /* --- Toast Notification Styling --- */
+.cls3741_toast_container {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    z-index: 99999;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
 
+.cls3741_toast {
+    background: var(--bg-tertiary); /* لون غامق */
+    border-left: 4px solid var(--accent); /* خط ملون */
+    color: var(--text-primary);
+    padding: 16px 20px;
+    border-radius: 8px;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+    min-width: 300px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    animation: slideInRight 0.3s ease-out, fadeOut 0.5s ease-out 4.5s forwards;
+    cursor: pointer;
+    border: 1px solid var(--border-color);
+}
+
+.cls3741_toast:hover {
+    background: var(--bg-hover);
+}
+
+.cls3741_toast_icon {
+    font-size: 20px;
+}
+
+.cls3741_toast_content {
+    flex: 1;
+}
+
+.cls3741_toast_title {
+    font-weight: bold;
+    font-size: 14px;
+    margin-bottom: 4px;
+}
+
+.cls3741_toast_msg {
+    font-size: 12px;
+    color: var(--text-secondary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 200px;
+}
+
+@keyframes slideInRight {
+    from { transform: translateX(100%); opacity: 0; }
+    to { transform: translateX(0); opacity: 1; }
+}
+
+@keyframes fadeOut {
+    to { opacity: 0; visibility: hidden; }
+}
+ </style>
+
+<audio id="notification_sound" src="https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3" preload="auto"></audio>
+
+<div id="toast_container" class="cls3741_toast_container"></div>
+
+
+<script>
+  // دالة إظهار الإشعار وتشغيل الصوت
+window.showNotification = function(title, message, onClickCallback) {
+    // 1. تشغيل الصوت
+    const audio = document.getElementById('notification_sound');
+    if (audio) {
+        audio.currentTime = 0;
+        audio.play().catch(e => console.log("Audio play blocked (user interaction needed)"));
+    }
+
+    // 2. تغيير عنوان الصفحة مؤقتاً
+    const originalTitle = document.title;
+    document.title = `💬 ${title}`;
+    setTimeout(() => document.title = originalTitle, 3000);
+
+    // 3. إنشاء الإشعار البصري (Toast)
+    const container = document.getElementById('toast_container');
+    if (!container) return;
+
+    const toast = document.createElement('div');
+    toast.className = 'cls3741_toast';
+    
+    toast.innerHTML = `
+        <div class="cls3741_toast_icon">🔔</div>
+        <div class="cls3741_toast_content">
+            <div class="cls3741_toast_title">${title}</div>
+            <div class="cls3741_toast_msg">${message}</div>
+        </div>
+    `;
+
+    // عند النقر على الإشعار
+    toast.onclick = function() {
+        if (onClickCallback) onClickCallback();
+        toast.remove();
+    };
+
+    container.appendChild(toast);
+
+    // الحذف التلقائي بعد 5 ثواني
+    setTimeout(() => {
+        if (toast.parentElement) toast.remove();
+    }, 5000);
+};
+</script>
       <nav class="cls3741_nav" aria-label="Main menu">
         <button class="cls3741_btn cls3741_btn_active" data-target="dashboard">Dashboard
           <span class="cls3741_badge">—</span>
         </button>
 
         <button class="cls3741_btn" data-target="chats">Chats
-          <span class="cls3741_badge" id="badge_chats">3</span>
+          <span class="cls3741_badge" id="badge_chats"></span>
         </button>
 
         <button class="cls3741_btn" data-target="orders">Orders
-          <span class="cls3741_badge" id="badge_orders">12</span>
+          <span class="cls3741_badge" id="badge_orders"></span>
         </button>
 
         <button class="cls3741_btn" data-target="contacts">Contacts
-          <span class="cls3741_badge" id="badge_contacts">42</span>
+          <span class="cls3741_badge" id="badge_contacts"></span>
         </button>
 
         <button class="cls3741_btn" data-target="campaigns">Campaigns
-          <span class="cls3741_badge" id="badge_campaigns">2</span>
+          <span class="cls3741_badge" id="badge_campaigns"></span>
         </button>
 
         <button class="cls3741_btn" data-target="templates">Templates
-          <span class="cls3741_badge" id="badge_templates">7</span>
+          <span class="cls3741_badge" id="badge_templates"></span>
         </button>
 
         <button class="cls3741_btn" data-target="automation">Automation
-          <span class="cls3741_badge" id="badge_automation">1</span>
+          <span class="cls3741_badge" id="badge_automation"></span>
         </button>
       </nav>
 
+     <script>
+      // update badge_chats 
+      function updateinterface(msg){
+      const data_target = document.querySelector(`[data-target="orders"]`);
+      if (!data_target.classList.contains('cls3741_btn_active')) {
+      const badge = data_target.querySelector('.cls3741_badge');
+      badge.textContent = msg|| 0;
+      }
+      }
+      window.updateinterface = updateinterface
+      
+
+     
+
+      </script>
       <!-- <div class="cls3741_spacer"></div> -->
 
       <div style="font-size:13px;color:var(--muted);padding:8px 10px">

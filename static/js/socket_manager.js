@@ -88,37 +88,87 @@ const ChatSocket = {
             }
             break;
 
+
+
+
+
         case  'existing_customer_message':
              if (typeof window.updateContactItemSingle === 'function') {
                 window.updateContactItemSingle(payload.message);
             }
             break;
 
-        case 'new_message_received':
-            if (typeof window.highlightOrderRow === 'function'){
 
-          
+
+
+
+
+
+        case 'new_message_received':
+            const payload = data.payload;
+            const incomingPhone = payload.contact.phone;
+            const messageText = payload.message.body || "صورة/ملف";
+
+
+
+            if (typeof window.highlightOrderRow === 'function'){
            window.highlightOrderRow(payload.contact.phone);
               }
             
             if (typeof window.updateContactItemSingle === 'function') {
-              
+            
                 window.updateContactItemSingle(payload.contact , payload.message);
             }
-
             const activePhone = (typeof window.getCurrentChatPhone === 'function') 
                                 ? window.getCurrentChatPhone() 
                                 : null;
-
             if (activePhone && (activePhone == payload.contact.phone)) { 
-                
                 if (typeof window.appendMessagesws === 'function') {
-                  
                     window.appendMessagesws([payload.message]); 
                 }
-                
+            }
+            
+            if ( typeof window.updateinterface === 'function') window.updateinterface(window.updateinterface(msg))
+            
+            
+            const cleanIncoming = incomingPhone.replace(/\D/g, '');
+            const cleanActive = activePhone ? activePhone.replace(/\D/g, '') : '';
 
-            } else {
+            if (cleanIncoming !== cleanActive) {
+        
+                // استدعاء دالة الإشعار التي بنيناها
+                if (typeof window.showNotification === 'function') {
+                    window.showNotification(
+                        `رسالة من ${payload.contact.name || incomingPhone}`, // العنوان
+                        messageText, // النص
+                        
+                        // عند النقر على الإشعار: نفتح الشات
+                        function() {
+                            if (window.__chatSelectPhone) {
+                                window.__chatSelectPhone(incomingPhone, payload.contact.name);
+                            }
+                        }
+                    );
+                }
+            } 
+            // إذا كان الشات مفتوحاً، نكتفي بصوت خفيف جداً (اختياري)
+            else {
+                // playSubtleSound(); 
+            }
+            
+            
+            
+            
+            
+            
+            
+            
+            
+            
+            
+            
+            
+            else {
                 console.log(`🔔 Notification: New msg from ${payload.contact.phone}, but you are on ${activePhone}`);
                 // هنا يمكنك تشغيل صوت تنبيه بسيط
             }
