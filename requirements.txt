@@ -55,3 +55,6 @@ dj-database-url
 whitenoise
 channels_redis
 python-dotenv
+
+boto3 
+django-storages

@@ -1394,7 +1394,7 @@ def send_message_socket(sreciver,  user ,channel_id ,  message, msg_type,
                     print('🥰😜😜😜msg' , msg_obj)
                     if msg_obj.media_file:
                         media_url = msg_obj.media_file.url
-
+ 
                 except Exception:
                     pass
  
@@ -1402,11 +1402,17 @@ def send_message_socket(sreciver,  user ,channel_id ,  message, msg_type,
                 try:
                     ext = ""
                     if saved_mime:
-                        if "ogg" in saved_mime: ext = ".ogg"
+                        if "ogg" in saved_mime or "opus" in saved_mime: ext = ".ogg"
                         elif "mp4" in saved_mime: ext = ".mp4"
                         elif "jpeg" in saved_mime or "jpg" in saved_mime: ext = ".jpg"
                         elif "png" in saved_mime: ext = ".png"
                         elif "pdf" in saved_mime: ext = ".pdf"
+                        if not ext:
+                            if media_type == 'audio': ext = ".mp3"   # فرض mp3 للصوت
+                            elif media_type == 'image': ext = ".jpg" # فرض jpg للصور
+                            elif media_type == 'video': ext = ".mp4" # فرض mp4 للفيديو
+
+
                     fname = f"{media_id or 'file'}{ext}"
                     saved_message.media_file.save(fname, ContentFile(saved_local_bytes), save=True)
                     media_url = saved_message.media_file.url

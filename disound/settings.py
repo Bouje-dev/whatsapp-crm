@@ -47,12 +47,12 @@ INSTALLED_APPS = [
     'django.contrib.contenttypes',
     'django.contrib.sessions',
     'django.contrib.messages',
-    'cloudinary_storage',
+    # 'cloudinary_storage',
     'django.contrib.staticfiles',
     'discount' ,
         'corsheaders',
          'channels',
- 'cloudinary',
+  'storages',
 
 ]
 
@@ -161,16 +161,7 @@ USE_I18N = True
 USE_TZ = True
 
 # ✅ الإعدادات الجديدة والصحيحة لـ Django 4.2+
-STORAGES = {
-    # 1. إعدادات الوسائط (صور/فيديو) -> تذهب لـ Cloudinary
-    "default": {
-        "BACKEND": "cloudinary_storage.storage.MediaCloudinaryStorage",
-    },
-    # 2. إعدادات الملفات الثابتة (CSS/JS) -> تذهب لـ Whitenoise
-    "staticfiles": {
-        "BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage",
-    },
-}
+ 
  
 
 STATIC_URL = 'static/'
@@ -213,13 +204,30 @@ DEFAULT_FROM_EMAIL = os.environ.get('DEFAULT_FROM_EMAIL')
 ALLOWED_HOSTS = ['*']
 CSRF_TRUSTED_ORIGINS = ['https://*.up.railway.app']
 
-CLOUDINARY_STORAGE = {
-    'CLOUD_NAME': os.environ.get('CLOUDINARY_CLOUD_NAME' ,'drgajh9av'),
-    'API_KEY': os.environ.get('CLOUDINARY_API_KEY' , '483893926833897'),
-    'API_SECRET': os.environ.get('CLOUDINARY_API_SECRET', 'GvMaKElwPaJrZyMV7fPWXTjN-Rc'),
-    'RESOURCE_TYPE': 'auto',
+ # قراءة المفاتيح من Railway/Environment
+AWS_ACCESS_KEY_ID = os.environ.get('AWS_ACCESS_KEY_ID')
+AWS_SECRET_ACCESS_KEY = os.environ.get('AWS_SECRET_ACCESS_KEY')
+AWS_STORAGE_BUCKET_NAME = os.environ.get('AWS_STORAGE_BUCKET_NAME')
+AWS_S3_REGION_NAME = 'eu-north-1' # ⚠️ استبدلها بالمنطقة التي اخترتها في الخطوة 2
+
+# إعدادات الملفات
+AWS_S3_FILE_OVERWRITE = False     # لا تحذف الملف القديم إذا رفعنا ملفاً بنفس الاسم
+AWS_DEFAULT_ACL = 'public-read'   # اجعل الملفات عامة ومقروءة للجميع
+AWS_S3_VERIFY = True
+AWS_QUERYSTRING_AUTH = False      # اجعل الرابط مباشراً ونظيفاً بدون توقيعات مؤقتة
+
+# إخبار Django باستخدام S3 للميديا فقط
+STORAGES = {
+    "default": {
+        "BACKEND": "storages.backends.s3boto3.S3Boto3Storage",
+    },
+    "staticfiles": {
+        "BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage",
+    },
 }
 
+# الرابط الأساسي للميديا
+MEDIA_URL = f'https://{AWS_STORAGE_BUCKET_NAME}.s3.amazonaws.com/'
  
  
 if not DEBUG:
