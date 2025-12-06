@@ -976,8 +976,8 @@ def tracking(request,leades = None):
              'active_channel': active_channel
         })
 
-
- 
+from django.core.paginator import PageNotAnInteger, EmptyPage
+from discount.activites import activity_log
 def getSearch(request):
     if request.headers.get('x-requested-with') == 'XMLHttpRequest' and request.method == 'POST':
         search_term = request.POST.get('search_term', '')
