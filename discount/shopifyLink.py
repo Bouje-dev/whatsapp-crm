@@ -644,6 +644,8 @@ def update_product(request):
                 })
 
         return JsonResponse({'success': True, 'message': 'تم التحديث بنجاح'})
+
+        
 from django.utils.timezone import now
 from datetime import datetime
 

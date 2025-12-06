@@ -117,10 +117,12 @@ const ChatSocket = {
 
 
 
+
+  
             if (typeof window.highlightOrderRow === 'function'){
-           window.highlightOrderRow(payload.contact.phone);
-              }
-            
+                window.highlightOrderRow(payload.contact.phone);
+                   }
+
             if (typeof window.updateContactItemSingle === 'function') {
             
                 window.updateContactItemSingle(payload.contact , payload.message);
@@ -133,6 +135,11 @@ const ChatSocket = {
                     window.appendMessagesws([payload.message]); 
                 }
             }
+            if (activePhone && (activePhone != payload.contact.phone )){
+
+                }
+
+
             
             if ( typeof window.updateinterface === 'function') window.updateinterface(window.updateinterface(payload))
             

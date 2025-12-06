@@ -1053,56 +1053,12 @@ function highlightOrderRow(phone) {
 
     // 🔥 إذا لم نجد السطر (لأنه في صفحة أخرى)، نظهر تنبيهاً عاماً 🔥
     if (!rowFound) {
-        showGlobalNotification(phone);
+        pass 
     }
 }
 
 
 // دالة بسيطة لإظهار تنبيه في زاوية الشاشة
-function showGlobalNotification(phone) {
-    // يمكنك استخدام مكتبة Toastify أو SweetAlert، أو إنشاء عنصر بسيط
-    const toast = document.createElement('div');
-    toast.style.cssText = `
-        position: fixed;
-        bottom: 20px;
-        right: 20px;
-        background: #1f2937;
-        color: white;
-        padding: 12px 20px;
-        border-radius: 8px;
-        box-shadow: 0 4px 12px rgba(0,0,0,0.2);
-        z-index: 9999;
-        display: flex;
-        align-items: center;
-        gap: 10px;
-        animation: slideIn 0.3s ease;
-        cursor: pointer;
-    `;
-    
-    toast.innerHTML = `
-        <span style="background:#25d366; width:10px; height:10px; border-radius:50%;"></span>
-        <div>
-            <div style="font-weight:bold; font-size:12px;">رسالة جديدة</div>
-            <div style="font-size:14px;">${phone}</div>
-        </div>
-    `;
-
-    // عند النقر على التنبيه، يمكن فتح الشات مباشرة حتى لو الطلب غير ظاهر
-    toast.onclick = function() {
-        // نفتح الشات (قد تحتاج لجلب الاسم من السيرفر أو نكتفي بالرقم)
-        // openChat(phone, 'Unknown Name', ...); 
-        // أو ببساطة نخفيه
-        toast.remove();
-    };
-
-    document.body.appendChild(toast);
-
-    // إخفاء التنبيه بعد 5 ثواني
-    setTimeout(() => {
-        toast.style.opacity = '0';
-        setTimeout(() => toast.remove(), 300);
-    }, 5000);
-}
 
 // CSS Animation للتنبيه
 const style = document.createElement('style');
