@@ -1045,14 +1045,14 @@ function highlightOrderRow(phone) {
                 row.style.backgroundColor = '#f0fdf4';
                 setTimeout(() => row.style.backgroundColor = '', 1000);
             }
- 
+            else{
+               rowFound = false;
+            }
         }
     });
 
     // 🔥 إذا لم نجد السطر (لأنه في صفحة أخرى)، نظهر تنبيهاً عاماً 🔥
-    if (!rowFound) {
-        pass 
-    }
+ 
 }
 
 
