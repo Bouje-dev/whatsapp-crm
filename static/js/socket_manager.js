@@ -113,7 +113,14 @@ const ChatSocket = {
         case 'new_message_received': {
             const payload = data.payload;
             const incomingPhone = payload.contact.phone;
-            const messageText = payload.message.body || "صورة/ملف";
+            if(payload.message.type == 'text'){
+                const messageText = payload.message.body;
+            }
+            else{
+                const messageText = "صورة/ملف";
+            }
+
+          
 
 
 

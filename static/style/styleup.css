@@ -1522,7 +1522,7 @@
       display:flex;
       align-items:center;
       gap:12px;
-      padding:16px 20px;
+      padding:10px 20px;
       border-bottom:1px solid var(--border-color);
       background:var(--bg-primary);
       backdrop-filter: blur(10px);
@@ -1536,6 +1536,7 @@
     }
     /* 🔥 منطقة الرسائل - تصميم احترافي */
     .cls3741_messages_area{
+      scrollbar-width: none !important;
       flex:1;
       padding:24px 20px;
       overflow:auto;
@@ -1624,7 +1625,7 @@ position: relative;
 
     /* 🔥 تصميم احترافي لمنطقة الإدخال */
     .cls3741_chat_input_wrapper {
-      padding: 16px 20px;
+      padding: 6px 10px;
       background: var(--bg-primary);
       border-top: 1px solid var(--border-color);
       backdrop-filter: blur(10px);
