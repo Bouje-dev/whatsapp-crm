@@ -422,7 +422,7 @@ document.addEventListener('click', function() {
                 </span>
             </div>
             <div class="cls3741_toast_content">
-                <div class="cls3741_toast_sender">Message from ${escapeHtml(title)}</div>
+                <div class="cls3741_toast_sender">New Message from ${escapeHtml(title)}</div>
                 <div class="cls3741_toast_msg">${escapeHtml(message)}</div>
                 <span class="cls3741_toast_time"> a few seconds ago</span>
             </div>
@@ -4710,13 +4710,24 @@ window.updateContactItemSingle = function(contactData) {
         contactData.unread = 0;
     }
 
-    
-    const isUnread = contactData.unread && contactData.unread > 0;
+    // 3. تجهيز أيقونة الحالة (صح/ساعة)
+    // نتحقق من البيانات داخل contactData نفسها بدلاً من متغير منفصل
+    let statusIconHTML = '';
+    if (contactData.fromMe || (contactData.is_from_me)) { 
+        // تأكد أن getStatusIconHTML معرفة لديك
+        const status = contactData.last_status || contactData.status || 'pending';
+        if (typeof getStatusIconHTML === 'function') {
+          statusIconHTML = `<span class="sidebar-status-icon">${getStatusIconHTML(contactData.last_status || 'sent')}</span>`;
+        }
+    }
+// تذكير سريع: تأكد أن هذا السطر موجود في updateContactItemSingle
+ 
+    // 4. تجهيز شارة غير المقروء
+    const isUnread = contactData.unread && contactData.unread > 0; // سيكتشف أنه 0 ولن يرسم الأخضر
     const badgeHtml = isUnread ? `<div class="cls3741_contact_badge green">${contactData.unread}</div>` : '';
     const snippetClass = isUnread ? 'cls3741_contact_snippet green' : 'cls3741_contact_snippet';
 
-  
-    
+    // 5. صورة البروفايل (مع صورة افتراضية في حال عدم وجودها)
     const avatarSrc = contactData.profile_picture 
         ? contactData.profile_picture 
         : "https://cdn.pixabay.com/photo/2023/02/18/11/00/icon-7797704_640.png"; // تم تصحيح الرابط
