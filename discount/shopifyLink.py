@@ -645,7 +645,7 @@ def update_product(request):
 
         return JsonResponse({'success': True, 'message': 'تم التحديث بنجاح'})
 
-        
+
 from django.utils.timezone import now
 from datetime import datetime
 
@@ -995,7 +995,7 @@ def getSearch(request):
             filtered_orders = filtered_orders.filter(sku=product_filter)
 
         # فلترة الطلبات حسب صلاحيات المستخدم
-        if request.user.is_staff_member and not request.user.is_is_team_admin:
+        if request.user.is_staff_member and not request.user.is_team_admin:
             productslist = Products.objects.filter(user_permissions__user=request.user)
             if product_filter and product_filter != 'all':
                 filtered_products = productslist.filter(sku=product_filter)
