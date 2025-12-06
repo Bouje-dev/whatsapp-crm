@@ -142,10 +142,13 @@
 }
         /* Main Content Area */
         .main-content-area {
-            /* flex-grow: 1; */
-            /* padding: 0.1rem 2.5rem 2.5rem 2.5rem; */
+    
+    height: 100vh;
+    /* width: 100%; */
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
 
-            /* Adjusted padding to be more compact overall */
             max-width: 100%; /* Ensure responsiveness */
         }
         @media (max-width: 767.98px) {
@@ -884,7 +887,7 @@ color:#ede9e9 !important;
 
 
 
-           <div class="section-content" id="order-tracking-section">
+           <div class="section-content" id="order-tracking-section" style="overflow: auto; height: auto; ">
             {% if orders %}
             <div class="card">
                 <div class="card-header">
@@ -1826,7 +1829,7 @@ const country = document.getElementById('country-filter').value || 'all';
 
 
  
-    <div class="section-content padding-section-content" id="leads-created-section">
+    <div class="section-content padding-section-content" id="leads-created-section" style="overflow: auto; height: auto; ">
         <div class="card">
         <div class="card-header">
             <i class="fas fa-plus-circle me-2" style="color: var(--accent-color);"></i>
@@ -2346,7 +2349,7 @@ $('#order-submit-btn-spinner').addClass('d-none'); // إخفاء اللودين�
 
 
 
-        <div class="section-content padding-section-content" id="leads-tracking-section">
+        <div class="section-content padding-section-content" id="leads-tracking-section" style="overflow: auto; height: auto; ">
             <div class="card">
                 <div class="card-header">
                     <i class="fas fa-user-friends"></i> Leads Tracking
@@ -2661,7 +2664,7 @@ document.addEventListener("DOMContentLoaded", inistail_popup);
 
 
 
-        <div class="section-content padding-section-content" id="update-section">
+        <div class="section-content padding-section-content" id="update-section" style="overflow: auto; height: auto; ">
             <div class="card">
                 <div class="card-header">
                     <i class="fas fa-tools"></i> Product Data Update
@@ -2743,7 +2746,7 @@ document.addEventListener("DOMContentLoaded", inistail_popup);
             </div>
         </div>
 
-        <div class="section-content padding-section-content" id="future-features-1-section">
+        <div class="section-content padding-section-content" id="future-features-1-section" style="overflow: auto; height: auto; ">
             <div class="card">
                 <div class="card-header">
                     <i class="fas fa-chart-line"></i> Drop Products
