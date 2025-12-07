@@ -5120,6 +5120,7 @@ async function fetchContactsAndUpdateUIws(wsData = null, loadFromApi = false) {
 
     const frag = document.createDocumentFragment();
         filtered.forEach(c => {
+          console.log('rendring contacts' , c)
     const item = document.createElement('div');
     item.className = 'cls3741_contact_item';
     item.setAttribute('data-phone', c.phone || '');
@@ -5132,19 +5133,29 @@ async function fetchContactsAndUpdateUIws(wsData = null, loadFromApi = false) {
     const badge = isUnread ? `<div class="cls3741_contact_badge green">${c.unread}</div>` : '';
     const snippetClass = isUnread ? 'cls3741_contact_snippet green' : 'cls3741_contact_snippet';
     let statusIconHTML = '';
+    const avatarSrc = c.profile_picture 
+        ? c.profile_picture 
+        : "https://cdn.pixabay.com/photo/2023/02/18/11/00/icon-7797704_640.png";
+
 
     if (c.fromMe) { 
         statusIconHTML = `<span class="sidebar-status-icon">${getStatusIconHTML(c.last_status || 'pending')}</span>`;
     }
 
     item.innerHTML = `
-        <div class="cls3741_contact_avatar" style="background:transparent;"><img src="https://cdn.pixabay.com/photo/2023/02/18/11/00/icon-7797704_640.png" style="border-radius:50px; width:100%;height:100%"> </div>
-        <div class="cls3741_contact_meta">
-                    <div class="cls3741_contact_name">${escapeHtml(c.name || c.phone || '')}</div>
-                    <div class="${snippetClass}">${escapeHtml(c.snippet || c.phone || '')} ${statusIconHTML} </div>
-                     <span class="cls3741_msg_time" style="font-size:10px; color:var(--text-secondary);">${contactData.timestamp || 'Now'}</span>
+        <div class="cls3741_contact_avatar">
+            <img src="${avatarSrc}" style="width:100%;height:100%;border-radius:50%;object-fit:cover;"> 
         </div>
-        ${badge}
+        <div class="cls3741_contact_meta">
+            <div class="cls3741_contact_name">${escapeHtml(c.name || c.phone)}</div>
+            <div class="${snippetClass}" style="font-family:'tajawal', sans-serif;">
+                ${statusIconHTML} ${escapeHtml(c.snippet || '')}
+            </div>
+        </div>
+        <div style="display:flex; flex-direction:column; align-items:flex-end; gap:4px;">
+             <span class="cls3741_msg_time" style="font-size:10px; color:var(--text-secondary);">${c.timestamp || 'Now'}</span>
+             ${badge}
+        </div>
     `;
     frag.appendChild(item);
 });
