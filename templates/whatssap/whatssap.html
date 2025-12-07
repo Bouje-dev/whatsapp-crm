@@ -5142,6 +5142,7 @@ async function fetchContactsAndUpdateUIws(wsData = null, loadFromApi = false) {
         <div class="cls3741_contact_meta">
                     <div class="cls3741_contact_name">${escapeHtml(c.name || c.phone || '')}</div>
                     <div class="${snippetClass}">${escapeHtml(c.snippet || c.phone || '')} ${statusIconHTML} </div>
+                     <span class="cls3741_msg_time" style="font-size:10px; color:var(--text-secondary);">${contactData.timestamp || 'Now'}</span>
         </div>
         ${badge}
     `;

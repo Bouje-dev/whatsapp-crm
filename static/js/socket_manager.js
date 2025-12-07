@@ -121,8 +121,15 @@ const ChatSocket = {
             if (payload.message.type == 'text') {
             messageText = payload.message.body; // نملأ القيمة فقط
             } else {
-        messageText = "صورة/ملف"; // نملأ}
-
+                if(payload.message.type == 'image'){
+                    messageText = "Image";
+                }  
+                if( payload.message.type == 'video'){
+                    messageText = "Video";
+                }   
+                if( payload.message.type == 'audio'){
+                    messageText = "Audio";
+                }
             }
 
 
