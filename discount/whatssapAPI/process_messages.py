@@ -1447,22 +1447,18 @@ def send_message_socket(sreciver,  user ,channel_id ,  message, msg_type,
         "media_url": media_url # ✅ نسخة احتياطية حسب تسمية الجافاسكربت لديك
     }
     sidebar_payload = {
-        "phone": to, # رقم المستقبل
-        "name": to,  # أو ابحث عن الاسم في Contact إذا أردت
+        "phone": to, 
+        "name": to,  # سيتم تحسينه في الفرونت إند إذا كان الاسم موجوداً
         "snippet": snippet,
         "timestamp": timezone.now().strftime("%H:%M"),
-        "unread": 0, # رسالة صادرة، إذاً المقروء 0
-        "last_status": "sent", # الحالة المبدئية
-        "fromMe": True, # مهم جداً لإظهار الأيقونة
+        "unread": 0,       # 0 لأننا نحن المرسلون
+        "last_status": "sent",
+        "fromMe": True,    # ضروري لظهور أيقونة الصح
         "channel_id": channel_id
     }
+ 
     send_socket("finished",final_payload)
-    send_socket(
-        "new_message_received", # نستخدم نفس النوع لكي يعالجها الفرونت إند بنفس الطريقة (نقل للأعلى)
-        {
-            "contact": sidebar_payload,
-             "message": None 
-        })
+    send_socket("update_sidebar_contact", sidebar_payload)
 
 
     # للإستخدام الداخلي نعيد dict

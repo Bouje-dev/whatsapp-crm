@@ -46,40 +46,81 @@ const ChatSocket = {
  handleIncomingMessage: function(data) {
     const type = data.data_type;  
     
-
-    
+    console.log('type' , type)
 
     switch (type) {
-        case "finished":{
+        case "finished": {
+            const payload = data.payload;
             
-        const payload = data.payload;
-    console.log('💯👀 msg sent succ', payload);
+            // 1. تحديد المستلم
+            const recipientPhone = payload.to || payload.phone || '';
+            
+            // 2. تحديث الشات (الكود السابق الذي يمنع التداخل)
+            const activePhone = (typeof window.getCurrentChatPhone === 'function') ? window.getCurrentChatPhone() : null;
+            const cleanRecipient = recipientPhone.toString().replace(/\D/g, '');
+            const cleanActive = activePhone ? activePhone.toString().replace(/\D/g, '') : '';
 
-    const formattedMsg = {
+            // عرض الرسالة في الشات إذا كنا فاتحين نفس المحادثة
+            if (cleanActive && cleanActive === cleanRecipient) {
+                const formattedMsg = {
+                    id: payload.saved_message_id, 
+                    body: payload.body,
+                    type: payload.media_type || 'text',
+                    url: payload.media_url || payload.url || '', 
+                    time: new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}),
+                    fromMe: true, 
+                    status: 'sent' 
+                };
+                if (typeof window.appendMessagesws === 'function') {
+                    window.appendMessagesws([formattedMsg]); 
+                }
+                const chatContainer = document.getElementById('chat_messages_area');
+                if (chatContainer) chatContainer.scrollTop = chatContainer.scrollHeight;
+            }
 
-        id: payload.saved_message_id, 
-        
-        body: payload.body,
-        
-        type: payload.media_type || 'text',
-        
-        url: payload.media_url || payload.url || '', 
-        
-        time: new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}),
-        
-        fromMe: true, 
-        
-        status: 'sent' 
-    };
+            // ============================================================
+            // 🔥 الحل لمشكلة اللون الأخضر وتحديث القائمة الجانبية 🔥
+            // ============================================================
+            
+            // أ) نحاول جلب الاسم والصورة الحالية من القائمة قبل التحديث (للحفاظ عليها)
+            const currentItem = document.querySelector(`.cls3741_contact_item[data-phone="${cleanRecipient}"]`);
+            let currentName = recipientPhone;
+            let currentPic = null; // سيتم استخدام الافتراضي إذا كان null
 
-    if (typeof window.appendMessagesws === 'function') {
-        // 🔥 لاحظ الأقواس المربعة [ ] هنا لتحويلها لمصفوفة
-        window.appendMessagesws([formattedMsg]); 
-    }
+            if (currentItem) {
+                currentName = currentItem.getAttribute('data-name') || recipientPhone;
+                const img = currentItem.querySelector('img');
+                if (img) currentPic = img.src;
+            }
 
-    break;
-}
+            // ب) تجهيز نص المختصر (Snippet)
+            let snippetText = payload.body;
+            if (!snippetText && payload.media_type) {
+                if (payload.media_type === 'audio') snippetText = '🎤 مقطع صوتي';
+                else if (payload.media_type === 'image') snippetText = '📷 صورة';
+                else snippetText = '📁 ملف';
+            }
 
+            // ج) بناء كائن التحديث
+            const sidebarUpdateData = {
+                phone: recipientPhone,
+                name: currentName,      // نحافظ على الاسم القديم
+                profile_picture: currentPic, // نحافظ على الصورة القديمة
+                snippet: snippetText,
+                timestamp: 'Now',
+                
+                unread: 0,       // 🔥 صفرنا العداد (سيختفي البادج الأخضر)
+                fromMe: true,    // 🔥 هذا سيجعل النص رمادياً عادياً (ليس أخضر)
+                last_status: 'sent' // سيظهر علامة صح واحدة
+            };
+
+            // د) استدعاء دالة التحديث
+            if (typeof window.updateContactItemSingle === 'function') {
+                window.updateContactItemSingle(sidebarUpdateData);
+            }
+
+            break;
+        }
 
         case 'message_status_update':{
             const payload = data.payload;
@@ -107,19 +148,43 @@ const ChatSocket = {
 
 }
 
+case 'update_sidebar_contact': {
+    const contactData = data.payload;
+    console.log('🔄 Sidebar update signal:', contactData);
 
+    // هنا نستدعي دالة التحديث مباشرة
+    if (typeof window.updateContactItemSingle === 'function') {
+        
+        // 💡 تحسين إضافي: نحاول الحفاظ على الاسم والصورة القديمة إذا كانت موجودة
+        // لأن الباك إند قد يرسل الرقم فقط كاسم
+        const existingItem = document.querySelector(`.cls3741_contact_item[data-phone="${contactData.phone}"]`);
+        if (existingItem) {
+            if (!contactData.name || contactData.name === contactData.phone) {
+                contactData.name = existingItem.getAttribute('data-name');
+            }
+            const img = existingItem.querySelector('img');
+            if (img) {
+                contactData.profile_picture = img.src;
+            }
+        }
+
+        // تنفيذ التحديث
+        window.updateContactItemSingle(contactData);
+    }
+    break;
+}
 
 
         case 'new_message_received': {
             const payload = data.payload;
             const incomingPhone = payload.contact.phone;
-          
+            if (!payload.message) return;
 
 
             let messageText = "";
 
             if (payload.message.type == 'text') {
-            messageText = payload.message.body; // نملأ القيمة فقط
+            messageText = payload.message.body;  
             } else {
                 if(payload.message.type == 'image'){
                     messageText = "Image";
@@ -181,7 +246,7 @@ const ChatSocket = {
                     );
                 }
             } 
-            // إذا كان الشات مفتوحاً، نكتفي بصوت خفيف جداً (اختياري)
+             
          
             
             
