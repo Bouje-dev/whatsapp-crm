@@ -240,6 +240,7 @@ class TeamInvitation(models.Model):
         on_delete=models.CASCADE, 
         related_name='sent_invitations'
     )
+    channels = models.ManyToManyField('WhatsAppChannel', blank=True, related_name='invitations')
     
     token = models.UUIDField(default=uuid.uuid4, unique=True)
     is_used = models.BooleanField(default=False)

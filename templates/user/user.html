@@ -1410,137 +1410,194 @@ $(document).ready(function() {
                                 <i class="fas fa-plus"></i> Invite
                             </button>
                         </div>
-                        <div class="card-body">
-                            <div id="stuffFormSect" class="d-none">
-                                <form class="stuff_form" method="post" id="stuff_forms">
-                                    {% csrf_token %}
-                                    <input type="hidden" name="form_type" value="stuff_form">
-                                    
-                                    <div class="row g-3">
-                                        <div class="col-md-6">
-                                            <label for="stuff_email" class="form-label">Member Email</label>
-                                            <input type="email" name="email" placeholder="member@example.com" class="form-control" required>
-                                        </div>
-                                    
-                                        <div class="col-md-6">
-                                            <label for="stuff_name" class="form-label">Member Name</label>
-                                            <input type="text" name="name" placeholder="John Doe" class="form-control" required>
-                                        </div>
-
-                                        <div class="col-md-6">
-                                            <label class="form-label">Role</label>
-                                            <select class="form-select" name="role" required>
-                                                <option value="" disabled selected>Select Role</option>
-                                                <option value="shopify" selected>Order Management</option>
-                                                <!-- Add other roles as needed -->
-                                            </select>
-                                        </div>
-
-                                        <div class="col-md-6">
-                                            <label for="productlist" class="form-label">Product Permissions</label>
-                                        <!-- Custom multi-select with checkboxes for easier selection (no Ctrl/Cmd needed) -->
-                                        <div id="productlist-multiselect" class="form-control" tabindex="0" style="position: relative; min-height: 44px; cursor: pointer;">
-                                            <div id="productlist-selected" style="min-height: 22px; display: flex; flex-wrap: wrap; gap: 4px;"></div>
-                                            <div id="productlist-dropdown" style="display: none; position: absolute; left: 0; right: 0; top: 100%; z-index: 10; background: var(--background-tertiary); border: 1px solid var(--border-color); border-radius: 4px; max-height: 220px; overflow-y: auto; margin-top: 2px;">
-                                                <label class="d-block px-2 py-1" style="cursor:pointer;">
-                                                    <input type="checkbox" value="all" class="me-2" /> All Products
-                                                </label>
-                                                {% if Productslist %}
-                                                    {% for product in Productslist %}
-                                                        <label class="d-block px-2 py-1" style="cursor:pointer;">
-                                                            <input type="checkbox" value="{{ product.id }}" class="me-2" /> {{ product.name }}
-                                                        </label>
-                                                    {% empty %}
-                                                        <div class="px-2 py-1 text-muted">No products available</div>
-                                                    {% endfor %}
-                                                {% endif %}
+                        <div id="stuffFormSect" class="d-none animate__animated animate__fadeIn">
+                            <div class="modern-card">
+                                <div class="card-body p-4 p-lg-5">
+                                    <form class="stuff_form" method="post" id="stuff_forms">
+                                        {% csrf_token %}
+                                        <input type="hidden" name="form_type" value="stuff_form">
+                                        
+                                        <div class="row g-4 mb-4">
+                                            <div class="col-md-6">
+                                                <label class="modern-label">Member Name <span class="text-danger">*</span></label>
+                                                <div class="input-wrapper">
+                                                    <i class="fas fa-user input-icon"></i>
+                                                    <input type="text" name="name" class="modern-input" placeholder="ex: Ahmed Ali" required>
+                                                </div>
                                             </div>
-                                            <!-- Hidden input to submit selected values -->
-                                            <input type="hidden" name="products" id="productlist-hidden" />
+                                            
+                                            <div class="col-md-6">
+                                                <label class="modern-label">Email Address <span class="text-danger">*</span></label>
+                                                <div class="input-wrapper">
+                                                    <i class="fas fa-envelope input-icon"></i>
+                                                    <input type="email" name="email" class="modern-input" placeholder="member@company.com" required>
+                                                </div>
+                                            </div>
                                         </div>
-                                  
-
-
-
-
-                                            <small class="text-muted">Hold Ctrl/Cmd to select multiple products</small>
+                        
+                                        <div class="row mb-4">
+                                            <div class="col-12">
+                                                <label class="modern-label">Assign Role <span class="text-danger">*</span></label>
+                                                <div class="input-wrapper">
+                                                    <i class="fas fa-shield-alt input-icon"></i>
+                                                    <select class="modern-input" name="role" required>
+                                                        <option value="" disabled selected>Select a role...</option>
+                                                        <option value="shopify">📦 Order Management (Shopify)</option>
+                                                        <option value="support">🎧 Customer Support</option>
+                                                        <option value="admin">🔑 Admin</option>
+                                                    </select>
+                                                    <i class="fas fa-chevron-down select-arrow"></i>
+                                                </div>
+                                            </div>
                                         </div>
-                                    </div>
-                                    
-                                    <div class="d-flex justify-content-end gap-3 mt-4">
-                                        <button type="button" class="btn btn-secondary" id="hideStuffFormBtn">
-                                            <i class="fas fa-times"></i> Cancel
-                                        </button>
-                                        <button type="submit" class="btn btn-primary">
-                                            <i class="fas fa-paper-plane"></i> Send Invitation
-                                        </button>
-                                    </div>
-                                </form>
-                            </div>
-                            <!-- <div id="add_stuff_initial_message" class="text-center {% if team_invitations %}d-none{% endif %}">
-                                <p class="text-muted mb-3">Invite new members to your team to collaborate on projects.</p>
-                                <button class="btn btn-primary" id="add_stuff_empty_state">
-                                    <i class="fas fa-user-plus"></i> Invite First Member
-                                </button>
-                            </div> -->
-                            <div id="team_member_list_container">
-                                {% if team_invitations %}
-                                <div class="table-responsive">
-                                    <table class="table table-hover mb-0">
-                                        <thead>
-                                            <tr>
-                                                <th>Name</th>
-                                                <th>Email</th>
-                                                <th>Status</th>
-                                                <th>Actions</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody>
-                                            {% for account in team_invitations %}
-                                            <tr>
-                                                <td>
-                                                    <span class="badge badge-info">
-                                                        <i class="{{ account.get_platform_icon }} me-1"></i>
-                                                        {{ account.user_name }}
-                                                    </span>
-                                                </td>
-                                                <td>{{ account.email }}</td>
-                                                <td>
-                                                    <span class="badge {% if account.is_active %}badge-success{% else %}badge-danger{% endif %}">
-                                                        {% if account.is_active %}Active{% else %}Inactive{% endif %}
-                                                    </span>
-                                                </td>
-                                                <td>
-                                                    <div class="btn-group btn-group-sm">
-                                                        <button class="btn btn-outline-dark" data-bs-toggle="modal" data-bs-target="#accountModal{{ account.id }}" title="View Details">
-                                                            <i class="fas fa-info-circle"></i>
-                                                        </button>
-                                                        <a href="{% url 'unlink_user' account.id %}" class="btn btn-outline-dark" title="Remove Member">
-                                                            <i class="fas fa-user-times"></i>
-                                                        </a>
-                                                    </div>
-                                                </td>
-                                            </tr>
-                                            {% endfor %}
-                                        </tbody>
-                                    </table>
+                        
+                                        <div class="divider-text">Permissions Configuration</div>
+                        
+                                        <div class="row g-4">
+                                            
+                                            <div class="col-md-6">
+                                                <label class="modern-label">Allowed Products</label>
+                                                <div class="dropdown custom-multiselect" id="products_dropdown_container">
+                                                    <button class="modern-input text-start d-flex justify-content-between align-items-center w-100" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+                                                        <span class="selected-text text-muted">Select products...</span>
+                                                        <span class="badge bg-primary rounded-pill count-badge" style="display:none;">0</span>
+                                                        <i class="fas fa-chevron-down ms-2 fs-7 text-muted"></i>
+                                                    </button>
+                                                    
+                                                    <ul class="dropdown-menu w-100 p-2 shadow-lg border-0" style="max-height: 250px; overflow-y: auto;">
+                                                        <li class="px-2 pb-2 border-bottom mb-2">
+                                                            <input type="text" class="form-control form-control-sm" placeholder="🔍 Search..." onkeyup="filterDropdown(this)">
+                                                        </li>
+                                                        <li>
+                                                            <label class="dropdown-item rounded d-flex align-items-center gap-2 p-2 pointer">
+                                                                <input type="checkbox" class="form-check-input mt-0 select-all-cb" data-target="products"> 
+                                                                <span class="fw-bold text-primary">Select All</span>
+                                                            </label>
+                                                        </li>
+                                                        {% if Productslist %}
+                                                            {% for product in Productslist %}
+                                                            <li>
+                                                                <label class="dropdown-item rounded d-flex align-items-center gap-2 p-2 pointer">
+                                                                    <input type="checkbox" name="products" value="{{ product.id }}" class="form-check-input mt-0 item-cb" data-label="{{ product.name }}">
+                                                                    <span>{{ product.name }}</span>
+                                                                </label>
+                                                            </li>
+                                                            {% endfor %}
+                                                        {% else %}
+                                                            <li class="text-center text-muted small py-2">No products found</li>
+                                                        {% endif %}
+                                                    </ul>
+                                                </div>
+                                            </div>
+                        
+                                            <div class="col-md-6">
+                                                <label class="modern-label">Allowed WhatsApp Channels</label>
+                                                <div class="dropdown custom-multiselect" id="channels_dropdown_container">
+                                                    <button class="modern-input text-start d-flex justify-content-between align-items-center w-100" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+                                                        <span class="selected-text text-muted">Select channels...</span>
+                                                        <span class="badge bg-success rounded-pill count-badge" style="display:none;">0</span>
+                                                        <i class="fas fa-chevron-down ms-2 fs-7 text-muted"></i>
+                                                    </button>
+                                                    
+                                                    <ul class="dropdown-menu w-100 p-2 shadow-lg border-0" style="max-height: 250px; overflow-y: auto;">
+                                                        <li>
+                                                            <label class="dropdown-item rounded d-flex align-items-center gap-2 p-2 pointer">
+                                                                <input type="checkbox" class="form-check-input mt-0 select-all-cb" data-target="channels"> 
+                                                                <span class="fw-bold text-success">Select All</span>
+                                                            </label>
+                                                        </li>
+                                                        {% if whatsapp_channels %}
+                                                            {% for channel in whatsapp_channels %}
+                                                            <li>
+                                                                <label class="dropdown-item rounded d-flex align-items-center gap-2 p-2 pointer">
+                                                                    <input type="checkbox" name="channels" value="{{ channel.id }}" class="form-check-input mt-0 item-cb" data-label="{{ channel.name }}">
+                                                                    <span>{{ channel.name }} <small class="text-muted ms-1">({{ channel.phone_number }})</small></span>
+                                                                </label>
+                                                            </li>
+                                                            {% endfor %}
+                                                        {% else %}
+                                                            <li class="text-center text-muted small py-2">No channels connected</li>
+                                                        {% endif %}
+                                                    </ul>
+                                                </div>
+                                            </div>
+                                        </div>
+                        
+                                        <div class="d-flex justify-content-end gap-3 mt-5 pt-3 border-top">
+                                            <button type="button" class="btn btn-light-custom" id="hideStuffFormBtn">Cancel</button>
+                                            <button type="submit" class="btn btn-primary-custom">
+                                                <span>Send Invitation</span>
+                                                <i class="fas fa-paper-plane ms-2"></i>
+                                            </button>
+                                        </div>
+                                    </form>
                                 </div>
-                                {% else %}
-                                <div class="empty-state d-none" id="no_members_message"> <!-- Initially hidden, shown if no members AND form is hidden -->
-                                    <div class="empty-state-icon">
-                                        <i class="fas fa-users-slash"></i>
-                                    </div>
-                                    <h5>No Team Members Found</h5>
-                                    <p class="text-muted mb-4">Invite team members to collaborate on your account and manage their access.</p>
-                                   <button class="btn btn-primary" id="add_stuff_empty_state">
-                                    <i class="fas fa-user-plus"></i> Invite First Member
-                                </button>
-                                </div>
-                                {% endif %}
                             </div>
                         </div>
+
+
+
+                        <div id="team_member_list_container">
+                            {% if team_invitations %}
+                            <div class="table-responsive">
+                                <table class="table table-hover mb-0">
+                                    <thead>
+                                        <tr>
+                                            <th>Name</th>
+                                            <th>Email</th>
+                                            <th>Status</th>
+                                            <th>Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for account in team_invitations %}
+                                        <tr>
+                                            <td>
+                                                <span class="badge badge-info">
+                                                    <i class="{{ account.get_platform_icon }} me-1"></i>
+                                                    {{ account.user_name }}
+                                                </span>
+                                            </td>
+                                            <td>{{ account.email }}</td>
+                                            <td>
+                                                <span class="badge {% if account.is_active %}badge-success{% else %}badge-danger{% endif %}">
+                                                    {% if account.is_active %}Active{% else %}Inactive{% endif %}
+                                                </span>
+                                            </td>
+                                            <td>
+                                                <div class="btn-group btn-group-sm">
+                                                    <button class="btn btn-outline-dark" data-bs-toggle="modal" data-bs-target="#accountModal{{ account.id }}" title="View Details">
+                                                        <i class="fas fa-info-circle"></i>
+                                                    </button>
+                                                    <a href="{% url 'unlink_user' account.id %}" class="btn btn-outline-dark" title="Remove Member">
+                                                        <i class="fas fa-user-times"></i>
+                                                    </a>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                            {% else %}
+                            <div class="empty-state d-none" id="no_members_message"> <!-- Initially hidden, shown if no members AND form is hidden -->
+                                <div class="empty-state-icon">
+                                    <i class="fas fa-users-slash"></i>
+                                </div>
+                                <h5>No Team Members Found</h5>
+                                <p class="text-muted mb-4">Invite team members to collaborate on your account and manage their access.</p>
+                               <button class="btn btn-primary" id="add_stuff_empty_state">
+                                <i class="fas fa-user-plus"></i> Invite First Member
+                            </button>
+                            </div>
+                            {% endif %}
+                        </div>
+
+
                     </div>
                 </div>
+            
+            
             </div>
 
             <!-- Empty Third Column - Placeholder for future features -->
@@ -1677,8 +1734,234 @@ $(document).ready(function() {
                 </div>
             </div>
         </div>
+        <style>
+            /* --- Modern Form Styling --- */
+            :root {
+                --primary-color: #4f46e5;
+                --primary-hover: #4338ca;
+                --input-bg: #f9fafb;
+                --input-border: #e5e7eb;
+                --input-focus: #c7d2fe;
+                --text-label: #374151;
+            }
+            
+            .modern-card {
+                background: #ffffff;
+                border: 1px solid rgba(0,0,0,0.05);
+                box-shadow: 0 10px 30px -10px rgba(0,0,0,0.08);
+                border-radius: 16px;
+                overflow: hidden;
+            }
+            
+            /* Labels */
+            .modern-label {
+                display: block;
+                font-size: 0.75rem;
+                font-weight: 700;
+                text-transform: uppercase;
+                letter-spacing: 0.05em;
+                color: var(--text-label);
+                margin-bottom: 8px;
+            }
+            
+            /* Inputs Wrapper */
+            .input-wrapper {
+                position: relative;
+                display: flex;
+                align-items: center;
+            }
+            
+            .input-icon {
+                position: absolute;
+                left: 14px;
+                color: #9ca3af;
+                font-size: 0.9rem;
+                pointer-events: none;
+                z-index: 2;
+            }
+            
+            .select-arrow {
+                position: absolute;
+                right: 14px;
+                color: #9ca3af;
+                font-size: 0.8rem;
+                pointer-events: none;
+                background: var(--input-bg); /* لتغطية السهم الافتراضي إن وجد */
+                padding-left: 5px;
+            }
+            
+            /* Inputs */
+            .modern-input {
+                width: 100%;
+                background: var(--input-bg);
+                border: 1px solid var(--input-border);
+                border-radius: 8px;
+                padding: 10px 14px 10px 38px; /* مسافة للأيقونة */
+                font-size: 0.9rem;
+                color: #1f2937;
+                transition: all 0.2s ease;
+                appearance: none; /* إزالة ستايل المتصفح الافتراضي */
+                height: 44px; /* توحيد الارتفاع */
+            }
+            
+            /* تعديل المسافة للأزرار التي لا تحتوي أيقونة يسار */
+            .custom-multiselect .modern-input {
+                padding-left: 14px; 
+            }
+            
+            .modern-input:focus {
+                outline: none;
+                border-color: var(--primary-color);
+                box-shadow: 0 0 0 3px var(--input-focus);
+                background: #fff;
+            }
+            
+            /* Divider */
+            .divider-text {
+                display: flex;
+                align-items: center;
+                color: #9ca3af;
+                font-size: 0.75rem;
+                font-weight: 600;
+                text-transform: uppercase;
+                letter-spacing: 0.05em;
+                margin: 24px 0;
+            }
+            .divider-text::before, .divider-text::after {
+                content: "";
+                flex: 1;
+                height: 1px;
+                background: #e5e7eb;
+            }
+            .divider-text::before { margin-right: 12px; }
+            .divider-text::after { margin-left: 12px; }
+            
+            /* Buttons */
+            .btn-primary-custom {
+                background: linear-gradient(135deg, var(--primary-color), var(--primary-hover));
+                border: none;
+                color: white;
+                padding: 10px 24px;
+                border-radius: 8px;
+                font-weight: 600;
+                font-size: 0.9rem;
+                transition: transform 0.2s, box-shadow 0.2s;
+                box-shadow: 0 4px 12px rgba(79, 70, 229, 0.3);
+            }
+            .btn-primary-custom:hover {
+                transform: translateY(-1px);
+                box-shadow: 0 6px 16px rgba(79, 70, 229, 0.4);
+                color: white;
+            }
+            
+            .btn-light-custom {
+                background: white;
+                border: 1px solid var(--input-border);
+                color: #4b5563;
+                padding: 10px 24px;
+                border-radius: 8px;
+                font-weight: 600;
+                font-size: 0.9rem;
+                transition: background 0.2s;
+            }
+            .btn-light-custom:hover {
+                background: #f3f4f6;
+                color: #1f2937;
+            }
+            
+            /* Dropdown Custom Items */
+            .dropdown-item:active { background-color: #f3f4f6; color: inherit; }
+            .dropdown-item:hover { background-color: #f9fafb; }
+            .pointer { cursor: pointer; }
+            </style>
+<script>
+    document.addEventListener("DOMContentLoaded", function() {
+    // تفعيل كل القوائم المنسدلة المتعددة
+    setupCustomMultiselect('products_dropdown_container');
+    setupCustomMultiselect('channels_dropdown_container');
+});
 
+function setupCustomMultiselect(containerId) {
+    const container = document.getElementById(containerId);
+    if (!container) return;
 
+    const btnText = container.querySelector('.selected-text');
+    const badge = container.querySelector('.count-badge');
+    const checkboxes = container.querySelectorAll('.item-cb');
+    const selectAllCb = container.querySelector('.select-all-cb');
+
+    function updateSummary() {
+        let selectedLabels = [];
+        let checkedCount = 0;
+
+        checkboxes.forEach(cb => {
+            if (cb.checked) {
+                checkedCount++;
+                selectedLabels.push(cb.getAttribute('data-label'));
+            }
+        });
+
+        // تحديث النص في الزر
+        if (checkedCount === 0) {
+            btnText.textContent = containerId.includes('product') ? 'Select products...' : 'Select channels...';
+            btnText.classList.add('text-muted');
+            badge.style.display = 'none';
+        } else if (checkedCount === checkboxes.length) {
+            btnText.textContent = 'All Items Selected';
+            btnText.classList.remove('text-muted');
+            badge.textContent = checkedCount;
+            badge.style.display = 'inline-block';
+        } else if (checkedCount <= 2) {
+            btnText.textContent = selectedLabels.join(', ');
+            btnText.classList.remove('text-muted');
+            badge.style.display = 'none';
+        } else {
+            btnText.textContent = `${checkedCount} Items Selected`;
+            btnText.classList.remove('text-muted');
+            badge.textContent = checkedCount;
+            badge.style.display = 'inline-block';
+        }
+
+        // تحديث حالة Select All
+        if (selectAllCb) selectAllCb.checked = (checkedCount === checkboxes.length && checkedCount > 0);
+    }
+
+    // حدث عند تغيير أي عنصر
+    checkboxes.forEach(cb => {
+        cb.addEventListener('change', updateSummary);
+    });
+
+    // حدث عند تغيير Select All
+    if (selectAllCb) {
+        selectAllCb.addEventListener('change', function() {
+            const isChecked = this.checked;
+            checkboxes.forEach(cb => {
+                cb.checked = isChecked;
+            });
+            updateSummary();
+        });
+    }
+}
+
+// دالة البحث داخل القائمة
+function filterDropdown(input) {
+    const filter = input.value.toLowerCase();
+    const dropdown = input.closest('.dropdown-menu');
+    const items = dropdown.querySelectorAll('li:not(:first-child)'); // تجاهل حقل البحث
+
+    items.forEach(li => {
+        const label = li.querySelector('label');
+        if (label) {
+            const text = label.textContent || label.innerText;
+            if (text.toLowerCase().indexOf(filter) > -1) {
+                li.style.display = "";
+            } else {
+                li.style.display = "none";
+            }
+        }
+    });
+}
+</script>
 
         <!-- API Tokens Section -->
         <div id="api-tokens" class="content-area-pane">
@@ -1828,211 +2111,463 @@ $(document).ready(function() {
 </div>
 <!-- Permission modal - append to body once -->
 <!-- Bulk permissions modal -->
-<div id="permBulkModal" class="perm-modal" style="display:none;" aria-hidden="true" role="dialog">
-  <div class="perm-modal-backdrop"></div>
-  <div class="perm-modal-panel" role="document">
-    <header class="perm-modal-header">
-      <h3 id="permBulkTitle">Manage user products & permissions</h3>
-      <button id="permBulkClose" class="perm-modal-close" aria-label="Close">&times;</button>
-    </header>
+<div id="permBulkModal" class="perm-modal" aria-hidden="true" role="dialog">
+    <div class="perm-modal-backdrop"></div>
+    
+    <div class="perm-modal-panel" role="document">
+        <header class="perm-modal-header">
+            <h3 id="permBulkTitle">🔐 Manage Permissions</h3>
+            <button id="permBulkClose" class="perm-modal-close" aria-label="Close">&times;</button>
+        </header>
 
-    <div class="perm-modal-body">
-      <div id="permBulkContent">
-        <div class="tiny muted" id="permBulkLoading">Loading...</div>
+        <div class="perm-modal-body">
+            <div id="permBulkLoading">
+                <div class="spinner-border text-primary" role="status"></div>
+                <div style="margin-top:10px;">Loading data...</div>
+            </div>
 
-        <!-- Dual lists -->
-        <div style="display:flex; gap:16px; margin-top:12px; align-items:flex-start; flex-wrap:wrap;">
-          <!-- Available products -->
-          <div style="flex:1; min-width:300px;">
-            <div class="font-mediumه">Available Products</div>
-            <div id="availableList" style="margin-top:8px; border:1px dashed rgba(15,23,42,0.06); border-radius:8px; padding:8px; max-height:360px; overflow:auto;"></div>
-          </div>
+            <div id="permBulkContent">
+                
+                <div class="section-title">Products Access</div>
+                
+                <div class="dual-list-container">
+                    <div class="list-box">
+                        <div class="list-header">📦 Available Products</div>
+                        <div id="availableList" class="modern-list">
+                            </div>
+                    </div>
 
-          <!-- Assigned products -->
-          <div style="flex:1; min-width:380px;">
-            <div class="font-medium" id="assigneduser">Assigned to user : {{target_user}}</div>
-            <div id="assignedList" style="margin-top:8px; border:1px dashed rgba(15,23,42,0.06); border-radius:8px; padding:8px; max-height:360px; overflow:auto;"></div>
-          </div>
+                    <div class="list-box">
+                        <div class="list-header">✅ Assigned to: <span id="assigneduser" style="color:var(--accent-primary)">User</span></div>
+                        <div id="assignedList" class="modern-list">
+                            </div>
+                    </div>
+                </div>
+
+
+                <div class="section-title" style="margin-top: 32px;">WhatsApp Channels</div>
+
+                <div class="dual-list-container">
+                    <div class="list-box">
+                        <div class="list-header">💬 Available Channels</div>
+                        <div id="availableChannelsList" class="modern-list"></div>
+                    </div>
+
+                    <div class="list-box">
+                        <div class="list-header">✅ Assigned Channels</div>
+                        <div id="assignedChannelsList" class="modern-list"></div>
+                    </div>
+                </div>
+
+
+                <div class="global-perms-box">
+                    <div class="section-title" style="margin-bottom: 0; border: none;">Admin Privileges</div>
+                    <div style="display:flex; gap:24px; flex-wrap:wrap; margin-top: 12px;">
+                        <label class="checkbox-wrapper">
+                            <input type="checkbox" id="perm_can_create_orders">
+                            <span class="checkbox-label">Create Orders</span>
+                        </label>
+                        <label class="checkbox-wrapper">
+                            <input type="checkbox" id="perm_can_view_analytics">
+                            <span class="checkbox-label">View Analytics</span>
+                        </label>
+                        <div id="perm_extra_flags"></div>
+                    </div>
+                </div>
+
+
+                <div class="modal-footer">
+                    <div id="permBulkStatus" class="tiny muted" style="margin-right: auto;"></div>
+                    <button id="permBulkCancel" class="btn-modal btn-secondary">Cancel</button>
+                    <button id="permBulkUpdate" class="btn-modal btn-primary">Save Changes</button>
+                </div>
+
+            </div>
         </div>
-
-        <!-- Global user permissions -->
-        <div style="margin-top:14px;">
-          <div class="font-medium">User-level permissions</div>
-          <div style="display:flex; gap:12px; align-items:center; margin-top:8px; flex-wrap:wrap;">
-            <label class="tiny" style="display:flex; gap:8px; align-items:center;">
-              <input type="checkbox" id="perm_can_create_orders"> Can create orders
-            </label>
-            <label class="tiny" style="display:flex; gap:8px; align-items:center;">
-              <input type="checkbox" id="perm_can_view_analytics"> Can view analytics
-            </label>
-            <!-- space to add more global flags -->
-            <div id="perm_extra_flags" style="margin-left:8px;"></div>
-          </div>
-        </div>
-
-        <!-- status + actions -->
-        <div style="margin-top:14px; display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap;">
-          <div id="permBulkStatus" class="tiny muted"></div>
-          <div style="display:flex; gap:8px;">
-            <button id="permBulkCancel" class="btn btn-secondary">Cancel</button>
-            <button id="permBulkUpdate" class="btn btn-primary">Update</button>
-          </div>
-        </div>
-
-      </div>
     </div>
-  </div>
 </div>
-
- 
  
 <style>
-/* Scoped, high-specificity styles for the permissions modal
-   Paste after bootstrap and any other theme CSS so it overrides them.
-   Uses the modal ID to avoid global conflicts. */
-
-#permBulkModal.perm-modal {
-  position: fixed ;
-  inset: 0 !important;
-  z-index: 13000 !important;
-  display: flex;
-  align-items: center !important;
-  justify-content: center !important;
-  font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
-}
-
-/* Backdrop */
-#permBulkModal .perm-modal-backdrop {
-  position: absolute !important;
-  inset: 0 !important;
-  background: rgba(0,0,0,0.45) !important;
-}
-
-/* Panel: force a light panel and dark readable text for everything inside */
-#permBulkModal .perm-modal-panel {
-  position: relative !important;
-  width: 94% !important;
-  max-width: 1100px !important;
-  background: #ffffff !important;          /* force white background */
-  color: #0f172a !important;               /* dark text */
-  border-radius: 10px !important;
-  padding: 16px !important;
-  box-shadow: 0 20px 60px rgba(2,6,23,0.18) !important;
-  border: 1px solid rgba(15,23,42,0.06) !important;
-}
-
-/* Make all descendant text dark and override inherited white text */
-#permBulkModal .perm-modal-panel, 
-#permBulkModal .perm-modal-panel * {
-  color: #0f172a !important;
-  /* background-color: transparent !important; reset backgrounds if necessary */
-}
-
-/* Header */
-#permBulkModal .perm-modal-header { display:flex !important; justify-content:space-between !important; align-items:center !important; gap:12px !important; }
-#permBulkModal .perm-modal-header h3 { margin:0 !important; font-size:1.05rem !important; color:#0f172a !important; }
-
-/* Close button (ensure visible) */
-#permBulkModal .perm-modal-close {
-  background: transparent !important;
-  border: none !important;
-  font-size: 1.2rem !important;
-  color: #0f172a !important;
-  cursor: pointer !important;
-}
-
-/* Body */
-#permBulkModal .perm-modal-body { margin-top: 10px !important; color:#0f172a !important; }
-
-/* List rows (scoped) */
-#permBulkModal .available-row, 
-#permBulkModal .assigned-row {
-  display:flex !important;
-  justify-content:space-between !important;
-  align-items:center !important;
-  gap:8px !important;
-  padding:10px !important;
-  border-radius:8px !important;
-  background: #ffffff !important;
-  border: 1px solid rgba(15,23,42,0.04) !important;
-  color: #f1f3f7 !important;
-  margin-bottom:8px !important;
-}
-
-/* If some theme sets the card background to dark, override it */
-#permBulkModal .available-row,
-#permBulkModal .assigned-row {
-  background-color: #ffffff !important;
-  box-shadow: 0 6px 18px rgba(2,6,23,0.04) !important;
-}
-
-/* Buttons inside modal: scope to modal so bootstrap .btn doesn't override color invisibly */
-#permBulkModal .btn-add, 
-#permBulkModal .btn-remove {
-  border: none !important;
-  color: #fff !important;
-  font-weight: 700 !important;
-  cursor: pointer !important;
-  padding: 6px 10px !important;
-  border-radius: 6px !important;
-  min-width: 34px !important;
-  line-height: 1 !important;
-}
-
-/* specific colors */
-#permBulkModal .btn-add { background: #06d42f !important; box-shadow: 0 6px 18px rgba(6,182,212,0.12) !important; }
-#permBulkModal .btn-remove { background: #ef4444 !important; box-shadow: 0 6px 18px rgba(239,68,68,0.12) !important; }
-
-/* Small inputs/selects */
-#permBulkModal .input-small, 
-#permBulkModal .select-small {
-  width: 96px !important;
-  padding: 6px 8px !important;
-  border-radius: 6px !important;
-  border: 1px solid rgba(15,23,42,0.06) !important;
-  background: #fff !important;
-  color: #0f172a !important;
-}
-
-/* tiny muted text */
-#permBulkModal .tiny.muted { color: #6b7280 !important; }
-
-/* Force contrast for any .btn inside modal */
-#permBulkModal button.btn, #permBulkModal .btn {
-  background: transparent !important;
-  color: #0f172a !important;
-  border: 1px solid rgba(15,23,42,0.06) !important;
-}
-
-/* Focus outlines for accessibility */
-#permBulkModal .perm-modal-panel button:focus,
-#permBulkModal .perm-modal-panel input:focus,
-#permBulkModal .perm-modal-panel select:focus {
-  outline: 3px solid rgba(6,182,212,0.18) !important;
-  outline-offset: 2px !important;
-}
-
-/* Responsive small screens */
-@media (max-width: 900px) {
-  #permBulkModal .perm-modal-panel { padding: 12px !important; max-width: 92% !important; }
-  #permBulkModal .available-row, #permBulkModal .assigned-row { padding: 8px !important; flex-direction: column !important; align-items: flex-start !important; gap:6px !important; }
-  #permBulkModal .available-row > div:last-child, #permBulkModal .assigned-row > div:last-child { align-self: flex-end !important; }
-}
-
-/* In case page uses dark mode / theme that flips colors, force the modal to stay light */
-@media (prefers-color-scheme: dark) {
-  #permBulkModal .perm-modal-panel { background: #ffffff !important; color: #0f172a !important; border-color: rgba(15,23,42,0.06) !important; }
-  #permBulkModal .available-row, #permBulkModal .assigned-row { background: #ffffff !important; color: #0f172a !important; }
-  #permBulkModal .input-small, #permBulkModal .select-small { background: #fff !important; color: #0f172a !important; border: 1px solid rgba(15,23,42,0.06) !important; }
-}
-
+    /* --- Modern Dark Modal Variables --- */
+    :root {
+        --modal-bg: #0f172a;        /* خلفية داكنة جداً */
+        --modal-surface: #1e293b;   /* خلفية العناصر */
+        --modal-border: #334155;    /* حدود ناعمة */
+        --text-main: #f8fafc;       /* أبيض */
+        --text-muted: #94a3b8;      /* رمادي فاتح */
+        --accent-primary: #6366f1;  /* نيلي */
+        --accent-success: #10b981;  /* أخضر */
+        --accent-danger: #ef4444;   /* أحمر */
+        --radius-lg: 16px;
+        --radius-sm: 8px;
+    }
+    
+    /* Modal Overlay with Glassmorphism */
+    #permBulkModal.perm-modal {
+        position: fixed;
+        inset: 0;
+        z-index: 13000;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-family: 'Inter', system-ui, sans-serif;
+        opacity: 0;
+        visibility: hidden;
+        transition: all 0.3s ease;
+    }
+    
+    /* حالة الظهور (يتم تفعيلها بالجافاسكربت) */
+    #permBulkModal[aria-hidden="false"] {
+        opacity: 1;
+        visibility: visible;
+    }
+    
+    #permBulkModal .perm-modal-backdrop {
+        position: absolute;
+        inset: 0;
+        background: rgba(0, 0, 0, 0.6);
+        backdrop-filter: blur(8px); /* تأثير الزجاج */
+    }
+    
+    /* Main Panel */
+    #permBulkModal .perm-modal-panel {
+        position: relative;
+        width: 95%;
+        max-width: 1000px;
+        background: var(--modal-bg);
+        border: 1px solid var(--modal-border);
+        border-radius: var(--radius-lg);
+        box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+        display: flex;
+        flex-direction: column;
+        max-height: 90vh; /* لضمان عدم خروجه من الشاشة */
+        transform: scale(0.95);
+        transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+        overflow: hidden;
+    }
+    
+    #permBulkModal[aria-hidden="false"] .perm-modal-panel {
+        transform: scale(1);
+    }
+    
+    /* Header */
+    .perm-modal-header {
+        padding: 20px 24px;
+        border-bottom: 1px solid var(--modal-border);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        background: var(--modal-surface);
+    }
+    
+    .perm-modal-header h3 {
+        margin: 0;
+        font-size: 1.25rem;
+        font-weight: 600;
+        color: var(--text-main);
+        letter-spacing: -0.025em;
+    }
+    
+    .perm-modal-close {
+        background: transparent;
+        border: none;
+        color: var(--text-muted);
+        font-size: 1.5rem;
+        cursor: pointer;
+        transition: color 0.2s;
+        line-height: 1;
+    }
+    .perm-modal-close:hover { color: var(--text-main); }
+    
+    /* Body */
+    .perm-modal-body {
+        padding: 24px;
+        overflow-y: auto;
+        color: var(--text-main);
+    }
+    
+    /* Custom Scrollbar (مظهر عصري) */
+    .perm-modal-body::-webkit-scrollbar,
+    .modern-list::-webkit-scrollbar {
+        width: 6px;
+        height: 6px;
+    }
+    .perm-modal-body::-webkit-scrollbar-track,
+    .modern-list::-webkit-scrollbar-track {
+        background: transparent;
+    }
+    .perm-modal-body::-webkit-scrollbar-thumb,
+    .modern-list::-webkit-scrollbar-thumb {
+        background: var(--modal-border);
+        border-radius: 3px;
+    }
+    .perm-modal-body::-webkit-scrollbar-thumb:hover {
+        background: #475569;
+    }
+    
+    /* Section Titles */
+    .section-title {
+        font-size: 0.85rem;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        color: var(--text-muted);
+        font-weight: 700;
+        margin-bottom: 12px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+    .section-title::after {
+        content: '';
+        flex: 1;
+        height: 1px;
+        background: var(--modal-border);
+    }
+    
+    /* Lists Container */
+    .dual-list-container {
+        display: flex;
+        gap: 20px;
+        margin-bottom: 24px;
+        flex-wrap: wrap;
+    }
+    
+    .list-box {
+        flex: 1;
+        min-width: 300px;
+        background: rgba(15, 23, 42, 0.5); /* أغمق قليلاً */
+        border: 1px solid var(--modal-border);
+        border-radius: var(--radius-sm);
+        display: flex;
+        flex-direction: column;
+    }
+    
+    .list-header {
+        padding: 12px 16px;
+        background: rgba(255, 255, 255, 0.02);
+        border-bottom: 1px solid var(--modal-border);
+        font-size: 0.9rem;
+        font-weight: 500;
+        color: var(--text-main);
+    }
+    
+    .modern-list {
+        padding: 12px;
+        max-height: 250px;
+        overflow-y: auto;
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+    }
+    
+    /* List Items (Rows) */
+    .perm-item {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 10px 12px;
+        background: var(--modal-surface);
+        border: 1px solid transparent;
+        border-radius: 6px;
+        transition: all 0.2s;
+    }
+    
+    .perm-item:hover {
+        border-color: var(--accent-primary);
+        transform: translateY(-1px);
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+    }
+    
+    .perm-item-info {
+        display: flex;
+        flex-direction: column;
+    }
+    .item-name { font-weight: 500; font-size: 0.95rem; }
+    .item-sub { font-size: 0.75rem; color: var(--text-muted); margin-top: 2px; }
+    
+    /* Buttons inside items */
+    .btn-icon {
+        border: none;
+        width: 32px;
+        height: 32px;
+        border-radius: 6px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        transition: all 0.2s;
+        font-size: 1.1rem;
+    }
+    
+    .btn-add { background: rgba(16, 185, 129, 0.1); color: var(--accent-success); }
+    .btn-add:hover { background: var(--accent-success); color: white; }
+    
+    .btn-remove { background: rgba(239, 68, 68, 0.1); color: var(--accent-danger); }
+    .btn-remove:hover { background: var(--accent-danger); color: white; }
+    
+    /* Global Permissions Section */
+    .global-perms-box {
+        background: var(--modal-surface);
+        border: 1px solid var(--modal-border);
+        border-radius: var(--radius-sm);
+        padding: 16px;
+        margin-top: 24px;
+    }
+    
+    .checkbox-wrapper {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        cursor: pointer;
+        user-select: none;
+        padding: 8px;
+        border-radius: 6px;
+        transition: background 0.2s;
+    }
+    .checkbox-wrapper:hover { background: rgba(255,255,255,0.03); }
+    
+    /* Custom Checkbox */
+    .checkbox-wrapper input[type="checkbox"] {
+        appearance: none;
+        width: 20px;
+        height: 20px;
+        background: var(--modal-bg);
+        border: 2px solid var(--modal-border);
+        border-radius: 4px;
+        cursor: pointer;
+        position: relative;
+        transition: all 0.2s;
+    }
+    .checkbox-wrapper input[type="checkbox"]:checked {
+        background: var(--accent-primary);
+        border-color: var(--accent-primary);
+    }
+    .checkbox-wrapper input[type="checkbox"]:checked::after {
+        content: '✓';
+        position: absolute;
+        color: white;
+        font-size: 14px;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+    }
+    .checkbox-label { color: var(--text-main); font-size: 0.9rem; }
+    
+    /* Footer Actions */
+    .modal-footer {
+        margin-top: 32px;
+        padding-top: 20px;
+        border-top: 1px solid var(--modal-border);
+        display: flex;
+        justify-content: flex-end;
+        gap: 12px;
+        align-items: center;
+    }
+    
+    .btn-modal {
+        padding: 10px 24px;
+        border-radius: 8px;
+        font-weight: 600;
+        font-size: 0.9rem;
+        cursor: pointer;
+        border: none;
+        transition: all 0.2s;
+    }
+    
+    .btn-secondary {
+        background: transparent;
+        border: 1px solid var(--modal-border);
+        color: var(--text-main);
+    }
+    .btn-secondary:hover { background: var(--modal-border); }
+    
+    .btn-primary {
+        background: linear-gradient(135deg, var(--accent-primary), #4f46e5);
+        color: white;
+        box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
+    }
+    .btn-primary:hover {
+        box-shadow: 0 6px 20px rgba(99, 102, 241, 0.5);
+        transform: translateY(-1px);
+    }
+    
+    /* Loader */
+    #permBulkLoading {
+        text-align: center;
+        padding: 40px;
+        color: var(--accent-primary);
+        font-weight: bold;
+        display: none; /* يتم التحكم به عبر JS */
+    }
     </style>
+
+<!-- for channels   -->
+<script>
+    // تشغيل القائمة المنسدلة للقنوات (نسخة طبق الأصل من المنتجات)
+setupMultiSelect('channellist');
+
+function setupMultiSelect(idPrefix) {
+    const wrapper = $(`#${idPrefix}-multiselect`);
+    const dropdown = $(`#${idPrefix}-dropdown`);
+    const selectedContainer = $(`#${idPrefix}-selected`);
+    const hiddenInput = $(`#${idPrefix}-hidden`);
+    const checkboxes = dropdown.find('input[type="checkbox"]');
+
+    wrapper.on('click', function(e) {
+        if (!$(e.target).closest('input').length) {
+            dropdown.toggle();
+        }
+    });
+
+    $(document).on('click', function(e) {
+        if (!wrapper.is(e.target) && wrapper.has(e.target).length === 0) {
+            dropdown.hide();
+        }
+    });
+
+    checkboxes.on('change', function() {
+        updateSelectedDisplay();
+    });
+
+    function updateSelectedDisplay() {
+        const selected = [];
+        const values = [];
+
+        checkboxes.each(function() {
+            if ($(this).is(':checked')) {
+                const text = $(this).parent().text().trim();
+                const val = $(this).val();
+                
+                if (val === 'all') {
+                    // إذا اختار الكل
+                    selectedContainer.html('<span class="badge bg-primary">All Channels</span>');
+                    hiddenInput.val('all');
+                    return false; // break loop
+                }
+                
+                selected.push(`<span class="badge bg-secondary">${text}</span>`);
+                values.push(val);
+            }
+        });
+
+        if (values.includes('all')) return; // تم التعامل معه
+
+        if (selected.length > 0) {
+            selectedContainer.html(selected.join(' '));
+        } else {
+            selectedContainer.html('<span class="text-muted small">Click to select...</span>');
+        }
+        hiddenInput.val(values.join(','));
+    }
+}
+</script>
 <script>
 (function(){
   // ========== CONFIG - غيّر المسارات حسب مشروعك ==========
   const GET_USER_PERMS_URL = '/discount/marketing/api/product-permissions/user/';      // GET ?user_id=...
   const GET_ALL_PRODUCTS_URL = '/discount/marketing/api/products/list/';              // GET -> {products: [{id, name}, ...]}
   const BULK_UPDATE_URL = '/discount/marketing/api/product-permissions/bulk_update/'; // POST bulk updates
+  const GET_ALL_CHANNELS_URL = '/discount/marketing/api/channels/list/';              // GET -> {channels: [{id, name}, ...]}
   // =======================================================
 
   // ========== DOM refs ==========
@@ -2072,55 +2607,87 @@ $(document).ready(function() {
   }
 
   // ========== UI helpers: render rows ==========
-  function makeAvailableRow(prod){
-    // prod: {id, name}
-    const row = document.createElement('div');
-    row.className = 'available-row';
-    row.dataset.productId = prod.id;
-    row.innerHTML = `
-      <div style="flex:1; font-weight:600;">${escapeHtml(prod.name)}</div>
-      <div style="flex:0 0 auto;">
-        <button class="btn-add" title="Add">+</button>
-      </div>
-    `;
-    // add handler
-    row.querySelector('.btn-add').addEventListener('click', () => {
-      // move to assigned with defaults
-      addAssignedProduct(prod.id, prod.name);
-    });
-    return row;
-  }
 
-  function makeAssignedRow(prodId, entry){
-    // entry: { product_id, role, daily_order_limit, product_name }
-    const row = document.createElement('div');
-    row.className = 'assigned-row';
-    row.dataset.productId = prodId;
-    // role select and limit input
-    row.innerHTML = `
-      <div style="flex:1;">
-        <div style="font-weight:600;">${escapeHtml(entry.product_name)}</div>
-        <div class="tiny muted">Product ID: ${escapeHtml(String(prodId))}</div>
-      </div>
-      <div style="flex:0 0 220px; display:flex; gap:8px; align-items:center; justify-content:flex-end;">
-        <select class="select-small role-select">
-          <option value="viewer">Viewer</option>
-          <option value="editor">Editor</option>
-          <option value="manager">Manager</option>
-          <option value="owner">Owner</option>
-        </select>
-        <input class="input-small limit-input" type="number" min="0" value="${Number(entry.daily_order_limit||0)}" />
-        <button class="btn-remove" title="Remove">−</button>
-      </div>
+  function makeAvailableRow(prod) {
+    const div = document.createElement('div');
+    // استخدام الكلاس الجديد للتصميم الموحد
+    div.className = 'perm-item'; 
+    div.setAttribute('data-id', prod.id);
+    
+    div.innerHTML = `
+        <div class="perm-item-info">
+            <div class="item-name">${escapeHtml(prod.name)}</div>
+            <div class="item-sub">ID: ${prod.id}</div>
+        </div>
+        <button class="btn-icon btn-add" title="Add">＋</button>
     `;
-    // set role value
-    row.querySelector('.role-select').value = entry.role || 'viewer';
-    // remove handler
-    row.querySelector('.btn-remove').addEventListener('click', () => {
-      removeAssignedProduct(prodId);
+
+    // إضافة حدث النقر
+    div.querySelector('.btn-add').addEventListener('click', () => {
+        addAssignedProduct(prod.id, prod.name);
     });
-    return row;
-  }
+
+    return div;
+}
+
+
+
+  function makeAssignedRow(prodId, entry) {
+    // entry: { product_id, role, daily_order_limit, product_name }
+    const div = document.createElement('div');
+    div.className = 'perm-item';
+    div.setAttribute('data-id', prodId);
+    
+    // تمييز العناصر المعينة بخلفية خفيفة (مثل القنوات)
+    div.style.background = 'rgba(99, 102, 241, 0.05)'; 
+    div.style.borderColor = 'rgba(99, 102, 241, 0.2)';
+    div.style.flexWrap = 'wrap'; // للسماح للعناصر بالانتقال للأسطر في الشاشات الصغيرة
+
+    // تنسيق الحقول لتكون داكنة (Dark Input Styles)
+    const inputStyle = `
+        background: var(--modal-bg); 
+        color: var(--text-main); 
+        border: 1px solid var(--modal-border); 
+        border-radius: 6px; 
+        padding: 4px 8px; 
+        font-size: 0.85rem;
+        outline: none;
+    `;
+
+    div.innerHTML = `
+        <div class="perm-item-info" style="flex: 1; min-width: 120px;">
+            <div class="item-name">${escapeHtml(entry.product_name)}</div>
+            <div class="item-sub">ID: ${escapeHtml(String(prodId))}</div>
+        </div>
+        
+        <div style="display:flex; gap:8px; align-items:center; margin-top: 4px;">
+            <select class="role-select" style="${inputStyle} width: 100px;">
+                <option value="viewer">Viewer</option>
+                <option value="editor">Editor</option>
+                <option value="manager">Manager</option>
+                <option value="owner">Owner</option>
+            </select>
+            
+            <input class="limit-input" type="number" min="0" placeholder="Limit" 
+                   value="${Number(entry.daily_order_limit||0)}" 
+                   style="${inputStyle} width: 70px;" title="Daily Order Limit" />
+            
+            <button class="btn-icon btn-remove" title="Remove">✕</button>
+        </div>
+    `;
+
+    // تعيين القيمة المختارة للدور
+    div.querySelector('.role-select').value = entry.role || 'viewer';
+
+    // إضافة حدث الحذف
+    div.querySelector('.btn-remove').addEventListener('click', () => {
+        removeAssignedProduct(prodId);
+    });
+
+    return div;
+}
+
+
 
   function escapeHtml(str){
     if (!str && str !== 0) return '';
@@ -2128,23 +2695,27 @@ $(document).ready(function() {
   }
 
   // ========== state operations ==========
-  function rebuildLists(){
-    // clear
+  function rebuildLists() {
+    const availableList = document.getElementById('availableList');
+    const assignedList = document.getElementById('assignedList');
+
+    // تنظيف القوائم
     availableList.innerHTML = '';
     assignedList.innerHTML = '';
 
-    // build available from availableMap
+    // بناء قائمة المتاح (Available)
     Object.values(state.availableMap).forEach(p => {
-      const r = makeAvailableRow(p);
-      availableList.appendChild(r);
+        const r = makeAvailableRow(p);
+        availableList.appendChild(r);
     });
 
-    // build assigned from assignedMap (order preserved by insertion order of keys)
+    // بناء قائمة المعين (Assigned)
     Object.values(state.assignedMap).forEach(entry => {
-      const r = makeAssignedRow(entry.product_id, entry);
-      assignedList.appendChild(r);
+        const r = makeAssignedRow(entry.product_id, entry);
+        assignedList.appendChild(r);
     });
-  }
+}
+
 
   function addAssignedProduct(product_id, product_name){
     // remove from availableMap
@@ -2184,19 +2755,43 @@ $(document).ready(function() {
   }
 
   // update entry values from DOM before sending
-  function collectAssignedFromDOM(){
-    // iterate assignedList rows
-    const rows = assignedList.querySelectorAll('.assigned-row');
+  function collectAssignedFromDOM() {
+    const list = document.getElementById('assignedList');
+    
+    // 🔥 التحديث 1: البحث عن الكلاس الجديد (.perm-item) بدلاً من (.assigned-row)
+    const rows = list.querySelectorAll('.perm-item'); 
+    
     const assignments = [];
+    
     rows.forEach(r => {
-      const pid = r.dataset.productId;
-      const role = r.querySelector('.role-select').value;
-      const limit = Number(r.querySelector('.limit-input').value || 0);
-      const name = state.assignedMap[pid] ? state.assignedMap[pid].product_name : (state.availableMap[pid] ? state.availableMap[pid].name : '');
-      assignments.push({ product_id: pid, product_name: name, role, daily_order_limit: limit });
+      // 🔥 التحديث 2: استخدام data-id الذي وضعناه في التصميم الجديد
+      const pid = r.getAttribute('data-id'); 
+      
+      // البحث عن المدخلات (تأكدنا في دالة makeAssignedRow من وجود هذه الكلاسات)
+      const roleEl = r.querySelector('.role-select');
+      const limitEl = r.querySelector('.limit-input');
+      
+      if (pid && roleEl && limitEl) {
+          const role = roleEl.value;
+          const limit = Number(limitEl.value || 0);
+          
+          // الحفاظ على منطق جلب الاسم (للاستخدام الداخلي إن لزم الأمر)
+          const name = state.assignedMap[pid] ? state.assignedMap[pid].product_name : 
+                      (state.availableMap[pid] ? state.availableMap[pid].name : '');
+          
+          assignments.push({ 
+              product_id: pid, 
+              product_name: name, 
+              role: role, 
+              daily_order_limit: limit 
+          });
+      }
     });
+    
     return assignments;
   }
+
+
 
   // ========== network helpers ==========
   async function getJSON(url){
@@ -2226,34 +2821,44 @@ $(document).ready(function() {
   }
 
   // ========== load data for user and initialize ==========
-  async function openForUser(user_id){
+// ========== load data for user and initialize ==========
+async function openForUser(user_id){
     try {
-      // reset state
+      // 1. Reset State (Products + Channels)
       state.user_id = String(user_id);
+      
+      // Products State
       state.allProducts = [];
       state.assignedMap = {};
       state.availableMap = {};
       state.removed = new Set();
       state.initialAssignedIds = new Set();
+
+      // 🔥 Channels State (New) 🔥
+      state.allChannels = [];
+      state.assignedChannelsMap = {}; // القنوات المعينة للمستخدم
+      state.availableChannelsMap = {}; // القنوات المتاحة للإضافة
+      state.initialChannelIds = new Set(); // للمقارنة لاحقاً (Removals)
+
       loadingEl.style.display = 'block';
       setStatus('');
 
-      // fetch products + permissions in parallel
-      const [productsResp, permsResp] = await Promise.all([
+      // 2. Fetch Data (Parallel Requests)
+      // أضفنا رابط القنوات الجديد هنا
+      const [productsResp, channelsResp, permsResp] = await Promise.all([
         getJSON(GET_ALL_PRODUCTS_URL),
+        getJSON(GET_ALL_CHANNELS_URL), // ⬅️ تأكد من تعريف هذا الثابت في الأعلى
         getJSON(`${GET_USER_PERMS_URL}?user_id=${encodeURIComponent(user_id)}`)
       ]);
 
-      // productsResp: { products: [{id, name}, ...] }
+      // ---------------------------------------------------------
+      // 3. Process Products (كما هو سابقاً)
+      // ---------------------------------------------------------
       state.allProducts = (productsResp && productsResp.products) ? productsResp.products : [];
-
-      // build availableMap initial
       state.availableMap = {};
       state.allProducts.forEach(p => { state.availableMap[String(p.id)] = p; });
 
-      // permsResp: { status: 'ok', user_id, permissions: [{product_id, product_name, role, daily_order_limit}], global_permissions: {...} }
       const perms = (permsResp && permsResp.permissions) ? permsResp.permissions : [];
-      // fill assignedMap
       perms.forEach(p => {
         const pid = String(p.product_id);
         state.assignedMap[pid] = {
@@ -2262,23 +2867,53 @@ $(document).ready(function() {
           role: p.role || 'viewer',
           daily_order_limit: p.daily_order_limit || 0
         };
-        // remove from availableMap
         delete state.availableMap[pid];
         state.initialAssignedIds.add(pid);
       });
 
-      // global perms
+      // ---------------------------------------------------------
+      // 4. 🔥 Process Channels (New Logic) 🔥
+      // ---------------------------------------------------------
+      
+      // أ) تخزين كل القنوات المتاحة
+      state.allChannels = (channelsResp && channelsResp.channels) ? channelsResp.channels : [];
+      state.availableChannelsMap = {};
+      state.allChannels.forEach(c => { state.availableChannelsMap[String(c.id)] = c; });
+
+      // ب) معالجة القنوات المعينة للمستخدم (القادمة من permsResp)
+      const assignedCh = (permsResp && permsResp.channel_permissions) ? permsResp.channel_permissions : [];
+      
+      assignedCh.forEach(c => {
+        const cid = String(c.id);
+        // تخزينها في قائمة "Assigned"
+        state.assignedChannelsMap[cid] = {
+            id: cid,
+            name: c.name,
+            phone: c.phone
+        };
+        // حذفها من قائمة "Available"
+        delete state.availableChannelsMap[cid];
+        // حفظها للمقارنة عند التحديث
+        state.initialChannelIds.add(cid);
+      });
+
+      // ---------------------------------------------------------
+      // 5. Global Perms & UI
+      // ---------------------------------------------------------
       const g = permsResp.global_permissions || {};
       state.globalPermissions = g;
       canCreateOrdersCheckbox.checked = !!g.can_create_orders;
       canViewAnalyticsCheckbox.checked = !!g.can_view_analytics;
 
-      rebuildLists();
+      // إعادة رسم القوائم (المنتجات + القنوات)
+      rebuildLists();           // للمنتجات
+      rebuildChannelLists();    // 🔥 للقنوات (تحتاج لإنشاء هذه الدالة)
+
       loadingEl.style.display = 'none';
       setStatus('');
-      // show modal
       modal.style.display = 'flex';
       modal.setAttribute('aria-hidden','false');
+      
     } catch (err) {
       console.error('openForUser error', err);
       loadingEl.style.display = 'none';
@@ -2286,44 +2921,150 @@ $(document).ready(function() {
     }
   }
 
+
+
+
+  function rebuildChannelLists() {
+    const availEl = document.getElementById('availableChannelsList');
+    const assignedEl = document.getElementById('assignedChannelsList');
+    
+    availEl.innerHTML = '';
+    assignedEl.innerHTML = '';
+
+    // 1. رسم القنوات المتاحة (تصميم جديد)
+    Object.values(state.availableChannelsMap).forEach(ch => {
+        const div = document.createElement('div');
+        div.className = 'perm-item'; // الكلاس الجديد
+        div.innerHTML = `
+            <div class="perm-item-info">
+                <div class="item-name">${escapeHtml(ch.name)}</div>
+                <div class="item-sub">${ch.phone}</div>
+            </div>
+            <button class="btn-icon btn-add" onclick="assignChannel('${ch.id}')" title="Add">＋</button>
+        `;
+        availEl.appendChild(div);
+    });
+
+    // 2. رسم القنوات المعينة (تصميم جديد)
+    Object.values(state.assignedChannelsMap).forEach(ch => {
+        const div = document.createElement('div');
+        div.className = 'perm-item';
+        div.setAttribute('data-id', ch.id);
+        
+        // يمكننا إضافة ستايل خاص للمعين
+        div.style.background = 'rgba(99, 102, 241, 0.1)'; 
+        div.style.borderColor = 'rgba(99, 102, 241, 0.2)';
+
+        div.innerHTML = `
+            <div class="perm-item-info">
+                <div class="item-name">${escapeHtml(ch.name)}</div>
+                <div class="item-sub">${ch.phone}</div>
+            </div>
+            <button class="btn-icon btn-remove" onclick="removeChannel('${ch.id}')" title="Remove">✕</button>
+        `;
+        assignedEl.appendChild(div);
+    });
+}
+
+// دوال مساعدة للإضافة والحذف في الذاكرة (Frontend only)
+window.assignChannel = function(id) {
+    const ch = state.availableChannelsMap[id];
+    if(!ch) return;
+    
+    // نقل من Available إلى Assigned
+    state.assignedChannelsMap[id] = ch;
+    delete state.availableChannelsMap[id];
+    
+    rebuildChannelLists();
+};
+
+window.removeChannel = function(id) {
+    const ch = state.assignedChannelsMap[id];
+    if(!ch) return;
+    
+    // نقل من Assigned إلى Available
+    state.availableChannelsMap[id] = ch;
+    delete state.assignedChannelsMap[id];
+    
+    rebuildChannelLists();
+};
+
+
+
+
   // ========== collect and send bulk update ==========
   btnUpdate.addEventListener('click', async function(){
     setStatus('Preparing update...');
     try {
-      // collect assigned entries from DOM
-      const assignments = collectAssignedFromDOM(); // [{product_id, role, daily_order_limit}]
-      // compute removals (from initialAssignedIds but not in assignments)
-      const assignedIdsNow = new Set(assignments.map(a => String(a.product_id)));
-      const removals = Array.from(state.initialAssignedIds).filter(x => !assignedIdsNow.has(String(x)));
+      // 1. Products Logic (Existing)
+      const productAssignments = collectAssignedFromDOM(); 
+      const assignedProductIdsNow = new Set(productAssignments.map(a => String(a.product_id)));
+      const productRemovals = Array.from(state.initialAssignedIds).filter(x => !assignedProductIdsNow.has(String(x)));
 
-      // collect global flags
+      // 2. 🔥 WhatsApp Channels Logic (New) 🔥
+      // دالة تجمع الـ IDs من قائمة القنوات المعينة حالياً في الـ DOM
+      const channelAssignments = collectAssignedChannelsFromDOM(); // تعيد مصفوفة من IDs فقط [1, 5, ...]
+      
+      // نحسب المحذوفات (كانت موجودة في البداية ولم تعد موجودة الآن)
+      // state.initialChannelIds يجب أن تملأها عند فتح المودال
+      const assignedChannelIdsNow = new Set(channelAssignments.map(id => String(id)));
+      const channelRemovals = Array.from(state.initialChannelIds || []).filter(x => !assignedChannelIdsNow.has(String(x)));
+
+      // 3. Global Flags (Existing)
       const globalPermissions = {
         can_create_orders: !!canCreateOrdersCheckbox.checked,
         can_view_analytics: !!canViewAnalyticsCheckbox.checked
       };
 
-      // payload
+      // 4. Payload
       const payload = {
         user_id: state.user_id,
-        assignments: assignments,   // full list to create/update
-        removals: removals,         // product_ids to delete
+        
+        // Products
+        assignments: productAssignments,   
+        removals: productRemovals,         
+        
+        // 🔥 Channels (New Keys)
+        channel_assignments: channelAssignments, // القائمة النهائية للقنوات [1, 2]
+        channel_removals: channelRemovals,       // القنوات التي يجب حذفها [3]
+        
         global_permissions: globalPermissions
       };
 
       setStatus('Sending update...');
       const resp = await postJSON(BULK_UPDATE_URL, payload);
+      
       setStatus('Saved successfully.');
-      // update initialAssignedIds to reflect new state
-      state.initialAssignedIds = new Set(assignments.map(a => String(a.product_id)));
-      // clear removed
+      
+      // Update State
+      state.initialAssignedIds = new Set(productAssignments.map(a => String(a.product_id)));
+      state.initialChannelIds = new Set(channelAssignments.map(id => String(id))); // تحديث حالة القنوات
+      
       state.removed = new Set();
-      // close modal after brief success
+      
       setTimeout(()=>{ modal.style.display='none'; modal.setAttribute('aria-hidden','true'); }, 600);
+
     } catch (err) {
       console.error('bulk update failed', err);
       setStatus('Update failed: ' + (err.message || err), true);
     }
   });
+
+// ---------------------------------------------------------
+// Helper: دالة بسيطة لجمع القنوات من الـ DOM (أضفها للكود)
+// ---------------------------------------------------------
+function collectAssignedChannelsFromDOM() {
+    const list = document.getElementById('assignedChannelsList');
+    const items = list.querySelectorAll('.perm-item'); // افترض أن كل عنصر له كلاس channel-item
+    const ids = [];
+    items.forEach(item => {
+        ids.push(item.getAttribute('data-id'));
+    });
+    console.log("Channels collected from DOM:", ids);
+    return ids;
+}
+
+
 
   btnCancel.addEventListener('click', function(){
     modal.style.display = 'none';
@@ -2566,6 +3307,7 @@ $(document).ready(function(){
     // Buttons that can trigger the team member form display
     $('#add_stuff_btn_header, #add_stuff_empty_state').click(function(e) { 
         e.preventDefault();
+        $('#team_member_list_container').addClass('d-none');
         $('#stuffFormSect').removeClass('d-none');
         // Hide both buttons that can trigger the form
         $('#add_stuff_btn_header').addClass('d-none');
@@ -2576,9 +3318,7 @@ $(document).ready(function(){
         $('#no_members_message').addClass('d-none');
 
         // Scroll to the form
-        $('html, body').animate({
-            scrollTop: $('#stuffFormSect').offset().top - 30 
-        }, 500);
+      
     });
     
     $('#hideStuffFormBtn').click(function(e) { 
@@ -2586,6 +3326,7 @@ $(document).ready(function(){
         $('#stuffFormSect').addClass('d-none');
         // Show the "Add Member" button in the header again
         $('#add_stuff_btn_header').removeClass('d-none');
+        $('#team_member_list_container').removeClass('d-none');
 
         // If there are no team members, show the empty state message
         if ($('#team-management .table tbody tr').length === 0) {
@@ -2596,6 +3337,9 @@ $(document).ready(function(){
         }
     });
     
+
+
+
     // Submit team member form via AJAX
     $('.stuff_form').submit(function(e) {
         e.preventDefault();
@@ -2655,6 +3399,8 @@ $(document).ready(function(){
         });
     });
     
+
+
     // Submit token form via AJAX
     $('.token-form').submit(function(e) {
         e.preventDefault();

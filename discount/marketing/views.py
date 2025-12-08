@@ -921,7 +921,7 @@ from django.db import transaction
 @require_GET
 def products_list(request):
     # Return minimal product info used in the modal
-    qs = Products.objects.filter(admin = request.user).order_by('name')[:5000]  # limit if needed
+    qs = Products.objects.filter(admin = request.user).order_by('name')[:5000]   
     products = [{'id': str(p.id), 'name': p.name} for p in qs]
     return JsonResponse({'products': products})
 
@@ -932,11 +932,6 @@ def get_permissions_for_user(request):
     user_id = request.GET.get('user_id')
     if not user_id:
         return HttpResponseBadRequest(json.dumps({'error':'missing_user_id'}), content_type='application/json')
-
-    # try:
-    #     target_user = CustomUser.objects.get(pk=user_id)
-    # except CustomUser.DoesNotExist:
-    #     return HttpResponseBadRequest(json.dumps({'error':'invalid_user_id'}), content_type='application/json')
     target_user = CustomUser.objects.get(pk=user_id)
     # Authorization: staff or the user themself (tune to your needs)
     if not (request.user.is_staff or request.user == target_user):
@@ -944,6 +939,15 @@ def get_permissions_for_user(request):
 
     perms_qs = UserProductPermission.objects.filter(user=target_user).select_related('product')
     perms = []
+    assigned_channels_qs = target_user.channels.filter(owner=request.user)
+    
+    assigned_channels_data = [{
+        'id': str(c.id),
+        'name': c.name,
+        'phone': c.phone_number
+    } for c in assigned_channels_qs]
+
+
     for p in perms_qs:
         perms.append({
             'target_user':target_user.username,
@@ -964,9 +968,33 @@ def get_permissions_for_user(request):
     except UserPermissionSetting.DoesNotExist:
         global_permissions = {'can_create_orders': False, 'can_view_analytics': False, 'extra': {}}
 
-    return JsonResponse({'status':'ok', 'user_id': str(target_user.id), 'permissions': perms, 'global_permissions': global_permissions})
+    return JsonResponse({'status':'ok', 'user_id': str(target_user.id), 'permissions': perms, 'global_permissions': global_permissions , 'channel_permissions': assigned_channels_data,})
+
+
+# 1. دالة جديدة لجلب كل القنوات المتاحة (Available)
+def channels_list(request):
+    if not request.user.is_staff: # أو is_team_admin حسب نظامك
+         return JsonResponse({'channels': []})
+         
+    # جلب القنوات التي يملكها الأدمن الحالي
+    qs = WhatsAppChannel.objects.filter(owner=request.user).order_by('name')
+    
+    # نرسل الاسم والرقم ليكون العرض واضحاً
+    channels = [{
+        'id': str(c.id), 
+        'name': c.name, 
+        'phone': c.phone_number
+    } for c in qs]
+    
+    return JsonResponse({'channels': channels})
+
+# 2. تحديث دالة جلب صلاحيات المستخدم (get_user_permissions)
+# (هذه الدالة موجودة لديك مسبقاً وتستدعى عبر GET_USER_PERMS_URL، نحتاج لإضافة القنوات في ردها)
+ 
+
 
 # ========== bulk update endpoint ==========
+from discount.models import WhatsAppChannel
 @login_required
 @require_POST
 def bulk_update_permissions(request):
@@ -983,6 +1011,9 @@ def bulk_update_permissions(request):
     assignments = body.get('assignments', [])  # list of {product_id, role, daily_order_limit}
     removals = body.get('removals', [])        # list of product_ids to remove
     global_permissions = body.get('global_permissions', {})
+    channel_ids_assigned = body.get('channel_assignments', []) # [1, 2, ...]
+    channel_removals = body.get('channel_removals', [])        # [3, ...]
+
 
     if not user_id:
         return HttpResponseBadRequest(json.dumps({'error':'missing_user_id'}), content_type='application/json')
@@ -993,7 +1024,14 @@ def bulk_update_permissions(request):
         return HttpResponseBadRequest(json.dumps({'error':'invalid_user_id'}), content_type='application/json')
 
     # apply updates in a transaction
-    results = {'created':[], 'updated':[], 'deleted':[]}
+    # results = {'created':[], 'updated':[], 'deleted':[]}
+    results = {
+        'created': [], 
+        'updated': [], 
+        'deleted': [],
+        'channels_added': [],   # 🔥 ضروري جداً لتفادي KeyError
+        'channels_removed': []  # 🔥 ضروري جداً لتفادي KeyError
+    }
     with transaction.atomic():
         # handle removals
         if removals:
@@ -1024,6 +1062,29 @@ def bulk_update_permissions(request):
                 results['created'].append(str(prod.id))
             else:
                 results['updated'].append(str(prod.id))
+
+        # أ) حذف القنوات المطلوبة (Removals)
+        if channel_removals:
+            # نتحقق أن القنوات تابعة للأدمن الحالي للحماية
+            channels_to_remove = WhatsAppChannel.objects.filter(
+                id__in=channel_removals, 
+                owner=request.user
+            )
+            for ch in channels_to_remove:
+                ch.assigned_agents.remove(target_user) # إزالة العلاقة
+                results['channels_removed'].append(ch.id)
+
+        # ب) إضافة/تأكيد القنوات الجديدة (Assignments)
+        if channel_ids_assigned:
+            # نتحقق أن القنوات تابعة للأدمن
+            channels_to_add = WhatsAppChannel.objects.filter(
+                id__in=channel_ids_assigned, 
+                owner=request.user
+            )
+            for ch in channels_to_add:
+                # add ذكية، إذا كان موجوداً لن تكرره
+                ch.assigned_agents.add(target_user)
+                results['channels_added'].append(ch.id)
 
         # handle global permissions (create or update UserPermissionSetting)
         if global_permissions is not None:

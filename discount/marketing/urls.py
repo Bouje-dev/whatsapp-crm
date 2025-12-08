@@ -17,6 +17,7 @@ urlpatterns = [
     # path('api/recommendation/apply/', apply_recommendation, name='apply-recommendation'),
     # path('api/recommendation/ignore/', ignore_recommendation, name='ignore-recommendation'),
     path('api/products/list/', views.products_list, name='products-list'),
+    path('api/channels/list/', views.channels_list, name='channels-list'),
     path('api/product-permissions/user/', views.get_permissions_for_user, name='get-permissions-for-user'),
     path('api/product-permissions/bulk_update/', views.bulk_update_permissions, name='bulk-update-permissions'),
     path("api/leads/filter/", views.filter_leads_api, name="filter_leads_api"),

@@ -377,7 +377,7 @@ def singup(request):
 
 
 
-
+from discount.models import WhatsAppChannel
 
 login_required(login_url='/auth/login/')
 def user(request):
@@ -408,33 +408,12 @@ def user(request):
     # team_account_perm = 
     team_invitations = TeamInvitation.objects.filter(admin=request.user , is_used=False)
     team_account_perm = UserProductPermission.objects.select_related("user")
+
+    whatsapp_channels = WhatsAppChannel.objects.filter(owner=request.user)
+  
+  
     
-#     for user in team_account_perm:
-#         # team_account_perm = user
-#         team_account_perm.filter(user.is_active=True, user__team_admin=request.user)
-#     # Replace this line:
-# team_account_perm.filter(user.is_active=True, user__team_admin=request.user)
-
-# With this corrected version:
-#     team_account_perm = CustomUser.objects.filter(
-#     is_active=True,
-#     user__team_admin=request.user
-# )
-
-#     team_account_perm = UserProductPermission.objects.filter(
-#     user__is_active=True,
-#     user__team_admin=request.user
-# ).select_related('user')  # Optimize database queries
-#     team_accounts_simple = []
-#     for perm in team_account_perm:
-#             team_accounts_simple.append({
-#         'username': perm.user.user_name or perm.user.email,
-#         'email': perm.user.email
-#     })
-#     print(team_accounts_simple)
-
-
-# Simplest approach - get unique users directly
+ 
     team_users = CustomUser.objects.filter(
     is_active=True,
     team_admin=request.user
@@ -494,6 +473,7 @@ def user(request):
     return render(request, 'user/user.html', {
         'tokenform': tokenform,
         'activities':activety,
+        'whatsapp_channels':whatsapp_channels ,
         'Productslist': Products.objects.filter(admin=request.user),
         'tokens': ExternalTokenmodel.objects.filter(user=request.user),
         'is_verified': request.user.is_verified,
@@ -505,6 +485,8 @@ def user(request):
         'invitations': TeamInvitation.objects.filter(admin=request.user),
         'team_accounts': team_accounts_simple
     }) 
+
+
 
 
 
@@ -794,6 +776,8 @@ def send_invitation_email(request, invitation):
         return False
 
 
+from django.contrib.auth import login
+from django.http import JsonResponse
 
 
 
@@ -813,6 +797,8 @@ def invite_staff(request):
         name = request.POST.get('name', '')
         role = request.POST.get('role', 'viewer')
         products = request.POST.getlist('products')
+        channels_input = request.POST.get('channels', '')
+        channels_list = channels_input.split(',') if channels_input else []
         if len(products) == 1 and ',' in products[0]:
             products = products[0].split(',')
 
@@ -825,6 +811,15 @@ def invite_staff(request):
                 'message': 'This email is already registered  with another account.'
                 }, status=400)
         
+
+
+        if 'all' in channels_list:
+            # كل القنوات التي يملكها الأدمن
+            selected_channels = WhatsAppChannel.objects.filter(owner=request.user)
+        elif channels_list:
+            # قنوات محددة (مع التحقق من الملكية)
+            selected_channels = WhatsAppChannel.objects.filter(id__in=channels_list, owner=request.user)
+
 
         # معالجة المنتجات
         if 'all' in products:
@@ -848,11 +843,15 @@ def invite_staff(request):
             name=name,
         )
         invitation.products.set(selected_products)
+        if channels_list:
+            invitation.channels.set(selected_channels)  
+        else:
+            pass
 
-        send_invitation_email(request, invitation)
+        sent = send_invitation_email(request, invitation)
         invitation.save()
 
-        if not send_invitation_email(request, invitation):
+        if not sent:
             return JsonResponse({'error': 'فشل في إرسال البريد الإلكتروني'}, status=500)
         else:        
             return JsonResponse({'success': 'تم إرسال الدعوة بنجاح'}, status=200)
@@ -864,9 +863,6 @@ def invite_staff(request):
 
     return render(request, 'team/invite_staff.html')
 
-
-from django.contrib.auth import login
-from django.http import JsonResponse
 
 def accept_invite(request, token):
     error = ''
@@ -894,8 +890,9 @@ def accept_invite(request, token):
         )
         user.set_unusable_password()
         user.save()
-        # حدف الدعوة 
-         
+        
+
+ 
         login(request, user)
         for product in invitation.products.all():
                 UserProductPermission.objects.get_or_create(
@@ -905,6 +902,10 @@ def accept_invite(request, token):
                 )
         invitation.is_used = True
         invitation.save()
+
+        for channel in invitation.channels.all():
+            channel.assigned_agents.add(user)
+         
         return JsonResponse({'status': 'success'})
          
 
@@ -914,6 +915,8 @@ def accept_invite(request, token):
         'invetations': invitation,
         'error_message':error
     })
+
+
 
 # def accept_invite(request, token):
 #     invitation = get_object_or_404(TeamInvitation, token=token, is_used=False)
@@ -1255,11 +1258,11 @@ def submit_order(request):
     return JsonResponse({"success": True, "message": "تم إرسال الطلب بنجاح"})
 
 @login_required(login_url='/auth/login/')
-def  updatedealy(request):
+def updatedealy(request):
     if request.method == "POST":
         account_id = request.POST.get("account_id")
         new_limit = request.POST.get("order_limit")
-        print(account_id)
+        print(new_limit , account_id)
         print(CustomUser.objects.filter(id=account_id))
         try:
             perm = UserProductPermission.objects.filter(user__id=account_id).first()
