@@ -863,7 +863,7 @@ def invite_staff(request):
         # send_invitation_email(invitation)
 
 
-    return render(request, 'team/invite_staff.html')
+    # return render(request, 'team/invite_staff.html')
 
 
 def accept_invite(request, token):
