@@ -1,3 +1,4 @@
+from ast import Assign
 import logging
 from django.conf import settings
 from .models import CODProduct ,SimpleOrder , CustomUser ,TeamInvitation , ExternalTokenmodel , Products , Activity ,UserProductPermission,Order
@@ -467,8 +468,7 @@ def user(request):
         activety = Activity.objects.filter(user=stuff)
         if not activety:
             activety = None
-
-        
+ 
 
     return render(request, 'user/user.html', {
         'tokenform': tokenform,
@@ -483,7 +483,9 @@ def user(request):
         'products': CODProduct.objects.all(),
         'team_invitations': team_accounts,
         'invitations': TeamInvitation.objects.filter(admin=request.user),
-        'team_accounts': team_accounts_simple
+        'team_accounts': team_accounts_simple,
+
+       
     }) 
 
 

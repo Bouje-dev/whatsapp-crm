@@ -1818,7 +1818,10 @@ position: relative;
       width:320px;min-width:240px;
       background:var(--bg-primary);
       border-radius:var(--card-radius);
-      padding:12px;display:flex;flex-direction:column;overflow:hidden;
+      padding:0px !important;
+      display:flex;
+      flex-direction:column;
+      overflow:hidden;
       box-shadow:var(--shadow-md);
       border: 1px solid var(--border-color);
     }

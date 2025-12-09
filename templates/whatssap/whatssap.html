@@ -1821,8 +1821,10 @@ window.loadDashboardData = loadDashboardData;
             <div class="title" id="cls3741_active_name"></div>
             <div style="font-size:13px;color:var(--muted)" id ="last_seen_"></div>
           </div>
+          
         </div>
         <div style="margin-left:auto;display:flex;gap:8px">
+         <!-- <button id="make_important" class="cls3741_action_btn" title="Make important">important</button> -->
           <button id="cls3741_open_info" class="cls3741_action_btn" title="Open contact info">Create order</button>
         </div>
       </div>
@@ -1898,39 +1900,697 @@ window.loadDashboardData = loadDashboardData;
 
 
     <!-- RIGHT: user info card -->
-    <aside class="cls3741_user_col" style="display: none;" id="cls3741_user_col" aria-label="Contact info">
-      <div class="cls3741_user_head">
-        <div class="cls3741_user_avatar" id="cls3741_user_avatar">B</div>
-        <div class="cls3741_user_meta">
-          <div class="cls3741_user_name" id="cls3741_user_name">Boujema</div>
-          <div class="cls3741_user_phone" id="cls3741_user_phone">+212 612 638 500</div>
-        </div>
-      </div>
+    <aside class="cls3741_user_col" style="width: 400px; padding:0px !important;  scrollbar-width: none;" id="cls3741_user_col" aria-label="Contact info">
+      <div id="sidebar-main-wrapper" class="quick-sidebar-container" style=" scrollbar-width: none;">
 
-      <div class="cls3741_user_section">
-        <div style="font-size:13px;color:var(--muted);margin-bottom:6px">البريد الإلكتروني</div>
-        <div style="font-weight:700;color:var(--text-primary)">boujema@example.com</div>
+        <div id="crm_view_panel" class="view-panel fade-in">
+            
+            <div class="crm-profile-section">
+                <div class="crm-avatar" id="crm-avatar_sidbar">
+                    <span>{{ active_contact.name|slice:":1"|upper }}</span>
+                </div>
+                <h3 class="crm-name">{{ active_contact.name }}</h3>
+                <p class="crm-phone">{{ active_contact.phone }}</p>
+                
+                <div class="crm-actions">
+                    <a href="#" class="crm-action-btn">
+                        <i class="fas fa-edit"></i> Edit
+                    </a>
+                </div>
+            </div>
+    
+            <div class="quick-body custom-scroll">
+                
+                <div class="form-group mb-4">
+                    <label class="input-label">Assign to Agent</label>
+                    <div class="product-select-wrapper">
+                        <select id="crm_assign_agent" class="modern-select">
+                            <option value="">Unassigned</option>
+                            
+                            {% for agent in team_members %}
 
-        <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap">
-          <div style="background:var(--bg-tertiary);padding:8px 10px;border-radius:8px;font-size:13px;color:var(--muted)">مشترك منذ: 2023</div>
-          <div style="background:var(--bg-tertiary);padding:8px 10px;border-radius:8px;font-size:13px;color:var(--muted)">حالة: متحقق</div>
+                                <option value="{{ agent.id }}">{{ agent.user_name }}</option>
+                            {% endfor %}
+                        </select>
+                        <i class="fas fa-chevron-down select-arrow"></i>
+                    </div>
+                </div>
+    
+                <div class="form-group mb-4">
+                    <label class="input-label">Tags</label>
+                    <div class="modern-tags-input" onclick="openTagsModal()">
+                        <span class="placeholder-text">Select tags...</span>
+                        <i class="fas fa-plus tag-icon"></i>
+                    </div>
+                </div>
+    
+                <div class="form-group mb-4">
+                    <label class="input-label">Pipeline Stage</label>
+                    <div class="product-select-wrapper">
+                        <select id="crm_pipeline_stage" class="modern-select">
+                            <option value="new">🆕 New Chat</option>
+                            <option value="interested">🔥 Interested</option>
+                            <option value="follow_up">📅 Follow Up</option>
+                            <option value="closed">✅ Closed / Won</option>
+                            <option value="rejected">❌ Not Interested</option>
+                        </select>
+                        <i class="fas fa-chevron-down select-arrow"></i>
+                    </div>
+                </div>
+    
+                <div class="crm-orders-section">
+                    <div class="section-header">
+                        <span>Previous Orders (0)</span>
+                    </div>
+                    
+                    <div class="empty-orders-state">
+                        <i class="fas fa-box-open"></i>
+                        <p>No orders yet for this customer</p>
+                        
+                        <button onclick="switchSidebarView('order')" class="create-order-btn-lg">
+                            Create Order
+                        </button>
+                    </div>
+                </div>
+    
+            </div>
         </div>
+    
+    
+        <div id="order_form_panel" class="view-panel" style="display: none;">
+            
+            <!-- <div class="quick-header bg-highlight"> -->
+               
+                <div class="quick-header" style="width:100%;">
+                
+                  <!-- <div class="header-icon"> -->
+                    <button onclick="switchSidebarView('crm')" class="back-btn">
+                      <i class="fas fa-arrow-left"></i>
+                  </button>
+                  <!-- </div> -->
+                  <div>
+                      <h6 class="header-title">Quick Order</h6>
+                      <p class="header-subtitle">Create a new order instantly</p>
+                  </div>
+              </div>
+            <!-- </div> -->
+    
+            <div class="quick-body custom-scroll">
+              <form id="quick_order_form" autocomplete="off">
+                {% csrf_token %}
+                
+                <div class="form-group mb-4">
+                    <label class="input-label">Select Product</label>
+                    <div class="product-select-wrapper">
+                        <select id="quick_product_select" class="modern-select">
+                            <option value="" selected disabled>Choose a product...</option>
+                            {% for product in productslist %}
+                                <option value="{{ product.sku }}" data-name="{{ product.name }}">{{ product.name }}</option>
+                            {% endfor %}
+                        </select>
+                        <i class="fas fa-chevron-down select-arrow"></i>
+                    </div>
+                </div>
+    
+                <div class="form-group mb-3">
+                    <label class="input-label">Customer Details</label>
+                    <div class="input-icon-wrapper mb-2">
+                        <i class="fas fa-user field-icon"></i>
+                        <input type="text" name="name" id="quick_name" class="modern-input" placeholder="Full Name" required>
+                    </div>
+                    <div class="input-icon-wrapper">
+                        <i class="fas fa-phone field-icon"></i>
+                        <input type="tel" name="phone" id="quick_phone" class="modern-input" placeholder="Phone Number" required>
+                    </div>
+                </div>
+    
+                <div class="row g-2 mb-3">
+                    <div class="col-7">
+                        <label class="input-label">City</label>
+                        <input type="text" name="city" class="modern-input" placeholder="Riyadh...">
+                    </div>
+                    <div class="col-5">
+                        <label class="input-label">Price</label>
+                        <input type="number" name="product_price" id="quick_price" class="modern-input" placeholder="0.00">
+                    </div>
+                </div>
+    
+                <div class="form-group mb-4">
+                    <label class="input-label">Address / Notes</label>
+                    <textarea name="address" class="modern-input textarea-resize" rows="2" placeholder="Street, Building, etc..."></textarea>
+                </div>
+    
+                <div class="qty-container mb-4">
+                    <span class="qty-label">Quantity</span>
+                    <div class="qty-controls">
+                        <button type="button" class="qty-btn" onclick="adjQuickQty(-1)">−</button>
+                        <input type="number" name="product_quantity" id="quick_qty" value="1" min="1" class="qty-input" readonly>
+                        <button type="button" class="qty-btn" onclick="adjQuickQty(1)">+</button>
+                    </div>
+                </div>
+    
+                <div class="footer-action">
+                    <button type="submit" id="quick_submit_btn" class="submit-btn-modern">
+                        <span>Create Order</span>
+                        <i class="fas fa-paper-plane"></i>
+                    </button>
+                </div>
+            </form>
+            </div>
+        </div>
+    
+    </div>
+      <div class="cls3741_user_head d-none">
+        <div class="quick-header" style="width:100%;">
+          <div class="header-icon">
+              <i class="fas fa-bolt"></i>
+          </div>
+          <div>
+              <h6 class="header-title">Quick Order</h6>
+              <p class="header-subtitle">Create a new order instantly</p>
+          </div>
       </div>
+      </div>
+ 
+      <script>
 
-      <div class="cls3741_user_section" style="margin-top:12px">
-        <div class="cls3741_user_kv"><span>الطلبات</span><span style="font-weight:700;color:var(--text-primary)">12</span></div>
-        <div class="cls3741_user_kv"><span>الإجمالي</span><span style="font-weight:700;color:var(--text-primary)">1,254</span></div>
-        <div class="cls3741_action_row">
-          <button class="cls3741_action_btn" id="cls3741_call">Call</button>
-          <button class="cls3741_action_btn" id="cls3741_message">Message</button>
-        </div>
+        document.addEventListener("DOMContentLoaded", function() {
+            // التبديل بين واجهة الـ CRM وواجهة الطلب
+window.switchSidebarView = function(viewName) {
+    const crmPanel = document.getElementById('crm_view_panel');
+    const orderPanel = document.getElementById('order_form_panel');
+    
+    if (viewName === 'order') {
+        crmPanel.style.display = 'none';
+        orderPanel.style.display = 'flex';
+        // إضافة أنيميشن بسيط
+        orderPanel.classList.add('fade-in');
+    } else {
+        orderPanel.style.display = 'none';
+        crmPanel.style.display = 'flex';
+        crmPanel.classList.add('fade-in');
+    }
+};
+
+// عند تحميل الصفحة، تأكد أن اسم العميل في فورم الطلب يطابق البروفايل
+document.addEventListener("DOMContentLoaded", function() {
+    // يمكنك هنا إضافة كود لملء البيانات تلقائياً عند فتح شات جديد
+});
+            // 1. التحكم في الكمية
+            window.adjQuickQty = function(change) {
+                const input = document.getElementById('quick_qty');
+                let val = parseInt(input.value) || 1;
+                val += change;
+                if(val < 1) val = 1;
+                input.value = val;
+            };
+        
+            // 2. إرسال النموذج
+            const quickForm = document.getElementById('quick_order_form');
+            
+            if(quickForm) {
+                quickForm.addEventListener('submit', async function(e) {
+                    e.preventDefault();
+                    
+                    const btn = document.getElementById('quick_submit_btn');
+                    const originalContent = btn.innerHTML;
+                    const productSelect = document.getElementById('quick_product_select');
+        
+                    if(!productSelect.value) {
+                        // تأثير اهتزاز بسيط للحقل في حال الخطأ
+                        productSelect.style.borderColor = '#ef4444';
+                        setTimeout(() => productSelect.style.borderColor = '', 2000);
+                        return;
+                    }
+        
+                    const formData = new FormData(quickForm);
+                    // إضافة SKU يدوياً
+                    formData.append('selected_sku', productSelect.value);
+                    
+                    // Loading State
+                    btn.disabled = true;
+                    btn.innerHTML = '<span class="spinner-border spinner-border-sm" style="width:1rem;height:1rem;"></span> Processing...';
+        
+                    try {
+                        // ⚠️ استبدل الرابط أدناه برابط الـ View الخاص بإنشاء الطلب
+                        const response = await fetch('/your/create-order-url/', { 
+                            method: 'POST',
+                            body: formData,
+                            headers: { 'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value }
+                        });
+        
+                        const result = await response.json();
+        
+                        if(result.success || response.ok) {
+                            // نجاح: نعيد الزر للون الأخضر للحظة
+                            btn.style.background = '#10b981';
+                            btn.innerHTML = '<i class="fas fa-check"></i> Success';
+                            setTimeout(() => {
+                                btn.style.background = ''; // العودة للون الأصلي
+                                btn.innerHTML = originalContent;
+                                quickForm.reset();
+                                document.getElementById('quick_qty').value = 1;
+                            }, 2000);
+                        } else {
+                            alert("Error: " + (result.message || "Failed to create order"));
+                            btn.disabled = false;
+                            btn.innerHTML = originalContent;
+                        }
+        
+                    } catch (err) {
+                        console.error(err);
+                        alert("Connection Error");
+                        btn.disabled = false;
+                        btn.innerHTML = originalContent;
+                    }
+                });
+            }
+        });
+            </script>
+        
+        <div id="quick-order-sidebar" class="quick-sidebar-container d-none">
+    
+   
+   
       </div>
+        
+        <style>
+          /* --- CRM View Styles --- */
+
+/* Animation for switching */
+.fade-in { animation: fadeIn 0.3s ease-in-out; }
+@keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+
+/* Profile Section */
+.crm-profile-section {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 30px 20px 20px;
+    border-bottom: 1px solid var(--qs-border);
+    background: linear-gradient(to bottom, rgba(255,255,255,0.02), transparent);
+}
+
+.crm-avatar {
+    width: 80px;
+    height: 80px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #0891b2 0%, #67e8f9 100%); /* Cyan Gradient */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 2.5rem;
+    font-weight: 300;
+    color: white;
+    box-shadow: 0 10px 20px rgba(8, 145, 178, 0.3);
+    margin-bottom: 12px;
+}
+
+.crm-name { font-size: 1.1rem; font-weight: 700; color: var(--qs-text); margin: 0; }
+.crm-phone { font-size: 0.9rem; color: var(--qs-text-muted); margin: 4px 0 12px; }
+
+.crm-action-btn {
+    font-size: 0.8rem;
+    padding: 6px 16px;
+    border-radius: 20px;
+    background: var(--qs-surface);
+    color: var(--qs-text);
+    text-decoration: none;
+    border: 1px solid var(--qs-border);
+    transition: all 0.2s;
+}
+.crm-action-btn:hover { background: var(--qs-border); color: white; }
+
+/* Tags Input Mockup */
+.modern-tags-input {
+    min-height: 42px;
+    background: var(--qs-surface);
+    border: 1px solid var(--qs-border);
+    border-radius: var(--qs-radius);
+    padding: 8px 12px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    cursor: pointer;
+}
+.modern-tags-input .placeholder-text { font-size: 0.85rem; color: #6b7280; }
+.modern-tags-input .tag-icon { color: var(--qs-accent); font-size: 0.9rem; }
+
+/* Orders Section */
+.crm-orders-section {
+    margin-top: 20px;
+    background: rgba(0,0,0,0.2);
+    border-radius: var(--qs-radius);
+    overflow: hidden;
+    border: 1px solid var(--qs-border);
+}
+
+.section-header {
+    background: rgba(255,255,255,0.03);
+    padding: 10px 15px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--qs-accent);
+    border-bottom: 1px solid var(--qs-border);
+}
+
+.empty-orders-state {
+    padding: 30px 20px;
+    text-align: center;
+    color: var(--qs-text-muted);
+}
+.empty-orders-state i { font-size: 2rem; margin-bottom: 10px; opacity: 0.5; }
+.empty-orders-state p { font-size: 0.9rem; margin-bottom: 15px; }
+
+/* Main CTA Button */
+.create-order-btn-lg {
+    background: var(--qs-accent);
+    color: white;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 8px;
+    font-weight: 600;
+    font-size: 0.9rem;
+    cursor: pointer;
+    box-shadow: 0 4px 15px rgba(99, 102, 241, 0.4);
+    transition: transform 0.2s;
+}
+.create-order-btn-lg:hover { transform: translateY(-2px); background: var(--qs-accent-hover); }
+
+/* Back Button for Order Form */
+.back-btn {
+    background: transparent;
+    border: none;
+    color: var(--qs-text-muted);
+    font-size: 1.1rem;
+    cursor: pointer;
+    margin-right: 10px;
+    padding: 4px;
+}
+.back-btn:hover { color: white; }
+
+/* Cancel Button */
+.btn-cancel-modern {
+    width: 100%;
+    background: transparent;
+    border: 1px solid var(--qs-border);
+    color: var(--qs-text-muted);
+    padding: 10px;
+    border-radius: var(--qs-radius);
+    margin-top: 8px;
+    cursor: pointer;
+}
+.btn-cancel-modern:hover { background: var(--qs-surface); color: white; }
+
+/* Helpers */
+.view-panel { height: 100%; display: flex; flex-direction: column; }
+.bg-highlight { background: rgba(99, 102, 241, 0.08); }
+
+
+
+
+          /* --- Quick Sidebar Variables --- */
+        :root {
+            --qs-bg: #111827;           /* خلفية داكنة جداً */
+            --qs-surface: #1f2937;      /* خلفية الحقول */
+            --qs-border: #374151;       /* لون الحدود */
+            --qs-text: #f3f4f6;         /* النص الرئيسي */
+            --qs-text-muted: #9ca3af;   /* النص الثانوي */
+            --qs-accent: #6366f1;       /* اللون المميز (Indigo) */
+            --qs-accent-hover: #4f46e5;
+            --qs-radius: 10px;
+        }
+        
+        /* Container */
+        .quick-sidebar-container {
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            background-color: var(--qs-bg);
+            /* border-left: 1px solid var(--qs-border); */
+            color: var(--qs-text);
+            font-family: 'Inter', system-ui, sans-serif;
+            width: 100%; /* سيأخذ عرض الـ 400px من الأب */
+        }
+        
+        /* Header */
+        .quick-header {
+            padding: 20px;
+            border-bottom: 1px solid var(--qs-border);
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            background: rgba(255,255,255,0.02);
+        }
+        .header-icon {
+            width: 36px;
+            height: 36px;
+            background: rgba(99, 102, 241, 0.15);
+            color: var(--qs-accent);
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.1rem;
+        }
+        .header-title { margin: 0; font-weight: 700; font-size: 0.95rem; color: var(--qs-text); }
+        .header-subtitle { margin: 0; font-size: 0.75rem; color: var(--qs-text-muted); }
+        
+        /* Body & Scroll */
+        .quick-body {
+            flex: 1;
+            padding: 20px;
+            overflow-y: auto;
+        }
+        /* Custom Scrollbar */
+        .custom-scroll::-webkit-scrollbar { width: 5px; }
+        .custom-scroll::-webkit-scrollbar-track { background: transparent; }
+        .custom-scroll::-webkit-scrollbar-thumb { background: var(--qs-border); border-radius: 10px; }
+        
+        /* Labels */
+        .input-label {
+            display: block;
+            font-size: 0.75rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            color: var(--qs-text-muted);
+            margin-bottom: 6px;
+            letter-spacing: 0.5px;
+        }
+        
+        /* Modern Inputs */
+        .modern-input, .modern-select {
+            width: 100%;
+            background: var(--qs-surface);
+            border: 1px solid var(--qs-border);
+            color: var(--qs-text);
+            border-radius: var(--qs-radius);
+            padding: 10px 12px;
+            font-size: 0.9rem;
+            transition: all 0.2s;
+            outline: none;
+        }
+        .modern-input:focus, .modern-select:focus {
+            border-color: var(--qs-accent);
+            box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.2);
+            background: #252f3f; /* أفتح قليلاً عند التركيز */
+        }
+        .modern-input::placeholder { color: #4b5563; }
+        
+        /* Input with Icon Wrapper */
+        .input-icon-wrapper { position: relative; }
+        .input-icon-wrapper .field-icon {
+            position: absolute;
+            left: 12px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: #6b7280;
+            font-size: 0.9rem;
+            pointer-events: none;
+        }
+        .input-icon-wrapper .modern-input { padding-left: 36px; }
+        
+        /* Select Wrapper */
+        .product-select-wrapper { position: relative; }
+        .modern-select { appearance: none; cursor: pointer; }
+        .select-arrow {
+            position: absolute;
+            right: 12px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: var(--qs-text-muted);
+            pointer-events: none;
+            font-size: 0.8rem;
+        }
+        
+        /* Quantity Stepper */
+        .qty-container {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            background: var(--qs-surface);
+            border: 1px solid var(--qs-border);
+            padding: 8px 12px;
+            border-radius: var(--qs-radius);
+        }
+        .qty-label { font-size: 0.85rem; font-weight: 500; }
+        .qty-controls { display: flex; align-items: center; gap: 8px; }
+        .qty-btn {
+            width: 28px;
+            height: 28px;
+            border-radius: 6px;
+            border: none;
+            background: #374151;
+            color: white;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.1rem;
+            line-height: 0;
+            transition: background 0.2s;
+        }
+        .qty-btn:hover { background: #4b5563; }
+        .qty-input {
+            width: 30px;
+            background: transparent;
+            border: none;
+            color: white;
+            text-align: center;
+            font-weight: 700;
+            padding: 0;
+        }
+        /* إخفاء أسهم الرقم في input number */
+        .qty-input::-webkit-outer-spin-button, .qty-input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+        
+        /* Submit Button */
+        .submit-btn-modern {
+            width: 100%;
+            padding: 12px;
+            background: linear-gradient(135deg, var(--qs-accent), var(--qs-accent-hover));
+            color: white;
+            border: none;
+            border-radius: var(--qs-radius);
+            font-weight: 600;
+            font-size: 0.95rem;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            transition: transform 0.1s, box-shadow 0.2s;
+            box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
+        }
+        .submit-btn-modern:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 6px 16px rgba(99, 102, 241, 0.4);
+        }
+        .submit-btn-modern:active { transform: translateY(0); }
+        </style>
     </aside>
 
+
+
+    <script>
+      document.addEventListener("DOMContentLoaded", function() {
+    
+    // 1. التحكم في الكمية (+/-)
+    window.adjSidebarQty = function(change) {
+        const input = document.getElementById('sidebar_qty');
+        let val = parseInt(input.value) || 1;
+        val += change;
+        if(val < 1) val = 1;
+        input.value = val;
+    };
+
+    // 2. عند اختيار منتج، نملأ السعر تلقائياً (اختياري)
+    const productSelect = document.getElementById('sidebar_product_select');
+    if(productSelect) {
+        productSelect.addEventListener('change', function() {
+            // هنا يمكنك جلب السعر من data-price إذا أضفته في الـ HTML
+            // const price = this.options[this.selectedIndex].dataset.price;
+            // document.getElementById('sidebar_price').value = price;
+        });
+    }
+
+    // 3. معالجة الإرسال (AJAX)
+    const sidebarForm = document.getElementById('sidebar_order_form');
+    if(sidebarForm) {
+        sidebarForm.addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const btn = document.getElementById('sidebar_submit_btn');
+            const originalText = btn.innerHTML;
+            
+            // التحقق السريع
+            if(!document.getElementById('sidebar_product_select').value) {
+                alert("يرجى اختيار المنتج أولاً");
+                return;
+            }
+
+            // تحضير البيانات (Mapping IDs to Backend Names)
+            // لاحظ: نحن نجمع البيانات يدوياً لأن أسماء الحقول قد تختلف أو تحتاج تنسيق
+            const formData = new FormData(sidebarForm);
+            
+            // إضافة الـ SKU يدوياً لأن الـ Select له اسم مختلف
+            formData.append('selected_sku', document.getElementById('sidebar_product_select').value);
+            
+            // حالة التحميل
+            btn.disabled = true;
+            btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> جاري الإرسال...';
+
+            try {
+                const response = await fetch('/path/to/create_order/', { // ⚠️ ضع رابط الـ View الصحيح هنا
+                    method: 'POST',
+                    body: formData,
+                    headers: {
+                        'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+                    }
+                });
+
+                const result = await response.json();
+
+                if(result.success || response.ok) {
+                    // نجاح
+                    alert("✅ تم إنشاء الطلب بنجاح!");
+                    sidebarForm.reset(); // تفريغ النموذج
+                } else {
+                    alert("❌ خطأ: " + (result.message || "حدث خطأ ما"));
+                }
+
+            } catch (err) {
+                console.error(err);
+                alert("حدث خطأ في الاتصال");
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = originalText;
+            }
+        });
+    }
+});
+    </script>
   </div>
 
   
+<script>
+  document.addEventListener("DOMContentLoaded", function() {
+    const sidebar = document.getElementById("cls3741_user_col");
+    const sidebarClose = document.getElementById("cls3741_open_info");
 
+    sidebarClose.addEventListener("click", function() {
+      if (sidebar.classList.contains("d-none")) {
+        sidebar.classList.remove("d-none");
+        this.textContent = "Close";
+
+      } else {
+        this.textContent = "Create order";
+        sidebar.classList.add("d-none");  
+      }
+     
+
+    });
+  });
+  </script>
 </section>
 <!-- END: Chats 3-column layout -->
 
@@ -5296,13 +5956,19 @@ function escapeHtml(s) {
       lastmsg();
 
       const avatarEl = document.getElementById('cls3741_active_avatar');
-      if (avatarEl) avatarEl.textContent = (name||phone).trim().charAt(0).toUpperCase();
-      
+      if (avatarEl) {
+        avatarEl.textContent = (name||phone).trim().charAt(0).toUpperCase();
+        document.getElementById('crm-avatar_sidbar').textContent = (name||phone).trim().charAt(0).toUpperCase();
+      }
+
       const nameEl = document.getElementById('cls3741_active_name');
       const last_seen_ = document.getElementById('last_seen_')
       console.log(el)
       if (last_seen_) last_seen_.textContent = 'last seen today at '+las_seen__
-      if (nameEl) nameEl.textContent = name || phone;
+      if (nameEl){nameEl.textContent = name || phone;
+
+        document.querySelector('.crm-name').textContent  = name || phone;
+      }
       
       const userAvatarEl = document.getElementById('cls3741_user_avatar');
       if (userAvatarEl) userAvatarEl.textContent = (name||phone).trim().charAt(0).toUpperCase();
@@ -5311,8 +5977,11 @@ function escapeHtml(s) {
       if (userNameEl) userNameEl.textContent = name || phone;
       
       const userPhoneEl = document.getElementById('cls3741_user_phone');
-      if (userPhoneEl) userPhoneEl.textContent = '+' + currentPhone;
-
+      if (userPhoneEl) {
+        userPhoneEl.textContent = '+' + currentPhone;
+       
+      }
+      document.querySelector('.crm-phone').textContent = '+' + currentPhone;
       messagesArea.innerHTML = '';
       messagesArea.appendChild(createLoadingMessage());
       

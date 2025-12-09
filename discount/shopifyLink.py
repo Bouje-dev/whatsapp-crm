@@ -946,10 +946,29 @@ def tracking(request,leades = None):
             return JsonResponse({'html': html})
 
 
- 
+    if getattr(user, 'is_team_admin', False):
+            # إذا كنت أنا المدير، فأنا القائد
+            leader = user
+    else:
+            # إذا كنت موظفاً، فقائدي هو الـ team_admin المسجل في حسابي
+            leader = getattr(user, 'team_admin', None)
+
+        # 2. جلب الأعضاء بناءً على القائد
+    if leader:
+            # نجلب: (الموظفين التابعين لهذا القائد) OR (القائد نفسه)
+            team_members = CustomUser.objects.filter(
+                Q(team_admin=leader) | Q(id=leader.id)
+            ).filter(is_active=True).distinct()
+    else:
+            # حالة احتياطية: إذا لم يكن هناك قائد (مثل Superuser مستقل)، نعيد المستخدم نفسه فقط
+            team_members = CustomUser.objects.filter(id=user.id)
+
+    print('team_members',team_members)
+  
+    user_channels = WhatsAppChannel.objects.filter(assigned_agents__in=team_members).distinct()
 
     return render(request, 'tracking.html', {
-                        'validate_token'  :ExternalTokenmodel.objects.filter(user=request.user, token_status=True).first(),
+        'validate_token'  :ExternalTokenmodel.objects.filter(user=request.user, token_status=True).first(),
          "stats": stats, "bonus_threshold": BONUS_THRESHOLD ,
             'user_permusstion':user_permusstion,
             'order_users' : team_users_with_order_counts ,
@@ -973,7 +992,8 @@ def tracking(request,leades = None):
             'user_channels': user_channels,
             'initial_channel_id': active_channel.id if active_channel else 'null' ,
             'unread_msg': unread_msg,
-             'active_channel': active_channel
+             'active_channel': active_channel ,
+            'team_members': team_members
         })
 
 from django.core.paginator import PageNotAnInteger, EmptyPage
