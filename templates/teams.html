@@ -1,0 +1,178 @@
+<style>
+    /* تنسيقات الوضع الداكن للجدول */
+    .bg-dark-base { background-color: #000000; }
+    .bg-dark-surface { background-color: #0a0a0a; }
+    .border-dark { border-color: #27272a; } /* Zinc-800 */
+    .text-dark-primary { color: #f4f4f5; } /* Zinc-100 */
+    .text-dark-secondary { color: #a1a1aa; } /* Zinc-400 */
+    .bg-dark-header { background-color: #111113; }
+    
+    /* Scrollbar */
+    .custom-scroll::-webkit-scrollbar { width: 6px; height: 6px; }
+    .custom-scroll::-webkit-scrollbar-track { background: #000; }
+    .custom-scroll::-webkit-scrollbar-thumb { background: #333; border-radius: 3px; }
+</style>
+
+<div class="flex flex-col gap-4 pt-6 flex-wrap md:flex-row min-h-screen" style="padding-top:0rem; padding-left:0 ; padding-right: 0;">
+    
+    <div class="rounded-lg shadow-lg flex-1 max-w-full overflow-hidden ">
+        
+        <div class="border-b border-dark px-4 py-4 flex items-center justify-between">
+            <div class="flex flex-col gap-1">
+                <h3 class="font-bold text-lg text-dark-primary">Team Performance </h3>
+                <p class="text-xs text-dark-secondary"> Live update of your team's performance.</p>
+            </div>
+        </div>
+
+        <div class="overflow-x-auto custom-scroll" style="border-radius: 13px;
+  border: 1px solid #2f3336;">
+            <table class="w-full text-left border-collapse">
+                <thead class="text-xs uppercase text-dark-secondary font-semibold" style="background-color: #0f1418;">
+                    <tr>
+                      {% if request.user.is_superuser or request.user.is_team_admin %}
+                        <th class=" py-4 sticky left-0 z-10 bg-dark-header border-b border-dark" style="padding-left: 24px;">Agnet Name</th>
+                      {% endif %}
+                        <th class="py-4 text-center border-b border-dark">Total Orders</th>
+                        <th class=" py-4 text-center border-b border-dark text-blue-400">Confirmed</th>
+                        <th class=" py-4 text-center border-b border-dark text-blue-400">Conf. Rate</th>
+                        <th class="py-4 text-center border-b border-dark text-green-400">Delivered</th>
+                        <th class="py-4 text-center border-b border-dark text-green-400">Del. Rate</th>
+                        <th class=" py-4 text-center border-b border-dark text-yellow-500">Pending</th>
+                        <th class=" py-4 text-center border-b border-dark text-red-500">Cancelled</th>
+                        <th class="py-4 text-center border-b border-dark text-orange-500">Returned</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-800 text-sm" id="team_stats_body">
+                    
+                    {% for agent in team_stats %}
+                    <tr class="hover:bg-white/5 transition-colors">
+                        <td class=" py-4 font-medium text-dark-primary sticky left-0 bg-dark-surface border-r border-dark">
+                            <div class="flex items-center gap-3">
+                                <div class="w-8 h-8 rounded-full bg-purple-900/50 flex items-center justify-center text-purple-400 font-bold border border-purple-700">
+                                    {{ agent.username|slice:":1"|upper }}
+                                </div>
+                                <span>{{ agent.username|title }}</span>
+                            </div>
+                        </td>
+
+                        <td class=" py-4 text-center text-white font-bold bg-white/5 rounded-md">
+                            {{ agent.total_orders }}
+                        </td>
+
+                        <td class=" py-4 text-center text-blue-300">
+                            {{ agent.confirmed_count }}
+                        </td>
+
+                        <td class=" py-4 text-center">
+                            <span class="px-2 py-1 rounded text-xs font-bold 
+                                {% if agent.confirmation_rate >= 50 %}bg-blue-900/30 text-blue-400{% else %}bg-red-900/30 text-red-400{% endif %}">
+                                {{ agent.confirmation_rate|floatformat:1 }}%
+                            </span>
+                        </td>
+
+                        <td class=" py-4 text-center text-green-300">
+                            {{ agent.delivered_count }}
+                        </td>
+
+                        <td class="py-4 text-center">
+                            <span class="px-2 py-1 rounded text-xs font-bold 
+                                {% if agent.delivery_rate >= 70 %}bg-green-900/30 text-green-400{% else %}bg-orange-900/30 text-orange-400{% endif %}">
+                                {{ agent.delivery_rate|floatformat:1 }}%
+                            </span>
+                        </td>
+
+                        <td class="py-4 text-center text-yellow-500">
+                            {{ agent.pending }}
+                        </td>
+
+                        <td class="py-4 text-center text-red-400">
+                            {{ agent.cancelled }}
+                        </td>
+
+                        <td class="py-4 text-center text-orange-400">
+                            {{ agent.returned_count }}
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="9" class="text-center py-10 text-dark-secondary">
+                            <div class="flex flex-col items-center">
+                                <span class="text-3xl mb-2">📊</span>
+                                <p>No data available yet.</p>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+
+<script>
+// دالة لجلب وتحديث جدول الفريق
+window.loadTeamStats = async function(channelId) {
+  const activeId = channelId || window.currentChannelId;
+  const tbody = document.getElementById('team_stats_body'); 
+  
+  if (!tbody || !activeId) return;
+
+  // لودر داخل الجدول
+  tbody.innerHTML = '<tr><td colspan="9" class="text-center py-4"><div class="cls3741_spinner"></div></td></tr>';
+
+  try {
+      const res = await fetch(`/discount/whatssapAPI/api/dashboard/team/?channel_id=${activeId}`);
+      const data = await res.json();
+      
+      renderTeamTable(data.stats, tbody);
+      console.log('data - state ', data);
+
+  } catch (e) {
+      console.error("Failed to load team stats", e);
+      tbody.innerHTML = '<tr><td colspan="9" class="text-center py-4 text-red-500">Failed to load data</td></tr>';
+  }
+};
+
+// دالة رسم الجدول (HTML Generation)
+function renderTeamTable(stats, tbody) {
+  if (!stats || stats.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="9" class="text-center py-8 text-gray-500" style="color: #a1a1aa; padding: 40px;"> No data for this channel <br>  <br></td></tr>';
+      return;
+  }
+
+  tbody.innerHTML = stats.map(agent => `
+      <tr class="hover:bg-white/5 transition-colors border-b border-gray-800">
+          <td class="px-6 py-4 font-medium text-gray-200">
+              <div class="flex items-center gap-3">
+                  <div class="w-8 h-8 rounded-full bg-purple-900/50 flex items-center justify-center text-purple-400 font-bold  border-purple-700" style="color: #a1a1aa;">
+                      ${agent.initial}
+                  </div>
+                  <span style="color: #4e5e6b;font-size: 14px;"> ${agent.name}</span>
+              </div>
+          </td>
+
+          <td class="px-4 py-4 text-center text-white font-bold bg-white/5 rounded-md">${agent.total}</td>
+          <td class="px-4 py-4 text-center text-blue-300">${agent.confirmed}</td>
+          
+          <td class="px-4 py-4 text-center">
+              <span class="px-2 py-1 rounded text-xs font-bold ${agent.conf_rate >= 50 ? 'bg-blue-900/30 text-blue-400' : 'bg-red-900/30 text-red-400'}">
+                  ${agent.conf_rate}%
+              </span>
+          </td>
+
+          <td class="px-4 py-4 text-center text-green-300">${agent.delivered}</td>
+          
+          <td class="px-4 py-4 text-center">
+              <span class="px-2 py-1 rounded text-xs font-bold ${agent.del_rate >= 70 ? 'bg-green-900/30 text-green-400' : 'bg-orange-900/30 text-orange-400'}">
+                  ${agent.del_rate}%
+              </span>
+          </td>
+
+          <td class="px-4 py-4 text-center text-yellow-500">${agent.pending}</td>
+          <td class="px-4 py-4 text-center text-red-400">${agent.cancelled}</td>
+          <td class="px-4 py-4 text-center text-orange-400">${agent.returned}</td>
+      </tr>
+  `).join('');
+}
+</script>
