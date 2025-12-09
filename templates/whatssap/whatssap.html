@@ -2061,43 +2061,582 @@ window.resetFilters = function() {
         <!-- منطقة معاينة الوسائط -->
         <div class="cls3741_media_preview" id="cls3741_media_preview"></div>
         
-        <div class="cls3741_chat_input_container">
-          <!-- الأزرار على اليسار -->
-          <div class="cls3741_input_actions">
-            <!-- زر التسجيل الصوتي -->
-            <!-- <button type="button" class="cls3741_icon_btn" id="cls3741_audio_btn" title="تسجيل صوتي">
-              🎤
-            </button> -->
-
+        <div class="container-ia-chat cls3741_chat_input_container">
+  
+          <input type="checkbox" id="input-voice" class="input-voice" style="display:none" />
+          <input type="checkbox" id="input-files" class="input-files" style="display:none" />
         
-            <!-- زر رفع الصور -->
-            <button type="button" class="cls3741_icon_btn" id="cls3741_image_btn" title="رفع صورة">
-              📷
-            </button>
-            
-            <!-- زر رفع الفيديو -->
-            <button type="button" class="cls3741_icon_btn" id="cls3741_video_btn" title="رفع فيديو">
-              🎬
-            </button> 
-               <button aria-label="Dictate button" type="button" id="cls3741_audio_btn" title="تسجيل صوتي" class="composer-btn cls3741_icon_btn"><svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor" xmlns="http://www.w3.org/2000/svg" aria-label="" class="icon" font-size="inherit"><path d="M15.7806 10.1963C16.1326 10.3011 16.3336 10.6714 16.2288 11.0234L16.1487 11.2725C15.3429 13.6262 13.2236 15.3697 10.6644 15.6299L10.6653 16.835H12.0833L12.2171 16.8486C12.5202 16.9106 12.7484 17.1786 12.7484 17.5C12.7484 17.8214 12.5202 18.0894 12.2171 18.1514L12.0833 18.165H7.91632C7.5492 18.1649 7.25128 17.8672 7.25128 17.5C7.25128 17.1328 7.5492 16.8351 7.91632 16.835H9.33527L9.33429 15.6299C6.775 15.3697 4.6558 13.6262 3.84992 11.2725L3.76984 11.0234L3.74445 10.8906C3.71751 10.5825 3.91011 10.2879 4.21808 10.1963C4.52615 10.1047 4.84769 10.2466 4.99347 10.5195L5.04523 10.6436L5.10871 10.8418C5.8047 12.8745 7.73211 14.335 9.99933 14.335C12.3396 14.3349 14.3179 12.7789 14.9534 10.6436L15.0052 10.5195C15.151 10.2466 15.4725 10.1046 15.7806 10.1963ZM12.2513 5.41699C12.2513 4.17354 11.2437 3.16521 10.0003 3.16504C8.75675 3.16504 7.74835 4.17343 7.74835 5.41699V9.16699C7.74853 10.4104 8.75685 11.418 10.0003 11.418C11.2436 11.4178 12.2511 10.4103 12.2513 9.16699V5.41699ZM13.5814 9.16699C13.5812 11.1448 11.9781 12.7479 10.0003 12.748C8.02232 12.748 6.41845 11.1449 6.41828 9.16699V5.41699C6.41828 3.43889 8.02221 1.83496 10.0003 1.83496C11.9783 1.83514 13.5814 3.439 13.5814 5.41699V9.16699Z"></path></svg></button>
-            
-          </div>
-
-          <!-- حقل إدخال النص -->
-          <textarea 
-            class="cls3741_chat_textarea" 
+          <input
+            type="text"
             id="cls3741_message_input" 
+            class="input-text cls3741_chat_textarea"
             placeholder="اكتب رسالة..."
-            rows="1"
-          ></textarea>
-
-          <!-- زر الإرسال -->
-          <button class="cls3741_send_btn" id="cls3741_send_btn" title="إرسال">
-            <svg class="cls3741_send_icon" viewBox="0 0 24 24" fill="currentColor">
-              <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/>
+            autocomplete="off"
+          />
+        
+          <div class="container-upload-files">
+            
+            <button type="button" id="cls3741_image_btn" class="upload-btn-reset" title="رفع صورة">
+                <svg class="upload-file" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24">
+                <g fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="12" cy="13" r="3"></circle>
+                    <path d="M9.778 21h4.444c3.121 0 4.682 0 5.803-.735a4.4 4.4 0 0 0 1.226-1.204c.749-1.1.749-2.633.749-5.697s0-4.597-.749-5.697a4.4 4.4 0 0 0-1.226-1.204c-.72-.473-1.622-.642-3.003-.702c-.659 0-1.226-.49-1.355-1.125A2.064 2.064 0 0 0 13.634 3h-3.268c-.988 0-1.839.685-2.033 1.636c-.129.635-.696 1.125-1.355 1.125c-1.38.06-2.282.23-3.003.702A4.4 4.4 0 0 0 2.75 7.667C2 8.767 2 10.299 2 13.364s0 4.596.749 5.697c.324.476.74.885 1.226 1.204C5.096 21 6.657 21 9.778 21Z"></path>
+                </g>
+                </svg>
+            </button>
+        
+            <button type="button" id="cls3741_video_btn" class="upload-btn-reset" title="رفع فيديو">
+                <svg class="upload-file" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24">
+                <g fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2">
+                    <rect width="18" height="18" x="3" y="3" rx="2" ry="2"></rect>
+                    <circle cx="9" cy="9" r="2"></circle>
+                    <path d="m21 15l-3.086-3.086a2 2 0 0 0-2.828 0L6 21"></path>
+                </g>
+                </svg>
+            </button>
+          </div>
+        
+          <label for="input-files" class="label-files">
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24">
+              <path fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 12h14m-7-7v14"></path>
             </svg>
-          </button>
+          </label>
+<!--         
+          <label for="input-voice" class="label-voice" id="cls3741_audio_btn">
+            
+            <svg class="icon-voice" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24">
+                <path fill="currentColor" d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.66 9 5v6c0 1.66 1.34 3 3 3z"/>
+                <path fill="currentColor" d="M17 11c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c3.39-.49 6-3.39 6-6.92h-2z"/>
+            </svg>
+        
+            <div class="ai">
+              <div class="container-rings">
+                <div class="c c4"></div>
+                <div class="c c1"></div>
+                <div class="c c2"></div>
+                <div class="c c3"></div>
+                <div class="rings"></div>
+              </div>
+              <div class="glass"></div>
+            </div>
+            
+            <div class="text-voice">
+              <p>Recording...</p>
+              <p>Click to stop/send</p>
+            </div>
+          </label> -->
+        
+          <button type="button" class="voice-btn-simple" id="cls3741_audio_btn" title="تسجيل صوتي">
+            <svg class="icon-voice" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24">
+                <path fill="currentColor" d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.66 9 5v6c0 1.66 1.34 3 3 3z"/>
+                <path fill="currentColor" d="M17 11c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c3.39-.49 6-3.39 6-6.92h-2z"/>
+            </svg>
+        </button>
+
+
+          <label class="label-text" id="cls3741_send_btn">
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24">
+              <path fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="m5 12l7-7l7 7m-7 7V5"></path>
+            </svg>
+          </label>
+        
         </div>
+
+<style>
+  /* --- New Chat Input Design (Sci-Fi Style) --- */
+/* تنسيق زر المايك ليكون في مكانه الصحيح داخل الشريط الجديد */
+.voice-btn-simple {
+  position: absolute;
+  right: 17px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  border: none;
+  background: transparent;
+  color: #959595;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.3s;
+  z-index: 20;
+}
+
+.voice-btn-simple:hover { 
+  color: #4c4c4c; 
+  background: rgba(0,0,0,0.05); 
+}
+
+/* إخفاء المايك عند الكتابة (لكي يظهر زر الإرسال مكانه) */
+.input-text:not(:placeholder-shown) ~ .voice-btn-simple {
+  display: none;
+}
+
+/* 🔥 تأثير الهالة الحمراء عند التسجيل (Red Pulse) 🔥 */
+.voice-btn-simple.recording {
+  color: #ef4444; /* أحمر */
+  background: rgba(239, 68, 68, 0.1);
+  animation: pulse-red 1.5s infinite;
+}
+
+@keyframes pulse-red {
+  0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.4); }
+  70% { box-shadow: 0 0 0 10px rgba(239, 68, 68, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
+}
+
+.container-ia-chat {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end; /* لغة عربية/إنجليزية */
+  width: 100%;
+  max-width: 600px;
+  margin: 0 auto;
+  height: 60px;
+}
+
+/* زر شفاف لإعادة ضبط أزرار الرفع */
+.upload-btn-reset {
+    background: none;
+    border: none;
+    padding: 0;
+    margin: 0;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: inherit;
+}
+
+/* Upload Files Container */
+.container-upload-files {
+  position: absolute;
+  left: 0;
+  display: flex;
+  color: #aaaaaa;
+  transition: all 0.5s;
+  z-index: 5;
+}
+
+.container-upload-files .upload-file {
+  margin: 5px;
+  padding: 2px;
+  cursor: pointer;
+  transition: all 0.5s;
+}
+
+.container-upload-files .upload-file:hover {
+  color: #4c4c4c;
+  transform: scale(1.1);
+}
+
+/* Text Input Styling */
+.input-text {
+  flex-grow: 1;
+  margin-left: 80px; /* مساحة لأزرار الرفع */
+  padding: 0.75rem 1rem;
+  padding-right: 50px; /* مساحة لزر الصوت */
+  border-radius: 50px;
+  border: none;
+  outline: none;
+  background-color: #e9e9e9;
+  color: #4c4c4c;
+  font-size: 14px;
+  line-height: 18px;
+  font-weight: 500;
+  transition: all 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.05);
+  z-index: 10;
+  height: 45px;
+}
+
+.input-text::placeholder {
+  color: #959595;
+}
+
+/* تأثير عند الكتابة أو التركيز */
+.input-text:focus,
+.input-text:not(:placeholder-shown) {
+  margin-left: 42px; /* إخفاء أزرار الرفع */
+}
+
+/* إخفاء أزرار الرفع عند الكتابة */
+.input-text:focus ~ .container-upload-files,
+.input-text:not(:placeholder-shown) ~ .container-upload-files {
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  filter: blur(5px);
+}
+
+/* إظهار زر "زائد" عند الكتابة */
+.input-text:focus ~ .label-files,
+.input-text:not(:placeholder-shown) ~ .label-files {
+  transform: translateX(0) translateY(-50%) scale(1);
+  opacity: 1;
+  visibility: visible;
+  pointer-events: all;
+}
+
+/* إظهار زر الإرسال عند الكتابة */
+.input-text:not(:placeholder-shown) ~ .label-text {
+  transform: translateX(0) translateY(-50%) scale(1);
+  opacity: 1;
+  visibility: visible;
+  pointer-events: all;
+}
+
+/* إخفاء زر الصوت عند الكتابة */
+.input-text:not(:placeholder-shown) ~ .label-voice {
+  transform: translateX(0) translateY(-50%) scale(0.25);
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+}
+
+/* Label Files (+) Button */
+.label-files {
+  position: absolute;
+  top: 50%;
+  left: 0;
+  transform: translateX(-20px) translateY(-50%) scale(1);
+  display: flex;
+  padding: 0.5rem;
+  color: #959595;
+  background-color: #e9e9e9;
+  border-radius: 50px;
+  cursor: pointer;
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transition: all 0.5s;
+  z-index: 15;
+}
+.label-files:hover { color: #4c4c4c; }
+
+/* Voice & Send Buttons */
+.label-voice,
+.label-text {
+  position: absolute;
+  top: 50%;
+  right: 16px;
+  transform: translateY(-50%) scale(1);
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  outline: none;
+  cursor: pointer;
+  transition: all 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.05);
+  z-index: 20;
+}
+
+/* Voice Button Logic */
+.input-voice:checked ~ .label-voice {
+  background-color: #e9e9e9;
+  right: 0;
+  width: 100%; /* توسيع ليشمل الحاوية */
+  height: 300px; /* الارتفاع الكبير للأنيميشن */
+  border-radius: 20px;
+  bottom: 0;
+  top: auto;
+  transform: translateY(-60px); /* رفع للأعلى */
+  box-shadow: 0 10px 40px rgba(0, 0, 60, 0.25), inset 0 0 10px rgba(255, 255, 255, 0.5);
+  z-index: 100;
+}
+
+.input-voice:checked ~ .label-voice .icon-voice { opacity: 0; }
+.input-voice:checked ~ .label-voice .text-voice p { opacity: 1; }
+.input-voice:checked ~ .input-text { opacity: 0; visibility: hidden; }
+
+.label-voice { color: #959595; overflow: hidden; background: transparent; }
+.label-voice:hover { color: #4c4c4c; }
+
+.text-voice {
+  position: absolute;
+  inset: 1.25rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: space-between;
+  pointer-events: none;
+}
+
+.text-voice p { opacity: 0; transition: all 0.3s; white-space: nowrap; margin: 0; }
+.text-voice p:first-child {
+  font-size: 20px;
+  font-weight: 500;
+  background-image: linear-gradient(-40deg, #959595 0%, #e770cd 40%, #ffcef4 50%, #e770cd 60%, #959595 100%);
+  background-clip: text;
+  -webkit-background-clip: text;
+  color: transparent;
+  background-size: 900px;
+  animation: text-light 6s ease infinite;
+}
+.text-voice p:last-child {
+  font-size: 12px;
+  color: #2b2b2b;
+  mix-blend-mode: difference;
+}
+
+/* Send Button */
+.label-text {
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transform: translateY(-50%) scale(0.25);
+  color: #e9e9e9;
+  background: linear-gradient(to top right, #9147ff, #ff4141);
+  box-shadow: inset 0 0 4px rgba(255, 255, 255, 0.5);
+  border-radius: 50px;
+}
+.label-text:hover { box-shadow: inset 0 0 6px rgba(255, 255, 255, 1); }
+
+/* Animations Keyframes */
+@keyframes text-light {
+  0% { background-position: 0px; }
+  100% { background-position: 900px; }
+}
+
+/* AI Animation Rings */
+.ai {
+  --s: 200px;
+  width: var(--s);
+  aspect-ratio: 1;
+  display: grid;
+  place-items: center;
+  position: relative;
+  animation: circle1 5s ease-in-out infinite;
+}
+
+.container-rings {
+  width: 100%;
+  height: 100%;
+  position: relative;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: #b6a9f8;
+  overflow: hidden;
+}
+
+.c { position: absolute; border-radius: 50%; aspect-ratio: 1; }
+.c1 { width: 70%; background: radial-gradient(50% 50% at center, #c979ee, #74bcd6); animation: ai1 5.5s linear infinite; }
+.c2 { width: 40%; background: radial-gradient(50% 50% at center, #ef788c, #e7e7fb); animation: ai2 6s linear infinite; }
+.c3 { width: 60%; background: radial-gradient(50% 50% at center, #eb7fc6, transparent); opacity: 0.6; animation: ai3 4.8s linear infinite; }
+.c4 { width: 100%; background: #6d67c8; animation: ai4 5.2s linear infinite; }
+
+ 
+@keyframes wave {
+  0% {
+    transform: translate(-50%, -50%) scale(1);
+    opacity: 0;
+    box-shadow: 0 0 50px rgba(234, 170, 255, 0.9);
+  }
+  35% {
+    transform: translate(-50%, -50%) scale(1.3);
+    opacity: 1;
+  }
+  70%,
+  100% {
+    transform: translate(-50%, -50%) scale(1.6);
+    opacity: 0;
+    box-shadow: 0 0 50px rgba(234, 170, 255, 0.3);
+  }
+}
+
+@keyframes ai1 {
+  0% {
+    transform: rotate(0deg) translate(50%) scale(0.9);
+    opacity: 0;
+  }
+
+  25% {
+    transform: rotate(90deg) translate(50%) scale(1.8);
+    opacity: 1;
+  }
+
+  50% {
+    transform: rotate(180deg) translate(50%) scale(0.7);
+    opacity: 0.4;
+  }
+
+  75% {
+    transform: rotate(270deg) translate(50%) scale(1.2);
+    opacity: 1;
+  }
+
+  100% {
+    transform: rotate(360deg) translate(50%) scale(0.9);
+    opacity: 0;
+  }
+}
+
+@keyframes ai2 {
+  0% {
+    transform: rotate(90deg) translate(50%) scale(0.5);
+  }
+
+  25% {
+    transform: rotate(180deg) translate(50%) scale(1.7);
+    opacity: 0;
+  }
+
+  50% {
+    transform: rotate(270deg) translate(50%) scale(1);
+    opacity: 0;
+  }
+
+  75% {
+    transform: rotate(360deg) translate(50%) scale(0.8);
+    opacity: 0;
+  }
+
+  100% {
+    transform: rotate(450deg) translate(50%) scale(0.5);
+    opacity: 1;
+  }
+}
+
+@keyframes ai3 {
+  0% {
+    transform: rotate(180deg) translate(50%) scale(0.8);
+    opacity: 0.8;
+  }
+
+  25% {
+    transform: rotate(270deg) translate(50%) scale(1.5);
+  }
+
+  50% {
+    transform: rotate(360deg) translate(50%) scale(0.6);
+    opacity: 0.4;
+  }
+
+  75% {
+    transform: rotate(450deg) translate(50%) scale(1.3);
+    opacity: 0.7;
+  }
+
+  100% {
+    transform: rotate(540deg) translate(50%) scale(0.8);
+    opacity: 0.8;
+  }
+}
+
+@keyframes ai4 {
+  0% {
+    transform: rotate(270deg) translate(50%) scale(1);
+    opacity: 1;
+  }
+
+  25% {
+    transform: rotate(360deg) translate(50%) scale(0.7);
+  }
+
+  50% {
+    transform: rotate(450deg) translate(50%) scale(1.6);
+    opacity: 0.5;
+  }
+
+  75% {
+    transform: rotate(540deg) translate(50%) scale(0.9);
+    opacity: 0.8;
+  }
+
+  100% {
+    transform: rotate(630deg) translate(50%) scale(1);
+    opacity: 1;
+  }
+}
+
+
+ 
+
+ 
+ 
+
+@keyframes ring180 {
+  0% {
+    transform: rotateY(180deg) rotateX(180deg) rotateZ(180deg);
+  }
+
+  25% {
+    transform: rotateY(180deg) rotateX(180deg) rotateZ(180deg);
+  }
+
+  50% {
+    transform: rotateY(360deg) rotateX(360deg) rotateZ(360deg);
+  }
+
+  80% {
+    transform: rotateY(360deg) rotateX(360deg) rotateZ(360deg);
+  }
+
+  100% {
+    transform: rotateY(540deg) rotateX(540deg) rotateZ(540deg);
+  }
+}
+
+@keyframes ring90 {
+  0% {
+    transform: rotateY(90deg) rotateX(90deg) rotateZ(90deg);
+  }
+
+  25% {
+    transform: rotateY(90deg) rotateX(90deg) rotateZ(90deg) scale(1.1);
+  }
+
+  50% {
+    transform: rotateY(270deg) rotateX(270deg) rotateZ(270deg);
+  }
+
+  75% {
+    transform: rotateY(270deg) rotateX(270deg) rotateZ(270deg);
+  }
+
+  100% {
+    transform: rotateY(450deg) rotateX(450deg) rotateZ(450deg);
+  }
+}
+
+@keyframes circle1 {
+  0% {
+    transform: scale(0.97);
+  }
+
+  15% {
+    transform: scale(1);
+  }
+
+  30% {
+    transform: scale(0.98);
+  }
+
+  45% {
+    transform: scale(1);
+  }
+
+  60% {
+    transform: scale(0.97);
+  }
+
+  85% {
+    transform: scale(1);
+  }
+
+  100% {
+    transform: scale(0.97);
+  }
+}
+
+
+</style>
+
       </div>
 
       <!-- عناصر الإدخال المخفية للملفات -->

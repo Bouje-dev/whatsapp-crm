@@ -1704,13 +1704,13 @@ position: relative;
 
     /* 🔥 تصميم احترافي لمنطقة الإدخال */
     .cls3741_chat_input_wrapper {
-      padding: 6px 10px;
-      background: var(--bg-primary);
-      border-top: 1px solid var(--border-color);
+      padding: 6px 24px;
+      /* background: var(--bg-primary); */
+      /* border-top: 1px solid var(--border-color); */
       backdrop-filter: blur(10px);
     }
 
-    .cls3741_chat_input_container  {
+    /* .cls3741_chat_input_container  {
       display: flex;
       align-items: flex-end;
       gap: 10px;
@@ -1719,7 +1719,7 @@ position: relative;
       padding: 10px 14px;
       border: 1px solid var(--border-color);
       transition: all 0.3s ease;
-    }
+    } */
 
     .cls3741_chat_input_container:focus-within {
       border-color: var(--accent);
@@ -1832,7 +1832,7 @@ position: relative;
     .cls3741_media_preview   {
       display: flex;
       gap: 8px;
-      padding: 8px 0;
+      /* padding: 8px 0; */
       flex-wrap: wrap;
     }
 
