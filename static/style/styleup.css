@@ -63,6 +63,85 @@
   color-scheme: dark;
 }
 
+/* --- System Log Message Styling --- */
+
+/* الحاوية الخارجية لتوسط العنصر */
+.system-log-wrapper {
+  display: flex;
+  justify-content: center;
+  margin: 24px 0;
+  width: 100%;
+}
+
+/* البطاقة نفسها */
+.system-log-card {
+  background: rgba(30, 41, 59, 0.7); /* Slate-800 شفاف قليلاً */
+  backdrop-filter: blur(4px);         /* تأثير الزجاج */
+  border: 1px solid rgba(148, 163, 184, 0.1);
+  border-left: 3px solid #6366f1;     /* خط جانبي ملون (Indigo) */
+  border-radius: 8px;
+  padding: 0;
+  width: 100%;
+  max-width: 450px;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+  overflow: hidden;
+  font-family: 'Inter', system-ui, sans-serif;
+}
+
+/* الهيدر الصغير */
+.log-header {
+  background: rgba(0, 0, 0, 0.2);
+  padding: 8px 12px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.log-icon-box {
+  color: #6366f1; /* لون الأيقونة */
+  display: flex;
+  align-items: center;
+}
+.log-icon-box svg {
+  width: 14px;
+  height: 14px;
+}
+
+.log-title {
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  color: #94a3b8; /* Slate-400 */
+  text-transform: uppercase;
+}
+
+/* محتوى الرسالة */
+.log-body {
+  padding: 12px 16px;
+}
+
+.log-message {
+  font-size: 0.9rem;
+  color: #e2e8f0; /* Slate-200 */
+  margin: 0 0 6px 0;
+  line-height: 1.4;
+}
+
+/* المعلومات الإضافية (الوقت واسم المستخدم) */
+.log-meta {
+  font-size: 0.75rem;
+  color: #64748b; /* Slate-500 */
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.log-divider {
+  color: #475569;
+  font-weight: bold;
+}
+
 
 
 

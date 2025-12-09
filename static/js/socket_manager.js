@@ -49,6 +49,38 @@ const ChatSocket = {
     console.log('type' , type)
 
     switch (type) {
+
+
+        case 'log_message_received': {
+            const payload = data.payload;
+            
+           console.log('🔥 New system log message:' ,[payload.message]);
+            const activePhone = (typeof window.getCurrentChatPhone === 'function') 
+                                ? window.getCurrentChatPhone() 
+                                : null;
+            
+            // تنظيف الأرقام للمقارنة
+            const incomingPhone = payload.contact.phone.replace(/\D/g, '');
+            const currentActive = activePhone ? activePhone.replace(/\D/g, '') : '';
+
+            if (currentActive && currentActive === incomingPhone) {
+                // 2. عرض الرسالة في الشات
+                if (typeof window.appendMessagesws === 'function') {
+                   
+                    window.appendMessagesws([payload.message]); 
+                }
+                
+                // 3. التمرير للأسفل لرؤية السجل الجديد
+                const chatContainer = document.getElementById('chat_messages_area');
+                if (chatContainer) chatContainer.scrollTop = chatContainer.scrollHeight;
+            }
+ 
+            break;
+        }
+
+
+
+        
         case "finished": {
             const payload = data.payload;
             
@@ -148,7 +180,7 @@ const ChatSocket = {
 
 }
 
-case 'update_sidebar_contact': {
+        case 'update_sidebar_contact': {
     const contactData = data.payload;
     console.log('🔄 Sidebar update signal:', contactData);
 
@@ -260,6 +292,12 @@ case 'update_sidebar_contact': {
             }
             break;
         }
+
+
+ 
+     
+    
+
 
         default:
             console.warn("Unknown message type:", type);

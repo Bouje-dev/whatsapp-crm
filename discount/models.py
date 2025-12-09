@@ -929,6 +929,9 @@ class Message(models.Model):
         ('failed', 'Failed')
     ])
     status_timestamp = models.DateTimeField(null=True, blank=True)
+    type = models.CharField(max_length=50, default='text') 
+    
+    is_internal = models.BooleanField(default=False, help_text="إذا كانت True، لا تظهر للعميل ولا ترسل للواتساب")
 
     class Meta:
         ordering = ['-timestamp']
@@ -1194,6 +1197,14 @@ class Contact(models.Model):
     last_seen = models.DateField(max_length=255, blank=True, null=True)
         # تصحيح last_seen
     last_seen = models.DateTimeField(blank=True, null=True)
+    assigned_agent = models.ForeignKey(
+        CustomUser, 
+        on_delete=models.SET_NULL, 
+        null=True, 
+        blank=True, 
+        related_name='assigned_chats',
+        verbose_name='الموظف المسؤول'
+    )
 
     # صورة العميل
     profile_picture = models.ImageField(

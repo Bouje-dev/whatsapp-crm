@@ -33,7 +33,7 @@ urlpatterns = [
     path("api/autoreplies/<int:pk>/", flow.api_get_autoreply, name="api_get_autoreply"),
     path("api/autoreplies/<int:pk>/update/", flow.api_update_autoreply, name="api_update_autoreply"),
     path("api/autoreplies/<int:pk>/delete/", flow.api_delete_autoreply, name="api_delete_autoreply"),
-    
+     
     # Flow APIs
     path("api/flows/", flow.api_list_flows, name="api_list_flows"),
     path("api/flows/create/", SaveFlowView.as_view(), name="api_create_flow"),
@@ -64,6 +64,7 @@ urlpatterns = [
 path('api/dashboard/stats/', views.api_dashboard_stats, name='api_dashboard_stats'),
 path('api/dashboard/team/', views.api_team_stats, name='api_team_stats'),
 
+path('api/assign-agent/', views.assign_agent_to_contact, name='assign_agent_to_contact'),
 
 
 ]

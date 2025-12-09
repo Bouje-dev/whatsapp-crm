@@ -400,6 +400,11 @@ document.addEventListener('click', function() {
     // استخراج الحرف الأول للافتار
     // (نفترض أن العنوان هو اسم المرسل، أو نأخذ أول حرف من العنوان)
     const initial = title.charAt(0).toUpperCase();
+    const msg = 'New Message from'
+    if (title == 'System') {
+      const msg = 'New System Message';
+    }
+ 
 
     // 3. بناء الإشعار الجديد
     const toast = document.createElement('div');
@@ -422,7 +427,7 @@ document.addEventListener('click', function() {
                 </span>
             </div>
             <div class="cls3741_toast_content">
-                <div class="cls3741_toast_sender">New Message from ${escapeHtml(title)}</div>
+                <div class="cls3741_toast_sender"> ${msg} ${escapeHtml(title)}</div>
                 <div class="cls3741_toast_msg">${escapeHtml(message)}</div>
                 <span class="cls3741_toast_time"> a few seconds ago</span>
             </div>
@@ -1768,6 +1773,60 @@ window.loadDashboardData = loadDashboardData;
                     </div>
                 </div>
     
+    
+    <!-- script for assigning agent tochat  -->
+    <script>
+      document.addEventListener("DOMContentLoaded", function() {
+    const assignSelect = document.getElementById('crm_assign_agent');
+    
+    if (assignSelect) {
+        assignSelect.addEventListener('change', async function() {
+            const agentId = this.value;
+            // نفترض أن رقم الهاتف الحالي مخزن في متغير عام أو يمكن جلبه من الواجهة
+            const currentPhone = window.current_phone || document.getElementById('header_phone_display').innerText; 
+
+            if (!currentPhone) return;
+
+            // تأثير بصري بسيط (تعتيم القائمة قليلاً أثناء التحميل)
+            assignSelect.style.opacity = '0.5';
+            assignSelect.disabled = true;
+
+            try {
+                const response = await fetch("{% url 'assign_agent_to_contact' %}", {  
+                    method: 'POST',
+                    body: JSON.stringify({
+                        phone: currentPhone,
+                        agent_id: agentId
+                    }),
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+                    }
+                });
+                
+                const result = await response.json();
+
+                if (result.success) {
+                    // إشعار نجاح
+                    // يمكنك استخدام SweetAlert أو التوست الخاص بك
+                    if(window.showNotification) window.showNotification('System', `Chat assigned to ${result.assigned_to}`);
+                } else {
+                    alert('Failed to assign agent');
+                }
+
+            } catch (error) {
+                console.error('Error assigning agent:', error);
+            } finally {
+                assignSelect.style.opacity = '1';
+                assignSelect.disabled = false;
+            }
+        });
+    }
+});
+    </script>
+
+
+
                 <div class="form-group mb-4">
                     <label class="input-label">Tags</label>
                     <div class="modern-tags-input" onclick="openTagsModal()">
@@ -4867,14 +4926,13 @@ function getStatusIconHTML(status) {
 
       const timeHtml = `<span class="cls3741_msg_time">${escapeHtml(m.time)}</span>`;
       const msg_status = isMe ? `<span class="cls3741_msg_status" [data-msg-id="${m.id}"]  style="z-index:123; color:var(--wa-msg-muted); margin-top: 6px;">${statusIconHTML}</span>` : '';
-
+      console.log('message nooode ' , m)
       if (m.type === 'audio') {
         // 🔥 تحسين عرض الرسالة الصوتية مثل WhatsApp
         const audioUrl = escapeHtml(m.url || '');
         const isValidAudio = audioUrl && audioUrl.trim() !== '' && audioUrl !== 'None' && audioUrl !== 'null';
 
-        // تسجيل معلومات debug
-        console.log('m  ' , m)
+       
         if (!isValidAudio) {
           console.warn('🎵 Invalid audio URL:', {
             url: m.url,
@@ -4888,7 +4946,7 @@ function getStatusIconHTML(status) {
 const uniqueId = `audio_${m.id || Date.now()}`; // معرف فريد لربط العناصر
 const audioSrc = isValidAudio ? audioUrl : '';
 const uniqueMediaId = `media_${m.id || Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-
+ 
 wrapper.innerHTML = `
     <div class="audio green-audio-player" id="player_${uniqueId}">
         
@@ -4996,7 +5054,30 @@ wrapper.innerHTML = `
             ${timeHtml} ${msg_status}
         </div>
     `;
-}else {
+} else if (m.type === 'log' || m.is_internal) {
+    wrapper.className = 'system-log-wrapper animate-fadeIn'; 
+    wrapper.innerHTML = `
+        <div class="system-log-card">
+            <div class="log-header">
+                <div class="log-icon-box">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M12 2v20M2 12h20M12 2a10 10 0 0 1 10 10M2 12a10 10 0 0 0 10 10"/> <path d="M12 12 2.5 7.5"/>
+                    </svg>
+                </div>
+                <span class="log-title">SYSTEM ACTIVITY</span>
+            </div>
+            
+            <div class="log-body">
+                <p class="log-message">${escapeHtml(m.body)}</p>
+                <div class="log-meta">
+                    <i class="far fa-clock"></i>
+                    <span>${m.time || m.timestamp}</span>
+                    ${m.sender_name ? `<span class="log-divider">•</span> <i class="far fa-user"></i> <span>${m.sender_name}</span>` : ''}
+                </div>
+            </div>
+        </div>
+    `;
+    return wrapper; }else {
         wrapper.innerHTML = `
           <div class="cls3741_text">${escapeHtml(m.body || '')}</div>
           <div class="cls3741_msg_footer" style="display:flex; justify-content: flex-end; 
@@ -5006,6 +5087,8 @@ wrapper.innerHTML = `
           </div>
         `;
       }
+
+
 
       wrapper.style.opacity = '0';
       wrapper.style.transform = 'translateY(10px)';
@@ -5317,7 +5400,7 @@ function formatTime(seconds) {
         const msgs = data.messages || [];
         
         if(!Array.isArray(msgs) || msgs.length === 0) return;
-        
+        console.log('fetchMessagesForCurrentws', msgs);
         appendMessagesws(msgs);
         
       }catch(e){ 
@@ -5404,6 +5487,7 @@ async function fetchInitialContacts(channelId) {
     if (!res.ok) throw new Error("Failed to fetch contacts");
     const data = await res.json();
     renderContactsList(data.contacts);
+    console.log('@@@@data' ,data)
     fetchContactsAndUpdateUIws(data.contacts, true);
 }
  
@@ -5620,6 +5704,7 @@ async function fetchContactsAndUpdateUIws(wsData = null, loadFromApi = false) {
     item.setAttribute('data-phone', c.phone || '');
     item.setAttribute('data-name', c.name || '');
     item.setAttribute('timestamp_', c.timestamp || '');
+    item.setAttribute('data-user-id', c.assigned_agent_id || '');
     console.log('🚀 ~ file: whatssap.html ~ line 255 ~ item.setAttribute ~ c.channel_id', c)
             item.setAttribute('data-channel-id', c.channel_id || '');
     const initial = (c.name || '').trim().charAt(0).toUpperCase() || '?';
@@ -5648,6 +5733,7 @@ async function fetchContactsAndUpdateUIws(wsData = null, loadFromApi = false) {
         </div>
         <div style="display:flex; flex-direction:column; align-items:flex-end; gap:4px;">
              <span class="cls3741_msg_time" style="font-size:10px; color:var(--text-secondary);">${c.timestamp || 'Now'}</span>
+
              ${badge}
         </div>
     `;
@@ -5778,9 +5864,11 @@ function escapeHtml(s) {
 
     // دالة محسنة لاختيار جهة اتصال
     function onContactSelected(el){
+      window.current_phone = el.getAttribute('data-phone');
       const phone = el.getAttribute('data-phone');
       const name = el.getAttribute('data-name') || null;
       const las_seen__ = el.getAttribute('timestamp_' || null);
+      const AssignedA = el.getAttribute('data-user-id' || null);
       const channelId = el.getAttribute('data-channel-id') || null; // 🔥 الحصول على channel_id
       if(!phone) return;
       
@@ -5788,6 +5876,14 @@ function escapeHtml(s) {
       currentChannelId = channelId; // 🔥 حفظ channel_id الحالي
       lastMessageId = 0;
       lastmsg();
+console.log('assigned_agent_id', AssignedA)
+      // داخل دالة فتح الشات
+    if (AssignedA) {
+      
+    document.getElementById('crm_assign_agent').value = AssignedA;
+} else {
+    document.getElementById('crm_assign_agent').value = ""; // Unassigned
+}
 
       const avatarEl = document.getElementById('cls3741_active_avatar');
       if (avatarEl) {

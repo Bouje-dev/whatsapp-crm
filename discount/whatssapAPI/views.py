@@ -5,6 +5,7 @@ import os
 import tempfile
 import subprocess
 import mimetypes
+from typing import Type
 import requests
 from django.shortcuts import render, get_object_or_404
 from django.http import JsonResponse, HttpResponse
@@ -1350,7 +1351,14 @@ def get_messages1(request):
 
     messages = []
     for m in qs:
-        msg_type = getattr(m, 'media_type', 'text')
+        msg_type = ''
+        Type = getattr(m, 'type' , None)
+        if Type :
+            msg_type = Type
+        else : 
+            msg_type = getattr(m, 'media_type', 'text')
+
+        # msg_type = getattr(m, 'media_type', 'text')
         media_file = getattr(m, 'media_file', None)  
         media_url = None
         m.is_read=True
@@ -1507,6 +1515,7 @@ def api_contacts2(request):
             contact_info = contacts_map.get(phone, {})
             name = contact_info.get('name', phone) # الرقم هو الاسم الافتراضي
             pic = contact_info.get('pic', None)
+            assigned_agent_id = Contact.objects.filter(phone=phone, channel=target_channel).first().assigned_agent_id
 
             # تجهيز المقتطف
             snippet = ''
@@ -1525,7 +1534,8 @@ def api_contacts2(request):
                 "last_status": msg.status if msg else '',
                 "fromMe": msg.is_from_me if msg else False,
                 "timestamp": item['last_msg_time'].strftime("%H:%M") if item['last_msg_time'] else "",
-                "channel_id": target_channel.id
+                "channel_id": target_channel.id ,
+                "assigned_agent_id": assigned_agent_id 
             })
 
         return JsonResponse({
@@ -2792,3 +2802,83 @@ def api_team_stats(request):
         })
 
     return JsonResponse({'stats': data})
+
+
+
+
+def create_activity_log(channel, phone, content, user=None):
+    """
+    دالة لإنشاء رسالة نظام داخلية
+    """
+    # البحث عن أو إنشاء المحادثة/العميل
+    contact = Contact.objects.get(phone=phone) # تأكد من الكود الخاص بك
+    
+    log  = Message.objects.create(
+        channel=channel,
+        sender=contact,
+        body=content,      # مثال: "Conversation assigned to Ahmed"
+        type='log',        # نوع جديد
+        is_internal=True,  # رسالة داخلية
+        is_from_me=True,      # نعتبرها منا لكي تظهر في اليمين (أو نخصص لها مكاناً في الوسط)
+        status='read'      # لا تحتاج لحالة توصيل
+    )
+    
+    log_payload = {
+        "id": log.id,
+        "body": log.body,  
+        "type": "log",               
+        "is_internal": True,
+        "timestamp": log.created_at.strftime("%H:%M"),
+        "sender_name": "System"       
+    }
+    
+
+    # بيانات الغرفة/العميل
+    socket_payload = {
+        "contact": {
+            "phone": contact.phone,
+            "name": contact.name
+        },
+        "message": log_payload
+    }
+    from discount.channel.socket_utils import send_socket
+   
+    send_socket("log_message_received", socket_payload)
+
+
+
+from django.views.decorators.http import require_POST
+from django.contrib.auth import get_user_model
+
+@require_POST
+def assign_agent_to_contact(request):
+    import json
+    data = json.loads(request.body)
+    
+    phone = data.get('phone')
+    agent_id = data.get('agent_id')
+    
+    # 1. جلب العميل
+    try:
+        contact = Contact.objects.get(phone=phone) # تأكد من اسم الحقل الصحيح لرقم الهاتف
+    except Contact.DoesNotExist:
+        return JsonResponse({'success': False, 'message': 'Contact not found'})
+
+    # 2. جلب الموظف (أو إلغاء التعيين إذا كان agent_id فارغاً)
+    if agent_id:
+        try:
+            agent = CustomUser.objects.get(id=agent_id)
+            contact.assigned_agent = agent
+            assigned_name = agent.user_name
+            create_activity_log(contact.channel, phone, f"Conversation assigned to {agent.user_name}", user=request.user)
+                
+        except CustomUser.DoesNotExist:
+
+            return JsonResponse({'success': False, 'message': 'Agent not found'})
+    else:
+        contact.assigned_agent = None
+        assigned_name = "Unassigned"
+
+    contact.save()
+ 
+    return JsonResponse({'success': True, 'assigned_to': assigned_name})
