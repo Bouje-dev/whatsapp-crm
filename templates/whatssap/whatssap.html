@@ -1613,29 +1613,399 @@ window.loadDashboardData = loadDashboardData;
               <line x1="6" y1="6" x2="18" y2="18"></line>
             </svg>
           </button>
+
+          <button id="filter_trigger_btn" class="cls3741_search_filter" aria-label="Open filters" onclick="toggleFilterMenu(event)">
+            <!-- <div id="pink-mask"></div> -->
+            <div class="filterBorder"></div>
+            <div id="filter-icon">
+              <svg        fill="none"
+                viewBox="4.8 4.56 14.832 15.408"
+                width="27"
+                height="27"
+                preserveAspectRatio="none"
+              >
+                <path
+                  stroke-linejoin="round"
+                  stroke-linecap="round"
+                  stroke-miterlimit="10"
+                  stroke-width="1"
+                  stroke="#d6d6e6"
+                  d="M8.16 6.65002H15.83C16.47 6.65002 16.99 7.17002 16.99 7.81002V9.09002C16.99 9.56002 16.7 10.14 16.41 10.43L13.91 12.64C13.56 12.93 13.33 13.51 13.33 13.98V16.48C13.33 16.83 13.1 17.29 12.81 17.47L12 17.98C11.24 18.45 10.2 17.92 10.2 16.99V13.91C10.2 13.5 9.97 12.98 9.73 12.69L7.52 10.36C7.23 10.08 7 9.55002 7 9.20002V7.87002C7 7.17002 7.52 6.65002 8.16 6.65002Z"
+                ></path>
+              </svg>
+            </div>
+          <style>
+
+ 
+/* --- Search Input Styling (للتناسق) --- */
+.modern-search-input {
+    width: 100%;
+    background: #1f2937;
+    border: 1px solid #374151;
+    color: white;
+    padding: 10px 10px 10px 35px; /* مسافة للأيقونة */
+    border-radius: 10px;
+    height: 40px;
+    outline: none;
+    transition: border 0.3s;
+}
+.modern-search-input:focus { border-color: #6366f1; }
+.search-icon-pos {
+    position: absolute;
+    left: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #9ca3af;
+    pointer-events: none;
+}
+
+/* --- Filter Dropdown Styling --- */
+.filter-dropdown {
+    position: absolute;
+    top: 50px; /* مسافة أسفل الزر */
+    right: 0;
+    width: 280px;
+    background: #111827; /* Dark Slate */
+    border: 1px solid #374151;
+    border-radius: 12px;
+    box-shadow: 0 10px 40px rgba(0,0,0,0.5);
+    z-index: 100;
+    
+    /* Animation State: Hidden by default */
+    opacity: 0;
+    visibility: hidden;
+    transform: translateY(-10px);
+    transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* حالة الظهور */
+.filter-dropdown.active {
+    opacity: 1;
+    visibility: visible;
+    transform: translateY(0);
+}
+
+/* Header */
+.filter-header {
+    padding: 12px 16px;
+    border-bottom: 1px solid #374151;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    color: #f3f4f6;
+    font-weight: 600;
+    font-size: 0.9rem;
+}
+.reset-link {
+    background: none;
+    border: none;
+    color: #ef4444; /* Red for reset */
+    font-size: 0.8rem;
+    cursor: pointer;
+}
+.reset-link:hover { text-decoration: underline; }
+
+/* Body */
+.filter-body { padding: 16px; }
+
+.filter-group { margin-bottom: 12px; }
+.filter-group label {
+    display: block;
+    color: #9ca3af;
+    font-size: 0.75rem;
+    font-weight: 600;
+    margin-bottom: 6px;
+    text-transform: uppercase;
+}
+
+.filter-select, .filter-input {
+    width: 100%;
+    background: #1f2937;
+    border: 1px solid #374151;
+    color: white;
+    padding: 8px;
+    border-radius: 8px;
+    font-size: 0.9rem;
+    outline: none;
+}
+.filter-select:focus, .filter-input:focus { border-color: #6366f1; }
+
+/* Toggle Switch (Unread Only) */
+.filter-group-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 8px;
+    color: #e5e7eb;
+    font-size: 0.9rem;
+}
+
+.toggle-switch {
+    position: relative;
+    display: inline-block;
+    width: 36px;
+    height: 20px;
+}
+.toggle-switch input { opacity: 0; width: 0; height: 0; }
+.slider {
+    position: absolute;
+    cursor: pointer;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background-color: #374151;
+    transition: .4s;
+    border-radius: 34px;
+}
+.slider:before {
+    position: absolute;
+    content: "";
+    height: 14px;
+    width: 14px;
+    left: 3px;
+    bottom: 3px;
+    background-color: white;
+    transition: .4s;
+    border-radius: 50%;
+}
+input:checked + .slider { background-color: #6366f1; }
+input:checked + .slider:before { transform: translateX(16px); }
+
+/* Footer */
+.filter-footer {
+    padding: 12px 16px;
+    border-top: 1px solid #374151;
+}
+.apply-btn {
+    width: 100%;
+    background: linear-gradient(135deg, #6366f1, #4f46e5);
+    color: white;
+    border: none;
+    padding: 10px;
+    border-radius: 8px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: transform 0.1s;
+}
+.apply-btn:hover { transform: translateY(-1px); }
+.apply-btn:active { transform: translateY(0); }
+ 
+
+#main:hover > #pink-mask {
+  opacity: 0;
+}
+ 
+
+
+ 
+ 
+#filter-icon {
+  position: absolute;
+  top: 3px;
+    right: 5px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 2;
+    max-height: 37px;
+    max-width: 37px;
+    height: 100%;
+    width: 100%;
+  isolation: isolate;
+  overflow: hidden;
+  border-radius: 10px;
+  background: linear-gradient(180deg, #a57d52, #846846, #6b5342);
+  border: 1px solid transparent;
+}
+
+.filterBorder { 
+     height: 39px;
+    width: 38px;
+    position: absolute;
+    overflow: hidden;
+    top: 2px;
+    right:5px;
+    border-radius: 10px;
+}
+
+.filterBorder::before {
+  content: "";
+  text-align: center;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%) rotate(90deg);
+  position: absolute;
+  width: 600px;
+  height: 600px;
+  background-repeat: no-repeat;
+  background-position: 0 0;
+  filter: brightness(1.35);
+  background-image: conic-gradient(
+    rgba(0, 0, 0, 0),
+    #a57d52,
+    rgba(0, 0, 0, 0) 50%,
+    rgba(0, 0, 0, 0) 50%,
+    #a57d52,
+    rgba(0, 0, 0, 0) 100%
+  );
+  animation: rotate 4s linear infinite;
+}
+
+#main {
+  position: relative;
+  font-family: "Courier New", Courier, monospace; /* Retro-style font */
+}
+
+#search-icon {
+  position: absolute;
+  left: 20px;
+  top: 15px;
+  color: #c98f65;
+}
+
+@keyframes rotate {
+  100% {
+    transform: translate(-50%, -50%) rotate(450deg);
+  }
+}
+
+          </style>
+
+          <script>
+            /* --- Filter Dropdown Logic --- */
+
+// 1. فتح/إغلاق القائمة
+window.toggleFilterMenu = function(e) {
+    e.stopPropagation(); // منع إغلاقها فوراً
+    const menu = document.getElementById('filter_dropdown_menu');
+    menu.classList.toggle('active');
+};
+
+// 2. إغلاق القائمة عند النقر خارجها
+document.addEventListener('click', function(e) {
+    const menu = document.getElementById('filter_dropdown_menu');
+    const btn = document.getElementById('filter_trigger_btn');
+    
+    // إذا كانت القائمة مفتوحة، والنقر لم يكن عليها ولا على الزر
+    if (menu && menu.classList.contains('active')) {
+        if (!menu.contains(e.target) && !btn.contains(e.target)) {
+            menu.classList.remove('active');
+        }
+    }
+});
+
+// 3. تطبيق الفلترة (Apply)
+window.applyFilters = function() {
+    const assigned = document.getElementById('filter_assigned').value;
+    const stage = document.getElementById('filter_pipeline').value;
+    const tags = document.getElementById('filter_tags').value;
+    const unreadOnly = document.getElementById('filter_unread').checked;
+
+    console.log("Applying Filters:", { assigned, stage, tags, unreadOnly });
+
+    // إغلاق القائمة
+    document.getElementById('filter_dropdown_menu').classList.remove('active');
+
+    // 🔥 هنا تستدعي دالة الفلترة الحقيقية الخاصة بك
+    // مثلاً: window.filterChatList(assigned, stage, tags, unreadOnly);
+    
+    // تغيير لون أيقونة الفلتر للدلالة على أنه مفعل (اختياري)
+    const iconPath = document.querySelector('#filter-icon path');
+    if(assigned !== 'all' || stage !== 'all' || unreadOnly) {
+        if(iconPath) iconPath.setAttribute('stroke', '#6366f1'); // تلوين بالأزرق
+    } else {
+        if(iconPath) iconPath.setAttribute('stroke', '#d6d6e6'); // عودة للأبيض
+    }
+};
+
+// 4. إعادة التعيين (Reset)
+window.resetFilters = function() {
+    document.getElementById('filter_assigned').value = 'all';
+    document.getElementById('filter_pipeline').value = 'all';
+    document.getElementById('filter_tags').value = '';
+    document.getElementById('filter_unread').checked = false;
+    
+    applyFilters(); // إعادة التطبيق (لجلب الكل)
+};
+          </script>
+
+
+
+          </button>  
+
+
+          <div id="filter_dropdown_menu" class="filter-dropdown">
+        
+            <div class="filter-header">
+                <span>Filter Chats</span>
+                <button onclick="resetFilters()" class="reset-link">Reset</button>
+            </div>
+    
+            <div class="filter-body">
+                
+                <div class="filter-group">
+                    <label>Assigned To</label>
+                    <select id="filter_assigned" class="filter-select">
+                        <option value="all">All Agents</option>
+                        <option value="me">Assigned to Me</option>
+                        <option value="unassigned">Unassigned</option>
+                        {% for agent in team_members %}
+                            <option value="{{ agent.id }}">{{ agent.user_name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+    
+                <div class="filter-group">
+                    <label>Pipeline Stage</label>
+                    <select id="filter_pipeline" class="filter-select">
+                        <option value="all">All Stages</option>
+                        <option value="new">🆕 New Chat</option>
+                        <option value="interested">🔥 Interested</option>
+                        <option value="follow_up">📅 Follow Up</option>
+                        <option value="closed">✅ Closed</option>
+                    </select>
+                </div>
+    
+                <div class="filter-group">
+                    <label>Tags</label>
+                    <input type="text" id="filter_tags" class="filter-input" placeholder="e.g. vip, complaint...">
+                </div>
+    
+                <div class="filter-group-row">
+                    <label for="filter_unread" class="cursor-pointer">Unread Only</label>
+                    <div class="toggle-switch">
+                        <input type="checkbox" id="filter_unread">
+                        <span class="slider round"></span>
+                    </div>
+                </div>
+            </div>
+    
+            <div class="filter-footer">
+                <button onclick="applyFilters()" class="apply-btn">Apply Filters</button>
+            </div>
+        </div>
+
+
+
+    
       </div>
 
         <!-- 🔥 أزرار الفلترة -->
         <div class="cls3741_filter_buttons">
           <button class="cls3741_filter_btn active" data-filter="all" title="الكل">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M3 3h18v18H3z"></path>
-            </svg>
-            <span>الكل</span>
+           
+            <span>all</span>
           </button>
           <button class="cls3741_filter_btn" data-filter="unread" title="غير مقروء">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <circle cx="12" cy="12" r="10"></circle>
-            </svg>
-            <span>غير مقروء</span>
+       
+            <span>unread</span>
           </button>
           <button class="cls3741_filter_btn" data-filter="read" title="مقروء">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M20 6L9 17l-5-5"></path>
-            </svg>
-            <span>مقروء</span>
-          </button>
-        </div>
+         
+            <span>read
+            </span>
+          </button>  
+       
+     </div>
+
       </div>
 
       <div class="cls3741_contacts_list" id="cls3741_contacts_list" role="list">
