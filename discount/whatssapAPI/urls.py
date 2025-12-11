@@ -66,6 +66,9 @@ path('api/dashboard/team/', views.api_team_stats, name='api_team_stats'),
 
 path('api/assign-agent/', views.assign_agent_to_contact, name='assign_agent_to_contact'),
 
+path('api/update-crm/', views.update_contact_crm, name='update_contact_crm'),
+
+
 
 ]
 

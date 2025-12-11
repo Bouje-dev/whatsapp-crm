@@ -1335,7 +1335,7 @@ def get_messages1(request):
     GET /api/get_messages/?phone=<phone>&since_id=<id>
     Returns JSON: { messages: [{ id, body, fromMe, time }] }
     """
-    channel_id = request.GET.get('c_id')
+    channel_id = request.GET.get('channel_id')
 
     phone = request.GET.get('phone')
     since_id = request.GET.get('since_id')
@@ -1350,6 +1350,20 @@ def get_messages1(request):
             pass
 
     messages = []
+   
+    contact = Contact.objects.filter(channel=WhatsAppChannel.objects.get(id=channel_id), phone=phone).first()
+
+     
+    contact_crm_data = {
+        'pipeline_stage': contact.pipeline_stage ,          
+        'assigned_agent_id': contact.assigned_agent_id,  
+        'tags': [                                         
+            {'name': tag.name, 'color': tag.color} 
+            for tag in contact.tags.all()
+        ]
+    }
+    
+
     for m in qs:
         msg_type = ''
         Type = getattr(m, 'type' , None)
@@ -1393,8 +1407,7 @@ def get_messages1(request):
                 media_url = None
         else:
             media_url = getattr(m, 'media_url', None)
-
-
+    
         messages.append({
             "id": m.id,
             "body": m.body,
@@ -1406,7 +1419,7 @@ def get_messages1(request):
         })
          
 
-    return JsonResponse({"messages": messages})
+    return JsonResponse({"messages": messages , "crm_data": contact_crm_data})
 
 
 from django.db.models import Max, OuterRef, Subquery, Count, Q
@@ -1415,23 +1428,20 @@ from django.core.paginator import Paginator
 from django.db.models import Max, Count, Q, F
 from django.http import JsonResponse
  
-
+ 
 def api_contacts2(request):
-
     try:
         user = request.user
         if not user.is_authenticated:
             return JsonResponse({"error": "Auth required"}, status=401)
 
-        # 1. تحديد القناة (نفس منطق الحماية السابق)
+        # 1. تحديد القناة (Logic)
         req_channel_id = request.GET.get('channel_id')
         target_channel = None
         
-        # تنظيف المدخل
         if req_channel_id == 'null' or req_channel_id == 'undefined':
             req_channel_id = None
 
-        # منطق جلب القناة
         if user.is_superuser or getattr(user, 'is_team_admin', False):
             qs = WhatsAppChannel.objects.filter(owner=user)
         else:
@@ -1445,12 +1455,8 @@ def api_contacts2(request):
         if not target_channel:
             return JsonResponse({'contacts': [], 'total_pages': 0})
 
-        # =========================================================
-        # 2. بناء الاستعلام الأساسي (Message-Based) 🔥
-        # =========================================================
-        
-        # الخطوة أ: تجميع الرسائل حسب المرسل (Sender)
-        # نريد لكل مرسل: معرف آخر رسالة، عدد الرسائل غير المقروءة
+        # 2. الاستعلام الأساسي للرسائل (Aggregation)
+        # تجميع الرسائل حسب المرسل لحساب عدد غير المقروء وآخر رسالة
         conversations = Message.objects.filter(channel=target_channel)\
             .values('sender')\
             .annotate(
@@ -1458,51 +1464,86 @@ def api_contacts2(request):
                 last_msg_time=Max('created_at'),
                 unread_count=Count('id', filter=Q(is_read=False, is_from_me=False))
             )\
-            .order_by('-last_msg_id') # الأحدث أولاً
+            .order_by('-last_msg_id')
 
-        # =========================================================
-        # 3. البحث والفلترة (على مستوى التجميع)
-        # =========================================================
-        
+        # 3. استقبال بارامترات الفلترة والبحث
         search_query = request.GET.get('q', '').strip()
-        filter_type = request.GET.get('filter', 'all')
-
-        # أ) البحث
-        if search_query:
-            # البحث في الرقم سهل
-            conversations = conversations.filter(sender__icontains=search_query)
-            # ملاحظة: البحث في "الأسماء" المخزنة في جدول Contact يتطلب منطقاً إضافياً
-            # إذا كنت تريد البحث بالاسم أيضاً، سنحتاج لفلترة القائمة لاحقاً أو استخدام Subquery معقد
-
-        # ب) الفلترة
-        if filter_type == 'unread':
-            conversations = conversations.filter(unread_count__gt=0)
         
-        # =========================================================
-        # 4. التقسيم (Pagination)
-        # =========================================================
-        # هنا نقسم "قائمة المحادثات" وليس الرسائل
+        filter_assigned = request.GET.get('assigned', 'all')
+        filter_stage = request.GET.get('stage', 'all')
+        filter_tags = request.GET.get('tags', '').strip()
+        unread_only = request.GET.get('unread_only') == 'true'
+
+        # 4. تطبيق الفلاتر المعقدة (Assigned, Stage, Tags)
+        # بما أن هذه المعلومات موجودة في جدول Contact وليس Message،
+        # يجب أن نفلتر جهات الاتصال أولاً ثم نستخدم أرقامهم لفلترة المحادثات.
+        
+        contact_filters = Q(channel=target_channel)
+        has_contact_filters = False
+
+        # أ) فلتر الموظف المسؤول
+        if filter_assigned != 'all':
+            has_contact_filters = True
+            if filter_assigned == 'me':
+                contact_filters &= Q(assigned_agent=user)
+            elif filter_assigned == 'unassigned':
+                contact_filters &= Q(assigned_agent__isnull=True)
+            else:
+                contact_filters &= Q(assigned_agent_id=filter_assigned)
+
+        # ب) فلتر المرحلة (Pipeline)
+        if filter_stage != 'all':
+            has_contact_filters = True
+            # تأكد أن اسم الحقل في المودل هو pipeline_stage
+            contact_filters &= Q(pipeline_stage=filter_stage)
+
+        # ج) فلتر التاجات
+        if filter_tags:
+            has_contact_filters = True
+            # البحث الجزئي في اسم التاج (ManyToMany)
+            contact_filters &= Q(tags__name__icontains=filter_tags)
+
+        # د) تطبيق فلاتر جهات الاتصال إذا وجدت
+        if has_contact_filters:
+            matching_phones = Contact.objects.filter(contact_filters).values_list('phone', flat=True)
+            conversations = conversations.filter(sender__in=matching_phones)
+
+        # 5. تطبيق البحث (Search)
+        # نبحث في رقم الهاتف (sender) أو في اسم جهة الاتصال
+        if search_query:
+            # البحث عن الأرقام التي تحمل هذا الاسم في جهات الاتصال
+            matching_names = Contact.objects.filter(
+                channel=target_channel, 
+                name__icontains=search_query
+            ).values_list('phone', flat=True)
+            
+            conversations = conversations.filter(
+                Q(sender__icontains=search_query) | Q(sender__in=matching_names)
+            )
+
+        # 6. فلتر غير المقروء (Unread Only)
+        if unread_only:
+            conversations = conversations.filter(unread_count__gt=0)
+
+        # 7. الترقيم (Pagination)
         paginator = Paginator(conversations, 20) 
         page_number = request.GET.get('page', 1)
         page_obj = paginator.get_page(page_number)
 
-        # =========================================================
-        # 5. الإثراء (Hydration) - جلب التفاصيل
-        # =========================================================
-        
-        # الآن لدينا قائمة صغيرة (20 عنصر) تحتوي على (sender, last_msg_id)
-        # نحتاج لجلب نص الرسالة واسم جهة الاتصال لهذه الـ 20 فقط
-        
-        # استخراج المعرفات والأرقام
+        # 8. تجهيز البيانات (تحسين الأداء - Bulk Fetch)
         msg_ids = [c['last_msg_id'] for c in page_obj]
         senders_phones = [c['sender'] for c in page_obj]
 
         # جلب نصوص الرسائل دفعة واحدة
         messages_map = Message.objects.filter(id__in=msg_ids).in_bulk()
 
-        # جلب أسماء جهات الاتصال دفعة واحدة
+        # جلب بيانات جهات الاتصال دفعة واحدة (بما في ذلك الموظف المسؤول)
         contacts_map = {
-            c.phone: {'name': c.name, 'pic': c.profile_picture.url if c.profile_picture else None}
+            c.phone: {
+                'name': c.name, 
+                'pic': c.profile_picture.url if c.profile_picture else None,
+                'agent_id': c.assigned_agent_id # 🔥 جلبنا الموظف هنا لتقليل الاستعلامات
+            }
             for c in Contact.objects.filter(phone__in=senders_phones, channel=target_channel)
         }
 
@@ -1511,11 +1552,11 @@ def api_contacts2(request):
             phone = item['sender']
             msg = messages_map.get(item['last_msg_id'])
             
-            # بيانات جهة الاتصال (إن وجدت)
+            # استخراج بيانات الاتصال من الذاكرة (Map)
             contact_info = contacts_map.get(phone, {})
-            name = contact_info.get('name', phone) # الرقم هو الاسم الافتراضي
+            name = contact_info.get('name', phone)
             pic = contact_info.get('pic', None)
-            assigned_agent_id = Contact.objects.filter(phone=phone, channel=target_channel).first().assigned_agent_id
+            assigned_agent_id = contact_info.get('agent_id', None)
 
             # تجهيز المقتطف
             snippet = ''
@@ -1534,7 +1575,7 @@ def api_contacts2(request):
                 "last_status": msg.status if msg else '',
                 "fromMe": msg.is_from_me if msg else False,
                 "timestamp": item['last_msg_time'].strftime("%H:%M") if item['last_msg_time'] else "",
-                "channel_id": target_channel.id ,
+                "channel_id": target_channel.id,
                 "assigned_agent_id": assigned_agent_id 
             })
 
@@ -1549,9 +1590,6 @@ def api_contacts2(request):
     except Exception as e:
         print(f"❌ Error in api_contacts2: {e}")
         return JsonResponse({"error": str(e)}, status=500)
-
-
-
 
  
  
@@ -2882,3 +2920,91 @@ def assign_agent_to_contact(request):
     contact.save()
  
     return JsonResponse({'success': True, 'assigned_to': assigned_name})
+
+
+
+
+
+from django.views.decorators.http import require_POST
+from discount.models import Contact, CustomUser, Tags  
+
+@require_POST
+def update_contact_crm(request):
+    import json
+    data = json.loads(request.body)
+    
+    phone = data.get('phone')
+    action = data.get('action') # 'agent', 'pipeline', 'add_tag', 'remove_tag'
+    value = data.get('value')
+    channel_id = data.get('channel_id')
+    
+    try:
+        contact = Contact.objects.get(channel = WhatsAppChannel.objects.get(id=channel_id), phone=phone)
+    except Contact.DoesNotExist:
+        return JsonResponse({'success': False, 'message': 'Contact not found'})
+
+    # 1. تحديث الموظف
+    if action == 'agent':
+        if value:
+            # contact.assigned_agent_id = value
+            agent = CustomUser.objects.get(id=value)
+            create_activity_log(contact.channel, phone, f"Conversation assigned to {agent.user_name}", user=request.user)
+            log_msg = f"تم تعيين المحادثة للموظف ID: {value}"
+        else:
+            contact.assigned_agent = None
+            log_msg = "تم إلغاء التعيين"
+        contact.save()
+
+    # 2. تحديث المرحلة (Pipeline)
+    elif action == 'pipeline':
+        # التحقق من أن القيمة موجودة ضمن الخيارات
+        if value in Contact.PipelineStage.values:
+            contact.pipeline_stage = value
+            contact.save()
+            log_msg = f"تم تغيير المرحلة إلى: {value}"
+        else:
+            return JsonResponse({'success': False, 'message': 'Invalid stage'})
+
+    # 3. إضافة تاج (Tag)
+    elif action == 'add_tag':
+        tag_name = value.strip()
+        if tag_name:
+            # 1. نحدد من هو المالك (الأدمن)
+            # إذا كان المستخدم الحالي هو الأدمن نستخدمه، وإلا نستخدم الـ team_admin الخاص به
+            owner = request.user if getattr(request.user, 'is_team_admin', False) else request.user.team_admin
+            
+            if not owner: # حالة حماية
+                owner = request.user 
+
+            # 2. نبحث عن التاج أو ننشئه (الخاص بهذا الأدمن فقط)
+            tag, created = Tags.objects.get_or_create(
+                name=tag_name, 
+                admin=owner, # 🔥 مهم جداً للفصل بين المستخدمين
+                defaults={'color': '#6366f1'} # لون افتراضي
+            )
+            
+            # 3. نضيف التاج للعميل
+            contact.tags.add(tag)
+            
+            log_msg = f"تمت إضافة وسم: {tag_name}"
+
+    elif action == 'remove_tag':
+        tag_name = value.strip()
+        
+        # نحدد المالك أيضاً للتأكد أننا نحذف التاج الصحيح
+        owner = request.user if getattr(request.user, 'is_team_admin', False) else request.user.team_admin
+        
+        try:
+            # نبحث عن التاج الخاص بهذا الأدمن
+            tag = Tags.objects.get(name=tag_name, admin=owner)
+            contact.tags.remove(tag)
+            log_msg = f"تم حذف وسم: {tag_name}"
+        except Tags.DoesNotExist:
+            pass
+
+
+   
+
+    # (اختياري) تسجيل النشاط هنا create_activity_log(...)
+    
+    return JsonResponse({'success': True, 'message': log_msg})

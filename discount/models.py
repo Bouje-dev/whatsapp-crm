@@ -1183,6 +1183,29 @@ class Connection(models.Model):
 
 
 
+class Tags(models.Model):
+    name = models.CharField(max_length=50, verbose_name="اسم الوسم")
+    
+    # ربط التاج بالمدير (صاحب القناة) لكي تكون التاجات خاصة بكل فريق عمل
+    admin = models.ForeignKey(
+        CustomUser, 
+        on_delete=models.CASCADE, 
+        related_name='my_tags'
+    )
+    
+    # (اختياري) لون التاج للتميز في الواجهة
+    color = models.CharField(max_length=7, default="#6366f1") # Hex Color
+    
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        # منع تكرار نفس اسم التاج لنفس المدير
+        unique_together = ('name', 'admin')
+
+    def __str__(self):
+        return self.name
+
+
 
 
 
@@ -1191,7 +1214,21 @@ class Contact(models.Model):
     phone = models.CharField(max_length=30, unique=True)
     name = models.CharField(max_length=255, blank=True, null=True)
     channel = models.ForeignKey(WhatsAppChannel, on_delete=models.CASCADE)
+    tags = models.ManyToManyField(Tags, blank=True, related_name='contacts')
+    class PipelineStage(models.TextChoices):
+        NEW = 'new', '🆕 New Chat'
+        INTERESTED = 'interested', '🔥 Interested'
+        FOLLOW_UP = 'follow_up', '📅 Follow Up'
+        CLOSED = 'closed', '✅ Closed / Won'
+        REJECTED = 'rejected', '❌ Not Interested'
 
+  
+    pipeline_stage = models.CharField(
+        max_length=20,
+        choices=PipelineStage.choices,
+        default=PipelineStage.NEW,
+        verbose_name="مرحلة العميل"
+    )
     flow_started = models.BooleanField(default=False)
     last_interaction = models.DateTimeField(auto_now=True)
     last_seen = models.DateField(max_length=255, blank=True, null=True)

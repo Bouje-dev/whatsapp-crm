@@ -964,8 +964,10 @@ def tracking(request,leades = None):
             team_members = CustomUser.objects.filter(id=user.id)
 
     print('team_members',team_members)
-  
+    from discount.models import Contact
     user_channels = WhatsAppChannel.objects.filter(assigned_agents__in=team_members).distinct()
+    pipeline_choices = Contact.PipelineStage.choices
+   
 
     return render(request, 'tracking.html', {
         'validate_token'  :ExternalTokenmodel.objects.filter(user=request.user, token_status=True).first(),
@@ -993,7 +995,8 @@ def tracking(request,leades = None):
             'initial_channel_id': active_channel.id if active_channel else 'null' ,
             'unread_msg': unread_msg,
              'active_channel': active_channel ,
-            'team_members': team_members
+            'team_members': team_members , 
+            'pipeline_choices': pipeline_choices
         })
 
 from django.core.paginator import PageNotAnInteger, EmptyPage

@@ -1892,30 +1892,7 @@ document.addEventListener('click', function(e) {
     }
 });
 
-// 3. تطبيق الفلترة (Apply)
-window.applyFilters = function() {
-    const assigned = document.getElementById('filter_assigned').value;
-    const stage = document.getElementById('filter_pipeline').value;
-    const tags = document.getElementById('filter_tags').value;
-    const unreadOnly = document.getElementById('filter_unread').checked;
-
-    console.log("Applying Filters:", { assigned, stage, tags, unreadOnly });
-
-    // إغلاق القائمة
-    document.getElementById('filter_dropdown_menu').classList.remove('active');
-
-    // 🔥 هنا تستدعي دالة الفلترة الحقيقية الخاصة بك
-    // مثلاً: window.filterChatList(assigned, stage, tags, unreadOnly);
-    
-    // تغيير لون أيقونة الفلتر للدلالة على أنه مفعل (اختياري)
-    const iconPath = document.querySelector('#filter-icon path');
-    if(assigned !== 'all' || stage !== 'all' || unreadOnly) {
-        if(iconPath) iconPath.setAttribute('stroke', '#6366f1'); // تلوين بالأزرق
-    } else {
-        if(iconPath) iconPath.setAttribute('stroke', '#d6d6e6'); // عودة للأبيض
-    }
-};
-
+ 
 // 4. إعادة التعيين (Reset)
 window.resetFilters = function() {
     document.getElementById('filter_assigned').value = 'all';
@@ -1979,7 +1956,7 @@ window.resetFilters = function() {
             </div>
     
             <div class="filter-footer">
-                <button onclick="applyFilters()" class="apply-btn">Apply Filters</button>
+                <button class="apply-btn" id="applyfilterscontacta">Apply Filters</button>
             </div>
         </div>
 
@@ -2684,79 +2661,164 @@ window.resetFilters = function() {
     
     
     <!-- script for assigning agent tochat  -->
-    <script>
-      document.addEventListener("DOMContentLoaded", function() {
-    const assignSelect = document.getElementById('crm_assign_agent');
+    <script>document.addEventListener("DOMContentLoaded", function() {
     
-    if (assignSelect) {
-        assignSelect.addEventListener('change', async function() {
-            const agentId = this.value;
-            // نفترض أن رقم الهاتف الحالي مخزن في متغير عام أو يمكن جلبه من الواجهة
-            const currentPhone = window.current_phone || document.getElementById('header_phone_display').innerText; 
+      // 1. الاستماع لتغيير الموظف
+      const agentSelect = document.getElementById('crm_assign_agent');
+      if(agentSelect) {
+          agentSelect.addEventListener('change', function() {
+              updateCRM('agent', this.value);
+          });
+      }
+  
+      // 2. الاستماع لتغيير المرحلة (Pipeline)
+      const pipelineSelect = document.getElementById('crm_pipeline_stage');
+      if(pipelineSelect) {
+          pipelineSelect.addEventListener('change', function() {
+              updateCRM('pipeline', this.value);
+          });
+      }
+  });
+  
+  // --- الدالة الموحدة لإرسال التحديثات للباك إند ---
+  async function updateCRM(action, value, element = null) {
+     
+      const currentPhone = window.currentPhone || document.getElementById('header_phone_display')?.innerText;
+      const channel_id = window.currentChannelId || document.querySelector('.workspace-item .active').getAttribute('currentChannelId');
+      // const agent_id = document.getElementById('crm_assign_agent').value;
+      console.log("Current Phone:", currentPhone);
+      if (!currentPhone && !channel_id) return;
+  
+      try {
+          const response = await fetch("{% url 'update_contact_crm' %}", { // ⚠️ ضع رابط الـ URL الجديد هنا
+              method: 'POST',
+              body: JSON.stringify({
+                  phone: currentPhone,
+                  action: action,
+                  value: value , 
+                  channel_id: channel_id
+              }),
+              headers: {
+                  'Content-Type': 'application/json',
+                  'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+              }
+          });
+          
+          const result = await response.json();
+  
+          if (result.success) {
+              // تحديث الواجهة في حالة التاجات (Tag Removal)
+              if (action === 'remove_tag' && element) {
+                  element.closest('.tag-badge').remove();
+              }
+              // إظهار إشعار بسيط
+              console.log("CRM Updated:", result.message);
+          } else {
+              alert('Update failed: ' + result.message);
+          }
+  
+      } catch (error) {
+          console.error('Error updating CRM:', error);
+      }
+  }
+  
+  // --- منطق واجهة التاجات (Tag UI Logic) ---
+  
+  // إظهار حقل الإدخال
+  window.showTagInput = function() {
+      document.getElementById('add_tag_trigger').style.display = 'none';
+      const wrapper = document.getElementById('add_tag_input_wrapper');
+      wrapper.style.display = 'flex';
+      document.getElementById('new_tag_input').focus();
+      
+      // إضافة مستمع لزر Enter
+      document.getElementById('new_tag_input').onkeypress = function(e) {
+          if(e.keyCode === 13) submitNewTag();
+      };
+  };
+  
+  // إخفاء حقل الإدخال
+  window.hideTagInput = function() {
+      document.getElementById('add_tag_input_wrapper').style.display = 'none';
+      document.getElementById('add_tag_trigger').style.display = 'block';
+      document.getElementById('new_tag_input').value = '';
+  };
+  
+  // إرسال التاج الجديد
+  window.submitNewTag = async function() {
+      const input = document.getElementById('new_tag_input');
+      const tagName = input.value.trim();
+      
+      if (tagName) {
+          // 1. إرسال للباك إند
+          await updateCRM('add_tag', tagName);
+          
+          // 2. تحديث الواجهة فوراً (Optimistic UI)
+          const tagHTML = `
+              <span class="tag-badge animate-fadeIn">
+                  ${escapeHtml(tagName)}
+                  <i class="fas fa-times remove-tag-btn" onclick="updateCRM('remove_tag', '${tagName}', this)"></i>
+              </span>
+          `;
+          document.getElementById('active_tags_list').insertAdjacentHTML('beforeend', tagHTML);
+          
+          // 3. تنظيف
+          hideTagInput();
+      }
+  };
+  
+  // دالة مساعدة لتنظيف النصوص
+  function escapeHtml(text) {
+      if (!text) return text;
+      return text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
+  } </script>
 
-            if (!currentPhone) return;
-
-            // تأثير بصري بسيط (تعتيم القائمة قليلاً أثناء التحميل)
-            assignSelect.style.opacity = '0.5';
-            assignSelect.disabled = true;
-
-            try {
-                const response = await fetch("{% url 'assign_agent_to_contact' %}", {  
-                    method: 'POST',
-                    body: JSON.stringify({
-                        phone: currentPhone,
-                        agent_id: agentId
-                    }),
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
-                    }
-                });
-                
-                const result = await response.json();
-
-                if (result.success) {
-                    // إشعار نجاح
-                    // يمكنك استخدام SweetAlert أو التوست الخاص بك
-                    if(window.showNotification) window.showNotification('System', `Chat assigned to ${result.assigned_to}`);
-                } else {
-                    alert('Failed to assign agent');
-                }
-
-            } catch (error) {
-                console.error('Error assigning agent:', error);
-            } finally {
-                assignSelect.style.opacity = '1';
-                assignSelect.disabled = false;
-            }
-        });
-    }
-});
-    </script>
 
 
+<div class="form-group mb-4">
+  <label class="input-label">Tags</label>
+  
+  <div id="tags_container" class="modern-tags-container">
+      
+      <div id="active_tags_list" class="d-flex flex-wrap gap-2 mb-2">
+          {% for tag in active_contact.tags.all %}
+              <span class="tag-badge">
+                  {{ tag.name }}
+                  <i class="fas fa-times remove-tag-btn" onclick="updateCRM('remove_tag', '{{ tag.name }}', this)"></i>
+              </span>
+          {% endfor %}
+      </div>
 
-                <div class="form-group mb-4">
-                    <label class="input-label">Tags</label>
-                    <div class="modern-tags-input" onclick="openTagsModal()">
-                        <span class="placeholder-text">Select tags...</span>
-                        <i class="fas fa-plus tag-icon"></i>
-                    </div>
-                </div>
+      <div id="add_tag_trigger" class="add-tag-btn" onclick="showTagInput()">
+          <i class="fas fa-plus"></i> Add Tag
+      </div>
+
+      <div id="add_tag_input_wrapper" class="input-group input-group-sm mt-1" style="display:none;">
+          <input type="text" id="new_tag_input" class="form-control bg-dark text-light border-secondary" placeholder="Enter tag name...">
+          <button class="btn btn-primary" onclick="submitNewTag()">
+              <i class="fas fa-check"></i>
+          </button>
+          <button class="btn btn-outline-secondary" onclick="hideTagInput()">
+              <i class="fas fa-times"></i>
+          </button>
+      </div>
+
+  </div>
+</div>
     
                 <div class="form-group mb-4">
-                    <label class="input-label">Pipeline Stage</label>
-                    <div class="product-select-wrapper">
-                        <select id="crm_pipeline_stage" class="modern-select">
-                            <option value="new">🆕 New Chat</option>
-                            <option value="interested">🔥 Interested</option>
-                            <option value="follow_up">📅 Follow Up</option>
-                            <option value="closed">✅ Closed / Won</option>
-                            <option value="rejected">❌ Not Interested</option>
-                        </select>
-                        <i class="fas fa-chevron-down select-arrow"></i>
-                    </div>
-                </div>
+                  <label class="input-label">Pipeline Stage</label>
+                  <div class="product-select-wrapper">
+                    <select id="crm_pipeline_stage" class="modern-select">
+                      {% for choice in pipeline_choices %}
+                          <option value="{{ choice.0 }}" {% if active_contact.pipeline_stage == choice.0 %}selected{% endif %}>
+                              {{ choice.1 }}
+                          </option>
+                      {% endfor %}
+                  </select>
+                      <i class="fas fa-chevron-down select-arrow"></i>
+                  </div>
+              </div>
     
                 <div class="crm-orders-section">
                     <div class="section-header">
@@ -2976,7 +3038,70 @@ document.addEventListener("DOMContentLoaded", function() {
         
         <style>
           /* --- CRM View Styles --- */
+/* حاوية التاجات */
+.modern-tags-container {
+    background: var(--qs-surface);
+    border: 1px solid var(--qs-border);
+    border-radius: var(--qs-radius);
+    padding: 10px;
+    min-height: 46px;
+}
 
+/* شكل التاج (الكبسولة) */
+.tag-badge {
+    background: rgba(99, 102, 241, 0.2); /* لون Indigo شفاف */
+    color: #a5b4fc;
+    border: 1px solid rgba(99, 102, 241, 0.3);
+    padding: 4px 10px;
+    border-radius: 12px;
+    font-size: 0.8rem;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    transition: all 0.2s;
+}
+
+.tag-badge:hover {
+    background: rgba(99, 102, 241, 0.3);
+    border-color: #6366f1;
+}
+
+/* زر الحذف (X) داخل التاج */
+.remove-tag-btn {
+    cursor: pointer;
+    font-size: 0.7rem;
+    opacity: 0.6;
+}
+.remove-tag-btn:hover { opacity: 1; color: #ef4444; }
+
+/* زر "+ Add Tag" */
+.add-tag-btn {
+    font-size: 0.8rem;
+    color: var(--qs-text-muted);
+    cursor: pointer;
+    padding: 4px 8px;
+    border-radius: 6px;
+    border: 1px dashed var(--qs-border);
+    display: inline-block;
+    transition: 0.2s;
+}
+.add-tag-btn:hover {
+    color: var(--qs-text);
+    border-color: var(--qs-accent);
+    background: rgba(255,255,255,0.05);
+}
+
+/* حقل الإدخال الصغير للتاج */
+#new_tag_input {
+    height: 30px;
+    font-size: 0.85rem;
+}
+#add_tag_input_wrapper button {
+    height: 30px;
+    padding: 0 10px;
+    display: flex;
+    align-items: center;
+}
 /* Animation for switching */
 .fade-in { animation: fadeIn 0.3s ease-in-out; }
 @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
@@ -3293,7 +3418,8 @@ document.addEventListener("DOMContentLoaded", function() {
 
     <script>
       document.addEventListener("DOMContentLoaded", function() {
-    
+    // دالة لتحديث واجهة الـ CRM عند فتح شات جديد
+ 
     // 1. التحكم في الكمية (+/-)
     window.adjSidebarQty = function(change) {
         const input = document.getElementById('sidebar_qty');
@@ -5581,6 +5707,7 @@ document.addEventListener("DOMContentLoaded", function() {
     let audioBlobs = [];
     let isRecording = false;
 
+ 
     // دالة لإنشاء أيقونة تحميل جميلة
     function createLoadingSpinner() {
       const spinner = document.createElement('div');
@@ -5835,7 +5962,7 @@ function getStatusIconHTML(status) {
 
       const timeHtml = `<span class="cls3741_msg_time">${escapeHtml(m.time)}</span>`;
       const msg_status = isMe ? `<span class="cls3741_msg_status" [data-msg-id="${m.id}"]  style="z-index:123; color:var(--wa-msg-muted); margin-top: 6px;">${statusIconHTML}</span>` : '';
-      console.log('message nooode ' , m)
+       
       if (m.type === 'audio') {
         // 🔥 تحسين عرض الرسالة الصوتية مثل WhatsApp
         const audioUrl = escapeHtml(m.url || '');
@@ -6288,16 +6415,54 @@ function formatTime(seconds) {
         scrollToBottom(true);
       }
     }
+    function updateSidebarCRM(crmData) {
+      console.log('crmData' , crmData)
+    if (!crmData) return;
+
+    // 1. تحديث مرحلة البيع (Pipeline Stage)
+    const pipelineSelect = document.getElementById('crm_pipeline_stage');
+    if (pipelineSelect) {
+        // الجافاسكربت ذكي: بمجرد تغيير الـ value، سيختار الـ option المناسب تلقائياً
+        pipelineSelect.value = crmData.pipeline_stage || 'new'; 
+    }
+
+    // 2. تحديث الموظف المسؤول (Assigned Agent)
+    // const agentSelect = document.getElementById('crm_assign_agent');
+    // if (agentSelect) {
+    //     agentSelect.value = crmData.assigned_agent_id || ""; // إذا كان null يختار الخيار الفارغ
+    // }
+
+    // 3. تحديث التاجات (Tags) - نحتاج لإعادة رسمها
+    const tagsContainer = document.getElementById('active_tags_list');
+    if (tagsContainer) {
+        tagsContainer.innerHTML = ''; // مسح التاجات القديمة
+        
+        if (crmData.tags && crmData.tags.length > 0) {
+            crmData.tags.forEach(tag => {
+                const tagHTML = `
+                    <span class="tag-badge animate-fadeIn">
+                        ${escapeHtml(tag.name)}
+                        <i class="fas fa-times remove-tag-btn" onclick="updateCRM('remove_tag', '${escapeHtml(tag.name)}', this)"></i>
+                    </span>
+                `;
+                tagsContainer.insertAdjacentHTML('beforeend', tagHTML);
+            });
+        }
+    }
+}
+
 
     // دالة محسنة لجلب الرسائل
     async function fetchMessagesForCurrentws(){
       if(!currentPhone) return;
       
-      const url = `${window.API_URLS.messages}?phone=${encodeURIComponent(currentPhone)}&since_id=${encodeURIComponent(lastMessageId||0)}`;
+      const url = `${window.API_URLS.messages}?phone=${encodeURIComponent(currentPhone)}&since_id=${encodeURIComponent(lastMessageId||0)}&channel_id=${currentChannelId}`;
       try{
         const res = await fetch(url, { 
           cache: 'no-store', 
-          headers: { 'Accept': 'application/json' }
+          headers: { 'Accept': 'application/json' },
+          
+    
         });
 
 
@@ -6307,7 +6472,8 @@ function formatTime(seconds) {
         
         const data = await res.json();
         const msgs = data.messages || [];
-        
+        const crmData = data.crm_data || null;
+        updateSidebarCRM(crmData);
         if(!Array.isArray(msgs) || msgs.length === 0) return;
         console.log('fetchMessagesForCurrentws', msgs);
         appendMessagesws(msgs);
@@ -6784,6 +6950,7 @@ function escapeHtml(s) {
       currentPhone = phone.replace(/^\+/, '').replace(/\s+/g,'');
       currentChannelId = channelId; // 🔥 حفظ channel_id الحالي
       lastMessageId = 0;
+      window.currentPhone  = currentPhone 
       lastmsg();
 console.log('assigned_agent_id', AssignedA)
       // داخل دالة فتح الشات
@@ -7154,69 +7321,70 @@ async function sendMessageLocal_ws(fileObj = null, fileType = null) {
       });
     }
 
-    // async function pollLoop(){
-    //   try{
-    //     if(currentPhone) await fetchMessagesForCurrentws();
-    //     contactPollCounter = (contactPollCounter + 1) % 3;
-    //     // if(contactPollCounter === 0) await fetchContactsAndUpdateUI();
-    //   }catch(e){
-    //     console.error('pollLoop', e);
-    //   } finally {
-    //     pollTimer = setTimeout(pollLoop, pollInterval);
-    //   }
-    // }
+   
 
-    // 🔥 تهيئة البحث والفلترة
- // ============================================================
-//  🔥 متغيرات الحالة للقائمة الجانبية (Sidebar State)
-// ============================================================
 let sidebarState = {
     page: 1,
     isLoading: false,
     hasMore: true,
     query: '',
-    filter: 'all', // all, unread, read
-    contacts: [] // لتخزين البيانات الحالية (اختياري)
+    
+    // الفلاتر الجديدة
+    filter_assigned: 'all',   // all, me, unassigned, [id]
+    filter_stage: 'all',      // new, interested, ...
+    filter_tags: '',          // نص التاجات
+    filter_unread: false,     // true/false
+    
+    contacts: []  
 };
-
-// عناصر DOM الخاصة بالقائمة الجانبية
 const sidebarListEl = document.getElementById('cls3741_contacts_list');
+
 const sidebarSearchInput = document.getElementById('cls3741_search');
+
 const sidebarSearchClear = document.getElementById('cls3741_search_clear');
+
 const sidebarFilterBtns = document.querySelectorAll('.cls3741_filter_btn');
 
-// ============================================================
-//  🔥 الدالة الرئيسية: جلب البيانات من السيرفر (Fetch)
-// ============================================================
-async function loadSidebarContacts(reset = false) {
-    // 1. التحقق من القناة
-    const activeChannelId = window.currentChannelId;
-    if (!activeChannelId || activeChannelId === 'null') return;
 
-    // 2. إذا كان إعادة تعيين (بحث جديد أو فلتر جديد)، نصفر العدادات
+// 2. الدالة المطورة (تقبل كل الفلاتر)
+async function loadSidebarContacts(reset = false) {
+    // جلب معرف القناة الحالية (تأكد من وجوده)
+    const activeChannelId = window.currentChannelId || getCurrentChannelId(); // دالة مساعدة لجلب ID القناة
+    if (!activeChannelId) return;
+
     if (reset) {
         sidebarState.page = 1;
         sidebarState.hasMore = true;
         sidebarState.contacts = [];
-        // إذا كان إعادة تعيين، نظف القائمة واعرض اللودر
-        if(sidebarListEl) sidebarListEl.innerHTML = '<div class="cls3741_loader_new"><div class="cls3741_spinner"></div></div>';
+        sidebarListEl.innerHTML = '<div class="cls3741_loader_new"><div class="cls3741_spinner"></div></div>';
     }
 
-    // 3. شروط التوقف: إذا كنا نحمل حالياً أو لا يوجد المزيد
     if (sidebarState.isLoading || !sidebarState.hasMore) return;
-
     sidebarState.isLoading = true;
 
     try {
-        // 4. بناء الرابط
-        // ملاحظة: نستخدم api_contacts2 التي حدثناها في الباك إند
-        let url = `${window.API_URLS.contacts}?channel_id=${activeChannelId}&page=${sidebarState.page}`;
+        // بناء الرابط مع الفلاتر الجديدة
+        let url = new URL(window.API_URLS.contacts, window.location.origin);
+        url.searchParams.append('channel_id', activeChannelId);
+        url.searchParams.append('page', sidebarState.page);
+
+        // إضافة بارامترات البحث والفلترة فقط إذا كانت مفعلة
+        if (sidebarState.query) url.searchParams.append('q', sidebarState.query);
         
-        if (sidebarState.query) {
-            url += `&q=${encodeURIComponent(sidebarState.query)}`;
+        if (sidebarState.filter_assigned !== 'all') {
+            url.searchParams.append('assigned', sidebarState.filter_assigned);
         }
-        if (sidebarState.filter !== 'all') {
-            url += `&filter=${sidebarState.filter}`;
+        
+        if (sidebarState.filter_stage !== 'all') {
+            url.searchParams.append('stage', sidebarState.filter_stage);
+        }
+        
+        if (sidebarState.filter_tags) {
+            url.searchParams.append('tags', sidebarState.filter_tags);
+        }
+        
+        if (sidebarState.filter_unread) {
+            url.searchParams.append('unread_only', 'true');
         }
 
         const res = await fetch(url, { headers: { 'Accept': 'application/json' } });
@@ -7225,26 +7393,26 @@ async function loadSidebarContacts(reset = false) {
         const data = await res.json();
         const newContacts = data.contacts || [];
 
-        // 5. تحديث الحالة
-        sidebarState.hasMore = data.has_next || false; // السيرفر يخبرنا هل يوجد المزيد
+        sidebarState.hasMore = data.has_next || false;
         sidebarState.page++;
 
-        // 6. الرسم
         renderSidebarItems(newContacts, reset);
 
     } catch (e) {
         console.error("Sidebar Load Error:", e);
         if (reset && sidebarListEl) {
-            sidebarListEl.innerHTML = `<div style="text-align:center;padding:20px;color:var(--danger);">خطأ في التحميل</div>`;
+            sidebarListEl.innerHTML = `<div style="text-align:center;padding:20px;color:#ef4444;">Failed to load chats. <br><button class="btn btn-sm btn-link" onclick="loadSidebarContacts(true)">Retry</button></div>`;
         }
     } finally {
         sidebarState.isLoading = false;
     }
 }
 
-// ============================================================
-//  🔥 دالة الرسم (Render)
-// ============================================================
+
+
+
+
+
 function renderSidebarItems(contacts, isReset) {
     if (!sidebarListEl) return;
 
@@ -7348,7 +7516,7 @@ if (sidebarSearchClear) {
 // 2. أزرار الفلترة (الكل، غير مقروء، مقروء)
 sidebarFilterBtns.forEach(btn => {
     btn.addEventListener('click', function() {
-        // تحديث الشكل
+
         sidebarFilterBtns.forEach(b => b.classList.remove('active'));
         this.classList.add('active');
 
@@ -7369,9 +7537,43 @@ if (sidebarListEl) {
     });
 }
 
-// ============================================================
-//  🔥 ربط مع النظام العام
-// ============================================================
+
+
+
+// تحديث دالة تطبيق الفلاتر
+window.applyFilterscontacta = function() {
+    // 1. قراءة القيم من الـ DOM (القائمة المنبثقة)
+    const assignedVal = document.getElementById('filter_assigned').value;
+    const stageVal = document.getElementById('filter_pipeline').value;
+    const tagsVal = document.getElementById('filter_tags').value;
+    const unreadVal = document.getElementById('filter_unread').checked;
+
+    // 2. تحديث حالة السايدبار
+    sidebarState.filter_assigned = assignedVal;
+    sidebarState.filter_stage = stageVal;
+    sidebarState.filter_tags = tagsVal;
+    sidebarState.filter_unread = unreadVal;
+
+    console.log("Applying Filters:", sidebarState);
+
+    // 3. إغلاق القائمة وتحديث الواجهة
+    document.getElementById('filter_dropdown_menu').classList.remove('active');
+    
+    // تلوين أيقونة الفلتر إذا كان هناك فلتر نشط
+    const iconPath = document.querySelector('#filter-icon path');
+    const isFiltered = (assignedVal !== 'all' || stageVal !== 'all' || tagsVal !== '' || unreadVal);
+    
+    if(iconPath) {
+        iconPath.setAttribute('stroke', isFiltered ? '#6366f1' : '#d6d6e6');
+    }
+
+    // 4. 🔥 إعادة تحميل القائمة من الصفر
+    loadSidebarContacts(true);
+};
+
+document.getElementById('applyfilterscontacta').addEventListener('click', function() {
+  applyFilterscontacta();
+});
 
 // تعريف دالة التحديث العامة لاستخدامها عند تغيير القناة
 window.fetchContactsAndUpdateUIws = function(wsData, isFullReload) {
@@ -7427,13 +7629,13 @@ window.fetchContactsAndUpdateUIws = function(wsData, isFullReload) {
       // fetchContactsAndUpdateUI();
        
     };
-
-    // تعريف دالة setCurrentPhone للاستخدام من قائمة الاتصالات
+    
     window.__chatInput = window.__chatInput || {};
     window.__chatInput.setCurrentPhone = function(phone, channelId = null) {
       currentPhone = phone;
-      currentChannelId = channelId; // 🔥 حفظ channel_id
-      console.log('📱 تم تعيين الهاتف الحالي:', currentPhone, 'Channel ID:', currentChannelId);
+      currentChannelId = channelId;  
+  
+      
     };
 
     console.log('✅ تم تحميل سكريبت المحادثة بنجاح');

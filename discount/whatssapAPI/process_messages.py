@@ -867,6 +867,8 @@ def whatsapp_webhook(request):
                         if not created and not contact.channel:
                             contact.channel = active_channel
                             contact.user = channel_owner
+                            pipeline_stage=Contact.PipelineStage.NEW
+                            contact.pipeline_stage = pipeline_stage
                             contact.save()        
                            
                             if safe_name and (created or contact.name != safe_name):
