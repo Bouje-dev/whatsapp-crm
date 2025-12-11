@@ -2296,7 +2296,7 @@ def api_orders(request):
             "product": getattr(o, "product", ""),
             "created_by": o.user.email, # لنعرف من أنشأ الطلب
             "created_at": o.created_at.isoformat() if o.created_at else None,
-            "channel": target_channel
+            # "channel": target_channel
         })
    
     return JsonResponse({"orders": data})
