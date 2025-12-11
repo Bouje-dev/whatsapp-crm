@@ -2275,21 +2275,14 @@ def api_orders(request):
     # هذه الدالة تتكفل بفحص هل المستخدم (سواء أدمن أو موظف) لديه صلاحية رؤية هذه القناة
     target_channel = get_target_channel(user, request.GET.get('channel_id'))
     
-
+     
     # إذا لم نجد قناة أو ليست لديه صلاحية
     if not target_channel:
         return JsonResponse({"orders": []})
 
-    # 2. جلب الطلبات بناءً على القناة 🔥
-    # هذا هو التغيير الجوهري: نفلتر بالقناة وليس بالمستخدم فقط
-    qs = Order.objects.filter(channel=target_channel).select_related('user').order_by("-created_at")
 
-    # (اختياري) إذا كنت تريد أن يرى الموظف العادي طلباته هو فقط داخل القناة،
-    # بينما يرى الأدمن طلبات الجميع داخل القناة، أضف هذا الشرط:
-    # if not (user.is_superuser or getattr(user, 'is_team_admin', False)):
-    #     qs = qs.filter(user=user)
-    
-    # لكن المنطق السائد في الـ CRM هو أن يرى الجميع طلبات القناة للتعاون.
+    qs = Order.objects.filter(channel=target_channel).select_related('user').order_by("-created_at")
+    print('qs' , qs)
 
     data = []
     for o in qs:
@@ -2303,6 +2296,7 @@ def api_orders(request):
             "product": getattr(o, "product", ""),
             "created_by": o.user.email, # لنعرف من أنشأ الطلب
             "created_at": o.created_at.isoformat() if o.created_at else None,
+            "channel": target_channel
         })
    
     return JsonResponse({"orders": data})

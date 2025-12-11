@@ -5,17 +5,17 @@ from django.conf import settings # لاستخدام AUTH_USER_MODEL
 
 class CODProduct(models.Model):
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='cod_products')
-    project = models.CharField(max_length=200, blank=True, null=True)  # اسم المشروع
-    country = models.CharField(max_length=200 , blank=True )
+    project = models.CharField(max_length=600, blank=True, null=True)  # اسم المشروع
+    country = models.CharField(max_length=600 , blank=True )
     cod_id = models.CharField(max_length=100, unique=True)  # معرف المنتج في COD
-    name = models.CharField(max_length=200)
+    name = models.CharField(max_length=600)
     original_price = models.DecimalField(max_digits=10, decimal_places=2)
     stock = models.IntegerField(default=0)
     image_url = models.URLField(blank=True, null=True)
     is_active = models.BooleanField(default=True)  # هل المنتج متاح للعرض؟
     last_updated = models.DateTimeField(auto_now=True)  # تاريخ آخر تحديث
     product_cost= models.DecimalField(max_digits=10 ,decimal_places=2,blank=True, null=True)
-    sku = models.CharField(max_length=200, unique=True  ,blank=True )
+    sku = models.CharField(max_length=600, unique=True  ,blank=True )
 
     updated =models.BooleanField(default=False)
     productImage = models.ImageField(upload_to='products/', null=True, blank=True)
@@ -50,7 +50,7 @@ class Order(models.Model):
     customer_phone = models.CharField(max_length=20 , blank=True, null=True)
     customer_city = models.CharField(max_length=100, blank=True, null=True)
     product = models.CharField(max_length=255)
-    gift_chosen = models.ForeignKey(CODProduct, on_delete=models.SET_NULL, null=True, related_name='chosen_gift')
+    gift_chosen = models.ForeignKey(CODProduct, on_delete=models.SET_NULL, null=True, blank=True , related_name='chosen_gift')
     order_date = models.DateTimeField(auto_now_add=True)
     confirmed = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)

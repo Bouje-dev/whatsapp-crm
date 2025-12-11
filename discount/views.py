@@ -434,7 +434,7 @@ def update_cod_products(request):
                         'product_cost': product_data.get('product_cost', 0),
                         'stock': int(product_data.get('quantity', 0)),
                         'image_url': product_data.get('media', {}).get('default_image', ''),
-                        'updated': not is_new  # تحديث الحالة إذا كان منتجاً موجوداً
+                        'updated': not is_new  
                     }
                 )[0]
                  
@@ -456,11 +456,7 @@ def update_cod_products(request):
                 print(f"فشل في معالجة المنتج {product_data.get('id')}: {str(e)}")
                 continue
 
-        # return JsonResponse({
-        #     'success': True,
-        #     'message': 'تمت التحديث بنجاح',
-        #     'saved_count': saved_count
-        # })
+    
         codProduct = CODProduct.objects.filter(stock__gt=0)
         last_update = codProduct.last().last_updated
         return JsonResponse({
