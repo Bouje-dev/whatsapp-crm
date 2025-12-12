@@ -449,8 +449,9 @@ $('#order-submit-btn-spinner').removeClass('d-none'); // إظهار اللودي
 
 const form = e.target;
 const formData = new FormData(form);
-
-fetch("/submit-order/", {
+const channel_id =  window.currentChannelId || '{{ initial_channel_id }}';
+const url = `/discount/whatssapAPI/api_orders/?channel_id=${channel_id}`
+fetch(url, {
     method: "POST",
     headers: {
         "X-Requested-With": "XMLHttpRequest" ,
@@ -461,7 +462,7 @@ fetch("/submit-order/", {
 .then(response => response.json())
 
 .then(data => {
-        $('#submit-order-btn').prop('disabled', false); // إعادة تفعيل الزر
+$('#submit-order-btn').prop('disabled', false); // إعادة تفعيل الزر
 $('#order-submit-btn-spinner').addClass('d-none'); // إخفاء اللودينغ
 
 

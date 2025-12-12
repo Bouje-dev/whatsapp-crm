@@ -1157,7 +1157,9 @@ def sendlead(request, cname, cphone, caddress, country_code, items):
     return resp
 
 # @csrf_exempt
+@require_POST
 def submit_order(request):
+     
     if request.method != "POST":
         return JsonResponse({"success": False, "message": "الطلب يجب أن يتم باستخدام POST"})
 
@@ -1166,7 +1168,7 @@ def submit_order(request):
     phone = request.POST.get("phone")
     address = request.POST.get("address")
     country_code = request.POST.get("country_code") or "SA"
-
+    channel_id = request.POST.get("channel_id")
     # المنتج المختار
     selected_product_sku = request.POST.get("selected_sku") 
     product_quantity = request.POST.get("product_quantity") or 1
@@ -1220,20 +1222,51 @@ def submit_order(request):
                 "message": f"لقد وصلت إلى الحد الأقصى لعدد الطلبات اليوم ({user_limit})"
             })
     
-    resp = sendlead(request, name, phone, address, country_code, items_payload)
-    # 2. التحقق من نجاح الإرسال قبل الحفظ
-    if resp.status_code == 201:
-        # إنشاء الطلب وربطه بالهدية إذا وجدت
-        order = Order.objects.create(
-            user=request.user,
-            customer_name=name,
-            customer_phone=phone,
-            customer_city=address,
-            product=selected_product_sku,
-            product_quantity=product_quantity,
-            product_price=product_price,
-            gift_chosen=gift_obj
-        )
+    # resp = sendlead(request, name, phone, address, country_code, items_payload) 
+    resp = 201
+     
+    if resp == 201:
+        import uuid 
+        try:
+            product_instance = Products.objects.get(sku=selected_product_sku)
+        except Products.DoesNotExist:
+            return JsonResponse({"success": False, "message": "المنتج غير موجود في المخزون"}, status=400)
+        order = SimpleOrder.objects.create(
+    quantity = product_quantity,
+    product=product_instance,   
+    agent=request.user,
+    channel=WhatsAppChannel.objects.get(id=channel_id),
+
+     
+    sku=selected_product_sku, 
+    product_name=product_instance.name,  
+    
+    
+    customer_name=name,
+    customer_phone=phone,
+    customer_city=address,  
+    
+    # السعر والعملة
+    price=product_price,  
+    
+    # حقول النظام
+    order_id=str(uuid.uuid4())[:8], 
+    status='pending',
+    created_at=timezone.now(),
+    
+   
+)
+        # order = Order.objects.create(
+        #     user=request.user,
+        #     customer_name=name,
+        #     customer_phone=phone,
+        #     customer_city=address,
+        #     product=selected_product_sku,
+        #     product_quantity=product_quantity,
+        #     product_price=product_price,
+        #     gift_chosen=gift_obj ,
+        #     channel= WhatsAppChannel.objects.get(id=channel_id) 
+        # )
         activity_log(
             request,
             activity_type='order_placed',
@@ -1258,6 +1291,11 @@ def submit_order(request):
         })
 
     return JsonResponse({"success": True, "message": "تم إرسال الطلب بنجاح"})
+
+
+
+
+
 
 @login_required(login_url='/auth/login/')
 def updatedealy(request):

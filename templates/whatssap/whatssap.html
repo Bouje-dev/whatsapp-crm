@@ -2988,14 +2988,17 @@ document.addEventListener("DOMContentLoaded", function() {
                     const formData = new FormData(quickForm);
                     // إضافة SKU يدوياً
                     formData.append('selected_sku', productSelect.value);
+                    formData.append('channel_id', window.currentChannelId);
                     
                     // Loading State
                     btn.disabled = true;
                     btn.innerHTML = '<span class="spinner-border spinner-border-sm" style="width:1rem;height:1rem;"></span> Processing...';
         
                     try {
-                        // ⚠️ استبدل الرابط أدناه برابط الـ View الخاص بإنشاء الطلب
-                        const response = await fetch('/your/create-order-url/', { 
+                      
+                        // const channel_id = window.currentChannelId || '{{ initial_channel_id }}';
+                        const url = "{% url 'submit_order' %}";
+                        const response = await fetch(url, { 
                             method: 'POST',
                             body: formData,
                             headers: { 'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value }
@@ -3541,13 +3544,15 @@ document.addEventListener("DOMContentLoaded", function() {
             <div id="templates_table_wrap" style="background:linear-gradient(180deg, rgba(255,255,255,0.01), rgba(255,255,255,0.005));padding:8px;border-radius:10px;border:1px solid rgba(255,255,255,0.03);overflow:auto">
             <table id="templates_table" style="width:100%;border-collapse:collapse">
                 <thead>
-                    <tr style="text-align:left;text-align: right;
+                    <tr style="text-align:left;
                     border-bottom: 2px solid #202020;
                    
                 ;">
-                        <th style="padding:10px;font-weight:700;color:#eafcff">Customer</th>
                         <th style="padding:10px;font-weight:700;color:#eafcff">Agent</th>
-                        <th style="padding:10px;font-weight:700;color:#eafcff">Address</th>
+                        <th style="padding:10px;font-weight:700;color:#eafcff">Customer</th>
+                        <th style="padding:10px;font-weight:700;color:#eafcff">Address</th> 
+                        <th style="padding:10px;font-weight:700;color:#eafcff">quantity</th>  
+                        <th style="padding:10px;font-weight:700;color:#eafcff">product</th>
                         <th style="padding:10px;font-weight:700;color:#eafcff">Prices</th>
                         <th style="padding:10px;font-weight:700;color:#eafcff">Created at</th>
                     </tr>
@@ -3558,7 +3563,7 @@ document.addEventListener("DOMContentLoaded", function() {
             ">
                     <!-- sample empty state -->
                     <tr> 
-                        <td colspan="5" style="padding:18px;color:var(--muted);text-align:center">لا توجد قوالب بعد — اضغط "إنشاء قالب" لإضافة واحد</td>
+                        <td colspan="5" style="padding:18px;color:var(--muted);text-align:center">No order found</td>
                     </tr>
                 </tbody>
             </table>
@@ -3613,17 +3618,25 @@ document.addEventListener("DOMContentLoaded", function() {
 
       tbody.innerHTML = '';
       list.forEach(item => {
+         
         const name = escapeHtml(item.customer_name || item.title || '');
-        const useremail = escapeHtml(item.user || item.cat || '-');
+        const useremail = escapeHtml(item.created_by || item.cat || '-');
         const customer_city = escapeHtml(item.customer_city || item.body || '-');
         const Tamount = escapeHtml(item.total_amount || '-');
         const updated = escapeHtml(item.created_at || item.last_updated || item.updated_at || '');
+        const quantity = escapeHtml(item.quantity || '1');
+        const product = escapeHtml(item.product || '')
+        
 
         const tr = document.createElement('tr');
-        tr.innerHTML = `
+        tr.innerHTML = `  
+         <td style="padding:10px;background: #0f1017; font-weight:bolder;">${useremail}</td>
           <td style="padding:10px">${name}</td>
-          <td style="padding:10px">${useremail}</td>
+       
           <td style="padding:10px;color:var(--muted);max-width:320px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${customer_city}</td>
+          <td style="padding:10px">${quantity}</td>
+           <td style="padding:10px;color:var(--muted);max-width:320px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${product}</td>
+          
           <td style="padding:10px">${Tamount}</td>
           <td style="padding:10px">${updated}</td>
         `;

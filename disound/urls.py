@@ -87,7 +87,7 @@ urlpatterns = [
 
 
     path('get-product-info/', user_dash.get_product_info, name='get_product_info'),
-        path('submit-order/', user_dash.submit_order, name='submit_order'),
+    path('submit-order/', user_dash.submit_order, name='submit_order'),
     path('tracking/update_order_limit/', user_dash.updatedealy, name='update_order_limit'),
 
      path("track-order", user_dash.track_injaz, name="track_order"),

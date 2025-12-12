@@ -426,7 +426,8 @@ def update_cod_products(request):
                 product = CODProduct.objects.update_or_create(
                     cod_id=str(product_data['id']),
                     defaults={
-                        'user' : request.user ,
+                        'agent' : request.user ,
+
                         'country': product_data.get('country'),
                         'original_price': price,
                         'project': product_data.get('project'),

@@ -329,6 +329,7 @@ class SimpleOrder(models.Model):
     created_at = models.DateTimeField(auto_now_add=False, verbose_name=_('تاريخ الإنشاء'))
     price = models.DecimalField(max_digits=10, decimal_places=2, default=0 ,verbose_name=_('السعر'))
     currency = models.CharField(max_length=10, default='SAR', null=True ,blank=True ,   verbose_name=_('العملة'))
+    quantity = models.DecimalField(max_digits=10, decimal_places=2, default=1)
     class Meta:
         verbose_name = _('طلب مبسط')
         verbose_name_plural = _('طلبات مبسطة')

@@ -2265,41 +2265,57 @@ def api_templates(request):
 
 
   
-@require_GET
 def api_orders(request):
     user = getattr(request, "user", None)
     if not user or not user.is_authenticated:
         return JsonResponse({"orders": []}, status=401)
 
-    # 1. تحديد القناة المستهدفة (باستخدام دالة المساعدة الآمنة)
-    # هذه الدالة تتكفل بفحص هل المستخدم (سواء أدمن أو موظف) لديه صلاحية رؤية هذه القناة
+    # 1. تحديد القناة
     target_channel = get_target_channel(user, request.GET.get('channel_id'))
     
-     
-    # إذا لم نجد قناة أو ليست لديه صلاحية
     if not target_channel:
         return JsonResponse({"orders": []})
 
-
-    qs = Order.objects.filter(channel=target_channel).select_related('user').order_by("-created_at")
-    print('qs' , qs)
-
+    from discount.models import SimpleOrder
+    
+    # استخدمنا select_related لجلب بيانات المنتج والعميل مرة واحدة لتحسين الأداء
+    qs = SimpleOrder.objects.filter(channel=target_channel).order_by("-created_at")
+     
     data = []
     for o in qs:
+        # استخراج اسم المنتج بأمان
+        if o.product:
+            product_name = o.product.name 
+        else:
+            
+            product_name = getattr(o, "product_name", "Unknown Product")
+
+         
+        # print(f"Order ID: {o.id} | Agent: {o.agent} | User: {o.agent.user_name}")
         data.append({
             "id": o.id,
-            "customer_name": getattr(o, "customer_name", "") or "Unknown",
-            "total_amount": getattr(o, "product_price", 0),
-            "customer_phone": getattr(o, "customer_phone", ""),
-            "customer_city": getattr(o, "customer_city", ""),
-            "status": getattr(o, "confirmed", False), # مثال للحالة
-            "product": getattr(o, "product", ""),
-            "created_by": o.user.email, # لنعرف من أنشأ الطلب
-            "created_at": o.created_at.isoformat() if o.created_at else None,
-            # "channel": target_channel
+            "order_id": o.order_id, # مفيد للعرض
+            "customer_name": o.customer_name or "Unknown",
+            
+            # انتبه: اسم الحقل في المودل هو price وليس product_price
+            "total_amount": float(o.price) if o.price else 0.0, 
+            
+            "customer_phone": o.customer_phone,
+            "customer_city": o.customer_city,
+            "status": o.status, # الحالة (pending, shipped...)
+             
+            "product": product_name,  
+            "created_by":  o.agent.username  ,
+            "quantity" : round(o.quantity) ,
+            "created_at": o.created_at.strftime("%Y-%m-%d %H:%M") if o.created_at else None,
         })
+        
    
     return JsonResponse({"orders": data})
+
+
+
+
 
 
 
@@ -2777,9 +2793,9 @@ def api_team_stats(request):
     # ج) لديه طلبات سابقة في هذه القناة (حتى لو تم حذفه من الوكلاء لاحقاً)
     
     users_qs = CustomUser.objects.filter(
-        Q(id=target_channel.owner_id) |             # المالك
-        Q(channels=target_channel) |                # الوكلاء (التصحيح هنا)
-        Q(simple_orders__channel=target_channel)    # من لديهم طلبات
+        Q(id=target_channel.owner_id) |              
+        Q(channels=target_channel) |                 
+        Q(simple_orders__channel=target_channel)    
     ).distinct()
 
     # 3. الحسابات (Aggregation)

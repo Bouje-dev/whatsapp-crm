@@ -994,7 +994,7 @@ def tracking(request,leades = None):
             'user_channels': user_channels,
             'initial_channel_id': active_channel.id if active_channel else 'null' ,
             'unread_msg': unread_msg,
-             'active_channel': active_channel ,
+            'active_channel': active_channel ,
             'team_members': team_members , 
             'pipeline_choices': pipeline_choices
         })
