@@ -3006,21 +3006,22 @@ document.addEventListener("DOMContentLoaded", function() {
         
                         const result = await response.json();
         
-                        if(result.success || response.ok) {
-                            // نجاح: نعيد الزر للون الأخضر للحظة
-                            btn.style.background = '#10b981';
-                            btn.innerHTML = '<i class="fas fa-check"></i> Success';
-                            setTimeout(() => {
-                                btn.style.background = ''; // العودة للون الأصلي
-                                btn.innerHTML = originalContent;
-                                quickForm.reset();
-                                document.getElementById('quick_qty').value = 1;
-                            }, 2000);
-                        } else {
-                            alert("Error: " + (result.message || "Failed to create order"));
-                            btn.disabled = false;
-                            btn.innerHTML = originalContent;
-                        }
+                        if (result.success) {  
+    // نجاح: نعيد الزر للون الأخضر للحظة
+                              btn.style.background = '#10b981';
+                              btn.innerHTML = '<i class="fas fa-check"></i> Success';
+                              setTimeout(() => {
+                                  btn.style.background = ''; 
+                                  btn.innerHTML = originalContent;
+                                  quickForm.reset();
+                                  if(document.getElementById('quick_qty')) document.getElementById('quick_qty').value = 1;
+                              }, 2000);
+                          } else {
+                              // فشل
+                              alert("Error: " + (result.message || "Failed to create order"));
+                              btn.disabled = false;
+                              btn.innerHTML = originalContent;
+                          }
         
                     } catch (err) {
                         console.error(err);

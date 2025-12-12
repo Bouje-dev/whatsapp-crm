@@ -1222,40 +1222,44 @@ def submit_order(request):
                 "message": f"لقد وصلت إلى الحد الأقصى لعدد الطلبات اليوم ({user_limit})"
             })
     
-    # resp = sendlead(request, name, phone, address, country_code, items_payload) 
-    resp = 201
+    resp = sendlead(request, name, phone, address, country_code, items_payload) 
+    
      
-    if resp == 201:
+    if resp.status_code == 201:
         import uuid 
         try:
             product_instance = Products.objects.get(sku=selected_product_sku)
         except Products.DoesNotExist:
             return JsonResponse({"success": False, "message": "المنتج غير موجود في المخزون"}, status=400)
-        order = SimpleOrder.objects.create(
-    quantity = product_quantity,
-    product=product_instance,   
-    agent=request.user,
-    channel=WhatsAppChannel.objects.get(id=channel_id),
 
-     
-    sku=selected_product_sku, 
-    product_name=product_instance.name,  
-    
-    
-    customer_name=name,
-    customer_phone=phone,
-    customer_city=address,  
-    
-    # السعر والعملة
-    price=product_price,  
-    
-    # حقول النظام
-    order_id=str(uuid.uuid4())[:8], 
-    status='pending',
-    created_at=timezone.now(),
-    
-   
-)
+            
+        order = SimpleOrder.objects.create(
+                quantity = product_quantity,
+                product=product_instance,   
+                agent=request.user,
+                channel=WhatsAppChannel.objects.get(id=channel_id),
+
+                
+                sku=selected_product_sku, 
+                product_name=product_instance.name,  
+                
+                
+                customer_name=name,
+                customer_phone=phone,
+                customer_city=address,  
+                
+                # السعر والعملة
+                price=product_price,  
+                
+                # حقول النظام
+                order_id=str(uuid.uuid4())[:8], 
+                status='pending',
+                created_at=timezone.now(),
+               
+                # الهدية
+                gift_chosen=gift_obj,
+                
+                )
         # order = Order.objects.create(
         #     user=request.user,
         #     customer_name=name,
