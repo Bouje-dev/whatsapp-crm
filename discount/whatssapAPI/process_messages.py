@@ -425,6 +425,7 @@ def save_incoming_message(msg , sender = None , channel = None  , name = None):
             channel= channel if channel else None ,
             sender=sender ,
             body=body,
+            type=message_type,
             is_from_me=False,
             media_type=media_type,
             media_id=media_id,
