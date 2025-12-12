@@ -15,7 +15,7 @@ from django.utils import timezone
 from django.core.files.base import ContentFile
 from django.conf import settings
 from django.db.models import Max, Q
-from discount.models import Message, Template, Order , Contact, WhatsAppChannel, CustomUser
+from discount.models import Message, SimpleOrder, Template, Order , Contact, WhatsAppChannel, CustomUser
 from django.contrib.auth.decorators import login_required
 import logging
 
@@ -1295,7 +1295,7 @@ def send_message(request):
             if response.status_code not in [200, 201]:
                 print(res_data)
                 return JsonResponse({"error": "Meta API Error", "details": res_data}, status=400)
-
+            print('temaplit' , res_data)
             # الحفظ في قاعدة البيانات
             # نستخرج wamid
             wamid = res_data.get('messages', [{}])[0].get('id')
@@ -1336,6 +1336,7 @@ def get_messages1(request):
     Returns JSON: { messages: [{ id, body, fromMe, time }] }
     """
     channel_id = request.GET.get('channel_id')
+    tracking = request.GET.get('tracking')
 
     phone = request.GET.get('phone')
     since_id = request.GET.get('since_id')
@@ -1348,21 +1349,22 @@ def get_messages1(request):
             qs = qs.filter(id__gt=since_id)
         except ValueError:
             pass
-
-    messages = []
-   
-    contact = Contact.objects.filter(channel=WhatsAppChannel.objects.get(id=channel_id), phone=phone).first()
-
-     
-    contact_crm_data = {
-        'pipeline_stage': contact.pipeline_stage ,          
-        'assigned_agent_id': contact.assigned_agent_id,  
-        'tags': [                                         
-            {'name': tag.name, 'color': tag.color} 
-            for tag in contact.tags.all()
-        ]
-    }
     
+    messages = []
+    contact_crm_data=[]
+    if not tracking :
+        contact = Contact.objects.filter(channel=WhatsAppChannel.objects.get(id=channel_id), phone=phone).first()
+        pipeline_stage = contact.pipeline_stage
+        
+        contact_crm_data = {
+            'pipeline_stage': pipeline_stage if pipeline_stage else None,          
+            'assigned_agent_id': contact.assigned_agent_id,  
+            'tags': [                                         
+                {'name': tag.name, 'color': tag.color} 
+                for tag in contact.tags.all()
+            ]
+        }
+     
 
     for m in qs:
         msg_type = ''

@@ -670,10 +670,17 @@ function resetTemplateUI() {
 async function fetchTemplates() {
     if(!_tplListContainer) return;
     _tplListContainer.innerHTML = '<div class="loading-spinner">Loading...</div>';
+    const activeChannel = window.currentChannelId || '{{ initial_channel_id|default:"null" }}';
+    console.log('channel' , activeChannel)
+        if (!activeChannel || activeChannel === 'null') {
+            listContainer.innerHTML = '<div style="padding:20px;text-align:center;color:gray;">لا توجد قناة محددة</div>';
+            return;
+        }
     
     try {
-        const res = await fetch('/discount/whatssapAPI/api/get_templates/');
-        const data = await res.json();
+            // const url = `{% url 'api_get_templates' %}?channel_id=${activeChannel}` ;
+            const res = await fetch(`/discount/whatssapAPI/api/get_templates/?channel_id=${activeChannel}`, { headers: { 'Accept': 'application/json' } });
+            const data = await res.json();
         
         if (data.templates) {
             renderTemplateList(data.templates);
@@ -1291,7 +1298,10 @@ document.addEventListener('DOMContentLoaded', function () {
   // جلب الرسائل من الخادم لرقم currentPhone
   async function fetchMessagesForCurrent(){
     if(!currentPhone) return;
-    const url = `${API_URLS_9999.messages}?phone=${encodeURIComponent(currentPhone)}&since_id=${encodeURIComponent(lastMessageId||0)}`;
+
+    // const url = `${API_URLS_9999.messages}?phone=${encodeURIComponent(currentPhone)}&since_id=${encodeURIComponent(lastMessageId||0)}`;
+    const url = `${window.API_URLS.messages}?phone=${encodeURIComponent(currentPhone)}&since_id=${encodeURIComponent(lastMessageId||0)}&channel_id=${currentChannelId}&tracking=true`;
+     
     try{
       const res = await fetch(url, { cache:'no-store', headers: { 'Accept':'application/json' }});
   

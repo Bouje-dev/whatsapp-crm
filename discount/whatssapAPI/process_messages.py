@@ -412,6 +412,15 @@ def save_incoming_message(msg , sender = None , channel = None  , name = None):
         except Exception:
             parsed_timestamp = None
 
+        if message_type == 'location':
+                loc = msg.get('location', {})
+                latitude = loc.get('latitude')
+                longitude = loc.get('longitude')
+                
+                message_body = f"{latitude},{longitude}"
+                body = message_body
+
+
         message_obj = Message.objects.create(
             channel= channel if channel else None ,
             sender=sender ,
@@ -923,10 +932,11 @@ def process_messages(messages , channel = None , name = None):
                 headline = ref_data.get("headline", "Ad Click")
                 body = ref_data.get("body", "") # نص الإعلان نفسه
                 print(f"📢 Incoming Ad Referral: {headline}")
-                
-                # إذا لم يكن هناك نص مرفق مع الإعلان، نعتبرها "بداية محادثة" صريحة
                 if not body and message_type == "text": 
                      body = msg.get("text", {}).get("body", "") # محاولة جلب النص مرة أخرى
+                
+   
+               
 
             
             print(f"📩 Processing from {sender}: '{body}' (Type: {message_type}, Referral: {is_referral})")

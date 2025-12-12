@@ -42,7 +42,6 @@ def submit_template_to_meta(template , channel , user = None):
     # if not WABA or not TOKEN:
     #     return {'ok': False, 'error': 'WHATSAPP_BUSINESS_ACCOUNT_ID or token not configured.'}
     
-
     if not channel or not channel.id:
         return {'ok': False, 'error': 'channel id not configured.'}
    
@@ -186,6 +185,7 @@ def submit_template_to_meta(template , channel , user = None):
         data = resp.json()
     except Exception:
         data = {'raw_text': resp.text}
+    
      
 
     if not resp.ok:
@@ -320,7 +320,7 @@ def get_whatsapp_templates(request):
     """
     user = request.user
     channel_id = request.GET.get('channel_id')
-
+    
     if not channel_id:
         return JsonResponse({'success': False, 'error': 'Missing channel_id'}, status=400)
 
@@ -329,7 +329,7 @@ def get_whatsapp_templates(request):
         channel = WhatsAppChannel.objects.filter(id=channel_id, owner=user).first()
     else:
         channel = WhatsAppChannel.objects.filter(id=channel_id, assigned_agents=user).first()
-
+    print(channel)
     if not channel:
         return JsonResponse({'success': False, 'error': 'Channel not found or permission denied'}, status=403)
 
