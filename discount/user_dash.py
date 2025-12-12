@@ -1258,7 +1258,7 @@ def submit_order(request):
                
                 # الهدية
                 gift_chosen=gift_obj,
-                
+
                 )
         # order = Order.objects.create(
         #     user=request.user,
@@ -1326,6 +1326,77 @@ def updatedealy(request):
 
 
 
+import requests
+import xmltodict
+from django.conf import settings
+
+SOAP_TEMPLATE = """<?xml version="1.0" encoding="utf-8"?>
+<soap:Envelope xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+               xmlns:xsd="http://www.w3.org/2001/XMLSchema"
+               xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/">
+  <soap:Body>
+    <TraceByWaybillNo xmlns="http://tempuri.org/">
+      <ClientInfo>
+        <ClientID>{client_id}</ClientID>
+        <Password>{password}</Password>
+        <Version>{version}</Version>
+        <ClientAddress></ClientAddress>
+        <ClientContact></ClientContact>
+      </ClientInfo>
+      <WaybillNo>{waybill}</WaybillNo>
+    </TraceByWaybillNo>
+  </soap:Body>
+</soap:Envelope>
+"""
+
+def track_waybill(waybill):
+    xml = SOAP_TEMPLATE.format(
+        client_id='bojamaabayad2001@gmail.com' ,
+        password='hafjed-gurgeW-7wexgu',
+        version=settings.NAQEL_VERSION,
+        waybill=waybill
+    )
+
+    headers = {
+        "Content-Type": "text/xml; charset=utf-8",
+        "SOAPAction": "http://tempuri.org/TraceByWaybillNo"
+    }
+    print('xml',xml , waybill) 
+    try:
+        resp = requests.post(
+            settings.NAQEL_ENDPOINT,
+            data=xml.encode("utf-8"),
+            headers=headers,
+            timeout=10
+        )
+    except Exception as e:
+        print('eroor',e)
+        return {"success": False, "error": str(e)}
+
+    try:
+        parsed = xmltodict.parse(resp.text)
+    except:
+        print("Cannot parse XML",resp.text)
+        return {"success": False, "error": "Cannot parse XML", "raw": resp.text}
+
+    try:
+        body = parsed["soap:Envelope"]["soap:Body"]
+        result = body["TraceByWaybillNoResponse"]["TraceByWaybillNoResult"]
+
+        # بعض الردود تحتوي "WaybillTracking" أو "Tracking"
+        tracking = result.get("WaybillTracking") or result.get("Tracking")
+
+        if tracking is None:
+            return {"success": True, "tracking": []}
+
+        # لو عنصر واحد نحوله لقائمة
+        if isinstance(tracking, dict):
+            tracking = [tracking]
+
+        return {"success": True, "tracking": tracking}
+
+    except Exception as e:
+        return {"success": False, "error": str(e), "raw": parsed}
 
 
 from django.views.decorators.csrf import csrf_exempt
@@ -1337,6 +1408,9 @@ def track_injaz(request):
         return JsonResponse({"error": "POST only"}, status=405)
 
     order_number = request.POST.get("order")
+    if order_number.startswith("3"):
+        track_waybill(order_number)
+        return JsonResponse({"message": "Order number required"}, status=400)
     if not order_number:
         return JsonResponse({"message": "Order number required"}, status=400)
 

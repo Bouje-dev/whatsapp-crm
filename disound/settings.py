@@ -238,3 +238,11 @@ AUTH_USER_MODEL = 'discount.CustomUser'
 
 
 KEY = 'k76TMkpykna7wyWyNS4KYdZC-NK_XfoXvWMPLacwVAY='
+
+
+
+NAQEL_ENDPOINT = "https://infotrack.naqelexpress.com/NaqelAPIServices/NaqelAPIDemo/9.0/XMLShippingService.asmx"
+
+NAQEL_CLIENT_ID = "YOUR_CLIENT_ID"
+NAQEL_PASSWORD = "YOUR_PASSWORD"
+NAQEL_VERSION = "9.0"

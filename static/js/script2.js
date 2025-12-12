@@ -113,132 +113,256 @@ let currentIframeLoadedUrl = '';
         }
 
         // Function to update the tracking iframe
-        function updateTrackingFrame(trackingNumber, company) {
-            // const container = iframe.closest('.iframe-container');
-            // console.log(trackingNumber)
-            if(trackingNumber === 'None' || trackingNumber === '' || trackingNumber === null) {
+    // افتراض: المتغيرات التالية معرفة في مكان أعلى كمتغيرات عالمية:
+// let currentCompany = null;
+// let currentTrackingNumber = null;
+// let currentIframeLoadedUrl = null;
 
-                    document.getElementById("initial-iframe-message").innerHTML = `
-                        <div class="no-tracking-selected text-center">
-                            <i class="fas fa-exclamation-circle"></i>
-                            <p>Tracking for this number is not supported or order in progress.</p>
-                            <p style="color: var(--accent-color); font-weight: 600; font-size: var(--font-size-sm);">${trackingNumber}</p>
-                        </div>
-                    `;
+function updateTrackingFrame(trackingNumber, company) {
+    try {
+        // تنظيف القيمة الواردة
+        if (trackingNumber === undefined || trackingNumber === null) trackingNumber = "";
+        trackingNumber = String(trackingNumber).trim();
 
-                    return;
-                }
+        // العناصر الأساسية
+        const iframe = document.getElementById('tracking-iframe');
+        const container = iframe ? iframe.closest('.iframe-container') : document.querySelector('.iframe-container');
+        const initialMsgEl = document.getElementById('initial-iframe-message');
+        const currentTrackingNumberDisplay = document.getElementById('current-tracking-number');
 
-            const iframe = document.getElementById('tracking-iframe');
-            const container = iframe.closest('.iframe-container');
-            const initialIframeMessage = document.getElementById('initial-iframe-message');
-            const currentTrackingNumberDisplay = document.getElementById('current-tracking-number');
-
-            if (!iframe || !trackingNumber) {
-                if (iframe) iframe.classList.add('d-none');
-                if (initialIframeMessage) initialIframeMessage.classList.remove('d-none');
-                currentTrackingNumberDisplay.textContent = 'Not Selected';
-                return;
+        // مساعدة: عرض رسالة ابتدائية / خطأ
+        const showInitialMessage = (html) => {
+            if (initialMsgEl) {
+                initialMsgEl.innerHTML = html;
+                initialMsgEl.classList.remove('d-none');
+            } else if (container) {
+                // كاحتياط، عرض داخل الحاوية
+                container.innerHTML = html;
             }
+        };
 
-            // Determine company if not explicitly passed (or refine based on tracking number)
-            if (!company || company === 'unknown') {
-                if (trackingNumber.startsWith('60') && trackingNumber.length === 13) {
-                    company = 'imile';
-                } else if (trackingNumber.startsWith('INJAZ') && trackingNumber.length === 13) {
+        const hideInitialMessage = () => {
+            if (initialMsgEl) initialMsgEl.classList.add('d-none');
+        };
 
-                    company = 'injaz';
-                } else if (trackingNumber.startsWith('ALSASAF')) {
-                    company = 'ALSASAF';
-                }
-                // https://gecko.logistiq.io/#/order/tracking?awb=ALSASAF005132597
+        const showContainerMessage = (html) => {
+            if (container) {
+                container.classList.remove('iframe-loading');
+                // لا نُبدّل الحاوية كاملة إن كانت تحتوي iframe — لكن إذا لا يوجد iframe نعرض الرسالة
+                if (!iframe) container.innerHTML = html;
                 else {
-                    console.warn("Unknown tracking number format or company:", trackingNumber);
-                    // Display error message directly in container instead of iframe
-                    container.innerHTML = `
-                        <div class="no-tracking-selected text-center">
-                            <i class="fas fa-exclamation-circle"></i>
-                            <p>Tracking for this number is not supported or format is unknown.</p>
-                            <p style="color: var(--accent-color); font-weight: 600; font-size: var(--font-size-sm);">${trackingNumber}</p>
-                        </div>
-                    `;
-                    currentTrackingNumberDisplay.textContent = 'Error';
-                    return;
+                    // إن أردنا الإبقاء على الiframe في DOM، نعرض الرسالة بعد فحص
+                    const msgWrapper = container.querySelector('.tracking-message-wrapper');
+                    if (msgWrapper) msgWrapper.innerHTML = html;
+                    else {
+                        const div = document.createElement('div');
+                        div.className = 'tracking-message-wrapper';
+                        div.innerHTML = html;
+                        container.appendChild(div);
+                    }
                 }
+            } else {
+                console.warn('No container to show message');
             }
+        };
 
-            // If the company or tracking number hasn't changed, no need to update iframe unless it was hidden
-            if (company === currentCompany && trackingNumber === currentTrackingNumber && !iframe.classList.contains('d-none')) {
+        // حالة عدم وجود رقم تتبع
+        if (!trackingNumber || trackingNumber.toLowerCase() === 'none') {
+            showInitialMessage(`
+                <div class="no-tracking-selected text-center">
+                    <i class="fas fa-exclamation-circle"></i>
+                    <p>Tracking for this number is not supported or order in progress.</p>
+                    <p style="color: var(--accent-color); font-weight: 600; font-size: var(--font-size-sm);">${trackingNumber || '—'}</p>
+                </div>
+            `);
+            // إخفاء iframe إن وُجد
+            if (iframe) iframe.classList.add('d-none');
+            if (currentTrackingNumberDisplay) currentTrackingNumberDisplay.textContent = 'Not Selected';
+            currentCompany = null;
+            currentTrackingNumber = null;
+            currentIframeLoadedUrl = null;
+            return;
+        }
+
+        // التأكد من وجود الحاوية
+        if (!container) {
+            console.error('iframe container not found');
+            return;
+        }
+
+        // تحديد الشركة إن لم تُمرّر
+        if (!company || company === 'unknown') {
+            console.log('imile' , trackingNumber);
+            if (/^6/.test(trackingNumber)) {
+                
+                company = 'imile';
+            } else if (/^INJAZ/.test(trackingNumber) || /^INJAZ/.test(trackingNumber.toUpperCase())) {
+                company = 'injaz';
+            } else if (/^ALSASAF/.test(trackingNumber.toUpperCase())) {
+                company = 'ALSASAF';
+            } else if (/^3/.test(trackingNumber)) {
+                company = 'naqelksa';
+            } else {
+                // تنبيه للمستخدم أن التنسيق غير معروف
+                showContainerMessage(`
+                    <div class="no-tracking-selected text-center">
+                        <i class="fas fa-exclamation-circle"></i>
+                        <p>Tracking for this number is not supported or format is unknown.</p>
+                        <p style="color: var(--accent-color); font-weight: 600; font-size: var(--font-size-sm);">${trackingNumber}</p>
+                    </div>
+                `);
+                if (currentTrackingNumberDisplay) currentTrackingNumberDisplay.textContent = 'Error';
                 return;
             }
-
-            // Hide "no tracking selected" message and show iframe
-            if (initialIframeMessage) initialIframeMessage.classList.add('d-none');
-            iframe.classList.remove('d-none');
-
-            // Show loading indicator
-            container.classList.add('iframe-loading');
-
-            // Update current values
-            currentCompany = company;
-            currentTrackingNumber = trackingNumber;
-            currentTrackingNumberDisplay.textContent = trackingNumber;
-
-            // Set the appropriate URL for the iframe
-            // let newUrl;
-            // if (company === 'imile') {
-            //     newUrl = "https://www.imile.com/AE-en/track";
-            // } else if (company === 'injaz') {
-            //     newUrl = "http://injaz-express.com"; // Placeholder URL, adjust if real one exists
-            // } else {
-            //     newUrl = "about:blank"; // Fallback for unknown
-            // }
-
-    let newUrl;
-    if (company === 'imile') {
-        track('None')
-        newUrl = `https://www.imile.com/AE-en/track?waybillNo=${currentTrackingNumber}`
-
-
-
-    } else if (company === 'injaz') {
-        track(trackingNumber)
-         iframe.classList.add('d-none')
-    }
-    else if (company === 'ALSASAF') {
-        newUrl = `https://gecko.logistiq.io/#/order/tracking?awb=${currentTrackingNumber}`; // تأكد من تحديث هذا الرابط بالرابط الحقيقي لشركة Injaz
-    } else {
-        iframe.classList.add('d-none')
-        newUrl = ""; // رابط احتياطي للمعلومات غير المعروفة
-    }
-
-    // ****** الجزء الجديد هنا ******
-    // تحقق مما إذا كان الرابط الجديد مختلفًا عن الرابط الحالي المحمل في الـ iframe
-    if (newUrl !== currentIframeLoadedUrl) {
-        iframe.src = newUrl; // استخدم .attr('src', ...) لتغيير الرابط باستخدام jQuery
-        currentIframeLoadedUrl = newUrl; // قم بتحديث المتغير ليحتفظ بالرابط الجديد
-    } else {
-        console.log('Company is the same, not reloading iframe:', newUrl); // للمراقبة
-    }
-
-            iframe.onload = function() {
-                container.classList.remove('iframe-loading');
-                if (company === 'imile') {
-                    fillImileForm(trackingNumber);
-                }
-            };
-
-            iframe.onerror = function() {
-                container.classList.remove('iframe-loading');
-                container.innerHTML = `
-                    <div class="no-tracking-selected">
-                        <i class="fas fa-times-circle"></i>
-                        <p>Failed to load tracking page for ${company}. Please try again later.</p>
-                    </div>
-                `;
-                console.error("Error loading iframe for tracking company:", company);
-            };
         }
+
+        // إذا لم يتغير شيء، لا نعيد التحميل
+        if (company === currentCompany && trackingNumber === currentTrackingNumber) {
+            // إعادة إظهار iframe إذا كان مخفيًا فقط
+            if (iframe && iframe.classList.contains('d-none')) {
+                iframe.classList.remove('d-none');
+            }
+            return;
+        }
+
+        // تحديث الواجهة: إظهار التحميل
+        hideInitialMessage();
+        if (iframe) {
+            iframe.classList.remove('d-none');
+        }
+        container.classList.add('iframe-loading');
+
+        // تحديث القيم الحالية
+        currentCompany = company;
+        currentTrackingNumber = trackingNumber;
+        if (currentTrackingNumberDisplay) currentTrackingNumberDisplay.textContent = trackingNumber;
+
+        // بناء الرابط أو تنفيذ track() بحسب الشركة
+        let newUrl = "";
+        let useIframe = true; // هل نستخدم iframe أم نستخدم دالة track()
+        if (company === 'imile') {
+            // رابط تتبع مع باراميتر
+            newUrl = `https://www.imile.com/AE-en/track?waybillNo=${encodeURIComponent(trackingNumber)}`;
+            // نريد تحميل الصفحة وملء النموذج بعد التحميل
+            useIframe = true;
+        } else if (company === 'naqelksa') {
+            // نستخدم دالة داخلية 'track' (كما في كودك) بدلاً من iframe
+            useIframe = false;
+           
+            // try { track(trackingNumber); } catch (e) { console.error('track() failed', e); }
+            newUrl='https://new.naqelksa.com/en/sa/tracking/'
+            useIframe = true;
+            
+            // if (iframe) iframe.classList.add('d-none');
+            // container.classList.remove('iframe-loading');
+            // currentIframeLoadedUrl = null;
+            return;
+        } else if (company === 'injaz') {
+            // نفترض أن injaz يتم عبر track() أيضاً
+            useIframe = false;
+            try { track(trackingNumber); } catch (e) { console.error('track() failed', e); }
+            if (iframe) iframe.classList.add('d-none');
+            container.classList.remove('iframe-loading');
+            currentIframeLoadedUrl = null;
+            return;
+        } else if (company === 'ALSASAF') {
+            newUrl = `https://gecko.logistiq.io/#/order/tracking?awb=${encodeURIComponent(trackingNumber)}`;
+            useIframe = true;
+        } else {
+            // افتراضي: إخفاء iframe والعرض رسالة
+            useIframe = false;
+            showContainerMessage(`
+                <div class="no-tracking-selected text-center">
+                    <i class="fas fa-exclamation-circle"></i>
+                    <p>Tracking for this company is not supported.</p>
+                    <p>${company}</p>
+                </div>
+            `);
+            if (iframe) iframe.classList.add('d-none');
+            container.classList.remove('iframe-loading');
+            return;
+        }
+
+        // تحميل الرابط داخل iframe إن لزم
+        if (useIframe) {
+            if (!iframe) {
+                // لو لا يوجد iframe، نصنع واحد مؤقت داخل الحاوية
+                const newIframe = document.createElement('iframe');
+                newIframe.id = 'tracking-iframe';
+                newIframe.style.width = '100%';
+                newIframe.style.height = '600px';
+                newIframe.setAttribute('frameborder', '0');
+                container.appendChild(newIframe);
+            }
+
+            // لا نعيد تحميل نفس الرابط
+            if (newUrl && newUrl !== currentIframeLoadedUrl) {
+                const frame = document.getElementById('tracking-iframe');
+                // راقب حدث التحميل
+                let loadTimer = null;
+                const onLoaded = () => {
+                    container.classList.remove('iframe-loading');
+                    // تنفيذ أي اكتمال مخصص
+                    if (company === 'imile' && typeof fillImileForm === 'function') {
+                        try { fillImileForm(trackingNumber); } catch (e) { console.error('fillImileForm error', e); }
+                    }
+                    if (loadTimer) { clearTimeout(loadTimer); loadTimer = null; }
+                    frame.removeEventListener('load', onLoaded);
+                };
+                const onError = () => {
+                    container.classList.remove('iframe-loading');
+                    showContainerMessage(`
+                        <div class="no-tracking-selected">
+                            <i class="fas fa-times-circle"></i>
+                            <p>Failed to load tracking page for ${company}. Please try again later.</p>
+                        </div>
+                    `);
+                    if (loadTimer) { clearTimeout(loadTimer); loadTimer = null; }
+                    frame.removeEventListener('load', onLoaded);
+                };
+
+                // const frame = document.getElementById('tracking-iframe');
+                frame.addEventListener('load', onLoaded, { once: true });
+
+                // fallback: إن لم يحمل الإطار خلال X ثانية نعرض خطأ
+                loadTimer = setTimeout(() => {
+                    // إزالة listener واظهار رسالة خطأ
+                    frame.removeEventListener('load', onLoaded);
+                    onError();
+                }, 15000); // 15s timeout
+
+                // تغيير المصدر أخيراً
+                try {
+                    frame.src = newUrl;
+                    currentIframeLoadedUrl = newUrl;
+                } catch (e) {
+                    console.error('Failed to set iframe src', e);
+                    onError();
+                }
+            } else {
+                // نفس الرابط — فقط أزل حالة التحميل
+                container.classList.remove('iframe-loading');
+            }
+        }
+
+    } catch (err) {
+        console.error('updateTrackingFrame error:', err);
+        // عرض رسالة عامة
+        const container = document.querySelector('.iframe-container');
+        if (container) {
+            container.classList.remove('iframe-loading');
+            const html = `
+                <div class="no-tracking-selected text-center">
+                    <i class="fas fa-exclamation-circle"></i>
+                    <p>Unexpected error occurred while updating tracking frame.</p>
+                    <p>${err.message || err}</p>
+                </div>
+            `;
+            container.innerHTML = html;
+        }
+    }
+}
+
 
         // Function to attempt filling iMile form (cross-origin issues apply)
         function fillImileForm(trackingNumber) {
@@ -459,8 +583,8 @@ let currentIframeLoadedUrl = '';
   whatsappLink.on('click', function () {
         saveWhatsappActivity(initialPhone);
     });                    // https://web.whatsapp.com/send/?phone=${customerPhone.replace(/\s/g, '')}&text&type=phone_number&app_absent=0
-                     whatsappLink.attr('href', `https://web.whatsapp.com/send/?phone=${customerPhone.replace(/\s/g, '')}&text&type=phone_number&app_absent=0`); // Remove spaces from phone number
-                    // whatsappLink.attr('target', 'whatsapp_web_window'); // Set target to open in WhatsApp Web
+                    //  whatsappLink.attr('href', `https://web.whatsapp.com/send/?phone=${customerPhone.replace(/\s/g, '')}&text&type=phone_number&app_absent=0`); // Remove spaces from phone number
+                    // // whatsappLink.attr('target', 'whatsapp_web_window'); // Set target to open in WhatsApp Web
                     whatsappLink.removeClass('d-none'); // Show button
                 } else {
                     whatsappLink.addClass('d-none'); // Hide button if no phone
