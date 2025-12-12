@@ -457,6 +457,106 @@
   margin: 0 8px;
 }
 
+
+/* --- Location Message Card --- */
+
+.location-card {
+  width: 280px;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+  font-family: 'Inter', system-ui, sans-serif;
+  position: relative;
+  border: 1px solid rgba(255,255,255,0.1);
+}
+
+/* خلفية "وهمية" للخريطة (نمط بصري) */
+.loc-header {
+  height: 120px;
+  background-color: #e5e7eb;
+  background-image: url('https://upload.wikimedia.org/wikipedia/commons/e/ec/World_map_blank_without_borders.svg'); /* صورة خريطة خفيفة عامة */
+  background-size: cover;
+  background-position: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+}
+/* طبقة تغميق خفيفة */
+.loc-header::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: rgba(0,0,0,0.1);
+}
+
+.loc-icon-bg {
+  background: white;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2;
+  box-shadow: 0 4px 6px rgba(0,0,0,0.2);
+  animation: bouncePin 2s infinite;
+}
+
+@keyframes bouncePin {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-5px); }
+}
+
+.loc-body {
+  padding: 12px;
+  background: rgba(30, 41, 59, 0.95); /* لون داكن */
+  backdrop-filter: blur(5px);
+}
+
+.loc-title {
+  margin: 0;
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: #f3f4f6;
+}
+
+.loc-coords {
+  margin: 2px 0 10px;
+  font-size: 0.75rem;
+  color: #9ca3af;
+  font-family: monospace;
+}
+
+.loc-btn {
+  display: block;
+  text-align: center;
+  background: rgba(255,255,255,0.1);
+  color: #6366f1; /* لون Indigo */
+  text-decoration: none;
+  padding: 8px;
+  border-radius: 6px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  transition: 0.2s;
+  border: 1px solid rgba(99, 102, 241, 0.3);
+}
+.loc-btn:hover {
+  background: rgba(99, 102, 241, 0.2);
+  color: white;
+}
+
+.loc-meta {
+  position: absolute;
+  bottom: 12px;
+  right: 12px;
+  font-size: 0.65rem;
+  color: rgba(255,255,255,0.5);
+  pointer-events: none;
+}
+
+
+
 .audio-progress-bar {
   height: 100%;
   background: #555050 !important;

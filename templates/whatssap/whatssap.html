@@ -6126,7 +6126,43 @@ wrapper.innerHTML = `
             </div>
         </div>
     `;
-    return wrapper; }else {
+    return wrapper; }
+    if (msg.type === 'location') {
+        // نفترض أن الـ body يحتوي على "lat,long"
+        const coords = msg.body.split(',');
+        const lat = coords[0];
+        const lng = coords[1];
+        const mapUrl = `https://www.google.com/maps/search/?api=1&query=${lat},${lng}`;
+
+        // تحديد كلاس الاتجاه (يمين/يسار)
+        const alignClass = msg.fromMe ? 'justify-end' : 'justify-start';
+        const bgClass = msg.fromMe ? 'bg-indigo-600' : 'bg-gray-700';
+
+        wrapper.className = `w-full flex ${alignClass} my-2 animate-fadeIn`;
+        
+        wrapper.innerHTML = `
+            <div class="location-card ${bgClass}">
+                <div class="loc-header">
+                    <div class="loc-icon-bg">
+                        <i class="fas fa-map-marker-alt text-red-500 text-2xl"></i>
+                    </div>
+                </div>
+                
+                <div class="loc-body">
+                    <h6 class="loc-title">Live Location</h6>
+                    <p class="loc-coords">${lat}, ${lng}</p>
+                    <a href="${mapUrl}" target="_blank" class="loc-btn">
+                        <i class="fas fa-external-link-alt me-2"></i> Open in Maps
+                    </a>
+                </div>
+                
+                <div class="loc-meta">
+                    <span>${msg.time || msg.timestamp}</span>
+                </div>
+            </div>
+        `;
+        return wrapper;
+    } else {
         wrapper.innerHTML = `
           <div class="cls3741_text">${escapeHtml(m.body || '')}</div>
           <div class="cls3741_msg_footer" style="display:flex; justify-content: flex-end; 
