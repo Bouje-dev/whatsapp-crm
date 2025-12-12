@@ -6127,16 +6127,16 @@ wrapper.innerHTML = `
         </div>
     `;
     return wrapper; }
-    if (msg.type === 'location') {
+    if (m.type === 'location') {
         // نفترض أن الـ body يحتوي على "lat,long"
-        const coords = msg.body.split(',');
+        const coords = m.body.split(',');
         const lat = coords[0];
         const lng = coords[1];
         const mapUrl = `https://www.google.com/maps/search/?api=1&query=${lat},${lng}`;
 
         // تحديد كلاس الاتجاه (يمين/يسار)
-        const alignClass = msg.fromMe ? 'justify-end' : 'justify-start';
-        const bgClass = msg.fromMe ? 'bg-indigo-600' : 'bg-gray-700';
+        const alignClass = m.fromMe ? 'justify-end' : 'justify-start';
+        const bgClass = m.fromMe ? 'bg-indigo-600' : 'bg-gray-700';
 
         wrapper.className = `w-full flex ${alignClass} my-2 animate-fadeIn`;
         
@@ -6157,7 +6157,7 @@ wrapper.innerHTML = `
                 </div>
                 
                 <div class="loc-meta">
-                    <span>${msg.time || msg.timestamp}</span>
+                    <span>${m.time || m.timestamp}</span>
                 </div>
             </div>
         `;
