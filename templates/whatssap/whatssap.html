@@ -2072,7 +2072,7 @@ window.resetFilters = function() {
                 </svg>
             </button>
         
-            <button type="button" id="cls3741_audio_btn" class="upload-btn-reset" title="رفع صوت">
+            <button type="button" id="cls3741_voice_upload" class="upload-btn-reset" title="رفع صوت">
             <svg class="upload-file" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24">
               <path fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="m6 14l1.5-2.9A2 2 0 0 1 9.24 10H20a2 2 0 0 1 1.94 2.5l-1.54 6a2 2 0 0 1-1.95 1.5H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h3.9a2 2 0 0 1 1.69.9l.81 1.2a2 2 0 0 0 1.67.9H18a2 2 0 0 1 2 2v2"></path>
             </svg>
@@ -2626,6 +2626,7 @@ window.resetFilters = function() {
       <!-- عناصر الإدخال المخفية للملفات -->
       <input type="file" id="cls3741_image_input" class="cls3741_hidden_input" accept="image/*">
       <input type="file" id="cls3741_video_input" class="cls3741_hidden_input" accept="video/*">
+      <input type="file" id="cls3741_audio_input" class="cls3741_hidden_input" accept="audio/*">
     </div>
 
 
@@ -5706,6 +5707,8 @@ document.addEventListener("DOMContentLoaded", function() {
     const videoBtn = document.getElementById('cls3741_video_btn');
     const audioBtn = document.getElementById('cls3741_audio_btn');
     const mediaPreview = document.getElementById('cls3741_media_preview');
+    const audioup = document.getElementById('cls3741_voice_upload'); 
+    const audio_input = document.getElementById('cls3741_audio_input');
 
     let currentPhone = null;
     let currentChannelId =  '{{ initial_channel_id }}' 
@@ -7113,7 +7116,7 @@ async function sendMessageLocal_ws(fileObj = null, fileType = null) {
   const typeToSend = fileType || queuedFileType;
 
   // تعطيل الزر
-  if (sendBtnmain) sendBtnmain.disabled = true;
+  if (sendBtnmain) {sendBtnmain.disabled = true;}
 
   try {
     // إعداد البيانات الأساسية
@@ -7290,6 +7293,19 @@ async function sendMessageLocal_ws(fileObj = null, fileType = null) {
           renderMediaPreview(file, 'video');
         }
         videoInput.value = '';
+      });
+    }
+
+    if(audioup && audio_input) {
+      audioup.addEventListener('click', () => audio_input.click());
+      audio_input.addEventListener('change', (e) => {
+        const file = e.target.files[0];
+        if(file) {
+          queuedFile = file;
+          queuedFileType = 'audio';
+          renderMediaPreview(file, 'audio');
+        }
+        audio_input.value = '';
       });
     }
 
