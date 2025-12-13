@@ -369,18 +369,19 @@ def get_media_extension(media_type):
 
 
 # ---------------------Save sms----------------
-def save_incoming_message(msg , sender = None , channel = None  , name = None):
+def save_incoming_message(msg ,message_type , sender = None , channel = None  , name = None):
     """
     حفظ الرسالة الواردة في قاعدة البيانات
     """
+
     try:
         if not sender :
             sender = msg["from"]
-        message_type = msg.get("type", "text")
+        # message_type = message_type
         body = msg.get("text", {}).get("body", "")
         message_id = msg.get("id")
         timestamp = msg.get("timestamp")
-        
+        print("message_id" , msg)
         # معالجة الوسائط
         media_type = None
         media_id = None
@@ -392,8 +393,6 @@ def save_incoming_message(msg , sender = None , channel = None  , name = None):
                 media_id = msg[media_key]['id']
                 break
                 
-        # حفظ في قاعدة البيانات
-        # Normalize timestamp: convert epoch seconds or ISO string to an aware datetime
         parsed_timestamp = None
         try:
             import datetime as _dt
@@ -943,7 +942,7 @@ def process_messages(messages , channel = None , name = None):
             print(f"📩 Processing from {sender}: '{body}' (Type: {message_type}, Referral: {is_referral})")
             
             # حفظ الرسالة (تأكد من أن دالة الحفظ لديك تدعم الحقول الفارغة)
-            save_incoming_message(msg , channel = channel , name =name ) 
+            save_incoming_message(msg , message_type = message_type ,  channel = channel , name =name ) 
  
             flow = None
             
@@ -1392,6 +1391,7 @@ def send_message_socket(sreciver,  user ,channel_id ,  message, msg_type,
                 msg_kwargs["body"] = body or ""
                 if media_type != "text":
                     msg_kwargs["media_type"] = media_type
+                    msg_kwargs["type"] = media_type
                 if media_id:
                     msg_kwargs["media_id"] = media_id
 

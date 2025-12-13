@@ -1368,13 +1368,13 @@ def get_messages1(request):
 
     for m in qs:
         msg_type = ''
-        Type = getattr(m, 'type' , None)
-        if Type :
-            msg_type = Type
-        else : 
-            msg_type = getattr(m, 'media_type', 'text')
+        # Type = getattr(m, 'type' , None)
+        # if Type :
+        #     msg_type = Type
+        # else : 
+        #     msg_type = getattr(m, 'media_type', 'text')
 
-        # msg_type = getattr(m, 'media_type', 'text')
+        msg_type = getattr(m, 'media_type', 'text')
         media_file = getattr(m, 'media_file', None)  
         media_url = None
         m.is_read=True

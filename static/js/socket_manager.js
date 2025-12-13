@@ -19,7 +19,8 @@ const ChatSocket = {
         this.socket.onmessage = (e) => {
             const data = JSON.parse(e.data);
             this.handleIncomingMessage(data);
-            console.log('💯 new websocket data ' , data )
+            console.log('data received' , data)
+            
         };
     },
 
@@ -83,7 +84,7 @@ const ChatSocket = {
         
         case "finished": {
             const payload = data.payload;
-            
+            console.log('🪪🪪 New message received:' ,[payload]);
             // 1. تحديد المستلم
             const recipientPhone = payload.to || payload.phone || '';
             
@@ -110,11 +111,7 @@ const ChatSocket = {
                 if (chatContainer) chatContainer.scrollTop = chatContainer.scrollHeight;
             }
 
-            // ============================================================
-            // 🔥 الحل لمشكلة اللون الأخضر وتحديث القائمة الجانبية 🔥
-            // ============================================================
             
-            // أ) نحاول جلب الاسم والصورة الحالية من القائمة قبل التحديث (للحفاظ عليها)
             const currentItem = document.querySelector(`.cls3741_contact_item[data-phone="${cleanRecipient}"]`);
             let currentName = recipientPhone;
             let currentPic = null; // سيتم استخدام الافتراضي إذا كان null
@@ -210,6 +207,7 @@ const ChatSocket = {
         case 'new_message_received': {
             const payload = data.payload;
             const incomingPhone = payload.contact.phone;
+            console.log('📥 New message received:', payload);
             if (!payload.message) return;
 
 

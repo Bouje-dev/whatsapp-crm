@@ -924,7 +924,7 @@ class Message(models.Model):
         ('failed', 'Failed')
     ])
     status_timestamp = models.DateTimeField(null=True, blank=True)
-    type = models.CharField(max_length=50, default='text') 
+    type = models.CharField(max_length=50, blank=True, null=True) 
     
     is_internal = models.BooleanField(default=False, help_text="إذا كانت True، لا تظهر للعميل ولا ترسل للواتساب")
 

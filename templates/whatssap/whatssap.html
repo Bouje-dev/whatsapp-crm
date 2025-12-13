@@ -5487,7 +5487,7 @@ video.real-media-element {
 
 /* الصورة الحقيقية (مخفية في البداية) */
 .real-media-element {
-    display: none; /* مخفية حتى يتم تحميلها */
+    /* display: none; */
     width: 100%;
     height: auto;
     object-fit: cover;
@@ -5499,7 +5499,7 @@ video.real-media-element {
 
 /* كلاس يضاف عند اكتمال التحميل */
 .real-media-element.loaded {
-    display: block;
+    display: block !important;
     opacity: 1;
 }
 
@@ -5967,178 +5967,159 @@ function getStatusIconHTML(status) {
     }
 }
 
-    function makeMessageNode(m) {
-      const isMe = !!m.fromMe;
-      const wrapper = document.createElement('div');
-      wrapper.className = 'cls3741_msg_bubble' + (isMe ? ' me' : '');
-      if (m.id) wrapper.dataset.msgId = m.id;
-      const statusIconHTML = getStatusIconHTML(m.status);
 
-      const timeHtml = `<span class="cls3741_msg_time">${escapeHtml(m.time)}</span>`;
-      const msg_status = isMe ? `<span class="cls3741_msg_status" [data-msg-id="${m.id}"]  style="z-index:123; color:var(--wa-msg-muted); margin-top: 6px;">${statusIconHTML}</span>` : '';
-       
-      if (m.type === 'audio') {
-        // 🔥 تحسين عرض الرسالة الصوتية مثل WhatsApp
+
+function makeMessageNode(m) {
+    const isMe = !!m.fromMe;
+    const wrapper = document.createElement('div');
+    
+    // إضافة كلاسات أساسية
+    wrapper.className = 'cls3741_msg_bubble' + (isMe ? ' me' : '');
+    if (m.id) wrapper.dataset.msgId = m.id;
+
+    // تحضير العناصر المشتركة
+    const statusIconHTML = getStatusIconHTML(m.status);
+    const timeHtml = `<span class="cls3741_msg_time">${escapeHtml(m.time)}</span>`;
+    
+    // تصحيح: إزالة الأقواس [] الزائدة من data-msg-id
+    const msg_status = isMe ? 
+        `<span class="cls3741_msg_status" data-msg-id="${m.id}" style="z-index:123; color:var(--wa-msg-muted); margin-top: 6px;">${statusIconHTML}</span>` : '';
+
+    // ============================================================
+    // 1. معالجة الصوت (Audio)
+    // ============================================================
+    if (m.type === 'audio') {
         const audioUrl = escapeHtml(m.url || '');
         const isValidAudio = audioUrl && audioUrl.trim() !== '' && audioUrl !== 'None' && audioUrl !== 'null';
+        const uniqueId = `audio_${m.id || Date.now()}`;
+        const audioSrc = isValidAudio ? audioUrl : '';
 
-       
-        if (!isValidAudio) {
-          console.warn('🎵 Invalid audio URL:', {
-            url: m.url,
-            escapedUrl: audioUrl,
-            type: m.type
-          });
-        }
-
-         // داخل دالة makeMessageNode، استبدل جزء الصوت بهذا الكود:
-
-const uniqueId = `audio_${m.id || Date.now()}`; // معرف فريد لربط العناصر
-const audioSrc = isValidAudio ? audioUrl : '';
-const uniqueMediaId = `media_${m.id || Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
- 
-wrapper.innerHTML = `
-    <div class="audio green-audio-player" id="player_${uniqueId}">
-        
-        <div class="play-pause-btn" onclick="togglePlayPause('${uniqueId}')">
-            <svg viewBox="0 0 18 24" height="20" width="15" xmlns="http://www.w3.org/2000/svg">
-                <path class="play-pause-icon" d="M18 12L0 24V0" fill-rule="evenodd"></path>
-            </svg>
-        </div>
-
-        <div class="controls">
-            <span class="current-time">0:00</span>
-            
-            <div class="slider" data-direction="horizontal" onclick="seekAudio(event, '${uniqueId}')">
-                <div class="progress">
-                    <div class="pin"></div>
+        wrapper.innerHTML = `
+            <div class="audio green-audio-player" id="player_${uniqueId}">
+                <div class="play-pause-btn" onclick="togglePlayPause('${uniqueId}')">
+                    <svg viewBox="0 0 18 24" height="20" width="15" xmlns="http://www.w3.org/2000/svg">
+                        <path class="play-pause-icon" d="M18 12L0 24V0" fill-rule="evenodd"></path>
+                    </svg>
                 </div>
+                <div class="controls">
+                    <span class="current-time">0:00</span>
+                    <div class="slider" data-direction="horizontal" onclick="seekAudio(event, '${uniqueId}')">
+                        <div class="progress"><div class="pin"></div></div>
+                    </div>
+                    <span class="total-time">--:--</span>
+                </div>
+                <div class="volume">
+                    <div class="volume-btn" onclick="toggleVolumeSlider('${uniqueId}')">
+                        <svg viewBox="0 0 24 24" height="20" width="20" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M14.667 0v2.747c3.853 1.146 6.666 4.72 6.666 8.946 0 4.227-2.813 7.787-6.666 8.934v2.76C20 22.173 24 17.4 24 11.693 24 5.987 20 1.213 14.667 0zM18 11.693c0-2.36-1.333-4.386-3.333-5.373v10.707c2-.947 3.333-2.987 3.333-5.334zm-18-4v8h5.333L12 22.36V1.027L5.333 7.693H0z" fill-rule="evenodd"></path>
+                        </svg>
+                    </div>
+                </div>
+                <audio id="audio_el_${uniqueId}" ontimeupdate="updateProgress('${uniqueId}')" onloadedmetadata="initAudioDuration('${uniqueId}')" onended="resetPlayer('${uniqueId}')">
+                    <source src="${audioSrc}" type="audio/ogg">
+                    <source src="${audioSrc}" type="audio/mpeg">
+                    <source src="${audioSrc}" type="audio/mp4">
+                </audio>
             </div>
-            
-            <span class="total-time">--:--</span>
-        </div>
+            <div class="cls3741_msg_footer" style="display:flex; justify-content:flex-end; gap: 5px; margin-top:5px;">
+                ${timeHtml} ${msg_status}
+            </div>
+        `;
+        
+        // التحقق من الخطأ في الصوت بعد قليل
+        setTimeout(() => {
+             if (!isValidAudio) {
+                const container = wrapper.querySelector('.audio'); // تأكد من الكلاس الصحيح
+                if (container) {
+                    container.innerHTML = `<div class="p-2 text-red-400 text-sm">⚠️ Audio file not available</div>`;
+                }
+             }
+        }, 100);
 
-        <div class="volume">
-            <div class="volume-btn" onclick="toggleVolumeSlider('${uniqueId}')">
-                <svg viewBox="0 0 24 24" height="20" width="20" xmlns="http://www.w3.org/2000/svg">
-                    <path d="M14.667 0v2.747c3.853 1.146 6.666 4.72 6.666 8.946 0 4.227-2.813 7.787-6.666 8.934v2.76C20 22.173 24 17.4 24 11.693 24 5.987 20 1.213 14.667 0zM18 11.693c0-2.36-1.333-4.386-3.333-5.373v10.707c2-.947 3.333-2.987 3.333-5.334zm-18-4v8h5.333L12 22.36V1.027L5.333 7.693H0z" fill-rule="evenodd"></path>
-                </svg>
+    // ============================================================
+    // 2. معالجة الصور (Image)
+    // ============================================================
+    } else if (m.type === 'image') {
+        const uniqueMediaId = `media_${m.id || Date.now()}`;
+        wrapper.innerHTML = `
+            <div class="media-loading-wrapper" id="wrapper_${uniqueMediaId}">
+                <div class="image_skeleton_loader"></div>
+                <img 
+                    src="${m.url}" 
+                    class="real-media-element" 
+                    alt="image"
+                    loading="lazy"
+                    onload="onMediaLoaded(this)"
+                    onerror="onMediaError(this)"
+                    onclick="openImageModal('${m.url}')"
+                >
             </div>
-            <div class="volume-controls hidden">
-                <div class="slider" data-direction="vertical" onclick="setVolume(event, '${uniqueId}')">
-                    <div class="progress" style="height: 80%;">
-                        <div class="pin"></div>
+            <div class="cls3741_msg_footer">
+                ${timeHtml} ${msg_status}
+            </div>
+        `;
+
+    // ============================================================
+    // 3. معالجة الفيديو (Video)
+    // ============================================================
+    } else if (m.type === 'video') {
+        const uniqueMediaId = `media_${m.id || Date.now()}`;
+        wrapper.innerHTML = `
+            <div class="media-loading-wrapper" id="wrapper_${uniqueMediaId}">
+                <div class="image_skeleton_loader"></div>
+                <video 
+                    src="${m.url}" 
+                    class="real-media-element" 
+                    controls
+                    preload="metadata"
+                    onloadeddata="onMediaLoaded(this)"
+                    onerror="onMediaError(this)"
+                ></video>
+            </div>
+            <div class="cls3741_msg_footer">
+                ${timeHtml} ${msg_status}
+            </div>
+        `;
+
+    // ============================================================
+    // 4. معالجة السجلات (System Log)
+    // ============================================================
+    } else if (m.type === 'log' || m.is_internal) {
+        wrapper.className = 'system-log-wrapper animate-fadeIn'; 
+        wrapper.innerHTML = `
+            <div class="system-log-card">
+                <div class="log-header">
+                    <div class="log-icon-box">
+                        <i class="fas fa-info-circle"></i>
+                    </div>
+                    <span class="log-title">SYSTEM ACTIVITY</span>
+                </div>
+                <div class="log-body">
+                    <p class="log-message">${escapeHtml(m.body)}</p>
+                    <div class="log-meta">
+                        <span>${m.time || m.timestamp}</span>
                     </div>
                 </div>
             </div>
-        </div>
+        `;
+        // أزلت return wrapper من هنا لكي يطبق عليه الأنيميشن في الأسفل
 
-        <audio id="audio_el_${uniqueId}"  ontimeupdate="updateProgress('${uniqueId}')" onloadedmetadata="initAudioDuration('${uniqueId}')" onended="resetPlayer('${uniqueId}')">
-            <source src="${audioSrc}" type="audio/ogg">
-            <source src="${audioSrc}" type="audio/mpeg">
-            <source src="${audioSrc}" type="audio/mp4">
-        </audio>
-    </div>
-
-    <div class="cls3741_msg_footer" style="display:flex; justify-content:flex-end; gap: 5px; margin-top:5px;">
-        ${timeHtml} ${msg_status}
-    </div>
-`;
-
+    // ============================================================
+    // 5. معالجة الموقع الجغرافي (Location)
+    // ============================================================
+    } else if (m.type === 'location') {
+        // تنظيف الإحداثيات
+        const coords = (m.body || "").split(',');
+        const lat = coords[0] ? coords[0].trim() : '0';
+        const lng = coords[1] ? coords[1].trim() : '0';
         
-        setTimeout(() => {
-          const audioElement = wrapper.querySelector('.audio-element');
-          if (audioElement && isValidAudio) {
-            console.log('..')
-            // initializeAdvancedAudioPlayer(wrapper);
-          } else if (!isValidAudio) {
-            // إذا لم يكن هناك رابط صوتي صحيح
-            const container = wrapper.querySelector('.audio-container');
-            if (container) {
-              container.innerHTML = `
-                <div class="audio-error">
-                  <svg viewBox="0 0 24 24" width="20" height="20">
-                    <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/>
-                  </svg>
-                  <span>المقطع الصوتي غير متوفر</span>
-                </div>
-              `;
-            }
-          }
-        }, 100);
-      } else if (m.type === 'image') {
-    wrapper.innerHTML = `
-        <div class="media-loading-wrapper" id="wrapper_media_${m.id || Date.now()}_${Math.random().toString(36).substr(2, 9)}">
-            <div class="image_skeleton_loader" id="skeleton_media_${m.id || Date.now()}_${Math.random().toString(36).substr(2, 9)}"></div>
+        // تصحيح: رابط خرائط جوجل الرسمي
+        const mapUrl = `https://maps.google.com/?q=${lat},${lng}`;
 
-            <img 
-                src="${m.url}" 
-                class="real-media-element" 
-                alt="image"
-                onload="onMediaLoaded(this)"
-                onerror="onMediaError(this)"
-                onclick="openImageModal('${m.url}')"
-            >
-        </div>
-        
-        <div class="cls3741_msg_footer">
-            ${timeHtml} ${msg_status}
-        </div>
-    `;
+        const alignClass = isMe ? 'justify-end' : 'justify-start';
+        const bgClass = isMe ? 'bg-indigo-600' : 'bg-gray-700';
 
-} else if (m.type === 'video') {
-    wrapper.innerHTML = `
-        <div class="media-loading-wrapper" id="wrapper_media_${m.id || Date.now()}_${Math.random().toString(36).substr(2, 9)}">
-            <div class="image_skeleton_loader" id="skeleton_media_${m.id || Date.now()}_${Math.random().toString(36).substr(2, 9)}"></div>
-
-            <video 
-                src="${m.url}" 
-                class="real-media-element" 
-                controls
-                onloadeddata="onMediaLoaded(this)"
-                onerror="onMediaError(this)"
-            ></video>
-        </div>
-        
-        <div class="cls3741_msg_footer">
-            ${timeHtml} ${msg_status}
-        </div>
-    `;
-} else if (m.type === 'log' || m.is_internal) {
-    wrapper.className = 'system-log-wrapper animate-fadeIn'; 
-    wrapper.innerHTML = `
-        <div class="system-log-card">
-            <div class="log-header">
-                <div class="log-icon-box">
-                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <path d="M12 2v20M2 12h20M12 2a10 10 0 0 1 10 10M2 12a10 10 0 0 0 10 10"/> <path d="M12 12 2.5 7.5"/>
-                    </svg>
-                </div>
-                <span class="log-title">SYSTEM ACTIVITY</span>
-            </div>
-            
-            <div class="log-body">
-                <p class="log-message">${escapeHtml(m.body)}</p>
-                <div class="log-meta">
-                    <i class="far fa-clock"></i>
-                    <span>${m.time || m.timestamp}</span>
-                    ${m.sender_name ? `<span class="log-divider">•</span> <i class="far fa-user"></i> <span>${m.sender_name}</span>` : ''}
-                </div>
-            </div>
-        </div>
-    `;
-    return wrapper; }
-    if (m.type === 'location') {
-        // نفترض أن الـ body يحتوي على "lat,long"
-        const coords = m.body.split(',');
-        const lat = coords[0];
-        const lng = coords[1];
-        const mapUrl = `https://www.google.com/maps/search/?api=1&query=${lat},${lng}`;
-
-        // تحديد كلاس الاتجاه (يمين/يسار)
-        const alignClass = m.fromMe ? 'justify-end' : 'justify-start';
-        const bgClass = m.fromMe ? 'bg-indigo-600' : 'bg-gray-700';
-
+        // إضافة كلاسات العرض
         wrapper.className = `w-full flex ${alignClass} my-2 animate-fadeIn`;
         
         wrapper.innerHTML = `
@@ -6148,7 +6129,6 @@ wrapper.innerHTML = `
                         <i class="fas fa-map-marker-alt text-red-500 text-2xl"></i>
                     </div>
                 </div>
-                
                 <div class="loc-body">
                     <h6 class="loc-title">Live Location</h6>
                     <p class="loc-coords">${lat}, ${lng}</p>
@@ -6156,40 +6136,40 @@ wrapper.innerHTML = `
                         <i class="fas fa-external-link-alt me-2"></i> Open in Maps
                     </a>
                 </div>
-                
                 <div class="loc-meta">
                     <span>${m.time || m.timestamp}</span>
                 </div>
             </div>
         `;
-        return wrapper;
+         // أزلت return wrapper من هنا أيضاً
+
+    // ============================================================
+    // 6. الافتراضي: رسائل نصية (Text)
+    // ============================================================
     } else {
         wrapper.innerHTML = `
           <div class="cls3741_text">${escapeHtml(m.body || '')}</div>
-          <div class="cls3741_msg_footer" style="display:flex; justify-content: flex-end; 
-    gap: 5px;">
+          <div class="cls3741_msg_footer" style="display:flex; justify-content: flex-end; gap: 5px;">
             ${timeHtml}
             ${msg_status}
           </div>
         `;
-      }
-
-
-
-      wrapper.style.opacity = '0';
-      wrapper.style.transform = 'translateY(10px)';
-      wrapper.style.transition = 'all 0.3s ease';
-
-      setTimeout(() => {
-        wrapper.style.opacity = '1';
-        wrapper.style.transform = 'translateY(0)';
-      }, 50);
-
-      return wrapper;
     }
 
+    // ============================================================
+    // الأنيميشن النهائي (يطبق على الجميع الآن)
+    // ============================================================
+    wrapper.style.opacity = '0';
+    wrapper.style.transform = 'translateY(10px)';
+    wrapper.style.transition = 'all 0.3s ease';
 
+    setTimeout(() => {
+        wrapper.style.opacity = '1';
+        wrapper.style.transform = 'translateY(0)';
+    }, 50);
 
+    return wrapper;
+}
 
 
 /* --- دوال تكبير الصورة --- */
@@ -6227,7 +6207,8 @@ window.onMediaLoaded = function(element) {
         skeleton.style.display = 'none'; // إخفاء اللودر
     }
     
-    element.classList.add('loaded'); // إظهار الصورة/الفيديو
+    element.classList.add('loaded'); 
+
     wrapper.style.minHeight = 'auto'; // تحرير الطول
 };
 
@@ -6456,6 +6437,7 @@ function formatTime(seconds) {
         }
         
         const node = makeMessageNode(m);
+        // console.log('node' , node)
         messagesArea.appendChild(node);
         if(m.id && m.id > (lastMessageId||0)) lastMessageId = m.id;
         hasNewMessages = true;
