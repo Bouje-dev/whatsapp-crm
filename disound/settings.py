@@ -20,7 +20,9 @@ DEBUG = True
 # ALLOWED_HOSTS = []
 CSRF_TRUSTED_ORIGINS = [
    'https://rufus-unshotted-corina.ngrok-free.dev' ,
-   'https://rufus-unshotted-corina.ngrok-free.dev/'
+   'https://rufus-unshotted-corina.ngrok-free.dev/',
+   'app.waselytics.com'
+   
 ]
 
 # APPEND_SLASH=False
@@ -189,7 +191,9 @@ DEFAULT_FROM_EMAIL = os.environ.get('DEFAULT_FROM_EMAIL')
  
  
 ALLOWED_HOSTS = ['*']
-CSRF_TRUSTED_ORIGINS = ['https://*.up.railway.app']
+CSRF_TRUSTED_ORIGINS = ['https://*.up.railway.app', 'https://app.waselytics.com',
+'https://*waselytics.com', 'https://waselytics.com', 'https://*.127.0.0.1', 'https://*.localhost']
+
 
  # قراءة المفاتيح من Railway/Environment
 AWS_ACCESS_KEY_ID = os.environ.get('AWS_ACCESS_KEY_ID')
@@ -246,3 +250,4 @@ NAQEL_ENDPOINT = "https://infotrack.naqelexpress.com/NaqelAPIServices/NaqelAPIDe
 NAQEL_CLIENT_ID = "YOUR_CLIENT_ID"
 NAQEL_PASSWORD = "YOUR_PASSWORD"
 NAQEL_VERSION = "9.0"
+# https://app.waselytics.com/

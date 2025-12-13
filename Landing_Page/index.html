@@ -261,7 +261,8 @@
 
   <header>
     <div class="container nav-inner">
-      <div class="logo">
+
+      <div class="logo" style="display:flex;align-items:center;gap:8px;cursor:pointer" onclick="window.location.href='https://waselytics.com'">
         <div style="width:24px;height:24px;background:var(--primary);border-radius:4px;"></div>
         Waselytics
       </div>
@@ -495,8 +496,176 @@
 
   </main>
 
+  <footer>
+    <div class="container">
+      <div class="footer-grid">
+        <div class="footer-col-brand">
+          <div class="logo" style="margin-bottom:15px;">
+            <div style="width:24px;height:24px;background:var(--primary);border-radius:4px;"></div>
+            Waselytics
+          </div>
+          <p style="margin-bottom:20px;">
+            The Operating System for COD businesses. Tracking ads to real cash deposits.
+          </p>
+          
+          <div class="company-details">
+            <strong>Waselytics LLC</strong><br>
+            1209 MOUNTAIN ROAD PL NE, STE R<br>
+            ALBUQUERQUE, NM 87110, USA<br>
+            <a href="mailto:admin@waselytics.com" class="contact-link">admin@waselytics.com</a>
+          </div>
+        </div>
 
-  {% include 'footer.html' %}
+        <div>
+          <h4 class="footer-heading">Product</h4>
+          <ul class="footer-links">
+            <li><a href="#analytics">Deep Attribution</a></li>
+            <li><a href="#whatsapp">WhatsApp AI Agents</a></li>
+            <li><a href="#inventory">Inventory Forecast</a></li>
+            <li><a href="#">Pricing</a></li>
+          </ul>
+        </div>
+
+        <div>
+          <h4 class="footer-heading">Company</h4>
+          <ul class="footer-links">
+            <li><a href="/about.html">About Us</a></li>
+            <!-- <li><a href="#">Careers</a></li> -->
+            <!-- <li><a href="#">Blog</a></li> -->
+            <li><a href="/contact.html">Contact Support</a></li>
+          </ul>
+        </div>
+
+        <div>
+          <h4 class="footer-heading">Legal</h4>
+          <ul class="footer-links">
+            <li><a href="/privacy_policy.html">Privacy Policy</a></li> <li><a href="/terms.html">Terms of Service</a></li>    <li><a href="/data_deletion.html">Data Deletion</a></li>
+            <li><a href="#">Cookie Policy</a></li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="footer-bottom">
+        <div>© 2025 Waselytics LLC. All rights reserved.</div>
+        <div class="social-icons">
+            <a href="#"><i class="fab fa-facebook"></i></a>
+            <a href="#"><i class="fab fa-twitter"></i></a>
+            <a href="#"><i class="fab fa-instagram"></i></a>
+            <a href="#"><i class="fab fa-linkedin"></i></a>
+        </div>
+      </div>
+    </div>
+  </footer>
+
+
+  <style>
+
+
+
+/* ---------- 8. FOOTER (PROFESSIONAL UPDATE) ---------- */
+footer {
+      background: #020617; /* لون أغمق قليلاً من الخلفية للتمييز */
+      padding: 80px 0 30px;
+      border-top: 1px solid var(--border);
+      margin-top: 100px;
+      font-size: 14px;
+      position: relative;
+      overflow: hidden;
+    }
+    /* تأثير إضاءة خفيف في الخلفية */
+    footer::before {
+      content: ''; position: absolute; top: 0; left: 50%; transform: translateX(-50%);
+      width: 60%; height: 1px;
+      background: linear-gradient(90deg, transparent, var(--primary), transparent);
+      opacity: 0.5;
+    }
+
+    .footer-grid {
+      display: grid;
+      grid-template-columns: 2fr 1fr 1fr 1fr; /* العمود الأول أعرض */
+      gap: 40px;
+      margin-bottom: 60px;
+    }
+
+    .footer-heading {
+      color: white;
+      margin-bottom: 20px;
+      font-size: 15px;
+      font-weight: 600;
+    }
+
+    .footer-links {
+      display: flex; flex-direction: column; gap: 12px;
+    }
+
+    .footer-links a {
+      color: var(--text-muted);
+      transition: 0.2s ease;
+    }
+    .footer-links a:hover {
+      color: var(--primary);
+      transform: translateX(3px);
+    }
+
+    .footer-col-brand p {
+      color: var(--text-muted);
+      margin-bottom: 20px;
+      max-width: 300px;
+      line-height: 1.5;
+    }
+
+    /* تنسيق معلومات الشركة للتوثيق */
+    .company-details {
+      background: rgba(255, 255, 255, 0.03);
+      padding: 15px;
+      border-radius: 12px;
+      border: 1px solid var(--border);
+      color: var(--text-muted);
+      font-size: 13px;
+      line-height: 1.6;
+      max-width: 300px;
+    }
+    .company-details strong { color: white; }
+    .contact-link {
+      color: var(--primary);
+      font-weight: 600;
+      display: block;
+      margin-top: 8px;
+    }
+
+    .footer-bottom {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding-top: 30px;
+      border-top: 1px solid var(--border);
+      color: var(--text-muted);
+    }
+
+    .social-icons { display: flex; gap: 15px; }
+    .social-icons a {
+      color: var(--text-muted);
+      font-size: 18px;
+      transition: 0.3s;
+    }
+    .social-icons a:hover { color: white; transform: translateY(-2px); }
+
+    /* Responsive Footer */
+    @media (max-width: 900px) {
+      .footer-grid { grid-template-columns: 1fr 1fr; }
+      .footer-col-brand { grid-column: span 2; margin-bottom: 20px; }
+    }
+    @media (max-width: 600px) {
+      .footer-grid { grid-template-columns: 1fr; text-align: center; }
+      .footer-col-brand { grid-column: span 1; align-items: center; display: flex; flex-direction: column; }
+      .footer-links a:hover { transform: none; }
+      .footer-bottom { flex-direction: column; gap: 20px; }
+      .company-details { text-align: left; } /* يبقى العنوان مقروءاً */
+    }
+  </style>
+
+
+
    
   <script>
     // 1. Scroll Reveal Animation
@@ -560,267 +729,4 @@
   </script>
 </body>
 </html>
-
-<!-- 
-<script>
-  // STORE TRACKER - combined (pageview on load + send phone on external button click)
-// Paste this after DOM or at end of body
-
-(function(){
-  // ---------- Configuration (عدل إذا لزم) ----------
-  window.__STORE_TRACKER_CFG = window.__STORE_TRACKER_CFG || {
-    storeUrl: "store.example/com",
-    storeHash: "c3RvcmUuZXhh",
-    enableDiscount: false,
-    blockRepeat: true,
-    visitorSource: "all",
-    audience: "public",
-    addons: "",
-    createdAt: new Date().toISOString(),
-    collectorUrl: "/collect",
-    captureVisitEndpoint: "https://boujema.pythonanywhere.com/discount/marketing/api/capture-visit/",
-    flow_id: null // ضع هنا flow_id إن أردت إرساله (ليس flow_api_key)
-  };
-
-  const cfg = window.__STORE_TRACKER_CFG;
-  const collectorUrl = cfg.captureVisitEndpoint || cfg.collectorUrl || '/collect';
-
-  // ---------- LocalStorage keys ----------
-  const VISITOR_KEY = '__visitor_id';
-  const CREATED_KEY = '__visitor_created_at';
-  const VISITS_KEY_PREFIX = '__sv_visits_';
-  const QUEUE_KEY = '__st_phone_capture_queue_v1';
-  const SENT_MARK_KEY = '__st_phone_last_sent_v1';
-  const DEDUP_MS = 24*60*60*1000; // منع إرسال نفس الرقم خلال 24 ساعة
-
-  // ---------- helper: try send beacon / fetch ----------
-  function trySendBeacon(url, bodyObj){
-    try{
-      const payload = typeof bodyObj === 'string' ? bodyObj : JSON.stringify(bodyObj);
-      if(navigator.sendBeacon){
-        try{
-          const ok = navigator.sendBeacon(url, payload);
-          if(ok) return true;
-        }catch(e){}
-      }
-      try {
-        fetch(url, { method:'POST', headers:{'Content-Type':'application/json'}, body: payload, keepalive:true }).catch(()=>{});
-        return true;
-      } catch(e){ return false; }
-    }catch(e){ return false; }
-  }
-
-  // ---------- visitor id creation if missing ----------
-  function ensureVisitor(){
-    try{
-      let vid = localStorage.getItem(VISITOR_KEY);
-      if(!vid){
-        vid = Math.random().toString(36).substr(2);
-        localStorage.setItem(VISITOR_KEY, vid);
-      }
-      let created = localStorage.getItem(CREATED_KEY);
-      if(!created){
-        created = new Date().toISOString();
-        localStorage.setItem(CREATED_KEY, created);
-      }
-      return { visitorId: vid, createdAt: created };
-    }catch(e){
-      return { visitorId: null, createdAt: null };
-    }
-  }
-
-  // ---------- utility: get URL param ----------
-  function getParam(name){
-    try{
-      name = name.replace(/[[]]/g,'$&');
-      const regex = new RegExp('[?&]'+name+'=([^&#]*)');
-      const results = regex.exec(location.search);
-      return results ? decodeURIComponent(results[1].replace(/\+/g,' ')) : '';
-    }catch(e){ return ''; }
-  }
-
-  // ---------- collect UTM/ad fields ----------
-  function collectUtm(){
-    return {
-      utm_campaign: getParam('utm_campaign') || getParam('utm_campaign_id') || '',
-      utm_source: getParam('utm_source') || '',
-      utm_medium: getParam('utm_medium') || '',
-      ad_id: getParam('ad_id') || '',
-      site_source_name: getParam('site_source_name') || '',
-      ad_name: getParam('ad_name') || ''
-    };
-  }
-
-  // ---------- pageview: increment visits and send event ----------
-  (function sendInitialPageview(){
-    try{
-      const storeHash = cfg.storeHash || 'default';
-      const visitsKey = VISITS_KEY_PREFIX + storeHash;
-      let v = parseInt(localStorage.getItem(visitsKey) || '0', 10);
-      v = isNaN(v) ? 1 : v + 1;
-      localStorage.setItem(visitsKey, v);
-
-      const vidObj = ensureVisitor();
-      const utm = collectUtm();
-      const payload = {
-        event: 'pageview',
-        ts: Date.now(),
-        visitorId: vidObj.visitorId,
-        url: location.href,
-        key: visitsKey,
-        referrer: document.referrer || null,
-        visits: v,
-        store: cfg.storeUrl || null,
-        ...utm,
-        userAgent: navigator.userAgent || null,
-        flow_id: cfg.flow_id || null
-      };
-
-      trySendBeacon(collectorUrl, payload);
-    }catch(e){}
-  })();
-
-  // ---------- phone normalization and validation ----------
-  function normalizePhone(raw){
-    if(!raw) return '';
-    let s = raw.trim();
-    if(s.startsWith('+')) s = '+' + s.slice(1).replace(/[^\d]/g,'');
-    else s = s.replace(/[^\d]/g,'');
-    return s;
-  }
-  function simpleValid(phone){
-    const digits = phone.replace(/[^\d]/g,'');
-    return digits.length >= 7; // عدّل حسب حاجتك السوقية
-  }
-
-  // ---------- queue for failed phone sends ----------
-  function enqueuePayload(payload){
-    try{
-      const q = JSON.parse(localStorage.getItem(QUEUE_KEY) || '[]');
-      q.push({ payload, attempts:0, next: Date.now() });
-      localStorage.setItem(QUEUE_KEY, JSON.stringify(q));
-    }catch(e){}
-  }
-
-  async function attemptSend(payload){
-    const body = JSON.stringify(payload);
-    try{
-      if(navigator.sendBeacon){
-        const ok = navigator.sendBeacon(collectorUrl, body);
-        if(ok) return { ok:true, method:'beacon' };
-      }
-    }catch(e){}
-    try{
-      const resp = await fetch(collectorUrl, { method:'POST', headers:{'Content-Type':'application/json'}, body, keepalive:true });
-      if(resp && resp.ok) return { ok:true, status: resp.status, method:'fetch' };
-      return { ok:false, status: resp && resp.status };
-    }catch(err){
-      return { ok:false, error: err && err.message };
-    }
-  }
-
-  async function processQueueOnce(){
-    try{
-      const raw = localStorage.getItem(QUEUE_KEY);
-      if(!raw) return;
-      let q = JSON.parse(raw || '[]');
-      if(!Array.isArray(q) || q.length === 0) return;
-      const now = Date.now();
-      const remaining = [];
-      for(const entry of q){
-        if(entry.next && entry.next > now){ remaining.push(entry); continue; }
-        const res = await attemptSend(entry.payload);
-        if(res.ok){
-          try{ localStorage.setItem(SENT_MARK_KEY, JSON.stringify({ phone: entry.payload.raw_phone, ts: Date.now() })); }catch(e){}
-        } else {
-          entry.attempts = (entry.attempts||0) + 1;
-          entry.next = Date.now() + Math.min(60000 * Math.pow(2, Math.min(entry.attempts,6)), 60*60*1000);
-          if(entry.attempts <= 8) remaining.push(entry);
-        }
-        await new Promise(r => setTimeout(r, 150));
-      }
-      localStorage.setItem(QUEUE_KEY, JSON.stringify(remaining));
-    }catch(e){}
-  }
-
-  window.addEventListener('online', processQueueOnce);
-  setInterval(processQueueOnce, 30 * 1000);
-
-  // ---------- prevent duplicate sends local ----------
-  function wasRecentlySent(phone){
-    try{
-      const o = JSON.parse(localStorage.getItem(SENT_MARK_KEY) || 'null');
-      return o && o.phone === phone && (Date.now() - o.ts) < DEDUP_MS;
-    }catch(e){ return false; }
-  }
-  function markSent(phone){
-    try{ localStorage.setItem(SENT_MARK_KEY, JSON.stringify({ phone, ts: Date.now() })); }catch(e){}
-  }
-
-  // ---------- collect extra context to match original payload ----------
-  function collectContext(){
-    const cfgLocal = cfg || {};
-    const utm = collectUtm();
-    return {
-      referrer: document.referrer || null,
-      store: cfgLocal.storeUrl || null,
-      flow_id: cfgLocal.flow_id || null,
-      userAgent: navigator.userAgent || null,
-      ...utm
-    };
-  }
-
-  // ---------- send phone payload (called on external button click) ----------
-  async function sendPhone(phone){
-    if(!phone) return;
-    if(!simpleValid(phone)) return;
-    if(wasRecentlySent(phone)) return;
-
-    const vid = localStorage.getItem(VISITOR_KEY) || null;
-    const ctx = collectContext();
-    const payload = Object.assign({}, ctx, {
-      event: 'phone_capture',
-      raw_phone: phone,
-      visitorId: vid,
-      url: location.href,
-      ts: Date.now()
-    });
-
-    try{
-      const res = await attemptSend(payload);
-      if(res.ok){ markSent(phone); return; }
-      enqueuePayload(payload);
-    }catch(e){
-      enqueuePayload(payload);
-    }
-  }
-
-  // ---------- attach to external button without blocking UI ----------
-  function attachToExternalButton(){
-    const form = document.querySelector('form#express-checkout-form') || document.querySelector('form');
-    if(!form) return;
-    // زركما الخارجي حسب الهيكل: .single-submit أو أي button[type="button"] تحت الصفحة
-    const externalBtn = document.querySelector('.single-submit') || document.querySelector('button[type="button"]');
-    if(!externalBtn) return;
-
-    externalBtn.addEventListener('click', function(){
-      try{
-        const phoneEl = form.querySelector('input[name="phone"]');
-        if(!phoneEl) return;
-        const raw = phoneEl.value || '';
-        const phone = normalizePhone(raw);
-        // لا نعرض أخطاء أو نمنع submit. فقط نحاول إرسال الهاتف إذا موجود وصالح.
-        sendPhone(phone);
-      }catch(e){}
-    }, { passive: true });
-  }
-
-  if(document.readyState === 'loading'){
-    document.addEventListener('DOMContentLoaded', attachToExternalButton);
-  } else {
-    attachToExternalButton();
-  }
-
-})();
-
-</script> -->
+ 

@@ -259,56 +259,192 @@
     <div class="orb orb-3"></div>
   </div>
 
-
   <header>
     <div class="container nav-inner">
       <div class="logo">
         <div style="width:24px;height:24px;background:var(--primary);border-radius:4px;"></div>
         Waselytics
       </div>
-      <nav class="nav-menu">
+      <!-- <nav class="nav-menu">
         <a href="#analytics" class="nav-link">Attribution</a>
         <a href="#whatsapp" class="nav-link">AI Agents</a>
         <a href="#pricing" class="nav-link">Pricing</a>
-      </nav>
+      </nav> -->
       <div style="display:flex;gap:12px">
-      
-        <button class="btn btn-glass login" style="padding:10px 16px; font-size:13px" onclick="window.location.href='/auth/login/'">Log in</button>
-        <button class="btn btn-primary sinup" style="padding:10px 16px; font-size:13px" onclick="window.location.href='/auth/singup/'" >Start Trial</button>
        
+
+        <button class="btn btn-glass login" style="padding:10px 16px; font-size:13px" onclick="window.location.href='app.waselytics.com/auth/login/'">Log in</button>
+        <button class="btn btn-primary sinup" style="padding:10px 16px; font-size:13px" onclick="window.location.href='app.waselytics.com/auth/singup/'" >Start Trial</button>
+       
+      
       </div>
     </div>
   </header>
 
+<style>
+    /* --- Legal & Content Pages Styling --- */
 
-<div class="container" style="padding: 80px 20px; max-width: 600px; text-align: center; color: var(--text-primary);">
-    <h1 style="margin-bottom: 20px;">Data Deletion Request</h1>
-    <p style="margin-bottom: 40px; color: var(--text-muted);">
-        According to Facebook Platform rules, we provide a way for users to request their data deletion.
-    </p>
+.cls3741_content_page {
+    background-color: var(--bg-deep);
+    min-height: 80vh;
+    padding: 60px 20px;
+    position: relative;
+    overflow: hidden;
+}
 
-    <div style="background: var(--bg-card); padding: 30px; border-radius: 16px; border: 1px solid var(--border); text-align: left;">
-        <h3>How to delete your data?</h3>
-        <p>If you wish to remove your account and all associated data from Waselytics, you can do so by following these steps:</p>
-        <ol style="padding-left: 20px; margin-bottom: 20px;">
-            <li>Log in to your Waselytics account.</li>
-            <li>Go to <strong>Settings</strong> > <strong>Profile</strong>.</li>
-            <li>Click on the "Delete Account" button at the bottom of the page.</li>
-        </ol>
-        
-        <p>Alternatively, you can submit a manual deletion request:</p>
-        <ol style="padding-left: 20px;">
-            <li>Send an email to <a href="mailto:support@waselytics.com" style="color: var(--primary);">support@waselytics.com</a>.</li>
-            <li>Subject: "Data Deletion Request".</li>
-            <li>Please include your registered email address.</li>
-        </ol>
-        
-        <p style="margin-top: 20px; font-size: 13px; color: var(--text-muted);">
-            * We will process your request and permanently delete your data within 30 days.
-        </p>
+/* تأثير الخلفية (Orbs) للصفحات الداخلية - اختياري */
+.cls3741_content_page::before {
+    content: ''; position: absolute; top: -10%; right: -10%;
+    width: 500px; height: 500px; background: var(--primary);
+    filter: blur(150px); opacity: 0.15; z-index: 0; pointer-events: none;
+}
+
+.cls3741_legal_container {
+    max-width: 900px;
+    margin: 0 auto;
+    position: relative;
+    z-index: 1;
+}
+
+/* بطاقة المحتوى الزجاجية */
+.cls3741_legal_card {
+    background: rgba(20, 25, 40, 0.6); /* خلفية شفافة قليلاً */
+    backdrop-filter: blur(20px);
+    border: 1px solid var(--border-color);
+    border-radius: 24px;
+    padding: 60px;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.4);
+}
+
+/* تنسيق العناوين */
+.cls3741_legal_header {
+    text-align: center;
+    margin-bottom: 50px;
+    border-bottom: 1px solid var(--border-color);
+    padding-bottom: 30px;
+}
+
+.cls3741_legal_title {
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 42px;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin-bottom: 10px;
+    background: linear-gradient(to right, #fff, #94a3b8);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+}
+
+.cls3741_legal_date {
+    color: var(--text-secondary);
+    font-size: 14px;
+    font-family: monospace;
+}
+
+/* تنسيق النص الداخلي */
+.cls3741_legal_body {
+    color: var(--text-secondary);
+    font-size: 16px;
+    line-height: 1.8;
+}
+
+.cls3741_legal_body h3 {
+    color: var(--text-primary);
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 22px;
+    margin-top: 40px;
+    margin-bottom: 15px;
+    display: flex; align-items: center; gap: 10px;
+}
+
+/* تلوين الأرقام بجانب العناوين */
+.cls3741_legal_body h3::before {
+    content: '#'; color: var(--accent); font-size: 18px; opacity: 0.6;
+}
+
+.cls3741_legal_body p { margin-bottom: 20px; }
+
+.cls3741_legal_body ul {
+    list-style: none; padding-left: 20px; margin-bottom: 20px;
+}
+.cls3741_legal_body li {
+    position: relative; padding-left: 25px; margin-bottom: 10px; color: var(--text-primary);
+}
+.cls3741_legal_body li::before {
+    content: '•'; color: var(--accent); font-size: 20px;
+    position: absolute; left: 0; top: -5px;
+}
+
+/* صندوق معلومات الشركة (للتميز) */
+.cls3741_company_box {
+    background: rgba(124, 58, 237, 0.05); /* بنفسجي خفيف */
+    border: 1px solid rgba(124, 58, 237, 0.2);
+    border-radius: 16px;
+    padding: 30px;
+    margin-top: 40px;
+}
+.cls3741_company_box strong { color: white; display: block; margin-bottom: 5px; font-size: 18px; }
+
+@media (max-width: 768px) {
+    .cls3741_legal_card { padding: 30px; }
+    .cls3741_legal_title { font-size: 32px; }
+}
+</style>
+
+
+
+<div class="cls3741_content_page">
+    <div class="cls3741_legal_container">
+        <div class="cls3741_legal_card">
+            
+            <div class="cls3741_legal_header">
+                <h1 class="cls3741_legal_title">Privacy Policy</h1>
+                <div class="cls3741_legal_date">Effective Date: December 2, 2025</div>
+            </div>
+
+            <div class="cls3741_legal_body">
+                <p>At <strong>Waselytics</strong>, we take your privacy seriously. This Privacy Policy explains how Waselytics LLC ("we", "us", or "our") collects, uses, and protects your information when you use our analytics and automation services.</p>
+
+                <h3>1. Information We Collect</h3>
+                <p>We collect information necessary to provide our services, including:</p>
+                <ul>
+                    <li><strong>Account Information:</strong> Name, email address, phone number, and business details.</li>
+                    <li><strong>Usage Data:</strong> Information on how you interact with our dashboard and features.</li>
+                    <li><strong>Integration Data:</strong> Data from connected platforms (e.g., Shopify, WhatsApp) to enable analytics.</li>
+                </ul>
+
+                <h3>2. How We Use Your Data</h3>
+                <p>Your data is used strictly for the following purposes:</p>
+                <ul>
+                    <li>To provide, maintain, and improve our services.</li>
+                    <li>To process transactions and manage your subscription.</li>
+                    <li>To send you technical notices, updates, and support messages.</li>
+                    <li>To comply with legal obligations.</li>
+                </ul>
+
+                <h3>3. Data Security</h3>
+                <p>We implement industry-standard security measures to protect your data. All sensitive information is encrypted in transit and at rest.</p>
+
+                <h3>4. Contact Information</h3>
+                <p>If you have any questions about this Privacy Policy, please contact us:</p>
+                
+                <div class="cls3741_company_box">
+                    <strong>Waselytics LLC</strong>
+                    <div style="color:var(--text-muted); margin-bottom:15px;">
+                        1209 MOUNTAIN ROAD PL NE, STE R<br>
+                        ALBUQUERQUE, NM 87110, USA
+                    </div>
+                    <a href="mailto:admin@waselytics.com" class="btn btn-primary" style="display:inline-block;">
+                        Contact Support
+                    </a>
+                </div>
+            </div>
+
+        </div>
     </div>
 </div>
 
+ 
 
 </body>
 </html>

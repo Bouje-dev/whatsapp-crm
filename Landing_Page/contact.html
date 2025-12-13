@@ -266,11 +266,11 @@
         <div style="width:24px;height:24px;background:var(--primary);border-radius:4px;"></div>
         Waselytics
       </div>
-      <nav class="nav-menu">
+      <!-- <nav class="nav-menu">
         <a href="#analytics" class="nav-link">Attribution</a>
         <a href="#whatsapp" class="nav-link">AI Agents</a>
         <a href="#pricing" class="nav-link">Pricing</a>
-      </nav>
+      </nav> -->
       <div style="display:flex;gap:12px">
       
         <button class="btn btn-glass login" style="padding:10px 16px; font-size:13px" onclick="window.location.href='/auth/login/'">Log in</button>
@@ -280,35 +280,83 @@
     </div>
   </header>
 
-
-<div class="container" style="padding: 80px 20px; max-width: 600px; text-align: center; color: var(--text-primary);">
-    <h1 style="margin-bottom: 20px;">Data Deletion Request</h1>
-    <p style="margin-bottom: 40px; color: var(--text-muted);">
-        According to Facebook Platform rules, we provide a way for users to request their data deletion.
-    </p>
-
-    <div style="background: var(--bg-card); padding: 30px; border-radius: 16px; border: 1px solid var(--border); text-align: left;">
-        <h3>How to delete your data?</h3>
-        <p>If you wish to remove your account and all associated data from Waselytics, you can do so by following these steps:</p>
-        <ol style="padding-left: 20px; margin-bottom: 20px;">
-            <li>Log in to your Waselytics account.</li>
-            <li>Go to <strong>Settings</strong> > <strong>Profile</strong>.</li>
-            <li>Click on the "Delete Account" button at the bottom of the page.</li>
-        </ol>
-        
-        <p>Alternatively, you can submit a manual deletion request:</p>
-        <ol style="padding-left: 20px;">
-            <li>Send an email to <a href="mailto:support@waselytics.com" style="color: var(--primary);">support@waselytics.com</a>.</li>
-            <li>Subject: "Data Deletion Request".</li>
-            <li>Please include your registered email address.</li>
-        </ol>
-        
-        <p style="margin-top: 20px; font-size: 13px; color: var(--text-muted);">
-            * We will process your request and permanently delete your data within 30 days.
+<div class="container" style="padding: 80px 20px; display: flex; gap: 50px; flex-wrap: wrap; justify-content: center;">
+    
+    <div style="flex: 1; min-width: 300px; max-width: 500px;">
+        <h1 style="margin-bottom: 20px;">Contact Us</h1>
+        <p style="color: var(--text-muted); margin-bottom: 40px;">
+            Have questions about our pricing, integrations, or enterprise solutions? Our team is here to help.
         </p>
+        
+        <div style="margin-bottom: 30px;">
+            <h4 style="margin-bottom: 10px;">Email Support</h4>
+            <a href="mailto:support@waselytics.com" style="color: var(--primary); font-size: 18px;">support@waselytics.com</a>
+        </div>
+
+        <div style="margin-bottom: 30px;">
+            <h4 style="margin-bottom: 10px;">Office Address</h4>
+            <p style="color: var(--text-primary);">
+                <strong>Waselytics LLC</strong><br>
+                1209 MOUNTAIN ROAD PL NE, STE R<br>
+                ALBUQUERQUE, NM 87110<br>
+                United States
+            </p>
+        </div>
+    </div>
+
+    <div style="flex: 1; min-width: 300px; max-width: 500px; background: var(--bg-card); padding: 40px; border-radius: 24px; border: 1px solid var(--border);">
+        <form action="https://formspree.io/f/meoynnro" method="POST" id="my-form">
+            <div style="margin-bottom: 20px;">
+                <label style="display:block; margin-bottom: 8px; color: var(--text-muted);">Full Name</label>
+                <input type="text" class="form-control" placeholder="Your name" style="width:100%; padding:12px; background:rgba(0,0,0,0.2); border:1px solid var(--border); color:white; border-radius:8px;">
+            </div>
+            
+            <div style="margin-bottom: 20px;">
+                <label style="display:block; margin-bottom: 8px; color: var(--text-muted);">Work Email</label>
+                <input type="email" required name="email" class="form-control" placeholder="you@company.com" style="width:100%; padding:12px; background:rgba(0,0,0,0.2); border:1px solid var(--border); color:white; border-radius:8px;">
+            </div>
+            
+            <div style="margin-bottom: 20px;">
+                <label style="display:block; margin-bottom: 8px; color: var(--text-muted);">Message</label>
+                <textarea required rows="4" name="message" class="form-control" placeholder="How can we help?" style="width:100%; padding:12px; background:rgba(0,0,0,0.2); border:1px solid var(--border); color:white; border-radius:8px; resize:none;"></textarea>
+            </div>
+            
+            <button class="btn btn-primary" id="my-form-button" style="width:100%;">Send Message</button>
+            <p id="my-form-status"></p>
+        </form>
     </div>
 </div>
-
-
+<script>
+    var form = document.getElementById("my-form");
+    
+    async function handleSubmit(event) {
+      event.preventDefault();
+      var status = document.getElementById("my-form-status");
+      var data = new FormData(event.target);
+      fetch(event.target.action, {
+        method: form.method,
+        body: data,
+        headers: {
+            'Accept': 'application/json'
+        }
+      }).then(response => {
+        if (response.ok) {
+          status.innerHTML = "Thanks for your submission!";
+          form.reset()
+        } else {
+          response.json().then(data => {
+            if (Object.hasOwn(data, 'errors')) {
+              status.innerHTML = data["errors"].map(error => error["message"]).join(", ")
+            } else {
+              status.innerHTML = "Oops! There was a problem submitting your form"
+            }
+          })
+        }
+      }).catch(error => {
+        status.innerHTML = "Oops! There was a problem submitting your form"
+      });
+    }
+    form.addEventListener("submit", handleSubmit)
+  </script>
 </body>
 </html>
