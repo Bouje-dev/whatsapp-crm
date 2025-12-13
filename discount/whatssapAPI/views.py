@@ -2802,7 +2802,7 @@ def api_team_stats(request):
 
     # 3. الحسابات (Aggregation)
     # نحسب فقط الطلبات التابعة لهذه القناة (target_channel)
-    confirmed_statuses = ['shipped', 'delivered', 'returned','confirmed']
+    confirmed_statuses = ['Shipped', 'Delivered', 'Returned','Confirmed']
     
     team_stats = users_qs.annotate(
         # العدد الكلي في هذه القناة
@@ -2812,12 +2812,12 @@ def api_team_stats(request):
         confirmed = Count('simple_orders', filter=Q(simple_orders__channel=target_channel, simple_orders__status__in=confirmed_statuses)),
 
         # الواصلة
-        delivered = Count('simple_orders', filter=Q(simple_orders__channel=target_channel, simple_orders__status='delivered')),
+        delivered = Count('simple_orders', filter=Q(simple_orders__channel=target_channel, simple_orders__status='Delivered')),
         
         # باقي الحالات
-        pending = Count('simple_orders', filter=Q(simple_orders__channel=target_channel, simple_orders__status='pending')),
-        cancelled = Count('simple_orders', filter=Q(simple_orders__channel=target_channel, simple_orders__status='cancelled')),
-        returned = Count('simple_orders', filter=Q(simple_orders__channel=target_channel, simple_orders__status='returned')),
+        pending = Count('simple_orders', filter=Q(simple_orders__channel=target_channel, simple_orders__status='Pending')),
+        cancelled = Count('simple_orders', filter=Q(simple_orders__channel=target_channel, simple_orders__status='Cancelled')),
+        returned = Count('simple_orders', filter=Q(simple_orders__channel=target_channel, simple_orders__status='Returned')),
 
     ).annotate(
         # حساب النسب المئوية
