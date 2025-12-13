@@ -2802,7 +2802,7 @@ def api_team_stats(request):
 
     # 3. الحسابات (Aggregation)
     # نحسب فقط الطلبات التابعة لهذه القناة (target_channel)
-    confirmed_statuses = ['Shipped', 'Delivered', 'Returned','Confirmed']
+    confirmed_statuses = ['Shipped', 'Delivered', 'Returned','Confirmed','Pending']
     
     team_stats = users_qs.annotate(
         # العدد الكلي في هذه القناة
