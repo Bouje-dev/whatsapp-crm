@@ -6108,46 +6108,77 @@ function makeMessageNode(m) {
     // 5. معالجة الموقع الجغرافي (Location)
     // ============================================================
     } else if (m.type === 'location') {
-        // تنظيف الإحداثيات
-        const coords = (m.body || "").split(',');
-        const lat = coords[0] ? coords[0].trim() : '0';
-        const lng = coords[1] ? coords[1].trim() : '0';
         
-        // تصحيح: رابط خرائط جوجل الرسمي
-        const mapUrl = `https://maps.google.com/?q=${lat},${lng}`;
+const coords = m.body.split(',');
 
-        const alignClass = isMe ? 'justify-end' : 'justify-start';
-        const bgClass = isMe ? 'bg-indigo-600' : 'bg-gray-700';
+const lat = coords[0];
 
-        // إضافة كلاسات العرض
-        wrapper.className = `w-full flex ${alignClass} my-2 animate-fadeIn`;
-        
-        wrapper.innerHTML = `
-            <div class="location-card ${bgClass}">
-                <div class="loc-header">
-                    <div class="loc-icon-bg">
-                        <i class="fas fa-map-marker-alt text-red-500 text-2xl"></i>
-                    </div>
-                </div>
-                <div class="loc-body">
-                    <h6 class="loc-title">Live Location</h6>
-                    <p class="loc-coords">${lat}, ${lng}</p>
-                    <a href="${mapUrl}" target="_blank" class="loc-btn">
-                        <i class="fas fa-external-link-alt me-2"></i> Open in Maps
-                    </a>
-                </div>
-                <div class="loc-meta">
-                    <span>${m.time || m.timestamp}</span>
-                </div>
-            </div>
-        `;
-         // أزلت return wrapper من هنا أيضاً
+const lng = coords[1];
+
+const mapUrl = `https://www.google.com/maps/search/?api=1&query=${lat},${lng}`;
+
+
+
+// تحديد كلاس الاتجاه (يمين/يسار)
+
+const alignClass = m.fromMe ? 'justify-end' : 'justify-start';
+
+const bgClass = m.fromMe ? 'bg-indigo-600' : 'bg-gray-700';
+
+
+
+wrapper.className = `w-full flex ${alignClass} my-2 animate-fadeIn`;
+
+
+wrapper.innerHTML = `
+
+<div class="location-card ${bgClass}">
+
+<div class="loc-header">
+
+<div class="loc-icon-bg">
+
+<i class="fas fa-map-marker-alt text-red-500 text-2xl"></i>
+
+</div>
+
+</div>
+
+
+<div class="loc-body">
+
+<h6 class="loc-title">Live Location</h6>
+
+<p class="loc-coords">${lat}, ${lng}</p>
+
+<a href="${mapUrl}" target="_blank" class="loc-btn">
+
+<i class="fas fa-external-link-alt me-2"></i> Open in Maps
+
+</a>
+
+</div>
+
+
+<div class="loc-meta">
+
+<span>${m.time || m.timestamp}</span>
+
+</div>
+
+</div>
+
+`;
+         
 
     // ============================================================
     // 6. الافتراضي: رسائل نصية (Text)
     // ============================================================
     } else {
-        wrapper.innerHTML = `
+       
+      
+      
+      wrapper.innerHTML = `
           <div class="cls3741_text">${escapeHtml(m.body || '')}</div>
           <div class="cls3741_msg_footer" style="display:flex; justify-content: flex-end; gap: 5px;">
             ${timeHtml}
@@ -6865,16 +6896,13 @@ async function fetchContactsAndUpdateUIws(wsData = null, loadFromApi = false) {
 
 // جعل الدالة عامة لتكون متاحة للسوكيت
 window.updateContactItemSingle = function(contactData) {
-    console.log('⚡ Updating Sidebar Item:', contactData);
-
+    
     const contactsListEl = document.getElementById('cls3741_contacts_list');
     if (!contactsListEl) return;
 
     // 1. تنظيف أرقام الهاتف للمقارنة الدقيقة
     const safePhone = (contactData.phone || '').replace(/^\+/, '').replace(/\s+/g, '');
-    
-    // 🔥 الخطوة الحاسمة: التحقق هل المحادثة مفتوحة الآن؟ 🔥
-    // نجلب الرقم المفتوح حالياً من الدالة العامة
+   
     let activeChatPhone = null;
     if (window.getCurrentChatPhone) {
         activeChatPhone = window.getCurrentChatPhone();
