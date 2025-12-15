@@ -1600,7 +1600,8 @@ from django.core.paginator import Paginator
 from django.db.models import Q
 from django.http import JsonResponse
 from discount.models import WhatsAppChannel, Contact # تأكد من المسارات
-
+ 
+            
 def api_contactsList(request):
     user = request.user
     
@@ -1608,36 +1609,45 @@ def api_contactsList(request):
     if not user.is_authenticated:
         return JsonResponse({"contacts": [], "error": "Auth required"}, status=401)
 
-    # 2. تحديد القنوات التي يملك المستخدم صلاحية عليها
-    if user.is_team_admin or user.is_superuser:
+    # 2. تحديد القنوات
+    if getattr(user, 'is_team_admin', False) or user.is_superuser:
+         # ملاحظة: تأكد أن المنطق هنا يطابق مودلز مشروعك (هل الأدمن هو الـ owner؟)
         allowed_channels = WhatsAppChannel.objects.filter(owner=user)
     else:
         allowed_channels = WhatsAppChannel.objects.filter(assigned_agents=user)
 
-    # 3. الحصول على معرف القناة من الرابط
+    # 3. استقبال وتنظيف البيانات (🔥 التصحيح هنا 🔥)
     req_channel_id = request.GET.get('channel_id')
+    stage_filter = request.GET.get('stage')
+
+    # تنظيف channel_id
+    if req_channel_id in ['null', 'undefined', '']:
+        req_channel_id = None
+        
+    # تنظيف stage_filter (هذا هو سبب المشكلة سابقاً)
+    if stage_filter in ['null', 'undefined', 'all', '']:
+        stage_filter = None
+
+    # تحديد القناة المستهدفة
     target_channel = None
-
-    # تنظيف المدخل (في حال جاء null كنص)
-    if req_channel_id == 'null': req_channel_id = None
-
     if req_channel_id:
         target_channel = allowed_channels.filter(id=req_channel_id).first()
     else:
         target_channel = allowed_channels.first()
 
-    # إذا لم يتم العثور على قناة
     if not target_channel:
         return JsonResponse({"contacts": [], "total_pages": 0})
 
-    # ============================================================
-    # 4. بناء الاستعلام (Query Building)
-    # ============================================================
+    # 4. بناء الكويري
+    contacts_qs = Contact.objects.filter(channel=target_channel) 
+     
     
-    # نبدأ بكل جهات الاتصال في هذه القناة
-    contacts_qs = Contact.objects.filter(channel=target_channel)
 
-    # أ) البحث (Search)
+    if stage_filter:
+        contacts_qs = contacts_qs.filter(pipeline_stage=stage_filter)
+        print(f"Stage filter: {stage_filter} , contacts count: {contacts_qs}"  )
+
+    # 5. البحث
     search_query = request.GET.get('q', '').strip()
     if search_query:
         contacts_qs = contacts_qs.filter(
@@ -1645,55 +1655,44 @@ def api_contactsList(request):
             Q(phone__icontains=search_query)
         )
 
-    # ب) الفلترة (Filter)
+    # 6. الترتيب والفلترة الإضافية
     filter_type = request.GET.get('filter', 'all')
     
     if filter_type == 'important':
-        # نفترض وجود حقل is_important في المودل
-        if hasattr(Contact, 'is_important'):
+        # تأكدنا من وجود الحقل لتجنب الأخطاء
+        if hasattr(Contact, 'is_important'): 
             contacts_qs = contacts_qs.filter(is_important=True)
             
     elif filter_type == 'recent':
         contacts_qs = contacts_qs.order_by('-last_interaction')
     else:
-        # الترتيب الافتراضي
         contacts_qs = contacts_qs.order_by('-last_interaction')
 
-    # ============================================================
-    # 5. التقسيم (Pagination)
-    # ============================================================
-    
+    # 7. الترحيل (Pagination)
     page_number = request.GET.get('page', 1)
-    page_size = 20 # عدد العناصر في الصفحة
+    page_size = 20 
     paginator = Paginator(contacts_qs, page_size)
     page_obj = paginator.get_page(page_number)
 
-    # ============================================================
-    # 6. تجهيز البيانات (Serialization)
-    # ============================================================
-    
     contacts_list = []
     for contact in page_obj:
         contacts_list.append({
             'id': contact.id,
             'phone': contact.phone,
             'name': contact.name or contact.phone,
-            
-            # تواريخ مهيأة
             'last_interaction': contact.last_interaction.strftime("%Y-%m-%d %H:%M") if contact.last_interaction else "-",
-            'created_at': contact.created_at.strftime("%Y-%m-%d") if hasattr(contact, 'created_at') else None,
-            
-            # الصورة
+            # التحقق من وجود الحقل لتجنب كراش إذا كان المودل قيد التطوير
+            'created_at': contact.created_at.strftime("%Y-%m-%d") if hasattr(contact, 'created_at') and contact.created_at else None,
             'profile_picture': contact.profile_picture.url if contact.profile_picture else None,
-            
-            # بيانات إضافية مفيدة للجدول
             'is_important': getattr(contact, 'is_important', False),
             'channel_name': target_channel.name,
-            # يمكنك إضافة عدد الطلبات هنا إذا كان لديك علاقة عكسية
-            # 'orders_count': contact.orders.count() 
+            'channel_id': target_channel.id,
+            'assigned_agent_id': contact.assigned_agent_id , # تأكد أن هذا الحقل يعيد ID وليس object
+            
+            # 🔥 إضافة مفيدة: إعادة المرحلة الحالية للفرونت إند
+            'pipeline_stage': contact.pipeline_stage 
         })
     
-    # إرجاع البيانات مع معلومات الصفحات
     return JsonResponse({
         "contacts": contacts_list,
         "has_next": page_obj.has_next(),
@@ -1701,8 +1700,11 @@ def api_contactsList(request):
         "current_page": page_obj.number,
         "total_count": paginator.count
     })
+
 # ---------------templates---------------------
  
+
+
 
 import json
 import re

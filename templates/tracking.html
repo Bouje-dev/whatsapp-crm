@@ -88,10 +88,10 @@
             padding: 0;
             display: flex;
             flex-direction: column;
-            min-height: 100vh;
-            
+            /* min-height: 100vh; */
+            height: 100vh;
             overflow: hidden;
-        }
+        } 
 
         /* Top Navigation Bar - Standard Bootstrap-like */
         .top-navbar {
@@ -204,6 +204,7 @@
             color: var(--text-light);
             margin-bottom: 2rem; /* Spacing between cards */
             box-shadow: none;
+            width: 100%;
         }
 
         .card-header {
@@ -646,7 +647,11 @@
             display: none;
         }
         .section-content.active {
-            display: block;
+            height: 100vh; /* إجبارها على أخذ طول الشاشة */
+    display: flex;
+    /* flex-direction: column; */
+    overflow: hidden;
+            /* display: block; */
         }
 
         .product-item {

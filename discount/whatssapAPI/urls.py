@@ -1,6 +1,6 @@
 
 from django.urls import path
-from . import views , flow , process_messages , templaite
+from . import views , flow , process_messages , templaite , whaDash
 
 from .flow import SaveFlowView 
 urlpatterns = [
@@ -68,7 +68,7 @@ path('api/assign-agent/', views.assign_agent_to_contact, name='assign_agent_to_c
 
 path('api/update-crm/', views.update_contact_crm, name='update_contact_crm'),
 
-
+path('/api/analytics/lifecycle/' , whaDash.api_lifecycle_stats , name='api_lifecycle_stats')
 
 ]
 

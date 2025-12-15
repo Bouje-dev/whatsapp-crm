@@ -175,6 +175,7 @@ def fetch_leads_for_skus(request, sku_list):
         if resp.status_code != 200:
             print("API returned status", resp.status_code, resp.text)
             break
+  
 
         try:
             resp_json = resp.json()

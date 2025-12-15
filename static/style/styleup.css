@@ -1,3 +1,187 @@
+/* الحاوية النسبية للقائمة */
+.cls3741_custom_dropdown {
+  position: relative;
+  display: inline-block;
+}
+
+/* زر القائمة الرئيسي */
+.cls3741_dropdown_trigger {
+  background: var(--bg-secondary); /* نفس لون خلفية الأزرار */
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: var(--text-secondary);
+  padding: 8px 16px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  transition: all 0.2s;
+  min-width: 160px; /* عرض مناسب */
+  justify-content: space-between;
+}
+
+.cls3741_dropdown_trigger:hover {
+  background: rgba(255, 255, 255, 0.05);
+  border-color: rgba(255, 255, 255, 0.2);
+  color: white;
+}
+
+/* القائمة المنبثقة */
+.cls3741_dropdown_menu {
+  display: none; /* مخفية افتراضياً */
+  position: absolute;
+  top: 110%; /* أسفل الزر قليلاً */
+  right: 0; /* محاذاة لليمين */
+  background: #1e293b; /* لون داكن جداً */
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 10px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+  z-index: 1000;
+  min-width: 180px;
+  overflow: hidden;
+  padding: 6px;
+}
+
+/* عناصر القائمة */
+.cls3741_dropdown_item {
+  padding: 10px 12px;
+  font-size: 13px;
+  color: #cbd5e1;
+  cursor: pointer;
+  border-radius: 6px;
+  transition: background 0.15s;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.cls3741_dropdown_item:hover {
+  background: rgba(124, 58, 237, 0.15); /* لون بنفسجي خفيف عند التحويم */
+  color: white;
+}
+
+/* كلاس لإظهار القائمة */
+.cls3741_dropdown_menu.show {
+  display: block;
+  animation: fadeInDown 0.2s ease;
+}
+
+/* أنيميشن بسيط */
+@keyframes fadeInDown {
+  from { opacity: 0; transform: translateY(-5px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+
+
+
+.cls3741_lifecycle_container {
+  display: grid;
+    gap: 16px;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  overflow-x: auto;
+  padding-bottom: 12px; /* مساحة للـ Scrollbar */
+  margin-bottom: 24px;
+  scrollbar-width: thin; /* للفايرفوكس */
+}
+
+/* تنسيق السكرول بار */
+.cls3741_lifecycle_container::-webkit-scrollbar {
+  height: 6px;
+}
+.cls3741_lifecycle_container::-webkit-scrollbar-track {
+  background: rgba(255,255,255,0.02);
+  border-radius: 10px;
+}
+.cls3741_lifecycle_container::-webkit-scrollbar-thumb {
+  background: rgba(255,255,255,0.1);
+  border-radius: 10px;
+}
+
+/* الكارت الواحد */
+.cls3741_lifecycle_card {
+  min-width: 200px;
+  background: var(--bg-secondary); /* لون الخلفية الداكن */
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  border-radius: 12px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  position: relative;
+  transition: transform 0.2s, border-color 0.2s;
+}
+
+.cls3741_lifecycle_card:hover {
+  transform: translateY(-2px);
+  border-color: rgba(255, 255, 255, 0.1);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+}
+
+/* الهيدر داخل الكارت */
+.cls3741_lc_header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+/* الرقم الكبير */
+.cls3741_lc_count {
+  font-size: 24px;
+  font-weight: 800;
+  color: white;
+  line-height: 1;
+}
+
+/* النسبة المئوية */
+.cls3741_lc_percent {
+  font-size: 12px;
+  color: #94a3b8;
+  background: rgba(255,255,255,0.05);
+  padding: 2px 6px;
+  border-radius: 4px;
+  margin-left: auto; /* دفعها لليمين */
+}
+
+/* الأيقونات الصغيرة في الأسفل */
+.cls3741_lc_footer {
+  display: flex;
+  gap: 12px;
+  margin-top: auto;
+  border-top: 1px solid rgba(255,255,255,0.05);
+  padding-top: 8px;
+}
+
+.cls3741_lc_metric {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  color: #64748b;
+}
+
+.cls3741_lc_metric i {
+  font-size: 12px;
+}
+
+/* تأثير التحميل (Skeleton Loader) */
+@keyframes pulse-bg {
+  0% { background-color: rgba(255, 255, 255, 0.05); }
+  50% { background-color: rgba(255, 255, 255, 0.1); }
+  100% { background-color: rgba(255, 255, 255, 0.05); }
+}
+
+.loading_skeleton {
+  animation: pulse-bg 1.5s infinite;
+  pointer-events: none; /* منع النقر أثناء التحميل */
+  border: none !important;
+}
+
 :root{
   /* نظام متغيرات موحد */
   --bg-deep: #071226;           /* خلفية عامة داكنة */
@@ -72,6 +256,102 @@
   margin: 24px 0;
   width: 100%;
 }
+
+
+
+
+
+ 
+/* 2. تصميم الأزرار */
+.cls3741_btn {
+  position: relative; /* ضروري للـ Tooltip */
+  width: 44px;
+  height: 44px;
+  border: none;
+  background: transparent;
+  border-radius: 12px;
+  color: #94a3b8; /* لون الأيقونة العادية */
+  cursor: pointer;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  transition: all 0.2s ease;
+}
+
+/* حالة التحويم والنشط */
+.cls3741_btn:hover,
+.cls3741_btn_active {
+  background-color: #7c3aed; /* لون البراند البنفسجي */
+  color: white;
+  box-shadow: 0 4px 12px rgba(124, 58, 237, 0.3);
+}
+
+.cls3741_icon {
+  font-size: 20px; /* حجم الأيقونة */
+}
+
+/* 3. تصميم الـ Tooltip (الاسم الذي يظهر) */
+.cls3741_tooltip {
+  position: absolute;
+  left: 120%; /* يظهر يمين الزر */
+  top: 50%;
+  transform: translateY(-50%);
+  background-color: #1e293b; /* خلفية داكنة للنص */
+  color: white;
+  padding: 6px 12px;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 500;
+  white-space: nowrap;
+  opacity: 0;
+  visibility: hidden;
+  transition: all 0.2s ease;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3);
+  pointer-events: none; /* لكي لا يعيق الماوس */
+  z-index: 1000;
+}
+
+/* سهم صغير للـ Tooltip (اختياري) */
+.cls3741_tooltip::before {
+  content: '';
+  position: absolute;
+  left: -4px;
+  top: 50%;
+  transform: translateY(-50%);
+  border-width: 5px;
+  border-style: solid;
+  border-color: transparent #1e293b transparent transparent;
+}
+
+/* إظهار الاسم عند التمرير */
+.cls3741_btn:hover .cls3741_tooltip {
+  opacity: 1;
+  visibility: visible;
+  left: 110%; /* حركة بسيطة للأنيميشن */
+}
+
+/* 4. نقطة التنبيهات (Badge Dot) */
+.cls3741_badge_dot {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 8px;
+  height: 8px;
+  background-color: #ef4444; /* أحمر */
+  border-radius: 50%;
+  display: none; /* مخفي افتراضياً */
+  border: 2px solid #0f172a; /* حدود لدمجها مع الخلفية */
+}
+
+/* إظهار النقطة إذا كان فيها محتوى (يمكن التحكم بها بالجافاسكريبت) */
+.cls3741_badge_dot:not(:empty) {
+  display: block;
+}
+
+
+
+
+
 
 /* البطاقة نفسها */
 .system-log-card {
@@ -268,57 +548,196 @@
 
   .cls3741_container{
     display:flex;
-    /* height:100vh; */
     gap:var(--gap);
-    /* padding:22px; */
+    width: 100vw;
     box-sizing:border-box;
   }
 
-  /* الشريط الجانبي */
-  .cls3741_sidebar{
-    width:240px;
-    background:linear-gradient(rgba(255, 255, 255, 0.02), rgba(255, 255, 255, 0.01));
-    border-radius:12px;
-    padding:14px;
-    display:flex;
-    flex-direction:column;
-    gap:12px;
-    box-shadow: var(--soft-shadow);
-    min-height:calc(100vh - 230px);
-  }
+  /* 1. حاوية الشريط الجانبي (Slim Sidebar) */
+.cls3741_sidebar {
+  width: 72px; /* عرض ثابت صغير للأيقونات */
+  background: linear-gradient(180deg, #0f172a 0%, #1e293b 100%); /* خلفية داكنة احترافية */
+  border-radius: 16px; /* حواف ناعمة */
+  padding: 16px 8px; /* مسافات داخلية متناسقة */
+  display: flex;
+  flex-direction: column;
+  align-items: center; /* توسيط كل العناصر أفقياً */
+  gap: 20px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+  /* height: calc(100vh - 40px);  */
+  position: relative; /* ضروري للتموضع */
+  transition: width 0.3s ease;
+}
 
-  .cls3741_brand{
-    display:flex;
-    align-items:center;
-    gap:10px;
-    padding:10px;
-  }
-  .cls3741_logo{
-    width:44px;height:44px;border-radius:10px;
-    background:linear-gradient(135deg,var(--accent), #f97316);
-    display:flex;align-items:center;justify-content:center;font-weight:700;color:#021020;
-    box-shadow:0 6px 20px rgba(6,182,212,0.14);
-    font-size:18px;
-  }
-  .cls3741_title{font-weight:700;font-size:15px;color:#e6f7fb;}
-  .cls3741_sub{font-size:12px;color:var(--muted);margin-top:-4px;}
+/* 2. منطقة اللوجو (Brand) */
+.cls3741_brand {
+  display: flex;
+  justify-content: center;
+  width: 100%;
+  padding-bottom: 10px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
 
-  .cls3741_nav{
-    display:flex;flex-direction:column;gap:6px;margin-top:6px;
-  }
+.cls3741_logo {
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  background: linear-gradient(135deg, var(--accent, #6366f1), #a855f7); /* لون متدرج */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 800;
+  color: white;
+  font-size: 20px;
+  box-shadow: 0 4px 12px rgba(99, 102, 241, 0.4);
+  cursor: pointer;
+}
 
-  .cls3741_btn{
-    display:flex;align-items:center;gap:12px;padding:12px;border-radius:10px;border:none;background:transparent;color:var(--muted);
-    cursor:pointer;font-weight:600;transition:all .16s;
-    text-align:left;
-  }
-  .cls3741_btn:hover{background:rgba(255,255,255,0.02); color:#f8fbff; transform:translateX(4px)}
-  .cls3741_btn_active{background:linear-gradient(90deg, rgba(6,182,212,0.12), rgba(249,115,22,0.04)); color:#e9fbff; box-shadow: inset 0 0 0 1px rgba(255,255,255,0.02)}
+/* 🔥 إخفاء نصوص البراند (اسم القناة والوكلاء) لأن الشريط ضيق */
+.cls3741_brand > div:last-child {
+  display: none;
+}
 
-  .cls3741_badge{margin-left:auto;background:rgba(255,255,255,0.06);color:var(--muted);padding:4px 8px;border-radius:999px;font-size:12px}
+/* 3. قائمة التنقل (Nav) */
+.cls3741_nav {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  height: 675px;
+  flex: 1; /* يأخذ المساحة المتبقية */
+}
 
-  .cls3741_spacer{flex:1}
+/* 4. الأزرار (Buttons) */
+.cls3741_btn {
+  position: relative; /* ضروري للـ Tooltip */
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  border: none;
+  background: transparent;
+  color: #94a3b8; /* لون رمادي فاتح */
+  cursor: pointer;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
 
+.cls3741_icon {
+  font-size: 20px;
+}
+
+/* تأثير التحويم والنشط */
+.cls3741_btn:hover {
+  background-color: rgba(255, 255, 255, 0.1);
+  color: #f8fafc;
+  transform: translateY(-2px); /* حركة بسيطة للأعلى */
+}
+
+.cls3741_btn_active {
+  background: linear-gradient(135deg, var(--accent, #6366f1), #8b5cf6);
+  color: white;
+  box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
+}
+
+/* 5. الـ Tooltip (الاسم الجانبي) */
+.cls3741_tooltip {
+  position: absolute;
+  left: 60px; /* يظهر يمين الزر */
+  top: 50%;
+  transform: translateY(-50%) translateX(10px);
+  background-color: #1e293b;
+  color: white;
+  padding: 6px 12px;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 500;
+  white-space: nowrap;
+  opacity: 0;
+  visibility: hidden;
+  transition: all 0.2s ease;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3);
+  z-index: 100;
+  pointer-events: none;
+  border: 1px solid rgba(255,255,255,0.1);
+}
+
+/* سهم صغير للـ Tooltip */
+.cls3741_tooltip::before {
+  content: '';
+  position: absolute;
+  left: -4px;
+  top: 50%;
+  transform: translateY(-50%) rotate(45deg);
+  width: 8px;
+  height: 8px;
+  background-color: #1e293b;
+  border-left: 1px solid rgba(255,255,255,0.1);
+  border-bottom: 1px solid rgba(255,255,255,0.1);
+}
+
+.cls3741_btn:hover .cls3741_tooltip {
+  opacity: 1;
+  visibility: visible;
+  transform: translateY(-50%) translateX(0);
+}
+
+/* 6. نقطة التنبيهات الحمراء (Badge) */
+.cls3741_badge_dot {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 8px;
+  height: 8px;
+  background-color: #ef4444;
+  border-radius: 50%;
+  border: 2px solid #1e293b; /* دمج مع الخلفية */
+  display: none;
+}
+.cls3741_badge_dot:not(:empty) { display: block; }
+
+/* 7. الفوتر (حالة الحساب) - تحويله لأيقونة */
+.cls3741_sidebar > div:last-child {
+  margin-top: auto; /* يذهب للأسفل */
+  width: 44px;
+  height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255, 255, 255, 0.03);
+  border-radius: 12px;
+  cursor: help;
+  position: relative; /* للـ tooltip */
+}
+
+/* إخفاء النص القديم داخل الفوتر */
+.cls3741_sidebar > div:last-child > div {
+  display: none; 
+}
+
+/* وضع نقطة خضراء بدلاً من النص */
+.cls3741_sidebar > div:last-child::after {
+  content: '';
+  width: 10px;
+  height: 10px;
+  background-color: #10b981; /* أخضر */
+  border-radius: 50%;
+  box-shadow: 0 0 10px rgba(16, 185, 129, 0.5);
+}
+
+/* إظهار كلمة "Online" عند التمرير على النقطة */
+.cls3741_sidebar > div:last-child:hover::before {
+  content: 'Online';
+  position: absolute;
+  left: 55px;
+  background: #10b981;
+  color: white;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+}
   /* المحتوى الرئيسي */
   .cls3741_main{
     flex:1;
@@ -332,10 +751,12 @@
     flex:1;
     background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));
     border-radius:var(--radius);
-    padding:20px;
+    padding:0px;
     box-shadow:var(--soft-shadow);
     overflow:auto;
     min-width:0;
+    height: 100%;
+    min-height: 0;
   }
 
   .cls3741_panel h2{margin:0 0 8px 0;font-size:20px;color:#e9f9fb}
@@ -1396,22 +1817,24 @@
 
     /* container */
     .cls3741_chats_root{
-      display:flex;
-      gap:18px;
-      align-items:stretch;
-      height:calc(-234px + 100vh);
-      min-height:520px;
-      padding:12px;
-      box-sizing:border-box;
+      display: flex;
+      /* gap: 18px; */
+      /* height: calc(-234px + 100vh); */
+      /* min-height: 520px; */
+      padding: 12px;
+      height: 100%;
+      box-sizing: border-box;
       background-color: transparent !important;
-    }
+      flex-wrap: wrap;
+  }
 
     /* 🔥 left contacts column - تصميم احترافي محسّن */
     .cls3741_contacts_col{
       width:320px;
       min-width:280px;
       background: transparent !important;
-      border-radius:var(--card-radius);
+      /* border-radius:var(--card-radius); */
+      border-top-left-radius:19px;
       padding:0;
       box-shadow:var(--shadow-lg);
       display:flex;
@@ -1425,11 +1848,13 @@
     /* 🔥 شريط البحث والفلترة الجديد */
     .cls3741_search_filter_bar {
       padding: 16px;
-      background: transparent !important;
+      background: #0a0a0a;
       border-bottom: 1px solid var(--border-color);
       display: flex;
       flex-direction: column;
       gap: 12px;
+      padding-top: 11px;
+    padding-bottom: 12px;
     }
 
     .cls3741_search_wrapper_new {
@@ -1497,6 +1922,9 @@
       display: flex;
       gap: 8px;
       flex-wrap: wrap;
+
+    border-bottom: 1px solid #1f2937;
+    padding:13px;
     }
 
     .cls3741_filter_btn {
@@ -1688,7 +2116,7 @@
           width: 577px;
       flex:1;
       background:var(--bg-primary);
-      border-radius:var(--card-radius);
+      /* border-radius:var(--card-radius); */
       display:flex;
       flex-direction:column;
       overflow:hidden;
@@ -1716,7 +2144,7 @@
     /* 🔥 منطقة الرسائل - تصميم احترافي */
     .cls3741_messages_area{
       scrollbar-width: none !important;
-      flex:1;
+      flex:1 1 0;
       padding:24px 20px;
       overflow:auto;
       display:flex;
@@ -1996,9 +2424,10 @@ position: relative;
     .cls3741_user_col{
       width:320px;min-width:240px;
       background:var(--bg-primary);
-      border-radius:var(--card-radius);
+      /* border-radius:var(--card-radius); */
       padding:0px !important;
       display:flex;
+      border-top-right-radius: 19px;
       flex-direction:column;
       overflow:hidden;
       box-shadow:var(--shadow-md);

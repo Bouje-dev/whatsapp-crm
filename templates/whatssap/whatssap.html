@@ -197,7 +197,8 @@
         
         <div>
             <div class="cls3741_title" id="current_channel_name">
-                {{ active_channel.name|default:"Select Channel" }}
+              <span class="cls3741_tooltip">
+                {{ active_channel.name|default:"Select Channel" }}</span>
             </div>
             
             <div class="cls3741_sub" id="current_channel_agents_count">
@@ -205,371 +206,47 @@
             </div> 
         </div>
     </div>
-      <!-- </div> -->
-<!-- notifications  -->
-
-<style>
-  /* --- New Toast Notification (Based on Uiverse Design) --- */
-.cls3741_toast_container {
-    position: fixed;
-    top: 20px;
-    right: 20px;
-    z-index: 100000;
-    display: flex;
-    flex-direction: column;
-    gap: 12px;
-}
-
-.cls3741_toast_new {
-    width: 320px;
-    max-width: 100%;
-    background-color: #1f2937; /* Dark Gray (Tailwind Gray-800) */
-    border: 1px solid var(--border-color);
-    border-radius: 12px;
-    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.5);
-    padding: 16px;
-    color: #e5e7eb;
-    font-family: 'Inter', sans-serif;
-    animation: slideInToast 0.4s cubic-bezier(0.16, 1, 0.3, 1), fadeOutToast 0.5s ease-in 4.5s forwards;
-    cursor: pointer;
-    transition: transform 0.2s;
-}
-
-.cls3741_toast_new:hover {
-    transform: translateY(-2px);
-    background-color: #374151;
-}
-
-/* Header Section */
-.cls3741_toast_header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    margin-bottom: 12px;
-}
-
-.cls3741_toast_title {
-    font-size: 14px;
-    font-weight: 600;
-    color: white;
-}
-
-.cls3741_toast_close {
-    background: transparent;
-    border: none;
-    color: #9ca3af;
-    cursor: pointer;
-    padding: 4px;
-    border-radius: 6px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    transition: all 0.2s;
-}
-.cls3741_toast_close:hover {
-    background-color: rgba(255, 255, 255, 0.1);
-    color: white;
-}
-
-/* Body Section */
-.cls3741_toast_body {
-    display: flex;
-    align-items: flex-start;
-    gap: 12px;
-}
-
-.cls3741_toast_avatar_frame {
-    position: relative;
-    flex-shrink: 0;
-}
-
-.cls3741_toast_avatar {
-    width: 48px;
-    height: 48px;
-    background: linear-gradient(135deg, var(--accent), #2563eb);
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 20px;
-    font-weight: bold;
-    color: white;
-    text-transform: uppercase;
-}
-
-.cls3741_toast_icon_badge {
-    position: absolute;
-    bottom: -2px;
-    right: -2px;
-    width: 20px;
-    height: 20px;
-    background-color: var(--success); /* Green for WhatsApp */
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    border: 2px solid #1f2937; /* Match toast bg */
-    color: white;
-    font-size: 10px;
-}
-
-.cls3741_toast_content {
-    flex: 1;
-    min-width: 0;
-}
-
-.cls3741_toast_sender {
-    font-size: 14px;
-    font-weight: 600;
-    color: white;
-    margin-bottom: 2px;
-}
-
-.cls3741_toast_msg {
-    font-size: 13px;
-    color: #9ca3af;
-    display: -webkit-box;
-    -webkit-line-clamp: 2; /* سطرين فقط */
-    -webkit-box-orient: vertical;
-    overflow: hidden;
-    line-height: 1.4;
-}
-
-.cls3741_toast_time {
-    font-size: 11px;
-    color: var(--accent);
-    margin-top: 4px;
-    display: block;
-}
-
-@keyframes slideInToast {
-    from { transform: translateX(100%); opacity: 0; }
-    to { transform: translateX(0); opacity: 1; }
-}
-@keyframes fadeOutToast {
-    to { opacity: 0; visibility: hidden; }
-}
-</style>
-<audio id="notification_sound" src="https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3" preload="auto"></audio>
-
-<div id="toast_container" class="cls3741_toast_container"></div>
-
-
  
-<script>
-  // طلب الإذن عند فتح الموقع
-// دالة لطلب الإذن (تستدعى عند النقر)
-function askForNotificationPermission() {
-    if (!("Notification" in window)) return;
+  
+<nav class="cls3741_nav collapsed" aria-label="Main menu">
     
-    if (Notification.permission === "default") {
-        Notification.requestPermission().then(permission => {
-            if (permission === "granted") {
-                console.log("✅ تم تفعيل الإشعارات بنجاح!");
-                // تجربة إشعار ترحيبي
-                new Notification("مرحباً بك", { 
-                    body: "تم تفعيل التنبيهات بنجاح ✅", 
-                    icon: 'https://cdn-icons-png.flaticon.com/512/733/733585.png'
-                });
-            }
-        });
-    }
-}
+  <button class="cls3741_btn cls3741_btn_active" data-target="dashboard">
+      <i class="fas fa-chart-pie cls3741_icon"></i>
+      <span class="cls3741_tooltip">Dashboard</span>
+  </button>
 
-// 🔥 الحل السحري: طلب الإذن عند أول نقرة في أي مكان في الصفحة 🔥
-document.addEventListener('click', function() {
-    if (Notification.permission === 'default') {
-        askForNotificationPermission();
-    }
-}, { once: true }); // once: true تعني أن هذا الحدث سيعمل مرة واحدة فقط
-  // دالة إظهار الإشعار وتشغيل الصوت
-  window.showNotification = function(title, message, onClickCallback) {
-    // 1. الصوت والعنوان (كما هو)
-    const audio = document.getElementById('notification_sound');
-    if (audio) { audio.currentTime = 0; audio.play().catch(() => {}); }
-    
-    // 2. الحاوية
-    let container = document.getElementById('toast_container');
-    if (!container) {
-        container = document.createElement('div');
-        container.id = 'toast_container';
-        container.className = 'cls3741_toast_container';
-        document.body.appendChild(container);
-    }
+  <button class="cls3741_btn" data-target="chats">
+      <i class="fas fa-comments cls3741_icon"></i>
+      <span class="cls3741_badge_dot" id="badge_chats"></span> 
+      <span class="cls3741_tooltip">Chats</span>
+  </button>
 
-    // استخراج الحرف الأول للافتار
-    // (نفترض أن العنوان هو اسم المرسل، أو نأخذ أول حرف من العنوان)
-    const initial = title.charAt(0).toUpperCase();
-    const msg = 'New Message from'
-    if (title == 'System') {
-      const msg = 'New System Message';
-    }
- 
+  <button class="cls3741_btn" data-target="orders">
+      <i class="fas fa-box-open cls3741_icon"></i>
+      <span class="cls3741_badge_dot" id="badge_orders"></span>
+      <span class="cls3741_tooltip">Orders</span>
+  </button>
 
-    // 3. بناء الإشعار الجديد
-    const toast = document.createElement('div');
-    toast.className = 'cls3741_toast_new';
-    
-    toast.innerHTML = `
-        <div class="cls3741_toast_header">
-            <span class="cls3741_toast_title">New Message</span>
-            <button type="button" class="cls3741_toast_close" aria-label="Close">
-                <svg class="w-3 h-3" width="14" height="14" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 14 14">
-                    <path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="m1 1 6 6m0 0 6 6M7 7l6-6M7 7l-6 6"></path>
-                </svg>
-            </button>
-        </div>
-        <div class="cls3741_toast_body">
-            <div class="cls3741_toast_avatar_frame">
-                <div class="cls3741_toast_avatar">${initial}</div>
-                <span class="cls3741_toast_icon_badge">
-                    <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor"><path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946.003-6.556 5.338-11.891 11.893-11.891 3.181.001 6.167 1.24 8.413 3.488 2.245 2.248 3.481 5.236 3.48 8.414-.003 6.557-5.338 11.892-11.893 11.892-1.99-.001-3.951-.5-5.688-1.448l-6.305 1.654z"/></svg>
-                </span>
-            </div>
-            <div class="cls3741_toast_content">
-                <div class="cls3741_toast_sender"> ${msg} ${escapeHtml(title)}</div>
-                <div class="cls3741_toast_msg">${escapeHtml(message)}</div>
-                <span class="cls3741_toast_time"> a few seconds ago</span>
-            </div>
-        </div>
-    `;
+  <button class="cls3741_btn" data-target="contacts">
+      <i class="fas fa-users cls3741_icon"></i>
+      <span class="cls3741_tooltip">Contacts</span>
+  </button>
 
-    // 4. الأحداث (Events)
-    
-    // عند النقر على زر الإغلاق (يمنع فتح الشات)
-    const closeBtn = toast.querySelector('.cls3741_toast_close');
-    closeBtn.onclick = function(e) {
-        e.stopPropagation();
-        toast.remove();
-    };
+  <button class="cls3741_btn d-none" data-target="campaigns">
+      <i class="fas fa-bullhorn cls3741_icon"></i>
+      <span class="cls3741_tooltip">Campaigns</span>
+  </button>
 
-    // عند النقر على جسم الإشعار
-    toast.onclick = function() {
-        window.focus();
-        if (onClickCallback) onClickCallback();
-        toast.remove();
-    };
+  <button class="cls3741_btn" data-target="templates">
+      <i class="fas fa-layer-group cls3741_icon"></i>
+      <span class="cls3741_tooltip">Templates</span>
+  </button>
 
-    container.appendChild(toast);
-
-    // الحذف التلقائي
-    setTimeout(() => {
-        if (toast.parentElement) toast.remove();
-    }, 8000);
-
-    // 5. إشعار سطح المكتب (إذا كانت الصفحة مخفية)
-    if ("Notification" in window && Notification.permission === "granted" && document.hidden) {
-        const noti = new Notification(title, {
-            body: message,
-            icon: 'https://cdn-icons-png.flaticon.com/512/733/733585.png',
-            tag: 'new-msg'
-        });
-        noti.onclick = function() {
-            window.focus();
-            if (onClickCallback) onClickCallback();
-            this.close();
-        };
-    }
-};
-
-// دالة مساعدة لضمان أمان النصوص
-function escapeHtml(text) {
-    if (!text) return '';
-    const div = document.createElement('div');
-    div.textContent = text;
-    return div.innerHTML;
-}
-
-
-</script>
-      <nav class="cls3741_nav" aria-label="Main menu">
-        <button class="cls3741_btn cls3741_btn_active" data-target="dashboard">Dashboard
-          <span class="cls3741_badge">—</span>
-        </button>
-
-        <button class="cls3741_btn" data-target="chats">Chats
-          <span class="cls3741_badge" id="badge_chats"></span>
-        </button>
-
-        <button class="cls3741_btn" data-target="orders">Orders
-          <span class="cls3741_badge" id="badge_orders"></span>
-        </button>
-
-        <button class="cls3741_btn" data-target="contacts">Contacts
-          <span class="cls3741_badge" id="badge_contacts"></span>
-        </button>
-
-        <button class="cls3741_btn" data-target="campaigns">Campaigns
-          <span class="cls3741_badge" id="badge_campaigns"></span>
-        </button>
-
-        <button class="cls3741_btn" data-target="templates">Templates
-          <span class="cls3741_badge" id="badge_templates"></span>
-        </button>
-
-        <button class="cls3741_btn" data-target="automation">Automation
-          <span class="cls3741_badge" id="badge_automation"></span>
-        </button>
-      </nav>
-
-     <script>
-      // update badge_chats 
-//       window.updateinterface = function(msg) {
-//     // 1. تحديد الزر المستهدف (هل هو 'chats' للرسائل أم 'orders'؟)
-//     // لقد جعلته 'chats' لأنه الأنسب للرسائل، يمكنك تغييره لـ 'orders' إذا أردت
-//     const targetName = 'chats'; 
-//     const targetBtn = document.querySelector(`[data-target="${targetName}"]`);
-    
-//     if (!targetBtn) return;
-
-//     // 2. التحقق: هل نحن فاتحين هذا التبويب الآن؟
-//     // (اختياري: إذا أردت التحديث حتى لو كان مفتوحاً، احذف هذا الشرط)
-//     // if (targetBtn.classList.contains('cls3741_btn_active')) return;
-
-//     // 3. البحث عن البادج (Badge) أو إنشاؤه إذا لم يكن موجوداً
-//     let badge = targetBtn.querySelector('.cls3741_badge');
-    
-//     if (!badge) {
-//         // إنشاء العنصر ديناميكياً إذا لم يكن موجوداً في HTML
-//         badge = document.createElement('span');
-//         badge.className = 'cls3741_badge';
-//         // إضافة تنسيق افتراضي سريع (أو يعتمد على CSS الخاص بك)
-//         badge.style.cssText = `
-//             background: #ef4444; 
-//             color: white; 
-//             padding: 2px 8px; 
-//             border-radius: 12px; 
-//             font-size: 11px; 
-//             font-weight: bold;
-//             margin-left: auto;
-//         `;
-//         targetBtn.appendChild(badge);
-//     }
-
-//     // 4. استخراج العدد (دعم صيغ مختلفة للبيانات)
-//     // أحياناً تأتي msg.count وأحياناً msg.unread_count
-//     const count = msg.count || msg.unread_count || msg.unread || 0;
-
-//     // 5. التحديث والعرض
-//     if (count > 0) {
-//         badge.textContent = count;
-//         badge.style.display = 'inline-flex';
-        
-//         // ومضة بسيطة لجذب الانتباه (Animation)
-//         badge.animate([
-//             { transform: 'scale(1)' },
-//             { transform: 'scale(1.3)' },
-//             { transform: 'scale(1)' }
-//         ], { duration: 200 });
-        
-//     } else {
-//         badge.style.display = 'none'; // إخفاء إذا كان 0
-//     }
-// };
-     
-
-      </script>
-      <!-- <div class="cls3741_spacer"></div> -->
+  <button class="cls3741_btn" data-target="automation">
+      <i class="fas fa-robot cls3741_icon"></i>
+      <span class="cls3741_tooltip">Automation</span>
+  </button>
+</nav>
 
       <div style="font-size:13px;color:var(--muted);padding:8px 10px">
         <div>حالة الحساب</div>
@@ -577,6 +254,281 @@ function escapeHtml(text) {
       </div>
     </aside>
 
+
+
+    <audio id="notification_sound" src="https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3" preload="auto"></audio>
+
+    <div id="toast_container" class="cls3741_toast_container"></div>
+    
+    
+    <style>
+      /* --- New Toast Notification (Based on Uiverse Design) --- */
+    .cls3741_toast_container {
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        z-index: 100000;
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+    }
+    
+    .cls3741_toast_new {
+        width: 320px;
+        max-width: 100%;
+        background-color: #1f2937; /* Dark Gray (Tailwind Gray-800) */
+        border: 1px solid var(--border-color);
+        border-radius: 12px;
+        box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.5);
+        padding: 16px;
+        color: #e5e7eb;
+        font-family: 'Inter', sans-serif;
+        animation: slideInToast 0.4s cubic-bezier(0.16, 1, 0.3, 1), fadeOutToast 0.5s ease-in 4.5s forwards;
+        cursor: pointer;
+        transition: transform 0.2s;
+    }
+    
+    .cls3741_toast_new:hover {
+        transform: translateY(-2px);
+        background-color: #374151;
+    }
+    
+    /* Header Section */
+    .cls3741_toast_header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 12px;
+    }
+    
+    .cls3741_toast_title {
+        font-size: 14px;
+        font-weight: 600;
+        color: white;
+    }
+    
+    .cls3741_toast_close {
+        background: transparent;
+        border: none;
+        color: #9ca3af;
+        cursor: pointer;
+        padding: 4px;
+        border-radius: 6px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: all 0.2s;
+    }
+    .cls3741_toast_close:hover {
+        background-color: rgba(255, 255, 255, 0.1);
+        color: white;
+    }
+    
+    /* Body Section */
+    .cls3741_toast_body {
+        display: flex;
+        align-items: flex-start;
+        gap: 12px;
+    }
+    
+    .cls3741_toast_avatar_frame {
+        position: relative;
+        flex-shrink: 0;
+    }
+    
+    .cls3741_toast_avatar {
+        width: 48px;
+        height: 48px;
+        background: linear-gradient(135deg, var(--accent), #2563eb);
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 20px;
+        font-weight: bold;
+        color: white;
+        text-transform: uppercase;
+    }
+    
+    .cls3741_toast_icon_badge {
+        position: absolute;
+        bottom: -2px;
+        right: -2px;
+        width: 20px;
+        height: 20px;
+        background-color: var(--success); /* Green for WhatsApp */
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border: 2px solid #1f2937; /* Match toast bg */
+        color: white;
+        font-size: 10px;
+    }
+    
+    .cls3741_toast_content {
+        flex: 1;
+        min-width: 0;
+    }
+    
+    .cls3741_toast_sender {
+        font-size: 14px;
+        font-weight: 600;
+        color: white;
+        margin-bottom: 2px;
+    }
+    
+    .cls3741_toast_msg {
+        font-size: 13px;
+        color: #9ca3af;
+        display: -webkit-box;
+        -webkit-line-clamp: 2; /* سطرين فقط */
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+        line-height: 1.4;
+    }
+    
+    .cls3741_toast_time {
+        font-size: 11px;
+        color: var(--accent);
+        margin-top: 4px;
+        display: block;
+    }
+    
+    @keyframes slideInToast {
+        from { transform: translateX(100%); opacity: 0; }
+        to { transform: translateX(0); opacity: 1; }
+    }
+    @keyframes fadeOutToast {
+        to { opacity: 0; visibility: hidden; }
+    }
+    </style>
+    <script>
+      // طلب الإذن عند فتح الموقع
+    // دالة لطلب الإذن (تستدعى عند النقر)
+    function askForNotificationPermission() {
+        if (!("Notification" in window)) return;
+        
+        if (Notification.permission === "default") {
+            Notification.requestPermission().then(permission => {
+                if (permission === "granted") {
+                    console.log("✅ تم تفعيل الإشعارات بنجاح!");
+                    // تجربة إشعار ترحيبي
+                    new Notification("مرحباً بك", { 
+                        body: "تم تفعيل التنبيهات بنجاح ✅", 
+                        icon: 'https://cdn-icons-png.flaticon.com/512/733/733585.png'
+                    });
+                }
+            });
+        }
+    }
+    
+    // 🔥 الحل السحري: طلب الإذن عند أول نقرة في أي مكان في الصفحة 🔥
+    document.addEventListener('click', function() {
+        if (Notification.permission === 'default') {
+            askForNotificationPermission();
+        }
+    }, { once: true }); // once: true تعني أن هذا الحدث سيعمل مرة واحدة فقط
+      // دالة إظهار الإشعار وتشغيل الصوت
+      window.showNotification = function(title, message, onClickCallback) {
+        // 1. الصوت والعنوان (كما هو)
+        const audio = document.getElementById('notification_sound');
+        if (audio) { audio.currentTime = 0; audio.play().catch(() => {}); }
+        
+        // 2. الحاوية
+        let container = document.getElementById('toast_container');
+        if (!container) {
+            container = document.createElement('div');
+            container.id = 'toast_container';
+            container.className = 'cls3741_toast_container';
+            document.body.appendChild(container);
+        }
+    
+        // استخراج الحرف الأول للافتار
+        // (نفترض أن العنوان هو اسم المرسل، أو نأخذ أول حرف من العنوان)
+        const initial = title.charAt(0).toUpperCase();
+        const msg = 'New Message from'
+        if (title == 'System') {
+          const msg = 'New System Message';
+        }
+     
+    
+        // 3. بناء الإشعار الجديد
+        const toast = document.createElement('div');
+        toast.className = 'cls3741_toast_new';
+        
+        toast.innerHTML = `
+            <div class="cls3741_toast_header">
+                <span class="cls3741_toast_title">New Message</span>
+                <button type="button" class="cls3741_toast_close" aria-label="Close">
+                    <svg class="w-3 h-3" width="14" height="14" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 14 14">
+                        <path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="m1 1 6 6m0 0 6 6M7 7l6-6M7 7l-6 6"></path>
+                    </svg>
+                </button>
+            </div>
+            <div class="cls3741_toast_body">
+                <div class="cls3741_toast_avatar_frame">
+                    <div class="cls3741_toast_avatar">${initial}</div>
+                    <span class="cls3741_toast_icon_badge">
+                        <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor"><path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946.003-6.556 5.338-11.891 11.893-11.891 3.181.001 6.167 1.24 8.413 3.488 2.245 2.248 3.481 5.236 3.48 8.414-.003 6.557-5.338 11.892-11.893 11.892-1.99-.001-3.951-.5-5.688-1.448l-6.305 1.654z"/></svg>
+                    </span>
+                </div>
+                <div class="cls3741_toast_content">
+                    <div class="cls3741_toast_sender"> ${msg} ${escapeHtml(title)}</div>
+                    <div class="cls3741_toast_msg">${escapeHtml(message)}</div>
+                    <span class="cls3741_toast_time"> a few seconds ago</span>
+                </div>
+            </div>
+        `;
+    
+        // 4. الأحداث (Events)
+        
+        // عند النقر على زر الإغلاق (يمنع فتح الشات)
+        const closeBtn = toast.querySelector('.cls3741_toast_close');
+        closeBtn.onclick = function(e) {
+            e.stopPropagation();
+            toast.remove();
+        };
+    
+        // عند النقر على جسم الإشعار
+        toast.onclick = function() {
+            window.focus();
+            if (onClickCallback) onClickCallback();
+            toast.remove();
+        };
+    
+        container.appendChild(toast);
+    
+        // الحذف التلقائي
+        setTimeout(() => {
+            if (toast.parentElement) toast.remove();
+        }, 8000);
+    
+        // 5. إشعار سطح المكتب (إذا كانت الصفحة مخفية)
+        if ("Notification" in window && Notification.permission === "granted" && document.hidden) {
+            const noti = new Notification(title, {
+                body: message,
+                icon: 'https://cdn-icons-png.flaticon.com/512/733/733585.png',
+                tag: 'new-msg'
+            });
+            noti.onclick = function() {
+                window.focus();
+                if (onClickCallback) onClickCallback();
+                this.close();
+            };
+        }
+    };
+    
+    // دالة مساعدة لضمان أمان النصوص
+    function escapeHtml(text) {
+        if (!text) return '';
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
+    
+    
+    </script>
     <!-- main content + side card -->
     <!-- مثال على البطاقات -->
 <main class="cls3741_main">
@@ -597,7 +549,7 @@ function escapeHtml(text) {
 <div class="main1" style="    overflow: auto;
 overflow-anchor: inherit;
 scrollbar-width: none;
-height: 675px;
+ 
 width: 100%;">
 
  
@@ -681,22 +633,34 @@ function generateWhatsAppQR(phoneNumber) {
   <div style="padding-bottom: 24px;"></div>
     {% endif %}
 
+  
+
     <div class="cls3741_stats_grid">
         <div class="stat_card">
             <div class="stat_icon purple">👥</div>
             <div class="stat_content">
                 <div class="stat_label">Total Contacts</div>
                 <div class="stat_number" id="dash_contacts_count">0</div>
-                <a href="#" class="stat_link">View Contacts &rarr;</a>
+                <div style="font-size: 13px; color: var(--text-secondary); margin-top: -4px;">
+                  <span style="color: #4f46e5;"> Today <strong><span id="dash_today_count"> 0</span></strong></span>
+                  <span style="margin: 0 4px;">|</span>
+                  <span style="color: #22c55e;"> Yesterday <strong><span id="dash_yest_count">0</span></strong></span>
+              </div>
+                <!-- <a href="#" class="stat_link">View Contacts &rarr;</a> -->
             </div>
         </div>
 
         <div class="stat_card">
-            <div class="stat_icon blue">📢</div>
+            <div class="stat_icon blue">📊</div>
             <div class="stat_content">
-                <div class="stat_label">Active Campaigns</div>
-                <div class="stat_number" id="dash_campaigns_count">0</div>
-                <a href="#" class="stat_link">Manage Campaigns &rarr;</a>
+                <div class="stat_label">Total orders</div>
+                <div class="stat_number" id="dash_orders_count">0</div>
+                <!-- <a href="#" class="stat_link">Manage Campaigns &rarr;</a> -->
+                <div style="font-size: 13px; color: var(--text-secondary); margin-top: -4px;">
+                  <span style="color: #4f46e5;"> Today <strong><span id="dash_today_order"> 0</span></strong></span>
+                  <span style="margin: 0 4px;">|</span>
+                  <span style="color: #22c55e;"> Yesterday <strong><span id="dash_yest_order">0</span></strong></span>
+              </div>
             </div>
         </div>
 
@@ -715,14 +679,129 @@ function generateWhatsAppQR(phoneNumber) {
           </div>
       </div>
 
+<!-- 
+        <div class="cycle_card">
+            
+        </div> -->
+    </div>
+    <div class="cls3741_section_title">
+      <h3><i class="fas fa-route me-2"></i>Contact Lifecycle</h3>
+      <span class="cls3741_badge_gray">Pipeline View</span>
+    </div>
+    <script>
+    /**
+    * دالة لجلب إحصائيات دورة حياة العميل
+    * @param {string|null} channelId - معرف القناة المختارة (اختياري)
+    */
+    window.loadLifecycleStats = function(channelId = null) {
+    let container = $('#lifecycle_container');
+    
+    // 1. عرض Skeleton Loading (شكل التحميل) قبل إرسال الطلب
+    // هذا يعطي شعوراً بالسرعة والتفاعل
+    container.html(`
+        <div class="cls3741_lifecycle_card loading_skeleton" style="width:200px;height:100px;opacity:0.5"></div>
+        <div class="cls3741_lifecycle_card loading_skeleton" style="width:200px;height:100px;opacity:0.5"></div>
+        <div class="cls3741_lifecycle_card loading_skeleton" style="width:200px;height:100px;opacity:0.5"></div>
+    `);
+    
+    // 2. تجهيز البيانات للإرسال
+    let requestData = {};
+    if (channelId && channelId !== 'all') {
+        requestData.channel_id = channelId;
+    }
+    
+    // 3. طلب AJAX
+    $.ajax({
+        url: "{% url 'api_lifecycle_stats' %}", 
+        method: 'GET',
+        data: requestData, // إرسال معرف القناة هنا
+        success: function(response) {
+            container.empty();
+    
+            if (!response.lifecycle || response.lifecycle.length === 0) {
+                container.html('<div class="text-muted p-3" style="color:var(--muted)">No data for this channel.</div>');
+                return;
+            }
+    
+            // رسم الكروت
+            response.lifecycle.forEach(stage => {
+                let card = `
+                    <div class="cls3741_lifecycle_card" style="border-left: 3px solid ${stage.color}; cursor: pointer;" onclick="filterContactsByStage('${stage.key}')">
+                      
+                        <div class="cls3741_lc_header">
+                            <span>${stage.icon}</span>
+                            <span>${stage.label}</span>
+                        </div>
+                        <div class="d-flex align-items-center mt-2" style="display:flex;align-items:center;margin-top:8px">
+                            <div class="cls3741_lc_count">${stage.count}</div>
+                            <div class="cls3741_lc_percent">${stage.percent}%</div>
+                        </div>
+                         <div class="cls3741_lc_footer">
+                             <div class="cls3741_lc_metric"><i class="fas fa-chart-line"></i> View</div>
+                        </div>
+                    </div>
+                `;
+                container.append(card);
+            });
+        },
+        error: function(err) {
+            console.error("Lifecycle error:", err);
+            container.html('<div class="text-danger p-2">Failed to load data.</div>');
+        }
+    });
+    }
+    
+    // ==========================================
+    // 4. ربط الدالة بحدث تغيير القناة (Trigger)
+    // ==========================================
+    
+    $(document).ready(function() {
+    
+    window.loadLifecycleStats(); 
+    
+  
+    $('#channel_selector').on('change', function() {
+        let selectedChannelId = $(this).val();
+        console.log("Channel changed to:", selectedChannelId);
+        
 
-        <div class="support_card">
-            <div class="support_text">
-                <h3>Need Help?</h3>
-                <p>Contact our support team via WhatsApp directly.</p>
-            </div>
-            <div class="support_icon">🎧</div>
-        </div>
+        loadLifecycleStats(selectedChannelId);
+    });
+    
+  
+    // $('.workspace-item').on('click', function() {
+    //     let channelId =  document.querySelector('.workspace-item .active').getAttribute('data-channel-id');
+    //     loadLifecycleStats(channelId);
+    // });
+    });
+
+
+    // دالة يتم استدعاؤها عند النقر على كارت الداشبورد
+function filterContactsByStage(stageKey) {
+    console.log("Filtering contacts by:", stageKey);
+
+    // 1. الانتقال إلى تبويب جهات الاتصال
+    // نقوم برمجياً بالنقر على الزر الموجود في السايدبار
+    // هذا سيقوم بتشغيل كودك الحالي الذي يخفي الداشبورد ويظهر جهات الاتصال
+    $('button[data-target="contacts"]').trigger('click');
+
+    // 2. الانتظار قليلاً (اختياري جداً) أو طلب البيانات فوراً
+    // ملاحظة: زر Contacts عادة يقوم بجلب البيانات الافتراضية عند النقر عليه
+    // لذلك، نحن سنقوم "بإجبار" تحديث البيانات بالفلتر الجديد
+    
+    // نحتاج معرف القناة الحالية (افترضنا أنه مخزن في متغير عام أو في DOM)
+    let activeChannelId = $('#current_channel_id').val() || null; // عدل هذا حسب كودك
+    
+    // استدعاء الجلب مع الفلتر
+    // fetchContacts(activeChannelId, stageKey);
+    window.loadContactsListForChannel(channelId = activeChannelId, resetPage = true , stage = stageKey);
+}
+
+    </script>
+    <div class="cls3741_lifecycle_container" id="lifecycle_container">
+      <div class="cls3741_lifecycle_card loading_skeleton"></div>
+      <div class="cls3741_lifecycle_card loading_skeleton"></div>
+      <div class="cls3741_lifecycle_card loading_skeleton"></div>
     </div>
 
     <div class="cls3741_chart_section">
@@ -751,7 +830,7 @@ function generateWhatsAppQR(phoneNumber) {
   /* --- Dashboard Layout --- */
 .cls3741_panel_dashboard {
     padding: 24px;
-    max-width: 1400px;
+    /* max-width: ; */
     margin: 0 auto;
 }
 
@@ -855,7 +934,7 @@ function generateWhatsAppQR(phoneNumber) {
 .stat_link:hover { text-decoration: underline; }
 
 /* Support Card */
-.support_card {
+.cycle_card {
     background: linear-gradient(135deg, #4f46e5, #3730a3);
     border-radius: 16px;
     padding: 20px;
@@ -1812,7 +1891,7 @@ input:checked + .slider:before { transform: translateX(16px); }
   isolation: isolate;
   overflow: hidden;
   border-radius: 10px;
-  background: linear-gradient(180deg, #a57d52, #846846, #6b5342);
+  /* background: linear-gradient(180deg, #a57d52, #846846, #6b5342); */
   border: 1px solid transparent;
 }
 
@@ -1824,30 +1903,10 @@ input:checked + .slider:before { transform: translateX(16px); }
     top: 2px;
     right:5px;
     border-radius: 10px;
+    background: #151b26;
 }
 
-.filterBorder::before {
-  content: "";
-  text-align: center;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%) rotate(90deg);
-  position: absolute;
-  width: 600px;
-  height: 600px;
-  background-repeat: no-repeat;
-  background-position: 0 0;
-  filter: brightness(1.35);
-  background-image: conic-gradient(
-    rgba(0, 0, 0, 0),
-    #a57d52,
-    rgba(0, 0, 0, 0) 50%,
-    rgba(0, 0, 0, 0) 50%,
-    #a57d52,
-    rgba(0, 0, 0, 0) 100%
-  );
-  animation: rotate 4s linear infinite;
-}
+ 
 
 #main {
   position: relative;
@@ -1966,25 +2025,25 @@ window.resetFilters = function() {
       </div>
 
         <!-- 🔥 أزرار الفلترة -->
-        <div class="cls3741_filter_buttons">
-          <button class="cls3741_filter_btn active" data-filter="all" title="الكل">
-           
-            <span>all</span>
-          </button>
-          <button class="cls3741_filter_btn" data-filter="unread" title="غير مقروء">
-       
-            <span>unread</span>
-          </button>
-          <button class="cls3741_filter_btn" data-filter="read" title="مقروء">
-         
-            <span>read
-            </span>
-          </button>  
-       
-     </div>
+      
 
       </div>
-
+      <div class="cls3741_filter_buttons">
+        <button class="cls3741_filter_btn active" data-filter="all" title="الكل">
+         
+          <span>all</span>
+        </button>
+        <button class="cls3741_filter_btn" data-filter="unread" title="غير مقروء">
+     
+          <span>unread</span>
+        </button>
+        <button class="cls3741_filter_btn" data-filter="read" title="مقروء">
+       
+          <span>read
+          </span>
+        </button>  
+     
+   </div>
       <div class="cls3741_contacts_list" id="cls3741_contacts_list" role="list">
         <div id="cls3741_contacts_loader" class="cls3741_loader_new">
           <div class="cls3741_spinner"></div>
@@ -2637,13 +2696,13 @@ window.resetFilters = function() {
         <div id="crm_view_panel" class="view-panel fade-in">
             
             <div class="crm-profile-section">
-                <div class="crm-avatar" id="crm-avatar_sidbar">
+                <div class="crm-avatar d-none" id="crm-avatar_sidbar">
                     <span>{{ active_contact.name|slice:":1"|upper }}</span>
                 </div>
-                <h3 class="crm-name">{{ active_contact.name }}</h3>
+                <h3 class="crm-name d-none">{{ active_contact.name }}</h3>
                 <p class="crm-phone">{{ active_contact.phone }}</p>
                 
-                <div class="crm-actions">
+                <div class="crm-actions d-none">
                     <a href="#" class="crm-action-btn">
                         <i class="fas fa-edit"></i> Edit
                     </a>
@@ -3126,9 +3185,12 @@ document.addEventListener("DOMContentLoaded", function() {
     display: flex;
     flex-direction: column;
     align-items: center;
+    min-height: 69px;
+    max-height: 69px;
     padding: 30px 20px 20px;
+    background-color: #0a0a0a;
     border-bottom: 1px solid var(--qs-border);
-    background: linear-gradient(to bottom, rgba(255,255,255,0.02), transparent);
+    /* background: linear-gradient(to bottom, rgba(255,255,255,0.02), transparent); */
 }
 
 .crm-avatar {
@@ -3538,7 +3600,7 @@ document.addEventListener("DOMContentLoaded", function() {
 
 
 
-  <section class="cls3741_panel cls3741_panel_orders" style="display: none;     height: 100%;">
+  <section class="cls3741_panel cls3741_panel_orders" style="display: none;  padding:12px;   height: 100%;">
     <h2>Orders</h2>
     <p>Manage Orders</p>
   </br>
@@ -4087,8 +4149,110 @@ document.addEventListener("DOMContentLoaded", function() {
           <button class="cls3741_tab_btn active" data-filter="all">All</button>
           <button class="cls3741_tab_btn vip-tab" data-filter="important">⭐ VIP</button>
           <button class="cls3741_tab_btn" data-filter="unread">💬 Unread</button>
-      </div>
 
+          <div class="cls3741_custom_dropdown" id="stage_filter_dropdown">
+            <button class="cls3741_dropdown_trigger" onclick="toggleStageDropdown()">
+                <span id="selected_stage_label">
+                    <i class="fas fa-filter me-2"></i> All Stages
+                </span>
+                <i class="fas fa-chevron-down ms-2" style="font-size: 10px; opacity: 0.7;"></i>
+            </button>
+    
+            <div class="cls3741_dropdown_menu">
+                <div class="cls3741_dropdown_item" onclick="selectStageFilter('all', 'All Stages', '')">
+                    <span>⚪ All Stages</span>
+                </div>
+                
+                <div class="cls3741_dropdown_item" onclick="selectStageFilter('new', 'New Chat', '🆕')">
+                    <span>🆕 New Chat</span>
+                </div>
+                <div class="cls3741_dropdown_item" onclick="selectStageFilter('interested', 'Interested', '🔥')">
+                    <span>🔥 Interested</span>
+                </div>
+                <div class="cls3741_dropdown_item" onclick="selectStageFilter('follow_up', 'Follow Up', '🤩')">
+                    <span>🤩 Follow Up</span>
+                </div>
+                <div class="cls3741_dropdown_item" onclick="selectStageFilter('closed', 'Close Won', '💵')">
+                    <span>💵 Close Won</span>
+                </div>
+                <div class="cls3741_dropdown_item" onclick="selectStageFilter('rejected', 'No Answer', '👀')">
+                    <span>👀 No Answer</span>
+                </div>
+            </div>
+        </div>
+
+        
+      </div>
+<script>
+  // متغير لتخزين الفلتر الحالي
+let currentStageFilter = null;
+
+// 1. فتح وإغلاق القائمة
+function toggleStageDropdown() {
+    $('.cls3741_dropdown_menu').toggleClass('show');
+}
+
+// إغلاق القائمة عند النقر خارجها
+$(document).on('click', function(e) {
+    if (!$(e.target).closest('.cls3741_custom_dropdown').length) {
+        $('.cls3741_dropdown_menu').removeClass('show');
+    }
+});
+
+// 2. عند اختيار عنصر من القائمة
+function selectStageFilter(stageKey, label, icon) {
+    // تحديث شكل الزر
+    if (stageKey === 'all') {
+        $('#selected_stage_label').html('<i class="fas fa-filter me-2"></i> All Stages');
+        currentStageFilter = null;
+    } else {
+        $('#selected_stage_label').html(`${icon} ${label}`);
+        currentStageFilter = stageKey;
+    }
+    console.log('Selected stage filter:', currentStageFilter);
+
+    // إغلاق القائمة
+    $('.cls3741_dropdown_menu').removeClass('show');
+
+    // استدعاء دالة جلب البيانات (الموجودة مسبقاً عندك)
+    // نفترض أنك تملك معرف القناة في متغير global أو hidden input
+    let channelId = $('#current_channel_id').val(); 
+    
+    // 🔥 استدعاء دالة الفلترة 🔥
+    window.loadContactsListForChannel(channelId = channelId, resetPage = true ,  stage = currentStageFilter);
+ }
+
+// 3. 🔥 الوظيفة السحرية: التزامن مع الداشبورد عند التحميل 🔥
+$(document).ready(function() {
+    
+    const urlParams = new URLSearchParams(window.location.search);
+    const stageFromUrl = urlParams.get('stage');
+
+    if (stageFromUrl && stageFromUrl !== 'null' && stageFromUrl !== 'all') {
+        
+        // البحث عن العنصر المطابق في القائمة لمحاكاة النقر عليه
+        // أو تحديث النص يدوياً
+        
+        // خريطة بسيطة للأيقونات والأسماء (يمكنك تحسينها)
+        const stageMap = {
+            'new': { label: 'New Chat', icon: '🆕' },
+            'interested': { label: 'Interested', icon: '🔥' },
+            'follow_up': { label: 'Follow Up', icon: '🤩' },
+            'closed': { label: 'Close Won', icon: '💵' },
+            'rejected': { label: 'No Answer', icon: '👀' }
+        };
+
+        if (stageMap[stageFromUrl]) {
+            // تحديث زر القائمة ليظهر الاختيار القادم من الداشبورد
+            $('#selected_stage_label').html(`${stageMap[stageFromUrl].icon} ${stageMap[stageFromUrl].label}`);
+            currentStageFilter = stageFromUrl;
+            
+            // ملاحظة: دالة fetchContacts سيتم استدعاؤها غالباً في مكان آخر عند التحميل
+            // لذلك نكتفي بتحديث المتغير والشكل
+        }
+    }
+});
+</script>
       <div class="cls3741_contacts_list" id="cls3741_contacts_list_el">
           <div class="cls3741_loader_new"><div class="cls3741_spinner"></div></div>
       </div>
@@ -4201,18 +4365,31 @@ document.addEventListener("DOMContentLoaded", function() {
       };
   
       // --- Main Fetch Function ---
-      window.loadContactsListForChannel = async function(channelId, resetPage = true) {
+      window.loadContactsListForChannel = async function(channelId, resetPage = true , stage = null ) {
           const activeId = channelId || window.currentChannelId;
+          let requestData = {
+        channel_id: activeId
+    };
           if (!activeId) return;
   
           if (resetPage) STATE.page = 1;
           if (STATE.isLoading) return;
           STATE.isLoading = true;
-  
+          if (stage) {
+        requestData.stage = stage;
+        currentStageFilter = stage; // تحديث المتغير العام
+        
+        
+        $('#selected_stage_label').val(stage);
+        } else {
+        currentStageFilter = null;
+        $('#filter_pipeline_stage').val('all');  
+        }
+   
           listContainer.innerHTML = '<div class="cls3741_loader_new"><div class="cls3741_spinner"></div></div>';
   
           try {
-              let url = `{% url 'api_contactslist' %}?channel_id=${activeId}&page=${STATE.page}`;
+              let url = `{% url 'api_contactslist' %}?channel_id=${activeId}&page=${STATE.page}&stage=${stage}`;
               if (STATE.search) url += `&q=${encodeURIComponent(STATE.search)}`;
               if (STATE.filter !== 'all') url += `&filter=${STATE.filter}`;
   
@@ -4401,7 +4578,7 @@ document.addEventListener("DOMContentLoaded", function() {
   </section>
 
  <section class="cls3741_panel cls3741_panel_templates" style="display: none;     height: 100%;">
-    <div style="display:flex;flex-direction:column;gap:12px;">
+    <div style="display:flex;flex-direction:column;gap:12px;padding: 20px;">
         <!-- action buttons (above table) -->
         <div style="display: flex; direction: rtl; gap: 8px; align-items: center; justify-content: space-between; flex-wrap: wrap;">
             <div style="display: flex; gap: 8px;">
@@ -6713,6 +6890,10 @@ if (typeof window.loadDashboardData === 'function') {
     if (typeof window.loadTeamStats === 'function') {
         window.loadTeamStats(newChannelId);
     }
+
+    if (typeof window.loadLifecycleStats === 'function') {
+        window.loadLifecycleStats(newChannelId);
+    }  
 
 }
 window.switchChannel = switchChannel;
