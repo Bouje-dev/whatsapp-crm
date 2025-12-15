@@ -655,20 +655,7 @@ def tracking(request,leades = None):
         return redirect('/auth/login/')
     request.session['last_product_update'] = timezone.now().isoformat()
     last_product_update = request.session.get('last_product_update')
-    # if request.user.is_team_admin:
-    #     user_perm = UserPermissionSetting.objects.filter(user=request.user).first()
-    #     if not user_perm :
-    #         pass
-    #     print('User', user_perm)
-    #     if user_perm and user_perm.can_create_orders and user_perm.can_view_analytics:
-    #         pass
-    #     elif user_perm:
-    #         user_perm.can_create_orders = True
-    #         user_perm.can_view_analytics = True
-    #         user_perm.save()
-
-
-    # الفلترة الأساسية
+   
     customer_phone = request.GET.get('tracking')
     # orders = SimpleOrder.objects.all()
 
@@ -946,28 +933,29 @@ def tracking(request,leades = None):
             return JsonResponse({'html': html})
 
 
-    if getattr(user, 'is_team_admin', False):
-            # إذا كنت أنا المدير، فأنا القائد
+# 1. تحديد القائد والأعضاء (كما هو)
+    if getattr(user, 'is_team_admin', False):         
             leader = user
-    else:
-            # إذا كنت موظفاً، فقائدي هو الـ team_admin المسجل في حسابي
-            leader = getattr(user, 'team_admin', None)
+    else:        
+            leader = getattr(user, 'team_admin', None)     
 
-        # 2. جلب الأعضاء بناءً على القائد
-    if leader:
-            # نجلب: (الموظفين التابعين لهذا القائد) OR (القائد نفسه)
+    if leader:           
             team_members = CustomUser.objects.filter(
                 Q(team_admin=leader) | Q(id=leader.id)
             ).filter(is_active=True).distinct()
-    else:
-            # حالة احتياطية: إذا لم يكن هناك قائد (مثل Superuser مستقل)، نعيد المستخدم نفسه فقط
+    else:     
             team_members = CustomUser.objects.filter(id=user.id)
 
-    print('team_members',team_members)
+    
     from discount.models import Contact
-    user_channels = WhatsAppChannel.objects.filter(assigned_agents__in=team_members).distinct()
+    
+
+    if getattr(user, 'is_team_admin', False) or user.is_superuser:
+        user_channels = WhatsAppChannel.objects.filter(assigned_agents__in=team_members).distinct()
+    else:
+        user_channels = WhatsAppChannel.objects.filter(assigned_agents=user).distinct()
+
     pipeline_choices = Contact.PipelineStage.choices
-   
 
     return render(request, 'tracking.html', {
         'validate_token'  :ExternalTokenmodel.objects.filter(user=request.user, token_status=True).first(),

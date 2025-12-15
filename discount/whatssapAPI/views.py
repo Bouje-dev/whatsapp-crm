@@ -2279,9 +2279,12 @@ def api_orders(request):
         return JsonResponse({"orders": []})
 
     from discount.models import SimpleOrder
-    
-    # استخدمنا select_related لجلب بيانات المنتج والعميل مرة واحدة لتحسين الأداء
-    qs = SimpleOrder.objects.filter(channel=target_channel).order_by("-created_at")
+    qs = None
+    if user.is_superuser or getattr(user, 'is_team_admin', False):
+        qs = SimpleOrder.objects.filter(channel=target_channel).order_by("-created_at")
+    else:
+        qs = SimpleOrder.objects.filter(channel=target_channel, agent=user).order_by("-created_at")
+    # qs = SimpleOrder.objects.filter(channel=target_channel).order_by("-created_at")
      
     data = []
     for o in qs:
@@ -2778,54 +2781,58 @@ from django.http import JsonResponse
 
 from discount.models import CustomUser  # تأكد من استيراد مودل المستخدم الصحيح
 
+from django.db.models import Count, Q, Case, When, Value, F, FloatField
+ # تأكد من استيراد المودلز
+
 def api_team_stats(request):
     user = request.user
     channel_id = request.GET.get('channel_id')
     
-    # 1. تحديد القناة (مع التحقق من الصلاحيات)
+    # 1. تحديد القناة
     target_channel = get_target_channel(user, channel_id)
     
     if not target_channel:
         return JsonResponse({'stats': []})
-
-    # 2. بناء الاستعلام (Query)
-    # نريد الموظفين الذين ينطبق عليهم أحد الشروط التالية:
-    # أ) هو مالك القناة (Owner)
-    # ب) هو وكيل مضاف في القناة (Assigned Agent) -> نستخدم related_name="channels"
-    # ج) لديه طلبات سابقة في هذه القناة (حتى لو تم حذفه من الوكلاء لاحقاً)
     
-    users_qs = CustomUser.objects.filter(
-        Q(id=target_channel.owner_id) |              
-        Q(channels=target_channel) |                 
-        Q(simple_orders__channel=target_channel)    
-    ).distinct()
+    # 2. 🔥 المنطق الجديد: تحديد من سيظهر في الإحصائيات 🔥
+    
+    # نعتبره "مدير" إذا كان سوبر يوزر، أو أدمن فريق، أو هو مالك القناة الحالية
+    is_manager = (
+        user.is_superuser or 
+        getattr(user, 'is_team_admin', False) or 
+        user.id == target_channel.owner_id
+    )
 
-    # 3. الحسابات (Aggregation)
-    # نحسب فقط الطلبات التابعة لهذه القناة (target_channel)
-    confirmed_statuses = ['Shipped', 'Delivered', 'Returned','Confirmed','Pending']
+    if is_manager:
+        users_qs = CustomUser.objects.filter(
+            Q(id=target_channel.owner_id) |              
+            Q(channels=target_channel) |                 
+            Q(simple_orders__channel=target_channel)
+        ).distinct()
+    else:
+        # ✅ الحالة الثانية: الموظف يرى نفسه فقط
+        users_qs = CustomUser.objects.filter(id=user.id)
+
+    confirmed_statuses = ['Shipped', 'Delivered', 'Returned', 'Confirmed', 'Pending']
     
     team_stats = users_qs.annotate(
-        # العدد الكلي في هذه القناة
-        total = Count('simple_orders', filter=Q(simple_orders__channel=target_channel)),
+        # العدد الكلي لطلبات هذا المستخدم في هذه القناة
+        total=Count('simple_orders', filter=Q(simple_orders__channel=target_channel),distinct=True),
 
-        # المؤكدة
-        confirmed = Count('simple_orders', filter=Q(simple_orders__channel=target_channel, simple_orders__status__in=confirmed_statuses)),
-
-        # الواصلة
-        delivered = Count('simple_orders', filter=Q(simple_orders__channel=target_channel, simple_orders__status='Delivered')),
-        
         # باقي الحالات
-        pending = Count('simple_orders', filter=Q(simple_orders__channel=target_channel, simple_orders__status='Pending')),
-        cancelled = Count('simple_orders', filter=Q(simple_orders__channel=target_channel, simple_orders__status='Cancelled')),
-        returned = Count('simple_orders', filter=Q(simple_orders__channel=target_channel, simple_orders__status='Returned')),
+        confirmed=Count('simple_orders', filter=Q(simple_orders__channel=target_channel, simple_orders__status__in=confirmed_statuses),distinct=True),
+        delivered=Count('simple_orders', filter=Q(simple_orders__channel=target_channel, simple_orders__status='Delivered'),distinct=True),
+        pending=Count('simple_orders', filter=Q(simple_orders__channel=target_channel, simple_orders__status='Pending'), distinct=True),
+        cancelled=Count('simple_orders', filter=Q(simple_orders__channel=target_channel, simple_orders__status='Cancelled'), distinct=True),
+        returned=Count('simple_orders', filter=Q(simple_orders__channel=target_channel, simple_orders__status='Returned'),distinct=True),
 
     ).annotate(
         # حساب النسب المئوية
-        conf_rate = Case(
+        conf_rate=Case(
             When(total__gt=0, then=F('confirmed') * 100.0 / F('total')),
             default=Value(0.0), output_field=FloatField()
         ),
-        del_rate = Case(
+        del_rate=Case(
             When(confirmed__gt=0, then=F('delivered') * 100.0 / F('confirmed')),
             default=Value(0.0), output_field=FloatField()
         )
@@ -2834,13 +2841,13 @@ def api_team_stats(request):
     # 4. تجهيز البيانات للواجهة
     data = []
     for agent in team_stats:
-        # (اختياري) إخفاء من ليس لديهم أي نشاط في هذه القناة
+        # إخفاء من ليس لديهم أي نشاط (اختياري، يمكنك إزالته إذا أردت إظهار الأصفار للموظف)
         if agent.total == 0: 
             continue 
             
         data.append({
-            'initial': agent.user_name or agent.first_name or agent.email.split('@')[0], # عرض الاسم أو جزء من الإيميل
-            'name': (agent.email or agent.first_name or agent.email),
+            'initial': agent.user_name or agent.first_name or agent.email.split('@')[0],
+            'name': (agent.user_name or agent.first_name or agent.email), # عدلتها لتأخذ user_name كأولوية
             'total': agent.total,
             'confirmed': agent.confirmed,
             'delivered': agent.delivered,
@@ -2850,10 +2857,9 @@ def api_team_stats(request):
             'conf_rate': round(agent.conf_rate, 1),
             'del_rate': round(agent.del_rate, 1),
         })
+      
 
     return JsonResponse({'stats': data})
-
-
 
 
 def create_activity_log(channel, phone, content, user=None):

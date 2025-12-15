@@ -309,6 +309,7 @@
         headers: { "X-CSRFToken": getCookie('csrftoken') },
         data: { code: codeVal },
         success: function(response) {
+          console.log('response', response);
           msgBox.text(response.message || "Success! Redirecting...").css("color", response.success ? "#4ade80" : "#fca5a5").show();
           if (response.success) {
             setTimeout(function(){ window.location.href = "{% url 'tracking' %}"; }, 1000);

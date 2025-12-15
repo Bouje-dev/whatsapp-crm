@@ -198,23 +198,7 @@ import requests
 
 
  
-# دالة المساعدة للإرسال عبر API (وليس SMTP)
-def _send_brevo_api_background(payload, api_key):
-    url = "https://api.brevo.com/v3/smtp/email"
-    headers = {
-        "accept": "application/json",
-        "api-key": api_key,
-        "content-type": "application/json"
-    }
-    try:
-        response = requests.post(url, json=payload, headers=headers, timeout=10)
-        if response.status_code in [200, 201, 202]:
-            print("✅ Email sent via API successfully!")
-        else:
-            print(f"❌ Brevo API Error: {response.text}")
-    except Exception as e:
-        print(f"❌ API Connection Error: {e}")
-
+ 
 def resend_activation_email(request):
     user = request.user
     if not user.is_authenticated:
@@ -226,46 +210,101 @@ def resend_activation_email(request):
     protocol = 'https' if request.is_secure() else 'http'
     activation_link = f'{protocol}://{current_host}/activate/{user.id}/'
     
-    # 2. قراءة مفتاح API من البيئة
-    brevo_key = os.environ.get('BREVO_API_KEY') # أو من settings
-    if not brevo_key:
-        print("⚠️ Missing BREVO_API_KEY")
-        return JsonResponse({'success': False, 'message': 'Server Config Error'})
+     
+    html_content = f"""
+    <!DOCTYPE html>
+    <html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Verify your Waselytics Account</title>
+        <style>
+            /* Reset & Basics */
+            body {{ margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f3f4f6; color: #1f2937; line-height: 1.6; }}
+            .container {{ max-width: 600px; margin: 40px auto; background: #ffffff; border-radius: 16px; overflow: hidden; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06); }}
+            
+            /* Header */
+            .header {{ background-color: #0f172a; padding: 30px; text-align: center; }}
+            .logo {{ font-size: 24px; font-weight: bold; color: #ffffff; text-decoration: none; letter-spacing: 1px; }}
+            .logo span {{ color: #7c3aed; }} /* Brand Purple */
 
-    # 3. تجهيز البايلود (Payload) حسب وثائق Brevo
-    email_payload = {
-        "sender": {"name": "Waselytics", "email": settings.DEFAULT_FROM_EMAIL},
-        "to": [{"email": user.email, "name": user.user_name or "User"}],
-        "subject": "كود تفعيل حسابك",
-        "htmlContent": f"""
-        <!DOCTYPE html>
-        <html lang="ar" dir="rtl">
-        <head>
-            <style>
-                body {{ font-family: sans-serif; background-color: #f4f4f5; padding: 20px; }}
-                .box {{ max-width: 500px; margin: 0 auto; background: white; padding: 30px; border-radius: 10px; text-align: center; }}
-                .code {{ font-size: 30px; font-weight: bold; color: #7c3aed; letter-spacing: 5px; margin: 20px 0; }}
-                .btn {{ background: #7c3aed; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; display: inline-block; }}
-            </style>
-        </head>
-        <body>
-            <div class="box">
-                <h2>مرحباً بك! 👋</h2>
-                <p>كود التفعيل الخاص بك هو:</p>
-                <div class="code">{code}</div>
-                <a href="{activation_link}" class="btn">تفعيل الحساب</a>
+            /* Content */
+            .content {{ padding: 40px 30px; text-align: center; }}
+            h1 {{ font-size: 24px; font-weight: 700; margin-bottom: 16px; color: #111827; }}
+            p {{ color: #4b5563; font-size: 16px; margin-bottom: 24px; }}
+            
+            /* The Code Box */
+            .code-box {{ background-color: #f9fafb; border: 1px dashed #d1d5db; padding: 20px; border-radius: 12px; margin: 30px 0; display: inline-block; min-width: 200px; }}
+            .otp-code {{ font-size: 32px; font-weight: 800; color: #7c3aed; letter-spacing: 6px; font-family: monospace; }}
+            
+            /* Button */
+            .btn {{ display: inline-block; background-color: #7c3aed; color: #ffffff; font-weight: 600; padding: 14px 32px; border-radius: 8px; text-decoration: none; transition: background 0.3s ease; margin-top: 10px; }}
+            .btn:hover {{ background-color: #6d28d9; }}
+            
+            /* Footer */
+            .footer {{ background-color: #f9fafb; padding: 20px; text-align: center; font-size: 12px; color: #9ca3af; border-top: 1px solid #e5e7eb; }}
+            .footer a {{ color: #7c3aed; text-decoration: none; }}
+        </style>
+    </head>
+    <body>
+        <div class="container">
+            <div class="header">
+                <a href="https://waselytics.com" class="logo">
+                    Waselytics<span>.</span>
+                </a>
             </div>
-        </body>
-        </html>
-        """
-    }
 
-    # 4. الإرسال في الخلفية (Threading) لضمان السرعة
-    # نستخدم دالة الـ API الجديدة بدلاً من دالة الـ SMTP
-    thread = threading.Thread(target=_send_brevo_api_background, args=(email_payload, brevo_key))
-    thread.start()
+            <div class="content">
+                <h1>Welcome to the Future of COD 🚀</h1>
+                <p>
+                    You are one step away from automating your order confirmation and unlocking real attribution data.
+                    <br>Please verify your email address to access your dashboard.
+                </p>
 
-    return JsonResponse({'success': True, 'message': 'تم إرسال الكود بنجاح'})
+                <div class="code-box">
+                    <div class="otp-code">{code}</div>
+                </div>
+
+                <p style="font-size: 14px; margin-top: 0;">Or click the button below:</p>
+                
+                <a href="{activation_link}" class="btn">Verify My Account</a>
+
+                <p style="font-size: 13px; color: #9ca3af; margin-top: 30px;">
+                    This code will expire in 10 minutes. If you didn't request this, you can safely ignore this email.
+                </p>
+            </div>
+
+            <div class="footer">
+                &copy; 2025 Waselytics Inc. All rights reserved.<br>
+                <a href="https://waselytics.com">waselytics.com</a> | <a href="#">Support</a>
+            </div>
+        </div>
+    </body>
+    </html>
+    """
+
+
+    try:
+       
+        email = EmailMessage(
+            subject="Your Verification Code - Waselytics", # عنوان الرسالة
+            body=html_content,                             # المحتوى
+            from_email=settings.DEFAULT_FROM_EMAIL,        # المرسل (noreply)
+            to=[user.email],                               # المستقبل
+        )
+
+        # 3. تحديد النوع HTML
+        email.content_subtype = "html"
+
+        email.send(fail_silently=False)
+        
+        print(f"✅ OTP sent successfully via Hostinger to: {user.email}")
+        return JsonResponse({'success': True, 'message': 'Code sent'})
+    except Exception as e:
+        print(f"❌ Failed to send OTP: {e}")
+        return JsonResponse({'success': False, 'message': 'Failed to send'}, status=500)
+        
+     
 def activate_account(request, user_id=None):
     code = request.POST.get('code' , None)
     user = request.user
@@ -274,7 +313,7 @@ def activate_account(request, user_id=None):
             user.is_active = True
             user.is_verified = True
             user.save()
-            return JsonResponse({'success': True, 'message': 'Your account has been activated successfully'})
+            return JsonResponse({'success': True,  'message': 'Your account has been activated successfully' , 'is_active': user.is_verified})
         else: return JsonResponse({'success': False, 'message': 'Invalid activation code'})
     else:
         # حالة النقر على الرابط المباشر
@@ -309,11 +348,11 @@ def register_user(email, password, user_name):
         user_name=user_name,
         
         
-        # 🔥 التغيير هنا: نجعله نشطاً ليتمكن من الدخول
+        
         is_active=True, 
         
-        # ونعتمد على هذا الحقل لمنعه من دخول الداشبورد
-        is_verified=True,
+        
+        is_verified=False,
         
         is_team_admin=True
 
@@ -332,6 +371,9 @@ from django.contrib.auth import login
 from django.contrib.auth import authenticate, login
 
 def singup(request):
+    if request.user.is_authenticated and request.user.is_active and request.user.is_verified:
+        return redirect('tracking')
+    form = CustomUserCreationForm()
     if request.method == 'POST':
         form = CustomUserCreationForm(request.POST)
         if form.is_valid():
@@ -346,34 +388,102 @@ def singup(request):
                     login(request, user, backend='django.contrib.auth.backends.ModelBackend')
                 except Exception as e:
                     print(f"❌ Login Error: {e}")
-                    
-                resend_activation_email(request)
-              
-                    
-                return redirect('singup')
-              
-            except ValueError as e:
-                print(f"❌ Registration Error: {e}")
-               
-                form.add_error('email', str(e))
-                return render(request, 'user/singup.html', {'form': form})
-        else:
-            print(f"❌ Form is INVALID. Errors: {form.errors}")
-            return render(request, 'user/singup.html', {'form': form})
-    
-    else:
-        # GET Request
+                code = user.generate_verification_code()
+                current_host = request.get_host()
+                protocol = 'https' if request.is_secure() else 'http'
+                activation_link = f'{protocol}://{current_host}/activate/{user.id}/'
+                html_content = f"""
+        <!DOCTYPE html>
+        <html lang="en">
+        <head>
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <title>Verify your Waselytics Account</title>
+            <style>
+                /* Reset & Basics */
+                body {{ margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f3f4f6; color: #1f2937; line-height: 1.6; }}
+                .container {{ max-width: 600px; margin: 40px auto; background: #ffffff; border-radius: 16px; overflow: hidden; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06); }}
+                
+                /* Header */
+                .header {{ background-color: #0f172a; padding: 30px; text-align: center; }}
+                .logo {{ font-size: 24px; font-weight: bold; color: #ffffff; text-decoration: none; letter-spacing: 1px; }}
+                .logo span {{ color: #7c3aed; }} /* Brand Purple */
 
-        print(f"🔎 Checking session: Is Authenticated? {request.user.is_authenticated}")
-        
-        if request.user.is_authenticated and not getattr(request.user, 'is_verified', False):
-            return render(request, 'user/singup.html', {'form': CustomUserCreationForm()})
-            
-        form = CustomUserCreationForm()
+                /* Content */
+                .content {{ padding: 40px 30px; text-align: center; }}
+                h1 {{ font-size: 24px; font-weight: 700; margin-bottom: 16px; color: #111827; }}
+                p {{ color: #4b5563; font-size: 16px; margin-bottom: 24px; }}
+                
+                /* The Code Box */
+                .code-box {{ background-color: #f9fafb; border: 1px dashed #d1d5db; padding: 20px; border-radius: 12px; margin: 30px 0; display: inline-block; min-width: 200px; }}
+                .otp-code {{ font-size: 32px; font-weight: 800; color: #7c3aed; letter-spacing: 6px; font-family: monospace; }}
+                
+                /* Button */
+                .btn {{ display: inline-block; background-color: #7c3aed; color: #ffffff; font-weight: 600; padding: 14px 32px; border-radius: 8px; text-decoration: none; transition: background 0.3s ease; margin-top: 10px; }}
+                .btn:hover {{ background-color: #6d28d9; }}
+                
+                /* Footer */
+                .footer {{ background-color: #f9fafb; padding: 20px; text-align: center; font-size: 12px; color: #9ca3af; border-top: 1px solid #e5e7eb; }}
+                .footer a {{ color: #7c3aed; text-decoration: none; }}
+            </style>
+        </head>
+        <body>
+            <div class="container">
+                <div class="header">
+                    <a href="https://waselytics.com" class="logo">
+                        Waselytics<span>.</span>
+                    </a>
+                </div>
+
+                <div class="content">
+                    <h1>Welcome to the Future of COD 🚀</h1>
+                    <p>
+                        You are one step away from automating your order confirmation and unlocking real attribution data.
+                        <br>Please verify your email address to access your dashboard.
+                    </p>
+
+                    <div class="code-box">
+                        <div class="otp-code">{code}</div>
+                    </div>
+
+                    <p style="font-size: 14px; margin-top: 0;">Or click the button below:</p>
+                    
+                    <a href="{activation_link}" class="btn">Verify My Account</a>
+
+                    <p style="font-size: 13px; color: #9ca3af; margin-top: 30px;">
+                        This code will expire in 10 minutes. If you didn't request this, you can safely ignore this email.
+                    </p>
+                </div>
+
+                <div class="footer">
+                    &copy; 2025 Waselytics Inc. All rights reserved.<br>
+                    <a href="https://waselytics.com">waselytics.com</a> | <a href="#">Support</a>
+                </div>
+            </div>
+        </body>
+        </html>
+        """
+                try:
+                    email_msg = EmailMessage(
+                        subject="Your Verification Code - Waselytics",
+                        body=html_content,
+                        from_email=settings.DEFAULT_FROM_EMAIL,
+                        to=[user.email],
+                    )
+                    email_msg.content_subtype = "html"
+                    email_msg.send(fail_silently=False)
+                except Exception as e:
+                    print(f"❌ Failed to send OTP: {e}")
+                
+                # 🔥 التغيير هنا: لا توجهه لمكان آخر!
+                # أعد عرض نفس الصفحة مع متغير يخبر المتصفح بإظهار الـ Popup
+                print("✅ User created, showing OTP modal.")
+                return render(request, 'user/singup.html', {'form': form, 'show_otp': True})
+
+            except Exception as e:
+                form.add_error(None, str(e))
     
     return render(request, 'user/singup.html', {'form': form})
-
- 
 
 
 
@@ -678,9 +788,9 @@ from django.core.mail import EmailMessage
 
 
 from django.urls import reverse
-from django.core.mail import EmailMessage
+# from django.core.mail import EmailMessage
 from django.conf import settings
-
+from django.core.mail import send_mail
 def send_invitation_email(request, invitation):
     # 1. بناء الرابط الديناميكي
     relative_link = reverse('accept_invite', kwargs={'token': invitation.token})
@@ -698,81 +808,123 @@ def send_invitation_email(request, invitation):
     # 
     html_content = f"""
     <!DOCTYPE html>
-    <html>
+    <html lang="en">
     <head>
-        <meta charset="utf-8">
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>You've been invited to Waselytics</title>
         <style>
-            body {{ font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; line-height: 1.6; color: #333; margin: 0; padding: 0; background-color: #f4f4f7; }}
-            .container {{ width: 100%; max-width: 600px; margin: 0 auto; padding: 20px; }}
-            .email-card {{ background-color: #ffffff; padding: 40px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); border: 1px solid #eaeaec; }}
-            .btn {{ display: inline-block; background-color: #2563EB; color: #ffffff !important; padding: 12px 24px; font-size: 16px; font-weight: 600; text-decoration: none; border-radius: 6px; margin-top: 20px; }}
-            .btn:hover {{ background-color: #1d4ed8; }}
-            .footer {{ margin-top: 24px; text-align: center; font-size: 12px; color: #6b7280; }}
-            .link-box {{ margin-top: 24px; padding: 12px; background-color: #f9fafb; border-radius: 4px; word-break: break-all; font-size: 12px; color: #6b7280; }}
+            /* Reset & Basics */
+            body {{ margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f3f4f6; color: #1f2937; line-height: 1.6; -webkit-font-smoothing: antialiased; }}
+            .wrapper {{ width: 100%; table-layout: fixed; background-color: #f3f4f6; padding-bottom: 40px; }}
+            
+            /* Container */
+            .container {{ max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 16px; overflow: hidden; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05); }}
+            
+            /* Header */
+            .header {{ background-color: #0f172a; padding: 30px; text-align: center; border-bottom: 4px solid #7c3aed; }}
+            .logo {{ font-size: 26px; font-weight: 800; color: #ffffff; text-decoration: none; letter-spacing: -0.5px; }}
+            .logo span {{ color: #7c3aed; }} 
+
+            /* Content Body */
+            .content {{ padding: 40px 40px; }}
+            
+            /* Typography */
+            h1 {{ margin-top: 0; color: #111827; font-size: 24px; font-weight: 700; line-height: 1.3; text-align: center; }}
+            p {{ color: #4b5563; font-size: 16px; margin-bottom: 24px; }}
+            
+            /* User Badge */
+            .inviter-badge {{ display: table; margin: 0 auto 24px auto; background-color: #f5f3ff; color: #7c3aed; padding: 8px 16px; border-radius: 50px; font-size: 14px; font-weight: 600; border: 1px solid #ddd6fe; }}
+            
+            /* CTA Button */
+            .btn-container {{ text-align: center; margin: 35px 0; }}
+            .btn {{ display: inline-block; background-color: #7c3aed; color: #ffffff !important; padding: 16px 36px; font-size: 16px; font-weight: 600; text-decoration: none; border-radius: 8px; box-shadow: 0 4px 6px -1px rgba(124, 58, 237, 0.3); transition: all 0.2s ease; }}
+            .btn:hover {{ background-color: #6d28d9; transform: translateY(-1px); box-shadow: 0 6px 8px -1px rgba(124, 58, 237, 0.4); }}
+            
+            /* Link Box */
+            .link-help {{ font-size: 13px; color: #9ca3af; text-align: center; margin-top: 30px; }}
+            .link-box {{ background-color: #f9fafb; padding: 12px; border-radius: 6px; border: 1px solid #e5e7eb; word-break: break-all; font-size: 12px; color: #6b7280; text-align: center; margin-top: 8px; }}
+            
+            /* Footer */
+            .footer {{ background-color: #f9fafb; padding: 24px; text-align: center; font-size: 12px; color: #9ca3af; border-top: 1px solid #e5e7eb; }}
+            .footer a {{ color: #6b7280; text-decoration: underline; }}
         </style>
     </head>
     <body>
-        <div class="container">
-            <div style="text-align: center; margin-bottom: 24px;">
-                <h2 style="color: #2563EB; margin: 0;">Waselytics</h2>
-            </div>
-
-            <div class="email-card">
-                <h2 style="margin-top: 0; font-size: 24px; color: #111827;">You've been invited to join a team</h2>
-                
-                <p style="font-size: 16px; color: #374151;">Hello <strong>{recipient_name}</strong>,</p>
-                
-                <p style="font-size: 16px; color: #374151;">
-                    <strong>{admin_name}</strong> has invited you to collaborate on their workspace. 
-                    Join the team to start managing orders, tracking leads, and accessing shared resources.
-                </p>
-
-                <div style="text-align: center; margin: 32px 0;">
-                    <a href="{invite_url}" class="btn">Accept Invitation</a>
+        <div class="wrapper">
+            <div style="height: 40px;"></div>
+            <div class="container">
+                <div class="header">
+                    <a href="https://waselytics.com" class="logo">
+                        Waselytics<span>.</span>
+                    </a>
                 </div>
-                
-                <p style="font-size: 14px; color: #6b7280;">
-                    If you were not expecting this invitation, you can safely ignore this email.
-                </p>
 
-                <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 32px 0;">
+                <div class="content">
+                    <div class="inviter-badge">
+                        🚀 Invitation from {admin_name}
+                    </div>
 
-                <p style="font-size: 13px; color: #6b7280; margin-bottom: 8px;">
-                    Button not working? Copy and paste the following link into your browser:
-                </p>
-                <div class="link-box">
-                    <a href="{invite_url}" style="color: #2563EB; text-decoration: none;">{invite_url}</a>
+                    <h1>Unlock your workspace access</h1>
+                    
+                    <p>Hello <strong>{recipient_name}</strong>,</p>
+                    
+                    <p>
+                        You have been selected to join the <strong>{admin_name}'s Team</strong> on Waselytics. 
+                    </p>
+                    <p>
+                        Accept this invitation to start collaborating on order workflows, accessing real-time attribution data, and scaling your COD operations together.
+                    </p>
+
+                    <div class="btn-container">
+                        <a href="{invite_url}" class="btn">Join the Team &rarr;</a>
+                    </div>
+                    
+                    <p style="font-size: 14px; color: #6b7280; text-align: center;">
+                        This invitation link is unique to you and will remain valid for 48 hours.
+                    </p>
+
+                    <div class="link-help">
+                        Having trouble with the button? Copy this link:
+                        <div class="link-box">
+                            <a href="{invite_url}" style="color: #7c3aed; text-decoration: none;">{invite_url}</a>
+                        </div>
+                    </div>
                 </div>
-            </div>
 
-            <div class="footer">
-                <p>&copy; {settings.CURRENT_YEAR if hasattr(settings, 'CURRENT_YEAR') else '2025'} Waselytics Inc. All rights reserved.</p>
-                <p>This is an automated message, please do not reply.</p>
+                <div class="footer">
+                    <p>&copy; 2025 Waselytics Inc. All rights reserved.</p>
+                    <p>
+                        You received this email because you were invited to Waselytics. 
+                        If this was a mistake, you can safely ignore this email.
+                    </p>
+                </div>
             </div>
         </div>
     </body>
     </html>
     """
-
     try:
-        brevo_key = os.environ.get('BREVO_API_KEY') # أو من settings
-        if not brevo_key:
-                print("⚠️ Missing BREVO_API_KEY")
-                return JsonResponse({'success': False, 'message': 'Server Config Error'})
-
+        # لم نعد بحاجة لفحص مفتاح Brevo هنا
+        
+        # 1. إنشاء كائن الرسالة
         email = EmailMessage(
             subject=subject,
             body=html_content,
-            # يفضل استخدام إيميل رسمي هنا مثل no-reply@yourdomain.com
-            from_email='bojamaabayad2001@gmail.com', 
+            # استبدل الإيميل الشخصي بإيميل الإعدادات (noreply)
+            from_email=settings.DEFAULT_FROM_EMAIL, 
             to=[invitation.email],
         )
-        email.content_subtype = "html"
+
+        # 2. تحديد أن محتوى الرسالة هو HTML وليس نصاً عادياً
+        email.content_subtype = "html" 
+
+        # 3. الإرسال (سيستخدم إعدادات SMTP Hostinger تلقائياً)
         email.send(fail_silently=False)
-        thread = threading.Thread(target=_send_brevo_api_background, args=(html_content, brevo_key))
-        thread.start()
-        print(f"📧 Invitation sent successfully to: {invitation.email}")
+
+        print(f"📧 Invitation sent successfully via Hostinger SMTP to: {invitation.email}")
         return True
+
     except Exception as e:
         print("❌ Failed to send invitation:", e)
         return False
@@ -864,60 +1016,72 @@ def invite_staff(request):
 
 
     # return render(request, 'team/invite_staff.html')
-
-
+ 
 def accept_invite(request, token):
     error = ''
     invitation = get_object_or_404(TeamInvitation, token=token)
-    if invitation.is_used:
-        error  = 'هذه الدعوة قد تم استخدامها بالفعل'
     
+    if invitation.is_used:
+        # إذا كانت مستخدمة، نوقف العملية فوراً
+        return render(request, 'accept.html', {'error_message': 'This invitation has already been used.'})
+    
+    # إذا كان المستخدم مسجلاً، نتأكد أنه نفس صاحب الدعوة
     if request.user.is_authenticated:
-        # إذا كان المستخدم مسجلاً الدخول بالفعل، يمكنه قبول الدعوة
         if invitation.email != request.user.email:
-            return JsonResponse({'success': False,
-                                  'message': 'لا يمكنك قبول هذه الدعوة، البريد الإلكتروني المسجل به غير متطابق'})
-        # print('invit email' , invitation.email)
+             return render(request, 'accept.html', {'error_message': 'You are logged in with a different email. Please logout first.'})
 
     if request.method == 'POST':
-        user = CustomUser.objects.create_user(
-            username=invitation.email,
-            email=invitation.email,
-            password=None,
-            user_name=invitation.name,
-            team_admin = invitation.admin,
-            is_active=True,
-            is_verified=True,  # تعيين الحالة إلى مفعل
-            is_team_admin=False  # تعيين الحالة إلى غير أدمين فريق
-        )
-        user.set_unusable_password()
-        user.save()
-        
+        # استقبال البيانات من الـ AJAX
+        full_name = request.POST.get('full_name', invitation.name)
+        password = request.POST.get('password') # 🔥 الجديد
 
- 
-        login(request, user)
-        for product in invitation.products.all():
+        if not password:
+             return JsonResponse({'status': 'error', 'message': 'Password is required'})
+
+        try:
+            # إنشاء المستخدم
+            user = CustomUser.objects.create_user(
+                username=invitation.email,
+                email=invitation.email,
+                password=password, # 🔥 نستخدم كلمة المرور الحقيقية هنا
+                user_name=full_name,
+                team_admin=invitation.admin,
+                is_active=True,
+                is_verified=True,
+                is_team_admin=False
+            )
+            
+            # منح الصلاحيات (كما هو في كودك الأصلي)
+            for product in invitation.products.all():
                 UserProductPermission.objects.get_or_create(
                     user=user,
                     product=product,
                     defaults={'role': invitation.role}
                 )
-        invitation.is_used = True
-        invitation.save()
+            
+            for channel in invitation.channels.all():
+                channel.assigned_agents.add(user)
 
-        for channel in invitation.channels.all():
-            channel.assigned_agents.add(user)
-         
-        return JsonResponse({'status': 'success'})
-         
+            # تحديث الدعوة
+            invitation.is_used = True
+            invitation.save()
 
+            # تسجيل الدخول تلقائياً
+            login(request, user, backend='django.contrib.auth.backends.ModelBackend')
+
+            return JsonResponse({'status': 'success'})
+
+        except Exception as e:
+            print(f"Error creating user: {e}")
+            return JsonResponse({'status': 'error', 'message': str(e)})
+
+    # GET Request
     return render(request, 'accept.html', {
         'inviter': invitation.admin,
         'email': invitation.email,
         'invetations': invitation,
-        'error_message':error
+        'error_message': error
     })
-
 
 
 # def accept_invite(request, token):

@@ -62,6 +62,7 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    'discount.middleware.AccountActivationMiddleware',
 ]
 
 ROOT_URLCONF = 'disound.urls'
@@ -175,15 +176,15 @@ FILE_UPLOAD_MAX_MEMORY_SIZE = 104857600  # 100 MB
 
 
 
-EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
-EMAIL_HOST = os.environ.get('EMAIL_HOST', 'smtp-relay.brevo.com')
-EMAIL_PORT = int(os.environ.get('EMAIL_PORT', 587))
-EMAIL_USE_TLS = os.environ.get('EMAIL_USE_TLS', 'True') == 'True'
-EMAIL_USE_SSL = os.environ.get('EMAIL_USE_SSL', 'False') == 'True'
+# EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+# EMAIL_HOST = os.environ.get('EMAIL_HOST', 'smtp-relay.brevo.com')
+# EMAIL_PORT = int(os.environ.get('EMAIL_PORT', 587))
+# EMAIL_USE_TLS = os.environ.get('EMAIL_USE_TLS', 'True') == 'True'
+# EMAIL_USE_SSL = os.environ.get('EMAIL_USE_SSL', 'False') == 'True'
 
-EMAIL_HOST_USER = os.environ.get('EMAIL_HOST_USER')
-EMAIL_HOST_PASSWORD = os.environ.get('EMAIL_HOST_PASSWORD')
-DEFAULT_FROM_EMAIL = os.environ.get('DEFAULT_FROM_EMAIL')
+# EMAIL_HOST_USER = os.environ.get('EMAIL_HOST_USER')
+# EMAIL_HOST_PASSWORD = os.environ.get('EMAIL_HOST_PASSWORD')
+# DEFAULT_FROM_EMAIL = os.environ.get('DEFAULT_FROM_EMAIL')
 
  
  
@@ -251,3 +252,22 @@ NAQEL_CLIENT_ID = "YOUR_CLIENT_ID"
 NAQEL_PASSWORD = "YOUR_PASSWORD"
 NAQEL_VERSION = "9.0"
 # https://app.waselytics.com/
+
+
+
+# settings.py
+
+# إعدادات البريد الإلكتروني عبر Hostinger SMTP
+EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+EMAIL_HOST = 'smtp.hostinger.com'       # سيرفر هوستنجر
+EMAIL_PORT = 465                        # البورت الآمن SSL
+EMAIL_USE_SSL = True                    # تفعيل التشفير
+EMAIL_USE_TLS = False                   # (مع البورت 465 نستخدم SSL وليس TLS)
+
+# بيانات الاعتماد (يفضل وضعها في ملف .env)
+EMAIL_HOST_USER = 'support@waselytics.com' 
+EMAIL_HOST_PASSWORD = 'H]QOs5N0rP+' # كلمة مرور الإيميل التي أنشأتها
+
+# الإيميل الافتراضي الذي تخرج منه الرسائل
+DEFAULT_FROM_EMAIL = 'Waselytics Security <support@waselytics.com>'
+SERVER_EMAIL = 'support@waselytics.com'
