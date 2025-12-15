@@ -1601,7 +1601,7 @@ window.loadDashboardData = loadDashboardData;
         const res = await response.json();
         
         if (response.ok) {
-            window.closeTemplateModal();
+            window.closeTemplateModalchat();
             if (window.fetchMessagesForCurrentws) window.fetchMessagesForCurrentws();
             alert("تم إرسال القالب بنجاح ✅");
         } else {
