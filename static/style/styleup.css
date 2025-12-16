@@ -3108,7 +3108,13 @@ position: relative;
 .audio-error svg {
   flex-shrink: 0;
 }
+@media (max-width: 1400px) {
+.cls3741_user_col{
+  width: 316px;
+  /* display: none; */
+}
 
+}
 /* تحسينات للشاشات الصغيرة */
 @media (max-width: 480px) {
   .audio-container {
@@ -3134,6 +3140,7 @@ position: relative;
   .audio-duration {
     font-size: 10px;
   }
+ 
 }🔥 CSS للمشغل الصوتي المتقدم مثل WhatsApp */
 .audio-message {
   max-width: 100%;

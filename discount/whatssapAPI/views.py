@@ -2968,6 +2968,7 @@ def update_contact_crm(request):
         if value:
             # contact.assigned_agent_id = value
             agent = CustomUser.objects.get(id=value)
+            contact.assigned_agent = agent
             create_activity_log(contact.channel, phone, f"Conversation assigned to {agent.user_name}", user=request.user)
             log_msg = f"تم تعيين المحادثة للموظف ID: {value}"
         else:

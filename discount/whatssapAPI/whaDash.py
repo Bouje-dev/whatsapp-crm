@@ -16,6 +16,7 @@ def api_lifecycle_stats(request):
     else:
         # الموظف يرى فقط جهات الاتصال المسندة إليه
         contacts_qs = Contact.objects.filter(assigned_agent=user)
+        print('contacts_qs',contacts_qs)
 
     # 2. 🔥 فلترة حسب القناة (إذا تم تحديدها) 🔥
     if channel_id and channel_id != 'all':
@@ -28,7 +29,7 @@ def api_lifecycle_stats(request):
     stats_dict = {item['pipeline_stage']: item['total'] for item in stats}
     
     total_contacts = contacts_qs.count() or 1 
-    
+
     stages_config = [
         {
             'key': Contact.PipelineStage.NEW,  # ستعود بـ 'new'

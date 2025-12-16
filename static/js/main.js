@@ -625,7 +625,7 @@ function showSendErrorchat(resData = {}, options = {}) {
         <button class="action-btn retry-btn" type="button"> Try again</button>
         <span class="tpl-wrap">
           <button class="action-btn secondary select-tpl-btn select-tpl" type="button"> Select Templaite</button>
-          <span class="template-hint">مرّر هنا لإرسال قالب جاهز</span>
+          
         </span>
       </div>
     </div>
@@ -674,6 +674,8 @@ document.querySelector('.cls3741_chat_input_container').classList.add('d-none')
       wrapper.dispatchEvent(new CustomEvent('chat9999:open-template', { detail: { resData } }));
     }
   });
+
+ 
 
   // Close button
   closeBtn.addEventListener('click', () => fadeOutAndRemove(el));
