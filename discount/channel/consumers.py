@@ -4,7 +4,8 @@ from channels.db import database_sync_to_async
 # from django.contrib.auth.models import User
 from discount.models import GroupMessages , groupchat
 from  discount.models import CustomUser as User
-
+# from discount.models import CustomUser
+from django.utils import timezone
 
 
 
@@ -30,24 +31,49 @@ class WebhookConsumer(AsyncWebsocketConsumer):
     async def connect(self):
         await self.channel_layer.group_add("webhook_events", self.channel_name)
         self.user = self.scope["user"]
+        
+        
+        if self.user.is_authenticated:
+        #     is_admin = getattr(self.user, 'is_superuser', False) or getattr(self.user, 'is_team_admin', False)
+        # if not is_admin:
+            await self.update_user_status(self.user, True)
+            await self.channel_layer.group_add(
+            "admin_updates",  # نفس اسم الجروب الذي ترسل له
+            self.channel_name
+        )
+            
+            
+            await self.channel_layer.group_send(
+                "admin_updates", 
+                {
+                    "type": "user_status_change",
+                    "user_id": self.user.id,
+                    "status": "online"
+                }
+            )
         await self.accept()
 
       
 
     async def disconnect(self, close_code):
+        if self.user.is_authenticated:
+            # 1. تحديث الحالة إلى "غير متصل"
+            await self.update_user_status(self.user, False)
+            
+            # 2. إبلاغ الأدمن
+            await self.channel_layer.group_send(
+                "admin_updates", 
+                {
+                    "type": "user_status_change",
+                    "user_id": self.user.id,
+                    "status": "offline"
+                }
+            )
         await self.channel_layer.group_discard("webhook_events", self.channel_name)
        
 
     async def receive(self, text_data=None, bytes_data=None):
-        """
-        استقبال الرسائل من الواجهة (frontend).
-        نتوقع JSON يضبط الحقول:
-          - type: "text" | "media_upload" | "client_message" | ...
-          - reciver (أو to)
-          - body (نص)
-          - file (base64 string) -- في حالة media_upload
-          - filename, mime (اختياريان)
-        """
+      
         try:
             if text_data:
                 data = json.loads(text_data)
@@ -170,3 +196,24 @@ class WebhookConsumer(AsyncWebsocketConsumer):
             "data_type": dynamic_type, 
             "payload": payload_data
         }))
+
+    async def user_status_change(self, event):
+        # 1. استقبال البيانات من الجروب
+        user_id = event['user_id']
+        status = event['status']
+ 
+        # 2. إرسالها فعلياً للمتصفح (Frontend) عبر السوكيت
+        await self.send(text_data=json.dumps({
+            'data_type': 'user_status_change',  
+            'user_id': user_id,
+            'status': status
+        }))
+
+
+    @database_sync_to_async
+    def update_user_status(self, user, status):
+        # نعيد جلب المستخدم للتأكد
+        u = User.objects.get(id=user.id)
+        u.is_online = status
+        u.last_seen = timezone.now()
+        u.save()

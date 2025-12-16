@@ -90,7 +90,9 @@ class CustomUser(AbstractUser):
     class Meta:
         db_table = 'discount_customuser'  # تحديد اسم الجدول صراحة
 
-    # تغيير related_name لتجنب التعارضات
+    # تغيير related_name لتجنب التعارضات\\
+    is_online = models.BooleanField(default=False )
+    last_seen = models.DateTimeField(auto_now=True , blank=True, null=True)
     groups = models.ManyToManyField(
         Group,
         related_name='custom_users',
@@ -1247,7 +1249,7 @@ class Contact(models.Model):
 
     def __str__(self):
         return self.phone
-
+    created_at = models.DateTimeField(auto_now_add=True , null=True , blank=True)
 
 
 

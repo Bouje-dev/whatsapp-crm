@@ -51,6 +51,17 @@ const ChatSocket = {
 
     switch (type) {
 
+        
+    case 'user_status_change': 
+    console.log('user_status_change' , data)
+    if ( typeof window.updateUserStatusUI === 'function') {
+        window.updateUserStatusUI(data.user_id, data.status);
+    }
+    break;
+
+
+
+
 
         case 'log_message_received': {
             const payload = data.payload;

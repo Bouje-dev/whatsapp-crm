@@ -32,7 +32,7 @@ urlpatterns = [
 
     path('discount/marketing/', include('discount.marketing.urls')),
     # ad spy links 
-    path('discount/adspy/', include('discount.adspy.urls')),
+     
 
 
      path('tracking/get_tracking_company_data/' , views.get_tracking_company_data , name='get_tracking_company_data'),

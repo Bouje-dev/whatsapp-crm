@@ -679,10 +679,92 @@ function generateWhatsAppQR(phoneNumber) {
           </div>
       </div>
 
-<!-- 
+            {% if user.is_team_admin or user.is_superuser %}
         <div class="cycle_card">
+          <div class="cls3741_card cls3741_team_card">
+            <div class="cls3741_card_header">
+                <h4 class="cls3741_card_title">
+                    <i class="fas fa-users me-2"></i> Team Status
+                </h4>
+                <span class="cls3741_badge_gray">{{ team_members|length }} Members</span>
+            </div>
+        
+            <div class="cls3741_team_list">
+                {% for member in team_members %}
+                <div class="cls3741_team_item" id="agent_row_{{ member.id }}">
+                    
+                    <div class="d-flex align-items-center gap-3">
+                        <div class="cls3741_avatar_wrapper">
+                            {% if member.profile_picture %}
+                                <img src="{{ member.profile_picture.url }}" alt="{{ member.first_name }}" class="cls3741_avatar_img">
+                            {% else %}
+                                <div class="cls3741_avatar_placeholder">{{ member.first_name|slice:":1" }}</div>
+                            {% endif %}
+                            
+                            <span id="status_dot_{{ member.id }}" 
+                                  class="cls3741_status_indicator {% if member.is_online %}online{% else %}offline{% endif %}">
+                            </span>
+                        </div>
+                        
+                        <div class="d-flex flex-column">
+                            <span class="cls3741_member_name">
+                                {{ member.user_name }} {{ member.last_name }}
+                                {% if member.id == user.id %} <span class="text-muted small">(You)</span> {% endif %}
+                            </span>
+                            <span class="cls3741_member_role">{{ member.role|default:"Agent" }}</span>
+                        </div>
+                    </div>
+        
+                    <div class="cls3741_last_seen">
+                        {% if member.is_online %}
+                            <span class="text-success">Active Now</span>
+                        {% else %}
+                            {{ member.last_seen|timesince }} ago
+                        {% endif %}
+                    </div>
+                </div>
+                {% empty %}
+                <div class="text-center p-3 text-muted">No team members found.</div>
+                {% endfor %}
+            </div>
+        </div>
+
+<script>
+  window.updateUserStatusUI = function(userId, status) {
+    console.log(`User ${userId} is now ${status}`); // للتجربة
+
+    // 1. البحث عن العنصر في DOM (الصف الخاص بالموظف)
+    // تذكر أننا سمينا العناصر في HTML بـ id="status_dot_15"
+    const statusDot = document.getElementById(`status_dot_${userId}`);
+    const activeText = document.getElementById(`active_text_${userId}`); // النص (Now / 5m ago)
+
+    if (statusDot) {
+        // تحديث النقطة
+        if (status === 'online') {
+            statusDot.classList.remove('offline');
+            statusDot.classList.add('online');
             
-        </div> -->
+            if(activeText) {
+                activeText.innerText = 'Active Now';
+                activeText.classList.add('text-success');
+            }
+        } else {
+            statusDot.classList.remove('online');
+            statusDot.classList.add('offline');
+            
+            if(activeText) {
+                activeText.innerText = 'Offline'; // أو اتركها كما هي
+                activeText.classList.remove('text-success');
+            }
+        }
+    }
+}
+</script>
+
+            </div>
+
+            {% endif %} 
+        </div>
     </div>
     <div class="cls3741_section_title">
       <h3><i class="fas fa-route me-2"></i>Contact Lifecycle</h3>
@@ -937,7 +1019,7 @@ function filterContactsByStage(stageKey) {
 .cycle_card {
     background: linear-gradient(135deg, #4f46e5, #3730a3);
     border-radius: 16px;
-    padding: 20px;
+    /* padding: 20px; */
     color: white;
     display: flex;
     justify-content: space-between;
@@ -1008,6 +1090,15 @@ async function loadDashboardData(channelId) {
             updateText('dash_campaigns_count', data.stats.campaigns);
             updateText('dash_sent_count', data.stats.sent);
             updateText('dash_received_count', data.stats.received);
+            updateText('dash_today_count', data.stats.today_contacts);
+            updateText('dash_yest_count', data.stats.yesterday_contacts);
+
+            // for orders 
+            updateText('dash_orders_count', data.stats.total_orders);
+            // updateText('dash_orders_amount', data.stats.orders_amount);
+            updateText('dash_today_order', data.stats.orders_today);
+            updateText('dash_yest_order', data.stats.orders_yesterday);
+
 
             // 2. تحديث الرسم البياني
             updateChart(data.chart);

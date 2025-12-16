@@ -857,11 +857,7 @@ color:#ede9e9 !important;
            <a href="/tracking/" class="btn nav_link active" id="track1">Tracking</a>
             <a href="{% url 'user' %}" class="btn nav_link">Account</a>
             <a href="{% url 'analytics' %}" class="btn nav-link2">Analytics</a>
-            {% if request.user.is_team_admin or request.user.is_superuser %}
-            <a href="{% url 'Adspy' %}" class="btn nav-link2">Adspy</a>
-            <a href="{% url 'ads_dashboard' %}" class="btn nav-link2">Integrations</a>
-            {% endif %}
-            
+         
         </div>
     </nav>
  
@@ -2692,18 +2688,5 @@ fetch("{% url 'leadstracking' %}" , {
 
  
 
-
-
-  
-
-
- 
-
- 
-
- 
-
-
- 
 </body>
 </html>

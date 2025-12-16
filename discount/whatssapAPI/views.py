@@ -2692,9 +2692,34 @@ def api_dashboard_stats(request):
         # 1. إحصائيات عامة (Cards)
         total_contacts = Contact.objects.filter(channel=channel).count()
         total_messages = Message.objects.filter(channel=channel).count()
+   
+        now = timezone.now()
+        today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
+        yesterday_start = today_start - timedelta(days=1)
 
-        # يمكن إضافة Campaigns لاحقاً
+        yesterday_contacts = Contact.objects.filter(
+            channel=channel,
+            created_at__gte=yesterday_start,
+            created_at__lt=today_start
+        ).count()
+
+        today_contacts = Contact.objects.filter(
+            channel=channel,
+            created_at__gte=today_start
+        ).count()
         
+
+        orders_today = SimpleOrder.objects.filter(
+            channel=channel,
+            created_at__gte=today_start
+        )
+
+        orders_yesterday = SimpleOrder.objects.filter(
+            channel=channel,
+            created_at__gte=yesterday_start,
+            created_at__lt=today_start
+        )
+
         # 2. بيانات الحساب (من مودل القناة)
         account_info = {
             'display_name': channel.name,
@@ -2711,6 +2736,13 @@ def api_dashboard_stats(request):
         labels = []
         sent_data = []
         received_data = []
+
+        total_order  = '0'
+        if user.is_superuser or user.is_team_admin:
+            total_order = SimpleOrder.objects.filter(channel=channel).count()
+        else:
+                total_order = SimpleOrder.objects.filter(agent=user,channel=channel).count()
+        
 
         for i in range(6, -1, -1): # لوب لآخر 7 أيام
             day = today - timedelta(days=i)
@@ -2743,7 +2775,13 @@ def api_dashboard_stats(request):
                 'messages': total_messages,
                 'campaigns': 0,
                 'sent': sent_count,         # تفصيل
-                'received': received_count, # تفصيل
+                'received': received_count, 
+                'yesterday_contacts': yesterday_contacts,
+                'today_contacts': today_contacts,
+
+                'orders_today': orders_today.count(),
+                'orders_yesterday': orders_yesterday.count(),
+                'total_orders':total_order
             },
             'account': account_info,
             'chart': {
