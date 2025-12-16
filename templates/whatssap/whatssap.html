@@ -6447,7 +6447,7 @@ if (typeof window.openTemplatePanel() === 'function') {
             const bannerer = document.querySelector('.error-banner');
             if (bannerer) {
               bannerer.remove();
-            document.querySelector('.cls3741_chat_input_container').classList.remove('d-none')
+            document.querySelector('.cls3741_input_container').classList.remove('d-none')
             }
           }
 
@@ -7009,7 +7009,7 @@ async function sendMessageLocal_ws(fileObj = null, fileType = null) {
       
       if (!text) { 
           if (sendBtnmain) sendBtnmain.disabled = false; 
-          // alert('اكتب رسالة'); 
+            
           return; 
       }
       
@@ -7235,11 +7235,13 @@ async function sendMessageLocal_ws(fileObj = null, fileType = null) {
 
     
     if(sendBtnmain) {
-      console.log('زر الإرسال');
       sendBtnmain.addEventListener('click', function(e) {
         e.preventDefault();
-        console.log('🔄 زر الإرسال تم النقر عليه');
         
+        // if (!sendBtnmain.disabled) {
+          document.getElementById('cls3741_send_btn').disabled = true;
+          // sendBtnmain.disabled = true;
+        // }
         if(queuedFile && queuedFileType) {
           sendMessageLocal_ws(queuedFile, queuedFileType);
         } else {
@@ -7248,7 +7250,7 @@ async function sendMessageLocal_ws(fileObj = null, fileType = null) {
       });
     }
 
-    // إرسال بالضغط على Enter
+    
     if(messageInput) {
       messageInput.addEventListener('keydown', function(e) {
         if(e.key === 'Enter' && !e.shiftKey) {

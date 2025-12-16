@@ -634,7 +634,7 @@ function showSendErrorchat(resData = {}, options = {}) {
 
   // إدراج في DOM (نضعه أعلى المحتوى داخل wrapper)
   wrapper.prepend(el);
-document.querySelector('.cls3741_chat_input_container').classList.add('d-none')
+document.querySelector('.cls3741_input_container').classList.add('d-none')
   // أحداث الأزرار
   const retryBtn = el.querySelector('.retry-btn');
   const tplBtn = el.querySelector('.select-tpl-btn');
