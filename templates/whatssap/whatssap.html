@@ -529,8 +529,8 @@
     
     
     </script>
-    <!-- main content + side card -->
-    <!-- مثال على البطاقات -->
+  
+  
 <main class="cls3741_main">
 
   <section class="cls3741_panel cls3741_panel_dashboard">
@@ -907,7 +907,7 @@ function filterContactsByStage(stageKey) {
 {% endif %}
 
  
-  </div>
+  <!-- </div> -->
 <style>
   /* --- Dashboard Layout --- */
 .cls3741_panel_dashboard {
@@ -1057,6 +1057,8 @@ function filterContactsByStage(stageKey) {
     .account_info_grid { grid-template-columns: 1fr 1fr; width: 100%; text-align: left; }
 }
 </style>
+
+
 </section>
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -1187,7 +1189,8 @@ loadDashboardData(window.currentChannelId || {{ initial_channel_id }} || 0);
 window.loadDashboardData = loadDashboardData;
   </script>
 
-<!-- START: Chats 3-column layout (put this inside your template) -->
+
+
 <div id="cls3741_template_modal" class="cls3741_modal_overlay" style="display: none;">
   <div class="cls3741_modal_content cls3741_modal_wide">
       
