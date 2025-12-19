@@ -1,0 +1,419 @@
+/* حاوية الملاحظات التي ستغطي الحقل الأصلي */
+.cls3741_note_overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: #fffbeb; /* أصفر فاتح جداً */
+    border-radius: 12px;
+    z-index: 50; /* لتظهر فوق كل شيء */
+    padding: 12px 16px;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    border: 2px solid #fbbf24; /* حدود صفراء واضحة */
+}
+
+/* هيدر صغير للتوضيح */
+.cls3741_note_header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 8px;
+}
+
+.note_badge {
+    background: #fbbf24;
+    color: #78350f;
+    font-size: 11px;
+    font-weight: bold;
+    padding: 2px 8px;
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.note_info {
+    font-size: 11px;
+    color: #b45309;
+}
+
+/* حقل الكتابة الخاص بالملاحظة */
+.cls3741_chat_textarea.note_mode {
+    background: transparent;
+    color: #451a03;
+}
+.cls3741_chat_textarea.note_mode::placeholder {
+    color: #d97706;
+}
+
+/* أزرار التحكم */
+.cls3741_btn_save_note {
+    background-color: #f59e0b; /* برتقالي/أصفر */
+    color: white;
+    border: none;
+    padding: 6px 16px;
+    border-radius: 6px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    margin-left: auto; /* دفع لليمين */
+}
+.cls3741_btn_save_note:hover {
+    background-color: #d97706;
+}
+
+.cls3741_btn_cancel {
+    background: transparent;
+    border: 1px solid #d1d5db;
+    color: #64748b;
+    padding: 6px 12px;
+    border-radius: 6px;
+    font-size: 13px;
+    cursor: pointer;
+}
+.cls3741_btn_cancel:hover {
+    background: #f1f5f9;
+}
+
+
+
+
+
+
+
+
+/* حاوية الرسالة لتوسيطها */
+.cls3741_internal_note_wrapper {
+    display: flex;
+    justify-content: center;
+    margin: 16px 0;
+    width: 100%;
+}
+
+/* بطاقة الملاحظة نفسها */
+.cls3741_note_card {
+    background-color: #fffbeb; /* أصفر فاتح جداً (Creamy) */
+    border: 1px solid #fcd34d; /* حدود صفراء ذهبية */
+    border-radius: 8px;
+    padding: 12px 16px;
+    max-width: 80%; /* لا تأخذ العرض كاملاً */
+    min-width: 300px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.02);
+    position: relative;
+}
+
+/* الشريط الجانبي للزينة (اختياري) */
+.cls3741_note_card::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 4px;
+    background-color: #f59e0b; /* برتقالي */
+    border-top-left-radius: 8px;
+    border-bottom-left-radius: 8px;
+}
+
+/* الهيدر (الأيقونة واسم الموظف) */
+.note_header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 6px;
+    font-size: 12px;
+    color: #92400e; /* بني غامق */
+}
+
+.note_icon {
+    font-size: 12px;
+}
+
+.note_author {
+    font-weight: 700;
+}
+
+.note_time {
+    margin-left: auto; /* دفع الوقت لليمين */
+    color: #b45309;
+    font-size: 11px;
+}
+
+/* نص الملاحظة */
+.note_body {
+    font-size: 14px;
+    color: #451a03; /* بني غامق جداً للقراءة */
+    line-height: 1.5;
+    padding: 4px;
+    font-weight: bold;
+    padding-left: 40px;
+    font-family: 'Tajawal';
+}
+
+
+
+.cls3741_collision_bar {
+    background-color: #fff3cd; /* أصفر فاتح */
+    border-bottom: 1px solid #ffecb5;
+    color: #856404;
+    padding: 8px 16px;
+    font-size: 13px;
+    font-weight: 600;
+    width: 100%;
+    z-index: 90;
+    border-radius: 14px;
+    animation: slideDown 0.3s ease;
+}
+
+.pulse-icon {
+    width: 8px;
+    height: 8px;
+    background-color: #dc3545; /* أحمر */
+    border-radius: 50%;
+    box-shadow: 0 0 0 rgba(220, 53, 69, 0.4);
+    animation: pulse-red 2s infinite;
+}
+
+@keyframes pulse-red {
+    0% { box-shadow: 0 0 0 0 rgba(220, 53, 69, 0.4); }
+    70% { box-shadow: 0 0 0 6px rgba(220, 53, 69, 0); }
+    100% { box-shadow: 0 0 0 0 rgba(220, 53, 69, 0); }
+}
+
+@keyframes slideDown {
+    from { transform: translateY(-100%); opacity: 0; }
+    to { transform: translateY(0); opacity: 1; }
+}
+
+
+
+
+
+/* quick replay  */
+.cls3741_slash_menu {
+    position: absolute;
+    bottom: 100%; /* تظهر فوق الحقل */
+    left: 0;
+    width: 300px; /* أو 100% حسب الرغبة */
+    background: white;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    box-shadow: 0 -4px 6px -1px rgba(0, 0, 0, 0.1);
+    z-index: 100;
+    overflow: hidden;
+    margin-bottom: 8px; /* مسافة صغيرة عن الحقل */
+    display: none; /* مخفية افتراضياً */
+}
+
+.slash_header {
+    background: #f8fafc;
+    padding: 8px 12px;
+    font-size: 11px;
+    font-weight: bold;
+    color: #64748b;
+    border-bottom: 1px solid #e2e8f0;
+}
+
+.slash_list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    max-height: 200px;
+    overflow-y: auto;
+}
+
+.slash_item {
+    padding: 10px 12px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    border-bottom: 1px solid #f1f5f9;
+    transition: background 0.1s;
+}
+
+.slash_item:hover, .slash_item.active {
+    background-color: #f0f9ff; /* أزرق فاتح جداً */
+}
+
+.cmd_badge {
+    background: #e0f2fe;
+    color: #0369a1;
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-size: 12px;
+    font-family: monospace;
+    font-weight: bold;
+}
+
+.cmd_text {
+    font-size: 13px;
+    color: #334155;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+
+
+
+
+/* حاوية البطاقة */
+.cls3741_reply_card {
+    background-color: #1e293b; /* لون داكن عصري (Slate-800) */
+    border: 1px solid #334155;
+    border-radius: 12px;
+    overflow: hidden;
+    transition: all 0.3s ease;
+    position: relative;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+}
+
+.cls3741_reply_card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3);
+    border-color: #475569;
+}
+
+/* منطقة المعاينة (Media Preview) */
+.cls3741_media_preview {
+    width: 100%;
+    height: 140px; /* ارتفاع ثابت للمعاينة */
+    background-color: #0f172a; /* Slate-900 */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    overflow: hidden;
+}
+
+/* تنسيق الصورة */
+.cls3741_media_preview img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    transition: transform 0.3s;
+}
+
+.cls3741_reply_card:hover .cls3741_media_preview img {
+    transform: scale(1.05); /* زووم خفيف عند التحويم */
+}
+
+/* أيقونات الوسط (Play, Audio) */
+.cls3741_overlay_icon {
+    width: 40px;
+    height: 40px;
+    background: rgba(0, 0, 0, 0.6);
+    backdrop-filter: blur(4px);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-size: 16px;
+    z-index: 2;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+/* جسم البطاقة */
+.cls3741_card_body {
+    padding: 12px;
+    flex-grow: 1;
+    display: flex;
+    flex-direction: column;
+}
+
+/* الشارة (Shortcut Badge) */
+.cls3741_shortcut_badge {
+    font-family: 'Courier New', monospace;
+    font-weight: bold;
+    font-size: 12px;
+    color: #38bdf8; /* سماوي */
+    background: rgba(56, 189, 248, 0.1);
+    padding: 4px 8px;
+    border-radius: 6px;
+    display: inline-block;
+    margin-bottom: 8px;
+}
+
+/* النص */
+.cls3741_card_text {
+    font-size: 13px;
+    color: #94a3b8;
+    line-height: 1.5;
+    
+    /* قص النص بعد 3 أسطر */
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    margin-bottom: 10px;
+}
+
+/* الفوتر (الأزرار والكاتب) */
+.cls3741_card_footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: auto;
+    padding-top: 10px;
+    border-top: 1px solid #334155;
+}
+
+/* أزرار التحكم الصغيرة */
+.cls3741_action_btn {
+    width: 28px;
+    height: 28px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 6px;
+    border: none;
+    background: transparent;
+    color: #64748b;
+    transition: all 0.2s;
+}
+
+.cls3741_action_btn:hover {
+    background: #334155;
+    color: white;
+}
+
+.cls3741_action_btn.delete:hover {
+    background: #450a0a;
+    color: #ef4444;
+}
+
+
+
+/* نجعل المؤشر يد يدل على النقر */
+.cls3741_media_preview {
+    cursor: pointer;
+    position: relative;
+}
+
+/* طبقة تظهر عند التحويم لتوضيح إمكانية التشغيل */
+.cls3741_media_preview::after {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(0,0,0,0);
+    transition: background 0.3s;
+    z-index: 1;
+}
+
+.cls3741_media_preview:hover::after {
+    background: rgba(0,0,0,0.2); /* تغميق بسيط */
+}
+
+/* تكبير الأيقونة قليلاً عند التحويم */
+.cls3741_reply_card:hover .cls3741_overlay_icon {
+    transform: scale(1.1);
+    background: rgba(56, 189, 248, 0.9); /* تتحول للأزرق عند التحويم */
+    border-color: transparent;
+}

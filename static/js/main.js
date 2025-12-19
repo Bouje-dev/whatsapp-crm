@@ -699,9 +699,198 @@ document.querySelector('.cls3741_input_container').classList.add('d-none')
 }
 
 
-// داخل السكريبت القديم أو عند استدعاء الخطأ
+
 
 
      
  
   
+
+
+
+
+// on time update agent_handling msgs
+// متغير لتخزين المحادثة الحالية التي ينظر إليها المستخدم
+let currentOpenChatId = null;
+// قائمة لتخزين المتواجدين حالياً في المحادثة (لتجنب التكرار)
+let activeViewers = new Set(); 
+
+// 1. دالة يتم استدعاؤها عند فتح أي محادثة (يجب إضافتها لحدث النقر على جهة الاتصال)
+window.notifyChatEnter = function(chatId) {
+    console.log('😁it here' , chatId)
+    if (currentOpenChatId && currentOpenChatId !== chatId) {
+        notifyChatLeave(currentOpenChatId);
+    }
+
+    currentOpenChatId = chatId;
+    activeViewers.clear(); // تصفير قائمة المشاهدين للمحادثة الجديدة
+    hideCollisionAlert();  // إخفاء التنبيه القديم
+    const payload= {
+            action: 'enter',
+            phone_number: chatId  
+        }
+    // إرسال إشارة الدخول
+    if (window.ChatSocket && window.ChatSocket.socket && window.ChatSocket.socket.readyState === WebSocket.OPEN) {
+     
+        window.ChatSocket.send(
+            'chat_activity' 
+             , payload
+        );
+    }
+    // window.ChatSocket.send(
+    //     'chat_activity', 
+    //     payload
+    // );
+    else console.log('👀 no skocket found')
+
+}
+
+// 2. دالة الخروج (عند الانتقال لمحادثة أخرى أو إغلاق الصفحة)
+function notifyChatLeave(chatId) {
+     const payload= {
+        action: 'leave',
+        phone_number: chatId
+    }
+    if (!chatId) return;
+    
+    if (window.ChatSocket && window.ChatSocket.socket && window.ChatSocket.socket.readyState === WebSocket.OPEN) {
+     
+        window.ChatSocket.send(
+            'chat_activity' 
+             , payload
+        );
+    }
+}
+
+// 3. معالجة التحديثات القادمة من السيرفر
+// أضف هذا الجزء داخل chatSocket.onmessage
+/*
+if (data.data_type === 'collision_update') {
+    handleCollisionUpdate(data.payload);
+}
+*/
+currentUserId = document.getElementById('current_user_id').getAttribute('data-user-id');
+// window.handleCollisionUpdate = function(payload) {
+//     console.log('🚀 handleCollisionUpdate', payload.action);
+//     // نتجاهل التحديثات التي تخصني أنا (أعرف أنني دخلت!)
+//     if (payload.user_id == currentUserId) return;
+     
+//     // نتأكد أن التحديث يخص المحادثة المفتوحة حالياً
+//     if (payload.chat_id != currentOpenChatId) return;
+
+//     if (payload.action === 'enter') {
+//         console.log('All Viewers:', activeViewers);
+//         // شخص دخل -> نضيفه للقائمة
+//         activeViewers.add(payload.user_name);
+        
+//         // 🔥 نقطة ذكية: إذا دخل شخص جديد وأنا موجود قبله،
+//         // يجب أن أخبره أنني موجود أيضاً (Sync Presence)
+//         // نرسل إشارة دخول مرة أخرى (بدون تكرار المنطق) ليعرف بوجودي
+//         // (يمكن تحسين هذا الجزء لاحقاً ليكون تلقائياً من الباك إند)
+        
+//     } else if (payload.action === 'leave') {
+//         // شخص خرج -> نحذفه من القائمة
+//         activeViewers.delete(payload.user_name);
+//     }
+
+//     // تحديث واجهة التنبيه
+//     updateCollisionUI();
+// }
+
+
+window.handleCollisionUpdate = function(payload){
+    // 1. تحويل الـ IDs لنصوص لضمان المقارنة الصحيحة
+    const incomingChatId = String(payload.chat_id);
+    const currentChatId = String(currentOpenChatId);
+    const incomingUserId = String(payload.user_id);
+    const myId = String(currentUserId); // تأكد أن لديك هذا المتغير متاحاً
+
+    // التحقق من أن التحديث يخص المحادثة المفتوحة حالياً
+    // إذا كان التحديث لمحادثة أخرى، نتجاهله
+    if (incomingChatId !== currentChatId) return;
+
+    // ----------------------------------------------------
+    // الحالة 1: شخص جديد دخل (Enter)
+    // ----------------------------------------------------
+    if (payload.action === 'enter') {
+        // إذا كنت أنا من دخل، لا تفعل شيئاً
+        if (incomingUserId === myId) return;
+
+        // 1. أضف الشخص لقائمتي
+        activeViewers.add(payload.user_name);
+        
+        // 2. 🔥 هذا هو الحل للمشكلة 🔥
+        // بما أن شخصاً جديداً دخل وأنا موجود قبله
+        // يجب أن أرسل له إشارة "أنا هنا أيضاً" لكي يراني هو
+        sendPresenceSync(currentChatId);
+    } 
+    
+    // ----------------------------------------------------
+    // الحالة 2: شخص يغادر (Leave)
+    // ----------------------------------------------------
+    else if (payload.action === 'leave') {
+        if (incomingUserId === myId) return;
+        activeViewers.delete(payload.user_name);
+    }
+    
+    // ----------------------------------------------------
+    // الحالة 3: استلام إشارة الوجود من القدامى (Sync)
+    // ----------------------------------------------------
+    else if (payload.action === 'presence_sync') {
+         
+        if (incomingUserId === myId) return;
+        
+        // أضيفهم لقائمتي فقط، ولا أرد عليهم (لتجنب حلقة لا نهائية)
+        activeViewers.add(payload.user_name);
+    }
+
+    // أخيراً: تحديث الواجهة (الشريط الأصفر)
+    updateCollisionUI();
+}
+            
+// --- دالة مساعدة لإرسال إشارة الوجود ---
+function sendPresenceSync(chatId) {
+    const payload = {
+                action: 'presence_sync',
+                phone_number : chatId
+    }
+    if (window.ChatSocket && window.ChatSocket.socket && window.ChatSocket.socket.readyState === WebSocket.OPEN) {
+     
+        window.ChatSocket.send(
+            'chat_activity' 
+             , payload
+        );
+    }
+}
+
+
+
+
+function updateCollisionUI() {
+    console.log("🚀 updateCollisionUI started"); // هل الدالة تعمل أصلاً؟
+
+    const alertBar = $('#collision_alert_bar');
+    console.log("🔍 Element found length:", alertBar.length ); // إذا كان 0 يعني العنصر غير موجود في الصفحة
+
+    console.log("👥 Active Viewers Set:", Array.from(activeViewers)); // هل القائمة فيها أسماء؟
+
+    const alertText = $('#collision_text');
+    
+    if (activeViewers.size > 0) {
+        const names = Array.from(activeViewers).join(', ');
+        const verb = activeViewers.size > 1 ? 'are' : 'is';
+        
+        console.log("✅ Trying to show alert for:", names); // هل وصلنا لهنا؟
+
+        alertText.html(`⚠️ <strong>${names}</strong> ${verb} viewing this chat now.`);
+        alertBar.slideDown(200);
+    } else {
+        console.log("⏹️ Hiding alert (No viewers)");
+        alertBar.slideUp(200);
+    }
+}
+
+function hideCollisionAlert() {
+    $('#collision_alert_bar').hide();
+    activeViewers.clear();
+}

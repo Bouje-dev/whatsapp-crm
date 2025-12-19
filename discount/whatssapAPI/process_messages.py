@@ -1133,7 +1133,7 @@ def convert_audio_to_ogg(input_path):
 
 
 def send_message_socket(sreciver,  user ,channel_id ,  message, msg_type,
-                        group_name="webhook_events",
+                        group_name,
                         channel_name=None,
                         request=None):
 
@@ -1470,8 +1470,8 @@ def send_message_socket(sreciver,  user ,channel_id ,  message, msg_type,
         "channel_id": channel_id
     }
  
-    send_socket("finished",final_payload)
-    send_socket("update_sidebar_contact", sidebar_payload)
+    send_socket("finished",final_payload , group_name= group_name)
+    send_socket("update_sidebar_contact", sidebar_payload , group_name = group_name)
 
 
     # للإستخدام الداخلي نعيد dict

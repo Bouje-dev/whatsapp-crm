@@ -537,6 +537,7 @@ def get_messages(request):
 def whatssap(request):
     messages = Message.objects.all()
     print("message" , messages)
+     
     return render(request, "tracking.html", {"senders": messages})
 
 # صفحة الدردشة
@@ -1417,7 +1418,10 @@ def get_messages1(request):
             "time": m.created_at.strftime("%H:%M"),
             "type": msg_type,
             "url": media_url,
-            "status":status
+            "status":status , 
+            "user": m.user.username if m.user else None,
+            "timestamp" : m.created_at.strftime('%Y-%m-%d %H:%M'),
+
         })
          
 

@@ -1,0 +1,340 @@
+<div class="container-fluid p-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h4 class="fw-bold text-white"><i class="fas fa-bolt me-2 text-warning"></i> Quick Replies</h4>
+        <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addReplyModal">
+            <i class="fas fa-plus"></i> New Reply
+        </button>
+    </div>
+
+    <div id="quick_replies_section" style="display: none;"> <h5 class="text-white mb-3 border-bottom border-secondary pb-2">My Replies</h5>
+        <div class="row g-3 mb-4" id="my_replies_grid">
+            </div>
+    
+        <h5 class="text-white mb-3 border-bottom border-secondary pb-2">Team Replies</h5>
+        <div class="row g-3" id="team_replies_grid">
+            </div>
+    
+        <div id="replies_loader" class="text-center py-5" style="display: none;">
+            <div class="spinner-border text-primary" role="status"></div>
+            <p class="text-muted mt-2">Loading templates...</p>
+        </div>
+    </div>
+
+
+</div>
+
+<div class="modal fade" id="addReplyModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content bg-dark text-white border-secondary">
+            <div class="modal-header border-secondary">
+                <h5 class="modal-title">Create Quick Reply</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="createReplyForm" enctype="multipart/form-data">
+                    {% csrf_token %}
+                    
+                    <div class="mb-3">
+                        <label class="form-label text-muted small">Shortcut (Trigger)</label>
+                        <div class="input-group">
+                            <span class="input-group-text bg-secondary border-secondary text-white">/</span>
+                            <input type="text" name="shortcut" class="form-control bg-dark border-secondary text-white" placeholder="e.g. welcome" required>
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label text-muted small">Message Text</label>
+                        <textarea name="message" class="form-control bg-dark border-secondary text-white" rows="4" placeholder="Hello! Here is a video explaining..."></textarea>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label text-muted small">Attachment (Optional)</label>
+                        <input type="file" name="attachment" class="form-control bg-dark border-secondary text-white">
+                        <small class="text-muted">Supports: Video (mp4), Image (png, jpg), PDF</small>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer border-secondary">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" onclick="submitReplyForm()">Save Reply</button>
+            </div>
+        </div>
+    </div>
+</div>
+<div class="modal fade" id="mediaPreviewModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg"> <div class="modal-content bg-dark border-secondary text-white">
+            <div class="modal-header border-0 pb-0">
+                <h6 class="modal-title text-muted" id="previewTitle">Media Preview</h6>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body text-center p-0 d-flex align-items-center justify-content-center" style="min-height: 300px; background: #000;">
+                
+                <div id="mediaPreviewContainer" class="w-100 h-100"></div>
+
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    function submitReplyForm() {
+    // 1. جمع البيانات (بما في ذلك الملفات)
+    const form = document.getElementById('createReplyForm');
+    const formData = new FormData(form);
+    formData.append('channel' , currentChannelId)
+
+    // 2. إرسال الطلب
+    $.ajax({
+        url: "{% url 'api_create_canned_response' %}", // تأكد من إنشاء هذا المسار
+        type: "POST",
+        data: formData,
+        processData: false, // مهم جداً للملفات
+        contentType: false, // مهم جداً للملفات
+        headers: {
+            "X-CSRFToken": document.querySelector('[name=csrfmiddlewaretoken]').value
+        },
+        success: function(response) {
+            // إغلاق المودال وتحديث الصفحة (أو إضافة البطاقة يدوياً)
+            $('#addReplyModal').modal('hide');
+            location.reload(); // أو تحديث القائمة ديناميكياً
+        },
+        error: function(xhr) {
+            alert("Error saving reply: " + xhr.responseText);
+        }
+    });
+}
+
+function deleteReply(id) {
+    if(confirm("Are you sure?")) {
+        // كود الحذف ...
+    }
+}
+
+
+
+function openMediaPreview(type, url, title) {
+    const container = $('#mediaPreviewContainer');
+    const titleEl = $('#previewTitle');
+    
+    // تنظيف المحتوى السابق
+    container.empty();
+    titleEl.text(`Preview: /${title}`);
+
+    let htmlContent = '';
+
+    if (type === 'video') {
+        // 🔥 فيديو: تشغيل تلقائي مع أدوات التحكم
+        htmlContent = `
+            <video controls autoplay style="max-width: 100%; max-height: 80vh; outline: none;">
+                <source src="${url}" type="video/mp4">
+                Your browser does not support the video tag.
+            </video>
+        `;
+    } 
+    else if (type === 'audio') {
+        // 🔥 صوت: مشغل صوتي كبير وواضح
+        htmlContent = `
+            <div class="p-5">
+                <i class="fas fa-music fa-5x text-warning mb-4"></i>
+                <br>
+                <audio controls autoplay style="width: 300px;">
+                    <source src="${url}" type="audio/mpeg">
+                    Your browser does not support the audio element.
+                </audio>
+            </div>
+        `;
+    } 
+    else if (type === 'image') {
+        // 🔥 صورة: عرض الصورة كاملة
+        htmlContent = `
+            <img src="${url}" class="img-fluid" style="max-height: 80vh;" alt="Full Preview">
+        `;
+    } 
+    else if (type === 'document') {
+        htmlContent = `
+            <div class="p-5 text-center">
+                <i class="fas fa-file-pdf fa-5x text-white mb-3"></i>
+                <h5 class="text-white">Document Preview</h5>
+                <a href="${url}" target="_blank" class="btn btn-primary mt-3">
+                    <i class="fas fa-external-link-alt"></i> Open Document
+                </a>
+            </div>
+        `;
+    }
+
+    container.html(htmlContent);
+    $('#mediaPreviewModal').modal('show');
+}
+
+// 🔥 نقطة مهمة جداً: إيقاف التشغيل عند إغلاق المودال 🔥
+// وإلا سيستمر صوت الفيديو/الأوديو يعمل في الخلفية!
+$('#mediaPreviewModal').on('hidden.bs.modal', function () {
+    $('#mediaPreviewContainer').empty(); // حذف المحتوى يوقف التشغيل فوراً
+});
+
+
+
+
+
+
+$(document).ready(function() {
+    
+    // عند النقر على زر فتح إدارة الردود
+    $('#btn_open_quick_replies').click(function() {
+        // 1. إظهار القسم (متلا في مودال أو في وسط الصفحة حسب تصميمك)
+        $('#quick_replies_section').show(); // أو $('#yourModal').modal('show');
+        
+        // 2. تحميل البيانات
+        loadQuickRepliesGrid();
+    });
+
+    function loadQuickRepliesGrid() {
+        const myGrid = $('#my_replies_grid');
+        const teamGrid = $('#team_replies_grid');
+        const loader = $('#replies_loader');
+
+        // تنظيف القديم وإظهار اللودر
+        myGrid.empty();
+        teamGrid.empty();
+        loader.show();
+
+        // نفترض أننا نملك channel_id الحالي (أو نرسل 0 لجلب العام)
+        // يمكن جلبه من متغير عام في صفحتك
+        const currentChannelId = currentOpenChatId || 0; 
+
+        $.ajax({
+            url: `/discount/whatssapAPI/api/get-canned-responses?channel_id=${currentChannelId}`,
+            method: 'GET',
+            success: function(response) {
+                loader.hide();
+                
+                if (response.data.length === 0) {
+                    myGrid.html('<div class="text-muted col-12">No replies found.</div>');
+                    return;
+                }
+
+                response.data.forEach(reply => {
+                    // إنشاء HTML البطاقة
+                    const cardHTML = createReplyCardHTML(reply);
+
+                    // 🔥 الفرز: هل هي لي أم للفريق؟ 🔥
+                    if (reply.is_mine) {
+                        myGrid.append(cardHTML);
+                    } else {
+                        teamGrid.append(cardHTML);
+                    }
+                });
+            },
+            error: function() {
+                loader.hide();
+                alert("Failed to load replies.");
+            }
+        });
+    }
+
+    // دالة مساعدة لرسم البطاقة (نفس تصميمك الجميل)
+    function createReplyCardHTML(reply) {
+    // 1. إعداد متغيرات المعاينة (Preview Variables)
+    let previewContent = '';
+    let typeLabel = '';
+    let overlayIcon = '';
+    let cursorStyle = 'cursor: pointer;'; // افتراضياً قابل للنقر
+    let clickHandler = '';
+
+    // التحقق من وجود ملف لإنشاء رابط المعاينة
+    if (reply.file_url) {
+        // دالة المعاينة: نمرر النوع والرابط والعنوان
+        clickHandler = `onclick="openMediaPreview('${reply.media_type}', '${reply.file_url}', '${reply.shortcut}')"`;
+    }
+
+    // 2. تحديد شكل المعاينة حسب نوع الميديا
+    if (reply.media_type === 'image') {
+        // ✅ صورة: نعرض الصورة كاملة
+        previewContent = `<img src="${reply.file_url}" alt="Preview">`;
+        typeLabel = '<div class="position-absolute top-0 end-0 m-2 badge bg-success bg-opacity-75">IMAGE</div>';
+        overlayIcon = '<div class="cls3741_overlay_icon"><i class="fas fa-search-plus"></i></div>';
+    } 
+    else if (reply.media_type === 'video') {
+        // ✅ فيديو: نعرضه كصورة مصغرة باستخدام #t=1.0
+        previewContent = `<video src="${reply.file_url}#t=1.0" preload="metadata" style="width:100%; height:100%; object-fit:cover; opacity: 0.6;"></video>`;
+        typeLabel = '<div class="position-absolute top-0 end-0 m-2 badge bg-danger bg-opacity-75">VIDEO</div>';
+        overlayIcon = '<div class="cls3741_overlay_icon"><i class="fas fa-play"></i></div>';
+    } 
+    else if (reply.media_type === 'audio') {
+        // ✅ صوت: شكل موجات بسيط
+        previewContent = `<div style="width: 100%; height: 100%; background: radial-gradient(circle, #334155 10%, transparent 10%), radial-gradient(circle, #334155 10%, transparent 10%); background-position: 0 0, 10px 10px; background-size: 20px 20px; opacity: 0.3;"></div>`;
+        typeLabel = '<div class="position-absolute top-0 end-0 m-2 badge bg-warning bg-opacity-75 text-dark">AUDIO</div>';
+        overlayIcon = '<div class="cls3741_overlay_icon"><i class="fas fa-music"></i></div>';
+    } 
+    else if (reply.media_type === 'document') {
+        // ✅ ملف: أيقونة PDF/File
+        previewContent = `<div class="d-flex align-items-center justify-content-center h-100"><i class="fas fa-file-alt fa-3x text-secondary opacity-50"></i></div>`;
+        typeLabel = '<div class="position-absolute top-0 end-0 m-2 badge bg-secondary">FILE</div>';
+        overlayIcon = '<div class="cls3741_overlay_icon"><i class="fas fa-eye"></i></div>';
+    }
+    else {
+        // ✅ نص فقط: (غير قابل للنقر)
+        previewContent = `<div class="d-flex align-items-center justify-content-center h-100"><i class="fas fa-quote-right fa-2x text-secondary opacity-25"></i></div>`;
+        typeLabel = '';
+        overlayIcon = '';
+        cursorStyle = 'cursor: default;'; // إلغاء شكل اليد
+        clickHandler = ''; // إلغاء النقر
+    }
+
+    // 3. قسم أزرار التحكم (يظهر فقط إذا كانت الرسالة ملكي)
+    let actionButtons = '';
+    let authorInfo = '';
+
+    if (reply.is_mine) {
+        actionButtons = `
+            <div class="d-flex gap-1 ms-auto">
+                <button class="cls3741_action_btn" onclick="editReply(${reply.id})" title="Edit">
+                    <i class="fas fa-pen" style="font-size: 12px;"></i>
+                </button>
+                <button class="cls3741_action_btn delete" onclick="deleteReply(${reply.id})" title="Delete">
+                    <i class="fas fa-trash" style="font-size: 12px;"></i>
+                </button>
+            </div>
+        `;
+        authorInfo = `<span class="text-muted" style="font-size: 11px;">You</span>`;
+    } else {
+        // إذا كانت للموظف/المدير
+        authorInfo = `<span class="text-muted" style="font-size: 11px;">
+            <i class="fas fa-user-circle me-1"></i> ${reply.author}
+        </span>`;
+    }
+
+    // 4. تجميع كود HTML النهائي
+    return `
+    <div class="col-md-4 col-lg-3 col-xl-3 mb-3">
+        <div class="cls3741_reply_card">
+            
+            <div class="cls3741_media_preview" ${clickHandler} style="${cursorStyle}">
+                ${previewContent}
+                ${overlayIcon}
+                ${typeLabel}
+            </div>
+            
+            <div class="cls3741_card_body">
+                <div class="mb-2">
+                    <span class="cls3741_shortcut_badge">/${reply.shortcut}</span>
+                </div>
+                
+                <div class="cls3741_card_text" title="${reply.message || ''}">
+                    ${reply.message || '<em class="text-muted">No text provided</em>'}
+                </div>
+                
+                <div class="cls3741_card_footer">
+                    ${authorInfo}
+                    ${actionButtons}
+                </div>
+            </div>
+        </div>
+    </div>
+    `;
+    } 
+    
+    
+    
+})
+</script>

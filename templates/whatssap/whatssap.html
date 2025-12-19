@@ -1,6 +1,6 @@
 {% load static %}
 <link rel="stylesheet" href="{% static 'style/styleup.css' %}">
-
+ <div class="current_user_id" id="current_user_id" data-user-id="{{ user.id }}"></div>
 <script src="{% static 'js/whatssap.js' %}"></script>
  
 </head>
@@ -246,6 +246,11 @@
       <i class="fas fa-robot cls3741_icon"></i>
       <span class="cls3741_tooltip">Automation</span>
   </button>
+
+  <button class="cls3741_btn" id="btn_open_quick_replies" data-target="quick_replies">
+    <i class="fas fa-comment-dots cls3741_icon"></i>
+    <span class="cls3741_tooltip">Quick Reply</span>
+</button>
 </nav>
 
       <div style="font-size:13px;color:var(--muted);padding:8px 10px">
@@ -2185,9 +2190,23 @@ window.resetFilters = function() {
       <div class="cls3741_chat_input_wrapper">
    
         <div class="cls3741_media_preview" id="cls3741_media_preview"></div>
+
+        <div id="slash_menu" class="cls3741_slash_menu" style="display: none;">
+            <div class="slash_header">Quick Replies</div>
+            <ul id="slash_list" class="slash_list">
+                </ul>
+        </div>
         
+        
+        <input type="hidden" id="canned_file_url" value="">
+        <input type="hidden" id="canned_file_type" value="">
+ 
         <div class="cls3741_input_container">
-          
+            <div id="collision_alert_bar" class="cls3741_collision_bar" style="display: none;">
+                <div class="d-flex align-items-center gap-2">
+                    <div class="pulse-icon"></div> <span id="collision_text"></span>
+                </div>
+            </div>
           <div class="cls3741_input_row">
               <textarea 
                 id="cls3741_message_input" 
@@ -2198,7 +2217,80 @@ window.resetFilters = function() {
           </div>
     
           <div class="cls3741_actions_row">
-              
+            <script>
+                $(document).ready(function() {
+    
+    // 1. عند النقر على زر Note (سواء في التولبار أو السايدبار)
+    $('#btn_toggle_note').on('click', function() {
+        // إظهار طبقة الملاحظات
+        $('#note_input_layer').fadeIn(200);
+        // التركيز فوراً على حقل الملاحظة
+        $('#cls3741_note_input').focus();
+    });
+
+    // 2. عند النقر على إلغاء Cancel
+    $('#btn_cancel_note').on('click', function() {
+        // إخفاء الطبقة وتفريغ النص
+        $('#note_input_layer').fadeOut(200);
+        $('#cls3741_note_input').val('');
+    });
+
+    // 3. عند النقر على حفظ Add Note
+    $('#btn_save_note').on('click', function() {
+        const noteText = $('#cls3741_note_input').val().trim();
+        
+        if (noteText) {
+            // إرسال الملاحظة عبر السوكيت
+            sendInternalNote(noteText);
+            
+            // تنظيف وإغلاق
+            $('#cls3741_note_input').val('');
+            $('#note_input_layer').fadeOut(200);
+        }
+    });
+});
+
+// دالة الإرسال الخاصة بالملاحظات
+function sendInternalNote(text) {
+    const payload = {
+        "type": "message",
+        "body": text ,
+        "to": currentPhone ,
+        "channel_id": window.currentChannelId ,
+        "is_internal_note": true 
+    }
+    if (window.ChatSocket && window.ChatSocket.socket && window.ChatSocket.socket.readyState === WebSocket.OPEN) {
+        
+        window.ChatSocket.send(
+            'send_message', 
+            payload
+        );
+    } else {
+        console.error("Socket not open");
+    }
+}
+            </script>
+            <div class="cls3741_note_overlay" id="note_input_layer" style="display: none;">
+                <div class="cls3741_note_header">
+                    <span class="note_badge"><i class="fas fa-lock"></i> Internal Note</span>
+                    <span class="note_info">Visible only to team</span>
+                </div>
+                
+                <textarea 
+                    id="cls3741_note_input" 
+                    class="cls3741_chat_textarea note_mode"
+                    placeholder="Write a private note for the team..."
+                    rows="1"
+                ></textarea>
+            
+                <div class="cls3741_actions_row mt-2">
+                    <button type="button" id="btn_cancel_note" class="cls3741_btn_cancel">Cancel</button>
+                    <button type="button" id="btn_save_note" class="cls3741_btn_save_note">Add Note</button>
+                </div>
+            </div> 
+
+             
+
               <div class="cls3741_tools_group">
                   
                   <button type="button" id="open_template" class="cls3741_tool_btn" title="Templates">
@@ -2207,6 +2299,13 @@ window.resetFilters = function() {
                       </svg>
                       <span class="cls3741_btn_label">Templates</span>
                   </button>
+
+                  <button type="button" id="btn_toggle_note" class="cls3741_tool_btn" title="Internal Note">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-warning">
+                        <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
+                    </svg>
+                    <span class="cls3741_btn_label">Note</span>
+                </button>
                   
                   <div class="cls3741_divider"></div>
                   
@@ -2263,8 +2362,125 @@ window.resetFilters = function() {
               </div>
     
           </div>
+          <script>
     
+            // تحويل بيانات جانغو إلى مصفوفة جافاسكريبت
+            const cannedResponses = [
+                {% for response in canned_responses %}
+                {
+                    shortcut: "{{ response.shortcut }}",
+                    message: `{{ response.message|escapejs }}`, // escapejs مهم جداً للنصوص
+                    file_url: "{% if response.attachment %}{{ response.attachment.url }}{% endif %}",
+                    file_type: "{% if response.attachment %}video{% endif %}" // أو منطق لتحديد النوع
+                },
+                {% endfor %}
+            ];
+            $(document).ready(function() {
+            const inputField = $('#cls3741_message_input');
+            const menu = $('#slash_menu');
+            const list = $('#slash_list');
+        
+            // 1. الاستماع للكتابة
+            inputField.on('input', function() {
+                const val = $(this).val();
+        
+                // الشرط: هل النص يبدأ بـ "/"؟
+                if (val.startsWith('/')) {
+                    const searchTerm = val.substring(1).toLowerCase(); // النص بعد الشرطة
+                    showSlashMenu(searchTerm);
+                } else {
+                    menu.hide();
+                }
+            });
+        
+           // داخل دالة showSlashMenu القديمة
+function showSlashMenu(filterText) {
+    list.empty();
+    
+    // استخدام المتغير الجديد الذي تم جلبه عبر Fetch
+    const matches = currentCannedResponses.filter(item => 
+        item.shortcut.toLowerCase().includes(filterText)
+    );
+
+    if (matches.length === 0) {
+        menu.hide();
+        return;
+    }
+
+    matches.forEach(item => {
+        // تمييز الردود حسب الكاتب
+        const badgeColor = item.is_mine ? 'bg-primary' : 'bg-secondary';
+        const authorBadge = item.is_mine ? '' : `<small class="text-muted ms-2">by ${item.author}</small>`;
+
+        const li = $(`
+            <li class="slash_item">
+                <div class="d-flex align-items-center w-100">
+                    <span class="cmd_badge ${badgeColor}">/${item.shortcut}</span>
+                    ${authorBadge}
+                    <span class="cmd_text ms-2">${item.message.substring(0, 25)}...</span>
+                    
+                    ${item.media_type === 'video' ? '<i class="fas fa-video text-danger ms-auto"></i>' : ''}
+                    ${item.media_type === 'image' ? '<i class="fas fa-image text-success ms-auto"></i>' : ''}
+                </div>
+            </li>
+        `);
+
+        li.on('click', function() {
+            selectCannedResponse(item);
+        });
+
+        list.append(li);
+    });
+
+    menu.show();
+}
+            // 3. دالة اختيار الرد
+            function selectCannedResponse(item) {
+                // وضع النص في الحقل (نحذف الـ / ونضع الرسالة)
+                inputField.val(item.message);
+                
+                // إذا كان هناك ملف، نجهزه للإرسال
+                if (item.file_url) {
+                    // هنا نستخدم المتغيرات التي استخدمناها سابقاً في الشات
+                    // نفترض أنك تستخدم queuedFileUrl أو ما شابه
+                    // أو نقوم بإنشاء "معاينة وهمية" للملف
+                    console.log("File attached:", item.file_url);
+                    
+                    // إظهار تنبيه صغير أن هناك ملف مرفق سيتم إرساله
+                    $('#attachment_preview_area').html(`
+                        <div class="alert alert-info p-1 small">
+                            <i class="fas fa-video"></i> Video attached: ${item.shortcut}
+                        </div>
+                    `);
+                    
+                    // تخزين الرابط لإرساله مع الرسالة
+                    // (تحتاج لتعديل دالة الإرسال لتقرأ هذا المتغير)
+                    window.queuedCannedFile = item.file_url; 
+                }
+        
+                menu.hide();
+                inputField.focus(); // إعادة التركيز للكتابة
+                
+                // تحديث حالة زر الإرسال (لأنه أصبح هناك نص)
+                checkSendButtonState(); 
+            }
+        
+            // 4. إغلاق القائمة عند النقر خارجها
+            $(document).click(function(e) {
+                if (!$(e.target).closest('#slash_menu, #cls3741_message_input').length) {
+                    menu.hide();
+                }
+            });
+
+
+
+            // متغير لتخزين الردود الحالية (فارغ في البداية)
+l 
+        });
+        </script>
+        
         </div>
+
     
         <input type="file" id="cls3741_image_input" class="cls3741_hidden_input" accept="image/*">
         <input type="file" id="cls3741_video_input" class="cls3741_hidden_input" accept="video/*">
@@ -4765,6 +4981,10 @@ $(document).ready(function() {
     {% include 'whatssap/flowbiulder.html' %}
   </section>
 
+
+  <section class="cls3741_panel cls3741_panel_quick_replies" style="display: none; padding: 0px;     height: 100%;">
+    {% include 'whatssap/quick_replies.html' %}
+    </section>
 </main>
 
   </div>
@@ -5934,11 +6154,28 @@ function makeMessageNode(m) {
     // تصحيح: إزالة الأقواس [] الزائدة من data-msg-id
     const msg_status = isMe ? 
         `<span class="cls3741_msg_status" data-msg-id="${m.id}" style="z-index:123; color:var(--wa-msg-muted); margin-top: 6px;">${statusIconHTML}</span>` : '';
+    if (m.type === 'note') {
+        wrapper.className = 'system-log-wrapper animate-fadeIn'; 
+        wrapper.innerHTML = `
+            <div class="cls3741_internal_note_wrapper">
+                <div class="cls3741_note_card">
+                    <div class="note_header">
+                        <span class="note_icon"><i class="fas fa-lock"></i></span>
+                        <span class="note_author">${m.user || 'Unknown'} added a private note</span>
+                        <span class="note_time">${m.timeHtml || m.timestamp }</span>
+                    </div>
+                    <div class="note_body">
+                        ${m.body}
+                    </div>
+                </div>
+            </div>
+        `;
+    }
 
     // ============================================================
     // 1. معالجة الصوت (Audio)
     // ============================================================
-    if (m.type === 'audio') {
+    else if (m.type === 'audio') {
         const audioUrl = escapeHtml(m.url || '');
         const isValidAudio = audioUrl && audioUrl.trim() !== '' && audioUrl !== 'None' && audioUrl !== 'null';
         const uniqueId = `audio_${m.id || Date.now()}`;
@@ -6490,6 +6727,10 @@ function formatTime(seconds) {
         if(!Array.isArray(msgs) || msgs.length === 0) return;
         console.log('fetchMessagesForCurrentws', msgs);
         appendMessagesws(msgs);
+
+        // update Collision Detection 
+        window.notifyChatEnter(currentPhone);
+
         
       }catch(e){ 
         console.error('fetchMessagesForCurrentws', e); 

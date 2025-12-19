@@ -186,13 +186,13 @@ admin.site.register(GroupMessages)
 
 
 
-from .models import WhatsAppChannel
+from .models import WhatsAppChannel , CannedResponse
 class ChannelAdmin(admin.ModelAdmin):
     list_display = ('name', 'phone_number', 'phone_number_id', 'business_account_id', 'access_token', 'is_active', 'created_at')
     search_fields = ('name', 'phone_number', 'phone_number_id', 'business_account_id')
     list_filter = ('is_active', 'created_at')
 admin.site.register(WhatsAppChannel, ChannelAdmin)
-
+admin.site.register(CannedResponse)
 
 # from .models import ChannelPermission
 # class ChannelPermissionAdmin(admin.ModelAdmin):
@@ -216,3 +216,11 @@ admin.site.register(WhatsAppChannel, ChannelAdmin)
 #     search_fields = ('channel', 'user', 'message')
 #     list_filter = ('message',)
 # admin.site.register(ChannelMessage, ChannelMessageAdmin) 
+
+
+
+
+
+
+
+

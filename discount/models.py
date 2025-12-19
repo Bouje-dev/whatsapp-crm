@@ -892,6 +892,14 @@ class WhatsAppChannel(models.Model):
 
 
 class Message(models.Model):
+    user = models.ForeignKey(
+        CustomUser, 
+        on_delete=models.SET_NULL, # إذا حذفنا الموظف، تبقى رسائله لكن بدون رابط
+        null=True, 
+        blank=True,
+        related_name="messages",
+        help_text="الموظف الذي أرسل الرسالة أو كتب الملاحظة"
+    )
     sender = models.CharField(max_length=50)
     body = models.TextField()
     name = models.CharField(max_length=50, null=True, blank=True)
@@ -1288,3 +1296,28 @@ class GroupMessages(models.Model):
         return f'{self.auther.username}: {self.message}'
     class Meta:
         ordering =['-created']
+
+
+
+
+
+
+
+
+# quik replay 
+# models.py
+class CannedResponse(models.Model):
+    # المالك (مهم جداً في نظام SaaS)
+    user = models.ForeignKey(CustomUser, on_delete=models.CASCADE, related_name='canned_responses')
+    channel = models.ForeignKey(WhatsAppChannel, on_delete=models.CASCADE, related_name='canned_responses')
+    shortcut = models.CharField(max_length=50, help_text="الكلمة التي ستظهر في القائمة بعد /")
+    message = models.TextField(blank=True, null=True)
+    type = models.CharField(max_length=20, blank = True, null=True) 
+    
+    # ملف مرفق (فيديو/صورة) جاهز مسبقاً
+    attachment = models.FileField(upload_to='canned_files/', blank=True, null=True)
+    
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return self.shortcut

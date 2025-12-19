@@ -59,8 +59,40 @@ const ChatSocket = {
     }
     break;
 
+        case 'collision_update': {
+            if (typeof window.handleCollisionUpdate === 'function') {
+                window.handleCollisionUpdate(data.payload);
+            }
 
-
+            break;
+        }
+        case 'note_message':{
+            const payload = data.payload;
+            
+            console.log('🔥 New system log message:' ,[payload.message]);
+             const activePhone = (typeof window.getCurrentChatPhone === 'function') 
+                                 ? window.getCurrentChatPhone() 
+                                 : null;
+             
+             // تنظيف الأرقام للمقارنة
+             const incomingPhone = payload.contact.phone.replace(/\D/g, '');
+             const currentActive = activePhone ? activePhone.replace(/\D/g, '') : '';
+ 
+             if (currentActive && currentActive === incomingPhone) {
+                 // 2. عرض الرسالة في الشات
+                 if (typeof window.appendMessagesws === 'function') {
+                    
+                     window.appendMessagesws([payload]); 
+                 }
+                 
+                 // 3. التمرير للأسفل لرؤية السجل الجديد
+                 const chatContainer = document.getElementById('chat_messages_area');
+                 if (chatContainer) chatContainer.scrollTop = chatContainer.scrollHeight;
+             }
+  
+             break;
+          
+        }
 
 
         case 'log_message_received': {
