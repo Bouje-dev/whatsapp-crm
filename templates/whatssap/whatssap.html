@@ -253,10 +253,16 @@
 </button>
 </nav>
 
-      <div style="font-size:13px;color:var(--muted);padding:8px 10px">
+      <!-- <div style="font-size:13px;color:var(--muted);padding:8px 10px">
         <div>حالة الحساب</div>
         <div style="margin-top:6px;color:#84e7f0;font-weight:700">متصل</div>
-      </div>
+      </div> -->
+
+      <button class="cls3741_btn" id="btn_open_settings" data-target="settings">
+        <i class="fas fa-cog cls3741_icon"></i>
+        <span class="cls3741_tooltip">Settings </span>
+        </button>
+      
     </aside>
 
 
@@ -543,9 +549,15 @@
     <div class="cls3741_dash_header">
         <h2>Dashboard</h2>
         <div class="cls3741_dash_actions">
+            {% if channel.is_active %}
             <span class="status_badge connected">
                 <span class="dot"></span> connected
             </span>
+            {% else %}
+            <span class="status_badge disconnected">
+                <span class="dot"></span> disconnected
+            </span>
+            {% endif %}
             <button class="cls3741_btn_refresh" onclick="window.location.reload()">
              Refresh 
             </button>
@@ -5128,6 +5140,10 @@ $(document).ready(function() {
   <section class="cls3741_panel cls3741_panel_quick_replies" style="display: none; padding: 0px;     height: 100%;">
     {% include 'whatssap/quick_replies.html' %}
     </section>
+
+    <section class="cls3741_panel cls3741_panel_settings" style="display: none; padding: 0px;     height: 100%;">
+        soon
+        </section>
 </main>
 
   </div>
