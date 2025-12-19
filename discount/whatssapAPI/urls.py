@@ -1,4 +1,5 @@
 
+from discount.whatssapAPI import wsettings
 from django.urls import path
 from . import views , flow , process_messages , templaite , whaDash
 
@@ -71,6 +72,12 @@ path('api/update-crm/', views.update_contact_crm, name='update_contact_crm'),
 path('api/analytics/lifecycle/' , whaDash.api_lifecycle_stats , name='api_lifecycle_stats'),
 path('api/create-canned-response/' , whaDash.create_canned_response , name='api_create_canned_response'),
 path('api/get-canned-responses/', whaDash.get_canned_responses , name='api_get_canned_responses'),
+
+path('api/confirm-delete-channel/' , wsettings.confirm_delete_channel , name='confirm_delete_channel'),
+path('api/trigger-delete-otp/' , wsettings.trigger_delete_otp , name='trigger_delete_otp'),
+path('api/update-channel-settings/' , wsettings.update_channel_settings , name='update_channel_settings'),
+
+path('api/get-channel-settings/' , wsettings.get_channel_settings , name='get_channel_settings'),
 
 ]
 

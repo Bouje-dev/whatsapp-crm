@@ -888,8 +888,24 @@ class WhatsAppChannel(models.Model):
         return False
  
     # 🔥 الحقل الجديد (هام جداً)
- 
+         
+# --- 1. إعدادات البروفايل (تزامن مع Meta) ---
+    business_about = models.CharField(max_length=130, blank=True, help_text="الحالة النصية في واتساب")
+    business_description = models.TextField(blank=True, help_text="وصف النشاط التجاري")
+    business_address = models.CharField(max_length=256, blank=True)
+    business_email = models.EmailField(blank=True)
+    business_website = models.URLField(blank=True)
 
+    # --- 2. إعدادات الأتمتة ---
+    enable_welcome_msg = models.BooleanField(default=False)
+    welcome_msg_body = models.TextField(blank=True, default="مرحباً بك! كيف يمكننا مساعدتك؟")
+    
+    # --- 3. إعدادات النظام (System Behavior) ---
+    enable_collision_detection = models.BooleanField(default=True, help_text="تفعيل تنبيه التصادم بين الموظفين")
+    show_blue_ticks = models.BooleanField(default=True, help_text="إظهار علامة القراءة للعميل عند فتح المحادثة")
+    profile_image = models.ImageField(upload_to='channel_profiles/', blank=True, null=True, help_text="Local profile image for dashboard")
+    # --- 4. صلاحيات الموظفين ---
+    allow_agents_delete_msg = models.BooleanField(default=False, help_text="السماح للموظفين بحذف الرسائل")
 
 class Message(models.Model):
     user = models.ForeignKey(

@@ -5142,7 +5142,8 @@ $(document).ready(function() {
     </section>
 
     <section class="cls3741_panel cls3741_panel_settings" style="display: none; padding: 0px;     height: 100%;">
-        soon
+        {% include 'whatssap/whatsapp_settings.html' %}
+        
         </section>
 </main>
 
@@ -7066,6 +7067,10 @@ if (typeof window.loadDashboardData === 'function') {
     if (typeof window.loadLifecycleStats === 'function') {
         window.loadLifecycleStats(newChannelId);
     }  
+
+    if(typeof window.loadSetting === 'function') {
+        window.loadSetting(newChannelId);
+    }
 
 }
 window.switchChannel = switchChannel;
