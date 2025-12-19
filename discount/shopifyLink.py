@@ -949,11 +949,13 @@ def tracking(request,leades = None):
     
     from discount.models import Contact
     
-
-    if getattr(user, 'is_team_admin', False) or user.is_superuser:
-        user_channels = WhatsAppChannel.objects.filter(assigned_agents__in=team_members).distinct()
-    else:
-        user_channels = WhatsAppChannel.objects.filter(assigned_agents=user).distinct()
+    # user.is_team_admin = True
+    # if getattr(user, 'is_team_admin', False) or user.is_superuser:
+    #     print('user_channels', )
+    #     user_channels = WhatsAppChannel.objects.filter(owner=user).distinct()
+        
+    # else:
+    #     user_channels = WhatsAppChannel.objects.filter(assigned_agents=user).distinct()
 
     pipeline_choices = Contact.PipelineStage.choices
     from discount.models import CannedResponse
