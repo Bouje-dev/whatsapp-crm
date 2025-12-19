@@ -332,9 +332,9 @@ class WebhookConsumer(AsyncWebsocketConsumer):
         # استخراج البيانات الأساسية
          
         command_type = data.get('type')
-        payload_content = data.get('payload', {}) or data # أحياناً البيانات تكون في الجذر
+        payload_content = data.get('payload', {}) or data  
         
-        # استخراج channel_id (مهم جداً)
+       
         c_id = payload_content.get('channel_id') or data.get('channel_id')
         is_internal_note = payload_content.get('is_internal_note' , False)
 
@@ -381,11 +381,11 @@ class WebhookConsumer(AsyncWebsocketConsumer):
         if not c_id:
             return await self.send(json.dumps({"type": "error", "message": "missing Channel ID"}))
         # داخل دالة receive في WebhookConsumer
-        print(' 💯data'  , data)
+         
 
 
       
-        # معالجة أمر إرسال الرسالة
+         
         if command_type == 'send_message':
             msg_type = payload_content.get("msg_type") or payload_content.get("type") or "text"
             reciver = payload_content.get("reciver") or payload_content.get("to")
@@ -404,7 +404,7 @@ class WebhookConsumer(AsyncWebsocketConsumer):
                 if not file_b64:
                     await self.send(json.dumps({"type": "error", "message": "missing file data for media_upload"}))
                     return
-                # نبني كائن message لتمريره إلى send_message_socket
+                
                 message_payload = {
                     "data": file_b64,
                     "filename": filename or "file",
@@ -412,31 +412,31 @@ class WebhookConsumer(AsyncWebsocketConsumer):
                     "body": body,
                     "type": payload_content.get("type") or payload_content.get("file_type") or "unknown"
                 }
-        else:
-                # نص أو template أو غيره
+        elif msg_type in ['image', 'video', 'audio', 'document'] :
+                msg_type = msg_type
                 message_payload = {
                     "body": body,
                     "media_id": payload_content.get("media_id"),
                     "template": payload_content.get("template"),
-                    "media_type": payload_content.get("media_type", "text")
+                    "media_type": msg_type,
+                    "media_url": payload_content.get("file") or payload_content.get("media_url"),
+                   
+                #     "data": None, 
+                # "filename": payload_content.get("filename"),
+                # "mime": payload_content.get("mime")
                 }
+        else:
+                # file_url = payload_content.get("file") or payload_content.get("media_url")
 
-
-
-
-            # تجهيز حمولة الرسالة
-            # message_payload = {
-            #     "body": body,
-            #     "data": file_b64,
-            #     "filename": filename,
-            #     "mime": mime,
-            #     "type": msg_type,
-            #     "media_id": payload_content.get("media_id"),
-            #     "template": payload_content.get("template")
-            # }
-
+                # final_media_type = msg_type if msg_type in ['image', 'video', 'audio', 'document'] else payload_content.get("media_type", "text")
+                message_payload = {
+                    "body": body,
+                    "media_id": payload_content.get("media_id"),
+                    "template": payload_content.get("template"),
+                    # "media_type": final_media_type,
+                    # "media_url": file_url
+                }
         try:
-                # 🔥 السيناريو 1: ملاحظة داخلية (Internal Note) 🔥
                 if is_internal_note:
                     # 1. الحفظ في قاعدة البيانات
                     saved_msg = await self.save_message_db(
@@ -482,22 +482,17 @@ class WebhookConsumer(AsyncWebsocketConsumer):
                         "payload": {"info": "Internal note saved"}
                     }))
 
-                # 🔥 السيناريو 2: رسالة عادية (WhatsApp Message) 🔥
                 else:
-                    # نرسل للدالة الخارجية التي تتعامل مع API
-                    # (يفترض أن هذه الدالة تقوم بالحفظ في DB والبث أيضاً، أو تعيد النتيجة فقط)
-                    
-                    
+                     
                     result = await sync_to_async(send_message_socket)(
                         reciver,           
                         self.user,        
                         c_id,              
                         message_payload,   
                         msg_type ,
-                        group_name=self.team_group_name
+                        group_name = self.team_group_name
                     )
                     
-                    # الرد على المرسل بنتيجة الإرسال
                     status_code = 200 if isinstance(result, dict) and result.get("ok") else 400
                     await self.send(text_data=json.dumps({
                         "type": "send_result",

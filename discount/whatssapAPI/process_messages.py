@@ -1168,7 +1168,7 @@ def send_message_socket(sreciver,  user ,channel_id ,  message, msg_type,
     # تحقق إعداد - التحقق من channel_id والصلاحيات باستخدام دالة التحقق
     channel, error_msg = validate_channel_id(channel_id, user)
     if not channel:
-        send_socket("error", {"error": error_msg})
+        send_socket("error",  {"error": error_msg}, group_name=group_name, )
         return {"ok": False, "error": error_msg.lower().replace(" ", "_")}
     
     ACCESS_TOKEN  = channel.access_token
@@ -1180,6 +1180,16 @@ def send_message_socket(sreciver,  user ,channel_id ,  message, msg_type,
     #     return {"ok": False, "error": "Server configuration missing"}
 
     try:
+        media_url = message.get("media_url") or message.get("file")
+        media_id = message.get("media_id")
+    
+    # تحديد نوع الميديا إذا كان media_upload (سنحتاج لتغييره لاحقاً إلى image/video...)
+        final_msg_type = msg_type
+        has_upload_data = False
+        if request is not None and request.FILES.get("file"):
+            has_upload_data = True
+        elif isinstance(message, dict) and message.get("data"):
+            has_upload_data = True
      
         if msg_type == "media_upload":
             media_url =''
@@ -1188,7 +1198,7 @@ def send_message_socket(sreciver,  user ,channel_id ,  message, msg_type,
                 media_type = request.POST.get("type", "text")
                 file_obj = request.FILES.get("file")
                 if not file_obj:
-                    send_socket("error", {"error": "No file uploaded in request"})
+                    send_socket("error", {"error": "No file uploaded in request"} , group_name=group_name)
                     return {"ok": False, "error": "no_file"}
                 # نستخدم file_obj (InMemoryUploadedFile/File)
                 uploaded_file = file_obj
@@ -1197,7 +1207,7 @@ def send_message_socket(sreciver,  user ,channel_id ,  message, msg_type,
             else:
                 # نتوقع message dict مع مفاتيح data (base64 or dataURL), filename, mime, body, type
                 if not isinstance(message, dict):
-                    send_socket("error", {"error": "Invalid message payload for media_upload"})
+                    send_socket("error", {"error": "Invalid message payload for media_upload"} , group_name=group_name)
                     return {"ok": False, "error": "invalid_payload"}
 
                 body = message.get("body", "")
@@ -1207,7 +1217,7 @@ def send_message_socket(sreciver,  user ,channel_id ,  message, msg_type,
                 saved_mime = message.get("mime")
 
                 if not data:
-                    send_socket("error", {"error": "missing data for media_upload"})
+                    send_socket("error", {"error": "missing data for media_upload"} , group_name=group_name)
                     return {"ok": False, "error": "missing_data"}
 
                 # دعم data URI مثل data:image/png;base64,AAA...
@@ -1240,7 +1250,7 @@ def send_message_socket(sreciver,  user ,channel_id ,  message, msg_type,
                         temp_input_path = tmp_path
                 except Exception as e:
                     _cleanup_paths(temp_input_path)
-                    send_socket("error", {"error": "failed to save uploaded file", "details": str(e)})
+                    send_socket("error", {"error": "failed to save uploaded file", "details": str(e)} , group_name=group_name)
                     return {"ok": False, "error": "failed_save", "details": str(e)}
 
             # تحويل للصيغ المطلوبة إن لزم (مثلاً audio -> ogg)
@@ -1269,12 +1279,12 @@ def send_message_socket(sreciver,  user ,channel_id ,  message, msg_type,
                     fb_res = requests.post(fb_upload_url, params=params, files=files, timeout=80)
             except Exception as e:
                 _cleanup_paths(temp_input_path, temp_converted_path)
-                send_socket("error", {"error": "upload connection failed", "details": str(e)})
+                send_socket("error", {"error": "upload connection failed", "details": str(e)} , group_name=group_name)
                 return {"ok": False, "error": "upload_failed", "details": str(e)}
 
             if fb_res.status_code not in (200, 201):
                 _cleanup_paths(temp_input_path, temp_converted_path)
-                send_socket("error", {"error": "whatsapp upload rejected", "details": fb_res.text})
+                send_socket("error", {"error": "whatsapp upload rejected", "details": fb_res.text} , group_name=group_name)
                 return {"ok": False, "error": "upload_rejected", "details": fb_res.text}
 
             fb_json = fb_res.json()
@@ -1287,9 +1297,47 @@ def send_message_socket(sreciver,  user ,channel_id ,  message, msg_type,
             except Exception:
                 saved_local_bytes = None
 
-        # ----------------------------------------
-        # الحالة JSON (نص أو template) كما في القديم
-        # ----------------------------------------
+        elif msg_type in ['image', 'video', 'audio', 'document'] and media_url:
+            final_msg_type = msg_type
+            media_type = final_msg_type
+            # print('media_url', media_url , ' media_type ', media_type)
+
+            media_object = {}
+            
+            # الأولوية 1: الـ ID (سواء جاء من الرفع في الخطوة 2 أو كان موجوداً مسبقاً)
+            if media_id:
+                media_object["id"] = media_id
+            
+            # الأولوية 2: الرابط (للردود السريعة)
+            elif media_url:
+                media_object["link"] = media_url
+                
+            
+            # إذا فشلنا في إيجاد أي منهما لنوع ميديا
+            elif final_msg_type in ['image', 'video', 'audio', 'document']:
+                send_socket("error", {"error": "Missing both media_id and media_url"}, group_name=group_name)
+                return {"ok": False, "error": "missing_media_source"}
+
+            # بناء الجيسون
+            data_payload = {
+                "messaging_product": "whatsapp",
+                "recipient_type": "individual",
+                "to":to,
+                "type": final_msg_type
+            }
+
+            # إضافة النص (Caption)
+            body_text = message.get("body", "")
+            if body_text and final_msg_type != 'audio': # الصوت لا يقبل caption
+                media_object["caption"] = body_text
+
+            # دمج كائن الميديا في الرسالة
+            if final_msg_type in ['image', 'video', 'audio', 'document']:
+                data_payload[final_msg_type] = media_object
+            elif final_msg_type == 'text':
+                data_payload["text"] = {"body": body_text}
+
+      
         else:
             if request is not None:
                 payload = json.loads(request.body.decode("utf-8") or "{}")
@@ -1303,7 +1351,7 @@ def send_message_socket(sreciver,  user ,channel_id ,  message, msg_type,
             media_type = payload.get("media_type") or payload.get("type") or "text"
 
             if not to:
-                send_socket("error", {"error": "missing 'to' field"})
+                send_socket("error", {"error": "missing 'to' field"} , group_name=group_name)
                 return {"ok": False, "error": "missing_to"}
 
             if media_type == "template":
@@ -1315,7 +1363,7 @@ def send_message_socket(sreciver,  user ,channel_id ,  message, msg_type,
 
     except Exception as e:
         _cleanup_paths(temp_input_path, temp_converted_path)
-        send_socket("error", {"error": "request processing error", "details": str(e)})
+        send_socket("error", {"error": "request processing error", "details": str(e)} ,group_name=group_name)
         return {"ok": False, "error": "processing_error", "details": str(e)}
 
     # ----------------------------------------
@@ -1329,15 +1377,28 @@ def send_message_socket(sreciver,  user ,channel_id ,  message, msg_type,
             send_payload["text"] = {"body": body or ""}
 
         elif media_type in ("image", "audio", "video", "document"):
-            if not media_id:
-                _cleanup_paths(temp_input_path, temp_converted_path)
-                send_socket("error", {"error": "missing media_id"})
-                return {"ok": False, "error": "missing_media_id"}
+                media_url = message.get("media_url")  
 
-            send_payload["type"] = media_type
-            send_payload[media_type] = {"id": media_id}
-            if body and media_type != "audio":
-                send_payload[media_type]["caption"] = body
+                # 2. بناء كائن الميديا بذكاء (ID or Link)
+                media_object = {}
+
+                if media_id:
+                    media_object["id"] = media_id
+                elif media_url:
+                    media_object["link"] = media_url
+                else:
+                    # 3. الخطأ يظهر فقط إذا غاب الاثنان معاً
+                    _cleanup_paths(temp_input_path, temp_converted_path)
+                    send_socket("error", {"error": "missing both media_id and media_url"} , group_name=group_name)
+                    return {"ok": False, "error": "missing_media_source"}
+
+                # 4. إضافة الكائن للـ Payload
+                send_payload["type"] = media_type
+                send_payload[media_type] = media_object
+                
+                # إضافة الشرح (Caption)
+                if body and media_type != "audio":
+                    send_payload[media_type]["caption"] = body
 
         elif media_type == "template":
                 if "template_name" in payload:
@@ -1349,7 +1410,7 @@ def send_message_socket(sreciver,  user ,channel_id ,  message, msg_type,
 
         else:
             _cleanup_paths(temp_input_path, temp_converted_path)
-            send_socket("error", {"error": f"unsupported type: {media_type}"})
+            send_socket("error", {"error": f"unsupported type: {media_type}"} ,group_name=group_name)
             return {"ok": False, "error": "unsupported_type"}
 
         # إرسال لواتساب (HTTP)
@@ -1359,8 +1420,8 @@ def send_message_socket(sreciver,  user ,channel_id ,  message, msg_type,
         
     except Exception as e:
         _cleanup_paths(temp_input_path, temp_converted_path)
-        send_socket("error", {"error": "api connection failed", "details": str(e)})
-        return {"ok": False, "error": "api_connection_failed", "details": str(e)}
+        send_socket("error", {"error": "api connection failed", "details": str(e)}, group_name=group_name)
+        return {"ok": False, "error": "api_connection_failed", "details": str(e), }
 
 
     saved_message_id = None
@@ -1375,6 +1436,7 @@ def send_message_socket(sreciver,  user ,channel_id ,  message, msg_type,
             try:
                 # 1. تحويل الرد إلى JSON
                 response_data = r.json() 
+                print('response_data',response_data)
                 
                 # 2. استخراج المعرف من: {"messages":[{"id":"wamid..."}]}
                 if 'messages' in response_data and len(response_data['messages']) > 0:
@@ -1403,20 +1465,22 @@ def send_message_socket(sreciver,  user ,channel_id ,  message, msg_type,
             saved_message = Message.objects.create(channel = channel , **msg_kwargs)
 
             saved_message_id = saved_message.id
-            media_url = ""
-            print('saved_message' , saved_message.media_type , saved_message.media_url , saved_message.media_file)
+            # media_url = ""
+             
             if saved_message_id:
                 try:
                  
                     msg_obj = Message.objects.get(id=saved_message_id)
-                    print('🥰😜😜😜msg' , msg_obj)
+                     
                     if msg_obj.media_file:
                         media_url = msg_obj.media_file.url
+                   
  
                 except Exception:
                     pass
  
             if saved_local_bytes and hasattr(saved_message, "media_file"):
+                 
                 try:
                     ext = ""
                     if saved_mime:
@@ -1435,7 +1499,19 @@ def send_message_socket(sreciver,  user ,channel_id ,  message, msg_type,
                     saved_message.media_file.save(fname, ContentFile(saved_local_bytes), save=True)
                     media_url = saved_message.media_file.url
                 except Exception as ex_save:
-                    print("Error saving local file:", ex_save)
+                    print("Error saving media to DB:", ex_save)
+            else:
+                # 🔥 التصحيح هنا 🔥
+                # الحالة: لدينا رابط خارجي (S3) ولا يوجد ملف محلي (bytes)
+                
+                 
+                
+                # 1. إذا كان المودل يحتوي على حقل لتخزين الرابط النصي، نحفظه فيه
+                # (تأكد أن المودل لديك فيه حقل بهذا الاسم، وإلا احذف السطر التالي)
+                if hasattr(saved_message, "media_url"): 
+                    saved_message.media_url = media_url
+                    saved_message.save() # لا تنسَ الحفظ
+                pass
 
             if hasattr(saved_message, "created_at") and not saved_message.created_at:
                 saved_message.created_at = timezone.now()

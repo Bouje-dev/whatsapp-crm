@@ -70,7 +70,7 @@ path('api/update-crm/', views.update_contact_crm, name='update_contact_crm'),
 
 path('api/analytics/lifecycle/' , whaDash.api_lifecycle_stats , name='api_lifecycle_stats'),
 path('api/create-canned-response/' , whaDash.create_canned_response , name='api_create_canned_response'),
-path('api/get-canned-responses', whaDash.get_canned_responses , name='api_get_canned_responses'),
+path('api/get-canned-responses/', whaDash.get_canned_responses , name='api_get_canned_responses'),
 
 ]
 

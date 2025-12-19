@@ -2189,7 +2189,7 @@ window.resetFilters = function() {
       <!-- منطقة إدخال الرسائل والوسائط - تصميم مشابه للواتساب -->
       <div class="cls3741_chat_input_wrapper">
    
-        <div class="cls3741_media_preview" id="cls3741_media_preview"></div>
+        <div class="cls3741_media_preview" id="cls3741_media_preview" style="min-height: 0; max-height: fit-content;"></div>
 
         <div id="slash_menu" class="cls3741_slash_menu" style="display: none;">
             <div class="slash_header">Quick Replies</div>
@@ -2364,120 +2364,263 @@ function sendInternalNote(text) {
           </div>
           <script>
     
-            // تحويل بيانات جانغو إلى مصفوفة جافاسكريبت
-            const cannedResponses = [
-                {% for response in canned_responses %}
-                {
-                    shortcut: "{{ response.shortcut }}",
-                    message: `{{ response.message|escapejs }}`, // escapejs مهم جداً للنصوص
-                    file_url: "{% if response.attachment %}{{ response.attachment.url }}{% endif %}",
-                    file_type: "{% if response.attachment %}video{% endif %}" // أو منطق لتحديد النوع
-                },
-                {% endfor %}
-            ];
-            $(document).ready(function() {
-            const inputField = $('#cls3741_message_input');
-            const menu = $('#slash_menu');
-            const list = $('#slash_list');
-        
-            // 1. الاستماع للكتابة
-            inputField.on('input', function() {
-                const val = $(this).val();
-        
-                // الشرط: هل النص يبدأ بـ "/"؟
-                if (val.startsWith('/')) {
-                    const searchTerm = val.substring(1).toLowerCase(); // النص بعد الشرطة
-                    showSlashMenu(searchTerm);
-                } else {
-                    menu.hide();
-                }
-            });
-        
-           // داخل دالة showSlashMenu القديمة
-function showSlashMenu(filterText) {
-    list.empty();
-    
-    // استخدام المتغير الجديد الذي تم جلبه عبر Fetch
-    const matches = currentCannedResponses.filter(item => 
-        item.shortcut.toLowerCase().includes(filterText)
-    );
+// متغير لتخزين الردود مؤقتاً لتسريع الفلترة أثناء الكتابة
+let cachedResponses = [];
+let isFetching = false; // لمنع تكرار الطلبات
 
-    if (matches.length === 0) {
-        menu.hide();
-        return;
-    }
+$(document).ready(function() {
+    const inputField = $('#cls3741_message_input');
+    const menu = $('#slash_menu');
+    const list = $('#slash_list');
 
-    matches.forEach(item => {
-        // تمييز الردود حسب الكاتب
-        const badgeColor = item.is_mine ? 'bg-primary' : 'bg-secondary';
-        const authorBadge = item.is_mine ? '' : `<small class="text-muted ms-2">by ${item.author}</small>`;
+    inputField.on('input', function() {
+        const val = $(this).val();
 
-        const li = $(`
-            <li class="slash_item">
-                <div class="d-flex align-items-center w-100">
-                    <span class="cmd_badge ${badgeColor}">/${item.shortcut}</span>
-                    ${authorBadge}
-                    <span class="cmd_text ms-2">${item.message.substring(0, 25)}...</span>
-                    
-                    ${item.media_type === 'video' ? '<i class="fas fa-video text-danger ms-auto"></i>' : ''}
-                    ${item.media_type === 'image' ? '<i class="fas fa-image text-success ms-auto"></i>' : ''}
-                </div>
-            </li>
-        `);
-
-        li.on('click', function() {
-            selectCannedResponse(item);
-        });
-
-        list.append(li);
+        // 1. هل بدأ المستخدم كتابة الأمر؟
+        if (val.startsWith('/')) {
+            const searchTerm = val.substring(1).toLowerCase(); // النص بعد الشرطة
+            
+            // 🔥 الحالة 1: كتب / لأول مرة (أو القائمة فارغة) -> نجلب البيانات
+            // نجعلها val.length === 1 لنتأكد أنه بدأ للتو، فنجلب أحدث البيانات
+            if (val.length === 1 && !isFetching) {
+                fetchAndShowMenu();
+            } 
+            // 🔥 الحالة 2: البيانات موجودة والعملية فلترة فقط
+            else if (cachedResponses.length > 0) {
+                filterAndRender(searchTerm);
+            }
+        } else {
+            // إذا حذف الشرطة، نخفي القائمة ونصفر البيانات لضمان التحديث في المرة القادمة
+            menu.hide();
+            cachedResponses = []; 
+            isFetching = false;
+        }
     });
 
-    menu.show();
-}
-            // 3. دالة اختيار الرد
-            function selectCannedResponse(item) {
-                // وضع النص في الحقل (نحذف الـ / ونضع الرسالة)
-                inputField.val(item.message);
-                
-                // إذا كان هناك ملف، نجهزه للإرسال
-                if (item.file_url) {
-                    // هنا نستخدم المتغيرات التي استخدمناها سابقاً في الشات
-                    // نفترض أنك تستخدم queuedFileUrl أو ما شابه
-                    // أو نقوم بإنشاء "معاينة وهمية" للملف
-                    console.log("File attached:", item.file_url);
-                    
-                    // إظهار تنبيه صغير أن هناك ملف مرفق سيتم إرساله
-                    $('#attachment_preview_area').html(`
-                        <div class="alert alert-info p-1 small">
-                            <i class="fas fa-video"></i> Video attached: ${item.shortcut}
-                        </div>
-                    `);
-                    
-                    // تخزين الرابط لإرساله مع الرسالة
-                    // (تحتاج لتعديل دالة الإرسال لتقرأ هذا المتغير)
-                    window.queuedCannedFile = item.file_url; 
-                }
+    // --- دالة الجلب من السيرفر ---
+    function fetchAndShowMenu() {
+        isFetching = true;
         
-                menu.hide();
-                inputField.focus(); // إعادة التركيز للكتابة
+        // إظهار حالة التحميل داخل القائمة
+        menu.show();
+        list.html('<li class="p-3 text-center text-muted"><i class="fas fa-spinner fa-spin"></i> Loading templates...</li>');
+
+        // جلب معرف القناة الحالية (مهم لفلترة الردود حسب الصلاحيات)
+        const channelId = currentOpenChatId || 0; 
+
+        $.ajax({
+            url: `/discount/whatssapAPI/api/get-canned-responses?channel_id=${channelId}`,
+            method: 'GET',
+            success: function(response) {
+                isFetching = false;
                 
-                // تحديث حالة زر الإرسال (لأنه أصبح هناك نص)
-                checkSendButtonState(); 
+                if (response.status === 'success') {
+                    cachedResponses = response.data; // تخزين البيانات
+                    
+                    // بعد وصول البيانات، نتحقق مما كتبه المستخدم حالياً ونفلتر بناءً عليه
+                    // (لأنه ربما كتب /h بسرعة قبل وصول البيانات)
+                    const currentVal = inputField.val();
+                    if (currentVal.startsWith('/')) {
+                        const currentSearch = currentVal.substring(1).toLowerCase();
+                        filterAndRender(currentSearch);
+                    }
+                }
+            },
+            error: function() {
+                isFetching = false;
+                list.html('<li class="p-2 text-danger text-center small">Failed to load data.</li>');
             }
-        
-            // 4. إغلاق القائمة عند النقر خارجها
-            $(document).click(function(e) {
-                if (!$(e.target).closest('#slash_menu, #cls3741_message_input').length) {
-                    menu.hide();
-                }
+        });
+    }
+
+    function filterAndRender(filterText) {
+        list.empty();
+
+        const matches = cachedResponses.filter(item => 
+            item.shortcut.toLowerCase().includes(filterText)
+        );
+
+        if (matches.length === 0) {
+            list.html('<li class="p-2 text-muted text-center small">No matches found</li>');
+            return;
+        }
+
+        matches.forEach(item => {
+            // ... (نفس كود الألوان والأيقونات السابق) ...
+            const badgeColor = item.is_mine ? 'bg-primary' : 'bg-secondary';
+            const authorBadge = item.is_mine ? '' : `<small class="text-muted ms-2" style="font-size:10px">${item.author}</small>`;
+            
+            let mediaIcon = '';
+            if(item.media_type === 'video') mediaIcon = '<i class="fas fa-video text-danger ms-2" style="font-size:12px"></i>';
+            if(item.media_type === 'image') mediaIcon = '<i class="fas fa-image text-success ms-2" style="font-size:12px"></i>';
+            if(item.media_type === 'audio') mediaIcon = '<i class="fas fa-music text-warning ms-2" style="font-size:12px"></i>';
+
+            // 🔥 إنشاء العنصر LI 🔥
+            const li = $(`
+                <li class="slash_item">
+                    <span class="cmd_badge ${badgeColor}">/${item.shortcut}</span>
+                    <span class="cmd_text ms-2">${item.message ? item.message.substring(0, 20) + '...' : 'Media File'}</span>
+                    ${mediaIcon}
+                    ${authorBadge}
+                    
+                    <div class="direct-send-btn" title="Send Immediately (No Preview)">
+                        <i class="fas fa-paper-plane"></i>
+                    </div>
+                </li>
+            `);
+
+            // 1. حدث النقر على الزر (الإرسال المباشر)
+            li.find('.direct-send-btn').on('click', function(e) {
+                e.stopPropagation(); // ⛔ تمنع تفعيل حدث المعاينة الموجود في العنصر الأب
+                e.preventDefault();
+                
+                sendCannedResponseDirectly(item); // استدعاء دالة الإرسال الفوري
+                
+                // إغلاق القائمة وتنظيف الحقل
+                menu.hide();
+                cachedResponses = [];
+                $('#cls3741_message_input').val(''); // تفريغ الحقل لأننا أرسلنا خلاص
             });
 
+            // 2. حدث النقر على العنصر نفسه (المعاينة / الملء)
+            li.on('click', function() {
+                selectCannedResponse(item); // دالتك القديمة للمعاينة
+            });
 
-
-            // متغير لتخزين الردود الحالية (فارغ في البداية)
-
+            list.append(li);
         });
-        </script>
+    }
+    // --- دالة الاختيار (كما هي سابقاً) ---
+   // دالة مساعدة لتوليد HTML المعاينة حسب النوع
+   function getMediaPreviewHTML(item) {
+        const type = item.media_type;
+        const url = item.file_url;
+        
+        if (type === 'image') {
+            return `<img src="${url}" class="cls3741_mini_media" alt="Image Preview">`;
+        } 
+        else if (type === 'video') {
+            // controls: يسمح بالتشغيل والإيقاف
+            return `<video src="${url}" class="cls3741_mini_media" controls></video>`;
+        } 
+        else if (type === 'audio') {
+            // مشغل صوتي
+            return `
+                <div class="d-flex align-items-center gap-2 p-2 bg-dark rounded">
+                    <i class="fas fa-music text-warning"></i>
+                    <audio controls style="height: 30px;">
+                        <source src="${url}" type="audio/mpeg">
+                    </audio>
+                </div>`;
+        } 
+        else {
+            // مستند أو غير ذلك
+            return `
+                <div class="d-flex align-items-center gap-3 p-3 bg-dark rounded border border-secondary">
+                    <i class="fas fa-file-alt fa-2x text-primary"></i>
+                    <span class="text-white small">Document File</span>
+                </div>`;
+        }
+    }
+
+    // --- داخل دالة selectCannedResponse (استبدل الجزء القديم بهذا) ---
+    function selectCannedResponse(item) {
+        // 1. وضع النص في الحقل
+        inputField.val(item.message || ''); 
+        
+        // 2. إذا كان هناك ملف مرفق
+        if (item.file_url) {
+            // إعداد المتغيرات للإرسال
+            window.queuedCannedFile = item.file_url;
+            window.queuedCannedType = item.media_type;
+            
+            // 🔥 توليد HTML المعاينة الديناميكي 🔥
+            const mediaHTML = getMediaPreviewHTML(item);
+
+            // عرض المعاينة في المنطقة المخصصة
+            $('#cls3741_media_preview').html(`
+                <div class="cls3741_attachment_preview">
+                    <div class="cls3741_close_preview" onclick="clearCannedAttachment()">
+                        <i class="fas fa-times"></i>
+                    </div>
+                    
+                    ${mediaHTML}
+                    
+                    <div class="cls3741_preview_label">
+                        <i class="fas fa-paperclip me-1"></i> /${item.shortcut}
+                    </div>
+                </div>
+            `);
+        } else {
+            // إذا كان نصاً فقط، نتأكد من تنظيف أي مرفق سابق
+            clearCannedAttachment();
+        }
+
+        menu.hide();
+        cachedResponses = []; 
+        inputField.focus();
+    }
+
+    // --- دالة مسح المرفق (تأكد من وجودها خارج الـ ready أو كـ global) ---
+    window.clearCannedAttachment = function() {
+        window.queuedCannedFile = null;
+        window.queuedCannedType = null;
+        $('#cls3741_media_preview').empty(); // حذف HTML المعاينة
+    };
+
+function sendCannedResponseDirectly(item) {
+         
+
+        const channelId =  window.currentChannelId  // معرف المحادثة الحالية
+        const receiverPhone = currentPhone; // يجب أن يكون لديك متغير عام يخزن رقم العميل الحالي
+
+        if (!channelId || !receiverPhone) {
+            console.error("Missing chat info");
+            return;
+        }
+
+        // تجهيز البيانات للإرسال
+        // ملاحظة: هيكل البيانات هذا يجب أن يطابق ما يتوقعه الباك إند عندك
+     
+           let  payload ={
+                channel_id: channelId,
+                reciver: receiverPhone,
+                body: item.message || "", // نص الرسالة
+                type: "text" // افتراضي
+            
+        };
+
+        // إذا كان هناك ملف مرفق
+        if (item.file_url) {
+            // في حالة الملفات، يفضل إرسال الرابط مباشرة إذا كان الباك إند يدعم إرسال رابط (Link)
+            // أو نوع ميديا محدد
+            payload.type = item.media_type || "image"; 
+            payload.file = item.file_url; // نرسل الرابط كملف (يعتمد على دعم الباك إند لديك للروابط)
+            
+            // ⚠️ ملاحظة هامة: إذا كان الباك إند يتوقع Base64 حصراً، 
+            // فلن نستطيع الإرسال المباشر للملفات بسهولة دون تحميلها أولاً.
+            // لكن إذا كان يقبل رابط URL (وهو الأفضل للردود الجاهزة)، فهذا سيعمل بامتياز.
+            payload.media_url = item.file_url; 
+        }
+
+        // إرسال عبر السوكيت
+        // chatSocket.send(JSON.stringify(payload));
+
+        if (window.ChatSocket && window.ChatSocket.socket && window.ChatSocket.socket.readyState === WebSocket.OPEN) {
+        
+        window.ChatSocket.send(
+            'send_message', 
+            payload
+        );
+    } else {
+        console.error("Socket not open");
+    }
+    
+    menu.hide()
+        console.log("🚀 Direct reply sent:", item.shortcut);
+    }
+
+});</script>
         
         </div>
 

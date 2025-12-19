@@ -194,10 +194,11 @@
 
 /* quick replay  */
 .cls3741_slash_menu {
-    position: absolute;
+    /* position: absolute; */
     bottom: 100%; /* تظهر فوق الحقل */
     left: 0;
-    width: 300px; /* أو 100% حسب الرغبة */
+
+    width: 100%; /* أو 100% حسب الرغبة */
     background: white;
     border: 1px solid #e2e8f0;
     border-radius: 8px;
@@ -295,7 +296,7 @@
 /* تنسيق الصورة */
 .cls3741_media_preview img {
     width: 100%;
-    height: 100%;
+    height: 299px;
     object-fit: cover;
     transition: transform 0.3s;
 }
@@ -398,22 +399,134 @@
 }
 
 /* طبقة تظهر عند التحويم لتوضيح إمكانية التشغيل */
-.cls3741_media_preview::after {
+/* .cls3741_media_preview::after {
     content: '';
     position: absolute;
     top: 0; left: 0; right: 0; bottom: 0;
     background: rgba(0,0,0,0);
     transition: background 0.3s;
     z-index: 1;
-}
+} */
 
-.cls3741_media_preview:hover::after {
-    background: rgba(0,0,0,0.2); /* تغميق بسيط */
-}
+ 
 
 /* تكبير الأيقونة قليلاً عند التحويم */
 .cls3741_reply_card:hover .cls3741_overlay_icon {
     transform: scale(1.1);
     background: rgba(56, 189, 248, 0.9); /* تتحول للأزرق عند التحويم */
     border-color: transparent;
+}
+
+
+
+
+
+
+
+
+
+/* تنسيق أيقونة الإرسال المباشر */
+.direct-send-btn {
+    width: 30px;
+    height: 30px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    color: #0ea5e9; /* أزرق سماوي */
+    cursor: pointer;
+    transition: all 0.2s;
+    margin-left: auto; /* دفعها لليمين */
+    z-index: 10; /* لتكون فوق أي طبقة أخرى */
+}
+
+.direct-send-btn:hover {
+    background-color: #0284c7;
+    color: white;
+    transform: scale(1.1);
+}
+
+.slash_item {
+    /* تأكد من أن العنصر مرتب بشكل Flex */
+    display: flex;
+    align-items: center;
+    padding: 8px 12px;
+    cursor: pointer;
+}
+
+
+
+
+/* حاوية المعاينة فوق حقل الإدخال */
+.cls3741_attachment_preview {    background-color: #1e293b;
+    border: 1px solid #334155;
+    border-radius: 8px;
+    padding: 10px;
+    margin-bottom: 8px;
+    position: relative;
+    display: flex;
+    margin: 5px;
+    max-width: 100%;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.2);
+    /* width: 100%; */
+    height: auto;
+    flex-direction: column;
+    align-items: flex-start;
+    align-content: flex-start;
+}
+
+/* تنسيق الصور والفيديو المصغر */
+.cls3741_mini_media {
+    max-height: 300px; /* ارتفاع ثابت لعدم تخريب التصميم */
+    border-radius: 6px;
+    width: auto;
+    display: block;
+}
+
+/* زر الإغلاق (X) */
+.cls3741_close_preview {
+    position: absolute;
+    top: -8px;
+    right: -8px;
+    background: #ef4444; /* أحمر */
+    color: white;
+    border: 2px solid #1e293b; /* حدود بلون الخلفية للجمالية */
+    border-radius: 50%;
+    width: 24px;
+    height: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    font-size: 12px;
+    transition: transform 0.2s;
+    z-index: 10;
+}
+
+.cls3741_close_preview:hover {
+    transform: scale(1.1);
+    background: #dc2626;
+}
+
+/* تسمية الملف */
+.cls3741_preview_label {
+    font-size: 11px;
+    color: #94a3b8;
+    margin-top: 5px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 200px;
+}
+
+
+
+
+
+@media screen and (max-width: 1567px) {
+  
+    .cls3741_btn_label {
+        display: none;
+    }
+    
 }

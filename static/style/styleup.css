@@ -2476,14 +2476,21 @@ position: relative;
     }
 
     /* منطقة معاينة الوسائط */
-    .cls3741_media_preview   {
+    .cls3741_media_preview {
       display: flex;
       gap: 8px;
       /* padding: 8px 0; */
       flex-wrap: wrap;
-    }
+      justify-content: flex-start;
+      align-items: flex-start;
 
+      min-height: 0;
+      max-height: max-content;
+      height: fit-content;
+      border-radius: 10px;
+  }
     .cls3741_preview_item {
+      width: 100%;
       position: relative;
       border-radius: 12px;
       overflow: hidden;
