@@ -1,7 +1,7 @@
 from asgiref.sync import async_to_sync
 from channels.layers import get_channel_layer
 
-def send_socket(data_type, payload, group_name="webhook_events", channel_name=None):
+def send_socket(data_type, payload, group_name, channel_name=None):
     """
     دالة مركزية لإرسال الأحداث من أي مكان في الباك إند إلى الويب سوكت
     """
