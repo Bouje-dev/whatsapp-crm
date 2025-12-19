@@ -82,20 +82,20 @@ def update_channel_settings(request):
         meta_sync_status = "skipped"
         meta_error = None
 
-        # if profile_changed:
-        #     try:
-        #         # استدعاء دالة المزامنة الخارجية
-        #         sync_success, error_msg = sync_profile_with_meta(channel)
+        if profile_changed:
+            try:
+                # استدعاء دالة المزامنة الخارجية
+                sync_success, error_msg = sync_profile_with_meta(channel)
                 
-        #         if sync_success:
-        #             meta_sync_status = "success"
-        #         else:
-        #             meta_sync_status = "failed"
-        #             meta_error = error_msg
+                if sync_success:
+                    meta_sync_status = "success"
+                else:
+                    meta_sync_status = "failed"
+                    meta_error = error_msg
                     
-        #     except Exception as e:
-        #         meta_sync_status = "failed"
-        #         meta_error = str(e)
+            except Exception as e:
+                meta_sync_status = "failed"
+                meta_error = str(e)
         
         # ---------------------------------------------------------
         # 6. الرد النهائي
