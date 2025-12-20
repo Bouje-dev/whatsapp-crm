@@ -1589,28 +1589,13 @@ def track_naqel_fast(waybill_no):
             if status_label:
                 # نبحث عن الـ th التالي (لأن القيمة وضعت في th أيضاً حسب كودهم)
                 status_value = status_label.find_next_sibling('th')
+                print(status_value)
                 if status_value:
                     data['raw_status'] = clean(status_value.text)
                 else:
                     # احتياطاً لو غيروها لـ td
                     data['raw_status'] = clean(status_label.find_next_sibling('td').text)
             return data
-
-            
-            # if results_container:
-            #     status_text = table.get_text(strip=True)
-
-            #     context = {
-            #          'destination' : resulta.destination,
-            #             'tracking_company' : "Naqel",
-            #             'order_number' : resulta.order_number,
-            #             'expected_delivery' : resulta.expected_delivery,
-            #         'status_text': status_text,
-
-            #     }
-            # إذا لم نجد الحاوية، نعيد جزءاً من النص للتأكد
-            # return {"ok": True, "raw_preview": result_soup.get_text()[:300].replace('\n', ' ')}
-            
         else:
             return {"ok": False, "error": f"Status Code: {response_post.status_code}"}
 
@@ -1619,7 +1604,7 @@ def track_naqel_fast(waybill_no):
 
 
 def normalize_naqel_status(raw_text):
-    text = raw_text
+    text = raw_text.lower()
     
     if "delivered" in text:
         return 'delivered'

@@ -135,7 +135,7 @@ if (failedAttempts === 0) {
 }
 
 // 3. تصميم البطاقة الذكية (تضاف قبل بطاقة الحالة)
-const insightsCard = `
+let insightsCard = `
 <div class="card border-${urgencyConfig.color} mb-3 shadow-sm" style="height:auto;">
     <div class="card-body">
         <div class="d-flex justify-content-between align-items-center mb-2">
@@ -166,9 +166,13 @@ const insightsCard = `
 
 // إدراج البطاقة في الصفحة
 // document.getElementById("tracking_info").insertAdjacentHTML('afterbegin', insightsCard);
+ 
+if(res.raw_status == 'delivered' || res.order_status =='delivered'){
 
-
-
+    insightsCard = `
+    `
+}
+ 
 
 
 
