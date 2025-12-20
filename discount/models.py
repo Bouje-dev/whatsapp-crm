@@ -294,6 +294,7 @@ class SimpleOrder(models.Model):
     DELIVERED = 'delivered'
     CANCELLED = 'cancelled'
     RETURNED = 'returned'
+    out_for_delivery='Out for Delivery'
     
     # الخيارات المعروضة (الإنجليزية فقط)
     STATUS_CHOICES = [
@@ -302,6 +303,7 @@ class SimpleOrder(models.Model):
         ('delivered', 'Delivered'),
         ('cancelled', 'Cancelled'),
         ('returned', 'Returned'),
+        ('out_for_delivery', 'Out for Delivery')
     ]
     agent = models.ForeignKey(
         CustomUser, 

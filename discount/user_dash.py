@@ -1,5 +1,6 @@
 from ast import Assign
 import logging
+from multiprocessing import context
 from django.conf import settings
 from .models import CODProduct ,SimpleOrder , CustomUser ,TeamInvitation , ExternalTokenmodel , Products , Activity ,UserProductPermission,Order
 import time
@@ -1494,74 +1495,156 @@ import requests
 import xmltodict
 from django.conf import settings
 
-SOAP_TEMPLATE = """<?xml version="1.0" encoding="utf-8"?>
-<soap:Envelope xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-               xmlns:xsd="http://www.w3.org/2001/XMLSchema"
-               xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/">
-  <soap:Body>
-    <TraceByWaybillNo xmlns="http://tempuri.org/">
-      <ClientInfo>
-        <ClientID>{client_id}</ClientID>
-        <Password>{password}</Password>
-        <Version>{version}</Version>
-        <ClientAddress></ClientAddress>
-        <ClientContact></ClientContact>
-      </ClientInfo>
-      <WaybillNo>{waybill}</WaybillNo>
-    </TraceByWaybillNo>
-  </soap:Body>
-</soap:Envelope>
-"""
+import requests
+from bs4 import BeautifulSoup
 
-def track_waybill(waybill):
-    xml = SOAP_TEMPLATE.format(
-        client_id='bojamaabayad2001@gmail.com' ,
-        password='hafjed-gurgeW-7wexgu',
-        version=settings.NAQEL_VERSION,
-        waybill=waybill
-    )
-
+def track_naqel_fast(waybill_no):
+    # رابط الصفحة
+    url = "https://www.naqelexpress.com/en/sa/tracking/"
+    
+    # محاكاة متصفح حقيقي (Header Spoofing)
     headers = {
-        "Content-Type": "text/xml; charset=utf-8",
-        "SOAPAction": "http://tempuri.org/TraceByWaybillNo"
+        'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'Referer': 'https://www.naqelexpress.com/en/sa/tracking/',
+        'Origin': 'https://www.naqelexpress.com',
+        'Accept-Language': 'en-US,en;q=0.9,ar;q=0.8',
     }
-    print('xml',xml , waybill) 
+
+    # نستخدم Session لحفظ الكوكيز تلقائياً بين الطلبات
+    session = requests.Session()
+    session.headers.update(headers)
+
     try:
-        resp = requests.post(
-            settings.NAQEL_ENDPOINT,
-            data=xml.encode("utf-8"),
-            headers=headers,
-            timeout=10
-        )
+        # ==========================================
+        # الخطوة 1: الدخول للصفحة للحصول على التوكن
+        # ==========================================
+        print("1. Getting CSRF Token...")
+        response_get = session.get(url, timeout=10)
+        
+        # استخراج التوكن من كود HTML
+        soup = BeautifulSoup(response_get.content, 'html.parser')
+        
+        # البحث عن الحقل المخفي csrfmiddlewaretoken
+        csrf_input = soup.find('input', {'name': 'csrfmiddlewaretoken'})
+        
+        if not csrf_input:
+            return {"ok": False, "error": "Could not find CSRF token"}
+            
+        token = csrf_input['value']
+        print(f"   Token found: {token[:10]}...")
+
+        # ==========================================
+        # الخطوة 2: إرسال رقم الشحنة (POST)
+        # ==========================================
+        print("2. Sending Tracking Request...")
+        
+        payload = {
+            'csrfmiddlewaretoken': token,
+            'waybills': waybill_no  # الاسم الذي وجدناه في الـ curl
+        }
+
+        response_post = session.post(url, data=payload, timeout=10)
+
+        # ==========================================
+        # الخطوة 3: استخراج النتيجة
+        # ==========================================
+        if response_post.status_code == 200:
+            soup = BeautifulSoup(response_post.content, 'html.parser')
+            
+            # results_container = result_soup.find('div', class_='trborder') 
+            data ={}
+            import re
+            # --- دالة مساعدة صغيرة لتنظيف النصوص ---
+            def clean(text):
+                return text.strip() if text else "N/A"
+
+            shipment_label = soup.find('th', string=re.compile(r'SHIPMENT NO'))
+            if shipment_label:
+                # نأخذ العنصر التالي مباشرة (find_next_sibling)
+                data['shipment_no'] = clean(shipment_label.find_next_sibling('td').text)
+
+            # 2. استخراج الوجهة (DESTINATION)
+            dest_label = soup.find('th', string=re.compile(r'DESTINATION'))
+            if dest_label:
+                data['destination'] = clean(dest_label.find_next_sibling('td').text)
+
+            # 3. استخراج تاريخ التوصيل المتوقع (EXPECTED DELIVERY)
+            date_label = soup.find('th', string=re.compile(r'EXPECTED DELIVERY'))
+            if date_label:
+                data['expected_date'] = clean(date_label.find_next_sibling('td').text)
+            logs= []
+
+            timeline_items = soup.find_all('p', class_=re.compile(r'text-white|text-light'))
+    
+            for item in timeline_items:
+                text = item.get_text(strip=True)
+                # فلترة النصوص غير المفيدة (مثل التواريخ فقط)
+                if len(text) > 10 and not text.isdigit(): 
+                    logs.append(text)
+            data['timeline'] = logs
+
+            # 4. استخراج الحالة الحالية (CURRENT STATUS) - لاحظ الاختلاف هنا!
+            # في الـ HTML الخاص بهم، قيمة الحالة موجودة داخل <th> وليس <td>
+            status_label = soup.find('th', string=re.compile(r'CURRENT STATUS'))
+            if status_label:
+                # نبحث عن الـ th التالي (لأن القيمة وضعت في th أيضاً حسب كودهم)
+                status_value = status_label.find_next_sibling('th')
+                if status_value:
+                    data['raw_status'] = clean(status_value.text)
+                else:
+                    # احتياطاً لو غيروها لـ td
+                    data['raw_status'] = clean(status_label.find_next_sibling('td').text)
+            return data
+
+            
+            # if results_container:
+            #     status_text = table.get_text(strip=True)
+
+            #     context = {
+            #          'destination' : resulta.destination,
+            #             'tracking_company' : "Naqel",
+            #             'order_number' : resulta.order_number,
+            #             'expected_delivery' : resulta.expected_delivery,
+            #         'status_text': status_text,
+
+            #     }
+            # إذا لم نجد الحاوية، نعيد جزءاً من النص للتأكد
+            # return {"ok": True, "raw_preview": result_soup.get_text()[:300].replace('\n', ' ')}
+            
+        else:
+            return {"ok": False, "error": f"Status Code: {response_post.status_code}"}
+
     except Exception as e:
-        print('eroor',e)
-        return {"success": False, "error": str(e)}
+        return {"ok": False, "error": str(e)}
 
-    try:
-        parsed = xmltodict.parse(resp.text)
-    except:
-        print("Cannot parse XML",resp.text)
-        return {"success": False, "error": "Cannot parse XML", "raw": resp.text}
 
-    try:
-        body = parsed["soap:Envelope"]["soap:Body"]
-        result = body["TraceByWaybillNoResponse"]["TraceByWaybillNoResult"]
+def normalize_naqel_status(raw_text):
+    text = raw_text
+    
+    if "delivered" in text:
+        return 'delivered'
+        
+    elif "out for delivery" in text:
+        return 'out_for_delivery'
+        
+    # الحالة التي سألت عنها وحالات مشابهة
+    elif "returned to naqel facility" in text or "delivery failed" in text or "customer not available" in text:
+        return 'exception' # ⚠️ حالة التدخل
+        
+    elif "shipment picked up" in text or "in transit" in text:
+        return 'shipped'
+        
+    elif "returned to shipper" in text:
+        return 'returned'
+        
+    else:
+        return 'shipped' # افتراضياً نعتبرها مشحونة
 
-        # بعض الردود تحتوي "WaybillTracking" أو "Tracking"
-        tracking = result.get("WaybillTracking") or result.get("Tracking")
 
-        if tracking is None:
-            return {"success": True, "tracking": []}
 
-        # لو عنصر واحد نحوله لقائمة
-        if isinstance(tracking, dict):
-            tracking = [tracking]
 
-        return {"success": True, "tracking": tracking}
-
-    except Exception as e:
-        return {"success": False, "error": str(e), "raw": parsed}
-
+ 
+        
 
 from django.views.decorators.csrf import csrf_exempt
 
@@ -1573,8 +1656,23 @@ def track_injaz(request):
 
     order_number = request.POST.get("order")
     if order_number.startswith("3"):
-        track_waybill(order_number)
-        return JsonResponse({"message": "Order number required"}, status=400)
+        resulta = track_naqel_fast(order_number)
+        print(resulta['raw_status'])
+        if resulta :
+            get_status = normalize_naqel_status(resulta['raw_status'])
+            context = {'order_status' : get_status,
+                        'destination' : resulta['destination'],
+                        'tracking_company' : "Naqel",
+                        'order_number' : resulta['shipment_no'],
+                        'expected_delivery' : resulta['expected_date'],
+                        'timeline' : resulta['timeline'],
+                }
+        if get_status :
+            update = SimpleOrder.objects.filter(agent = request.user , tracking_number = order_number).update(status = get_status)
+             
+               
+        return JsonResponse({"message": "Order status updated" , "data": context }, status=200)
+        # return JsonResponse({"message": "Order number required"}, status=400)
     if not order_number:
         return JsonResponse({"message": "Order number required"}, status=400)
 

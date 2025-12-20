@@ -57,14 +57,25 @@ function track( number) {
         document.querySelector(".showInjazresult").classList.add('d-none')
         return;
     }
-    else {
-                document.querySelector(".showInjazresult").classList.remove('d-none')
-        document.querySelector(".showInjazresult").innerHTML = ''; // إفراغ المحتوى السابق
-         document.querySelector(".showInjazresult").classList.add('d-flex')
-      }
+    // else {
+    //     document.querySelector(".showInjazresult").classList.remove('d-none')
+    //     document.querySelector(".showInjazresult").innerHTML = ''; 
+    //      document.querySelector(".showInjazresult").classList.add('d-flex')
+    //   }
+    const container = document.getElementById("tracking_info");
+     
+    container.innerHTML=`<div id="settings_loader" class="loading-overlay">
+    <div class="text-center">
+        <div class="spinner-border text-primary mb-3" style="width: 3rem; height: 3rem;" role="status"></div>
+        <h6 class="text-white mt-2">Loading Configurations...</h6>
+    </div>
+</div>`
+
+const loader = document.getElementById("settings_loader");
+const continer = document.getElementById("showInjazresult");
 
 
-    console.log("Tracking number:", number);
+  console.log("Tracking number:", number);
   const data = new URLSearchParams()
   data.append("order", number)
 
@@ -72,24 +83,234 @@ function track( number) {
     method: "POST",
     body: data
   })
-  .then(r => r.text())
-  .then(html => {
-    document.querySelector(".showInjazresult").innerHTML = html
-    // مثال: إخفاء footer أو عنصر معين داخل الرد
-document.querySelector('.showInjazresult .footer')?.remove()
-document.querySelector('.showInjazresult .img')?.remove()
-    // document.querySelector('.iframe-container .wrap').style.padding = '0 6px'; // تعديل الحشو
-    // document.querySelector('.iframe-container .wrap').style.margin = '0'; // تعديل الهامش
-    // document.querySelector('.iframe-container .wrap').style.borderRadius = '0'; // إزالة الزوايا المدورة
-    // document.querySelector('.iframe-container .wrap').style.boxShadow = 'none'; // إزالة الظل
-    document.querySelector('.showInjazresult .wrap').style.borderRadius = '6px';
+//   .then(r => r.text())
+   
+  .then(response => response.json()).then(respo => {
+ 
+    //  = JSON.parse(res);
+    res = respo.data
+    
+    
+    if (res.tracking_company == 'Naqel') {
+        
+         
+        const status = res.order_status; 
+        // لنفترض أننا استخرجنا التاريخ من الجدول في الصورة ووضعناه في مصفوفة
+// مثال للبيانات القادمة من الـ Scraper بناءً على صورتك
+const historyLog = res.timeline;
+
+// 1. حساب عدد المحاولات الفاشلة
+// نبحث عن كلمة "attempted" أو "Refused"
+const failedAttempts = historyLog.filter(status => 
+    status.toLowerCase().includes("attempted") || 
+    status.toLowerCase().includes("refused") ||
+    status.toLowerCase().includes("customer not available")
+).length;
+
+// 2. تحديد "نبرة الحديث" (Script Tone) بناءً على العدد
+let urgencyConfig = {};
+
+if (failedAttempts === 0) {
+    urgencyConfig = {
+        level: 'low',
+        badge: 'First Attempt',
+        color: 'success',
+        script: "مرحباً، معك [اسم الشركة]. نود تأكيد عنوانك وموعد التوصيل المناسب لضمان وصول طلبك."
+    };
+} else if (failedAttempts >= 1 && failedAttempts < 3) {
+    urgencyConfig = {
+        level: 'medium',
+        badge: `${failedAttempts} Failed Attempts`,
+        color: 'warning',
+        script: `مرحباً، لقد حاول المندوب توصيل طلبك ${failedAttempts} مرات ولم يتمكن من الوصول إليك. نرجو الرد لتفادي استرجاع الطلب.`
+    };
+} else {
+    // 3 محاولات أو أكثر (حالة حرجة)
+    urgencyConfig = {
+        level: 'high',
+        badge: `CRITICAL: ${failedAttempts} Attempts!`,
+        color: 'danger',
+        script: "مرحباً، هذه المحاولة الأخيرة قبل إلغاء طلبك واسترجاعه للمستودع. يرجى تأكيد الاستلام فوراً."
+    };
+}
+
+// 3. تصميم البطاقة الذكية (تضاف قبل بطاقة الحالة)
+const insightsCard = `
+<div class="card border-${urgencyConfig.color} mb-3 shadow-sm" style="height:auto;">
+    <div class="card-body">
+        <div class="d-flex justify-content-between align-items-center mb-2">
+            <h6 class="fw-bold text-secondary m-0"><i class="fas fa-chart-line me-2"></i> Delivery Insights</h6>
+            <span class="badge bg-${urgencyConfig.color} rounded-pill">${urgencyConfig.badge}</span>
+        </div>
+        
+        <div class="progress mb-3" style="height: 10px;">
+            <div class="progress-bar bg-${urgencyConfig.color} progress-bar-striped progress-bar-animated" 
+                 role="progressbar" 
+                 style="width: ${Math.min(failedAttempts * 33, 100)}%">
+            </div>
+        </div>
+
+        <div class="bg-light p-2 rounded border border-${urgencyConfig.color} border-opacity-25">
+            <small class="text-uppercase text-muted fw-bold" style="font-size: 10px;">Suggested Script (Agent):</small>
+            <p class="mb-0 mt-1 fst-italic text-dark small">
+                <i class="fas fa-comment-alt me-2 text-${urgencyConfig.color}"></i> "${urgencyConfig.script}"
+            </p>
+        </div>
+
+        <div class="mt-2 small text-muted">
+            Most recent issue: <span class="fw-bold text-danger">${historyLog[1] || 'None'}</span>
+        </div>
+    </div>
+</div>
+`;
+
+// إدراج البطاقة في الصفحة
+// document.getElementById("tracking_info").insertAdjacentHTML('afterbegin', insightsCard);
 
 
 
 
 
-  })
-  .catch(err => alert("حدث خطأ في التتبع"))
+
+        // =============================================
+        // 🔥 خريطة الإعدادات لكل حالة (Configuration Map) 🔥
+        // =============================================
+        const statusConfig = {
+            'delivered': {
+                color: 'success', // أخضر
+                text_color: 'text-white',
+                icon: 'fa-check-circle',
+                title: 'Delivered Successfully',
+                desc: 'Great news! The shipment has been successfully delivered to the customer.',
+                action: '<i class="fas fa-check me-1"></i> Order Completed. No further action needed.'
+            },
+            'out_for_delivery': {
+                color: 'info', // أزرق فاتح
+                text_color: 'text-white',
+                icon: 'fa-shipping-fast',
+                title: 'Out for Delivery',
+                desc: 'The shipment is currently with the driver and on its way to the customer.',
+                action: '<strong>Monitor:</strong> Ensure the customer answers the phone. Follow up if not delivered by evening.'
+            },
+            'shipped': {
+                color: 'primary', // أزرق غامق
+                text_color: 'text-white',
+                icon: 'fa-truck-moving',
+                title: 'In Transit',
+                desc: 'Shipment has been picked up and is moving through Naqel network.',
+                action: 'Tracking is active. Check estimated delivery date.'
+            },
+            'exception': {
+                color: 'warning', // أصفر
+                text_color: 'text-dark',
+                icon: 'fa-exclamation-triangle',
+                title: 'Delivery Attempt Failed',
+                desc: 'The driver tried to deliver but failed. The item is currently stored at the facility.',
+                action: '<strong>Action Required:</strong> Contact customer immediately to confirm location or reschedule before it returns!'
+            },
+            'returned': {
+                color: 'danger', // أحمر
+                text_color: 'text-white',
+                icon: 'fa-undo-alt',
+                title: 'Returned to Merchant',
+                desc: 'The shipment could not be delivered and has been returned to your warehouse.',
+                action: 'Check the reason for return and process the refund or re-shipment if necessary.'
+            },
+            'canceled': {
+                color: 'secondary', // رمادي
+                text_color: 'text-white',
+                icon: 'fa-ban',
+                title: 'Canceled Shipment',
+                desc: 'This shipment has been canceled.',
+                action: 'No actions available for canceled shipments.'
+            },
+            'pending': {
+                color: 'light', // فاتح جداً
+                text_color: 'text-dark',
+                icon: 'fa-clock',
+                title: 'Pending / Created',
+                desc: 'Shipment info received, waiting for pickup.',
+                action: 'Ensure the package is ready for the courier.'
+            }
+        };
+
+        // 3. اختيار الإعدادات المناسبة
+        // إذا جاءت حالة غير معروفة، نستخدم 'pending' كاحتياط
+        const config = statusConfig[status] || statusConfig['pending'];
+        
+        // النص الخام من الشركة (أو نضع نصاً افتراضياً من الإعدادات)
+        const rawStatusText = res.raw_status || res.order_status;
+
+        // 4. بناء الـ HTML الديناميكي
+        container.innerHTML = `
+        <div class="card border-${config.color} mb-3 shadow-sm">
+            <div class="card-header bg-${config.color} ${config.text_color} fw-bold">
+                <i class="fas ${config.icon} me-2"></i> ${config.title}
+            </div>
+            
+            <div class="card-body" style="height: 300px;overflow: auto;">
+ <div class="d-flex justify-content-between text-center mb-3 bg-light rounded-3 p-2 border">
+    
+    <div class="px-2 border-end">
+        <div class="text-muted small text-uppercase" style="font-size: 10px;">Shipment No</div>
+        <div class="fw-bold text-dark font-monospace mt-1" style="font-size: 0.9rem;">${res.order_number}</div>
+    </div>
+
+    <div class="px-2 border-end">
+        <div class="text-muted small text-uppercase" style="font-size: 10px;">Destination</div>
+        <div class="fw-bold text-dark mt-1" style="font-size: 0.9rem;">${res.destination}</div>
+    </div>
+
+    <div class="px-2">
+        <div class="text-muted small text-uppercase" style="font-size: 10px;">Expected</div>
+        <div class="fw-bold text-primary mt-1" style="font-size: 0.9rem;">
+            ${res.expected_delivery ? res.expected_delivery : '--'}
+        </div>
+    </div>
+</div>
+
+${insightsCard}
+                <div class="mt-3">
+                    <h6 class="card-title fw-bold text-${config.color === 'light' ? 'dark' : config.color}">
+                        ${config.desc}
+                    </h6>
+                    
+                    <div class="alert alert-${config.color === 'light' ? 'secondary' : config.color} bg-opacity-10 border-${config.color} small mt-2">
+                        ${config.action}
+                    </div>
+
+                    <div class="text-end text-muted fst-italic small mt-2 border-top pt-1">
+                        Status from Naqel: "${rawStatusText}"
+                    </div>
+                </div>
+            </div>
+        </div>
+        `;
+    }
+
+    // 5. تنظيف واجهة إنجاز (كما طلبت)
+    const injazContainer = document.querySelector(".showInjazresult");
+    if (injazContainer) {
+        // استخدام Optional Chaining (?.) لتجنب الأخطاء إذا لم يوجد العنصر
+        injazContainer.querySelector('.footer')?.remove();
+        injazContainer.querySelector('.img')?.remove();
+        
+        const wrap = injazContainer.querySelector('.wrap');
+        if (wrap) {
+            wrap.style.borderRadius = '6px';
+            wrap.style.boxShadow = 'none'; // تحسين إضافي اختياري
+        }
+    }
+})
+.catch(error => {
+    console.error('Tracking Error:', error);
+    document.getElementById("tracking_info").innerHTML = `
+        <div class="alert alert-danger small">
+            <i class="fas fa-times-circle me-1"></i> Failed to load tracking info.
+        </div>`;
+});
+
+  
 }
 
 
@@ -249,13 +470,13 @@ function updateTrackingFrame(trackingNumber, company) {
             // نستخدم دالة داخلية 'track' (كما في كودك) بدلاً من iframe
             useIframe = false;
            
-            // try { track(trackingNumber); } catch (e) { console.error('track() failed', e); }
-            newUrl='https://new.naqelksa.com/en/sa/tracking/'
-            useIframe = true;
+            try { track(trackingNumber); } catch (e) { console.error('track() failed', e); }
+            // newUrl='https://new.naqelksa.com/en/sa/tracking/'
+            // useIframe = true;
             
-            // if (iframe) iframe.classList.add('d-none');
-            // container.classList.remove('iframe-loading');
-            // currentIframeLoadedUrl = null;
+            if (iframe) iframe.classList.add('d-none');
+            container.classList.remove('iframe-loading');
+            currentIframeLoadedUrl = null;
             return;
         } else if (company === 'injaz') {
             // نفترض أن injaz يتم عبر track() أيضاً
