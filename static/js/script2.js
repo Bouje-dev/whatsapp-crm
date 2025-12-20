@@ -62,9 +62,9 @@ function track( number) {
     //     document.querySelector(".showInjazresult").innerHTML = ''; 
     //      document.querySelector(".showInjazresult").classList.add('d-flex')
     //   }
-    const container = document.getElementById("tracking_info");
+    const container1 = document.getElementById("tracking_info");
      
-    container.innerHTML=`<div id="settings_loader" class="loading-overlay">
+    container1.innerHTML=`<div id="settings_loader" class="loading-overlay">
     <div class="text-center">
         <div class="spinner-border text-primary mb-3" style="width: 3rem; height: 3rem;" role="status"></div>
         <h6 class="text-white mt-2">Loading Configurations...</h6>
@@ -81,216 +81,182 @@ const continer = document.getElementById("showInjazresult");
 
   fetch("/track-order", {
     method: "POST",
-    body: data
+    body: data,
+    headers: {
+      "Content-Type": "application/x-www-form-urlencoded" ,
+      'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+    }
   })
 //   .then(r => r.text())
    
   .then(response => response.json()).then(respo => {
- 
+    container1.innerHTML = ``
     //  = JSON.parse(res);
     res = respo.data
+        // التأكد من تحويل النص إلى JSON
+
+    const container = document.getElementById("tracking_info");
     
+    // توحيد اسم الشركة (لتسهيل المقارنة)
+    const company = res.tracking_company ? res.tracking_company.toLowerCase() : '';
     
-    if (res.tracking_company == 'Naqel') {
+    // 🔥 التعديل الأول: التحقق من الشركتين معاً 🔥
+    if (['naqel', 'imile'].includes(company) && res.order_number != null) {
         
-         
         const status = res.order_status; 
-        // لنفترض أننا استخرجنا التاريخ من الجدول في الصورة ووضعناه في مصفوفة
-// مثال للبيانات القادمة من الـ Scraper بناءً على صورتك
-const historyLog = res.timeline;
-
-// 1. حساب عدد المحاولات الفاشلة
-// نبحث عن كلمة "attempted" أو "Refused"
-const failedAttempts = historyLog.filter(status => 
-    status.toLowerCase().includes("attempted") || 
-    status.toLowerCase().includes("refused") ||
-    status.toLowerCase().includes("customer not available")
-).length;
-
-// 2. تحديد "نبرة الحديث" (Script Tone) بناءً على العدد
-let urgencyConfig = {};
-
-if (failedAttempts === 0) {
-    urgencyConfig = {
-        level: 'low',
-        badge: 'First Attempt',
-        color: 'success',
-        script: "مرحباً، معك [اسم الشركة]. نود تأكيد عنوانك وموعد التوصيل المناسب لضمان وصول طلبك."
-    };
-} else if (failedAttempts >= 1 && failedAttempts < 3) {
-    urgencyConfig = {
-        level: 'medium',
-        badge: `${failedAttempts} Failed Attempts`,
-        color: 'warning',
-        script: `مرحباً، لقد حاول المندوب توصيل طلبك ${failedAttempts} مرات ولم يتمكن من الوصول إليك. نرجو الرد لتفادي استرجاع الطلب.`
-    };
-} else {
-    // 3 محاولات أو أكثر (حالة حرجة)
-    urgencyConfig = {
-        level: 'high',
-        badge: `CRITICAL: ${failedAttempts} Attempts!`,
-        color: 'danger',
-        script: "مرحباً، هذه المحاولة الأخيرة قبل إلغاء طلبك واسترجاعه للمستودع. يرجى تأكيد الاستلام فوراً."
-    };
-}
-
-// 3. تصميم البطاقة الذكية (تضاف قبل بطاقة الحالة)
-let insightsCard = `
-<div class="card border-${urgencyConfig.color} mb-3 shadow-sm" style="height:auto;">
-    <div class="card-body">
-        <div class="d-flex justify-content-between align-items-center mb-2">
-            <h6 class="fw-bold text-secondary m-0"><i class="fas fa-chart-line me-2"></i> Delivery Insights</h6>
-            <span class="badge bg-${urgencyConfig.color} rounded-pill">${urgencyConfig.badge}</span>
-        </div>
+        console.log("Status:", status , 'respomse', respo);
         
-        <div class="progress mb-3" style="height: 10px;">
-            <div class="progress-bar bg-${urgencyConfig.color} progress-bar-striped progress-bar-animated" 
-                 role="progressbar" 
-                 style="width: ${Math.min(failedAttempts * 33, 100)}%">
-            </div>
-        </div>
+        // توحيد مصدر السجل (History) ليعمل مع باك-إند ناقل (timeline) وباك-إند iMile (history)
+        const historyLog = res.history || res.timeline || [];
+        
 
-        <div class="bg-light p-2 rounded border border-${urgencyConfig.color} border-opacity-25">
-            <small class="text-uppercase text-muted fw-bold" style="font-size: 10px;">Suggested Script (Agent):</small>
-            <p class="mb-0 mt-1 fst-italic text-dark small">
-                <i class="fas fa-comment-alt me-2 text-${urgencyConfig.color}"></i> "${urgencyConfig.script}"
-            </p>
-        </div>
-
-        <div class="mt-2 small text-muted">
-            Most recent issue: <span class="fw-bold text-danger">${historyLog[1] || 'None'}</span>
-        </div>
-    </div>
-</div>
-`;
-
-// إدراج البطاقة في الصفحة
-// document.getElementById("tracking_info").insertAdjacentHTML('afterbegin', insightsCard);
- 
-if(res.raw_status == 'delivered' || res.order_status =='delivered'){
-
-    insightsCard = `
-    `
-}
- 
-
-
+        // 🔥 التعديل الثاني: توسيع كلمات البحث عن الفشل لتشمل مصطلحات iMile 🔥
+        const failedAttempts = historyLog.filter(item => {
+            // التأكد من أن العنصر نص
+            const text = (typeof item === 'string' ? item : (item.desc || '')).toLowerCase();
+            return text.includes("attempted") || 
+                   text.includes("refused") || 
+                   text.includes("customer not available") ||
+                   text.includes("uncontactable") || // خاص بـ iMile
+                   text.includes("noanswer");        // خاص بـ iMile
+        }).length;
 
         // =============================================
-        // 🔥 خريطة الإعدادات لكل حالة (Configuration Map) 🔥
+        // 📞 ميزة جديدة: استخراج رقم السائق (خاص بـ iMile) 📞
+        // =============================================
+        let driverBtnsHTML = '';
+        // نظهر الأزرار فقط إذا كانت الشركة iMile والحالة "خرج للتوصيل"
+        if (company === 'imile' && status === 'out_for_delivery') {
+            // ندمج الحالة الخام مع أحدث سجل للبحث عن الرقم
+            const textToSearch = (res.raw_status || '') + " " + (historyLog[0] || '');
+            // تعبير نمطي لاصطياد أرقام الجوال السعودية أو الإماراتية
+            const phoneMatch = textToSearch.match(/(\+966\s?5\d{8}|05\d{8}|\+971\s?5\d{8})/);
+
+            if (phoneMatch) {
+                const rawPhone = phoneMatch[0]; // الرقم كما وجدناه (+966 5xxxx)
+                const cleanPhoneForLink = rawPhone.replace(/\s/g, ''); // للرابط (tel:)
+                const cleanPhoneForWA = cleanPhoneForLink.replace('+', ''); // للواتس (بدون +)
+
+                // تصميم أزرار الاتصال (صغير وأنيق ليتناسب مع تصميمك)
+                driverBtnsHTML = `
+                <div class="mt-2 pt-2 border-top border-opacity-25 d-flex align-items-center justify-content-between" style="border-color: inherit !important;">
+                     <span class="small fw-bold" style="font-size: 0.85rem;"><i class="fas fa-motorcycle me-1"></i> Driver Contact:</span>
+                     <div>
+                        <a href="tel:${cleanPhoneForLink}" class="btn btn-sm btn-success rounded-pill px-2 py-0 me-1" style="font-size: 0.75rem; line-height: 1.8;">
+                            <i class="fas fa-phone-alt me-1"></i> Call
+                        </a>
+                         <a href="https://wa.me/${cleanPhoneForWA}" target="_blank" class="btn btn-sm btn-success rounded-pill px-2 py-0" style="font-size: 0.75rem; line-height: 1.8;">
+                            <i class="fab fa-whatsapp me-1"></i> WA
+                        </a>
+                     </div>
+                </div>
+                `;
+            }
+        }
+        // =============================================
+
+
+        // 2. تحديد "نبرة الحديث" (Script Tone) - (نفس كودك القديم تماماً)
+        let urgencyConfig = {};
+        if (failedAttempts === 0) {
+            urgencyConfig = { level: 'low', badge: 'First Attempt', color: 'success', script: "مرحباً، معك [اسم الشركة]. نود تأكيد عنوانك وموعد التوصيل المناسب لضمان وصول طلبك." };
+        } else if (failedAttempts >= 1 && failedAttempts < 3) {
+            urgencyConfig = { level: 'medium', badge: `${failedAttempts} Failed Attempts`, color: 'warning', script: `مرحباً، لقد حاول المندوب توصيل طلبك ${failedAttempts} مرات ولم يتمكن من الوصول إليك. نرجو الرد لتفادي استرجاع الطلب.` };
+        } else {
+            urgencyConfig = { level: 'high', badge: `CRITICAL: ${failedAttempts} Attempts!`, color: 'danger', script: "مرحباً، هذه المحاولة الأخيرة قبل إلغاء طلبك واسترجاعه للمستودع. يرجى تأكيد الاستلام فوراً." };
+        }
+
+        // 3. تصميم البطاقة الذكية - (نفس تصميمك القديم تماماً)
+        let insightsCard = `
+        <div class="card border-${urgencyConfig.color} mb-3 shadow-sm" style="height:auto;">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <h6 class="fw-bold text-secondary m-0"><i class="fas fa-chart-line me-2"></i> Delivery Insights</h6>
+                    <span class="badge bg-${urgencyConfig.color} rounded-pill">${urgencyConfig.badge}</span>
+                </div>
+                <div class="progress mb-3" style="height: 10px;">
+                    <div class="progress-bar bg-${urgencyConfig.color} progress-bar-striped progress-bar-animated" role="progressbar" style="width: ${Math.min(failedAttempts * 33, 100)}%"></div>
+                </div>
+                <div class="bg-light p-2 rounded border border-${urgencyConfig.color} border-opacity-25">
+                    <small class="text-uppercase text-muted fw-bold" style="font-size: 10px;">Suggested Script (Agent):</small>
+                    <p class="mb-0 mt-1 fst-italic text-dark small"><i class="fas fa-comment-alt me-2 text-${urgencyConfig.color}"></i> "${urgencyConfig.script}"</p>
+                </div>
+                <div class="mt-2 small text-muted">Most recent issue: <span class="fw-bold text-danger">${historyLog[0] || historyLog[0] || 'None'}</span></div>
+            </div>
+        </div>
+        `;
+
+        // إخفاء البطاقة عند الانتهاء (نفس شرطك القديم)
+        if(res.raw_status == 'delivered' || res.order_status =='delivered' || res.order_status == 'returned' || res.order_status == 'canceled'){
+            insightsCard = ``;
+        }
+
+        // =============================================
+        // 🔥 خريطة الإعدادات (نفس كودك القديم تماماً) 🔥
         // =============================================
         const statusConfig = {
-            'delivered': {
-                color: 'success', // أخضر
-                text_color: 'text-white',
-                icon: 'fa-check-circle',
-                title: 'Delivered Successfully',
-                desc: 'Great news! The shipment has been successfully delivered to the customer.',
-                action: '<i class="fas fa-check me-1"></i> Order Completed. No further action needed.'
-            },
-            'out_for_delivery': {
-                color: 'info', // أزرق فاتح
-                text_color: 'text-white',
-                icon: 'fa-shipping-fast',
-                title: 'Out for Delivery',
-                desc: 'The shipment is currently with the driver and on its way to the customer.',
-                action: '<strong>Monitor:</strong> Ensure the customer answers the phone. Follow up if not delivered by evening.'
-            },
-            'shipped': {
-                color: 'primary', // أزرق غامق
-                text_color: 'text-white',
-                icon: 'fa-truck-moving',
-                title: 'In Transit',
-                desc: 'Shipment has been picked up and is moving through Naqel network.',
-                action: 'Tracking is active. Check estimated delivery date.'
-            },
-            'exception': {
-                color: 'warning', // أصفر
-                text_color: 'text-dark',
-                icon: 'fa-exclamation-triangle',
-                title: 'Delivery Attempt Failed',
-                desc: 'The driver tried to deliver but failed. The item is currently stored at the facility.',
-                action: '<strong>Action Required:</strong> Contact customer immediately to confirm location or reschedule before it returns!'
-            },
-            'returned': {
-                color: 'danger', // أحمر
-                text_color: 'text-white',
-                icon: 'fa-undo-alt',
-                title: 'Returned to Merchant',
-                desc: 'The shipment could not be delivered and has been returned to your warehouse.',
-                action: 'Check the reason for return and process the refund or re-shipment if necessary.'
-            },
-            'canceled': {
-                color: 'secondary', // رمادي
-                text_color: 'text-white',
-                icon: 'fa-ban',
-                title: 'Canceled Shipment',
-                desc: 'This shipment has been canceled.',
-                action: 'No actions available for canceled shipments.'
-            },
-            'pending': {
-                color: 'light', // فاتح جداً
-                text_color: 'text-dark',
-                icon: 'fa-clock',
-                title: 'Pending / Created',
-                desc: 'Shipment info received, waiting for pickup.',
-                action: 'Ensure the package is ready for the courier.'
-            }
+            'delivered': { color: 'success', text_color: 'text-white', icon: 'fa-check-circle', title: 'Delivered Successfully', desc: 'Great news! The shipment has been successfully delivered to the customer.', action: '<i class="fas fa-check me-1"></i> Order Completed. No further action needed.' },
+            'out_for_delivery': { color: 'info', text_color: 'text-white', icon: 'fa-shipping-fast', title: 'Out for Delivery', desc: 'The shipment is currently with the driver and on its way to the customer.', action: '<strong>Monitor:</strong> Ensure the customer answers the phone. Follow up if not delivered by evening.' },
+            'shipped': { color: 'primary', text_color: 'text-white', icon: 'fa-truck-moving', title: 'In Transit', desc: 'Shipment has been picked up and is moving through network.', action: 'Tracking is active. Check estimated delivery date.' },
+            'exception': { color: 'warning', text_color: 'text-dark', icon: 'fa-exclamation-triangle', title: 'Delivery Attempt Failed', desc: 'The driver tried to deliver but failed. The item is currently stored at the facility.', action: '<strong>Action Required:</strong> Contact customer immediately to confirm location or reschedule before it returns!' },
+            'returned': { color: 'danger', text_color: 'text-white', icon: 'fa-undo-alt', title: 'Returned to Merchant', desc: 'The shipment could not be delivered and has been returned to your warehouse.', action: 'Check the reason for return and process the refund or re-shipment if necessary.' },
+            'canceled': { color: 'secondary', text_color: 'text-white', icon: 'fa-ban', title: 'Canceled Shipment', desc: 'This shipment has been canceled.', action: 'No actions available for canceled shipments.' },
+            'pending': { color: 'light', text_color: 'text-dark', icon: 'fa-clock', title: 'Pending / Created', desc: 'Shipment info received, waiting for pickup.', action: 'Ensure the package is ready for the courier.' }
         };
 
-        // 3. اختيار الإعدادات المناسبة
-        // إذا جاءت حالة غير معروفة، نستخدم 'pending' كاحتياط
         const config = statusConfig[status] || statusConfig['pending'];
-        
-        // النص الخام من الشركة (أو نضع نصاً افتراضياً من الإعدادات)
         const rawStatusText = res.raw_status || res.order_status;
 
-        // 4. بناء الـ HTML الديناميكي
+        // =============================================
+        // 🔥 بناء الـ HTML (نفس هيكليتك المفضلة تماماً) 🔥
+        // =============================================
         container.innerHTML = `
         <div class="card border-${config.color} mb-3 shadow-sm">
-            <div class="card-header bg-${config.color} ${config.text_color} fw-bold">
-                <i class="fas ${config.icon} me-2"></i> ${config.title}
+            <div class="card-header bg-${config.color} ${config.text_color} fw-bold d-flex justify-content-between align-items-center">
+                <span><i class="fas ${config.icon} me-2"></i> ${config.title}</span>
+                <span class="badge bg-white text-${config.color} text-uppercase" style="font-size: 0.7em;">${company}</span>
             </div>
             
-            <div class="card-body" style="height: 300px;overflow: auto;">
- <div class="d-flex justify-content-between text-center mb-3 bg-light rounded-3 p-2 border">
-    
-    <div class="px-2 border-end">
-        <div class="text-muted small text-uppercase" style="font-size: 10px;">Shipment No</div>
-        <div class="fw-bold text-dark font-monospace mt-1" style="font-size: 0.9rem;">${res.order_number}</div>
-    </div>
+            <div class="card-body" style="height: 300px; overflow-y: auto;">
+                 <div class="d-flex justify-content-between text-center mb-3 bg-light rounded-3 p-2 border">
+                    <div class="px-2 border-end">
+                        <div class="text-muted small text-uppercase" style="font-size: 10px;">Shipment No</div>
+                        <div class="fw-bold text-dark font-monospace mt-1" style="font-size: 0.9rem;">${res.order_number}</div>
+                    </div>
+                    <div class="px-2 border-end">
+                        <div class="text-muted small text-uppercase" style="font-size: 10px;">Destination</div>
+                        <div class="fw-bold text-dark mt-1" style="font-size: 0.9rem;">${res.destination || 'N/A'}</div>
+                    </div>
+                    <div class="px-2">
+                        <div class="text-muted small text-uppercase" style="font-size: 10px;">Expected</div>
+                        <div class="fw-bold text-primary mt-1" style="font-size: 0.9rem;">
+                            ${res.expected_delivery ? res.expected_delivery : '--'}
+                        </div>
+                    </div>
+                </div>
 
-    <div class="px-2 border-end">
-        <div class="text-muted small text-uppercase" style="font-size: 10px;">Destination</div>
-        <div class="fw-bold text-dark mt-1" style="font-size: 0.9rem;">${res.destination}</div>
-    </div>
+                ${insightsCard}
 
-    <div class="px-2">
-        <div class="text-muted small text-uppercase" style="font-size: 10px;">Expected</div>
-        <div class="fw-bold text-primary mt-1" style="font-size: 0.9rem;">
-            ${res.expected_delivery ? res.expected_delivery : '--'}
-        </div>
-    </div>
-</div>
-
-${insightsCard}
                 <div class="mt-3">
                     <h6 class="card-title fw-bold text-${config.color === 'light' ? 'dark' : config.color}">
                         ${config.desc}
                     </h6>
                     
-                    <div class="alert alert-${config.color === 'light' ? 'secondary' : config.color} bg-opacity-10 border-${config.color} small mt-2">
+                    <div class="alert alert-${config.color === 'light' ? 'secondary' : config.color} bg-opacity-10 border-${config.color} small mt-2 mb-0">
                         ${config.action}
+                        
+                        ${driverBtnsHTML}
                     </div>
 
                     <div class="text-end text-muted fst-italic small mt-2 border-top pt-1">
-                        Status from Naqel: "${rawStatusText}"
+                        
                     </div>
                 </div>
             </div>
         </div>
         `;
     }
+
 
     // 5. تنظيف واجهة إنجاز (كما طلبت)
     const injazContainer = document.querySelector(".showInjazresult");
@@ -466,10 +432,18 @@ function updateTrackingFrame(trackingNumber, company) {
         let newUrl = "";
         let useIframe = true; // هل نستخدم iframe أم نستخدم دالة track()
         if (company === 'imile') {
+            try { track(trackingNumber); } catch (e) { console.error('track() failed', e); }
+            // newUrl='https://new.naqelksa.com/en/sa/tracking/'
+            // useIframe = true;
+            
+            if (iframe) iframe.classList.add('d-none');
+            container.classList.remove('iframe-loading');
+            currentIframeLoadedUrl = null;
+
             // رابط تتبع مع باراميتر
-            newUrl = `https://www.imile.com/AE-en/track?waybillNo=${encodeURIComponent(trackingNumber)}`;
-            // نريد تحميل الصفحة وملء النموذج بعد التحميل
-            useIframe = true;
+            // newUrl = `https://www.imile.com/AE-en/track?waybillNo=${encodeURIComponent(trackingNumber)}`;
+            // // نريد تحميل الصفحة وملء النموذج بعد التحميل
+            // useIframe = true;
         } else if (company === 'naqelksa') {
             // نستخدم دالة داخلية 'track' (كما في كودك) بدلاً من iframe
             useIframe = false;

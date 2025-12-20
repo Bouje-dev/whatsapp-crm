@@ -1492,10 +1492,7 @@ def updatedealy(request):
 
 
 import requests
-import xmltodict
 from django.conf import settings
-
-import requests
 from bs4 import BeautifulSoup
 
 def track_naqel_fast(waybill_no):
@@ -1531,13 +1528,7 @@ def track_naqel_fast(waybill_no):
             return {"ok": False, "error": "Could not find CSRF token"}
             
         token = csrf_input['value']
-        print(f"   Token found: {token[:10]}...")
-
-        # ==========================================
-        # الخطوة 2: إرسال رقم الشحنة (POST)
-        # ==========================================
-        print("2. Sending Tracking Request...")
-        
+       
         payload = {
             'csrfmiddlewaretoken': token,
             'waybills': waybill_no  # الاسم الذي وجدناه في الـ curl
@@ -1589,7 +1580,7 @@ def track_naqel_fast(waybill_no):
             if status_label:
                 # نبحث عن الـ th التالي (لأن القيمة وضعت في th أيضاً حسب كودهم)
                 status_value = status_label.find_next_sibling('th')
-                print(status_value)
+                
                 if status_value:
                     data['raw_status'] = clean(status_value.text)
                 else:
@@ -1601,8 +1592,6 @@ def track_naqel_fast(waybill_no):
 
     except Exception as e:
         return {"ok": False, "error": str(e)}
-
-
 def normalize_naqel_status(raw_text):
     text = raw_text.lower()
     
@@ -1619,7 +1608,7 @@ def normalize_naqel_status(raw_text):
     elif "shipment picked up" in text or "in transit" in text:
         return 'shipped'
         
-    elif "returned to shipper" in text:
+    elif "shipment returned to origin" in text:
         return 'returned'
         
     else:
@@ -1629,12 +1618,142 @@ def normalize_naqel_status(raw_text):
 
 
  
+    import requests
+
+ 
+
+import hashlib
+import requests
+import json
+from datetime import datetime
+
+
+def track_imile_final(waybill_no):
+    # 1. التوقيع السري الذي اكتشفته أنت 🕵️‍♂️
+    SECRET_SALT = "imileTrackQuery2024"
+    
+    # 2. تشفير التوقيع
+    raw_string = f"{waybill_no}{SECRET_SALT}"
+    signature = hashlib.md5(raw_string.encode('utf-8')).hexdigest()
+    
+    # 3. الرابط
+    url = f"https://www.imile.com/saastms/mobileWeb/track/query?waybillNo={waybill_no}&code={signature}"
+    
+    headers = {
+        'User-Agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 16_6 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.6 Mobile/15E148 Safari/604.1',
+        'Accept': 'application/json',
+        'lang': 'en_US'
+    }
+
+    try:
+        response = requests.get(url, headers=headers, timeout=10)
         
+        if response.status_code == 200:
+            data = response.json()
+            
+            # التحقق من نجاح الطلب
+            if data.get('status') == 'success' and data.get('resultObject'):
+                result = data['resultObject']
+                track_infos = result.get('trackInfos', [])
+                
+                # استخراج أحدث حالة (عادة تكون الأولى في القائمة)
+                latest_event = track_infos[0] if track_infos else {}
+                
+                # الحالة الخام (نأخذ الـ content لأنه يحتوي التفاصيل الدقيقة مثل "Uncontactable")
+                raw_status = latest_event.get('content', 'Unknown')
+                status_time = latest_event.get('time', '')
+                
+                # تحليل السجل وحساب المحاولات الفاشلة
+                stats = analyze_imile_history(track_infos)
+                
+                # توحيد الحالة للفرونت إند
+                normalized_status = normalize_imile_status(raw_status)
 
-from django.views.decorators.csrf import csrf_exempt
+                return {
+                    "ok": True,
+                    "tracking_company": "imile",
+                    "order_number": result.get('waybillNo'),
+                    "destination": result.get('country', 'KSA'), # أحياناً المدينة غير موجودة، الدولة تكفي
+                    "expected_delivery": extract_expected_date(track_infos) or "Check App",
+                    "order_status": normalized_status,      # (delivered, exception, shipped...)
+                    "raw_status": raw_status,               # النص الأصلي من iMile
+                    "failed_attempts": stats['attempts'],   # لبطاقة الذكاء
+                    "last_update": status_time,
+                    "history": stats['logs']                # السجل الكامل
+                }
+            else:
+                 return {"ok": False, "error": "Shipment not found or Invalid Data"}
+        else:
+            return {"ok": False, "error": f"HTTP Error {response.status_code}"}
 
-from django.http import HttpResponse, JsonResponse
-@csrf_exempt
+    except Exception as e:
+        return {"ok": False, "error": str(e)}
+
+# --- دوال المساعدة الذكية ---
+
+def normalize_imile_status(content):
+    text = str(content).lower()
+    
+    # حالات التسليم
+    if "delivered" in text or "signed" in text: 
+        return 'delivered'
+    
+    # حالات الخروج للتوصيل
+    if "out for delivery" in text or "dispatching" in text: 
+        return 'out_for_delivery'
+    
+    # حالات الاسترجاع
+    if "returned" in text or "returning" in text: 
+        return 'returned'
+    
+    # حالات الفشل والمشاكل (بناءً على الـ JSON الذي أرسلته)
+    fail_keywords = [
+        "fail", "uncontactable", "switch off", "doesn't want", 
+        "refused", "cancel", "did not order", "change location",
+        "noanswer", "customer not available"
+    ]
+    if any(keyword in text for keyword in fail_keywords):
+        return 'exception'
+
+    return 'shipped' # الافتراضي
+
+def analyze_imile_history(track_infos):
+    attempts = 0
+    logs = []
+    
+    # الكلمات المفتاحية للفشل من واقع بياناتك
+    fail_triggers = [
+        "uncontactable", "noanswer", "doesn't want", 
+        "refused", "delivery failed", "rescheduled"
+    ]
+
+    for item in track_infos: # القائمة أصلاً مرتبة من الأحدث للأقدم
+        desc = item.get('content', '')
+        time = item.get('time', '')
+        logs.append(f"{time} - {desc}")
+        
+        # حساب المحاولات الفاشلة
+        desc_lower = desc.lower()
+        if any(trigger in desc_lower for trigger in fail_triggers):
+            attempts += 1
+            
+    return {"attempts": attempts, "logs": logs}
+
+def extract_expected_date(track_infos):
+    # محاولة استخراج تاريخ مجدول من السجل مثل: "Shipment is scheduled to [2025-12-13]"
+    for item in track_infos:
+        content = item.get('content', '')
+        if "scheduled to" in content.lower():
+            # استخراج التاريخ البسيط
+            import re
+            match = re.search(r'\[(\d{4}-\d{2}-\d{2})\]', content)
+            if match:
+                return match.group(1)
+    return None
+
+# print(track_imile_final("6120825213610"))
+
+# @csrf_exempt
 def track_injaz(request):
     if request.method != "POST":
         return JsonResponse({"error": "POST only"}, status=405)
@@ -1648,14 +1767,35 @@ def track_injaz(request):
             context = {'order_status' : get_status,
                         'destination' : resulta['destination'],
                         'tracking_company' : "Naqel",
-                        'order_number' : resulta['shipment_no'],
+                        'order_number' : resulta.get('shipment_no', None),
                         'expected_delivery' : resulta['expected_date'],
                         'timeline' : resulta['timeline'],
+                        # 'status' : resulta['status'],
                 }
+
         if get_status :
             update = SimpleOrder.objects.filter(agent = request.user , tracking_number = order_number).update(status = get_status)
-             
-               
+        return JsonResponse({"message": "Order status updated" , "data": context }, status=200)
+
+
+
+    elif order_number.startswith("6"):
+        resulta = track_imile_final(order_number)
+        print(resulta.get('raw_status'))
+        if resulta :
+            # get_status = normalize_imile_status(resulta., resulta['history'])
+            context = {'order_status' : resulta.get('order_status', None), # order_status,
+                        'destination' : resulta.get('destination', None), # destination,
+                        'tracking_company' : "imile",
+                        'order_number' : resulta.get('tracking_number', order_number), #tracking_number , 
+                        'expected_delivery' : resulta.get('expected_delivery', None), #expected_delivery,
+                        'timeline' : resulta.get('history', None), #history,
+                        # 'status' : resulta['status'],
+                }
+            # context = json.dumps(context)
+        # if get_status :
+        #     update = SimpleOrder.objects.filter(agent = request.user , tracking_number = order_number).update(status = get_status)
+
         return JsonResponse({"message": "Order status updated" , "data": context }, status=200)
         # return JsonResponse({"message": "Order number required"}, status=400)
     if not order_number:
@@ -1678,65 +1818,7 @@ def track_injaz(request):
 
 
 
-
-
-
-
-
-
-from django.http import JsonResponse
-@login_required(login_url='/auth/login/')
-@csrf_exempt
-# def leadstracking(request):
-#     # اقرأ قيمة sku من POST إن وُجِدت (ممكن تكون سلسلة مفصولة بفواصل)
-#     sku_param = request.POST.get('productsku', '')
-
-#     print("SKU parameter received:", sku_param)
-    
-#     if sku_param: 
-#         # إذا أُرسل كسلسلة مثل "SKU1,SKU2" نحوّلها لقائمة
-#         if isinstance(sku_param, str):
-#             sku_list = [s.strip() for s in sku_param.split(',') if s.strip()]
-#         else:
-#             # سلامة إضافية: إذا وصلت كقيمة مفردة غير نصية
-#             sku_list = [str(sku_param)]
-#     else:
-#         # لم يُمرّر sku في الطلب، نبحث عن SKUs التابعة للأدمين/المستخدم
-#         # حالة المستخدم هو الأدمين نفسه
-#         if getattr(request.user, 'is_team_admin', False):
-#             sku_qs = Products.objects.filter(admin=request.user).values_list('sku', flat=True)
-#             sku_list = list(sku_qs)
-#         else:
-#             # إذا للمستخدم رابط إلى team_admin (FK أو غيره) نستخدمه
-#             team_admin = getattr(request.user, 'team_admin', None)
-#             if team_admin:
-#                 sku_qs = Products.objects.filter(admin=team_admin).values_list('sku', flat=True)
-#                 sku_list = list(sku_qs)
-#             else:
-#                 # كحل أخير: نأخذ SKUs من جدول صلاحيات المستخدم UserProductPermission
-#                 sku_qs = Products.objects.filter(
-#                     id__in=UserProductPermission.objects.filter(user=request.user)
-#                                                     .values_list('product_id', flat=True)
-#                 ).values_list('sku', flat=True)
-#                 sku_list = list(sku_qs)
-
-#     # إذا لم نجد أي SKU نرجّع خطأ واضح
-#     if not sku_list:
-#         return JsonResponse({"status": "error", "message": "No SKUs found for this user"})
-
-
-#     # استدعاء الدالة التي تجلب الـ leads مع تمرير قائمة الـ SKUs
-#     req = fetch_leads_for_skus(request, sku_list=sku_list)
-#     print("Fetching leads for SKUs:", sku_list)
-
-#     if req is None:
-#         print("Failed to fetch leads for SKUs:", sku_list)
-#         return JsonResponse({"status": "error", "message": "Failed to fetch leads"})
-
-#     print("Leads fetched successfully for SKUs:", sku_list)
-#     return JsonResponse({"status": "success", "message": "Leads fetched successfully"})
-
-
+ 
  
 
 

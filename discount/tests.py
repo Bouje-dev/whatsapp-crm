@@ -26,4 +26,64 @@
 
 
 
+import hashlib
+
+# def crack_imile_salt():
+#     # البيانات الحقيقية التي حصلت عليها أنت من المتصفح
+#     waybill = "6120825213610"
+#     target_hash = "e20bfad98c95bbbb062feeda7ef3ce6d"
+
+#     # قائمة الكلمات المحتملة (Salts) التي يستخدمها المبرمجون عادة
+#     # يمكنك إضافة المزيد من الكلمات هنا إذا أردت
+#     common_salts = [
+#         "imileTrackQuery2024", "imile", "IMILE", "Imile",
+#         "iMile2022", "iMile2023", "iMile2024", "iMile2025",
+#         "track", "tracking", "query", "param",
+#         "secret", "key", "salt", "123456", "12345678",
+#         "imile_track", "customer", "client",
+#         "Sign", "signature", "md5", "check",
+#         "H5", "h5", "mobile", "app",
+#         "ae", "sa", "AE", "SA", # رموز الدول
+#         "express", "delivery",
+#         "", # أحياناً لا يوجد سر، فقط تشفير الرقم
+#     ]
+
+#     print(f"🔍 Searching for the secret salt for waybill: {waybill}...")
+
+#     for salt in common_salts:
+#         # المبرمجون يدمجون الرقم والسر بطريقتين عادة:
+        
+#         # الطريقة 1: الرقم + السر
+#         s1 = f"{waybill}{salt}"
+#         h1 = hashlib.md5(s1.encode()).hexdigest()
+        
+#         # الطريقة 2: السر + الرقم
+#         s2 = f"{salt}{waybill}"
+#         h2 = hashlib.md5(s2.encode()).hexdigest()
+
+#         # الطريقة 3: (معادلة خاصة) ربما: param=رقم&salt=سر
+#         s3 = f"waybillNo={waybill}&salt={salt}"
+#         h3 = hashlib.md5(s3.encode()).hexdigest()
+        
+#         # مقارنة النتيجة
+#         if h1 == target_hash:
+#             return f"🎉 FOUND IT! The salt is: '{salt}' (Format: Waybill + Salt)"
+#         if h2 == target_hash:
+#             return f"🎉 FOUND IT! The salt is: '{salt}' (Format: Salt + Waybill)"
+#         if h3 == target_hash:
+#             return f"🎉 FOUND IT! The salt is: '{salt}' (Format: Complex)"
+
+#     return "❌ Not found in common list. We need to look deeper in JS files."
+
+# # تشغيل الكاسر
+# result = crack_imile_salt()
+# print(result)
+
+
+
+
+import hashlib
+import requests
+import json
+
  
