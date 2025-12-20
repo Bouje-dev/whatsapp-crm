@@ -59,3 +59,4 @@ python-dotenv
 boto3 
 django-storages
 xmltodict
+beautifulsoup4
