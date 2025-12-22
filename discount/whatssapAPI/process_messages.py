@@ -275,7 +275,9 @@ def send_automated_response(recipient, responses, channel=None, user=None):
                                 'media_type':msg_type if msg_type in ["image", "video", "audio", "document"] else None,
                                'media_id': media_id,
                                 'media_url' : media_url , 
-                                'message_id': res.json().get("messages", [{}])[0].get("id")
+                                'message_id': res.json().get("messages", [{}])[0].get("id"),
+                                'contact':{
+                                    'phone':recipient,}
                            }        
                             team_id = channel.owner.id 
 
