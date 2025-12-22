@@ -2444,7 +2444,7 @@ $(document).ready(function() {
         list.html('<li class="p-3 text-center text-muted"><i class="fas fa-spinner fa-spin"></i> Loading templates...</li>');
 
         // جلب معرف القناة الحالية (مهم لفلترة الردود حسب الصلاحيات)
-        const channelId = currentOpenChatId || 0; 
+        const channelId = currentChannelId || 0; 
 
         $.ajax({
             url: `/discount/whatssapAPI/api/get-canned-responses?channel_id=${channelId}`,
