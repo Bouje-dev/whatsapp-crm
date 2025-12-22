@@ -258,7 +258,7 @@ def send_automated_response(recipient, responses, channel=None, user=None):
                             media_url = item.get("media_url")
                             media_id = item.get("media_id" , None)
                             
-                            Message.objects.create(
+                            savedmsg = Message.objects.create(
                                 channel=channel if channel else None,
                                 sender=recipient,
                                 body=body,
@@ -266,28 +266,59 @@ def send_automated_response(recipient, responses, channel=None, user=None):
                                 media_type=msg_type if msg_type in ["image", "video", "audio", "document"] else None,
                                 media_id= media_id,
                                 media_url = media_url , 
-                                message_id= res.json().get("messages", [{}])[0].get("id")
+                                message_id= res.json().get("messages", [{}])[0].get("id") ,
+                                type = msg_type , 
                             )
-                            payload ={
-                                'sender':recipient,
-                                'body': body,
-                                'is_from_me':True,
-                                'media_type':msg_type if msg_type in ["image", "video", "audio", "document"] else None,
-                               'media_id': media_id,
-                                'media_url' : media_url , 
-                                'message_id': res.json().get("messages", [{}])[0].get("id"),
-                                'contact':{
-                                    'phone':recipient,}
-                           }        
+                            snippet = body or ""
+                            if msg_type == 'image': snippet = 'image'
+                            elif msg_type == 'video': snippet = 'vedio'
+                            elif msg_type == 'audio': snippet = 'audio'
+                        #     payload ={
+                        #         'sender':recipient,
+                        #         'body': body,
+                        #         'is_from_me':True,
+                        #         'media_type':msg_type if msg_type in ["image", "video", "audio", "document"] else None,
+                        #         'media_id': media_id,
+                        #         'media_url' : media_url , 
+                        #         'message_id': res.json().get("messages", [{}])[0].get("id"),
+                        #         'contact':{
+                        #         'phone':recipient,}
+                        #    }   
+                            final_payload = {
+                                "status": res.status_code,
+                                "whatsapp_response": res.text if hasattr(res, "text") else str(res),
+                                "saved_message_id": savedmsg.id,
+                                "media_id": media_id,
+                                "body": body,
+                                "to": recipient,
+                                "media_type":msg_type if msg_type in ["image", "video", "audio", "document"] else None,
+                                "url": media_url,  # ✅ أضفنا الرابط هنا لكي يعرضه المتصفح
+                                "media_url": media_url # ✅ نسخة احتياطية حسب تسمية الجافاسكربت لديك
+                            }
+                            sidebar_payload = {
+                                "phone": recipient, 
+                                "name": recipient,  # سيتم تحسينه في الفرونت إند إذا كان الاسم موجوداً
+                                "snippet": snippet,
+                                "timestamp": timezone.now().strftime("%H:%M"),
+                                "unread": 0,       # 0 لأننا نحن المرسلون
+                                "last_status": "sent",
+                                "fromMe": True,    # ضروري لظهور أيقونة الصح
+                                "channel_id": channel.id if channel else None,
+                            }     
                             team_id = channel.owner.id 
 
                             dynamic_group_name = f"team_updates_{team_id}"
 
-                            send_socket(
-                                data_type='new_message_received',
-                            payload = payload ,
-                            group_name =  dynamic_group_name
-                                                )
+                            # send_socket(
+                            #     data_type='new_message_received',
+                            # payload = payload ,
+                            # group_name =  dynamic_group_name
+                            #                     )
+
+                            send_socket("finished",final_payload , group_name= dynamic_group_name)
+                            send_socket("update_sidebar_contact", sidebar_payload , group_name =dynamic_group_name)
+
+
                                                 
                             # send_socket("new_contact" ,payload)
                              
@@ -643,7 +674,7 @@ def execute_flow(flow, sender, channel=None, user=None):
 
             # MEDIA MESSAGE
             elif current_node.node_type == "media-message":
-               
+                
                 if current_node.content_media_url:
                     media_type = current_node.media_type or "image"  # أضف هذا
                     output_messages.append({
