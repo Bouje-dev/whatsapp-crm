@@ -276,8 +276,17 @@ def send_automated_response(recipient, responses, channel=None, user=None):
                                'media_id': media_id,
                                 'media_url' : media_url , 
                                 'message_id': res.json().get("messages", [{}])[0].get("id")
-                           }
-                            send_socket("new_contact" ,payload)
+                           }        
+                            team_id = channel.owner.id 
+
+                            dynamic_group_name = f"team_updates_{team_id}"
+
+                            send_socket(
+                                data_type='message_status_update',
+                            payload = payload ,
+                            group_name =  dynamic_group_name
+                                                )
+                            # send_socket("new_contact" ,payload)
                              
                             print(f"✅ Message saved to database")
                         except Exception as e:
