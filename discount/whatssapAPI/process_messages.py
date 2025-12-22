@@ -282,10 +282,11 @@ def send_automated_response(recipient, responses, channel=None, user=None):
                             dynamic_group_name = f"team_updates_{team_id}"
 
                             send_socket(
-                                data_type='message_status_update',
+                                data_type='new_message_received',
                             payload = payload ,
                             group_name =  dynamic_group_name
                                                 )
+                                                
                             # send_socket("new_contact" ,payload)
                              
                             print(f"✅ Message saved to database")
