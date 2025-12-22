@@ -1023,10 +1023,45 @@ def process_message_statuses(statuses, channel=None) :
                                             'status': status_value,
                                             'phone': status['recipient_id'] 
                                         }
+
+                    team_id = channel.owner.id 
+
+                    dynamic_group_name = f"team_updates_{team_id}"
+
                     send_socket(
                         data_type='message_status_update',
-                     payload = payload
+                     payload = payload ,
+                     group_name =  dynamic_group_name
                                         )
+
+
+#                                           contact_payload = {
+#             "channel_id": channel.id if channel else None, # هام للفرونت إند - مع التحقق من None
+#             "phone": message_obj.sender,
+#             "name": name if name else message_obj.sender, # أو الاسم المخزن في جدول Contact
+#             "snippet": snippet,
+#             "unread": unread_count,
+#             "last_id": message_obj.id,
+#             "timestamp": message_obj.created_at.strftime("%H:%M") 
+#         }
+
+#         # 3. إرسال باكيج موحد يحتوي على الاثنين
+#         full_payload = {
+#             "contact": contact_payload,
+#             "message": msg_payload
+#         }
+#         team_id = channel.owner.id 
+
+# # 2. بناء اسم المجموعة الديناميكي (يجب أن يطابق تماماً ما كتبناه في consumers.py)
+#         dynamic_group_name = f"team_updates_{team_id}"
+
+#         send_socket(
+#             data_type="new_message_received", # اسم نوع جديد وواضح
+#             payload=full_payload ,
+#             group_name = dynamic_group_name
+#         )
+
+
                     print("payload  sent to skovket " ,payload)
                 except Message.DoesNotExist:
                     pass
