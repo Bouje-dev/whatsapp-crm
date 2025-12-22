@@ -33,12 +33,21 @@
                
                /* 🔥 البيانات المخزنة للاستخدام الفوري 🔥 */
                data-name="{{ channel.name }}"
+               {% if channel.profile_image %}
+
+               data-profile = "{{ channel.profile_image.url }}"
+               {% else %}
+               data-profile = ""
+               {% endif %}
                data-agents="{{ channel.assigned_agents.count }}" 
                
                onclick="switchChannel('{{ channel.id }}')"
                title="{{ channel.name }}">
-               
+               {% if channel.profile_image %}
+               <img src="{{ channel.profile_image.url }}" alt="Profile Image" style="width: 50px; height: 50px; border-radius: 13px;  ">
+               {% else %}
                {{ channel.name|slice:":1"|upper }}
+               {% endif %}
               
                {% if channel.unread_count > 0 %}
                   <span class="unread-dot"></span>
@@ -192,7 +201,12 @@
     <aside class="cls3741_sidebar" role="navigation" aria-label="Sidebar">
       <div class="cls3741_brand">
         <div class="cls3741_logo" id="current_channel_logo">
+            {% if active_channel.profile_image.url %}<img src="{{ active_channel.profile_image.url }}" style="width: 100%; border-radius: 50%;" alt="Channel Logo">
+            {% else %}
             {{ active_channel.name|slice:":1"|upper|default:"?" }}
+            {% endif %}
+
+            
         </div>
         
         <div>
@@ -543,9 +557,14 @@
   
   
 <main class="cls3741_main">
-
-  <section class="cls3741_panel cls3741_panel_dashboard">
     
+  <section class="cls3741_panel cls3741_panel_dashboard" style="position: relative;">
+    <div id="settings_loaderD" class="loading-overlay d-none">
+        <div class="text-center">
+            <div class="spinner-border text-primary mb-3" style="width: 3rem; height: 3rem;" role="status"></div>
+            <h6 class="text-white mt-2">Loading Dashboard...</h6>
+        </div>
+    </div>
     <div class="cls3741_dash_header">
         <h2>Dashboard</h2>
         <div class="cls3741_dash_actions">
@@ -793,6 +812,7 @@ function generateWhatsAppQR(phoneNumber) {
     * @param {string|null} channelId - معرف القناة المختارة (اختياري)
     */
     window.loadLifecycleStats = function(channelId = null) {
+        $('#settings_loader').removeClass('d-none');
     let container = $('#lifecycle_container');
     
     // 1. عرض Skeleton Loading (شكل التحميل) قبل إرسال الطلب
@@ -815,6 +835,7 @@ function generateWhatsAppQR(phoneNumber) {
         method: 'GET',
         data: requestData, // إرسال معرف القناة هنا
         success: function(response) {
+            $('#settings_loader').addClass('d-none');
             container.empty();
     
             if (!response.lifecycle || response.lifecycle.length === 0) {
@@ -1085,6 +1106,7 @@ function filterContactsByStage(stageKey) {
 let dashboardChartInstance = null;
 
 async function loadDashboardData(channelId) {
+    $('#settings_loaderD').removeClass('d-none');
     // إذا لم نكن في صفحة الداشبورد، نتوقف
     if (!document.getElementById('messagesChart')) return;
 
@@ -1099,6 +1121,10 @@ async function loadDashboardData(channelId) {
         console.log('👌 dasb data' , data)
 
         if (data.success) {
+            $('#settings_loaderD').fadeOut(300, function() {
+                $(this).addClass('d-none').removeAttr('style'); // إعادة الكلاس d-none وتنظيف الستايل الذي يضيفه fadeOut
+            });
+           
             // 1. تحديث النصوص والأرقام
             updateText('dash_display_name', data.account.display_name);
             updateText('dash_phone_number', data.account.phone_number);
@@ -2179,7 +2205,7 @@ window.resetFilters = function() {
         </div>
         <div style="margin-left:auto;display:flex;gap:8px">
          <!-- <button id="make_important" class="cls3741_action_btn" title="Make important">important</button> -->
-          <button id="cls3741_open_info" class="cls3741_action_btn" title="Open contact info">Create order</button>
+          <button id="cls3741_open_info" class="cls3741_action_btn" title="Open contact info" style="width: 100%;padding: 10px;width: 100%; height: 100%;">Open</button>
         </div>
       </div>
 
@@ -2810,7 +2836,7 @@ function sendCannedResponseDirectly(item) {
  </div>
 
     <!-- RIGHT: user info card -->
-    <aside class="cls3741_user_col" style="width: 400px; padding:0px !important;  scrollbar-width: none;" id="cls3741_user_col" aria-label="Contact info">
+    <aside class="cls3741_user_col d-none" style="width: 400px; padding:0px !important;  scrollbar-width: none;" id="cls3741_user_col" aria-label="Contact info">
       <div id="sidebar-main-wrapper" class="quick-sidebar-container" style=" scrollbar-width: none;">
 
         <div id="crm_view_panel" class="view-panel fade-in">
@@ -3713,7 +3739,7 @@ $('#cls3741_attach_btn').on('click', function() {
         this.textContent = "Close";
 
       } else {
-        this.textContent = "Create order";
+        this.textContent = "Open";
         sidebar.classList.add("d-none");  
       }
      
@@ -5135,16 +5161,15 @@ $(document).ready(function() {
 
     {% include 'whatssap/flowbiulder.html' %}
   </section>
-
+<section class="cls3741_panel cls3741_panel_settings" style="display: none; padding: 0px;       height: 100%;">
+        {% include 'whatssap/whatsapp_settings.html' %}
+        </section>
 
   <section class="cls3741_panel cls3741_panel_quick_replies" style="display: none; padding: 0px;     height: 100%;">
     {% include 'whatssap/quick_replies.html' %}
     </section>
 
-    <section class="cls3741_panel cls3741_panel_settings" style="display: none; padding: 0px;     height: 100%;">
-        {% include 'whatssap/whatsapp_settings.html' %}
-        
-        </section>
+    
 </main>
 
   </div>
@@ -7044,13 +7069,19 @@ async function switchChannel(newChannelId) {
         // 2. استخراج البيانات من الـ attributes
         const name = selectedBtn.getAttribute('data-name');
         const agentsCount = selectedBtn.getAttribute('data-agents');
+        const dataprofile = selectedBtn.getAttribute('data-profile'); 
+        
+        
         
         // 3. تحديث عناصر الهيدر (DOM)
         const logoEl = document.getElementById('current_channel_logo');
         const nameEl = document.getElementById('current_channel_name');
         const subEl = document.getElementById('current_channel_agents_count');
 
-        if (logoEl) logoEl.textContent = name.charAt(0).toUpperCase();
+
+        if (logoEl) {
+        if (dataprofile){ logoEl.innerHTML = `<img src="${dataprofile}" style="width:50px;height:50px;border-radius:50%;object-fit:cover;">`; } else logoEl.textContent = name.charAt(0).toUpperCase();
+          }
         if (nameEl) nameEl.textContent = name;
         if (subEl) subEl.textContent = `${agentsCount} Agents`;
     }
@@ -7070,6 +7101,9 @@ if (typeof window.loadDashboardData === 'function') {
 
     if(typeof window.loadSetting === 'function') {
         window.loadSetting(newChannelId);
+    }
+    if(typeof  window.loadQuickRepliesGrid === 'function') {
+        window.loadQuickRepliesGrid(newChannelId);
     }
 
 }

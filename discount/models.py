@@ -1336,6 +1336,7 @@ class CannedResponse(models.Model):
     attachment = models.FileField(upload_to='canned_files/', blank=True, null=True)
     
     created_at = models.DateTimeField(auto_now_add=True)
+    usage = models.PositiveIntegerField(default=0)
 
     def __str__(self):
         return self.shortcut

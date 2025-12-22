@@ -6,13 +6,59 @@
         </button>
     </div>
 
-    <div id="quick_replies_section" style="display: none;"> <h5 class="text-white mb-3 border-bottom border-secondary pb-2">My Replies</h5>
+    <!-- <div id="quick_replies_section" style="display: none;"> <h5 class="text-white mb-3 border-bottom border-secondary pb-2">My Replies</h5>
         <div class="row g-3 mb-4" id="my_replies_grid">
             </div>
     
-        <h5 class="text-white mb-3 border-bottom border-secondary pb-2">Team Replies</h5>
-        <div class="row g-3" id="team_replies_grid">
+        <h5 class="text-white mb-3 border-bottom border-secondary pb-2">Team Replies</h5> -->
+        <!-- <div class="row g-3" id="team_replies_grid">
+            </div> -->
+
+            <div class="mb-4">
+                <h5 class="text-white mb-3 border-bottom pb-2 border-secondary"><i class="fas fa-user-edit me-2"></i> My Quick Replies</h5>
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle reply-table">
+                        <thead class="text-muted small text-uppercase">
+                            <tr>
+                                <th width="20%">Shortcut</th>
+                                <th width="30%">Message Preview</th>
+                                <th width="10%" class="text-center">Usage</th>
+                                <th width="20%">Created By</th>
+                                <th width="20%">Created At</th>
+                                <th width="5%" class="text-end">Action</th>
+                            </tr>
+                        </thead>
+                        <tbody id="my_replies_grid">
+                            </tbody>
+                    </table>
+                </div>
             </div>
+            
+            <div class="mb-4">
+                <h5 class="text-white mb-3 border-bottom pb-2 border-secondary"><i class="fas fa-users me-2"></i> Team Replies</h5>
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle reply-table">
+                        <thead class="text-muted small text-uppercase">
+                            <tr>
+                                <th width="20%">Shortcut</th>
+                                <th width="30%">Message Preview</th>
+                                <th width="10%" class="text-center">Usage</th>
+                                <th width="20%">Created By</th>
+                                <th width="20%">Created At</th>
+                                <th width="5%" class="text-end">Action</th>
+                            </tr>
+                        </thead>
+                        <tbody id="team_replies_grid">
+                            </tbody>
+                    </table>
+                </div>
+            </div>
+            
+            <div id="replies_loader" class="text-center py-5" style="display:none;">
+                <div class="spinner-border text-primary" role="status"></div>
+            </div>
+
+
     
         <div id="replies_loader" class="text-center py-5" style="display: none;">
             <div class="spinner-border text-primary" role="status"></div>
@@ -185,156 +231,193 @@ $(document).ready(function() {
         $('#quick_replies_section').show(); // أو $('#yourModal').modal('show');
         
         // 2. تحميل البيانات
-        loadQuickRepliesGrid();
+        window.loadQuickRepliesGrid(currentChannelId || 0);
     });
 
-    function loadQuickRepliesGrid() {
-        const myGrid = $('#my_replies_grid');
-        const teamGrid = $('#team_replies_grid');
-        const loader = $('#replies_loader');
+    window.loadQuickRepliesGrid = function(channel) { 
+    const myGrid = $('#my_replies_grid');
+    const teamGrid = $('#team_replies_grid');
+    const loader = $('#replies_loader');
 
-        // تنظيف القديم وإظهار اللودر
-        myGrid.empty();
-        teamGrid.empty();
-        loader.show();
+    myGrid.empty();
+    teamGrid.empty();
+    loader.show();
 
-        // نفترض أننا نملك channel_id الحالي (أو نرسل 0 لجلب العام)
-        // يمكن جلبه من متغير عام في صفحتك
-        const currentChannelId = currentOpenChatId || 0; 
+    const currentChan = channel || currentOpenChatId || 0;
+    
 
-        $.ajax({
-            url: `/discount/whatssapAPI/api/get-canned-responses?channel_id=${currentChannelId}`,
-            method: 'GET',
-            success: function(response) {
-                loader.hide();
-                
-                if (response.data.length === 0) {
-                    myGrid.html('<div class="text-muted col-12">No replies found.</div>');
-                    return;
-                }
-
-                response.data.forEach(reply => {
-                    // إنشاء HTML البطاقة
-                    const cardHTML = createReplyCardHTML(reply);
-
-                    // 🔥 الفرز: هل هي لي أم للفريق؟ 🔥
-                    if (reply.is_mine) {
-                        myGrid.append(cardHTML);
-                    } else {
-                        teamGrid.append(cardHTML);
-                    }
-                });
-            },
-            error: function() {
-                loader.hide();
-                alert("Failed to load replies.");
+    $.ajax({
+        url: `/discount/whatssapAPI/api/get-canned-responses?channel_id=${currentChan}`,
+        method: 'GET',
+        success: function(response) {
+            loader.hide();
+            
+            if (!response.data || response.data.length === 0) {
+                myGrid.html('<tr><td colspan="5" class="text-center text-muted py-4">No replies found.</td></tr>');
+                return;
             }
-        });
-    }
+
+            response.data.forEach(reply => {
+                // استخدام دالة إنشاء الصف الجديدة
+                const rowHTML = createReplyRowHTML(reply);
+
+                if (reply.is_mine) {
+                    myGrid.append(rowHTML);
+                } else {
+                    teamGrid.append(rowHTML);
+                }
+            });
+        },
+        error: function() {
+            loader.hide();
+            // toastr.error("Failed to load replies"); // يفضل استخدام تنبيه لطيف
+        }
+    });
+}
+
+
 
     // دالة مساعدة لرسم البطاقة (نفس تصميمك الجميل)
-    function createReplyCardHTML(reply) {
-    // 1. إعداد متغيرات المعاينة (Preview Variables)
-    let previewContent = '';
-    let typeLabel = '';
-    let overlayIcon = '';
-    let cursorStyle = 'cursor: pointer;'; // افتراضياً قابل للنقر
-    let clickHandler = '';
+   function createReplyRowHTML(reply) {
+    console.log('respay' , reply);
+    // 1. تحديد أيقونة النوع (صورة، نص، فيديو)
+    let typeIcon = '';
+    let previewText = reply.message || 'No text provided';
 
-    // التحقق من وجود ملف لإنشاء رابط المعاينة
-    if (reply.file_url) {
-        // دالة المعاينة: نمرر النوع والرابط والعنوان
-        clickHandler = `onclick="openMediaPreview('${reply.media_type}', '${reply.file_url}', '${reply.shortcut}')"`;
-    }
-
-    // 2. تحديد شكل المعاينة حسب نوع الميديا
-    if (reply.media_type === 'image') {
-        // ✅ صورة: نعرض الصورة كاملة
-        previewContent = `<img src="${reply.file_url}" alt="Preview">`;
-        typeLabel = '<div class="position-absolute top-0 end-0 m-2 badge bg-success bg-opacity-75">IMAGE</div>';
-        overlayIcon = '<div class="cls3741_overlay_icon"><i class="fas fa-search-plus"></i></div>';
-    } 
-    else if (reply.media_type === 'video') {
-        // ✅ فيديو: نعرضه كصورة مصغرة باستخدام #t=1.0
-        previewContent = `<video src="${reply.file_url}#t=1.0" preload="metadata" style="width:100%; height:100%; object-fit:cover; opacity: 0.6;"></video>`;
-        typeLabel = '<div class="position-absolute top-0 end-0 m-2 badge bg-danger bg-opacity-75">VIDEO</div>';
-        overlayIcon = '<div class="cls3741_overlay_icon"><i class="fas fa-play"></i></div>';
-    } 
-    else if (reply.media_type === 'audio') {
-        // ✅ صوت: شكل موجات بسيط
-        previewContent = `<div style="width: 100%; height: 100%; background: radial-gradient(circle, #334155 10%, transparent 10%), radial-gradient(circle, #334155 10%, transparent 10%); background-position: 0 0, 10px 10px; background-size: 20px 20px; opacity: 0.3;"></div>`;
-        typeLabel = '<div class="position-absolute top-0 end-0 m-2 badge bg-warning bg-opacity-75 text-dark">AUDIO</div>';
-        overlayIcon = '<div class="cls3741_overlay_icon"><i class="fas fa-music"></i></div>';
-    } 
-    else if (reply.media_type === 'document') {
-        // ✅ ملف: أيقونة PDF/File
-        previewContent = `<div class="d-flex align-items-center justify-content-center h-100"><i class="fas fa-file-alt fa-3x text-secondary opacity-50"></i></div>`;
-        typeLabel = '<div class="position-absolute top-0 end-0 m-2 badge bg-secondary">FILE</div>';
-        overlayIcon = '<div class="cls3741_overlay_icon"><i class="fas fa-eye"></i></div>';
-    }
-    else {
-        // ✅ نص فقط: (غير قابل للنقر)
-        previewContent = `<div class="d-flex align-items-center justify-content-center h-100"><i class="fas fa-quote-right fa-2x text-secondary opacity-25"></i></div>`;
-        typeLabel = '';
-        overlayIcon = '';
-        cursorStyle = 'cursor: default;'; // إلغاء شكل اليد
-        clickHandler = ''; // إلغاء النقر
-    }
-
-    // 3. قسم أزرار التحكم (يظهر فقط إذا كانت الرسالة ملكي)
-    let actionButtons = '';
-    let authorInfo = '';
-
-    if (reply.is_mine) {
-        actionButtons = `
-            <div class="d-flex gap-1 ms-auto">
-                <button class="cls3741_action_btn" onclick="editReply(${reply.id})" title="Edit">
-                    <i class="fas fa-pen" style="font-size: 12px;"></i>
-                </button>
-                <button class="cls3741_action_btn delete" onclick="deleteReply(${reply.id})" title="Delete">
-                    <i class="fas fa-trash" style="font-size: 12px;"></i>
-                </button>
-            </div>
-        `;
-        authorInfo = `<span class="text-muted" style="font-size: 11px;">You</span>`;
+    // تحديد الأيقونة بناء على المرفقات
+    if (reply.media_type === 'image' || reply.image) {
+        typeIcon = `<div class="media-icon image"><i class="fas fa-image"></i></div>`;
+        if(!reply.message) previewText = '<span class="fst-italic text-muted">Image Only</span>';
+    } else if (reply.media_type === 'video') {
+        typeIcon = `<div class="media-icon video"><i class="fas fa-video"></i></div>`;
+        if(!reply.message) previewText = '<span class="fst-italic text-muted">Video Only</span>';
+    } else if (reply.media_type === 'audio') {
+        typeIcon = `<div class="media-icon audio"><i class="fas fa-microphone"></i></div>`;
+        if(!reply.message) previewText = '<span class="fst-italic text-muted">Audio Clip</span>';
     } else {
-        // إذا كانت للموظف/المدير
-        authorInfo = `<span class="text-muted" style="font-size: 11px;">
-            <i class="fas fa-user-circle me-1"></i> ${reply.author}
-        </span>`;
+        typeIcon = `<div class="media-icon text"><i class="fas fa-align-left"></i></div>`;
     }
 
-    // 4. تجميع كود HTML النهائي
+    // قص النص الطويل
+    const truncatedText = previewText.length > 50 ? previewText.substring(0, 50) + '...' : previewText;
+
+    // 2. تحديد صورة المنشئ (Avatar)
+    // نفترض وجود رابط صورة، وإلا نستخدم الحرف الأول
+    const creatorAvatar = reply.author 
+        ? `<img src="${reply.creator_avatar}" class="rounded-circle me-2" width="25" height="25">`
+        : `<span class="badge bg-secondary rounded-circle me-2" style="width:25px;height:25px;display:inline-flex;align-items:center;justify-content:center;">${reply.creator_name ? reply.author.charAt(0).toUpperCase() : 'U'}</span>`;
+
+    // 3. HTML الصف
     return `
-    <div class="col-md-4 col-lg-3 col-xl-3 mb-3">
-        <div class="cls3741_reply_card">
-            
-            <div class="cls3741_media_preview" ${clickHandler} style="${cursorStyle}">
-                ${previewContent}
-                ${overlayIcon}
-                ${typeLabel}
+    <tr class="reply-item" onclick="openMediaPreview('${reply.media_type}', '${reply.file_url}', '${reply.shortcut}')">
+        
+        <td>
+            <span class="shortcut-badge">/${reply.shortcut || 'no-code'}</span>
+        </td>
+        
+        <td>
+            <div class="d-flex align-items-center">
+                ${typeIcon}
+                <div class="text-white-50 small">${truncatedText}</div>
             </div>
-            
-            <div class="cls3741_card_body">
-                <div class="mb-2">
-                    <span class="cls3741_shortcut_badge">/${reply.shortcut}</span>
-                </div>
-                
-                <div class="cls3741_card_text" title="${reply.message || ''}">
-                    ${reply.message || '<em class="text-muted">No text provided</em>'}
-                </div>
-                
-                <div class="cls3741_card_footer">
-                    ${authorInfo}
-                    ${actionButtons}
-                </div>
+        </td>
+
+        <td class="text-center">
+            <span class="usage-count">
+                <i class="fas fa-history me-1"></i> ${reply.usage_count || 0}
+            </span>
+        </td>
+
+        <td>
+            <div class="d-flex align-items-center text-white-50 small">
+                ${creatorAvatar}
+                <span>${reply.author || 'Unknown'}</span>
             </div>
-        </div>
-    </div>
+           
+        </td>
+        <td>
+              <div class="d-flex align-items-center text-white-50 small">
+                <i class="fas fa-calendar-alt me-1"></i>
+                <span>${reply.created_at || 'Unknown'}</span>
+            </div>
+            </td>
+        <td class="text-end">
+            <button class="btn btn-icon btn-sm btn-active-light-primary w-30px h-30px" onclick="event.stopPropagation(); editReply(${reply.id})">
+                <i class="fas fa-pencil-alt fs-5 text-muted"></i>
+            </button>
+            <button class="btn btn-icon btn-sm btn-active-light-danger w-30px h-30px ms-1" onclick="event.stopPropagation(); deleteReply(${reply.id})">
+                <i class="fas fa-trash fs-5 text-muted"></i>
+            </button>
+        </td>
+    </tr>
     `;
-    } 
-    
-    
+}
     
 })
 </script>
+
+
+<style>
+    /* تصميم الجدول الأساسي */
+.reply-table {
+    color: #e0e0e0; /* لون نص فاتح للخلفية الداكنة */
+    border-collapse: separate;
+    border-spacing: 0 8px; /* مسافة بين الصفوف */
+}
+
+/* تصميم الصفوف */
+.reply-table tbody tr {
+    background-color: #1e1e2d; /* لون خلفية الصف - عدله حسب ثيم موقعك */
+    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+    transition: all 0.2s ease;
+    border-radius: 8px;
+}
+
+.reply-table tbody tr td:first-child { border-top-left-radius: 8px; border-bottom-left-radius: 8px; }
+.reply-table tbody tr td:last-child { border-top-right-radius: 8px; border-bottom-right-radius: 8px; }
+
+.reply-table tbody tr:hover {
+    transform: translateY(-2px);
+    background-color: #2b2b40; /* لون عند التحويم */
+    box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+    cursor: pointer;
+}
+
+/* تصميم الاختصار (Shortcut Badge) */
+.shortcut-badge {
+    background: rgba(54, 153, 255, 0.1);
+    color: #3699ff;
+    padding: 6px 12px;
+    border-radius: 6px;
+    font-family: 'Courier New', monospace;
+    font-weight: bold;
+    font-size: 0.9rem;
+    border: 1px solid rgba(54, 153, 255, 0.2);
+}
+
+/* تصميم نوع الوسائط (Media Icon) */
+.media-icon {
+    width: 32px;
+    height: 32px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    margin-right: 10px;
+    font-size: 12px;
+}
+.media-icon.image { background: rgba(255, 193, 7, 0.1); color: #ffc107; }
+.media-icon.video { background: rgba(244, 67, 54, 0.1); color: #f44336; }
+.media-icon.audio { background: rgba(0, 188, 212, 0.1); color: #00bcd4; }
+.media-icon.text { background: rgba(158, 158, 158, 0.1); color: #9e9e9e; }
+
+/* تصميم عداد الاستخدام */
+.usage-count {
+    font-weight: 600;
+    color: #28a745;
+    background: rgba(40, 167, 69, 0.1);
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 0.8rem;
+}
+</style>

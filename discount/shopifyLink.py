@@ -960,7 +960,7 @@ def tracking(request,leades = None):
     pipeline_choices = Contact.PipelineStage.choices
     from discount.models import CannedResponse
     channel = active_channel.id if active_channel else None
-    quick_replay = CannedResponse.objects.filter(user = request.user , channel = channel).order_by("created_at")
+    # quick_replay = CannedResponse.objects.filter(user = request.user , channel = channel).order_by("created_at")
 
     return render(request, 'tracking.html', {
         'validate_token'  :ExternalTokenmodel.objects.filter(user=request.user, token_status=True).first(),
@@ -986,7 +986,7 @@ def tracking(request,leades = None):
             # new for channels 
             'user_channels': user_channels,
             'initial_channel_id': active_channel.id if active_channel else 'null' ,
-            'canned_responses' : quick_replay ,
+            
             'unread_msg': unread_msg,
             'active_channel': active_channel ,
             'team_members': team_members , 

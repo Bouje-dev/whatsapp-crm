@@ -408,12 +408,8 @@
 
 
 <script>
-    window.loadSetting = function (channel_id = null){      
-    
-    let channel__id = ''
-    if (channel_id != null)  channel__id = channel_id
-    else channel__id =currentChannelId;
-
+    window.loadSetting = function (channel_id){      
+     
     const loader = $('#settings_loader');
     loader.removeClass('d-none'); 
     
@@ -421,12 +417,12 @@
     $('#settings_modal').modal('show'); 
     
     $.ajax({
-        url: '{% url "get_channel_settings" %}', // تأكد أن الاسم في urls.py صحيح
+        url: '{% url "get_channel_settings" %}',  
         type: 'POST',
         dataType: 'json',
         data: {
             csrfmiddlewaretoken: '{{ csrf_token }}',
-            channel_id: channel__id 
+            channel_id: channel_id 
         },
         success: function(response) {
             if (response.status === 'success') {
@@ -477,7 +473,7 @@ $('#btn_open_settings').on('click', function() {
 });
 
 
-    window.loadSetting = loadSetting();
+    window.loadSetting = loadSetting(currentChannelId);
 
     $(document).ready(function() {
   

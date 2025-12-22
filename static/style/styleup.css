@@ -698,9 +698,9 @@
 }
 
 .cls3741_logo {
-  width: 44px;
-  height: 44px;
-  border-radius: 12px;
+  width: 50px;
+  height: 50px;
+  border-radius: 50%;
   background: linear-gradient(135deg, var(--accent, #6366f1), #a855f7); /* لون متدرج */
   display: flex;
   align-items: center;

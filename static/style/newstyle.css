@@ -300,7 +300,6 @@
     object-fit: cover;
     transition: transform 0.3s;
 }
-
 .cls3741_reply_card:hover .cls3741_media_preview img {
     transform: scale(1.05); /* زووم خفيف عند التحويم */
 }

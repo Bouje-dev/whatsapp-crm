@@ -145,45 +145,49 @@ def get_canned_responses(request):
         return JsonResponse({'error': 'Unauthorized'}, status=401)
 
     channel_id = request.GET.get('channel_id')
-    
-    # هنا يمكنك إضافة فلتر القناة إذا كانت الردود مرتبطة بقنوات
-    # (حالياً الردود مرتبطة بالمستخدم، لكن سنطبق منطق الفريق)
-    
     user = request.user
-    responses_query = CannedResponse.objects.none()
-
-    # --- منطق الصلاحيات المعقد ---
     
-    # 1. إذا كان المستخدم هو الأدمن (Team Admin)
+    # 1. تحديد "من يملك الردود" (Ownership Logic)
+    # نحدد أولاً النطاق المسموح له (أنا، أو فريقي)
     if hasattr(user, 'is_team_admin') and user.is_team_admin:
-        # يجلب ردوده الخاصة + ردود فريقه بالكامل
-        # نفترض أن الموظفين لديهم حقل team_admin يشير لهذا المستخدم
-        team_members = user.team_members.all() # الموظفين التابعين له
+        # الأدمن يرى ردوده + ردود موظفيه
+        ownership_filter = Q(user=user) | Q(user__in=user.team_members.all())
         
-        responses_query = CannedResponse.objects.filter(
-            Q(user=user) | Q(user__in=team_members)
-        ).select_related('user') # لتحسين الأداء
+    elif getattr(user, 'team_admin', None):
+        # الموظف يرى ردوده + ردود مديره
+        ownership_filter = Q(user=user) | Q(user=user.team_admin)
         
-    # 2. إذا كان موظفاً عادياً
-    elif user.team_admin:
-        # يرى ردوده الخاصة + ردود مديره (الأدمن) فقط
-        # (عادة لا يرى ردود زملائه لتجنب الفوضى، إلا لو أردت ذلك)
-        responses_query = CannedResponse.objects.filter(
-            Q(user=user) | Q(user=user.team_admin)
-        ).select_related('user')
-        
-    # 3. مستخدم مستقل
     else:
-        responses_query = CannedResponse.objects.filter(user=user)
+        # المستخدم العادي يرى ردوده فقط
+        ownership_filter = Q(user=user)
 
-    # --- تحويل البيانات لـ JSON ---
+    # 2. بناء الاستعلام الأساسي
+    responses = CannedResponse.objects.filter(ownership_filter)
+
+    # 3. فلترة القناة (Channel Logic) بذكاء
+    # المنطق: نعرض الردود المرتبطة بالقناة الحالية + الردود العامة (التي ليس لها قناة)
+    # لا نستخدم objects.get() هنا لتجنب الأخطاء
+    if channel_id and channel_id != '0' and channel_id.isdigit():
+        # (مرتبطة بهذه القناة) أو (عامة للكل)
+        responses = responses.filter(
+            Q(channel_id=channel_id) | Q(channel__isnull=True)
+        )
+    else:
+        # إذا لم يتم تحديد قناة، هل تريد عرض كل شيء؟ أم العام فقط؟
+        # هنا نفترض أننا نعرض العام فقط أو الكل (حسب رغبتك)
+        # responses = responses # (هذا السطر يعرض كل شيء متاح للمستخدم)
+        pass
+ 
     data = []
-    for r in responses_query:
-        # تحديد من هو الكاتب (للعرض في القائمة)
+    for r in responses:
+      
         author_label = "You"
         if r.user.id != user.id:
             author_label = r.user.first_name or r.user.username
-
+        import time
+        from datetime import datetime
+        formatted_date = r.created_at.strftime('%Y-%m-%d %I:%M %p') if r.created_at else "" 
+       
         data.append({
             'id': r.id,
             'shortcut': r.shortcut,
@@ -191,7 +195,9 @@ def get_canned_responses(request):
             'file_url': r.attachment.url if r.attachment else None,
             'media_type': r.type,
             'author': author_label, # لنعرض للمستخدم من كتب هذا الرد
-            'is_mine': r.user.id == user.id # لتمييز ردودي بلون مختلف
+            'is_mine': r.user.id == user.id, # لتمييز ردودي بلون مختلف
+             'created_at':formatted_date,
+            'usage' : r.usage
         })
-
-    return JsonResponse({'status': 'success', 'data': data})
+    from django.core.serializers.json import DjangoJSONEncoder
+    return JsonResponse({'status': 'success', 'data': data}, encoder=DjangoJSONEncoder)
