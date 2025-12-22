@@ -268,6 +268,7 @@ def send_automated_response(recipient, responses, channel=None, user=None):
                                 media_url = media_url , 
                                 message_id= res.json().get("messages", [{}])[0].get("id") ,
                                 type = msg_type , 
+                                 
                             )
                             snippet = body or ""
                             if msg_type == 'image': snippet = 'image'
@@ -304,6 +305,7 @@ def send_automated_response(recipient, responses, channel=None, user=None):
                                 "last_status": "sent",
                                 "fromMe": True,    # ضروري لظهور أيقونة الصح
                                 "channel_id": channel.id if channel else None,
+                                 
                             }     
                             team_id = channel.owner.id 
 
@@ -1267,7 +1269,8 @@ def send_message_socket(sreciver,  user ,channel_id ,  message, msg_type,
         if request is not None and request.FILES.get("file"):
             has_upload_data = True
         elif isinstance(message, dict) and message.get("data"):
-            has_upload_data = True
+            has_upload_data = True ,
+        body_text = message.get("body", "" ) 
      
         if msg_type == "media_upload":
             media_url =''
@@ -1375,9 +1378,11 @@ def send_message_socket(sreciver,  user ,channel_id ,  message, msg_type,
             except Exception:
                 saved_local_bytes = None
 
+        
         elif msg_type in ['image', 'video', 'audio', 'document'] and media_url:
             final_msg_type = msg_type
             media_type = final_msg_type
+            captions = message.get("caption")
             # print('media_url', media_url , ' media_type ', media_type)
 
             media_object = {}
@@ -1454,8 +1459,10 @@ def send_message_socket(sreciver,  user ,channel_id ,  message, msg_type,
             send_payload["type"] = "text"
             send_payload["text"] = {"body": body or ""}
 
+
         elif media_type in ("image", "audio", "video", "document"):
                 media_url = message.get("media_url")  
+                print('message' , message.get('body') , ' media_url ', media_url)
 
                 # 2. بناء كائن الميديا بذكاء (ID or Link)
                 media_object = {}
@@ -1475,8 +1482,8 @@ def send_message_socket(sreciver,  user ,channel_id ,  message, msg_type,
                 send_payload[media_type] = media_object
                 
                 # إضافة الشرح (Caption)
-                if body and media_type != "audio":
-                    send_payload[media_type]["caption"] = body
+                if body_text and media_type != "audio":
+                    send_payload[media_type]["caption"] = body_text
 
         elif media_type == "template":
                 if "template_name" in payload:
@@ -1495,6 +1502,7 @@ def send_message_socket(sreciver,  user ,channel_id ,  message, msg_type,
         url = f"https://graph.facebook.com/v22.0/{PHONE_NUMBER_ID}/messages"
         headers = {"Authorization": f"Bearer {ACCESS_TOKEN}", "Content-Type": "application/json"}
         r = requests.post(url, headers=headers, json=send_payload, timeout=30)
+        print('payload to sent',send_payload)
         
     except Exception as e:
         _cleanup_paths(temp_input_path, temp_converted_path)
@@ -1536,6 +1544,7 @@ def send_message_socket(sreciver,  user ,channel_id ,  message, msg_type,
                 msg_kwargs["body"] = body or ""
                 if media_type != "text":
                     msg_kwargs["media_type"] = media_type
+                    msg_kwargs["captions"] = body_text
                     msg_kwargs["type"] = media_type
                 if media_id:
                     msg_kwargs["media_id"] = media_id
@@ -1612,8 +1621,9 @@ def send_message_socket(sreciver,  user ,channel_id ,  message, msg_type,
         "whatsapp_response": r.text if hasattr(r, "text") else str(r),
         "saved_message_id": saved_message_id,
         "media_id": media_id,
-        "body": body,
+        "body": body or body_text,
         "to": to,
+        "captions": body_text,
         "media_type": media_type,
         "url": media_url,  # ✅ أضفنا الرابط هنا لكي يعرضه المتصفح
         "media_url": media_url # ✅ نسخة احتياطية حسب تسمية الجافاسكربت لديك
@@ -1626,7 +1636,8 @@ def send_message_socket(sreciver,  user ,channel_id ,  message, msg_type,
         "unread": 0,       # 0 لأننا نحن المرسلون
         "last_status": "sent",
         "fromMe": True,    # ضروري لظهور أيقونة الصح
-        "channel_id": channel_id
+        "channel_id": channel_id ,
+         
     }
  
     send_socket("finished",final_payload , group_name= group_name)

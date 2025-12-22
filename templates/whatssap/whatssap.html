@@ -2623,8 +2623,9 @@ function sendCannedResponseDirectly(item) {
            let  payload ={
                 channel_id: channelId,
                 reciver: receiverPhone,
-                body: item.message || "", // نص الرسالة
-                type: "text" // افتراضي
+                body: item.message ,
+                type: "text" , 
+                caption: item.message || ""
             
         };
 
@@ -6411,52 +6412,70 @@ function makeMessageNode(m) {
     // ============================================================
     // 2. معالجة الصور (Image)
     // ============================================================
-    } else if (m.type === 'image') {
-        const uniqueMediaId = `media_${m.id || Date.now()}`;
-        wrapper.innerHTML = `
-            <div class="media-loading-wrapper" id="wrapper_${uniqueMediaId}">
-                <div class="image_skeleton_loader"></div>
-                <img 
-                    src="${m.url}" 
-                    class="real-media-element" 
-                    alt="image"
-                    loading="lazy"
-                    onload="onMediaLoaded(this)"
-                    onerror="onMediaError(this)"
-                    onclick="openImageModal('${m.url}')"
-                >
-            </div>
-            <div class="cls3741_msg_footer">
-                ${timeHtml} ${msg_status}
-            </div>
-        `;
+    } 
+ 
 
-    // ============================================================
-    // 3. معالجة الفيديو (Video)
-    // ============================================================
-    } else if (m.type === 'video') {
-        const uniqueMediaId = `media_${m.id || Date.now()}`;
-        wrapper.innerHTML = `
-            <div class="media-loading-wrapper" id="wrapper_${uniqueMediaId}">
-                <div class="image_skeleton_loader"></div>
-                <video 
-                    src="${m.url}" 
-                    class="real-media-element" 
-                    controls
-                    preload="metadata"
-                    onloadeddata="onMediaLoaded(this)"
-                    onerror="onMediaError(this)"
-                ></video>
-            </div>
-            <div class="cls3741_msg_footer">
-                ${timeHtml} ${msg_status}
-            </div>
-        `;
+// ============================================================
+// 2. معالجة الصور (Image)
+// ============================================================e
+else if (m.type === 'image') {
+    const captionHtml = m.captions || m.body ? `
+    <div class="media-caption-text" style="padding: 8px 5px 2px 5px; font-size: 14px;   word-break: break-word; text-align: right; direction: rtl;">
+        ${m.captions || m.body}
+    </div>
+` : '';
+    const uniqueMediaId = `media_${m.id || Date.now()}`;
+    wrapper.innerHTML = `
+        <div class="media-loading-wrapper" id="wrapper_${uniqueMediaId}">
+            <div class="image_skeleton_loader"></div>
+            <img 
+                src="${m.url}" 
+                class="real-media-element" 
+                alt="image"
+                loading="lazy"
+                onload="onMediaLoaded(this)"
+                onerror="onMediaError(this)"
+                onclick="openImageModal('${m.url}')"
+            >
+        </div>
+        
+        ${captionHtml}
 
-    // ============================================================
-    // 4. معالجة السجلات (System Log)
-    // ============================================================
-    } else if (m.type === 'log' || m.is_internal) {
+        <div class="cls3741_msg_footer">
+            ${timeHtml} ${msg_status}
+        </div>
+    `;
+
+// ============================================================
+// 3. معالجة الفيديو (Video)
+// ============================================================
+} else if (m.type === 'video') {
+    const captionHtml = m.captions ? `
+    <div class="media-caption-text" style="padding: 8px 5px 2px 5px; font-size: 14px;  word-break: break-word; text-align: right; direction: rtl;">
+        ${m.captions}
+    </div>
+` : '';
+    const uniqueMediaId = `media_${m.id || Date.now()}`;
+    wrapper.innerHTML = `
+        <div class="media-loading-wrapper" id="wrapper_${uniqueMediaId}">
+            <div class="image_skeleton_loader"></div>
+            <video 
+                src="${m.url}" 
+                class="real-media-element" 
+                controls
+                preload="metadata"
+                onloadeddata="onMediaLoaded(this)"
+                onerror="onMediaError(this)"
+            ></video>
+        </div>
+
+        ${captionHtml}
+
+        <div class="cls3741_msg_footer">
+            ${timeHtml} ${msg_status}
+        </div>
+    `;
+} else if (m.type === 'log' || m.is_internal) {
         wrapper.className = 'system-log-wrapper animate-fadeIn'; 
         wrapper.innerHTML = `
             <div class="system-log-card">
@@ -7528,7 +7547,7 @@ async function sendMessageLocal_ws(fileObj = null, fileType = null) {
     // ==========================================
     if (fileToSend && typeToSend) {
       const base64 = await fileToBase64(fileToSend);
-
+       payload.body = messageInput.value ;
       payload.type = typeToSend; 
       payload.file = base64;
       payload.mime = fileToSend.type || ( typeToSend === 'image' ? 'image/jpeg' :
@@ -7536,7 +7555,7 @@ async function sendMessageLocal_ws(fileObj = null, fileType = null) {
         typeToSend === 'audio' ? 'audio/ogg' : 'application/octet-stream' );
       payload.msg_type ='media_upload'; 
     }  
-   
+     
     else {
       const text = messageInput ? messageInput.value.trim() : '';
       
@@ -7552,6 +7571,8 @@ async function sendMessageLocal_ws(fileObj = null, fileType = null) {
       payload.body = text;
       payload.type = 'text';
     }
+    if (messageInput) messageInput.value = '' ;
+    if(sendBtnmain) sendBtnmain.disabled = false;   
 
     // ==========================================
     // عملية الإرسال عبر السوكيت

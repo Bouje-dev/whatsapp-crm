@@ -1421,6 +1421,7 @@ def get_messages1(request):
             "status":status , 
             "user": m.user.username if m.user else None,
             "timestamp" : m.created_at.strftime('%Y-%m-%d %H:%M'),
+            "captions": m.captions
 
         })
          

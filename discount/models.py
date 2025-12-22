@@ -933,6 +933,7 @@ class Message(models.Model):
         related_name="messages",
         null=True, blank=True # نجعله فارغاً مؤقتاً لتجنب مشاكل البيانات القديمة
     )
+    captions = models.TextField(null=True, blank=True)
     
     media_type = models.CharField(
         max_length=20,

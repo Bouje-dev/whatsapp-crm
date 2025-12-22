@@ -321,7 +321,7 @@ class WebhookConsumer(AsyncWebsocketConsumer):
         try:
             if text_data:
                 data = json.loads(text_data)
-                print(data)
+                 
             else:
                 await self.send(json.dumps({"type": "error", "message": "No text data received"}))
                 return
@@ -389,7 +389,8 @@ class WebhookConsumer(AsyncWebsocketConsumer):
         if command_type == 'send_message':
             msg_type = payload_content.get("msg_type") or payload_content.get("type") or "text"
             reciver = payload_content.get("reciver") or payload_content.get("to")
-            body = payload_content.get("body", "")
+            body = payload_content.get("body", "") 
+            caption = payload_content.get("caption", "") 
             file_b64 = payload_content.get("file")
             filename = payload_content.get("filename")
             mime = payload_content.get("mime")
@@ -415,7 +416,7 @@ class WebhookConsumer(AsyncWebsocketConsumer):
         elif msg_type in ['image', 'video', 'audio', 'document'] :
                 msg_type = msg_type
                 message_payload = {
-                    "body": body,
+                    "body": caption,
                     "media_id": payload_content.get("media_id"),
                     "template": payload_content.get("template"),
                     "media_type": msg_type,

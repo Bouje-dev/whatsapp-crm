@@ -196,7 +196,7 @@ def get_canned_responses(request):
             'media_type': r.type,
             'author': author_label, # لنعرض للمستخدم من كتب هذا الرد
             'is_mine': r.user.id == user.id, # لتمييز ردودي بلون مختلف
-             'created_at':formatted_date,
+            'created_at':formatted_date,
             'usage' : r.usage
         })
     from django.core.serializers.json import DjangoJSONEncoder
