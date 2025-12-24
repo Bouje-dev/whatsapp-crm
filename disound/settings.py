@@ -15,7 +15,7 @@ load_dotenv(os.path.join(BASE_DIR, '.env'))
 SECRET_KEY = 'django-insecure-8*lzwv5+jl80b65ev5=atx-bn2&-bf^jk7)y&886_xbf2)m_%('
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = False
 
 # ALLOWED_HOSTS = []
 CSRF_TRUSTED_ORIGINS = [
@@ -221,15 +221,15 @@ STORAGES = {
 # الرابط الأساسي للميديا
 MEDIA_URL = f'https://{AWS_STORAGE_BUCKET_NAME}.s3.amazonaws.com/'
  
- 
+SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 if not DEBUG:
-    # إعدادات السيرفر (HTTPS)
+    #  (HTTPS)
     SECURE_SSL_REDIRECT = True
     SESSION_COOKIE_SECURE = True
     CSRF_COOKIE_SECURE = True
     SECURE_BROWSER_XSS_FILTER = True
 else:
-    # إعدادات Localhost (HTTP)
+    # (HTTP)
     SECURE_SSL_REDIRECT = False
     SESSION_COOKIE_SECURE = False
     CSRF_COOKIE_SECURE = False
