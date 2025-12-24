@@ -414,17 +414,9 @@ def get_media_extension(media_type):
 
 
 # ---------------------Save sms----------------
-import re
-from django.utils import timezone
-from django.core.files.base import ContentFile
-# تأكد من استيراد المودلز والوظائف المساعدة الخاصة بك
-# from .models import Message
-# from .utils import download_whatsapp_media, get_media_extension
 
 def save_incoming_message(msg, message_type, sender=None, channel=None, name=None):
-    """
-    حفظ الرسالة الواردة في قاعدة البيانات (تم التحديث لدعم الأزرار والإعلانات)
-    """
+  
     try:
         if not sender:
             sender = msg.get("from")
@@ -548,11 +540,71 @@ def save_incoming_message(msg, message_type, sender=None, channel=None, name=Non
                 message_obj.media_url = message_obj.media_file.url 
                 message_obj.save()
                 
+        # return message_obj
+
+    
+
+
+
+
+# 1. تجهيز بيانات الرسالة (للعرض داخل الشات)
+        msg_payload = {
+            "id": message_obj.id,
+            "body": message_obj.body,
+            "type": message_obj.media_type,
+            "url": message_obj.media_file.url if message_obj.media_file else None, # تأكد من الرابط
+            "time": message_obj.created_at.strftime("%H:%M"),
+            "status": "received",
+            "fromMe": False ,
+            "channel_id": channel.id if channel else None, # هام للفرونت إند - مع التحقق من None
+        }
+
+        # 2. تجهيز بيانات جهة الاتصال (للقائمة الجانبية)
+        snippet = ''
+        if message_obj.media_type == 'audio': snippet = '[صوت]'
+        elif message_obj.media_type == 'image': snippet = '[صورة]'
+        elif message_obj.media_type == 'video': snippet = '[فيديو]'
+        else: snippet = message_obj.body[:80] if message_obj.body else ''
+
+        unread_count = Message.objects.filter(sender=message_obj.sender, is_read=False).count()
+
+        contact_payload = {
+            "channel_id": channel.id if channel else None, # هام للفرونت إند - مع التحقق من None
+            "phone": message_obj.sender,
+            "name": name if name else message_obj.sender, # أو الاسم المخزن في جدول Contact
+            "snippet": snippet,
+            "unread": unread_count,
+            "last_id": message_obj.id,
+            "timestamp": message_obj.created_at.strftime("%H:%M") 
+        }
+
+        # 3. إرسال باكيج موحد يحتوي على الاثنين
+        full_payload = {
+            "contact": contact_payload,
+            "message": msg_payload
+        }
+        team_id = channel.owner.id 
+
+# 2. بناء اسم المجموعة الديناميكي (يجب أن يطابق تماماً ما كتبناه في consumers.py)
+        dynamic_group_name = f"team_updates_{team_id}"
+
+        send_socket(
+            data_type="new_message_received", # اسم نوع جديد وواضح
+            payload=full_payload ,
+            group_name = dynamic_group_name
+        )
+
         return message_obj
 
+
+        
     except Exception as e:
-        print(f"Error saving message: {e}")
+        print(f"❌ Error saving message: {e}")
         return None
+
+
+
+
 
 
 
