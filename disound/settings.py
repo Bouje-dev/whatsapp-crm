@@ -270,7 +270,8 @@ EMAIL_HOST_USER = os.environ.get('EMAIL_HOST_USER')
 EMAIL_HOST_PASSWORD = os.environ.get('EMAIL_HOST_PASSWORD')
 
 # الإيميل الافتراضي الذي تخرج منه الرسائل
-DEFAULT_FROM_EMAIL = 'Waselytics Security <support@waselytics.com>'
+DEFAULT_FROM_EMAIL = EMAIL_HOST_USER 
+#  'Waselytics Security <support@waselytics.com>'
 SERVER_EMAIL = 'support@waselytics.com'
 
 
