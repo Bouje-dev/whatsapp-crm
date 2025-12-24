@@ -584,8 +584,6 @@ def save_incoming_message(msg, message_type, sender=None, channel=None, name=Non
             "message": msg_payload
         }
         team_id = channel.owner.id 
-
-# 2. بناء اسم المجموعة الديناميكي (يجب أن يطابق تماماً ما كتبناه في consumers.py)
         dynamic_group_name = f"team_updates_{team_id}"
 
         send_socket(

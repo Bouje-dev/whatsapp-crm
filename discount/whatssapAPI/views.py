@@ -1836,10 +1836,25 @@ def validate_uploaded_file(f, header_type):
 
 from discount.models import WhatsAppChannel
 # ----- العرض: create_template view محسنة -----
+from django.db import transaction
+from django.http import JsonResponse
+from django.views.decorators.http import require_POST
+from django.core.exceptions import ValidationError
+import json
+import logging
+from datetime import datetime
+
+# تعريف استثناء مخصص للتعامل مع أخطاء ميتا داخل المعاملة
+class MetaSubmissionError(Exception):
+    def __init__(self, message, detail=None):
+        self.message = message
+        self.detail = detail
+        super().__init__(self.message)
+
 @require_POST
 def create_template(request):
     try:
-        # قراءة الحقول الأساسية
+        # 1. Basic Fields Extraction
         user = request.user 
         name = (request.POST.get('name') or '').strip()
         category = (request.POST.get('category') or '').strip()
@@ -1850,189 +1865,181 @@ def create_template(request):
         footer = (request.POST.get('footer') or '').strip()
         header_type = (request.POST.get('header_type') or 'text').strip()
 
-        # ملفات رأس مرفوعة
+        # Files
         header_image = request.FILES.get('header_image')
         header_video = request.FILES.get('header_video')
         header_document = request.FILES.get('header_document')
-        channel_id = request.POST.get('channel_id')
-        if not channel_id: return JsonResponse({'success': False, 'errors': 'channel_id is required'}, status=400) # 
         
-        if  user.is_superuser or user.is_team_admin or user.is_staff :
-            channel = WhatsAppChannel.objects.get( id=channel_id)
-        else :
-            channel = WhatsAppChannel.objects.get(assigned_agents = user , id=channel_id)
-        if not channel : return JsonResponse({'success': False, 'errors': 'channel not found'}, status=400)
+        channel_id = request.POST.get('channel_id')
+        if not channel_id: 
+            return JsonResponse({'success': False, 'errors': 'channel_id is required'}, status=400)
+        
+        # 2. Authorization & Channel Retrieval
+        try:
+            if user.is_superuser or getattr(user, 'is_team_admin', False) or user.is_staff:
+                channel = WhatsAppChannel.objects.get(id=channel_id)
+            else:
+                channel = WhatsAppChannel.objects.get(assigned_agents=user, id=channel_id)
+        except WhatsAppChannel.DoesNotExist:
+            return JsonResponse({'success': False, 'errors': 'Channel not found or access denied'}, status=404)
 
+        # ---------------------------------------------------------
+        # [NEW] Requirement 2: Prevent Duplicates
+        # Check if a template with the same name already exists for this channel
+        # ---------------------------------------------------------
+        if Template.objects.filter(channel=channel, name=name).exists():
+            return JsonResponse({
+                'success': False, 
+                'error': f'A template with the name "{name}" already exists for this channel.'
+            }, status=400)
 
-
-
-        # تحقق أولي للحقلين الهامين
+        # 3. Validation Logic
         errors = []
-        if not name:
-            errors.append('name is required')
-        elif len(name) > MAX_NAME_LENGTH:
-            errors.append(f'name max length is {MAX_NAME_LENGTH}')
-        if not body:
-            errors.append('body is required')
-        elif len(body) > MAX_BODY_LENGTH:
-            errors.append(f'body max length is {MAX_BODY_LENGTH}')
+        if not name: errors.append('name is required')
+        elif len(name) > MAX_NAME_LENGTH: errors.append(f'name max length is {MAX_NAME_LENGTH}')
+        
+        if not body: errors.append('body is required')
+        elif len(body) > MAX_BODY_LENGTH: errors.append(f'body max length is {MAX_BODY_LENGTH}')
 
-        if header_type not in ALLOWED_HEADER_TYPES:
-            errors.append('invalid header_type')
+        if header_type not in ALLOWED_HEADER_TYPES: errors.append('invalid header_type')
 
-        # parse JSON fields
+        # Parse JSON fields
         body_samples_raw, err = parse_json_field(request.POST, 'body_samples')
-        if err:
-            errors.append(err)
+        if err: errors.append(err)
+        
         buttons_raw, err2 = parse_json_field(request.POST, 'buttons')
-        if err2:
-            errors.append(err2)
+        if err2: errors.append(err2)
 
         if errors:
             return JsonResponse({'success': False, 'errors': errors}, status=400)
 
-        # استخراج المتغيرات من body (يدعم {{n}} أو [[n]])
-        placeholders = extract_placeholders(body)  # e.g. [1,2,3]
+        # 4. Body Placeholders Validation
+        placeholders = extract_placeholders(body)
         if len(placeholders) > MAX_PLACEHOLDERS:
-            return JsonResponse({'success': False, 'error': f'too many placeholders, max {MAX_PLACEHOLDERS}'}, status=400)
+            return JsonResponse({'success': False, 'error': f'Too many placeholders, max {MAX_PLACEHOLDERS}'}, status=400)
         if not placeholders_are_sequential(placeholders):
-            return JsonResponse({'success': False, 'error': 'placeholders must be sequential 1..N without gaps'}, status=400)
+            return JsonResponse({'success': False, 'error': 'Placeholders must be sequential 1..N without gaps'}, status=400)
 
         max_placeholder = max(placeholders) if placeholders else 0
 
-        # validate body_samples: expected array of {type:'text', text:'...'} in order
+        # Validate Body Samples
         samples = []
         if max_placeholder > 0:
             if body_samples_raw is None:
-                # not provided — accept (maybe admin didn't fill samples) but warn
                 return JsonResponse({'success': False, 'error': 'body_samples missing for placeholders'}, status=400)
             if not isinstance(body_samples_raw, list):
                 return JsonResponse({'success': False, 'error': 'body_samples must be an array'}, status=400)
             if len(body_samples_raw) != max_placeholder:
-                return JsonResponse({'success': False, 'error': f'body_samples length must equal number of placeholders ({max_placeholder})'}, status=400)
-            # basic shape check
+                return JsonResponse({'success': False, 'error': f'body_samples length must match placeholders count ({max_placeholder})'}, status=400)
+            
             for i, s in enumerate(body_samples_raw, 1):
                 if not isinstance(s, dict) or s.get('type') != 'text':
-                    return JsonResponse({'success': False, 'error': f'body_samples[{i-1}] must be an object with type \"text\"'}, status=400)
-                # allow empty sample text but coerce to string
+                    return JsonResponse({'success': False, 'error': f'body_samples[{i-1}] must be object with type "text"'}, status=400)
                 samples.append({'type': 'text', 'text': str(s.get('text') or '')})
 
-        # validate buttons
+        # Validate Buttons
         clean_buttons = []
         if buttons_raw:
             clean_buttons, btn_err = validate_buttons(buttons_raw)
             if btn_err:
                 return JsonResponse({'success': False, 'error': btn_err}, status=400)
 
-        # validate uploaded header file according to header_type
-        if header_type == 'image':
-            err = validate_uploaded_file(header_image, 'image')
-            if err:
-                return JsonResponse({'success': False, 'error': err}, status=400)
-        elif header_type == 'video':
-            err = validate_uploaded_file(header_video, 'video')
-            if err:
-                return JsonResponse({'success': False, 'error': err}, status=400)
-        elif header_type == 'document':
-            err = validate_uploaded_file(header_document, 'document')
-            if err:
-                return JsonResponse({'success': False, 'error': err}, status=400)
+        # Validate Media Files
+        media_map = {
+            'image': header_image,
+            'video': header_video,
+            'document': header_document
+        }
+        if header_type in media_map and media_map[header_type]:
+             err = validate_uploaded_file(media_map[header_type], header_type)
+             if err: return JsonResponse({'success': False, 'error': err}, status=400)
 
-        # تحويل [[n]] الى {{n}} قبل الحفظ (الواجهة قد تستعمل [[n]] لتجنب تعارض Django)
+        # Normalize Body
         body_normalized = normalize_body_placeholders(body)
 
-        # محاولة تحويل تاريخ 'updated' إن وُجد
+        # Parse Date
         updated_date = None
         if updated_raw:
             try:
-                # تقبل YYYY-MM-DD
                 updated_date = datetime.strptime(updated_raw, '%Y-%m-%d').date()
-            except Exception:
-                # ليس حرجا — لكن نُرجع خطأ واضح
+            except ValueError:
                 return JsonResponse({'success': False, 'error': 'updated must be in YYYY-MM-DD format'}, status=400)
 
-        # كل شيء تم التحقق منه — نحفظ داخل معاملة
-        with transaction.atomic():
+        # ---------------------------------------------------------
+        # [NEW] Requirement 1: Save only if Meta Success (Atomic Transaction)
+        # ---------------------------------------------------------
+        try:
+            with transaction.atomic():
+                # A. Create Local Object (Draft)
+                template = Template.objects.create(
+                    channel=channel,
+                    user=user,
+                    name=name,
+                    category=category,
+                    language=language,
+                    status=status, # Likely 'draft' initially
+                    updated_at=updated_date,
+                    body=body_normalized,
+                    footer=footer,
+                    header_type=header_type,
+                    header_text=(request.POST.get('header_text') or '').strip(),
+                )
 
-            template = Template.objects.create(
-                channel = channel,
-                user = user ,
-                name=name,
-                category=category,
-                language=language,
-                status=status,
-                updated_at=updated_date,
-                body=body_normalized,
-                footer=footer,
-                header_type=header_type,
-                header_text=(request.POST.get('header_text') or '').strip(),
-            )
-            # احفظ الملفات (إن وُجدت) إلى حقل الملف الخاص بالنموذج
-            if header_image:
-                template.header_image = header_image
-            if header_video:
-                template.header_video = header_video
-            if header_document:
-                template.header_document = header_document
+                # Save Files
+                if header_image: template.header_image = header_image
+                if header_video: template.header_video = header_video
+                if header_document: template.header_document = header_document
 
-            # احفظ بيانات مساعدة مثل body_samples و buttons في حقول JSON أو حقول نصية
-            # افتراض أن الحقلين موجودين في النموذج (jsonfields أو TextField)
-            try:
-                # إذا كان نموذجك يحتوي على JSONField يمكنك وضع القيم مباشرة
+                # Save JSON fields
+                # Use JSONField if available, else text fallback
                 if hasattr(template, 'body_samples'):
                     template.body_samples = samples
                 else:
                     template.meta_body_samples = json.dumps(samples, ensure_ascii=False)
-            except Exception:
-                # إذا النموذج لا يحتوي، يمكنك إنشاء حقل نصي مؤقت بدلاً من ذلك
-                template.meta_body_samples = json.dumps(samples, ensure_ascii=False)
 
-            try:
                 if hasattr(template, 'buttons'):
                     template.buttons = clean_buttons
                 else:
                     template.meta_buttons = json.dumps(clean_buttons, ensure_ascii=False)
-            except Exception:
-                template.meta_buttons = json.dumps(clean_buttons, ensure_ascii=False)
-            
-            # إرسال القالب إلى Meta للمراجعة
-            try:
-                meta_result = submit_template_to_meta(template ,channel ,user)
+                
+                # B. Submit to Meta
+                # IMPORTANT: We pass the created object to the function
+                meta_result = submit_template_to_meta(template, channel, user)
+
                 if meta_result.get('ok'):
-                    # ضع حالة قيد الانتظار (pending) واغتنم المعرف إن وُجد
-                    template.status = 'pending'
+                    # C. Success Scenario
+                    template.status = 'pending' # Meta usually starts as pending/review
                     meta_id = meta_result.get('meta_id')
                     if meta_id:
                         template.template_id = meta_id
-                    # حفظ الـ components payload محلياً لمرجعية لاحقة
-                    try:
-                        template.components = meta_result.get('response') or {}
-                    except Exception:
-                        # fallback to string
-                        template.components = {}
+                    
+                    template.components = meta_result.get('response') or {}
                     template.save()
+                    
+                    # Return Success (Transaction Commits automatically upon exit)
                     return JsonResponse({'success': True, 'id': template.id, 'meta_id': template.template_id})
+                
                 else:
-                    # فشل في إرسال القالب إلى Meta
-                    template.status = 'draft'
-                    template.save()
-                    return JsonResponse({
-                        'success': False,
-                        'error': 'Failed to submit template to Meta: ' + str(meta_result.get('error')),
-                        'detail': meta_result.get('response')
-                    }, status=400)
-            except Exception as e:
-                logger.exception('unexpected error while submitting template to meta')
-                # لا نوقف الخط العام، نرجع خطأ مناسب
-                return JsonResponse({'success': False, 'error': 'Internal error when submitting to Meta'}, status=500)
+                    # D. Failure Scenario
+                    # RAISE an exception to trigger transaction.atomic() ROLLBACK
+                    # This ensures the template created in step A is removed from DB.
+                    error_msg = str(meta_result.get('error'))
+                    error_detail = meta_result.get('response')
+                    raise MetaSubmissionError(error_msg, error_detail)
+
+        except MetaSubmissionError as mse:
+            # Catch our custom error outside the atomic block
+            # The DB rollback has already happened here.
+            return JsonResponse({
+                'success': False,
+                'error': f"Failed to submit to Meta: {mse.message}",
+                'detail': mse.detail
+            }, status=400)
 
     except Exception as e:
-        # لا تكشف استثناء داخلي مفصّل في الإنتاج — استخدم تسجيل (logger) بدلًا من ذلك
-        import traceback, logging
-        logging.exception('create_template error')
-        return JsonResponse({'success': False, 'error': str(e)}, status=400)
-
-
+        import traceback
+        logging.exception('create_template unexpected error')
+        return JsonResponse({'success': False, 'error': 'Internal server error', 'details': str(e)}, status=500)
 
 
 from django.http import JsonResponse
@@ -2943,8 +2950,11 @@ def create_activity_log(channel, phone, content, user=None):
         "message": log_payload
     }
     from discount.channel.socket_utils import send_socket
+    team_id = channel.owner.id 
+    dynamic_group_name = f"team_updates_{team_id}"
+
    
-    send_socket("log_message_received", socket_payload)
+    send_socket("log_message_received", socket_payload , group_name= dynamic_group_name )
 
 
 
