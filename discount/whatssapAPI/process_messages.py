@@ -414,39 +414,90 @@ def get_media_extension(media_type):
 
 
 # ---------------------Save sms----------------
-def save_incoming_message(msg ,message_type , sender = None , channel = None  , name = None):
-    """
-    حفظ الرسالة الواردة في قاعدة البيانات
-    """
+import re
+from django.utils import timezone
+from django.core.files.base import ContentFile
+# تأكد من استيراد المودلز والوظائف المساعدة الخاصة بك
+# from .models import Message
+# from .utils import download_whatsapp_media, get_media_extension
 
+def save_incoming_message(msg, message_type, sender=None, channel=None, name=None):
+    """
+    حفظ الرسالة الواردة في قاعدة البيانات (تم التحديث لدعم الأزرار والإعلانات)
+    """
     try:
-        if not sender :
-            sender = msg["from"]
-        # message_type = message_type
+        if not sender:
+            sender = msg.get("from")
+        
+        # 1. استخراج النص الأساسي (الافتراضي)
         body = msg.get("text", {}).get("body", "")
+        
         message_id = msg.get("id")
         timestamp = msg.get("timestamp")
-        print("message_id" , msg)
-        # معالجة الوسائط
+        
+        # 2. معالجة الردود عن طريق الأزرار (Buttons & Interactive)
+        # النوع الأول: زر من قالب (Template Button)
+        if message_type == 'button':
+            body = msg.get('button', {}).get('text')
+            
+        # النوع الثاني: زر تفاعلي (Interactive Message - List or Button)
+        elif message_type == 'interactive':
+            interactive_obj = msg.get('interactive', {})
+            interactive_type = interactive_obj.get('type')
+            
+            if interactive_type == 'button_reply':
+                body = interactive_obj.get('button_reply', {}).get('title')
+            elif interactive_type == 'list_reply':
+                body = interactive_obj.get('list_reply', {}).get('title')
+
+        # 3. معالجة الإحالات (Referrals - Click to WhatsApp Ads)
+        # الإحالة تأتي ككائن داخل الرسالة بغض النظر عن نوعها (نص، صورة، إلخ)
+        referral_body = ""
+        if 'referral' in msg:
+            referral_data = msg['referral']
+            headline = referral_data.get('headline', 'Ad')
+            source_url = referral_data.get('source_url', '')
+            # نقوم بتجهيز نص يوضح أن العميل قادم من إعلان
+            referral_body = f"\n[Coming from Ad: {headline}]"
+            
+            # إذا لم يكن هناك نص (مجرد نقرة على الإعلان)، نجعله هو الـ body
+            if not body:
+                body = f"Hello (from Ad: {headline})"
+            
+        # إضافة معلومات الإعلان للنص الأصلي إذا وجد
+        if referral_body:
+            body = f"{body} {referral_body}"
+
+        # 4. معالجة الوسائط
         media_type = None
         media_id = None
-        media_file = None
         
-        for media_key in ['image', 'audio', 'video', 'document']:
+        # التحقق من أنواع الميديا المختلفة (بما في ذلك الملصقات)
+        for media_key in ['image', 'audio', 'video', 'document', 'sticker', 'voice']:
             if media_key in msg:
                 media_type = media_key
-                media_id = msg[media_key]['id']
+                # أحياناً يكون النوع voice ولكن نريد حفظه كـ audio
+                if media_type == 'voice': 
+                    media_type = 'audio'
+                    
+                media_data = msg[media_key]
+                media_id = media_data.get('id')
+                
+                # التقاط الـ Caption للصورة أو الفيديو إذا وجد وجعله هو الـ Body
+                if 'caption' in media_data:
+                    caption_text = media_data.get('caption')
+                    if caption_text:
+                        body = caption_text  # نجعل الكابشن هو نص الرسالة
                 break
                 
+        # 5. معالجة التوقيت (Timestamp)
         parsed_timestamp = None
         try:
             import datetime as _dt
             if timestamp is not None:
-                # numeric epoch seconds (string or int)
                 if isinstance(timestamp, (int, float)) or (isinstance(timestamp, str) and re.fullmatch(r'\d+', timestamp)):
                     parsed_timestamp = _dt.datetime.fromtimestamp(int(timestamp), tz=_dt.timezone.utc)
                 else:
-                    # try ISO format and make it aware if naive
                     try:
                         parsed_timestamp = _dt.datetime.fromisoformat(timestamp)
                         if parsed_timestamp.tzinfo is None:
@@ -456,104 +507,52 @@ def save_incoming_message(msg ,message_type , sender = None , channel = None  , 
         except Exception:
             parsed_timestamp = None
 
+        # 6. معالجة الموقع الجغرافي
         if message_type == 'location':
-                loc = msg.get('location', {})
-                latitude = loc.get('latitude')
-                longitude = loc.get('longitude')
-                
-                message_body = f"{latitude},{longitude}"
-                body = message_body
+            loc = msg.get('location', {})
+            latitude = loc.get('latitude')
+            longitude = loc.get('longitude')
+            # حفظ الإحداثيات كنص
+            body = f"{latitude},{longitude}"
 
-
+        # 7. الحفظ في قاعدة البيانات
+        # تأكد من أن المودل Message لديك يحتوي على حقل لحفظ 'captions' إذا أردت فصله، أو استخدم body
         message_obj = Message.objects.create(
-            channel= channel if channel else None ,
-            sender=sender ,
-            body=body,
-            type=message_type,
+            channel=channel if channel else None,
+            sender=sender,
+            body=body, # سيحتوي الآن على نص الزر، أو الكابشن، أو نص الإعلان
+            type=message_type, # سيحفظ 'button' أو 'interactive' أو 'image' إلخ
             is_from_me=False,
             media_type=media_type,
             media_id=media_id,
             message_id=message_id,
             timestamp=parsed_timestamp,
-            # save msg url if msg is media
-            media_url = media_id,
+            media_url=media_id, # يمكن تعديل هذا لاحقاً بالرابط الحقيقي بعد التحميل
         )
-         
- 
 
-
-        # معالجة الوسائط إذا وجدت - استخدام access_token من channel إذا كان موجوداً
+        # 8. تحميل وحفظ ملف الميديا
         access_token_to_use = None
         if channel and channel.access_token:
             access_token_to_use = channel.access_token
-        elif ACCESS_TOKEN:
+        elif ACCESS_TOKEN: # تأكد أن هذا المتغير معرف في scope الملف
             access_token_to_use = ACCESS_TOKEN
             
         if media_id and access_token_to_use:
+            # دالة التحميل الخاصة بك
             media_content = download_whatsapp_media(media_id, access_token_to_use)
             if media_content:
                 filename = f"{media_id}_{media_type}.{get_media_extension(media_type)}"
+                # حفظ الملف في حقل media_file
                 message_obj.media_file.save(filename, ContentFile(media_content))
+                # تحديث رابط الميديا ليكون الرابط الداخلي بدلاً من ID واتساب
+                message_obj.media_url = message_obj.media_file.url 
                 message_obj.save()
-
-# 1. تجهيز بيانات الرسالة (للعرض داخل الشات)
-        msg_payload = {
-            "id": message_obj.id,
-            "body": message_obj.body,
-            "type": message_obj.media_type,
-            "url": message_obj.media_file.url if message_obj.media_file else None, # تأكد من الرابط
-            "time": message_obj.created_at.strftime("%H:%M"),
-            "status": "received",
-            "fromMe": False ,
-            "channel_id": channel.id if channel else None, # هام للفرونت إند - مع التحقق من None
-        }
-
-        # 2. تجهيز بيانات جهة الاتصال (للقائمة الجانبية)
-        snippet = ''
-        if message_obj.media_type == 'audio': snippet = '[صوت]'
-        elif message_obj.media_type == 'image': snippet = '[صورة]'
-        elif message_obj.media_type == 'video': snippet = '[فيديو]'
-        else: snippet = message_obj.body[:80] if message_obj.body else ''
-
-        unread_count = Message.objects.filter(sender=message_obj.sender, is_read=False).count()
-
-        contact_payload = {
-            "channel_id": channel.id if channel else None, # هام للفرونت إند - مع التحقق من None
-            "phone": message_obj.sender,
-            "name": name if name else message_obj.sender, # أو الاسم المخزن في جدول Contact
-            "snippet": snippet,
-            "unread": unread_count,
-            "last_id": message_obj.id,
-            "timestamp": message_obj.created_at.strftime("%H:%M") 
-        }
-
-        # 3. إرسال باكيج موحد يحتوي على الاثنين
-        full_payload = {
-            "contact": contact_payload,
-            "message": msg_payload
-        }
-        team_id = channel.owner.id 
-
-# 2. بناء اسم المجموعة الديناميكي (يجب أن يطابق تماماً ما كتبناه في consumers.py)
-        dynamic_group_name = f"team_updates_{team_id}"
-
-        send_socket(
-            data_type="new_message_received", # اسم نوع جديد وواضح
-            payload=full_payload ,
-            group_name = dynamic_group_name
-        )
-
+                
         return message_obj
 
-
-        
     except Exception as e:
-        print(f"❌ Error saving message: {e}")
+        print(f"Error saving message: {e}")
         return None
-
-
-
-
 
 
 
@@ -888,13 +887,7 @@ def whatsapp_webhook(request):
                     except WhatsAppChannel.DoesNotExist:
                         print(f"❌ رسالة لرقم غير مسجل عندنا: {phone_number_id}")
                         continue  
-
-                    # 🔥 3. تمرير القناة لدالة الحفظ 🔥
-                    # if 'messages' in value:
-                    #     for msg in value['messages']:
-                    #         save_incoming_message(msg, channel=active_channel) # نمرر كائن القناة
-
-
+                    
                     created= None
                     
                     if 'contacts' in value:
@@ -975,6 +968,16 @@ def process_messages(messages , channel = None , name = None):
                     body = msg["interactive"]["button_reply"]["title"]
                 elif int_type == "list_reply":
                     body = msg["interactive"]["list_reply"]["title"]
+
+
+            elif message_type == 'button':
+    
+                button_data = msg.get('button', {})
+       
+                body_text = button_data.get('text') 
+                body = body_text
+                # (اختياري) Payload مفيد لو كنت تريد تنفيذ كود خاص بناء عليه
+                payload = button_data.get('payload')
  
             if "referral" in msg:
                 is_referral = True
@@ -983,7 +986,7 @@ def process_messages(messages , channel = None , name = None):
                 body = ref_data.get("body", "") # نص الإعلان نفسه
                 print(f"📢 Incoming Ad Referral: {headline}")
                 if not body and message_type == "text": 
-                     body = msg.get("text", {}).get("body", "") # محاولة جلب النص مرة أخرى
+                     body = msg.get("text", {}).get("body", "")  
                 
    
                
