@@ -92,6 +92,7 @@ def update_channel_settings(request):
                 else:
                     meta_sync_status = "failed"
                     meta_error = error_msg
+                    print("Meta sync failed:", error_msg)
                     
             except Exception as e:
                 meta_sync_status = "failed"
@@ -135,66 +136,97 @@ import mimetypes
 import os
 
 def sync_profile_with_meta(channel):
-    """
-    تحديث بيانات النشاط التجاري + صورة البروفايل على واتساب
-    """
     if not channel.phone_number_id or not channel.access_token:
         return False, "Missing Phone Number ID or Access Token"
 
     base_url = "https://graph.facebook.com/v18.0"
     headers_auth = {"Authorization": f"Bearer {channel.access_token}"}
 
-    # ==========================================
-    # 1. تحديث البيانات النصية (Description, Address...)
-    # ==========================================
+    # =========================================================
+    # 1. تحديث البيانات النصية (الوصف، العنوان، البريد...) - هذا الجزء سليم
+    # =========================================================
     url_text = f"{base_url}/{channel.phone_number_id}/whatsapp_business_profile"
-    
     payload_text = {
         "messaging_product": "whatsapp",
         "description": channel.business_description,
         "address": channel.business_address,
         "email": channel.business_email,
         "websites": [channel.business_website] if channel.business_website else [],
-        # ملاحظة: "about" (الحالة) لها endpoint مختلف (whatsapp_business_profile/about)
     }
 
     try:
-        # إرسال البيانات النصية
         resp_text = requests.post(url_text, headers=headers_auth, json=payload_text, timeout=10)
-        
         if resp_text.status_code != 200:
             return False, f"Text Sync Failed: {resp_text.text}"
-
     except Exception as e:
         return False, f"Text Sync Error: {str(e)}"
 
-    # ==========================================
-    # 2. تحديث صورة البروفايل (Profile Picture)
-    # ==========================================
+    # =========================================================
+    # 2. تحديث صورة البروفايل (الطريقة الصحيحة والمعقدة للـ Cloud API)
+    # =========================================================
     if channel.profile_image:
-        url_photo = f"{base_url}/{channel.phone_number_id}/photo"
-        
         try:
-            # يجب فتح الملف كـ Binary (rb)
-            # channel.profile_image.path يعطيك المسار الكامل للملف على السيرفر
-            file_path = channel.profile_image.path
+            # أ) فتح الصورة وقراءة بياناتها وحجمها
+            img_file = channel.profile_image.open('rb')
+            file_content = img_file.read()
+            file_size = len(file_content)
+            mime_type, _ = mimetypes.guess_type(channel.profile_image.name)
+            mime_type = mime_type or 'image/jpeg'
+            img_file.close()
+
+            # ب) جلب App ID (ضروري لإنشاء جلسة الرفع)
+            debug_token_url = f"{base_url}/debug_token?input_token={channel.access_token}"
+            app_id_resp = requests.get(debug_token_url, headers=headers_auth)
+            if app_id_resp.status_code != 200:
+                return False, "Failed to fetch App ID from Meta"
             
-            if os.path.exists(file_path):
-                # تحديد نوع الملف تلقائياً (jpeg/png)
-                mime_type, _ = mimetypes.guess_type(file_path)
-                
-                with open(file_path, 'rb') as img_file:
-                    files = {
-                        'file': (os.path.basename(file_path), img_file, mime_type or 'image/jpeg')
-                    }
-                    
-                    # ملاحظة هامة: لا نضع Content-Type يدوياً هنا، requests ستضعه تلقائياً كـ multipart/form-data
-                    resp_photo = requests.post(url_photo, headers=headers_auth, files=files, timeout=20)
-                    
-                    if resp_photo.status_code != 200:
-                        return False, f"Photo Sync Failed: {resp_photo.text}"
-            else:
-                return False, "Image file not found on server"
+            app_id = app_id_resp.json().get('data', {}).get('app_id')
+            if not app_id:
+                return False, "App ID not found in token"
+
+            # ج) إنشاء جلسة رفع (Create Upload Session)
+            # نقطة النهاية: /<APP_ID>/uploads
+            session_url = f"{base_url}/{app_id}/uploads"
+            session_params = {
+                "file_length": file_size,
+                "file_type": mime_type,
+                "access_token": channel.access_token 
+            }
+            
+            session_resp = requests.post(session_url, params=session_params)
+            if session_resp.status_code != 200:
+                return False, f"Failed to create upload session: {session_resp.text}"
+            
+            upload_session_id = session_resp.json().get('id')
+
+            # د) رفع الصورة فعلياً إلى الجلسة للحصول على الـ Handle
+            # نقطة النهاية: https://graph.facebook.com/v18.0/<UPLOAD_SESSION_ID>
+            upload_url = f"{base_url}/{upload_session_id}"
+            headers_upload = {
+                "Authorization": f"OAuth {channel.access_token}",
+                "file_offset": "0"
+            }
+            
+            # نرفع البيانات الثنائية (Binary) مباشرة
+            upload_resp = requests.post(upload_url, headers=headers_upload, data=file_content)
+            
+            if upload_resp.status_code != 200:
+                return False, f"Binary Upload Failed: {upload_resp.text}"
+            
+            # الرد يحتوي على 'h' وهو الـ Handle المطلوب
+            image_handle = upload_resp.json().get('h')
+
+            # هـ) الخطوة الأخيرة: ربط الـ Handle بالبروفايل
+            profile_pic_url = f"{base_url}/{channel.phone_number_id}/whatsapp_business_profile"
+            profile_pic_payload = {
+                "messaging_product": "whatsapp",
+                "profile_picture_handle": image_handle
+            }
+            
+            final_resp = requests.post(profile_pic_url, headers=headers_auth, json=profile_pic_payload)
+            
+            if final_resp.status_code != 200:
+                return False, f"Final Profile Picture Update Failed: {final_resp.text}"
 
         except Exception as e:
             return False, f"Photo Sync Error: {str(e)}"
@@ -290,6 +322,57 @@ def confirm_delete_channel(request):
 
 
 
+
+import requests
+from django.core.files.base import ContentFile
+
+def fetch_and_update_meta_profile(channel):
+    """
+    جلب بيانات البروفايل من Meta وتحديث القناة محلياً
+    """
+    if not channel.phone_number_id or not channel.access_token:
+        return # لا يمكن العمل بدون توكن
+
+    url = f"https://graph.facebook.com/v18.0/{channel.phone_number_id}/whatsapp_business_profile"
+    params = {
+        'fields': 'about,address,description,email,profile_picture_url,websites,vertical'
+    }
+    headers = {"Authorization": f"Bearer {channel.access_token}"}
+
+    try:
+        response = requests.get(url, headers=headers, params=params, timeout=5)
+        
+        if response.status_code == 200:
+            data = response.json().get('data', [])
+            if not data: return
+            
+            profile = data[0]
+            
+            # تحديث البيانات المحلية
+            channel.business_description = profile.get('description', '')
+            channel.business_address = profile.get('address', '')
+            channel.business_email = profile.get('email', '')
+            channel.business_about = profile.get('about', '') # ملاحظة: about أحيانا تحتاج endpoint منفصل لكن غالباً تأتي هنا
+            
+            websites = profile.get('websites', [])
+            if websites:
+                channel.business_website = websites[0] # نأخذ أول رابط
+            
+            # تحديث الصورة (اختياري لأنه قد يستهلك وقتاً في التحميل)
+            # meta_pic_url = profile.get('profile_picture_url')
+            # if meta_pic_url:
+            #     # هنا يمكنك كتابة كود لتحميل الصورة وحفظها إذا أردت
+            #     pass
+
+            channel.save()
+            return True
+            
+    except Exception as e:
+        print(f"Error syncing from Meta: {e}")
+        return False
+
+
+
 @login_required
 @require_POST
 def get_channel_settings(request):
@@ -301,44 +384,45 @@ def get_channel_settings(request):
     try:
         user = request.user
         
-        # 1. التحقق من الصلاحية وجلب القناة
+        # 1. جلب القناة
         if user.is_superuser or getattr(user, 'is_team_admin', False):
-            # الأدمن يرى القنوات التي يملكها
             channel = WhatsAppChannel.objects.get(id=channel_id)
-            # تحقق إضافي للأمان إن أردت: if channel.owner != user and not user.is_superuser: raise ...
         else:
-            # الموظف العادي يرى القنوات المعين فيها (رغم أنه غالباً لن يدخل هنا)
             channel = WhatsAppChannel.objects.get(id=channel_id, assigned_agents=user)
 
+        # ============================================================
+        # 🔥 الجديد: محاولة المزامنة مع Meta قبل عرض البيانات 🔥
+        # ============================================================
+        # نقوم بذلك فقط إذا كان هناك توكن صالح، ولا نوقف الكود لو فشل (try/except داخلي)
+        if channel.access_token:
+            fetch_and_update_meta_profile(channel)
+            # نعيد تحميل الكائن من الداتابيز لضمان أننا نملك أحدث القيم المحفوظة
+            channel.refresh_from_db()
+
         # 2. معالجة رابط الصورة
-        # نتأكد أن هناك صورة، وإلا نرسل رابطاً افتراضياً أو نصاً فارغاً
         img_url = channel.profile_image.url if channel.profile_image else '/static/img/default-wa.png'
 
-        # 3. تجهيز البيانات
+        # 3. تجهيز البيانات (الآن هي محدثة من ميتا)
         data = {
             'channel_name': channel.name,
             'phone_number': channel.phone_number,
             'status': channel.is_active,
             
-            # بيانات البروفايل
             'b_descr': channel.business_description or '',
             'b_address': channel.business_address or '',
             'b_email': channel.business_email or '',
             'b_website': channel.business_website or '',
-            'b_about': channel.business_about or '',
+            'b_about': channel.business_about or '', # تأكدنا من تحديثها
             
-            # بيانات الأتمتة
-            'b_welcom_enable': channel.enable_welcome_msg, # True/False
+            'b_welcom_enable': channel.enable_welcome_msg,
             'b_welcom_body': channel.welcome_msg_body or '',
             
-            # رابط الصورة
             'b_img': img_url
         }
            
         return JsonResponse({'status': 'success', 'data': data})
 
     except WhatsAppChannel.DoesNotExist:
-        return JsonResponse({'status': 'error', 'message': 'Channel not found or access denied'}, status=404)
+        return JsonResponse({'status': 'error', 'message': 'Not found'}, status=404)
     except Exception as e:
-        print(f"Error fetching settings: {e}")
         return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
