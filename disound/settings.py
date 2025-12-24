@@ -265,8 +265,9 @@ EMAIL_USE_SSL = True                    # تفعيل التشفير
 EMAIL_USE_TLS = False                   # (مع البورت 465 نستخدم SSL وليس TLS)
 
 # بيانات الاعتماد (يفضل وضعها في ملف .env)
-EMAIL_HOST_USER = 'support@waselytics.com' 
-EMAIL_HOST_PASSWORD = 'H]QOs5N0rP+' # كلمة مرور الإيميل التي أنشأتها
+ 
+EMAIL_HOST_USER = os.environ.get('EMAIL_HOST_USER') 
+EMAIL_HOST_PASSWORD = os.environ.get('EMAIL_HOST_PASSWORD')
 
 # الإيميل الافتراضي الذي تخرج منه الرسائل
 DEFAULT_FROM_EMAIL = 'Waselytics Security <support@waselytics.com>'
