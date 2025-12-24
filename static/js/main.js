@@ -161,7 +161,7 @@ e.target.closest('.cls3741_sidecard').classList.remove('cls3741_sidecard_visible
 
     function renderTemplates(templates) {
         if (!templates || templates.length === 0) {
-            tbody.innerHTML = `<tr><td colspan="6" style="padding:40px;text-align:center;color:var(--text-muted);">لا توجد قوالب بعد</td></tr>`;
+            tbody.innerHTML = `<tr><td colspan="6" style="padding:40px;text-align:center;color:var(--text-muted);"> There are no templates</td></tr>`;
             return;
         }
 
@@ -291,7 +291,7 @@ e.target.closest('.cls3741_sidecard').classList.remove('cls3741_sidecard_visible
             previewText = previewText.replace(new RegExp(`\\{\\{${i}\\}\\}`, 'g'), val);
         }
 
-        if (waBody) waBody.innerHTML = previewText ? nl2br(escapeHtml(previewText)) : '<span style="color:#999;">المعاينة</span>';
+        if (waBody) waBody.innerHTML = previewText ? nl2br(escapeHtml(previewText)) : '<span style="color:#999;">preview</span>';
         if (bodyCount) bodyCount.textContent = value.length;
         
         syncVariablesWithBody();
@@ -385,7 +385,7 @@ e.target.closest('.cls3741_sidecard').classList.remove('cls3741_sidecard_visible
         buttons.forEach(btn => {
             const b = document.createElement('div');
             b.className = 'wa-btn';
-            b.textContent = btn.text || 'زر بلا نص';
+            b.textContent = btn.text || 'add text';
             b.style.cssText = "background:white;color:#00a884;text-align:center;padding:10px;margin-top:5px;border-radius:6px;font-weight:bold;box-shadow:0 1px 1px rgba(0,0,0,0.1);cursor:pointer;";
             waButtons.appendChild(b);
         });
@@ -395,15 +395,15 @@ e.target.closest('.cls3741_sidecard').classList.remove('cls3741_sidecard_visible
     async function submitTemplate(e) {
         if(e) e.preventDefault();
         
-        if(saveBtn) { saveBtn.disabled = true; saveBtn.textContent = 'جاري الحفظ...'; }
+        if(saveBtn) { saveBtn.disabled = true; saveBtn.textContent = 'Saving...'; }
         if(errorBox) { errorBox.style.display = 'none'; }
 
         const name = document.getElementById('template_name')?.value;
         const body = bodyText?.value;
 
         if (!name || !body) {
-            alert('يرجى إدخال الاسم ونص الرسالة');
-            if(saveBtn) { saveBtn.disabled = false; saveBtn.textContent = 'حفظ'; }
+            alert("Please enter a name and body.");
+            if(saveBtn) { saveBtn.disabled = false; saveBtn.textContent = 'Save'; }
             return;
         }
 
@@ -457,12 +457,12 @@ e.target.closest('.cls3741_sidecard').classList.remove('cls3741_sidecard_visible
                 window.loadTemplates();
             } else {
                 const err = await response.json();
-                throw new Error(err.error || 'فشل الحفظ');
+                throw new Error(err.error || 'Error saving template.');
             }
         } catch (error) {
             alert('خطأ: ' + error.message);
         } finally {
-            if(saveBtn) { saveBtn.disabled = false; saveBtn.textContent = 'حفظ'; }
+            if(saveBtn) { saveBtn.disabled = false; saveBtn.textContent = 'Save'; }
         }
     }
 
@@ -495,7 +495,7 @@ e.target.closest('.cls3741_sidecard').classList.remove('cls3741_sidecard_visible
             }
         } catch(e) {
             console.error(e);
-            alert("فشل تحميل بيانات القالب");
+            alert("Error fetching template data.");
         }
     };
 
@@ -520,7 +520,7 @@ e.target.closest('.cls3741_sidecard').classList.remove('cls3741_sidecard_visible
         if (footerEl) footerEl.addEventListener('input', () => { if(waFooter) waFooter.textContent = footerEl.value; });
 
         if (addButtonBtn) addButtonBtn.addEventListener('click', () => {
-            if (buttons.length >= MAX_BUTTONS) return alert('الحد الأقصى 3 أزرار');
+            if (buttons.length >= MAX_BUTTONS) return alert(`You can't add more than ${MAX_BUTTONS} buttons.`);
             const type = newButtonType ? newButtonType.value : 'QUICK_REPLY';
             buttons.push(createButtonObject(type));
             renderButtonsList();
@@ -546,9 +546,9 @@ e.target.closest('.cls3741_sidecard').classList.remove('cls3741_sidecard_visible
             try {
                 await fetch(`${API_URLS.syncTemplates}?channel_id=${window.currentChannelId}`);
                 window.loadTemplates();
-                alert('تم التحديث');
-            } catch(e) { alert('فشل التحديث'); }
-            finally { refreshBtn.disabled = false; refreshBtn.textContent = 'Sync'; }
+                alert('Templates synced successfully!');
+            } catch(e) { alert('Error syncing templates.'); console.error(e); }
+            finally { refreshBtn.disabled = false; refreshBtn.textContent = 'Sync Again '; }
         });
 
         // التحميل الأولي

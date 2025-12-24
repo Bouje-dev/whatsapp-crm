@@ -926,10 +926,10 @@ function filterContactsByStage(stageKey) {
 
     <div class="cls3741_chart_section">
         <div class="chart_header">
-            <h3>تحليل الرسائل (آخر 7 أيام)</h3>
+            <h3>Messages Analysis for last 7 days</h3>
             <div class="chart_legend">
-                <span class="legend_item"><span class="dot sent"></span> مرسلة</span>
-                <span class="legend_item"><span class="dot received"></span> مستلمة</span>
+                <span class="legend_item"><span class="dot sent"></span>Sent</span>
+                <span class="legend_item"><span class="dot received"></span> Received <span>
             </div>
         </div>
         <div class="chart_container">
@@ -4733,75 +4733,63 @@ $(document).ready(function() {
 
  <section class="cls3741_panel cls3741_panel_templates" style="display: none;     height: 100%;">
     <div style="display:flex;flex-direction:column;gap:12px;padding: 20px;">
-        <!-- action buttons (above table) -->
-        <div style="display: flex; direction: rtl; gap: 8px; align-items: center; justify-content: space-between; flex-wrap: wrap;">
+        <div style="display: flex; direction: ltr; gap: 8px; align-items: center; justify-content: space-between; flex-wrap: wrap;">
             <div style="display: flex; gap: 8px;">
-                <button id="templates_create_btn" class="cls3741_action_btn" style="padding:8px 16px; background-color: #10B981; color:white; border:none; border-radius:6px; cursor:pointer;">إنشاء قالب</button>
-                <button id="templates_refresh_btn" class="cls3741_send_btn" style="padding:8px 16px; background-color: transparent; border:1px solid #10B981; color:#10B981; border-radius:6px; cursor:pointer; width:auto;">مزامنة القوالب</button>
+                <button id="templates_create_btn" class="cls3741_action_btn" style="padding:8px 16px; background-color: #10B981; color:white; border:none; border-radius:6px; cursor:pointer;">Create Template</button>
+                <button id="templates_refresh_btn" class="cls3741_send_btn" style="padding:8px 16px; background-color: transparent; border:1px solid #10B981; color:#10B981; border-radius:6px; cursor:pointer; width:auto;">Sync Templates</button>
             </div>
             <div>
-                <div style="color:var(--muted);font-size:16px;font-weight:600">إدارة القوالب</div>
+                <div style="color:var(--muted);font-size:16px;font-weight:600"> Manage Templates </div>
             </div>
         </div>
-
-        <!-- create form (hidden by default, will appear in place of table) -->
+    
         <div id="template_create_section" style="display:none;background:var(--surface);padding:20px;border-radius:12px;border:1px solid var(--border);margin-bottom:20px;">
             <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;padding-bottom:12px;border-bottom:1px solid var(--border);">
-                <div style="font-weight:700;color:var(--text-primary);font-size:18px;">إنشاء قالب جديد</div>
+                <div style="font-weight:700;color:var(--text-primary);font-size:18px; width:100%;height:100%;">Create Template</div>
                 <div style="display:flex;gap:8px;">
-                    <button id="template_cancel_btn" class="cls3741_btn" style="padding:8px 16px;background:transparent;color:var(--text-muted);border:1px solid var(--border);border-radius:6px;cursor:pointer;">إلغاء</button>
-                    <button id="template_save_btn" class="cls3741_action_btn" style="padding:8px 16px;background:#10B981;color:white;border:none;border-radius:6px;cursor:pointer;">حفظ (مسودة)</button>
+                    <button id="template_cancel_btn" class="cls3741_btn" style="height:100%;width:100%;padding:8px 16px;background:transparent;color:var(--text-muted);border:1px solid var(--border);border-radius:6px;cursor:pointer;">Cancel</button>
+                    <button id="template_save_btn" class="cls3741_action_btn" style="padding:8px 16px;background:#10B981;color:white;border:none;border-radius:6px;cursor:pointer;">Save</button>
                 </div>
             </div>
- 
-            <!-- Template Form -->
-            <style>/* preview buttons */
-.wa-buttons { display:flex; flex-direction:column; gap:8px; }
-.wa-buttons .wa-btn { padding:8px 12px; border-radius:8px; border:1px solid #e2e8f0; background:#fff; font-size:13px; cursor:pointer; max-width:260px; text-align:center; }
-.wa-btn--primary { background:#eef2ff; border-color:#c7d2fe; color:#3730a3; }
-.buttons-list-item { display:flex; gap:8px; align-items:center; margin-bottom:8px; padding:8px; background:var(--surface-light); border-radius:8px; }
-.buttons-list-item input, .buttons-list-item select { padding:6px; border-radius:6px; border:1px solid #d1d5db; }
-.buttons-list-item .btn-remove { margin-left:auto; background:transparent; border:none; color:#ef4444; cursor:pointer; }
-
-
-
-
- 
-
- 
-.msg-status-icon.pending {
-    fill: #8696a0;
-    color: #8696a0;
-}
-
-.msg-status-icon.failed {
-    fill: #ef4444; /* أحمر للخطأ */
-    color: #ef4444;
-}
-
-
-
-.msg-status-icon {
-    width: 18px;        /* حجم مناسب للقراءة */
-    height: 18px;
-    display: inline-block;
-    vertical-align: middle;
-    margin-top: -3px;   /* ضبط المحاذاة */
-}
-
-/* الألوان كما اتفقنا سابقاً */
-.msg-status-icon.sent, 
-.msg-status-icon.delivered {
-    color: #8696a0; /* رمادي */
-    fill: currentColor;
-}
-
-.msg-status-icon.read {
-    color: #53bdeb; /* أزرق */
-    fill: currentColor;
-}
-
-
+    
+            <style>
+                /* preview buttons */
+                .wa-buttons { display:flex; flex-direction:column; gap:8px; }
+                .wa-buttons .wa-btn { padding:8px 12px; border-radius:8px; border:1px solid #e2e8f0; background:#fff; font-size:13px; cursor:pointer; max-width:260px; text-align:center; }
+                .wa-btn--primary { background:#eef2ff; border-color:#c7d2fe; color:#3730a3; }
+                .buttons-list-item { display:flex; gap:8px; align-items:center; margin-bottom:8px; padding:8px; background:var(--surface-light); border-radius:8px; }
+                .buttons-list-item input, .buttons-list-item select { padding:6px; border-radius:6px; border:1px solid #d1d5db; }
+                .buttons-list-item .btn-remove { margin-left:auto; background:transparent; border:none; color:#ef4444; cursor:pointer; }
+    
+                .msg-status-icon.pending {
+                    fill: #8696a0;
+                    color: #8696a0;
+                }
+    
+                .msg-status-icon.failed {
+                    fill: #ef4444; /* red for error */
+                    color: #ef4444;
+                }
+    
+                .msg-status-icon {
+                    width: 18px;        /* readable size */
+                    height: 18px;
+                    display: inline-block;
+                    vertical-align: middle;
+                    margin-top: -3px;   /* alignment adjustment */
+                }
+    
+                .msg-status-icon.sent, 
+                .msg-status-icon.delivered {
+                    color: #8696a0; /* gray */
+                    fill: currentColor;
+                }
+    
+                .msg-status-icon.read {
+                    color: #53bdeb; /* blue */
+                    fill: currentColor;
+                }
+    
                 .template-container {
                     width: 100%;
                     margin: 0 auto;
@@ -4984,7 +4972,7 @@ $(document).ready(function() {
                     text-align: right;
                     margin-top: 4px;
                 }
-
+    
                 @media (max-width: 1024px) {
                     .template-container {
                         grid-template-columns: 1fr;
@@ -4995,124 +4983,111 @@ $(document).ready(function() {
                     }
                 }
             </style>
-
+    
             <div class="template-container">
-             
                 <div class="form-panel">
                     <div class="form-field">
-                        <label class="form-label">اسم القالب</label>
-                        <input id="template_name" type="text" class="form-input" placeholder="أدخل اسم القالب">
+                        <label class="form-label">Template Name</label>
+                        <input id="template_name" type="text" class="form-input" placeholder="Enter Template Name">
                     </div>
-
+    
                     <div class="form-row">
                         <div class="form-col">
-                            <label class="form-label">الفئة</label>
+                            <label class="form-label">Category</label>
                             <select id="template_category_select" class="form-select">
-                                <option value="utility">خدمي</option>
-                                <option value="marketing">تسويقي</option>
-                                <option value="notification">إشعار</option>
-                                <option value="support">دعم</option>
+                                <option value="utility">Utility</option>
+                                <option value="marketing">Marketing</option>
                             </select>
                         </div>
                         <div class="form-col">
-                            <label class="form-label">اللغة</label>
+                            <label class="form-label">Language</label>
                             <select id="template_language" class="form-select">
-                                <option value="ar">العربية</option>
+                                <option value="ar">Arabic</option>
                                 <option value="en">English</option>
                                 <option value="fr">Français</option>
                             </select>
                         </div>
                     </div>
-
+    
                     <div class="form-field">
-                        <div class="section-title">الرأس <span class="small-muted">(اختياري)</span></div>
-                        <div class="small-muted">اختر نوع المحتوى للرأس</div>
+                        <div class="section-title">Header <span class="small-muted">(Optional)</span></div>
+                        <div class="small-muted">Select the header type</div>
                         
                         <div class="media-tabs">
-                            <button type="button" id="btn_text" class="media-tab active">نص</button>
-                            <button type="button" id="btn_image" class="media-tab">صورة</button>
-                            <button type="button" id="btn_video" class="media-tab">فيديو</button>
-                            <button type="button" id="btn_doc" class="media-tab">ملف</button>
+                            <button type="button" id="btn_text" class="media-tab active">Text</button>
+                            <button type="button" id="btn_image" class="media-tab">Image</button>
+                            <button type="button" id="btn_video" class="media-tab">Video</button>
+                            <button type="button" id="btn_doc" class="media-tab">File</button>
                         </div>
                         
                         <div id="input_area"></div>
-                        <div class="small-muted">عدد الأحرف: <span id="chars_count">0</span>/1098</div>
+                        <div class="small-muted">Characters count: <span id="chars_count">0</span>/1098</div>
                     </div>
-
+    
                     <div class="form-field">
-                        <div class="section-title">المحتوى <span class="small-muted">(مطلوب)</span></div>
-                        <div class="small-muted">أدخل نص الرسالة باللغة المحددة</div>
-                        <textarea id="body_text" class="form-textarea" placeholder="أدخل محتوى الرسالة هنا..."></textarea>
-                        <div class="small-muted">عدد الأحرف: <span id="body_count">0</span>/1098</div>
-                        <!-- Variables UI (will be auto-managed by script) -->
-<div id="body_vars" style="margin-top:8px;"></div>
-<!-- Global add variable button (script creates it automatically if not present) -->
-
+                        <div class="section-title">Message Body <span class="small-muted">(required)</span></div>
+                        <div class="small-muted">Enter the message body</div>
+                        <textarea id="body_text" class="form-textarea" placeholder="Enter message body..."></textarea>
+                        <div class="small-muted">Characters count: <span id="body_count">0</span>/1098</div>
+                        <div id="body_vars" style="margin-top:8px;"></div>
                     </div>
-                    <!-- Buttons section -->
-<div class="form-field">
-  <div class="section-title">الأزرار <span class="small-muted">(اختياري)</span></div>
-  <div class="small-muted">أضف حتى 3 أزرار. أنواع: Quick Reply, URL, Call, Copy Code, Custom</div>
-
-  <div style="display:flex;gap:8px;align-items:center;margin-top:8px;">
-    <select id="new_button_type" class="form-select" style="width:180px;">
-      <option value="quick_reply">رد سريع</option>
-      <option value="url">رابط موقع</option>
-      <option value="call">اتصال</option>
-      <option value="copy">نسخ كود</option>
-      <option value="custom">مخصص</option>
-    </select>
-    <button type="button" id="btn_add_button" class="upload-btn">أضف زر</button>
-  </div>
-
-  <div id="buttons_list" style="margin-top:12px;"></div>
-  <div class="small-muted" style="margin-top:6px;">أمثلة: زر رابط -> نص الزر + رابط ؛ زر اتصال -> رقم الهاتف</div>
-</div>
-
-
-
+    
                     <div class="form-field">
-                        <label class="form-label">التذييل <span class="small-muted">(اختياري)</span></label>
-                        <input id="template_footer" type="text" class="form-input" placeholder="نص التذييل">
-<!-- hidden id to know if we are editing -->
-<input type="hidden" id="editing_template_id" value="">
-
+                        <div class="section-title">Buttons <span class="small-muted">(Optional)</span></div>
+                        <div class="small-muted">Add up to 3 types of buttons: Quick Reply, URL, Call, Copy Code, Custom</div>
+    
+                        <div style="display:flex;gap:8px;align-items:center;margin-top:8px;">
+                            <select id="new_button_type" class="form-select" style="width:180px;">
+                                <option value="quick_reply">Quick reply</option>
+                                <option value="url">URL</option>
+                                <option value="call">Call</option>
+                                <option value="copy">Copy</option>
+                                <option value="custom">Custom</option>
+                            </select>
+                            <button type="button" id="btn_add_button" class="upload-btn">Add Button</button>
+                        </div>
+    
+                        <div id="buttons_list" style="margin-top:12px;"></div>
+                        <div class="small-muted" style="margin-top:6px;">Examples: URL Button -> Button Text + URL; Call Button -> Phone Number</div>
                     </div>
-
+    
+                    <div class="form-field">
+                        <label class="form-label">Footer <span class="small-muted">(Optional)</span></label>
+                        <input id="template_footer" type="text" class="form-input" placeholder="Footer text">
+                        <input type="hidden" id="editing_template_id" value="">
+                    </div>
+    
                     <div class="form-row">
                         <div class="form-col">
-                            <label class="form-label">الحالة</label>
+                            <label class="form-label">Status</label>
                             <select id="template_status" class="form-select">
-                                <option value="draft">مسودة</option>
-                                <option value="active">نشط</option>
-                                <option value="inactive">غير نشط</option>
+                                <option value="draft">Draft</option>
+                                <option value="active">Active</option>
+                                <option value="inactive">Inactive</option>
                             </select>
                         </div>
                         <div class="form-col">
-                            <label class="form-label">آخر تحديث</label>
+                            <label class="form-label">Last Updated</label>
                             <input id="template_updated" type="date" class="form-input">
                         </div>
                     </div>
-
+    
                     <input id="file_image" type="file" accept="image/*" style="display:none">
                     <input id="file_video" type="file" accept="video/*" style="display:none">
                     <input id="file_doc" type="file" accept=".pdf,.doc,.docx" style="display:none">
                 </div>
-
+    
                 <div class="preview-panel">
-                    <div style="margin-bottom:16px;font-weight:600;color:var(--text-primary);">معاينة الواتساب</div>
+                    <div style="margin-bottom:16px;font-weight:600;color:var(--text-primary);">WhatsApp Preview</div>
                     <div class="wa-preview">
                         <div class="wa-card">
                             <div class="wa-message">
                                 <div class="wa-bubble">
                                     <div id="wa_header" class="wa-header"></div>
-                                    <div id="wa_body" class="wa-body">لا توجد معاينة بعد.</div>
+                                    <div id="wa_body" class="wa-body">No preview available yet.</div>
                                     <div id="wa_footer_area" class="wa-footer"></div>
-                                    <!-- داخل wa-bubble -->
-<div id="wa_buttons" class="wa-buttons" style="margin-top:8px;"></div>
-
-<!-- preview area for existing header file (when editing) -->
-<div id="existing_header_preview" style="margin-top:8px;display:none;"></div>
+                                    <div id="wa_buttons" class="wa-buttons" style="margin-top:8px;"></div>
+                                    <div id="existing_header_preview" style="margin-top:8px;display:none;"></div>
                                 </div>
                                 <div class="wa-avatar">BB</div>
                             </div>
@@ -5120,39 +5095,32 @@ $(document).ready(function() {
                         </div>
                     </div>
                 </div>
-                  <div id="formErrors" style="display:none;background:#fee;border:1px solid #f99;color:#900;padding:10px;margin-bottom:10px;border-radius:6px;"></div>
-
+                <div id="formErrors" style="display:none;background:#fee;border:1px solid #f99;color:#900;padding:10px;margin-bottom:10px;border-radius:6px;"></div>
             </div>
         </div>
-
-        <!-- templates table -->
+    
         <div id="templates_table_wrap" style="padding:16px;border-radius:12px;border:1px solid var(--border);overflow:auto ;background: linear-gradient(180deg, rgba(255, 255, 255, 0.01), rgba(255, 255, 255, 0.005));padding: 8px;border-radius: 10px;border: 1px solid rgba(255, 255, 255, 0.03);overflow: auto;">
-            <table id="templates_table" style="width:100%;border-collapse:collapse;min-width:600px;     border-color: #202020;border-style: solid;border-width: 0;">
+            <table id="templates_table" style="width:100%;border-collapse:collapse;min-width:600px; border-color: #202020;border-style: solid;border-width: 0;">
                 <thead>
-                    <tr style="text-align:right;border-bottom: 1px solid #202020;">
-                        <th style="padding:12px;font-weight:600;color:var(--text-primary);text-align:right;">الاسم</th>
-                        <th style="padding:12px;font-weight:600;color:var(--text-primary);text-align:right;">الفئة</th>
-                        <th style="padding:12px;font-weight:600;color:var(--text-primary);text-align:right;">المعاينة</th>
-                        <th style="padding:12px;font-weight:600;color:var(--text-primary);text-align:center;">الحالة</th>
-                        <th style="padding:12px;font-weight:600;color:var(--text-primary);text-align:right;">آخر تحديث</th>
-                        <th style="padding:12px;font-weight:600;color:var(--text-primary);text-align:center;">الإجراءات</th>
+                    <tr style="text-align:left;border-bottom: 1px solid #202020;">
+                        <th style="padding:12px;font-weight:600;color:var(--text-primary);text-align:left;">Name</th>
+                        <th style="padding:12px;font-weight:600;color:var(--text-primary);text-align:left;">Category</th>
+                        <th style="padding:12px;font-weight:600;color:var(--text-primary);text-align:left;">Preview</th>
+                        <th style="padding:12px;font-weight:600;color:var(--text-primary);text-align:center;">Status</th>
+                        <th style="padding:12px;font-weight:600;color:var(--text-primary);text-align:left;">Last Updated</th>
+                        <th style="padding:12px;font-weight:600;color:var(--text-primary);text-align:center;">Actions</th>
                     </tr>
                 </thead>
-                <tbody id="templates_tbody" style="border-color: inherit;
-                border-style: solid;
-                border-width: 0;
-            ">
+                <tbody id="templates_tbody" style="border-color: inherit; border-style: solid; border-width: 0;">
                     <tr>
                         <td colspan="6" style="padding:40px;color:var(--text-muted);text-align:center;font-style:italic;">
-                            لا توجد قوالب بعد — اضغط "إنشاء قالب" لإضافة واحد
+                            No templates found — Click "Create Template" to add one
                         </td>
                     </tr>
                 </tbody>
             </table>
         </div>
     </div>
- 
-    
  
 
 </section>
