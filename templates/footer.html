@@ -1,9 +1,12 @@
+{% load static %}
 <footer>
     <div class="container">
       <div class="footer-grid">
         <div class="footer-col-brand">
-          <div class="logo" style="margin-bottom:15px;">
-            <div style="width:24px;height:24px;background:var(--primary);border-radius:4px;"></div>
+          <div class="logo">
+            <div style="border-radius: 4px;
+    display: flex; align-items: center; justify-content: center; width: 40px; height: 40px;"><img src="{% static 'img/logo.png' %}" alt="Logo" width="40" height="40" style="border-radius: 50%;">
+            </div>
             Waselytics
           </div>
           <p style="margin-bottom:20px;">

@@ -9,7 +9,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
-
+  <link rel ="logo" href="{% static 'img/logo.png' %}">
    <style>
     /* ---------- 1. DESIGN SYSTEM & VARIABLES ---------- */
     :root {
@@ -263,7 +263,9 @@
   <header>
     <div class="container nav-inner">
       <div class="logo">
-        <div style="width:24px;height:24px;background:var(--primary);border-radius:4px;"></div>
+        <div style="border-radius: 4px;
+display: flex; align-items: center; justify-content: center; width: 40px; height: 40px;"><img src="{% static 'img/logo.png' %}" alt="Logo" width="40" height="40" style="border-radius: 50%;">
+        </div>
         Waselytics
       </div>
       <nav class="nav-menu">
