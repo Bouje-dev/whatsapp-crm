@@ -278,18 +278,3 @@ SERVER_EMAIL = 'support@waselytics.com'
 
 
 
-
-if DEBUG:
-    CACHES = {
-        'default': {
-            'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
-        }
-    }
-else:
-    # في الإنتاج نستخدم Redis
-    CACHES = {
-        'default': {
-            'BACKEND': 'django.core.cache.backends.redis.RedisCache',
-            'LOCATION': os.environ.get('REDIS_URL', 'redis://127.0.0.1:6379'),
-        }
-    }
