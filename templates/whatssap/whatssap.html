@@ -6093,8 +6093,15 @@ document.addEventListener("DOMContentLoaded", function() {
       return spinner;
     }
 
-    function createLoadingMessage() {
+    function createLoadingMessage( value = 'Loading...') {
       const container = document.createElement('div');
+      if(value === 'off')
+      {
+        container.innerHTML = ''
+      }
+      else{
+
+      
       container.style.cssText = `
         display: flex;
         flex-direction: column;
@@ -6106,9 +6113,9 @@ document.addEventListener("DOMContentLoaded", function() {
       
       container.innerHTML = `
         ${createLoadingSpinner().outerHTML}
-        <div style="margin-top: 16px; font-size: 14px;">Loading...</div>
+        <div style="margin-top: 16px; font-size: 14px;">${value}</div>
       `;
-      
+    }
       return container;
     }
 
@@ -6920,9 +6927,10 @@ function formatTime(seconds) {
         });
 
 
-          if (res){
-            createLoadingMessage().remove()
-          }
+           
+            messagesArea.innerHTML = '';   
+           
+          
         
         if(!res.ok) return;
         
