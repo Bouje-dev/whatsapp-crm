@@ -288,6 +288,8 @@ def trigger_delete_otp(request):
     except Exception as e:
         return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
 
+
+
 # 2. دالة تأكيد الحذف
 @login_required
 @require_POST

@@ -15,7 +15,7 @@ load_dotenv(os.path.join(BASE_DIR, '.env'))
 SECRET_KEY = 'django-insecure-8*lzwv5+jl80b65ev5=atx-bn2&-bf^jk7)y&886_xbf2)m_%('
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = False
 
 # ALLOWED_HOSTS = []
 CSRF_TRUSTED_ORIGINS = [
@@ -271,3 +271,25 @@ EMAIL_HOST_PASSWORD = 'H]QOs5N0rP+' # كلمة مرور الإيميل التي 
 # الإيميل الافتراضي الذي تخرج منه الرسائل
 DEFAULT_FROM_EMAIL = 'Waselytics Security <support@waselytics.com>'
 SERVER_EMAIL = 'support@waselytics.com'
+
+
+
+
+
+
+
+
+if DEBUG:
+    CACHES = {
+        'default': {
+            'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
+        }
+    }
+else:
+    # في الإنتاج نستخدم Redis
+    CACHES = {
+        'default': {
+            'BACKEND': 'django.core.cache.backends.redis.RedisCache',
+            'LOCATION': os.environ.get('REDIS_URL', 'redis://127.0.0.1:6379'),
+        }
+    }
