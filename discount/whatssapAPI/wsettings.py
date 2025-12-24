@@ -130,58 +130,76 @@ def update_channel_settings(request):
 # ---------------------------------------------------
 # Helper Function: Meta Sync
 # ---------------------------------------------------
+import requests
+import mimetypes
+import os
+
 def sync_profile_with_meta(channel):
     """
-    ترسل طلب POST إلى واتساب لتحديث بيانات النشاط التجاري
-    Returns: (True/False, ErrorMessage)
+    تحديث بيانات النشاط التجاري + صورة البروفايل على واتساب
     """
     if not channel.phone_number_id or not channel.access_token:
         return False, "Missing Phone Number ID or Access Token"
 
-    # رابط الـ API
-    # ملاحظة: تأكد من استخدام النسخة المتوافقة مع تطبيقك (v17.0, v18.0...)
-    url = f"https://graph.facebook.com/v18.0/{channel.phone_number_id}/whatsapp_business_profile"
-    
-    headers = {
-        "Authorization": f"Bearer {channel.access_token}",
-        "Content-Type": "application/json"
-    }
+    base_url = "https://graph.facebook.com/v18.0"
+    headers_auth = {"Authorization": f"Bearer {channel.access_token}"}
 
-    # تجهيز البيانات حسب وثائق Meta
-    payload = {
+    # ==========================================
+    # 1. تحديث البيانات النصية (Description, Address...)
+    # ==========================================
+    url_text = f"{base_url}/{channel.phone_number_id}/whatsapp_business_profile"
+    
+    payload_text = {
         "messaging_product": "whatsapp",
         "description": channel.business_description,
         "address": channel.business_address,
         "email": channel.business_email,
-        # ملاحظة: واتساب يتوقع websites كمصفوفة، ويقبل 2 كحد أقصى عادة
         "websites": [channel.business_website] if channel.business_website else [],
-        # "about": channel.business_about,
-        # "profile_image": channel.profile_image.url if channel.profile_image else None
-        
-        # إذا أردت تحديث الحالة "About" فهو endpoint مختلف، 
-        # هذا الـ endpoint خاص بـ Business Profile فقط (الوصف والعنوان)
+        # ملاحظة: "about" (الحالة) لها endpoint مختلف (whatsapp_business_profile/about)
     }
 
     try:
-        response = requests.post(url, headers=headers, json=payload, timeout=10)
+        # إرسال البيانات النصية
+        resp_text = requests.post(url_text, headers=headers_auth, json=payload_text, timeout=10)
         
-        if response.status_code == 200:
-            return True, None
-        else:
-            # محاولة قراءة الخطأ من رد فيسبوك
-            error_data = response.json().get('error', {})
-            error_msg = error_data.get('message', 'Unknown Meta Error')
-            print(f"⚠️ Meta Sync Failed: {error_msg}")
-            return False, error_msg
+        if resp_text.status_code != 200:
+            return False, f"Text Sync Failed: {resp_text.text}"
 
-    except requests.exceptions.Timeout:
-        return False, "Connection timed out connecting to WhatsApp"
-    except requests.exceptions.ConnectionError:
-        return False, "No internet connection or DNS error"
     except Exception as e:
-        return False, str(e)
+        return False, f"Text Sync Error: {str(e)}"
 
+    # ==========================================
+    # 2. تحديث صورة البروفايل (Profile Picture)
+    # ==========================================
+    if channel.profile_image:
+        url_photo = f"{base_url}/{channel.phone_number_id}/photo"
+        
+        try:
+            # يجب فتح الملف كـ Binary (rb)
+            # channel.profile_image.path يعطيك المسار الكامل للملف على السيرفر
+            file_path = channel.profile_image.path
+            
+            if os.path.exists(file_path):
+                # تحديد نوع الملف تلقائياً (jpeg/png)
+                mime_type, _ = mimetypes.guess_type(file_path)
+                
+                with open(file_path, 'rb') as img_file:
+                    files = {
+                        'file': (os.path.basename(file_path), img_file, mime_type or 'image/jpeg')
+                    }
+                    
+                    # ملاحظة هامة: لا نضع Content-Type يدوياً هنا، requests ستضعه تلقائياً كـ multipart/form-data
+                    resp_photo = requests.post(url_photo, headers=headers_auth, files=files, timeout=20)
+                    
+                    if resp_photo.status_code != 200:
+                        return False, f"Photo Sync Failed: {resp_photo.text}"
+            else:
+                return False, "Image file not found on server"
 
+        except Exception as e:
+            return False, f"Photo Sync Error: {str(e)}"
+
+    return True, None
 
 
 

@@ -469,11 +469,11 @@
 };
 
 $('#btn_open_settings').on('click', function() {
-    loadSetting();
+  loadSetting(window.currentChannelId);
 });
 
 
-    window.loadSetting = loadSetting(currentChannelId);
+// window.loadSetting = loadSetting(window.currentChannelId);
 
     $(document).ready(function() {
   
