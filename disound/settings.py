@@ -168,22 +168,7 @@ FILE_UPLOAD_MAX_MEMORY_SIZE = 104857600  # 100 MB
 
  
  
-
-
-
-# EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
-# EMAIL_HOST = os.environ.get('EMAIL_HOST', 'smtp-relay.brevo.com')
-# EMAIL_PORT = int(os.environ.get('EMAIL_PORT', 587))
-# EMAIL_USE_TLS = os.environ.get('EMAIL_USE_TLS', 'True') == 'True'
-# EMAIL_USE_SSL = os.environ.get('EMAIL_USE_SSL', 'False') == 'True'
-
-# EMAIL_HOST_USER = os.environ.get('EMAIL_HOST_USER')
-# EMAIL_HOST_PASSWORD = os.environ.get('EMAIL_HOST_PASSWORD')
-# DEFAULT_FROM_EMAIL = os.environ.get('DEFAULT_FROM_EMAIL')
-
  
- 
-
  
  
 ALLOWED_HOSTS = ['*']
@@ -284,3 +269,49 @@ else:
             'LOCATION': os.environ.get('REDIS_URL', 'redis://127.0.0.1:6379'),
         }
     }
+
+
+
+
+# ==========================================
+#  STATIC & MEDIA FILES SETTINGS (CLEANED)
+# ==========================================
+
+# 1. إعدادات الروابط (يجب أن تبدأ بـ / دائماً)
+STATIC_URL = '/static/'  # ✅ تم التصحيح: أضيفت الشرطة المائلة في البداية
+STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
+STATICFILES_DIRS = [os.path.join(BASE_DIR, 'static')]
+
+# 2. إعدادات S3 (للميديا فقط - الصور والفيديوهات)
+AWS_ACCESS_KEY_ID = os.environ.get('AWS_ACCESS_KEY_ID')
+AWS_SECRET_ACCESS_KEY = os.environ.get('AWS_SECRET_ACCESS_KEY')
+AWS_STORAGE_BUCKET_NAME = os.environ.get('AWS_STORAGE_BUCKET_NAME')
+AWS_S3_REGION_NAME = 'eu-north-1' # تأكد أن المنطقة صحيحة
+AWS_S3_FILE_OVERWRITE = False
+AWS_DEFAULT_ACL = 'public-read'
+AWS_S3_VERIFY = True
+AWS_QUERYSTRING_AUTH = False
+
+# 3. نظام التخزين الجديد (Django 4.2+)
+STORAGES = {
+    "default": {
+        # تخزين الميديا (الصور) على S3
+        "BACKEND": "storages.backends.s3boto3.S3Boto3Storage",
+    },
+    "staticfiles": {
+        # تخزين ملفات CSS/JS محلياً مع ضغط WhiteNoise (بدون Manifest لتجنب الأخطاء)
+        "BACKEND": "whitenoise.storage.CompressedStaticFilesStorage",
+    },
+}
+
+# 4. متغير التوافق (هام جداً لمنع أخطاء المكتبات الخارجية)
+# نضعه كنص عادي لكي تجده أي مكتبة تبحث عنه بالطريقة القديمة
+STATICFILES_STORAGE = 'whitenoise.storage.CompressedStaticFilesStorage'
+
+# 5. رابط الميديا النهائي
+if AWS_STORAGE_BUCKET_NAME:
+    MEDIA_URL = f'https://{AWS_STORAGE_BUCKET_NAME}.s3.amazonaws.com/'
+    MEDIA_ROOT = os.path.join(BASE_DIR, 'media') # احتياطي
+else:
+    MEDIA_URL = '/media/'
+    MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
