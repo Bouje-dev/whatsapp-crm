@@ -45,13 +45,7 @@ INSTALLED_APPS = [
 
 ]
 
-  
-# if 'cloudinary_storage' not in INSTALLED_APPS:
-#     INSTALLED_APPS.insert(0, 'cloudinary_storage')
-# if 'cloudinary' not in INSTALLED_APPS:
-#     INSTALLED_APPS.append('cloudinary')
-
-
+ 
 MIDDLEWARE = [
         'corsheaders.middleware.CorsMiddleware',
     'django.middleware.security.SecurityMiddleware',
@@ -161,7 +155,8 @@ STATICFILES_DIRS = [os.path.join(BASE_DIR, 'static')]
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 STATICFILES_STORAGE = 'whitenoise.storage.CompressedStaticFilesStorage'
- 
+
+STATICFILES_STORAGE = 'whitenoise.storage.CompressedStaticFilesStorage'
 EMAIL_PORT = 587
 
  
@@ -244,17 +239,7 @@ AUTH_USER_MODEL = 'discount.CustomUser'
 
 KEY = 'k76TMkpykna7wyWyNS4KYdZC-NK_XfoXvWMPLacwVAY='
 
-
-
-NAQEL_ENDPOINT = "https://infotrack.naqelexpress.com/NaqelAPIServices/NaqelAPIDemo/9.0/XMLShippingService.asmx"
-
-NAQEL_CLIENT_ID = "YOUR_CLIENT_ID"
-NAQEL_PASSWORD = "YOUR_PASSWORD"
-NAQEL_VERSION = "9.0"
-# https://app.waselytics.com/
-
-
-
+ 
 # settings.py
 
 # إعدادات البريد الإلكتروني عبر Hostinger SMTP
@@ -285,8 +270,6 @@ SERVER_EMAIL = 'support@waselytics.com'
 
 
 
-
-# مثال لإعدادات الكاش لتعمل في البيئتين
 if DEBUG:
     CACHES = {
         'default': {
