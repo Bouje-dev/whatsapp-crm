@@ -186,7 +186,7 @@ e.target.closest('.cls3741_sidecard').classList.remove('cls3741_sidecard_visible
                 </td>
                 <td style="padding:12px;text-align:center;">
                     <button class="cls3741_btn update-template-btn" onclick="window.editTemplate('${template.id}')" style="padding:6px 12px;border:1px solid var(--border-color);border-radius:6px;background:transparent;color:var(--text-primary);cursor:pointer;">
-                        تعديل
+                     Edite 
                     </button>
                 </td>
             </tr>
@@ -218,7 +218,7 @@ e.target.closest('.cls3741_sidecard').classList.remove('cls3741_sidecard_visible
         const textarea = document.createElement('textarea');
         textarea.className = 'form-textarea';
         textarea.rows = 4;
-        textarea.placeholder = 'اكتب نص العنوان هنا...';
+        textarea.placeholder = 'Write the title here...';
         textarea.addEventListener('input', function() {
             updateHeaderPreview();
         });
@@ -234,12 +234,12 @@ e.target.closest('.cls3741_sidecard').classList.remove('cls3741_sidecard_visible
         
         const label = document.createElement('div');
         label.className = 'small-muted';
-        label.textContent = type === 'image' ? 'اختر صورة' : (type === 'video' ? 'اختر فيديو' : 'اختر ملف');
+        label.textContent = type === 'image' ? 'Select Image' : (type === 'video' ? 'Select Video' : 'Select Documents ');
         
         const button = document.createElement('button');
         button.type = 'button';
         button.className = 'upload-btn';
-        button.textContent = 'رفع ملف';
+        button.textContent = 'Upload ';
         
         button.addEventListener('click', () => {
             if (type === 'image' && fileImage) fileImage.click();
@@ -254,7 +254,7 @@ e.target.closest('.cls3741_sidecard').classList.remove('cls3741_sidecard_visible
         const fileInput = type === 'image' ? fileImage : type === 'video' ? fileVideo : fileDoc;
         if (fileInput) {
             fileInput.onchange = function() {
-                label.textContent = this.files[0] ? this.files[0].name : 'لم يتم اختيار ملف';
+                label.textContent = this.files[0] ? this.files[0].name : 'No file selected';
                 updateHeaderPreview();
             };
         }
@@ -275,7 +275,7 @@ e.target.closest('.cls3741_sidecard').classList.remove('cls3741_sidecard_visible
                 waHeader.innerHTML = `<img src="${url}" style="max-width:100%;border-radius:8px;">`;
             } else waHeader.innerHTML = '';
         } else {
-            waHeader.innerHTML = `<div class="small-muted">ملف مرفق</div>`;
+            waHeader.innerHTML = `<div class="small-muted">File Preview</div>`;
         }
     }
 
@@ -297,49 +297,84 @@ e.target.closest('.cls3741_sidecard').classList.remove('cls3741_sidecard_visible
         syncVariablesWithBody();
     }
 
-    function syncVariablesWithBody() {
-        const text = bodyText ? bodyText.value : '';
-        // البحث عن {{1}} أو [[1]]
-        const re = /\[\[\s*(\d+)\s*\]\]|\{\{\s*(\d+)\s*\}\}/g;
-        const nums = new Set();
-        let m;
-        while ((m = re.exec(text)) !== null) {
-            nums.add(parseInt(m[1] || m[2], 10));
-        }
-        const found = Array.from(nums).sort((a,b)=>a-b);
+    // متغير خارجي لحفظ حالة المتغيرات السابقة
+let lastVarsJson = '';
 
-        if (found.length === 0) {
-            bodyVarsWrap.innerHTML = `<button type="button" id="insert_var_btn" class="upload-btn">إدراج متغير {{1}}</button>`;
-            document.getElementById('insert_var_btn')?.addEventListener('click', () => insertAtCursor(bodyText, '{{1}}'));
-            return;
-        }
+function syncVariablesWithBody() {
+    const text = bodyText ? bodyText.value : '';
+    
+    // البحث عن {{1}} أو [[1]]
+    const re = /\[\[\s*(\d+)\s*\]\]|\{\{\s*(\d+)\s*\}\}/g;
+    const nums = new Set();
+    let m;
+    while ((m = re.exec(text)) !== null) {
+        nums.add(parseInt(m[1] || m[2], 10));
+    }
+    
+    // ترتيب الأرقام
+    const found = Array.from(nums).sort((a, b) => a - b);
 
-        let html = '<div style="display:flex;flex-direction:column;gap:8px;">';
-        found.forEach(i => {
-            const val = bodySamples[String(i)] || '';
-            html += `
-                <div style="display:flex;gap:8px;align-items:center;">
-                    <label style="min-width:40px;">{{${i}}}</label>
-                    <input type="text" data-idx="${i}" class="body-sample-input" value="${escapeHtml(val)}" placeholder="مثال للمتغير ${i}" style="flex:1;padding:6px;border-radius:4px;border:1px solid var(--border-color);background:var(--bg-primary);color:var(--text-primary);">
-                </div>`;
-        });
-        html += `<button type="button" id="add_next_var" class="upload-btn" style="margin-top:5px;">متغير جديد {{${Math.max(...found)+1}}}</button></div>`;
-        
-        bodyVarsWrap.innerHTML = html;
+    // 🔥 الحل السحري هنا: التحقق هل تغيرت هيكلة المتغيرات أم لا؟
+    // نقارن المصفوفة الحالية بالمصفوفة السابقة
+    const currentVarsJson = JSON.stringify(found);
 
-        bodyVarsWrap.querySelectorAll('.body-sample-input').forEach(inp => {
-            inp.addEventListener('input', (e) => {
-                bodySamples[e.target.dataset.idx] = e.target.value;
-                updateBodyPreview(); // تحديث المعاينة فقط
-            });
-        });
-
-        document.getElementById('add_next_var')?.addEventListener('click', () => {
-            const next = Math.max(...found) + 1;
-            insertAtCursor(bodyText, `{{${next}}}`);
-        });
+    if (currentVarsJson === lastVarsJson) {
+        // إذا لم تتغير قائمة الأرقام (مثلاً 1, 2 ما زالت 1, 2)
+        // لا تفعل شيئاً واخرج فوراً لحماية التركيز (Focus)
+        return; 
     }
 
+    // تحديث الحالة السابقة بالجديدة
+    lastVarsJson = currentVarsJson;
+
+    // ---------------------------------------------------------
+    // بقية الكود يعمل فقط إذا تغيرت الأرقام (أضيف متغير جديد أو حذف)
+    // ---------------------------------------------------------
+
+    if (found.length === 0) {
+        bodyVarsWrap.innerHTML = `<button type="button" id="insert_var_btn" class="upload-btn">Add Variable {{1}}</button>`;
+        document.getElementById('insert_var_btn')?.addEventListener('click', () => insertAtCursor(bodyText, '{{1}}'));
+        return;
+    }
+
+    let html = '<div style="display:flex;flex-direction:column;gap:8px;">';
+    found.forEach(i => {
+        // نحاول الحفاظ على القيمة القديمة إذا كانت موجودة
+        const val = bodySamples[String(i)] || '';
+        html += `
+            <div style="display:flex;gap:8px;align-items:center;">
+                <label style="min-width:40px;">{{${i}}}</label>
+                <input type="text" data-idx="${i}" class="body-sample-input" value="${escapeHtml(val)}" placeholder="Variable Example ${i}" style="flex:1;padding:6px;border-radius:4px;border:1px solid var(--border-color);background:var(--bg-primary);color:var(--text-primary);">
+            </div>`;
+    });
+    
+    // زر إضافة المتغير التالي
+    const nextNum = (found.length > 0 ? Math.max(...found) : 0) + 1;
+    html += `<button type="button" id="add_next_var" class="upload-btn" style="margin-top:5px;">New Variable {{${nextNum}}}</button></div>`;
+    
+    // هنا فقط يتم تحديث HTML مما قد يضيع التركيز، لكن هذا يحدث فقط عند إضافة متغير جديد في النص الأصلي
+    bodyVarsWrap.innerHTML = html;
+
+    // إعادة ربط الأحداث
+    bodyVarsWrap.querySelectorAll('.body-sample-input').forEach(inp => {
+        inp.addEventListener('input', (e) => {
+            // تحديث الكائن bodySamples
+            bodySamples[e.target.dataset.idx] = e.target.value;
+            
+            // هام: تأكد أن updateBodyPreview لا تستدعي syncVariablesWithBody مرة أخرى!
+            if (typeof updateBodyPreview === 'function') {
+                updateBodyPreview(); 
+            }
+        });
+    });
+
+    document.getElementById('add_next_var')?.addEventListener('click', () => {
+        const next = Math.max(...found) + 1;
+        insertAtCursor(bodyText, `{{${next}}}`);
+        // ملاحظة: insertAtCursor ستغير النص، مما سيستدعي هذه الدالة مرة أخرى تلقائياً
+        // وسيتم تحديث الـ HTML لإظهار الحقل الجديد
+    });
+}
     function insertAtCursor(el, text) {
         if (!el) return;
         const start = el.selectionStart || 0;
