@@ -148,15 +148,15 @@ USE_TZ = True
  
  
 
-STATIC_URL = 'static/'
-STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
-STATICFILES_DIRS = [os.path.join(BASE_DIR, 'static')]
+# STATIC_URL = 'static/'
+# STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
+# STATICFILES_DIRS = [os.path.join(BASE_DIR, 'static')]
 
 
-DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
-STATICFILES_STORAGE = 'whitenoise.storage.CompressedStaticFilesStorage'
+# DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+# STATICFILES_STORAGE = 'whitenoise.storage.CompressedStaticFilesStorage'
 
-STATICFILES_STORAGE = 'whitenoise.storage.CompressedStaticFilesStorage'
+# STATICFILES_STORAGE = 'whitenoise.storage.CompressedStaticFilesStorage'
 EMAIL_PORT = 587
 
  
@@ -177,26 +177,26 @@ CSRF_TRUSTED_ORIGINS = ['https://*.up.railway.app', 'https://app.waselytics.com'
 
 
  # قراءة المفاتيح من Railway/Environment
-AWS_ACCESS_KEY_ID = os.environ.get('AWS_ACCESS_KEY_ID')
-AWS_SECRET_ACCESS_KEY = os.environ.get('AWS_SECRET_ACCESS_KEY')
-AWS_STORAGE_BUCKET_NAME = os.environ.get('AWS_STORAGE_BUCKET_NAME')
-AWS_S3_REGION_NAME = 'eu-north-1' # ⚠️ استبدلها بالمنطقة التي اخترتها في الخطوة 2
+# AWS_ACCESS_KEY_ID = os.environ.get('AWS_ACCESS_KEY_ID')
+# AWS_SECRET_ACCESS_KEY = os.environ.get('AWS_SECRET_ACCESS_KEY')
+# AWS_STORAGE_BUCKET_NAME = os.environ.get('AWS_STORAGE_BUCKET_NAME')
+# AWS_S3_REGION_NAME = 'eu-north-1' # ⚠️ استبدلها بالمنطقة التي اخترتها في الخطوة 2
 
-# إعدادات الملفات
-AWS_S3_FILE_OVERWRITE = False     # لا تحذف الملف القديم إذا رفعنا ملفاً بنفس الاسم
-AWS_DEFAULT_ACL = 'public-read'   # اجعل الملفات عامة ومقروءة للجميع
-AWS_S3_VERIFY = True
-AWS_QUERYSTRING_AUTH = False      # اجعل الرابط مباشراً ونظيفاً بدون توقيعات مؤقتة
+# # إعدادات الملفات
+# AWS_S3_FILE_OVERWRITE = False     # لا تحذف الملف القديم إذا رفعنا ملفاً بنفس الاسم
+# AWS_DEFAULT_ACL = 'public-read'   # اجعل الملفات عامة ومقروءة للجميع
+# AWS_S3_VERIFY = True
+# AWS_QUERYSTRING_AUTH = False      # اجعل الرابط مباشراً ونظيفاً بدون توقيعات مؤقتة
 
-# إخبار Django باستخدام S3 للميديا فقط
-STORAGES = {
-    "default": {
-        "BACKEND": "storages.backends.s3boto3.S3Boto3Storage",
-    },
-    "staticfiles": {
-        "BACKEND": "whitenoise.storage.CompressedStaticFilesStorage",
-    },
-}
+# # إخبار Django باستخدام S3 للميديا فقط
+# STORAGES = {
+#     "default": {
+#         "BACKEND": "storages.backends.s3boto3.S3Boto3Storage",
+#     },
+#     "staticfiles": {
+#         "BACKEND": "whitenoise.storage.CompressedStaticFilesStorage",
+#     },
+# }
 
 # الرابط الأساسي للميديا
 MEDIA_URL = f'https://{AWS_STORAGE_BUCKET_NAME}.s3.amazonaws.com/'
