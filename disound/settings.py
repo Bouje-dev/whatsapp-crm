@@ -199,7 +199,7 @@ CSRF_TRUSTED_ORIGINS = ['https://*.up.railway.app', 'https://app.waselytics.com'
 # }
 
 # الرابط الأساسي للميديا
-MEDIA_URL = f'https://{AWS_STORAGE_BUCKET_NAME}.s3.amazonaws.com/'
+# MEDIA_URL = f'https://{AWS_STORAGE_BUCKET_NAME}.s3.amazonaws.com/'
  
 SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 if not DEBUG:
