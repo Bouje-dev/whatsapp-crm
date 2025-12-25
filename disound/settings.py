@@ -46,10 +46,10 @@ INSTALLED_APPS = [
 ]
 
   
-if 'cloudinary_storage' not in INSTALLED_APPS:
-    INSTALLED_APPS.insert(0, 'cloudinary_storage')
-if 'cloudinary' not in INSTALLED_APPS:
-    INSTALLED_APPS.append('cloudinary')
+# if 'cloudinary_storage' not in INSTALLED_APPS:
+#     INSTALLED_APPS.insert(0, 'cloudinary_storage')
+# if 'cloudinary' not in INSTALLED_APPS:
+#     INSTALLED_APPS.append('cloudinary')
 
 
 MIDDLEWARE = [
@@ -160,7 +160,7 @@ STATICFILES_DIRS = [os.path.join(BASE_DIR, 'static')]
 
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
-
+STATICFILES_STORAGE = 'whitenoise.storage.CompressedStaticFilesStorage'
  
 EMAIL_PORT = 587
 
