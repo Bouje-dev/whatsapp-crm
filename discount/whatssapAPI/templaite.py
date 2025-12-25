@@ -233,7 +233,7 @@ def sync_pending_templates(request):
         return JsonResponse({'success': False, 'error': 'Channel not found or permission denied'}, status=403)
 
     # 3. إعداد الاتصال بـ Meta باستخدام بيانات القناة
-    API_VER = 'v18.0' # يفضل استخدام نسخة ثابتة
+    API_VER = channel.api_version
     access_token = channel.access_token 
     
     if not access_token:
@@ -246,7 +246,7 @@ def sync_pending_templates(request):
 
     # 4. جلب القوالب المعلقة *الخاصة بهذه القناة فقط*
     # ملاحظة: يجب أن يكون لديك حقل channel في مودل Template
-    pending_templates = Template.objects.filter(channel=channel, status__iexact='pending')
+    pending_templates = Template.objects.filter(channel=channel, status__in=['pending', 'approved', 'PENDING', 'APPROVED'])
 
     updated = []
     unchanged = []
@@ -259,37 +259,52 @@ def sync_pending_templates(request):
 
         try:
             # رابط API لفحص حالة القالب
+            # نطلب الحقول: الاسم، الفئة، والحالة
             url = f'https://graph.facebook.com/{API_VER}/{template.template_id}'
             params = {'fields': 'name,category,status'}
 
             resp = requests.get(url, headers=headers, params=params, timeout=20)
             data = resp.json() if resp.text else {}
             
-            # طباعة للـ Debugging
-            # print(f"Checking template {template.name}: {data.get('status')}")
-
             if not resp.ok:
                 print(f"❌ Error checking template {template.id}: {data}")
                 continue
 
-            # استخراج الحالة الجديدة
-            new_status = data.get('status') or data.get('approval_status')
+            # 1. استخراج القيم الجديدة من رد Meta
+            new_status = data.get('status')  # قد تكون APPROVED, REJECTED, PENDING
+            new_category = data.get('category') # قد تكون MARKETING, UTILITY, AUTHENTICATION
 
-            # لو لم تتغير الحالة أو لم تعد القيمة
-            if not new_status or new_status == template.status:
+            # 2. التحقق من وجود تغييرات
+            # نقارن القيمة الجديدة بالحالية (مع التأكد أن القيمة الجديدة ليست فارغة)
+            status_changed = new_status and new_status != template.status
+            category_changed = new_category and new_category != template.category
+
+            # لو لم يحدث أي تغيير في الاثنين
+            if not status_changed and not category_changed:
                 unchanged.append(template.id)
                 continue
 
-            # تحديث الحالة في قاعدة البيانات
-            old_status = template.status
-            template.status = new_status
-            template.save(update_fields=['status'])
+            # 3. تحديث الحقول التي تغيرت فقط
+            update_list = []
+            
+            if status_changed:
+                print(f"🔄 Status changed for {template.id}: {template.status} -> {new_status}")
+                template.status = new_status
+                update_list.append('status')
+
+            if category_changed:
+                print(f"⚠️ Category changed for {template.id}: {template.category} -> {new_category}")
+                template.category = new_category
+                update_list.append('category')
+
+            # 4. الحفظ في قاعدة البيانات
+            template.save(update_fields=update_list)
 
             updated.append({
                 'id': template.id,
                 'name': template.name,
-                'old': old_status,
-                'new': new_status
+                'status_update': f"{template.status}" if status_changed else "Unchanged",
+                'category_update': f"{template.category}" if category_changed else "Unchanged"
             })
 
         except Exception as e:
