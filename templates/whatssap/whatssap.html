@@ -619,7 +619,7 @@ function generateWhatsAppQR(phoneNumber) {
 // ---------------------------------------------------
  
 </script> 
-        {% if user.is_team_admin or user.is_superuser %}
+        
     <div class="cls3741_account_card">
         <div class="account_qr_section">
           <div id="qrcode_container" class="qr_img_wrapper" style="
@@ -663,11 +663,11 @@ function generateWhatsAppQR(phoneNumber) {
             </div>
         </div>
     </div>
-    {% else %}
+   
 
   {% include 'teams.html' %}
   <div style="padding-bottom: 24px;"></div>
-    {% endif %}
+
 
   
 
