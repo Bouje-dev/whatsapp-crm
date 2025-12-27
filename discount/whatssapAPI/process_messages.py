@@ -958,9 +958,10 @@ def whatsapp_webhook(request):
                             
                             contact, created = Contact.objects.get_or_create(
                             phone=phone,
+                            channel=active_channel,
                             defaults={
                                 'user': channel_owner,       
-                                'channel': active_channel,  
+                               
                                 'name': safe_name     
                             }
                         )

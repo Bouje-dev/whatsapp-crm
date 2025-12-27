@@ -2642,7 +2642,32 @@ def exchange_token_and_create_channel(request):
                 print(f"⚠️ Webhook Subscription Warning: {sub_resp.text}")
         except Exception as e:
             print(f"❌ Webhook Subscription Error: {str(e)}")
-        
+    
+        url = f"https://graph.facebook.com/v24.0/{phone_id}/register"
+
+        headers = {
+            "Authorization": f"Bearer {access_token}",
+            "Content-Type": "application/json"
+        }
+
+        payload = {
+            "messaging_product": "whatsapp",
+            "pin": "123456"  # هذا هو كود فك التشفير (6 أرقام)، يمكنك وضع أي رقم تريده الآن
+        }
+
+        try:
+            response = requests.post(url, headers=headers, json=payload)
+            print(f"Status: {response.status_code}")
+            print(response.json())
+            
+            if response.status_code == 200:
+                print("🎉 تم تسجيل الرقم بنجاح! جرب إرسال رسالة الآن.")
+            else:
+                print("❌ فشل التسجيل، انظر للخطأ أعلاه.")
+
+        except Exception as e:
+            print(f"Error: {e}")
+            
         channel.assigned_agents.add(request.user)
 
         return JsonResponse({
