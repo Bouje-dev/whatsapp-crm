@@ -5921,45 +5921,57 @@ window.fbAsyncInit = function() {
 
 window.launchWhatsAppSignup = function() {
     
-    // التحقق من اسم القناة
+    // 1. التحقق من تحميل Facebook SDK
+    if (typeof FB === 'undefined') {
+        alert("جاري تحميل Facebook SDK... يرجى الانتظار.");
+        return;
+    }
+
+    // 2. التحقق من اسم القناة (منطق خاص بتطبيقك)
     const nameInput = document.getElementById('new_ch_name');
     const name = nameInput ? nameInput.value : '';
     
     if(!name) { 
         alert("المرجو إدخال اسم للقناة أولاً"); 
+        if(nameInput) nameInput.focus();
         return; 
     }
 
-    console.log("🚀 جاري فتح نافذة Embedded Signup...");
+    console.log("🚀 جاري فتح نافذة Embedded Signup (Tech Provider Mode)...");
 
+    // 3. استدعاء Login بالطريقة الصحيحة (مطابقة لسكريبت ميتا)
     FB.login(function(response) {
-        console.log("📩 Facebook Response:", response); // لنرى ماذا يحدث
+        console.log("📩 Facebook Response:", response);
 
         if (response.authResponse) {
+            // ✅ هنا نحصل على code لأننا طلبنا response_type: 'code'
             const code = response.authResponse.code;
             console.log('✅ تم التسجيل بنجاح! Code:', code);
-            // إرسال الكود للسيرفر
+            
+            // إرسال الكود للباك إند لاستبداله بـ Token
             exchangeTokenForChannel(code, name);
         } else {
-            console.log('❌ فشل الاتصال أو ألغى المستخدم العملية.');
+            console.log('❌ ألغى المستخدم العملية أو حدث خطأ.');
         }
     }, {
-        // النطاقات المطلوبة
-        scope: 'whatsapp_business_management, whatsapp_business_messaging', 
+        // 👇👇 هنا التغيير الجوهري (مطابق للسكريبت الذي أرسلته) 👇👇
         
-        // ⚠️ الإعدادات لإجبار ظهور واجهة التسجيل (Screen 1)
+        config_id: '1193778845590037',       // 1. المعرف يوضع هنا مباشرة وليس داخل extras
+        response_type: 'code',               // 2. نطلب كود وليس توكن مباشر
+        override_default_response_type: true, // 3. نجبر النظام على استخدام الكود
+        
+        // الصلاحيات (اختياري إضافتها هنا للتأكيد، لكن config_id يحملها بداخله غالباً)
+        scope: 'whatsapp_business_management, whatsapp_business_messaging',
+        
         extras: {
-            feature: 'whatsapp_embedded_signup',
-            version: 2,  // جرب إعادتها لـ 2 أحياناً تكون أكثر استقراراً للواجهة القديمة
-            sessionInfo_version: 2,
-            setup: {
-                // هذا هو المعرف الخاص بك الذي استخرجناه سابقاً
-                config_id: '1193778845590037'
-            }
+            "sessionInfo_version": "2",  // أحياناً مفيدة
+            "feature": "whatsapp_embedded_signup"
         }
     });
 };
-// 3. إرسال التوكن للباك إند
+
+
+
 async function exchangeTokenForChannel(token, channelName) {
     try {
       const response = await fetch('/discount/whatssapAPI/api/channels/connect_meta/', {
