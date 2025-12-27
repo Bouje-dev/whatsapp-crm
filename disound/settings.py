@@ -315,3 +315,9 @@ if AWS_STORAGE_BUCKET_NAME:
 else:
     MEDIA_URL = '/media/'
     MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
+
+
+
+# settings.py
+# يسمح لنافذة فيسبوك بالتحدث مع نافذة موقعك
+SECURE_CROSS_ORIGIN_OPENER_POLICY = 'same-origin-allow-popups'
