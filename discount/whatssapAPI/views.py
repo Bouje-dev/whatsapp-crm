@@ -2571,79 +2571,52 @@ from django.views.decorators.http import require_POST
 
 @csrf_exempt
 @require_POST
+
+
+
 def exchange_token_and_create_channel(request):
     try:
         data = json.loads(request.body)
-        short_lived_token = data.get('access_token')
+        auth_code = data.get('code') # استلام الكود
         channel_name = data.get('name')
+        target_waba_id = data.get('waba_id') # استلام المعرف من الفرونت إند
+        phone_id = data.get('phone_number_id') # استلام المعرف من الفرونت إند
 
-        if not short_lived_token:
-            return JsonResponse({'success': False, 'error': 'No access token provided'}, status=400)
+        if not auth_code:
+            return JsonResponse({'success': False, 'error': 'No authorization code provided'}, status=400)
 
         # ---------------------------------------------------------
-        # الخطوة 1: استبدال التوكن بآخر طويل الأمد (Long-Lived Token)
+        # الخطوة 1: تبديل الكود بـ Access Token (مهم جداً التغيير هنا)
         # ---------------------------------------------------------
-        exchange_url = (
-            f"https://graph.facebook.com/{settings.META_API_VERSION}/oauth/access_token"
-            f"?grant_type=fb_exchange_token"
-            f"&client_id={settings.META_APP_ID}"
-            f"&client_secret={settings.META_APP_SECRET}"
-            f"&fb_exchange_token={short_lived_token}"
-        )
+        exchange_url = "https://graph.facebook.com/v24.0/oauth/access_token"
+        params = {
+            'client_id': settings.META_APP_ID,
+            'client_secret': settings.META_APP_SECRET,
+            'code': auth_code,
+            'redirect_uri': 'https://app.waselytics.com/' # يجب أن يطابق المسجل في ميتا
+        }
         
-        exchange_resp = requests.get(exchange_url).json()
+        exchange_resp = requests.get(exchange_url, params=params).json()
         
         if 'access_token' not in exchange_resp:
-            return JsonResponse({'success': False, 'error': 'Failed to exchange token', 'details': exchange_resp}, status=400)
+            return JsonResponse({'success': False, 'error': 'Failed to exchange code', 'details': exchange_resp}, status=400)
             
-        long_lived_token = exchange_resp['access_token']
+        access_token = exchange_resp['access_token']
 
         # ---------------------------------------------------------
-        # الخطوة 2: جلب معرفات WABA وأرقام الهواتف
+        # الخطوة 2: جلب رقم الهاتف الفعلي (للعرض فقط)
         # ---------------------------------------------------------
-        # نستعلم عن المستخدم لنعرف ما هي حسابات الأعمال المرتبطة به
-        debug_url = f"https://graph.facebook.com/{settings.META_API_VERSION}/me?fields=id,name,accounts&access_token={long_lived_token}"
-    
-        waba_req_url = f"https://graph.facebook.com/{settings.META_API_VERSION}/me/businesses?fields=id,name,owned_whatsapp_business_accounts&access_token={long_lived_token}"
-        waba_resp = requests.get(waba_req_url).json()
-        
-        target_waba_id = None
-        target_phone_obj = None
-
-        # بحث معقد قليلاً للعثور على أول حساب واتساب متاح
-        if 'data' in waba_resp:
-            for business in waba_resp['data']:
-                if 'owned_whatsapp_business_accounts' in business:
-                    for waba in business['owned_whatsapp_business_accounts']['data']:
-                        waba_id = waba['id']
-                        
-                        # ب) جلب أرقام الهواتف داخل هذا الـ WABA
-                        phones_url = f"https://graph.facebook.com/{settings.META_API_VERSION}/{waba_id}/phone_numbers?access_token={long_lived_token}"
-                        phones_resp = requests.get(phones_url).json()
-                        
-                        if 'data' in phones_resp and len(phones_resp['data']) > 0:
-                            target_phone_obj = phones_resp['data'][0] # نأخذ أول رقم
-                            target_waba_id = waba_id
-                            break
-                if target_phone_obj: break
-        
-        # إذا لم نجد بالطريقة أعلاه (لأن المستخدم قد لا يكون Owner بل Admin)، نجرب طريقة Granular Permissions
-        if not target_phone_obj:
-             return JsonResponse({'success': False, 'error': 'Could not find any WhatsApp Business Account linked to this user.'}, status=404)
-
-        phone_number = target_phone_obj.get('display_phone_number') or target_phone_obj.get('verified_name')
-        phone_id = target_phone_obj.get('id')
+        # بما أننا نملك phone_id، جلب الرقم سهل جداً الآن
+        phone_info_url = f"https://graph.facebook.com/v24.0/{phone_id}?access_token={access_token}"
+        phone_info = requests.get(phone_info_url).json()
+        phone_number = phone_info.get('display_phone_number', 'Unknown')
 
         # ---------------------------------------------------------
         # الخطوة 3: الاشتراك في الويب هوك (Subscribe App)
         # ---------------------------------------------------------
-        # هذا يربط WABA بتطبيقك لتصلك الإشعارات
-        subscribe_url = f"https://graph.facebook.com/{settings.META_API_VERSION}/{target_waba_id}/subscribed_apps"
-        sub_resp = requests.post(subscribe_url, data={'access_token': long_lived_token})
+        subscribe_url = f"https://graph.facebook.com/v24.0/{target_waba_id}/subscribed_apps"
+        requests.post(subscribe_url, data={'access_token': access_token})
         
-        if sub_resp.status_code != 200:
-             print(f"⚠️ Warning: Could not subscribe to webhook automatically: {sub_resp.json()}")
-
         # ---------------------------------------------------------
         # الخطوة 4: الحفظ في قاعدة البيانات
         # ---------------------------------------------------------
@@ -2653,10 +2626,9 @@ def exchange_token_and_create_channel(request):
             phone_number=phone_number,
             phone_number_id=phone_id,
             business_account_id=target_waba_id,
-            access_token=long_lived_token
+            access_token=access_token # هذا التوكن الآن جاهز للإرسال
         )
         
-        # منح الصلاحية للمنشئ
         channel.assigned_agents.add(request.user)
 
         return JsonResponse({
@@ -2666,11 +2638,7 @@ def exchange_token_and_create_channel(request):
         })
 
     except Exception as e:
-        import traceback
-        traceback.print_exc()
         return JsonResponse({'success': False, 'error': str(e)}, status=500)
-
-
 
 
 

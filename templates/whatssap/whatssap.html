@@ -5918,6 +5918,28 @@ window.fbAsyncInit = function() {
      fjs.parentNode.insertBefore(js, fjs);
 }(document, 'script', 'facebook-jssdk'));
 
+let metaWabaId = null;
+let metaPhoneId = null;
+
+// 2. "الصياد" - يستقبل البيانات من نافذة ميتا المنبثقة
+window.addEventListener('message', (event) => {
+    // التأكد من أن الرسالة قادمة من فيسبوك
+    if (event.origin !== "https://www.facebook.com" && event.origin !== "https://web.facebook.com") return;
+
+    try {
+        const data = JSON.parse(event.data);
+        if (data.type === 'WA_EMBEDDED_SIGNUP') {
+            if (data.event === 'FINISH') {
+                // ✅ هنا نحصل على المعرفات التي لم تجدها في الـ code
+                metaWabaId = data.data.waba_id;
+                metaPhoneId = data.data.phone_number_id;
+                console.log("✅ تم اصطياد المعرفات:", metaWabaId, metaPhoneId);
+            }
+        }
+    } catch (e) {
+        // تجاهل الرسائل غير النصية
+    }
+});
 
 window.launchWhatsAppSignup = function() {
     
@@ -5948,7 +5970,7 @@ window.launchWhatsAppSignup = function() {
             console.log('✅ تم التسجيل! Code:', code);
             
             // إرسال الكود للباك إند
-            exchangeTokenForChannel(code, name);
+            exchangeTokenForChannel(code, name, metaWabaId, metaPhoneId);
         } else {
             console.log('❌ ألغى المستخدم العملية.');
         }
@@ -5966,24 +5988,27 @@ window.launchWhatsAppSignup = function() {
     });
 };
 
-async function exchangeTokenForChannel(token, channelName) {
+// سنقوم بتعديل الدالة لاستقبال المعرفات أيضاً
+async function exchangeTokenForChannel(code, channelName, wabaId, phoneId) {
     try {
-      const response = await fetch('/discount/whatssapAPI/api/channels/connect_meta/', {
+        const response = await fetch('/discount/whatssapAPI/api/channels/connect_meta/', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'X-CSRFToken': getCsrfToken() // تأكد أن دالة التوكن متاحة
+                'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
             },
             body: JSON.stringify({ 
-                access_token: token,
-                name: channelName
+                code: code, // غيرنا الاسم من access_token إلى code ليكون أدق
+                name: channelName,
+                waba_id: wabaId,      // نرسل المعرف الذي حصلنا عليه من حدث FINISH
+                phone_number_id: phoneId // نرسل المعرف الذي حصلنا عليه من حدث FINISH
             })
         });
 
         const data = await response.json();
         
         if (data.success) {
-            alert(`تم إضافة القناة "${data.phone_number}" بنجاح! 🎉`);
+            alert(`تم إضافة القناة بنجاح! 🎉`);
             window.location.reload();
         } else {
             alert('فشل الربط: ' + data.error);
@@ -5993,7 +6018,6 @@ async function exchangeTokenForChannel(token, channelName) {
         alert('حدث خطأ في الاتصال بالسيرفر');
     }
 }
-
 
 </script>
 
