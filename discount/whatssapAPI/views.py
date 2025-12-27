@@ -2603,15 +2603,7 @@ def exchange_token_and_create_channel(request):
         # ---------------------------------------------------------
         # نستعلم عن المستخدم لنعرف ما هي حسابات الأعمال المرتبطة به
         debug_url = f"https://graph.facebook.com/{settings.META_API_VERSION}/me?fields=id,name,accounts&access_token={long_lived_token}"
-        
-        # ملاحظة: في Embedded Signup، الأفضل هو استخدام Endpoint خاص لجلب الأرقام المشتركة
-        # Endpoint: GET /<WABA_ID>/phone_numbers
-        # لكن بما أننا لا نعرف WABA_ID، سنستخدم حيلة "debug_token" أو "shared_waba"
-        
-        # الطريقة الأضمن في Embedded Signup هي استخراج WABA من "Granular Scopes" 
-        # لكن للتبسيط، سنجلب أرقام الواتساب المرتبطة بحساب المستخدم مباشرة
-        
-        # أ) جلب حسابات الواتساب (WABA) التي يملكها المستخدم
+    
         waba_req_url = f"https://graph.facebook.com/{settings.META_API_VERSION}/me/businesses?fields=id,name,owned_whatsapp_business_accounts&access_token={long_lived_token}"
         waba_resp = requests.get(waba_req_url).json()
         

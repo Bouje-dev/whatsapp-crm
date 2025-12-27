@@ -5921,13 +5921,13 @@ window.fbAsyncInit = function() {
 
 window.launchWhatsAppSignup = function() {
     
-    // 1. التحقق من تحميل Facebook SDK
+    // 1. التحقق من وجود SDK
     if (typeof FB === 'undefined') {
-        alert("جاري تحميل Facebook SDK... يرجى الانتظار.");
+        alert("Facebook SDK غير جاهز بعد، انتظر لحظة.");
         return;
     }
 
-    // 2. التحقق من اسم القناة (منطق خاص بتطبيقك)
+    // 2. التحقق من إدخال اسم القناة (الشرط الخاص بك)
     const nameInput = document.getElementById('new_ch_name');
     const name = nameInput ? nameInput.value : '';
     
@@ -5937,39 +5937,39 @@ window.launchWhatsAppSignup = function() {
         return; 
     }
 
-    console.log("🚀 جاري فتح نافذة Embedded Signup (Tech Provider Mode)...");
+    console.log("🚀 جاري فتح نافذة Embedded Signup...");
 
-    // 3. استدعاء Login بالطريقة الصحيحة (مطابقة لسكريبت ميتا)
+    // 3. استدعاء FB.login بنفس هيكلية كود ميتا بالضبط
     FB.login(function(response) {
         console.log("📩 Facebook Response:", response);
 
         if (response.authResponse) {
-            // ✅ هنا نحصل على code لأننا طلبنا response_type: 'code'
+            // ✅ لاحظ: هنا نستلم code وليس accessToken لأننا طلبنا ذلك في الإعدادات
             const code = response.authResponse.code;
             console.log('✅ تم التسجيل بنجاح! Code:', code);
             
-            // إرسال الكود للباك إند لاستبداله بـ Token
+            // إرسال الكود للباك إند
             exchangeTokenForChannel(code, name);
         } else {
             console.log('❌ ألغى المستخدم العملية أو حدث خطأ.');
         }
     }, {
-        // 👇👇 هنا التغيير الجوهري (مطابق للسكريبت الذي أرسلته) 👇👇
+        // 🔥🔥 هنا التعديل الجوهري (مطابق لكود ميتا 100%) 🔥🔥
         
-        config_id: '1193778845590037',       // 1. المعرف يوضع هنا مباشرة وليس داخل extras
-        response_type: 'code',               // 2. نطلب كود وليس توكن مباشر
-        override_default_response_type: true, // 3. نجبر النظام على استخدام الكود
+        // 1. المعرف يوضع مباشرة هنا (وليس داخل setup)
+        config_id: '1193778845590037', 
         
-        // الصلاحيات (اختياري إضافتها هنا للتأكيد، لكن config_id يحملها بداخله غالباً)
-        scope: 'whatsapp_business_management, whatsapp_business_messaging',
+        // 2. إجبار النظام على استخدام الكود (أحدث وأأمن)
+        response_type: 'code',
+        override_default_response_type: true,
         
+        // 3. الإضافات (نكتفي بما وضعه ميتا في مثالهم)
         extras: {
-            "sessionInfo_version": "2",  // أحياناً مفيدة
-            "feature": "whatsapp_embedded_signup"
+            "feature": "whatsapp_embedded_signup",
+            "version": "v3"
         }
     });
 };
-
 
 
 async function exchangeTokenForChannel(token, channelName) {
