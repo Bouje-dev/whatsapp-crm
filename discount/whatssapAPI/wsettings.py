@@ -134,17 +134,22 @@ def update_channel_settings(request):
 import requests
 import mimetypes
 import os
+import requests
+import mimetypes
+from django.conf import settings
 
 def sync_profile_with_meta(channel):
     if not channel.phone_number_id or not channel.access_token:
         return False, "Missing Phone Number ID or Access Token"
 
     base_url = "https://graph.facebook.com/v18.0"
-    headers_auth = {"Authorization": f"Bearer {channel.access_token}"}
+    user_headers = {"Authorization": f"Bearer {channel.access_token}"}
+    
+    # ✅ استخراج App Access Token (هذا هو المفتاح لحل المشكلة)
+    # يتكون من APP_ID|APP_SECRET وهو يملك صلاحيات مطور التطبيق برمجياً
+    app_access_token = f"{settings.META_APP_ID}|{settings.META_APP_SECRET}"
 
-    # =========================================================
-    # 1. تحديث البيانات النصية (الوصف، العنوان، البريد...) - هذا الجزء سليم
-    # =========================================================
+    # 1. تحديث البيانات النصية (باستخدام توكن العميل - سليم)
     url_text = f"{base_url}/{channel.phone_number_id}/whatsapp_business_profile"
     payload_text = {
         "messaging_product": "whatsapp",
@@ -155,18 +160,13 @@ def sync_profile_with_meta(channel):
     }
 
     try:
-        resp_text = requests.post(url_text, headers=headers_auth, json=payload_text, timeout=10)
-        if resp_text.status_code != 200:
-            return False, f"Text Sync Failed: {resp_text.text}"
+        requests.post(url_text, headers=user_headers, json=payload_text, timeout=10)
     except Exception as e:
         return False, f"Text Sync Error: {str(e)}"
 
-    # =========================================================
-    # 2. تحديث صورة البروفايل (الطريقة الصحيحة والمعقدة للـ Cloud API)
-    # =========================================================
+    # 2. تحديث صورة البروفايل (الطريقة المصححة)
     if channel.profile_image:
         try:
-            # أ) فتح الصورة وقراءة بياناتها وحجمها
             img_file = channel.profile_image.open('rb')
             file_content = img_file.read()
             file_size = len(file_content)
@@ -174,68 +174,49 @@ def sync_profile_with_meta(channel):
             mime_type = mime_type or 'image/jpeg'
             img_file.close()
 
-            # ب) جلب App ID (ضروري لإنشاء جلسة الرفع)
-            debug_token_url = f"{base_url}/debug_token?input_token={channel.access_token}"
-            app_id_resp = requests.get(debug_token_url, headers=headers_auth)
-            if app_id_resp.status_code != 200:
-                return False, "Failed to fetch App ID from Meta"
-            
-            app_id = app_id_resp.json().get('data', {}).get('app_id')
-            if not app_id:
-                return False, "App ID not found in token"
-
-            # ج) إنشاء جلسة رفع (Create Upload Session)
-            # نقطة النهاية: /<APP_ID>/uploads
-            session_url = f"{base_url}/{app_id}/uploads"
+            # أ) إنشاء جلسة رفع باستخدام App Access Token (لأن التطبيق هو المالك)
+            session_url = f"{base_url}/{settings.META_APP_ID}/uploads"
             session_params = {
                 "file_length": file_size,
                 "file_type": mime_type,
-                "access_token": channel.access_token 
+                "access_token": app_access_token # ✅ التغيير هنا
             }
             
             session_resp = requests.post(session_url, params=session_params)
             if session_resp.status_code != 200:
-                return False, f"Failed to create upload session: {session_resp.text}"
+                return False, f"Upload Session Failed: {session_resp.text}"
             
             upload_session_id = session_resp.json().get('id')
 
-            # د) رفع الصورة فعلياً إلى الجلسة للحصول على الـ Handle
-            # نقطة النهاية: https://graph.facebook.com/v18.0/<UPLOAD_SESSION_ID>
+            # ب) رفع الصورة فعلياً باستخدام App Access Token
             upload_url = f"{base_url}/{upload_session_id}"
             headers_upload = {
-                "Authorization": f"OAuth {channel.access_token}",
+                "Authorization": f"OAuth {app_access_token}", # ✅ التغيير هنا
                 "file_offset": "0"
             }
             
-            # نرفع البيانات الثنائية (Binary) مباشرة
             upload_resp = requests.post(upload_url, headers=headers_upload, data=file_content)
-            
             if upload_resp.status_code != 200:
                 return False, f"Binary Upload Failed: {upload_resp.text}"
             
-            # الرد يحتوي على 'h' وهو الـ Handle المطلوب
             image_handle = upload_resp.json().get('h')
 
-            # هـ) الخطوة الأخيرة: ربط الـ Handle بالبروفايل
-            profile_pic_url = f"{base_url}/{channel.phone_number_id}/whatsapp_business_profile"
+            # ج) الخطوة الأخيرة: ربط الـ Handle بالبروفايل (باستخدام توكن العميل)
+            # يجب استخدام توكن العميل هنا لأننا نعدل على حسابه الخاص
             profile_pic_payload = {
                 "messaging_product": "whatsapp",
                 "profile_picture_handle": image_handle
             }
             
-            final_resp = requests.post(profile_pic_url, headers=headers_auth, json=profile_pic_payload)
+            final_resp = requests.post(url_text, headers=user_headers, json=profile_pic_payload)
             
             if final_resp.status_code != 200:
-                return False, f"Final Profile Picture Update Failed: {final_resp.text}"
+                return False, f"Final Update Failed: {final_resp.text}"
 
         except Exception as e:
             return False, f"Photo Sync Error: {str(e)}"
 
     return True, None
-
-
-
-
 
 
 

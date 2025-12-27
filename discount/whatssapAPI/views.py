@@ -2629,6 +2629,19 @@ def exchange_token_and_create_channel(request):
             business_account_id=target_waba_id,
             access_token=access_token # هذا التوكن الآن جاهز للإرسال
         )
+        subscribe_url = f"https://graph.facebook.com/v24.0/{target_waba_id}/subscribed_apps"
+        subscribe_payload = {
+            "access_token": access_token # نستخدم توكن العميل هنا
+        }
+
+        try:
+            sub_resp = requests.post(subscribe_url, data=subscribe_payload)
+            if sub_resp.status_code == 200:
+                print(f"✅ Webhook Subscribed for WABA: {target_waba_id}")
+            else:
+                print(f"⚠️ Webhook Subscription Warning: {sub_resp.text}")
+        except Exception as e:
+            print(f"❌ Webhook Subscription Error: {str(e)}")
         
         channel.assigned_agents.add(request.user)
 

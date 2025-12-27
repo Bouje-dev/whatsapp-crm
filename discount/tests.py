@@ -87,3 +87,23 @@ import requests
 import json
 
  
+
+from django.conf import settings
+
+ # بدلاً من استخدام توكن العميل فقط، جرب إرسال التوكن كمعامل (Param)
+# واستخدم App Access Token في الـ Headers (أحياناً يحل هذا مشكلة الـ Permission)
+target_waba_id = 1504186850696314
+app_access_token = f"{settings.META_APP_ID}|{settings.META_APP_SECRET}"
+subscribe_url = f"https://graph.facebook.com/v24.0/{target_waba_id}/subscribed_apps"
+
+params = {
+    'access_token': 'EAALZBubBgmq0BQUpecOrUvRcKddYIbLJUIinT7GcBHUh2azmAJRv9oU5yiG9F7JHcTdnrdJYAPxZBTuutNKmrEBdRsh2mSslvRzhW1qZCaZBmlPY7l4LcyQv6hVpMfK2iLQmHAaI7kHYca0nhtTNNlVJ2noFPiQ7SJHlD1tvXBc6Hw3g2ZAgFwkAtMALuAIX0n3xgmCK4MaSmOefNcwfB9j9N46Tgm1dJzvcqr7ze7utd0Dy1ZAWj6LzC5row48WYxAtyNgXWZCDamkQqC9q0OUAxJ2qCI24Iwxs8JN' # توكن العميل
+}
+
+
+headers = {
+    "Authorization": f"Bearer {app_access_token}" 
+}
+
+resp = requests.post(subscribe_url, params=params, headers=headers)
+print(resp.text)

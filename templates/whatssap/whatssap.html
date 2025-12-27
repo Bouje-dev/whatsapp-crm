@@ -6055,7 +6055,15 @@ window.launchWhatsAppSignup = function() {
         response_type: 'code',                // طلب كود
         override_default_response_type: true, // فرض الكود
         redirect_uri: 'https://app.waselytics.com/',
+        scope: 'whatsapp_business_management,whatsapp_business_messaging,public_profile',
         // 👇👇 هنا كان الخطأ: تم حذف "feature" ليتطابق مع كود ميتا 👇👇
+
+        
+    
+    // 🔥 هذا هو الحل الحقيقي لمشكلتك 🔥
+    // يجبر فيسبوك على إظهار الصلاحيات المفقودة التي أضفتها في الـ Config
+        auth_type: 'rerequest',
+
         extras: {
             "version": "v3"
         }
