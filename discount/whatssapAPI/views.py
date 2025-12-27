@@ -1343,7 +1343,9 @@ def get_messages1(request):
     since_id = request.GET.get('since_id')
     if not phone:
         return JsonResponse({"messages": []})
-    qs = Message.objects.filter(sender=phone).order_by('id')
+    
+    qs = Message.objects.filter(sender=phone , channel = WhatsAppChannel.objects.get(id = channel_id)).order_by('id')
+
     if since_id:
         try:
             since_id = int(since_id)
