@@ -664,10 +664,10 @@ function generateWhatsAppQR(phoneNumber) {
         </div>
     </div>
    
-
+{% if not user.is_team_admin or not user.is_superuser %}
   {% include 'teams.html' %}
   <div style="padding-bottom: 24px;"></div>
-
+{% endif %}
 
   
 
