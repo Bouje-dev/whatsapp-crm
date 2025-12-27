@@ -5926,7 +5926,6 @@ window.launchWhatsAppSignup = function() {
         return;
     }
 
-    // التحقق من اسم القناة
     const nameInput = document.getElementById('new_ch_name');
     const name = nameInput ? nameInput.value : '';
     
@@ -5936,39 +5935,35 @@ window.launchWhatsAppSignup = function() {
         return; 
     }
 
-    // استدعاء Login مع إعدادات Embedded Signup
     FB.login(function(response) {
         if (response.authResponse) {
-            // هنا نحصل على code بدلاً من accessToken في بعض الحالات، لكن دعنا نبقيها كما هي إذا كان الباك إند لديك يتعامل مع Access Token
-            // ملاحظة: في Embedded Signup يفضل التعامل مع "code" لتبديله بـ Token طويل الأمد
+            // في الإصدارات الحديثة، يفضل استخدام code لتبديله في السيرفر
+            const code = response.authResponse.code; 
             const accessToken = response.authResponse.accessToken;
-            const code = response.authResponse.code; // قد نحتاج هذا لاحقاً
             
-            console.log('✅ تم إكمال التسجيل بنجاح!');
-            console.log('Token:', accessToken);
+            console.log('✅ تم التسجيل! Code:', code);
             
-            // إرسال التوكن للباك إند
-            exchangeTokenForChannel(accessToken, name);
+            // أرسل الـ accessToken أو code للسيرفر لاستكمال الربط
+            exchangeTokenForChannel(accessToken, name); 
         } else {
             console.log('❌ ألغى المستخدم العملية.');
         }
     }, {
-        // ✅ النطاقات المطلوبة (يمكنك تقليلها، فلو التسجيل يمنح الصلاحيات تلقائياً، لكن اتركها للضمان)
+        // الصلاحيات
         scope: 'whatsapp_business_management, whatsapp_business_messaging', 
         
-        // ✅✅ هنا التغيير المهم: إضافة config_id ✅✅
+        // ⚠️ الإعدادات الصحيحة بناءً على صورتك ⚠️
         extras: {
             feature: 'whatsapp_embedded_signup',
-            version: 3,
-            sessionInfo_version: 2, // يفضل إضافتها أحياناً
+            version: 3,                // تحديث للإصدار 3 كما في الصورة
+            sessionInfo_version: 3,    // تحديث للإصدار 3
             setup: {
-                // 👇👇 ضع رقم الـ Configuration ID الخاص بك هنا 👇👇
+                // 👇 هذا هو الرقم الذي استخرجناه من الصورة الخاصة بك 👇
                 config_id: '1193778845590037' 
             }
         }
     });
 };
-
 
 // 3. إرسال التوكن للباك إند
 async function exchangeTokenForChannel(token, channelName) {
