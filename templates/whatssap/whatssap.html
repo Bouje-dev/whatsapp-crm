@@ -5900,7 +5900,7 @@ window.submitNewChannel = async function() {
 
 window.fbAsyncInit = function() {
     FB.init({
-      appId      : '843023434947245', // ✅ تم وضع الـ App ID الخاص بك
+      appId      : '843023434947245',  
       cookie     : true,
       xfbml      : true,
       version    : 'v24.0' // تأكد من النسخة، يفضل استخدام الأحدث
@@ -5918,9 +5918,9 @@ window.fbAsyncInit = function() {
      fjs.parentNode.insertBefore(js, fjs);
 }(document, 'script', 'facebook-jssdk'));
 
-// 3. دالة التشغيل (مربوطة بالزر)
+
 window.launchWhatsAppSignup = function() {
-    // تحقق أمان إضافي: هل FB معرفة؟
+    
     if (typeof FB === 'undefined') {
         alert("جاري تحميل Facebook SDK... يرجى الانتظار ثانية والمحاولة مجدداً.");
         return;
@@ -5936,11 +5936,16 @@ window.launchWhatsAppSignup = function() {
         return; 
     }
 
-    // استدعاء Login
+    // استدعاء Login مع إعدادات Embedded Signup
     FB.login(function(response) {
         if (response.authResponse) {
+            // هنا نحصل على code بدلاً من accessToken في بعض الحالات، لكن دعنا نبقيها كما هي إذا كان الباك إند لديك يتعامل مع Access Token
+            // ملاحظة: في Embedded Signup يفضل التعامل مع "code" لتبديله بـ Token طويل الأمد
             const accessToken = response.authResponse.accessToken;
-            console.log('✅ تم تسجيل الدخول، التوكن:', accessToken);
+            const code = response.authResponse.code; // قد نحتاج هذا لاحقاً
+            
+            console.log('✅ تم إكمال التسجيل بنجاح!');
+            console.log('Token:', accessToken);
             
             // إرسال التوكن للباك إند
             exchangeTokenForChannel(accessToken, name);
@@ -5948,15 +5953,21 @@ window.launchWhatsAppSignup = function() {
             console.log('❌ ألغى المستخدم العملية.');
         }
     }, {
-        // الصلاحيات المطلوبة (تأكد أنك تطلبها)
-        scope: 'whatsapp_business_management, whatsapp_business_messaging',
+        // ✅ النطاقات المطلوبة (يمكنك تقليلها، فلو التسجيل يمنح الصلاحيات تلقائياً، لكن اتركها للضمان)
+        scope: 'whatsapp_business_management, whatsapp_business_messaging', 
+        
+        // ✅✅ هنا التغيير المهم: إضافة config_id ✅✅
         extras: {
             feature: 'whatsapp_embedded_signup',
-            version: 2
+            version: 2,
+            sessionInfo_version: 2, // يفضل إضافتها أحياناً
+            setup: {
+                // 👇👇 ضع رقم الـ Configuration ID الخاص بك هنا 👇👇
+                config_id: '123456789012345' 
+            }
         }
     });
 };
-
 
 
 // 3. إرسال التوكن للباك إند
