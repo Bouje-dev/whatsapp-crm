@@ -225,21 +225,19 @@ AUTH_USER_MODEL = 'discount.CustomUser'
 KEY = 'k76TMkpykna7wyWyNS4KYdZC-NK_XfoXvWMPLacwVAY='
 
  
-# settings.py
-
-# إعدادات البريد الإلكتروني عبر Hostinger SMTP
+ 
 EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
-EMAIL_HOST = 'smtp.hostinger.com'       # سيرفر هوستنجر
-EMAIL_PORT = 465                        # البورت الآمن SSL
-EMAIL_USE_SSL = True                    # تفعيل التشفير
-EMAIL_USE_TLS = False                   # (مع البورت 465 نستخدم SSL وليس TLS)
+EMAIL_HOST = 'smtp.hostinger.com'       
+EMAIL_PORT = 587                        
+EMAIL_USE_SSL = True                    
+EMAIL_USE_TLS = False                   
 
-# بيانات الاعتماد (يفضل وضعها في ملف .env)
+
  
 EMAIL_HOST_USER = os.environ.get('EMAIL_HOST_USER') 
 EMAIL_HOST_PASSWORD = os.environ.get('EMAIL_HOST_PASSWORD')
 
-# الإيميل الافتراضي الذي تخرج منه الرسائل
+
 DEFAULT_FROM_EMAIL = EMAIL_HOST_USER 
 #  'Waselytics Security <support@waselytics.com>'
 SERVER_EMAIL = 'support@waselytics.com'
