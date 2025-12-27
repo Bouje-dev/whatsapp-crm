@@ -2593,11 +2593,12 @@ def exchange_token_and_create_channel(request):
             'client_id': settings.META_APP_ID,
             'client_secret': settings.META_APP_SECRET,
             'code': auth_code,
-            'redirect_uri': 'https://app.waselytics.com/' 
+            # 'redirect_uri': 'https://app.waselytics.com/' 
+             
         }
         
         exchange_resp = requests.get(exchange_url, params=params).json()
-        
+        print(f"DEBUG Meta Response: {exchange_resp}") # أضف هذا السطر لرؤية الخطأ في Railway logs
         if 'access_token' not in exchange_resp:
             return JsonResponse({'success': False, 'error': 'Failed to exchange code', 'details': exchange_resp}, status=400)
             

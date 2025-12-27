@@ -22,7 +22,7 @@
   {% if user_channels %}
   
     <div class="cls3741_container">
-      {% if user.is_team_admin %}
+      {% if user.is_team_admin or user.is_superuser %}
       <aside class="workspace-sidebar">
 
         <div class="workspace-list">
@@ -201,7 +201,7 @@
     <aside class="cls3741_sidebar" role="navigation" aria-label="Sidebar">
       <div class="cls3741_brand">
         <div class="cls3741_logo" id="current_channel_logo">
-            {% if active_channel.profile_image.url %}<img src="{{ active_channel.profile_image.url }}" style="width: 100%; border-radius: 50%;" alt="Channel Logo">
+            {% if active_channel.profile_image %}<img src="{{ active_channel.profile_image.url }}" style="width: 100%; border-radius: 50%;" alt="Channel Logo">
             {% else %}
             {{ active_channel.name|slice:":1"|upper|default:"?" }}
             {% endif %}
@@ -5580,25 +5580,98 @@ document.querySelector('.cls3741_chat_input_container').classList.add('d-none')
           <button onclick="closeAddChannelModal()" class="cls3741_modal_close">&times;</button>
       </div>
       
-      <div class="cls3741_modal_body">
-        <div class="form-group">
-            <label>Channel Name (ex: Customer Support)</label>
-            <input type="text" id="new_ch_name" class="cls3741_input_field" placeholder="Enter channel name" >
+      <div class="cls3741_modal_body" style="position: relative;">
+        <div id="setup-form">
+            <div class="form-group">
+                <label>Channel Name (ex: Customer Support)</label>
+                <input type="text" id="new_ch_name" class="cls3741_input_field" placeholder="Enter channel name" >
+            </div>
+        
+            <div style="text-align: center; margin-top: 20px;">
+                <div id="fb-root"></div>
+                <button onclick="launchWhatsAppSignup()" class="cls3741_btn_facebook">
+                    Link with WhatsApp (meta)
+                </button>
+                <p style="color:var(--text-secondary); font-size:12px; margin-top:10px;">
+                    By signing up, you agree to Waselytics Terms of Service and <a href="/privacy-policy" target="_blank">Privacy Policy</a>
+                </p>
+            </div>
         </div>
     
-        <div style="text-align: center; margin-top: 20px;">
-            <div id="fb-root"></div>
-            <button onclick="launchWhatsAppSignup()" class="cls3741_btn_facebook">
-                <svg viewBox="0 0 24 24" width="20" height="20" fill="white" style="margin-right:8px; vertical-align:middle;">
-                    <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/>
-                </svg>
-            Link with WhatsApp (meta)
-            </button>
-            <p style="color:var(--text-secondary); font-size:12px; margin-top:10px;">
-                By signing up, you agree to Waselytics Terms of Service and<a href="/privacy-policy" target="_blank" rel="noopener noreferrer">Privacy Policy</a>
-            </p>
+        <div id="process-overlay" style="display: none; text-align: center; padding: 40px 20px;">
+            <div id="loader-icon">
+                <div class="spinner"></div> 
+                <p style="margin-top: 20px; font-weight: bold;">Fetching WhatsApp data...</p>
+                <p style="font-size: 13px; color: #666;">Please do not close this window</p>
+            </div>
+            
+            <div id="success-icon" style="display: none;">
+                <div class="checkmark-circle">
+                    <div class="background"></div>
+                    <div class="checkmark draw"></div>
+                </div>
+                <p style="margin-top: 20px; font-weight: bold; color: #28a745;">Connected successfully! 🎉</p>
+                <p style="font-size: 13px; color: #666;">Refreshing the page in a few moments...</p>
+            </div>
         </div>
     </div>
+
+
+    <style>
+         
+/* تصميم الـ Spinner */
+.spinner {
+  width: 50px;
+  height: 50px;
+  border: 5px solid #f3f3f3;
+  border-top: 5px solid #1877f2; /* لون فيسبوك */
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin: 0 auto;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+/* تصميم علامة الصح (Success Checkmark) */
+.checkmark-circle {
+  width: 60px;
+  height: 60px;
+  position: relative;
+  display: inline-block;
+  vertical-align: top;
+  border-radius: 50%;
+  border: 5px solid #28a745;
+}
+.checkmark.draw:after {
+  animation-duration: 800ms;
+  animation-timing-function: ease;
+  animation-name: checkmark;
+  transform: scaleX(-1) rotate(135deg);
+}
+.checkmark:after {
+  opacity: 1;
+  height: 30px;
+  width: 15px;
+  transform-origin: left top;
+  border-right: 5px solid #28a745;
+  border-top: 5px solid #28a745;
+  content: '';
+  left: 12px;
+  top: 30px;
+  position: absolute;
+}
+@keyframes checkmark {
+  0% { height: 0; width: 0; opacity: 1; }
+  20% { height: 0; width: 15px; opacity: 1; }
+  40% { height: 30px; width: 15px; opacity: 1; }
+  100% { height: 30px; width: 15px; opacity: 1; }
+}
+</style>
+  
+
   </div>
 </div>
  
@@ -5968,9 +6041,10 @@ window.launchWhatsAppSignup = function() {
         if (response.authResponse) {
             const code = response.authResponse.code;
             console.log('✅ تم التسجيل! Code:', code);
-            
+            const redirectUri = 'https://app.waselytics.com/'; 
+            exchangeTokenForChannel(code, name, metaWabaId, metaPhoneId, redirectUri);
             // إرسال الكود للباك إند
-            exchangeTokenForChannel(code, name, metaWabaId, metaPhoneId);
+             
         } else {
             console.log('❌ ألغى المستخدم العملية.');
         }
@@ -5980,7 +6054,7 @@ window.launchWhatsAppSignup = function() {
         config_id: '1193778845590037',        // المعرف في المستوى الأول
         response_type: 'code',                // طلب كود
         override_default_response_type: true, // فرض الكود
-        
+        redirect_uri: 'https://app.waselytics.com/',
         // 👇👇 هنا كان الخطأ: تم حذف "feature" ليتطابق مع كود ميتا 👇👇
         extras: {
             "version": "v3"
@@ -5988,8 +6062,13 @@ window.launchWhatsAppSignup = function() {
     });
 };
 
-// سنقوم بتعديل الدالة لاستقبال المعرفات أيضاً
 async function exchangeTokenForChannel(code, channelName, wabaId, phoneId) {
+    // 1. Show Loader and hide the form
+    document.getElementById('setup-form').style.display = 'none';
+    document.getElementById('process-overlay').style.display = 'block';
+    document.getElementById('loader-icon').style.display = 'block';
+    document.getElementById('success-icon').style.display = 'none';
+
     try {
         const response = await fetch('/discount/whatssapAPI/api/channels/connect_meta/', {
             method: 'POST',
@@ -5998,24 +6077,36 @@ async function exchangeTokenForChannel(code, channelName, wabaId, phoneId) {
                 'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
             },
             body: JSON.stringify({ 
-                code: code, // غيرنا الاسم من access_token إلى code ليكون أدق
+                code: code,
                 name: channelName,
-                waba_id: wabaId,      // نرسل المعرف الذي حصلنا عليه من حدث FINISH
-                phone_number_id: phoneId // نرسل المعرف الذي حصلنا عليه من حدث FINISH
+                waba_id: wabaId,
+                phone_number_id: phoneId
             })
         });
 
         const data = await response.json();
         
         if (data.success) {
-            alert(`تم إضافة القناة بنجاح! 🎉`);
-            window.location.reload();
+            // 2. Show success icon and hide Loader
+            document.getElementById('loader-icon').style.display = 'none';
+            document.getElementById('success-icon').style.display = 'block';
+
+            // 3. Reload page after 3 seconds
+            setTimeout(() => {
+                window.location.reload();
+            }, 3000);
+
         } else {
-            alert('فشل الربط: ' + data.error);
+            // In case of error, show form again and hide Loader
+            alert('Connection failed: ' + data.error);
+            document.getElementById('setup-form').style.display = 'block';
+            document.getElementById('process-overlay').style.display = 'none';
         }
     } catch (e) {
         console.error(e);
-        alert('حدث خطأ في الاتصال بالسيرفر');
+        alert('A server connection error occurred');
+        document.getElementById('setup-form').style.display = 'block';
+        document.getElementById('process-overlay').style.display = 'none';
     }
 }
 
