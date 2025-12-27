@@ -248,13 +248,7 @@ ANYMAIL = {
     "BREVO_API_KEY": os.environ.get('BREVO_API_KEY'),
 }
 
-
-
-EMAIL_BACKEND = "anymail.backends.sendgrid.EmailBackend"
-
-ANYMAIL = {
-    "SENDGRID_API_KEY": os.environ.get('SENDGRID_API_KEY'),
-}
+ 
 
 # ✅ 3. تأكد أن هذا البريد مطابق للذي وثقته في SendGrid
 DEFAULT_FROM_EMAIL = "Waselytics Support <support@waselytics.com>"

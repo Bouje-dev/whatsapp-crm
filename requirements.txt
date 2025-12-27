@@ -60,3 +60,5 @@ boto3
 django-storages
 xmltodict
 beautifulsoup4
+
+"django-anymail[sendgrid]"
