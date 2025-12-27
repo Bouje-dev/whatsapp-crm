@@ -5903,7 +5903,7 @@ window.fbAsyncInit = function() {
       appId      : '843023434947245',  
       cookie     : true,
       xfbml      : true,
-      version    : 'v24.0' // تأكد من النسخة، يفضل استخدام الأحدث
+      version    : 'v24.0'  
     });
     
     console.log("✅ Facebook SDK Initialized!");
@@ -5924,45 +5924,41 @@ window.launchWhatsAppSignup = function() {
     // التحقق من اسم القناة
     const nameInput = document.getElementById('new_ch_name');
     const name = nameInput ? nameInput.value : '';
+    
     if(!name) { 
         alert("المرجو إدخال اسم للقناة أولاً"); 
         return; 
     }
 
-    FB.login(function(response) {
-        // طباعة الرد كاملاً لنفهم ماذا يحدث
-        console.log("🔍 Facebook Response:", response);
+    console.log("🚀 جاري فتح نافذة Embedded Signup...");
 
-        if (response.status === 'connected') {
-            // الحالة متصل = نجاح
-            const accessToken = response.authResponse.accessToken;
-            console.log('✅ تم استلام التوكن بنجاح:', accessToken);
-            
-            // إرسال التوكن للسيرفر
-            exchangeTokenForChannel(accessToken, name);
-        } 
-        else if (response.status === 'not_authorized') {
-            console.log('❌ المستخدم دخل بحسابه لكن لم يوافق على الأذونات.');
-        } 
-        else {
-            console.log('❌ لم يتم تسجيل الدخول (ربما أغلقت النافذة أو خطأ في الدومين).');
+    FB.login(function(response) {
+        console.log("📩 Facebook Response:", response); // لنرى ماذا يحدث
+
+        if (response.authResponse) {
+            const code = response.authResponse.code;
+            console.log('✅ تم التسجيل بنجاح! Code:', code);
+            // إرسال الكود للسيرفر
+            exchangeTokenForChannel(code, name);
+        } else {
+            console.log('❌ فشل الاتصال أو ألغى المستخدم العملية.');
         }
     }, {
-        // ✅ إضافة الصلاحيات الأساسية لضمان استقرار الاتصال
-        scope: 'public_profile,email,whatsapp_business_management,whatsapp_business_messaging', 
+        // النطاقات المطلوبة
+        scope: 'whatsapp_business_management, whatsapp_business_messaging', 
         
+        // ⚠️ الإعدادات لإجبار ظهور واجهة التسجيل (Screen 1)
         extras: {
             feature: 'whatsapp_embedded_signup',
-            version: 3,
-            sessionInfo_version: 3,
+            version: 2,  // جرب إعادتها لـ 2 أحياناً تكون أكثر استقراراً للواجهة القديمة
+            sessionInfo_version: 2,
             setup: {
-                config_id: '1193778845590037' // المعرف الصحيح من صورتك
+                // هذا هو المعرف الخاص بك الذي استخرجناه سابقاً
+                config_id: '1193778845590037'
             }
         }
     });
 };
-
-
 // 3. إرسال التوكن للباك إند
 async function exchangeTokenForChannel(token, channelName) {
     try {
