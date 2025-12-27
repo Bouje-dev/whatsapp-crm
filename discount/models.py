@@ -1235,7 +1235,7 @@ class Tags(models.Model):
 
 class Contact(models.Model):
     user = models.ForeignKey(CustomUser, on_delete=models.CASCADE)
-    phone = models.CharField(max_length=30, unique=True)
+    phone = models.CharField(max_length=30)
     name = models.CharField(max_length=255, blank=True, null=True)
     channel = models.ForeignKey(WhatsAppChannel, on_delete=models.CASCADE)
     tags = models.ManyToManyField(Tags, blank=True, related_name='contacts')
