@@ -61,4 +61,4 @@ django-storages
 xmltodict
 beautifulsoup4
 
-"django-anymail[sendgrid]"
+django-anymail[sendgrid]
