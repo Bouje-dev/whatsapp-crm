@@ -321,3 +321,10 @@ else:
 # settings.py
 # يسمح لنافذة فيسبوك بالتحدث مع نافذة موقعك
 SECURE_CROSS_ORIGIN_OPENER_POLICY = 'same-origin-allow-popups'
+
+
+
+
+META_APP_ID = os.getenv('META_APP_ID', '843023434947245')
+META_APP_SECRET = os.getenv('META_APP_SECRET')
+META_API_VERSION = 'v24.0'

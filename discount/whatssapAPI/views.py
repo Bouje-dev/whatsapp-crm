@@ -2593,7 +2593,7 @@ def exchange_token_and_create_channel(request):
             'client_id': settings.META_APP_ID,
             'client_secret': settings.META_APP_SECRET,
             'code': auth_code,
-            'redirect_uri': 'https://app.waselytics.com/' # يجب أن يطابق المسجل في ميتا
+            'redirect_uri': 'https://app.waselytics.com/' 
         }
         
         exchange_resp = requests.get(exchange_url, params=params).json()
