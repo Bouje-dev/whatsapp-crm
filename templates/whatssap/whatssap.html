@@ -5909,7 +5909,7 @@ window.fbAsyncInit = function() {
     console.log("✅ Facebook SDK Initialized!");
 };
 
-// 2. تحميل الـ SDK (بشكل غير متزامن)
+ 
 (function(d, s, id){
      var js, fjs = d.getElementsByTagName(s)[0];
      if (d.getElementById(id)) {return;}
@@ -5921,13 +5921,13 @@ window.fbAsyncInit = function() {
 
 window.launchWhatsAppSignup = function() {
     
-    // 1. التحقق من وجود SDK
+    // 1. التحقق من SDK
     if (typeof FB === 'undefined') {
-        alert("Facebook SDK غير جاهز بعد، انتظر لحظة.");
+        alert("Facebook SDK غير جاهز بعد.");
         return;
     }
 
-    // 2. التحقق من إدخال اسم القناة (الشرط الخاص بك)
+    // 2. التحقق من الاسم
     const nameInput = document.getElementById('new_ch_name');
     const name = nameInput ? nameInput.value : '';
     
@@ -5937,40 +5937,34 @@ window.launchWhatsAppSignup = function() {
         return; 
     }
 
-    console.log("🚀 جاري فتح نافذة Embedded Signup...");
+    console.log("🚀 فتح نافذة التسجيل (TP Mode)...");
 
-    // 3. استدعاء FB.login بنفس هيكلية كود ميتا بالضبط
+    // 3. Login Call
     FB.login(function(response) {
         console.log("📩 Facebook Response:", response);
 
         if (response.authResponse) {
-            // ✅ لاحظ: هنا نستلم code وليس accessToken لأننا طلبنا ذلك في الإعدادات
             const code = response.authResponse.code;
-            console.log('✅ تم التسجيل بنجاح! Code:', code);
+            console.log('✅ تم التسجيل! Code:', code);
             
             // إرسال الكود للباك إند
             exchangeTokenForChannel(code, name);
         } else {
-            console.log('❌ ألغى المستخدم العملية أو حدث خطأ.');
+            console.log('❌ ألغى المستخدم العملية.');
         }
     }, {
-        // 🔥🔥 هنا التعديل الجوهري (مطابق لكود ميتا 100%) 🔥🔥
+        // --- الإعدادات المطابقة لكود ميتا 100% ---
         
-        // 1. المعرف يوضع مباشرة هنا (وليس داخل setup)
-        config_id: '1193778845590037', 
+        config_id: '1193778845590037',        // المعرف في المستوى الأول
+        response_type: 'code',                // طلب كود
+        override_default_response_type: true, // فرض الكود
         
-        // 2. إجبار النظام على استخدام الكود (أحدث وأأمن)
-        response_type: 'code',
-        override_default_response_type: true,
-        
-        // 3. الإضافات (نكتفي بما وضعه ميتا في مثالهم)
+        // 👇👇 هنا كان الخطأ: تم حذف "feature" ليتطابق مع كود ميتا 👇👇
         extras: {
-            "feature": "whatsapp_embedded_signup",
             "version": "v3"
         }
     });
 };
-
 
 async function exchangeTokenForChannel(token, channelName) {
     try {
