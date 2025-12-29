@@ -2877,7 +2877,7 @@ def api_team_stats(request):
         delivered=Count('simple_orders', filter=Q(simple_orders__channel=target_channel, simple_orders__status='Delivered'),distinct=True),
         pending=Count('simple_orders', filter=Q(simple_orders__channel=target_channel, simple_orders__status='Pending'), distinct=True),
         cancelled=Count('simple_orders', filter=Q(simple_orders__channel=target_channel, simple_orders__status='Cancelled'), distinct=True),
-        returned=Count('simple_orders', filter=Q(simple_orders__channel=target_channel, simple_orders__status='Returned'),distinct=True),
+        returned=Count('simple_orders', filter=Q(simple_orders__channel=target_channel, simple_orders__status='Returned' , simple_orders__status='returned' , simple_orders__status='Return' ),distinct=True),
 
     ).annotate(
         # حساب النسب المئوية
