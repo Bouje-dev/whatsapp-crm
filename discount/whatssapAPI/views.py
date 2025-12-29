@@ -2866,7 +2866,7 @@ def api_team_stats(request):
         # ✅ الحالة الثانية: الموظف يرى نفسه فقط
         users_qs = CustomUser.objects.filter(id=user.id)
 
-    confirmed_statuses = ['Shipped', 'Delivered', 'Returned', 'Confirmed', 'Pending']
+    confirmed_statuses = ['Shipped', 'Delivered', 'Returned', 'Confirmed', 'Pending' , 'returned' , 'out_for_delivery' , 'exception' , 'delivered' ,'confirmed' ,'pending' , 'shipped' , 'cancelled' ,'failed' ]
     
     team_stats = users_qs.annotate(
         # العدد الكلي لطلبات هذا المستخدم في هذه القناة
