@@ -680,7 +680,7 @@ function confirmFinalDelete() {
             if (res.status === 'success') {
                
                 $('#deleteOtpModal').modal('hide');
-                showToast(res.message, success)
+                showToast(res.message, "success");
                 setInterval(() => {
                     window.location.reload();
                 } , 7000)
