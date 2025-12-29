@@ -2878,7 +2878,8 @@ def api_team_stats(request):
         pending=Count('simple_orders', filter=Q(simple_orders__channel=target_channel, simple_orders__status='Pending'), distinct=True),
         cancelled=Count('simple_orders', filter=Q(simple_orders__channel=target_channel, simple_orders__status='Cancelled'), distinct=True),
                                                          
-returned = Count('simple_orders', filter=Q(simple_orders__channel=target_channel, simple_orders__status='Returned', simple_orders__status='returned', simple_orders__status='Return'), distinct=True)
+returned_statuses = ['Returned', 'returned', 'Return']
+returned = Count('simple_orders', filter=Q(simple_orders__channel=target_channel, simple_orders__status__in=returned_statuses), distinct=True)
     ).annotate(
         # حساب النسب المئوية
         conf_rate=Case(
