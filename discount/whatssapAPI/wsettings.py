@@ -291,8 +291,8 @@ def confirm_delete_channel(request):
         if str(cached_code) != str(user_code):
             return JsonResponse({'status': 'error', 'message': 'Incorrect code'}, status=400)
 
-        # الحذف النهائي
-        # channel.delete()
+       
+        channel.delete()
         
         # تنظيف الكاش
         cache.delete(cache_key)
