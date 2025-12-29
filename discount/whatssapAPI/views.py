@@ -2868,6 +2868,7 @@ def api_team_stats(request):
 
     confirmed_statuses = ['Shipped', 'Delivered', 'Returned', 'Confirmed', 'Pending' , 'returned' , 'out_for_delivery' , 'exception' , 'delivered' ,'confirmed' ,'pending' , 'shipped' , 'cancelled' ,'failed' ]
     returned_statuses = ['Returned', 'returned', 'Return']
+    pending_statuses = ['Pending', 'pending' , 'exception' , 'out_for_delivery']
     team_stats = users_qs.annotate(
         # العدد الكلي لطلبات هذا المستخدم في هذه القناة
         total=Count('simple_orders', filter=Q(simple_orders__channel=target_channel),distinct=True),
@@ -2875,7 +2876,7 @@ def api_team_stats(request):
         # باقي الحالات
         confirmed=Count('simple_orders', filter=Q(simple_orders__channel=target_channel, simple_orders__status__in=confirmed_statuses),distinct=True),
         delivered=Count('simple_orders', filter=Q(simple_orders__channel=target_channel, simple_orders__status='Delivered'),distinct=True),
-        pending=Count('simple_orders', filter=Q(simple_orders__channel=target_channel, simple_orders__status='Pending'), distinct=True),
+        pending=Count('simple_orders', filter=Q(simple_orders__channel=target_channel, simple_orders__status__in =pending_statuses ), distinct=True),
         cancelled=Count('simple_orders', filter=Q(simple_orders__channel=target_channel, simple_orders__status='Cancelled'), distinct=True),
         returned = Count('simple_orders', filter=Q(simple_orders__channel=target_channel, simple_orders__status__in=returned_statuses), distinct=True)
     ).annotate(
