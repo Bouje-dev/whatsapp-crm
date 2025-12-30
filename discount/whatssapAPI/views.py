@@ -2572,7 +2572,7 @@ from django.views.decorators.http import require_POST
  
 import time
 
-def register_phone_number_with_retry(phone_id, access_token, pin_code="123456", max_retries=3):
+def register_phone_number_with_retry(phone_id, access_token, pin_code, max_retries=3):
     """
     محاولة تسجيل الرقم مع إعادة المحاولة في حالة تأخر تفعيل الحساب من طرف Meta
     """
@@ -2710,7 +2710,7 @@ def exchange_token_and_create_channel(request):
 
         # except Exception as e:
         #     print(f"Error: {e}")
-        register_phone_number_with_retry(phone_id, access_token, pin_code="123456", max_retries=3)
+        register_phone_number_with_retry(phone_id, access_token, pin_code="438660", max_retries=3)
             
         channel.assigned_agents.add(request.user)
 
