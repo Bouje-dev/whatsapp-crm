@@ -2570,12 +2570,53 @@ from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_POST
  
+import time
+
+def register_phone_number_with_retry(phone_id, access_token, pin_code="123456", max_retries=3):
+    """
+    محاولة تسجيل الرقم مع إعادة المحاولة في حالة تأخر تفعيل الحساب من طرف Meta
+    """
+    url = f"https://graph.facebook.com/v24.0/{phone_id}/register"
+    headers = {
+        "Authorization": f"Bearer {access_token}",
+        "Content-Type": "application/json"
+    }
+    payload = {
+        "messaging_product": "whatsapp",
+        "pin": pin_code
+    }
+
+    for attempt in range(max_retries):
+        try:
+            print(f"🔄 محاولة التسجيل رقم {attempt + 1}...")
+            response = requests.post(url, headers=headers, json=payload)
+            data = response.json()
+
+            if response.status_code == 200 and data.get('success'):
+                return True, "تم التسجيل بنجاح"
+            
+            # تحليل الخطأ
+            error_code = data.get('error', {}).get('code')
+            error_msg = data.get('error', {}).get('message')
+            
+            # إذا كان الخطأ هو الخطأ الشهير (Pending/Invalid Linking)
+            if error_code == 100 or "Pending" in str(data):
+                print(f"⚠️ الحساب غير جاهز بعد، انتظار 5 ثواني... ({error_msg})")
+                time.sleep(5) # انتظار قبل المحاولة التالية
+                continue
+            else:
+                # أخطاء أخرى (مثل PIN خطأ) لا فائدة من إعادة المحاولة
+                return False, f"خطأ غير قابل للتجاوز: {error_msg}"
+
+        except Exception as e:
+            print(f"Network Error: {e}")
+            time.sleep(2)
+
+    return False, "فشلت جميع المحاولات. يرجى التأكد من إضافة طريقة دفع في حساب Meta."
+
 
 @csrf_exempt
 @require_POST
-
-
-
 def exchange_token_and_create_channel(request):
     try:
         data = json.loads(request.body)
@@ -2645,30 +2686,31 @@ def exchange_token_and_create_channel(request):
         except Exception as e:
             print(f"❌ Webhook Subscription Error: {str(e)}")
     
-        url = f"https://graph.facebook.com/v24.0/{phone_id}/register"
+        # url = f"https://graph.facebook.com/v24.0/{phone_id}/register"
 
-        headers = {
-            "Authorization": f"Bearer {access_token}",
-            "Content-Type": "application/json"
-        }
+        # headers = {
+        #     "Authorization": f"Bearer {access_token}",
+        #     "Content-Type": "application/json"
+        # }
 
-        payload = {
-            "messaging_product": "whatsapp",
-            "pin": "123456"  # هذا هو كود فك التشفير (6 أرقام)، يمكنك وضع أي رقم تريده الآن
-        }
+        # payload = {
+        #     "messaging_product": "whatsapp",
+        #     "pin": "123456"  # هذا هو كود فك التشفير (6 أرقام)، يمكنك وضع أي رقم تريده الآن
+        # }
 
-        try:
-            response = requests.post(url, headers=headers, json=payload)
-            print(f"Status: {response.status_code}")
-            print(response.json())
+        # try:
+        #     response = requests.post(url, headers=headers, json=payload)
+        #     print(f"Status: {response.status_code}")
+        #     print(response.json())
             
-            if response.status_code == 200:
-                print("🎉 تم تسجيل الرقم بنجاح! جرب إرسال رسالة الآن.")
-            else:
-                print("❌ فشل التسجيل، انظر للخطأ أعلاه.")
+        #     if response.status_code == 200:
+        #         print("🎉 تم تسجيل الرقم بنجاح! جرب إرسال رسالة الآن.")
+        #     else:
+        #         print("❌ فشل التسجيل، انظر للخطأ أعلاه.")
 
-        except Exception as e:
-            print(f"Error: {e}")
+        # except Exception as e:
+        #     print(f"Error: {e}")
+        register_phone_number_with_retry(phone_id, access_token, pin_code="123456", max_retries=3)
             
         channel.assigned_agents.add(request.user)
 
