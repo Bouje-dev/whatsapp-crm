@@ -105,7 +105,9 @@
                 {% for order in orders %}
                 <tr class="order-row align-middle" 
                     data-tracking="{{ order.tracking_number }}"
-                    data-status="{{ order.status }}">
+                    data-status="{{ order.status }}"
+                    onclick="openChat('{{ order.customer_phone }}', '{{ order.customer_name }}' ,'{{ order.product.name }}' ,'{{ order.tracking_number }}' , '{{ order.sku }}' , '{{ order.price }}')">
+                
                     <td class="ps-4">
                         <div class="d-flex align-items-center">
                             <span class="badge bg-light text-dark me-2">

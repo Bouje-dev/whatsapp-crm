@@ -3,6 +3,8 @@
 {% for order in orders %}
 
         <tr class="order-row align-middle" 
+        onclick="openChat('{{ order.customer_phone }}', '{{ order.customer_name }}' ,'{{ order.product.name }}' ,'{{ order.tracking_number }}' , '{{ order.sku }}' , '{{ order.price }}')"
+
                                                     data-tracking="{{ order.tracking_number }}"
                                                     data-status="{{ order.status }}"
 data-company="{% if order.tracking_number|slice:":2" == "60" %}imile{% elif order.tracking_number|slice:":5" == "INJAZ" %}injaz{% else %}unknown{% endif %}"
