@@ -62,7 +62,7 @@
 document.addEventListener('DOMContentLoaded', function() {
     // تأكد من تحميل DOM بالكامل قبل إضافة المستمعات
  
-function copyToClipboard(sku, buttonElement) {
+ window.copyToClipboard = function (sku, buttonElement) {
     // إنشاء عنصر input مؤقت لننسخ النص منه
     const tempInput = document.createElement('input');
     tempInput.value = sku;
