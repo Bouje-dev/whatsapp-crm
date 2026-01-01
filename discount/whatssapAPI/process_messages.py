@@ -961,8 +961,8 @@ def whatsapp_webhook(request):
                             channel=active_channel,
                             defaults={
                                 'user': channel_owner,       
-                               
-                                'name': safe_name     
+                                'name': safe_name,
+                                'assigned_agent': active_channel.assigned_agents.first()
                             }
                         )
 

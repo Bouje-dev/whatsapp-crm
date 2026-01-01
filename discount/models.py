@@ -891,7 +891,7 @@ class WhatsAppChannel(models.Model):
  
     # 🔥 الحقل الجديد (هام جداً)
          
-# --- 1. إعدادات البروفايل (تزامن مع Meta) ---
+    # --- 1. إعدادات البروفايل (تزامن مع Meta) ---
     business_about = models.CharField(max_length=130, blank=True, help_text="الحالة النصية في واتساب")
     business_description = models.TextField(blank=True, help_text="وصف النشاط التجاري")
     business_address = models.CharField(max_length=256, blank=True)
@@ -956,7 +956,7 @@ class Message(models.Model):
     type = models.CharField(max_length=50, blank=True, null=True) 
     
     is_internal = models.BooleanField(default=False, help_text="إذا كانت True، لا تظهر للعميل ولا ترسل للواتساب")
-
+    
     class Meta:
         ordering = ['-timestamp']
         indexes = [
