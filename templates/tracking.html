@@ -2286,7 +2286,7 @@ document.addEventListener("DOMContentLoaded", inistail_popup);
     <!-- أزرار التصفية -->
     <div class="filter-section">
         <div class="filter-buttons">
-            <div class="dropdown filter-dropdown">
+            <div class="dropdown">
                 <button class="filter-btn" type="button" 
                     id="countryFilter" data-bs-toggle="dropdown" aria-expanded="false">
                     <span id="selectedCountryText"><i class="fas fa-globe me-1"></i>كل الدول</span>
@@ -2299,7 +2299,7 @@ document.addEventListener("DOMContentLoaded", inistail_popup);
                     {% endfor %}
                 </ul>
             </div>
-            <div class="dropdown filter-dropdown">
+            <div class="dropdown" style="visibility:visible !important; opacity:1 !important;">
                 <button class="filter-btn" type="button" 
                     id="projectFilter" data-bs-toggle="dropdown" aria-expanded="false">
                     <span id="selectedProjectText"><i class="fas fa-project-diagram me-1"></i>All projects</span>
