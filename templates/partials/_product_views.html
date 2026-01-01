@@ -54,51 +54,47 @@
 </button>
                             <script>
 
-        /**
- * نسخ نص إلى الحافظة مع إظهار تأكيد النسخ
- * @param {string} sku - نص SKU المراد نسخه
- * @param {HTMLElement} buttonElement - عنصر الزر الذي تم النقر عليه
- */
-document.addEventListener('DOMContentLoaded', function() {
-    // تأكد من تحميل DOM بالكامل قبل إضافة المستمعات
- 
- window.copyToClipboard = function (sku, buttonElement) {
-    // إنشاء عنصر input مؤقت لننسخ النص منه
-    const tempInput = document.createElement('input');
-    tempInput.value = sku;
-    document.body.appendChild(tempInput);
-    
-    // تحديد النص في عنصر input
-    tempInput.select();
-    tempInput.setSelectionRange(0, 99999); // للهواتف المحمولة
-    
-    try {
-        // تنفيذ أمر النسخ
-        const successful = document.execCommand('copy');
-        
-        if (successful) {
-            // تغيير أيقونة الزر إلى علامة صح للإشارة إلى نجاح النسخ
-            const icon = buttonElement.querySelector('i.fa-copy');
-            if (icon) {
-                icon.classList.remove('fa-copy');
-                icon.classList.add('fa-check');
-                
-                // إعادة الأيقونة إلى وضعها الأصلي بعد ثانيتين
-                setTimeout(() => {
-                    icon.classList.remove('fa-check');
-                    icon.classList.add('fa-copy');
-                }, 2000);
-            }
+// نقوم بتعريف الدالة مباشرة في الـ window لتكون متاحة دائماً
+window.copyToClipboard = function (sku, buttonElement) {
+    if (!sku) return;
+
+    // استخدام الـ Navigator API الحديثة
+    navigator.clipboard.writeText(sku).then(() => {
+        // في حال نجاح النسخ
+        const icon = buttonElement.querySelector('i');
+        if (icon) {
+            // حفظ الكلاسات الأصلية
+            const originalClasses = icon.className;
+            
+            // تغيير للأيقونة "صح"
+            icon.className = 'fas fa-check'; 
+            buttonElement.classList.add('btn-success'); // اختياري: تغيير لون الزر
+
+            setTimeout(() => {
+                icon.className = originalClasses;
+                buttonElement.classList.remove('btn-success');
+            }, 2000);
         }
+    }).catch(err => {
+        // حل احتياطي في حال فشل الـ API الحديث (مثلاً في المتصفحات القديمة جداً)
+        console.error('Fallback: Copying text...', err);
+        fallbackCopyTextToClipboard(sku);
+    });
+};
+
+// دالة احتياطية (تعمل بنفس منطقك القديم)
+function fallbackCopyTextToClipboard(text) {
+    const textArea = document.createElement("textarea");
+    textArea.value = text;
+    document.body.appendChild(textArea);
+    textArea.select();
+    try {
+        document.execCommand('copy');
     } catch (err) {
-        console.error('فشل في نسخ النص: ', err);
+        console.error('Unable to copy', err);
     }
-    
-    // إزالة عنصر input المؤقت
-    document.body.removeChild(tempInput);
+    document.body.removeChild(textArea);
 }
-});
-     
 </script>
                         </div>
                     </div>
