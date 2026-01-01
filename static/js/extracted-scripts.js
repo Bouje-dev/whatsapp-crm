@@ -1199,7 +1199,7 @@ let currentIframeLoadedUrl = '';
 
 
         // Function to copy text to clipboard
-        function copyToClipboard(text, iconElement) {
+        window.copyToClipboard = function (text, iconElement) {
             navigator.clipboard.writeText(text).then(() => {
                 if (iconElement) {
                     iconElement.removeClass('fa-copy').addClass('fa-check');

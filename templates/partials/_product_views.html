@@ -47,7 +47,7 @@
                             <span class="text-muted" style="font-size: 0.92rem; color:#707477 !important ;"> Sku:</span>
                             <span class="fw-bold" style="color: #c6c6c6;">{{ product.sku }}</span>
                        <button type="button" class="btn btn-link btn-sm p-0 ms-2" title="نسخ SKU"
-    onclick="copyToClipboard('{{ product.sku }}', this)"
+    onclick="window.copyToClipboard('{{ product.sku }}', this)"
     onmouseover="this.previousElementSibling.style.color='#007bff';"
     onmouseout="this.previousElementSibling.style.color='#c6c66';">
     <i class="fas fa-copy"></i>
