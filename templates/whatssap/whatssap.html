@@ -814,7 +814,7 @@ function generateWhatsAppQR(phoneNumber) {
           <i class="fas fa-paper-plane"></i>
         </div>
         <div class="agentPopup-statBody">
-          <span class="agentPopup-statLabel">Messages Today</span>
+          <span class="agentPopup-statLabel" id="apMsgsLabel">Messages Today</span>
           <span class="agentPopup-statVal" id="apMsgsToday">--</span>
         </div>
       </div>
@@ -824,7 +824,7 @@ function generateWhatsAppQR(phoneNumber) {
           <i class="fas fa-comments"></i>
         </div>
         <div class="agentPopup-statBody">
-          <span class="agentPopup-statLabel">Conversations Today</span>
+          <span class="agentPopup-statLabel" id="apConvosLabel">Conversations Today</span>
           <span class="agentPopup-statVal" id="apConvosToday">--</span>
         </div>
       </div>
@@ -1038,11 +1038,23 @@ function generateWhatsAppQR(phoneNumber) {
       document.getElementById('apLastSeen').textContent = 'Last seen ' + s.last_seen;
     }
 
-    // stats
+    // stats - show best available data (today > week > total)
     document.getElementById('apOnlineToday').textContent  = s.online_today;
     document.getElementById('apOnlineWeek').textContent   = s.online_week;
-    document.getElementById('apMsgsToday').textContent    = s.messages_today;
-    document.getElementById('apConvosToday').textContent   = s.conversations_today;
+
+    var msgsVal = s.messages_today;
+    var msgsLbl = 'Messages Today';
+    if(msgsVal === 0 && s.messages_week > 0){ msgsVal = s.messages_week; msgsLbl = 'Messages This Week'; }
+    else if(msgsVal === 0 && s.messages_total > 0){ msgsVal = s.messages_total; msgsLbl = 'Total Messages'; }
+    document.getElementById('apMsgsToday').textContent = msgsVal;
+    document.getElementById('apMsgsLabel').textContent = msgsLbl;
+
+    var convVal = s.conversations_today;
+    var convLbl = 'Conversations Today';
+    if(convVal === 0 && s.conversations_week > 0){ convVal = s.conversations_week; convLbl = 'Conversations This Week'; }
+    else if(convVal === 0 && s.conversations_total > 0){ convVal = s.conversations_total; convLbl = 'Total Conversations'; }
+    document.getElementById('apConvosToday').textContent = convVal;
+    document.getElementById('apConvosLabel').textContent = convLbl;
 
     // response time
     document.getElementById('apAvgResponse').textContent = s.avg_response_time;

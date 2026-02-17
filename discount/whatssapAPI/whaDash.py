@@ -232,25 +232,32 @@ def api_agent_stats(request):
     today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
     week_start = today_start - timedelta(days=today_start.weekday())
 
-    # --- 1. Online time from Activity logs (login/logout pairs) ---
+    # --- 1. Online time from Activity logs ---
+    # Uses ws_connect/ws_disconnect (WebSocket) AND login/logout pairs
+    CONNECT_TYPES = ('login', 'ws_connect')
+    DISCONNECT_TYPES = ('logout', 'ws_disconnect')
+    ALL_PRESENCE_TYPES = CONNECT_TYPES + DISCONNECT_TYPES
+
     def calc_online_seconds(since):
         activities = list(
             Activity.objects.filter(
                 user=agent,
-                activity_type__in=['login', 'logout'],
+                activity_type__in=ALL_PRESENCE_TYPES,
                 timestamp__gte=since
             ).order_by('timestamp').values_list('activity_type', 'timestamp')
         )
         total = timedelta()
-        login_time = None
+        connect_time = None
         for atype, ts in activities:
-            if atype == 'login':
-                login_time = ts
-            elif atype == 'logout' and login_time:
-                total += ts - login_time
-                login_time = None
-        if login_time and agent.is_online:
-            total += now - login_time
+            if atype in CONNECT_TYPES:
+                if connect_time is None:
+                    connect_time = ts
+            elif atype in DISCONNECT_TYPES and connect_time:
+                total += ts - connect_time
+                connect_time = None
+        # If still connected (no disconnect after last connect)
+        if connect_time and agent.is_online:
+            total += now - connect_time
         return total.total_seconds()
 
     online_today_secs = calc_online_seconds(today_start)
@@ -267,25 +274,25 @@ def api_agent_stats(request):
         return f"{m}m {s}s"
 
     # --- 2. Average response time ---
-    # Find customer messages that got a reply from this agent.
-    # A "response" = first agent message (is_from_me=True, user=agent)
-    # after a customer message (is_from_me=False) in the same sender thread.
-    # We use a pragmatic approach: for each agent reply, find the most recent
-    # customer message before it in the same sender thread, compute the delta.
+    # For each agent reply (is_from_me=True), find the last customer message
+    # in the same conversation thread and compute the time delta.
+    # Message.user is often NULL (WebSocket sends don't always set it),
+    # so we also match by channel ownership to identify agent messages.
     agent_channels = WhatsAppChannel.objects.filter(
-        Q(owner=request.user) | Q(assigned_agents=request.user)
+        Q(owner=agent) | Q(assigned_agents=agent)
     ).distinct()
 
+    # Strategy: find agent replies by user=agent OR by channel ownership
     agent_replies = Message.objects.filter(
-        user=agent,
         is_from_me=True,
         is_internal=False,
         channel__in=agent_channels,
         timestamp__gte=week_start,
+    ).filter(
+        Q(user=agent) | Q(user__isnull=True)
     ).order_by('timestamp').select_related('channel')
 
     response_deltas = []
-    checked_senders = {}
 
     for reply in agent_replies[:200]:
         last_customer_msg = Message.objects.filter(
@@ -327,17 +334,25 @@ def api_agent_stats(request):
         else:
             last_seen_str = agent.last_seen.strftime("%b %d, %I:%M %p")
 
-    # --- 4. Messages sent today ---
-    msgs_today = Message.objects.filter(
-        user=agent, is_from_me=True, is_internal=False,
-        timestamp__gte=today_start
-    ).count()
+    # --- 4. Messages sent ---
+    # Match by user=agent OR by channel ownership when user is NULL
+    agent_msg_base = Message.objects.filter(
+        is_from_me=True, is_internal=False,
+        channel__in=agent_channels,
+    ).filter(Q(user=agent) | Q(user__isnull=True))
 
-    # --- 5. Unique conversations today ---
-    convos_today = Message.objects.filter(
-        user=agent, is_from_me=True, is_internal=False,
+    msgs_today = agent_msg_base.filter(timestamp__gte=today_start).count()
+    msgs_week = agent_msg_base.filter(timestamp__gte=week_start).count()
+    msgs_total = agent_msg_base.count()
+
+    # --- 5. Unique conversations ---
+    convos_today = agent_msg_base.filter(
         timestamp__gte=today_start
     ).values('sender').distinct().count()
+    convos_week = agent_msg_base.filter(
+        timestamp__gte=week_start
+    ).values('sender').distinct().count()
+    convos_total = agent_msg_base.values('sender').distinct().count()
 
     # --- 6. Response time rating ---
     if avg_response_secs is None:
@@ -375,6 +390,10 @@ def api_agent_stats(request):
             "speed_color": speed_color,
             "last_seen": last_seen_str,
             "messages_today": msgs_today,
+            "messages_week": msgs_week,
+            "messages_total": msgs_total,
             "conversations_today": convos_today,
+            "conversations_week": convos_week,
+            "conversations_total": convos_total,
         },
     })

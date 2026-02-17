@@ -1309,7 +1309,8 @@ def send_message(request):
                 body=f"[Template: {template_name}]",
                 message_id=wamid,
                 status='sent',
-                media_type='template'
+                media_type='template',
+                user=request.user if request.user.is_authenticated else None,
             )
             log_activity('wa_message_sent', f"Template '{template_name}' to {to_number} via {channel.name}", request=request)
             return JsonResponse({"success": True, "wamid": wamid})
@@ -1339,7 +1340,8 @@ def send_message(request):
                 body=body[:4096],
                 message_id=wamid,
                 status="sent",
-                media_type="text"
+                media_type="text",
+                user=request.user if request.user.is_authenticated else None,
             )
             log_activity('wa_message_sent', f"Text message to {to_number} via {channel.name}", request=request)
             return JsonResponse({"success": True, "wamid": wamid})
