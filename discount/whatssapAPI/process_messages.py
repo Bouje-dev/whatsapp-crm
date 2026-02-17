@@ -566,7 +566,7 @@ def save_incoming_message(msg, message_type, sender=None, channel=None, name=Non
         elif message_obj.media_type == 'video': snippet = '[فيديو]'
         else: snippet = message_obj.body[:80] if message_obj.body else ''
 
-        unread_count = Message.objects.filter(sender=message_obj.sender, is_read=False).count()
+        unread_count = Message.objects.filter(sender=message_obj.sender, is_read=False, channel=channel).count() if channel else Message.objects.filter(sender=message_obj.sender, is_read=False).count()
 
         contact_payload = {
             "channel_id": channel.id if channel else None, # هام للفرونت إند - مع التحقق من None

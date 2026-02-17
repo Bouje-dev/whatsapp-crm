@@ -6450,6 +6450,7 @@ document.addEventListener("DOMContentLoaded", function() {
      
     let currentPhone = null;
     let currentChannelId =  '{{ initial_channel_id }}' 
+    window._activeChannelId = currentChannelId;
     let lastMessageId = 0;
     let contactsSnapshot = '';
     let pollInterval = 5000;
@@ -7454,6 +7455,7 @@ async function switchChannel(newChannelId) {
     if(currentChannelId === newChannelId) return;
     
     currentChannelId = newChannelId;
+    window._activeChannelId = newChannelId;
     
     // تحديث الواجهة (Active Class)
 
@@ -8558,6 +8560,10 @@ console.log('✅ Functions exposed to window successfully');
 
 window.getCurrentChatPhone = function() {
     return currentPhone;
+};
+
+window.getCurrentChannelId = function() {
+    return currentChannelId;
 };
 
   })();  
