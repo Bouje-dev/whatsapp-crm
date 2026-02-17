@@ -61,4 +61,5 @@ django-storages
 xmltodict
 beautifulsoup4
 
-django-anymail[sendgrid]pycryptodome>=3.20.0
+django-anymail[sendgrid]
+pycryptodome>=3.20.0
