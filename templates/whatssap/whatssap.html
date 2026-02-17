@@ -2642,11 +2642,21 @@ function sendInternalNote(text) {
                   
                   <div class="cls3741_divider"></div>
                   
-                  <button type="button" class="cls3741_icon_btn" disabled title="Emoji">
+                  <div class="cls3741_emoji_wrapper" style="position:relative;">
+                  <button type="button" id="cls3741_emoji_btn" class="cls3741_icon_btn" title="Emoji">
                       <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                           <circle cx="12" cy="12" r="10"></circle><path d="M8 14s1.5 2 4 2 4-2 4-2"></path><line x1="9" y1="9" x2="9.01" y2="9"></line><line x1="15" y1="9" x2="15.01" y2="9"></line>
                       </svg>
                   </button>
+                  <!-- Emoji Picker Panel -->
+                  <div id="emoji_picker_panel" class="emoji-picker-panel">
+                    <div class="emoji-picker-header">
+                      <span class="emoji-picker-title">Emoji</span>
+                      <button type="button" class="emoji-picker-close" id="emoji_picker_close" aria-label="Close">&times;</button>
+                    </div>
+                    <div class="emoji-picker-grid" id="emoji_picker_grid"></div>
+                  </div>
+                  </div>
     
                   <button type="button" class="cls3741_icon_btn" id="cls3741_attach_btn" title="Attach Files">
                       <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -2674,7 +2684,8 @@ function sendInternalNote(text) {
                       </svg>
                   </button>
     
-                  <button type="button" class="cls3741_tool_btn ai_assist_btn" disabled>
+                  <div style="position:relative;">
+                  <button type="button" id="cls3741_ai_assist_btn" class="cls3741_tool_btn ai_assist_btn" title="AI Assist — Generate a smart reply">
                     <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                         <path d="M12 2a10 10 0 1 0 10 10H12V2z"></path>
                         <path d="M12 2a10 10 0 0 1 10 10h-10V2z" transform="rotate(45 12 12)"></path>
@@ -2682,6 +2693,42 @@ function sendInternalNote(text) {
                     </svg>
                     <span class="cls3741_btn_label">AI Assist</span>
                   </button>
+
+                  <!-- AI Assist Floating Panel -->
+                  <div id="ai_assist_panel" class="ai-assist-panel">
+                    <div class="ai-panel-header">
+                      <h4>
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2a10 10 0 1 0 10 10H12V2z"/></svg>
+                        AI Assistant
+                      </h4>
+                      <button class="ai-panel-close" id="ai_panel_close">&times;</button>
+                    </div>
+                    <div class="ai-panel-body">
+                      <div class="ai-instruction-row">
+                        <input type="text" class="ai-instruction-input" id="ai_instruction_input"
+                               placeholder="Optional: e.g. &quot;be formal&quot;, &quot;offer discount&quot;...">
+                        <button class="ai-generate-btn" id="ai_generate_btn">Generate</button>
+                      </div>
+
+                      <div class="ai-loading-skeleton" id="ai_loading">
+                        <div class="ai-skel-line"></div>
+                        <div class="ai-skel-line"></div>
+                        <div class="ai-skel-line"></div>
+                      </div>
+
+                      <div class="ai-error-msg" id="ai_error"></div>
+
+                      <div class="ai-result-area" id="ai_result_area">
+                        <div class="ai-result-text" id="ai_result_text"></div>
+                        <div class="ai-tokens-info" id="ai_tokens_info"></div>
+                        <div class="ai-result-actions">
+                          <button class="ai-btn-retry" id="ai_retry_btn">Regenerate</button>
+                          <button class="ai-btn-use" id="ai_use_btn">Use Reply</button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                  </div>
     
               </div>
     
@@ -2955,6 +3002,246 @@ function sendCannedResponseDirectly(item) {
     }
 
 });</script>
+
+<script>
+(function() {
+    const aiBtn        = document.getElementById('cls3741_ai_assist_btn');
+    const panel        = document.getElementById('ai_assist_panel');
+    const closeBtn     = document.getElementById('ai_panel_close');
+    const generateBtn  = document.getElementById('ai_generate_btn');
+    const retryBtn     = document.getElementById('ai_retry_btn');
+    const useBtn       = document.getElementById('ai_use_btn');
+    const instrInput   = document.getElementById('ai_instruction_input');
+    const loadingEl    = document.getElementById('ai_loading');
+    const errorEl      = document.getElementById('ai_error');
+    const resultArea   = document.getElementById('ai_result_area');
+    const resultText   = document.getElementById('ai_result_text');
+    const tokensInfo   = document.getElementById('ai_tokens_info');
+    const messageInput = document.getElementById('cls3741_message_input');
+    const sendBtn      = document.getElementById('cls3741_send_btn');
+
+    if (!aiBtn || !panel) return;
+
+    function getActivePhone() {
+        return typeof window.getCurrentChatPhone === 'function' ? window.getCurrentChatPhone() : null;
+    }
+    function getActiveChannelId() {
+        return (typeof window.getCurrentChannelId === 'function' ? window.getCurrentChannelId() : null)
+            || window._activeChannelId || null;
+    }
+
+    function togglePanel(show) {
+        if (show) {
+            panel.classList.add('visible');
+            instrInput.focus();
+        } else {
+            panel.classList.remove('visible');
+            resetPanel();
+        }
+    }
+
+    function resetPanel() {
+        loadingEl.classList.remove('visible');
+        errorEl.classList.remove('visible');
+        resultArea.classList.remove('visible');
+        errorEl.textContent = '';
+        resultText.textContent = '';
+        tokensInfo.textContent = '';
+    }
+
+    function showLoading(on) {
+        if (on) {
+            loadingEl.classList.add('visible');
+            errorEl.classList.remove('visible');
+            resultArea.classList.remove('visible');
+            generateBtn.disabled = true;
+            aiBtn.classList.add('loading');
+        } else {
+            loadingEl.classList.remove('visible');
+            generateBtn.disabled = false;
+            aiBtn.classList.remove('loading');
+        }
+    }
+
+    function showError(msg) {
+        errorEl.textContent = msg;
+        errorEl.classList.add('visible');
+        resultArea.classList.remove('visible');
+    }
+
+    function showResult(reply, tokens) {
+        resultText.textContent = reply;
+        tokensInfo.textContent = tokens ? `${tokens} tokens used` : '';
+        resultArea.classList.add('visible');
+        errorEl.classList.remove('visible');
+    }
+
+    async function requestAI() {
+        const phone = getActivePhone();
+        const channelId = getActiveChannelId();
+
+        if (!phone) {
+            showError('Open a conversation first before using AI Assist.');
+            return;
+        }
+        if (!channelId) {
+            showError('No active channel selected.');
+            return;
+        }
+
+        const instruction = instrInput.value.trim() || undefined;
+
+        showLoading(true);
+
+        try {
+            const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]')?.value;
+            const res = await fetch('/ai-assistant/api/suggest/', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': csrfToken,
+                },
+                body: JSON.stringify({
+                    channel_id: channelId,
+                    phone: phone,
+                    instruction: instruction,
+                }),
+            });
+
+            const data = await res.json();
+
+            if (!res.ok) {
+                showError(data.error || `Request failed (${res.status}).`);
+                return;
+            }
+
+            showResult(data.reply, data.tokens_used);
+        } catch (err) {
+            showError('Network error. Please check your connection.');
+            console.error('AI Assist error:', err);
+        } finally {
+            showLoading(false);
+        }
+    }
+
+    // Toggle panel on button click
+    aiBtn.addEventListener('click', function(e) {
+        e.stopPropagation();
+        const isOpen = panel.classList.contains('visible');
+        togglePanel(!isOpen);
+        if (!isOpen) {
+            resetPanel();
+        }
+    });
+
+    closeBtn.addEventListener('click', function() { togglePanel(false); });
+
+    // Generate
+    generateBtn.addEventListener('click', requestAI);
+    retryBtn.addEventListener('click', requestAI);
+
+    // Enter key in instruction input triggers generate
+    instrInput.addEventListener('keydown', function(e) {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            requestAI();
+        }
+    });
+
+    // Use Reply -> put text in message input
+    useBtn.addEventListener('click', function() {
+        if (!messageInput || !resultText.textContent) return;
+        messageInput.value = resultText.textContent;
+        messageInput.dispatchEvent(new Event('input', { bubbles: true }));
+        messageInput.focus();
+        if (sendBtn) sendBtn.disabled = false;
+        togglePanel(false);
+    });
+
+    // Close panel when clicking outside
+    document.addEventListener('click', function(e) {
+        if (panel.classList.contains('visible') && !panel.contains(e.target) && !aiBtn.contains(e.target)) {
+            togglePanel(false);
+        }
+    });
+
+    // Prevent panel clicks from propagating
+    panel.addEventListener('click', function(e) { e.stopPropagation(); });
+})();
+</script>
+
+<script>
+(function() {
+    var EMOJI_LIST = ['😀','😃','😄','😁','😅','😂','🤣','😊','😇','🙂','😉','😌','😍','🥰','😘','😗','😙','😚','😋','😛','😜','🤪','😝','🤑','🤗','🤭','🤫','🤔','🤐','🤨','😐','😑','😶','😏','😒','🙄','😬','🤥','😌','😔','😪','🤤','😴','😷','🤒','🤕','🤢','🤮','🤧','🥵','🥶','👍','👎','👌','✌️','🤞','🤟','🤘','🤙','👈','👉','👆','👇','☝️','✋','🤚','🖐','🖖','👋','🤙','💪','🙏','❤️','🧡','💛','💚','💙','💜','🖤','🤍','🤎','💔','❣️','💕','💞','💓','💗','💖','💘','💝','💟','☮️','✝️','☪️','🕉','☸️','✡️','🔯','📧','📨','📩','💌','📥','📤','📦','📮','📪','📫','✉️','📬','📭','📮','📯','📄','📃','📑','📊','📈','📉','📋','📁','📂','🗂','📅','📆','🗒','🗓','📇','📈','📉','📊','📋','📌','📍','📎','🖇','📏','📐','✂️','🗃','🗄','🗑','🔒','🔓','🔏','🔐','🔑','🗝','🔨','⛏','🛠','⚒','🔧','🔩','⚙️','🗜','⚖️','🔗','⛓','🛡','🔫','🔪','⚔️','🗡','🛡','📱','📲','☎️','📞','📟','📠','🔋','🔌','💻','🖥','🖨','⌨️','🖱','🖲','💽','💾','💿','📀','🎥','🎞','📽','🎬','📺','📷','📸','📹','📼','🔍','🔎','🕯','💡','🔦','🏮','📔','📕','📖','📗','📘','📙','📚','📓','📒','📃','📜','📄','📰','🗞','📑','🔖','🏷','💰','💴','💵','💶','💷','💸','💳','💹','✉️','📧','📨','📩','💌','📮','🛒','🛍','🎁','🎀','🎈','🎊','🎉','🏆','🥇','🥈','🥉','⚽','🏀','🏈','⚾','🎾','🏐','🏉','🎱','🪀','🏓','🏸','🏒','🏑','🥍','🏏','🪃','🥅','⛳','🪁','🏹','🎣','🤿','🥊','🥋','🎽','🛹','🛼','🛷','⛸','🥌','🎿','⛷','🏂','🪂','🏋️','🤸','⛹️','🤾','🏌️','🏇','⛹️','🏊','🤽','🏄','🛀','⛹️','🚴','🚵','🤹','🎪','🎭','🎨','🎬','🎤','🎧','🎼','🎹','🥁','🪘','🎷','🎺','🪗','🎸','🪕','🎻','🛎','🔔','📯','🔕','🔇','📢','📣','🔈','🔉','🔊','🔔','📢','📣','💬','💭','🗯','💯','💢','💥','💤','💨','🕳','💣','💫','🗨','👁‍🗨','💭','💬','🔥','⭐','🌟','✨','💫','⚡','☀️','🌤','⛅','🌥','☁️','🌦','🌧','⛈','🌩','🌨','❄️','☃️','⛄','🌬','💨','🌪','🌫','🌈','☔','💧','💦','☂️','🌊','🙌','👏','👋','🤝','🙏','✍️','💅','🤳','💪','🦾','🦿','🦵','🦶','👂','🦻','👃','🧠','🫀','🫁','🦷','🦴','👀','👁','👅','👄','💋','🩸'];
+    var emojiBtn = document.getElementById('cls3741_emoji_btn');
+    var emojiPanel = document.getElementById('emoji_picker_panel');
+    var emojiClose = document.getElementById('emoji_picker_close');
+    var emojiGrid = document.getElementById('emoji_picker_grid');
+    var messageInput = document.getElementById('cls3741_message_input');
+    var sendBtn = document.getElementById('cls3741_send_btn');
+
+    if (!emojiBtn || !emojiPanel || !emojiGrid) return;
+
+    function buildEmojiGrid() {
+        emojiGrid.innerHTML = '';
+        EMOJI_LIST.forEach(function(emoji) {
+            var cell = document.createElement('button');
+            cell.type = 'button';
+            cell.className = 'emoji-picker-cell';
+            cell.textContent = emoji;
+            cell.setAttribute('data-emoji', emoji);
+            emojiGrid.appendChild(cell);
+        });
+    }
+
+    function insertEmojiAtCursor(emoji) {
+        if (!messageInput) return;
+        var start = messageInput.selectionStart;
+        var end = messageInput.selectionEnd;
+        var text = messageInput.value;
+        var before = text.substring(0, start);
+        var after = text.substring(end);
+        messageInput.value = before + emoji + after;
+        messageInput.selectionStart = messageInput.selectionEnd = start + emoji.length;
+        messageInput.focus();
+        messageInput.dispatchEvent(new Event('input', { bubbles: true }));
+        if (sendBtn) sendBtn.disabled = messageInput.value.trim() === '';
+    }
+
+    function toggleEmojiPanel(show) {
+        if (show) {
+            emojiPanel.classList.add('visible');
+        } else {
+            emojiPanel.classList.remove('visible');
+        }
+    }
+
+    buildEmojiGrid();
+
+    emojiBtn.addEventListener('click', function(e) {
+        e.stopPropagation();
+        var isOpen = emojiPanel.classList.contains('visible');
+        toggleEmojiPanel(!isOpen);
+    });
+
+    emojiClose.addEventListener('click', function() { toggleEmojiPanel(false); });
+
+    emojiGrid.addEventListener('click', function(e) {
+        var cell = e.target.closest('.emoji-picker-cell');
+        if (!cell) return;
+        var emoji = cell.getAttribute('data-emoji') || cell.textContent;
+        if (emoji) insertEmojiAtCursor(emoji);
+    });
+
+    document.addEventListener('click', function(e) {
+        if (emojiPanel.classList.contains('visible') && !emojiPanel.contains(e.target) && !emojiBtn.contains(e.target)) {
+            toggleEmojiPanel(false);
+        }
+    });
+
+    emojiPanel.addEventListener('click', function(e) { e.stopPropagation(); });
+})();
+</script>
         
         </div>
 
@@ -3051,6 +3338,283 @@ function sendCannedResponseDirectly(item) {
       }
       .cls3741_tool_btn svg {
         width: 18px; height: 18px;
+      }
+
+      /* ── AI Assist Button ── */
+      .ai_assist_btn {
+        position: relative;
+        background: linear-gradient(135deg, rgba(99,102,241,0.08), rgba(168,85,247,0.08)) !important;
+        border: 1px solid rgba(99,102,241,0.15) !important;
+      }
+      .ai_assist_btn svg { stroke: #7c3aed; }
+      .ai_assist_btn .cls3741_btn_label { color: #7c3aed; font-weight: 600; }
+      .ai_assist_btn:hover {
+        background: linear-gradient(135deg, rgba(99,102,241,0.16), rgba(168,85,247,0.16)) !important;
+        border-color: rgba(99,102,241,0.3) !important;
+        box-shadow: 0 0 12px rgba(124,58,237,0.15);
+      }
+      .ai_assist_btn.loading {
+        pointer-events: none;
+        opacity: 0.7;
+      }
+      .ai_assist_btn.loading svg {
+        animation: ai-spin 1s linear infinite;
+      }
+      @keyframes ai-spin {
+        from { transform: rotate(0deg); }
+        to   { transform: rotate(360deg); }
+      }
+
+      /* ── AI Assist Floating Panel ── */
+      .ai-assist-panel {
+        display: none;
+        position: absolute;
+        bottom: calc(100% + 8px);
+        right: 0;
+        width: 380px;
+        max-width: 90vw;
+        background: #ffffff;
+        border: 1px solid #e2e8f0;
+        border-radius: 14px;
+        box-shadow: 0 12px 40px rgba(0,0,0,0.12), 0 2px 8px rgba(0,0,0,0.06);
+        z-index: 1000;
+        overflow: hidden;
+        animation: ai-panel-in 0.2s ease-out;
+      }
+      .ai-assist-panel.visible { display: block; }
+      @keyframes ai-panel-in {
+        from { opacity: 0; transform: translateY(8px); }
+        to   { opacity: 1; transform: translateY(0); }
+      }
+      .ai-panel-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 12px 16px;
+        background: linear-gradient(135deg, #6366f1, #8b5cf6);
+        color: #fff;
+      }
+      .ai-panel-header h4 {
+        margin: 0;
+        font-size: 14px;
+        font-weight: 600;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+      }
+      .ai-panel-close {
+        background: rgba(255,255,255,0.2);
+        border: none;
+        color: #fff;
+        width: 26px; height: 26px;
+        border-radius: 50%;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 16px;
+        line-height: 1;
+        transition: background 0.15s;
+      }
+      .ai-panel-close:hover { background: rgba(255,255,255,0.35); }
+      .ai-panel-body { padding: 14px 16px; }
+      .ai-instruction-row {
+        display: flex;
+        gap: 8px;
+        margin-bottom: 12px;
+      }
+      .ai-instruction-input {
+        flex: 1;
+        padding: 8px 12px;
+        border: 1px solid #e2e8f0;
+        border-radius: 8px;
+        font-size: 13px;
+        outline: none;
+        transition: border-color 0.15s;
+        background: #f8fafc;
+      }
+      .ai-instruction-input:focus { border-color: #7c3aed; }
+      .ai-instruction-input::placeholder { color: #94a3b8; }
+      .ai-generate-btn {
+        padding: 8px 16px;
+        background: linear-gradient(135deg, #6366f1, #8b5cf6);
+        color: #fff;
+        border: none;
+        border-radius: 8px;
+        font-size: 13px;
+        font-weight: 600;
+        cursor: pointer;
+        white-space: nowrap;
+        transition: all 0.15s;
+      }
+      .ai-generate-btn:hover { box-shadow: 0 2px 8px rgba(99,102,241,0.4); }
+      .ai-generate-btn:disabled { opacity: 0.6; cursor: not-allowed; }
+
+      /* Result area */
+      .ai-result-area {
+        display: none;
+        background: #f8fafc;
+        border: 1px solid #e2e8f0;
+        border-radius: 10px;
+        padding: 12px;
+        margin-top: 4px;
+      }
+      .ai-result-area.visible { display: block; }
+      .ai-result-text {
+        font-size: 13.5px;
+        line-height: 1.6;
+        color: #1e293b;
+        white-space: pre-wrap;
+        word-break: break-word;
+        max-height: 160px;
+        overflow-y: auto;
+      }
+      .ai-result-actions {
+        display: flex;
+        gap: 8px;
+        margin-top: 10px;
+        justify-content: flex-end;
+      }
+      .ai-btn-use {
+        padding: 6px 16px;
+        background: #6366f1;
+        color: #fff;
+        border: none;
+        border-radius: 7px;
+        font-size: 12.5px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.15s;
+      }
+      .ai-btn-use:hover { background: #4f46e5; }
+      .ai-btn-retry {
+        padding: 6px 14px;
+        background: #f1f5f9;
+        color: #475569;
+        border: 1px solid #e2e8f0;
+        border-radius: 7px;
+        font-size: 12.5px;
+        font-weight: 500;
+        cursor: pointer;
+        transition: all 0.15s;
+      }
+      .ai-btn-retry:hover { background: #e2e8f0; }
+
+      /* Loading skeleton */
+      .ai-loading-skeleton {
+        display: none;
+        padding: 12px;
+      }
+      .ai-loading-skeleton.visible { display: block; }
+      .ai-skel-line {
+        height: 12px;
+        background: linear-gradient(90deg, #e2e8f0 25%, #f1f5f9 50%, #e2e8f0 75%);
+        background-size: 200% 100%;
+        animation: ai-shimmer 1.5s infinite;
+        border-radius: 6px;
+        margin-bottom: 8px;
+      }
+      .ai-skel-line:nth-child(1) { width: 90%; }
+      .ai-skel-line:nth-child(2) { width: 75%; }
+      .ai-skel-line:nth-child(3) { width: 60%; }
+      @keyframes ai-shimmer {
+        0%   { background-position: 200% 0; }
+        100% { background-position: -200% 0; }
+      }
+
+      .ai-error-msg {
+        display: none;
+        padding: 10px 12px;
+        background: #fef2f2;
+        border: 1px solid #fecaca;
+        border-radius: 8px;
+        color: #dc2626;
+        font-size: 12.5px;
+        margin-top: 8px;
+      }
+      .ai-error-msg.visible { display: block; }
+      .ai-tokens-info {
+        font-size: 11px;
+        color: #94a3b8;
+        margin-top: 6px;
+        text-align: right;
+      }
+
+      /* ── Emoji Picker Panel ── */
+      .emoji-picker-panel {
+        display: none;
+        position: absolute;
+        bottom: calc(100% + 8px);
+        left: 0;
+        width: 320px;
+        max-width: 90vw;
+        background: #fff;
+        border: 1px solid #e2e8f0;
+        border-radius: 12px;
+        box-shadow: 0 10px 32px rgba(0,0,0,0.12);
+        z-index: 1000;
+        overflow: hidden;
+        animation: emoji-panel-in 0.2s ease-out;
+      }
+      .emoji-picker-panel.visible { display: block; }
+      @keyframes emoji-panel-in {
+        from { opacity: 0; transform: translateY(6px); }
+        to   { opacity: 1; transform: translateY(0); }
+      }
+      .emoji-picker-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 8px 12px;
+        background: #f8fafc;
+        border-bottom: 1px solid #e2e8f0;
+      }
+      .emoji-picker-title {
+        font-size: 13px;
+        font-weight: 600;
+        color: #334155;
+      }
+      .emoji-picker-close {
+        background: transparent;
+        border: none;
+        color: #64748b;
+        width: 24px;
+        height: 24px;
+        border-radius: 6px;
+        cursor: pointer;
+        font-size: 18px;
+        line-height: 1;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: background 0.15s, color 0.15s;
+      }
+      .emoji-picker-close:hover {
+        background: #e2e8f0;
+        color: #1e293b;
+      }
+      .emoji-picker-grid {
+        display: grid;
+        grid-template-columns: repeat(8, 1fr);
+        gap: 2px;
+        padding: 10px;
+        max-height: 220px;
+        overflow-y: auto;
+      }
+      .emoji-picker-cell {
+        width: 100%;
+        aspect-ratio: 1;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 22px;
+        cursor: pointer;
+        border-radius: 8px;
+        transition: background 0.1s;
+        user-select: none;
+      }
+      .emoji-picker-cell:hover {
+        background: #f1f5f9;
       }
     
       /* الأزرار التي تحتوي أيقونة فقط (Emoji, Attach, Mic) */

@@ -40,6 +40,7 @@ INSTALLED_APPS = [
     'discount',
     'orders',
     'reputation',
+    'ai_assistant',
     'corsheaders',
     'channels',
     'storages',
@@ -254,6 +255,9 @@ ANYMAIL = {
 # ✅ 3. تأكد أن هذا البريد مطابق للذي وثقته في SendGrid
 DEFAULT_FROM_EMAIL = "Waselytics Support <support@waselytics.com>"
 SERVER_EMAIL = "support@waselytics.com"
+
+# AI Assistant (OpenAI)
+OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY", "")
 
 
 

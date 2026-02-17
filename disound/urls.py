@@ -35,6 +35,7 @@ urlpatterns = [
     path('discount/marketing/tracker.js/', serve_tracker_by_id, name='tracker_js_root_slash'),
     path('discount/marketing/', include('discount.marketing.urls')),
     path('orders/', include('orders.urls')),
+    path('ai-assistant/', include('ai_assistant.urls')),
     # ad spy links 
      
 
