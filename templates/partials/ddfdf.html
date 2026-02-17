@@ -1,0 +1,503 @@
+<!-- <script>
+ 
+const FLOW_CREATE_ENDPOINT = '/discount/marketing/api/flows/create/';
+const LIST_FLOWS_ENDPOINT = '/discount/marketing/api/flows/';
+const FLOW_DETAIL_ENDPOINT = id => `/discount/marketing/api/flows/${id}/`;
+const CAPTURE_VISIT_ENDPOINT = window.location.origin + '/discount/marketing/api/capture-visit/';
+const COLLECTOR_ENDPOINT = '/collect';
+
+
+const addBtn = document.getElementById('addBtn-S');
+const panel = document.getElementById('panel-S');
+const closePanel = document.getElementById('closePanel-S');
+const createBtn = document.getElementById('createBtn-S');
+const generatedDiv = document.getElementById('generated-S');
+const copyBtn = document.getElementById('copyBtn-S');
+const saveBtn = document.getElementById('saveBtn-S');
+
+const flowName = document.getElementById('flowName-S');
+const allowedDomains = document.getElementById('allowedDomains-S');
+const storeUrl = document.getElementById('storeUrl-S');
+const enableDiscount = document.getElementById('enableDiscount-S');
+const discountBlock = document.getElementById('discountBlock-S');
+const visitsThreshold = document.getElementById('visitsThreshold-S');
+const couponMode = document.getElementById('couponMode-S');
+const discountPercent = document.getElementById('discountPercent-S');
+const tiers = document.getElementById('tiers-S');
+const alternatePage = document.getElementById('alternatePage-S');
+const altWrap = document.getElementById('altWrap-S');
+const altUrl = document.getElementById('altUrl-S');
+const couponCode = document.getElementById('couponCode-S');
+const genCoupon = document.getElementById('genCoupon-S');
+const visitorSource = document.getElementById('visitorSource-S');
+const audience = document.getElementById('audience-S');
+const addons = document.getElementById('addons-S');
+const includeKey = document.getElementById('includeKey-S');
+
+const scriptsArea = document.getElementById('scriptsArea-S');
+const countBox = document.getElementById('count-S');
+
+let editingFlowId = null; // if editing
+
+// CSRF helper
+function getCookie(name){
+  const m = document.cookie.match('(^|;)\\s*' + name + '\\s*=\\s*([^;]+)');
+  return m ? m.pop() : '';
+}
+const CSRF = getCookie('csrftoken') || '';
+
+// UI interactions
+addBtn.addEventListener('click', () => openPanelForCreate());
+closePanel.addEventListener('click', () => closePanelFn());
+enableDiscount.addEventListener('change', () => { discountBlock.style.display = enableDiscount.value === 'yes' ? '' : 'none'; });
+alternatePage.addEventListener('change', () => { altWrap.style.display = alternatePage.value === 'yes' ? '' : 'none'; });
+genCoupon.addEventListener('click', (e)=> { e.preventDefault(); couponCode.value = 'AUTO-'+Math.random().toString(36).slice(2,7).toUpperCase(); });
+
+// open / close panel
+function openPanelForCreate(){
+  editingFlowId = null;
+  panel.classList.add('open'); panel.setAttribute('aria-hidden','false');
+  document.getElementById('panelTitle-S').textContent = 'Create Flow';
+  clearForm();
+  generatedDiv.textContent = '// Script will appear here after create';
+}
+function openPanelForEdit(flow){
+  editingFlowId = flow.flow_id;
+  panel.classList.add('open'); panel.setAttribute('aria-hidden','false');
+  document.getElementById('panelTitle-S').textContent = 'Edit Flow';
+  // populate form from flow.config if present otherwise best-effort
+  flowName.value = flow.name || '';
+  allowedDomains.value = flow.allowed_domains || (flow.config && flow.config.allowedDomains) || '';
+  storeUrl.value = (flow.config && flow.config.storeUrl) || '';
+  enableDiscount.value = (flow.config && flow.config.enableDiscount) ? 'yes' : 'no';
+  discountBlock.style.display = enableDiscount.value === 'yes' ? '' : 'none';
+  if(flow.config){
+    visitsThreshold.value = flow.config.visitsThreshold || 2;
+    couponMode.value = flow.config.couponMode || 'show';
+    discountPercent.value = flow.config.discountPercent || 10;
+    tiers.value = (flow.config.tiers || []).map(t => t.join(':')).join(',');
+    alternatePage.value = flow.config.alternatePage ? 'yes' : 'no';
+    altWrap.style.display = alternatePage.value === 'yes' ? '' : 'none';
+    altUrl.value = flow.config.altPageUrl || '';
+    couponCode.value = flow.config.couponCode || '';
+    visitorSource.value = flow.config.visitorSource || 'all';
+    audience.value = flow.config.audience || 'public';
+    addons.value = flow.config.addons || '';
+  }
+  generatedDiv.textContent = flow.script || '// script preview';
+}
+
+function closePanelFn(){
+  panel.classList.remove('open'); panel.setAttribute('aria-hidden','true');
+  editingFlowId = null;
+}
+
+// clear form
+function clearForm(){
+  flowName.value=''; allowedDomains.value=''; storeUrl.value='';
+  enableDiscount.value='no'; discountBlock.style.display='none';
+  visitsThreshold.value=2; couponMode.value='show'; discountPercent.value=10; tiers.value='';
+  alternatePage.value='no'; altWrap.style.display='none'; altUrl.value=''; couponCode.value='';
+  visitorSource.value='all'; audience.value='public'; addons.value=''; includeKey.checked=false;
+}
+
+// escape html
+function esc(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+// --- build config from form
+function buildConfigFromForm(){
+  const cfg = {};
+  cfg.storeUrl = (storeUrl.value||'').trim();
+  cfg.storeHash = cfg.storeUrl ? btoa(cfg.storeUrl).slice(0,12) : 's_default';
+  cfg.enableDiscount = enableDiscount.value === 'yes';
+  cfg.blockRepeat = document.getElementById('blockRepeat-S') ? (document.getElementById('blockRepeat-S').value === 'yes') : false;
+  cfg.visitorSource = visitorSource.value; cfg.audience = audience.value; cfg.addons = addons.value.trim();
+  if(cfg.enableDiscount){
+    cfg.visitsThreshold = parseInt(visitsThreshold.value || '2', 10);
+    cfg.couponMode = couponMode.value;
+    cfg.discountPercent = parseInt(discountPercent.value || '0', 10);
+    cfg.tiers = [];
+    (tiers.value||'').split(',').map(s=>s.trim()).filter(Boolean).forEach(pair=>{
+      const [v,p] = pair.split(':').map(x=>x.trim()); if(v && p) cfg.tiers.push([parseInt(v,10), parseInt(p,10)]);
+    });
+    cfg.alternatePage = alternatePage.value === 'yes';
+    cfg.altPageUrl = cfg.alternatePage ? (altUrl.value||'').trim() : '';
+    cfg.couponCode = (couponCode.value||'').trim() || ('AUTO-'+Math.random().toString(36).slice(2,7).toUpperCase());
+    cfg.couponMessage = `You got ${cfg.discountPercent}% off! Use ${cfg.couponCode}`;
+  }
+  cfg.createdAt = new Date().toISOString();
+  return cfg;
+}
+
+// --- buildCombinedScript (same pattern used earlier)
+function buildCombinedScript(cfg){
+  const safeCfg = JSON.stringify(cfg).replace(/</g,'\\u003c');
+  const script =`
+(function() {
+    // --- CONFIGURATION ---
+    // استقبال الإعدادات من الباك إند
+    const CFG = ${safeCfg}; 
+    
+    // مفاتيح التخزين المحلي
+    const STORAGE_KEYS = {
+        VISITOR_ID: '__st_vid',
+        ATTR_DATA: '__st_attr_data', // هنا سنحفظ بيانات الإعلان
+        SESSION_START: '__st_sess_start'
+    };
+
+    // --- HELPER: USER IDENTITY ---
+    function getVisitorId() {
+        let vid = localStorage.getItem(STORAGE_KEYS.VISITOR_ID);
+        if (!vid) {
+            vid = 'v_' + Math.random().toString(36).substr(2, 9) + '_' + Date.now().toString(36);
+            localStorage.setItem(STORAGE_KEYS.VISITOR_ID, vid);
+            localStorage.setItem(STORAGE_KEYS.SESSION_START, new Date().toISOString());
+        }
+        return vid;
+    }
+
+    // --- HELPER: ATTRIBUTION PERSISTENCE (القلب النابض للمشروع) ---
+    // هذه الدالة تحفظ بيانات المصدر حتى لا تضيع عند الانتقال بين الصفحات
+    function resolveAttribution() {
+        const urlParams = new URLSearchParams(window.location.search);
+        
+        // البيانات التي نريد التقاطها بدقة
+        const currentData = {
+            campaign_id: urlParams.get('campaign_id') || urlParams.get('utm_campaign'),
+            adset_id: urlParams.get('adset_id'),
+            ad_id: urlParams.get('ad_id'), // المعرف المهم جداً
+            placement: urlParams.get('placement'), // مكان ظهور الإعلان
+            source: urlParams.get('utm_source') || urlParams.get('source'),
+            medium: urlParams.get('utm_medium'),
+            click_id: urlParams.get('fbclid') || urlParams.get('ttclid') || urlParams.get('gclid') || null,
+            ts: Date.now()
+        };
+
+        // تنظيف البيانات الفارغة
+        Object.keys(currentData).forEach(key => currentData[key] === null && delete currentData[key]);
+
+        // هل توجد بيانات جديدة في الرابط؟
+        const hasNewData = Object.keys(currentData).length > 1; // >1 because ts always exists
+
+        if (hasNewData) {
+            // نعم، احفظها وحدث القديمة
+            localStorage.setItem(STORAGE_KEYS.ATTR_DATA, JSON.stringify(currentData));
+            return currentData;
+        } else {
+            // لا، الرابط نظيف، استرجع البيانات المخزنة من أول زيارة (Last Touch Attribution)
+            try {
+                const saved = JSON.parse(localStorage.getItem(STORAGE_KEYS.ATTR_DATA));
+                return saved || {};
+            } catch (e) { return {}; }
+        }
+    }
+
+    // --- HELPER: NETWORK SENDER ---
+    function sendData(endpoint, payload) {
+        const url = CFG.endpoint || '/api/track/'; // رابط الباك إند
+        
+        // دمج البيانات الأساسية مع كل ريكويست
+        const fullPayload = {
+            ...payload,
+            visitor_id: getVisitorId(),
+            url: window.location.href,
+            referrer: document.referrer,
+            store_id: CFG.store_id || 'unknown',
+            ...resolveAttribution() // دمج بيانات الإعلان المحفوظة
+        };
+
+        const blob = new Blob([JSON.stringify(fullPayload)], {type: 'application/json'});
+        
+        // محاولة الإرسال باستخدام Beacon (أفضل للأداء ولا تتوقف عند إغلاق الصفحة)
+        if (navigator.sendBeacon) {
+            navigator.sendBeacon(url, blob);
+        } else {
+            // Fallback للمتصفحات القديمة
+            fetch(url, {
+                method: 'POST',
+                body: blob,
+                keepalive: true,
+                headers: {'Content-Type': 'application/json'}
+            }).catch(() => {});
+        }
+    }
+
+    // --- MAIN: PAGE VIEW TRACKING ---
+    function trackPageView() {
+        // حساب الوقت المستغرق (سيتم إرساله عند المغادرة)
+        const startTime = Date.now();
+        
+        // إرسال حدث زيارة الصفحة
+        sendData(CFG.endpoint, { event: 'page_view' });
+
+        // عند مغادرة الصفحة، أرسل الوقت المستغرق (اختياري لكن مفيد)
+        window.addEventListener('visibilitychange', () => {
+            if (document.visibilityState === 'hidden') {
+                const timeSpent = (Date.now() - startTime) / 1000;
+                sendData(CFG.endpoint, { 
+                    event: 'page_leave', 
+                    time_spent: timeSpent 
+                });
+            }
+        });
+    }
+
+    // --- MAIN: PHONE CAPTURE (GENERIC & SMART) ---
+    function initPhoneCapture() {
+        // بدل البحث عن ID محدد، نبحث عن أي حقل إدخال يشبه الهاتف
+        // هذا يجعل السكريبت يعمل على شوبيفاي، ووكومرس، ويوكان، إلخ
+        const inputs = document.querySelectorAll('input[name*="phone"], input[type="tel"], input[name*="mobile"]');
+        
+        inputs.forEach(input => {
+            // استخدام حدث 'blur' (عندما يخرج المستخدم من الحقل) لضمان اكتمال الكتابة
+            input.addEventListener('blur', (e) => {
+                const val = e.target.value.replace(/[^0-9+]/g, ''); // تنظيف الرقم
+                
+                if (val.length >= 8) { // التحقق البدائي
+                   // نتحقق هل أرسلنا هذا الرقم مسبقاً في هذه الجلسة لتجنب التكرار؟
+                   const lastSent = sessionStorage.getItem('__st_last_phone');
+                   if (lastSent !== val) {
+                       sendData(CFG.endpoint, {
+                           event: 'lead_capture',
+                           phone: val,
+                           field_name: e.target.name
+                       });
+                       sessionStorage.setItem('__st_last_phone', val);
+                   }
+                }
+            });
+        });
+    }
+
+    // --- INIT ---
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', () => {
+            trackPageView();
+            initPhoneCapture();
+        });
+    } else {
+        trackPageView();
+        initPhoneCapture();
+    }
+
+})();
+`;
+return script;
+}
+
+// --- Server interactions ---
+
+async function createFlowOnServer(name, allowed_domains, config){
+  const body = { name: name||'', allowed_domains: allowed_domains||'', config: config||{} };
+  const resp = await fetch(FLOW_CREATE_ENDPOINT, {
+    method: 'POST',
+    credentials: 'include',
+    headers: { 'Content-Type': 'application/json', 'X-CSRFToken': CSRF },
+    body: JSON.stringify(body)
+  });
+  const data = await resp.json();
+  if(!resp.ok) throw new Error(data.error || 'Create flow failed');
+  return data; // expect { flow_id, api_key, created_at }
+}
+
+async function listFlowsFromServer(){
+  const resp = await fetch(LIST_FLOWS_ENDPOINT, { method: 'GET', credentials: 'include', headers: { 'Accept': 'application/json' } });
+  const data = await resp.json();
+  if(!resp.ok) throw new Error(data.error || 'Failed to list flows');
+  return data.flows || [];
+}
+
+async function patchFlowOnServer(flowId, patchObj){
+  const resp = await fetch(FLOW_DETAIL_ENDPOINT(flowId), {
+    method: 'PATCH',
+    credentials: 'include',
+    headers: { 'Content-Type': 'application/json', 'X-CSRFToken': CSRF },
+    body: JSON.stringify(patchObj)
+  });
+  const data = await resp.json();
+  if(!resp.ok) throw new Error(data.error || 'Update failed');
+  return data;
+}
+
+async function deleteFlowOnServer(flowId){
+  const resp = await fetch(FLOW_DETAIL_ENDPOINT(flowId), {
+    method: 'DELETE',
+    credentials: 'include',
+    headers: { 'X-CSRFToken': CSRF }
+  });
+  if(!resp.ok) { const data = await resp.json(); throw new Error(data.error || 'Delete failed'); }
+  return true;
+}
+
+// --- UI: render flows list from server ---
+async function renderFlows(){
+  try {
+    const flows = await listFlowsFromServer();
+    countBox.textContent = `${flows.length} flow${flows.length!==1 ? 's':''}`;
+    if(!flows.length){
+      scriptsArea.innerHTML = `<div class="empty-S"><div style="font-weight:700;color:#cfeff3">No flows yet</div><div style="color:var(--muted);max-width:320px;text-align:center;">Create your first flow — press “＋ Add Script”.</div></div>`;
+      return;
+    }
+    scriptsArea.innerHTML = '';
+    flows.forEach(f => {
+      const card = document.createElement('div');
+      card.className = 'script-card-S';
+      card.innerHTML = `
+        <div class="script-meta-S">
+          <div style="display:flex;align-items:center;justify-content:flex-end;gap:8px;">
+            <div style="text-align:right;">
+              <div class="script-title-S">${esc(f.name || (f.config && f.config.storeUrl) || 'Untitled')}</div>
+              <div class="script-sub-S">flow: ${esc(f.flow_id)} • created: ${esc(f.createdAt)} • ${f.active ? 'Active' : 'Inactive'}</div>
+            </div>
+            <div style="display:flex;align-items:center;">
+              <span class="status-dot-S ${f.active ? 'dot-on-S':'dot-off-S'}" title="${f.active ? 'Active':'Inactive'}"></span>
+            </div>
+          </div>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:8px;align-items:flex-end;">
+          <div class="preview-S">${esc((f.script||'').slice(0,120))}</div>
+          <div class="card-actions-S">
+            <button class="icon-btn-S btn-toggle-S" data-id="${f.flow_id}">${f.active ? 'Stop' : 'Start'}</button>
+            <button class="icon-btn-S btn-edit-S" data-id="${f.flow_id}">Edit</button>
+            <button class="icon-btn-S btn-copy-S" data-id="${f.flow_id}">Copy</button>
+            <button class="icon-btn-S btn-delete-S" data-id="${f.flow_id}">Delete</button>
+          </div>
+        </div>
+
+       `;
+      scriptsArea.appendChild(card);
+    });
+
+    // attach handlers
+    scriptsArea.querySelectorAll('.btn-toggle-S').forEach(b => b.addEventListener('click', async (e) => {
+      const id = e.currentTarget.dataset.id;
+      try {
+        // toggle: fetch current list to get the flow object; simpler: call list and find
+        const flows = await listFlowsFromServer();
+        const flow = flows.find(x => x.flow_id === id);
+        if(!flow) throw new Error('Flow not found');
+        await patchFlowOnServer(id, { active: !flow.active });
+        renderFlows();
+      } catch(err){ console.error(err); alert('Toggle failed: '+err.message); }
+    }));
+
+    scriptsArea.querySelectorAll('.btn-edit-S').forEach(b => b.addEventListener('click', async (e) => {
+      const id = e.currentTarget.dataset.id;
+      try {
+        const flows = await listFlowsFromServer();
+        const flow = flows.find(x => x.flow_id === id);
+        if(!flow) throw new Error('Flow not found');
+        openPanelForEdit(flow);
+      } catch(err){ console.error(err); alert('Edit failed: '+err.message); }
+    }));
+
+    scriptsArea.querySelectorAll('.btn-copy-S').forEach(b => b.addEventListener('click', async (e) => {
+      const id = e.currentTarget.dataset.id;
+      try {
+        const flows = await listFlowsFromServer();
+        const flow = flows.find(x => x.flow_id === id);
+        if(!flow || !flow.script) return alert('No script available to copy');
+        await navigator.clipboard.writeText(flow.script);
+        alert('Script copied to clipboard');
+      } catch(err){ console.error(err); fallbackCopy(flow && flow.script || ''); }
+    }));
+
+    scriptsArea.querySelectorAll('.btn-delete-S').forEach(b => b.addEventListener('click', async (e) => {
+      const id = e.currentTarget.dataset.id;
+      if(!confirm('Delete this flow?')) return;
+      try { await deleteFlowOnServer(id); renderFlows(); } catch(err){ console.error(err); alert('Delete failed: '+err.message); }
+    }));
+
+  } catch(err){
+    console.error('renderFlows error', err);
+    scriptsArea.innerHTML = `<div class="empty-S"><div style="font-weight:700;color:#fca5a5">Error loading flows</div><div style="color:var(--muted);max-width:320px;text-align:center;">${esc(err.message || 'Failed to load')}</div></div>`;
+  }
+}
+
+// --- Create / Update flow flow ---
+createBtn.addEventListener('click', async (e) => {
+  e.preventDefault();
+  const name = (flowName.value||'').trim();
+  const allowed = (allowedDomains.value||'').trim();
+  const cfg = buildConfigFromForm();
+  cfg.storeUrl = (storeUrl.value||'').trim();
+  cfg.collectorUrl = COLLECTOR_ENDPOINT;
+  cfg.captureVisitEndpoint = CAPTURE_VISIT_ENDPOINT;
+
+  if(!cfg.storeUrl) return alert('Store URL is required');
+
+  createBtn.disabled = true;
+  createBtn.textContent = 'Processing...';
+
+  try {
+    if(!editingFlowId){
+      // create flow on server
+      const serverResp = await createFlowOnServer(name, allowed, cfg);
+      const flowId = serverResp.flow_id;
+      const apiKey = serverResp.api_key;
+      if(!flowId) throw new Error('No flow_id returned from server');
+      // attach flow info to config
+      cfg.flow_id = flowId;
+      if(includeKey.checked) cfg.flow_api_key = apiKey;
+      // generate script
+      const scriptText = buildCombinedScript(cfg);
+      generatedDiv.textContent = scriptText;
+      // save script back to server
+      await patchFlowOnServer(flowId, { script: scriptText, config: cfg, allowed_domains: allowed, name });
+      alert('Flow created. Flow ID: ' + flowId + (apiKey ? '\\nAPI key shown once; copy it if needed.' : ''));
+      // show api key to user (only once)
+      if(apiKey) {
+        // show small modal via prompt (one-time)
+        prompt('Flow API Key (copy it now):', apiKey);
+      }
+    } else {
+      // editing existing flow: update config + regenerate script + patch
+      const flowId = editingFlowId;
+      cfg.flow_id = flowId; // re-use existing id
+      // do NOT re-issue api key here
+      // generate script
+      const scriptText = buildCombinedScript(cfg);
+      generatedDiv.textContent = scriptText;
+      await patchFlowOnServer(flowId, { script: scriptText, config: cfg, allowed_domains: allowed, name });
+      alert('Flow updated.');
+    }
+    closePanelFn();
+    await renderFlows();
+  } catch(err){
+    console.error(err);
+    alert('Operation failed: ' + (err.message || err));
+  } finally {
+    createBtn.disabled = false;
+    createBtn.textContent = editingFlowId ? 'Save Changes' : 'Create Script (Save Flow)';
+  }
+});
+
+// Save script to flow button (explicit)
+saveBtn.addEventListener('click', async () => {
+  if(!editingFlowId) return alert('No flow selected to save into.');
+  const cfg = buildConfigFromForm();
+  cfg.storeUrl = (storeUrl.value||'').trim();
+  const scriptText = buildCombinedScript(cfg);
+  try {
+    await patchFlowOnServer(editingFlowId, { script: scriptText, config: cfg, name: flowName.value || '' });
+    alert('Script saved to flow.');
+    closePanelFn(); renderFlows();
+  } catch(err){ console.error(err); alert('Save failed: '+err.message); }
+});
+
+// copy generated
+copyBtn.addEventListener('click', async () => {
+  const txt = generatedDiv.textContent || '';
+  if(!txt) return alert('No script to copy');
+  try { await navigator.clipboard.writeText(txt); alert('Copied to clipboard'); } catch(e){ fallbackCopy(txt); }
+});
+
+// fallback copy
+function fallbackCopy(text){ const ta = document.createElement('textarea'); ta.value = text; document.body.appendChild(ta); ta.select(); try{ document.execCommand('copy'); alert('Copied (fallback)'); }catch(e){ alert('Copy failed'); } ta.remove(); }
+
+// initial load
+renderFlows();
+
+// utility escape (again)
+function escapeHtml(s){ return esc(s); }
+</script> -->

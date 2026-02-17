@@ -366,21 +366,69 @@ class Activity(models.Model):
     user = models.ForeignKey(CustomUser, on_delete=models.CASCADE, related_name='activities', null=True, blank=True)
      
     ACTIVITY_TYPES = (
+        # ── Auth ──
         ('login', 'User Login'),
         ('logout', 'User Logout'),
-        ('order_created', 'Order Created'),
-        ('order_updated', 'Order Updated'),
-        ('order_deleted', 'Order Deleted'),
-        ('user_created', 'User Created'),
-        ('user_updated', 'User Updated'),
-        ('user_deleted', 'User Deleted'),
-        ('product_filter', 'Product Filterd'),
+        ('login_failed', 'Login Failed'),
         ('password_changed', 'Password Changed'),
         ('2fa_enabled', 'Two-Factor Auth Enabled'),
         ('2fa_disabled', 'Two-Factor Auth Disabled'),
-        ('search_performed', 'Search Performed'), # مثال لأنشطة لوحة التحكم
+        ('profile_updated', 'Profile Updated'),
+
+        # ── Team / Users ──
+        ('user_created', 'User Created'),
+        ('user_updated', 'User Updated'),
+        ('user_deleted', 'User Deleted'),
+        ('invite_sent', 'Team Invite Sent'),
+        ('invite_accepted', 'Team Invite Accepted'),
+        ('member_removed', 'Team Member Removed'),
+
+        # ── Orders (CRM) ──
+        ('order_created', 'Order Created'),
+        ('order_updated', 'Order Updated'),
+        ('order_status_changed', 'Order Status Changed'),
+        ('order_agent_changed', 'Order Agent Changed'),
+        ('order_bulk_assign', 'Orders Bulk Assigned'),
+        ('order_imported', 'Orders Imported'),
+        ('order_deleted', 'Order Deleted'),
+
+        # ── SimpleOrder (WhatsApp) ──
+        ('simple_order_created', 'Simple Order Created'),
+
+        # ── WhatsApp Messaging ──
+        ('wa_message_sent', 'WhatsApp Message Sent'),
+        ('wa_channel_created', 'WhatsApp Channel Created'),
+        ('wa_channel_deleted', 'WhatsApp Channel Deleted'),
+        ('wa_channel_updated', 'WhatsApp Channel Settings Updated'),
+        ('wa_template_created', 'WhatsApp Template Created'),
+        ('wa_template_updated', 'WhatsApp Template Updated'),
+        ('wa_contact_assigned', 'Contact Assigned to Agent'),
+        ('wa_contact_crm_updated', 'Contact CRM Updated'),
+
+        # ── Flows / AutoReply ──
+        ('flow_created', 'Flow Created'),
+        ('flow_updated', 'Flow Updated'),
+        ('flow_deleted', 'Flow Deleted'),
+        ('autoreply_created', 'AutoReply Created'),
+        ('autoreply_updated', 'AutoReply Updated'),
+        ('autoreply_deleted', 'AutoReply Deleted'),
+
+        # ── Marketing ──
+        ('campaign_flow_created', 'Campaign Flow Created'),
+        ('campaign_flow_deleted', 'Campaign Flow Deleted'),
+
+        # ── Products ──
+        ('product_updated', 'Product Updated'),
+        ('product_filter', 'Product Filtered'),
+
+        # ── Online Presence ──
+        ('ws_connect', 'WebSocket Connected'),
+        ('ws_disconnect', 'WebSocket Disconnected'),
+
+        # ── Misc ──
+        ('search_performed', 'Search Performed'),
         ('filter_applied', 'Filter Applied'),
-        # أضف المزيد حسب حاجتك
+        ('order_tracked', 'Order Tracked'),
     )
     activity_type = models.CharField(max_length=50, choices=ACTIVITY_TYPES, db_index=True)
 
@@ -496,8 +544,13 @@ class ScriptFlow(models.Model):
     allowed_domains = models.TextField(blank=True, help_text="Comma separated domains allowed (e.g. shop.com,myshop.com)")
     config = models.JSONField(blank=True, null=True)  # store flow config snapshot
     active = models.BooleanField(default=True)
+    token=models.UUIDField(default=uuid.uuid4, editable=False)
     created_at = models.DateTimeField(auto_now_add=True)
-    script = models.TextField(blank=True, null=True)   # <--- store generated script
+    script = models.TextField(blank=True, null=True)   
+    description = models.TextField(blank=True, null=True)
+
+    is_active = models.BooleanField(default=True)
+    plan_type = models.CharField(max_length=20, default='free')
 
 
     def allowed_domains_list(self):
@@ -536,6 +589,7 @@ class CampaignVisit(models.Model):
     site_source_name = models.CharField(max_length=200, blank=True, null=True)  # e.g. 'shopify'
     ad_adset_name = models.CharField(max_length=300, blank=True, null=True)
     created_at = models.DateTimeField(default=timezone.now, db_index=True)
+    visit_meta = models.JSONField(default=dict, blank=True, help_text="Full payload from capture_visit (url, referrer, device, event, time_spent, etc.)")
 
     class Meta:
         ordering = ('-created_at',)

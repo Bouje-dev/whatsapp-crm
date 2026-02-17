@@ -17,6 +17,7 @@ from django.conf import settings
 from django.db.models import Max, Q
 from discount.models import Message, SimpleOrder, Template, Order , Contact, WhatsAppChannel, CustomUser
 from django.contrib.auth.decorators import login_required
+from discount.activites import log_activity
 import logging
 
 logger = logging.getLogger(__name__)
@@ -1308,17 +1309,45 @@ def send_message(request):
                 body=f"[Template: {template_name}]",
                 message_id=wamid,
                 status='sent',
-                media_type='template' # نوع جديد للتمييز
+                media_type='template'
             )
-
+            log_activity('wa_message_sent', f"Template '{template_name}' to {to_number} via {channel.name}", request=request)
             return JsonResponse({"success": True, "wamid": wamid})
 
         # ============================================================
-        # مسار 2: إرسال وسائط (Media Upload)
+        # مسار 2: إرسال رسالة نصية (Text)
+        # ============================================================
+        elif msg_type == "text":
+            body = (data.get("body") or data.get("message") or "").strip()
+            if not body:
+                return JsonResponse({"error": "Missing message body"}, status=400)
+            payload = {
+                "messaging_product": "whatsapp",
+                "to": to_number.replace("+", "").strip(),
+                "type": "text",
+                "text": {"body": body[:4096]}
+            }
+            response = requests.post(url, headers=headers, json=payload)
+            res_data = response.json()
+            if response.status_code not in [200, 201]:
+                return JsonResponse({"error": "Meta API Error", "details": res_data}, status=400)
+            wamid = res_data.get("messages", [{}])[0].get("id")
+            Message.objects.create(
+                channel=channel,
+                sender=to_number,
+                is_from_me=True,
+                body=body[:4096],
+                message_id=wamid,
+                status="sent",
+                media_type="text"
+            )
+            log_activity('wa_message_sent', f"Text message to {to_number} via {channel.name}", request=request)
+            return JsonResponse({"success": True, "wamid": wamid})
+
+        # ============================================================
+        # مسار 3: إرسال وسائط (Media Upload)
         # ============================================================
         elif msg_type in ["image", "video", "document", "audio"]:
-            # (يمكنك نقل كود رفع الوسائط القديم هنا إذا أردت الاحتفاظ به)
-            # لكنك طلبت التركيز على القوالب الآن.
             pass
 
         return JsonResponse({"error": "Unsupported message type for this endpoint"}, status=400)
@@ -2018,7 +2047,7 @@ def create_template(request):
                     template.components = meta_result.get('response') or {}
                     template.save()
                     
-                    # Return Success (Transaction Commits automatically upon exit)
+                    log_activity('wa_template_created', f"Template '{name}' created for {channel.name}", request=request, related_object=template)
                     return JsonResponse({'success': True, 'id': template.id, 'meta_id': template.template_id})
                 
                 else:
@@ -2546,7 +2575,7 @@ def create_channel_api(request):
         
         # إضافة المستخدم الحالي كمدير للقناة لكي يراها فوراً
         new_channel.assigned_agents.add(user)
-        
+        log_activity('wa_channel_created', f"Channel created: {new_channel.name} ({new_channel.phone_number})", request=request, related_object=new_channel)
         return JsonResponse({'success': True, 'id': new_channel.id})
         
     except Exception as e:
@@ -3034,7 +3063,7 @@ def assign_agent_to_contact(request):
         assigned_name = "Unassigned"
 
     contact.save()
- 
+    log_activity('wa_contact_assigned', f"Contact {phone} assigned to {assigned_name}", request=request)
     return JsonResponse({'success': True, 'assigned_to': assigned_name})
 
 
@@ -3122,6 +3151,5 @@ def update_contact_crm(request):
 
    
 
-    # (اختياري) تسجيل النشاط هنا create_activity_log(...)
-    
+    log_activity('wa_contact_crm_updated', f"Contact {phone}: {action} → {value}", request=request)
     return JsonResponse({'success': True, 'message': log_msg})

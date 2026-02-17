@@ -1,0 +1,143 @@
+<style>
+  .order-reputation { vertical-align: middle; }
+  .rep-cell {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.35rem 0.6rem;
+    border-radius: 8px;
+    border: 1px solid rgba(0,0,0,0.06);
+    background: rgba(0,0,0,0.02);
+    white-space: nowrap;
+    cursor: help;
+    transition: border-color 0.15s ease, background 0.15s ease;
+  }
+  .rep-cell:hover { border-color: rgba(0,0,0,0.1); background: rgba(0,0,0,0.04); }
+  .rep-score {
+    font-size: 0.8125rem;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    color: #374151;
+    min-width: 1.5rem;
+    text-align: right;
+  }
+  .rep-delivery { font-variant-numeric: tabular-nums; margin-right: 0.15rem; }
+  .rep-badge {
+    display: inline-block;
+    padding: 0.2rem 0.5rem;
+    border-radius: 6px;
+    font-size: 0.6875rem;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    text-transform: uppercase;
+  }
+  .rep-badge--green { background: #dcfce7; color: #166534; }
+  .rep-badge--blue { background: #dbeafe; color: #1e40af; }
+  .rep-badge--yellow { background: #fef9c3; color: #854d0e; }
+  .rep-badge--red { background: #fee2e2; color: #991b1b; }
+  .rep-badge--gray { background: #f1f5f9; color: #64748b; }
+  /* Professional reputation popover */
+  .rep-popover { max-width: 320px; }
+  .rep-popover .popover-header {
+    font-size: 0.8125rem; font-weight: 700; color: #111827;
+    padding: 0.6rem 0.75rem; border-bottom: 1px solid rgba(0,0,0,0.08);
+    background: #fafafa; border-radius: 8px 8px 0 0;
+  }
+  .rep-popover .popover-body {
+    padding: 0.65rem 0.75rem; font-size: 0.8125rem; line-height: 1.5; color: #374151;
+  }
+  .rep-popover-body .rep-tt-row { display: block; margin-bottom: 0.35rem; }
+  .rep-popover-body .rep-tt-label { display: inline-block; min-width: 5rem; color: #6b7280; }
+  .rep-popover-body .rep-tt-val { font-weight: 600; }
+  .rep-popover-body .rep-tt-good { color: #15803d; }
+  .rep-popover-body .rep-tt-bad { color: #b91c1c; }
+  .rep-popover-body .rep-tt-mid { color: #b45309; }
+  .rep-popover-body .rep-tt-score-line,
+  .rep-popover-body .rep-tt-level-line { margin-top: 0.5rem; padding-top: 0.4rem; border-top: 1px solid rgba(0,0,0,0.06); }
+  .rep-popover-body .rep-tt-muted { font-size: 0.7rem; color: #9ca3af; margin-top: 0.5rem; margin-bottom: 0; }
+  /* legacy */
+  .reputation-badge.reputation-green { display: inline-block; padding: 0.2rem 0.5rem; border-radius: 6px; font-size: 0.75rem; font-weight: 600; background: #dcfce7; color: #166534; }
+  .reputation-badge.reputation-blue { background: #dbeafe; color: #1e40af; }
+  .reputation-badge.reputation-yellow { background: #fef9c3; color: #854d0e; }
+  .reputation-badge.reputation-red { background: #fee2e2; color: #991b1b; }
+  .reputation-badge.reputation-gray { background: #f1f5f9; color: #64748b; }
+</style>
+<table class="table table-hover align-middle"  style="background-color:color(srgb 0.9999 1 1);">
+  <thead>
+    <tr>
+      <th class="order-check"><input type="checkbox" class="form-check-input" id="select-all-orders" title="Select all"></th>
+      <th>Date</th>
+      <th>Customer</th>
+      <th>Phone</th>
+      <th>Product</th>
+      <th>Source</th>
+      <th>Status</th>
+      <th>Agent</th>
+      <th>Actions</th>
+      <th>Reputation</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for order in orders %}
+      {% include "orders/partials/order_row.html" with order=order agents=agents status_choices=status_choices %}
+    {% empty %}
+    <tr>
+      <td colspan="10" class="orders-empty">No orders found.</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% if page_obj and page_obj.paginator.num_pages > 1 %}
+<nav class="orders-pagination" aria-label="Orders pagination">
+  <div class="orders-pagination-inner">
+    <span class="orders-pagination-info">
+      Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }} ({{ page_obj.paginator.count }} orders)
+    </span>
+    <div class="orders-pagination-links">
+      {% if page_obj.has_previous %}
+      <a href="#"
+         class="orders-pagination-btn"
+         hx-get="{% url 'orders:order_table_partial' %}{% if base_query %}?{{ base_query }}&amp;{% else %}?{% endif %}page={{ page_obj.previous_page_number }}"
+         hx-target="#order-table-container"
+         hx-swap="innerHTML"
+         hx-push-url="false">← Previous</a>
+      {% else %}
+      <span class="orders-pagination-btn disabled">← Previous</span>
+      {% endif %}
+      {% if page_obj.has_next %}
+      <a href="#"
+         class="orders-pagination-btn"
+         hx-get="{% url 'orders:order_table_partial' %}{% if base_query %}?{{ base_query }}&amp;{% else %}?{% endif %}page={{ page_obj.next_page_number }}"
+         hx-target="#order-table-container"
+         hx-swap="innerHTML"
+         hx-push-url="false">Next →</a>
+      {% else %}
+      <span class="orders-pagination-btn disabled">Next →</span>
+      {% endif %}
+    </div>
+  </div>
+</nav>
+{% endif %}
+<script>
+  document.getElementById('select-all-orders')?.addEventListener('change', function() {
+    document.querySelectorAll('.order-row-check').forEach(function(cb) { cb.checked = this.checked; }.bind(this));
+  });
+  (function() {
+    function initRepPopovers(container) {
+      var el = container || document;
+      el.querySelectorAll('.rep-cell-popover[data-bs-toggle="popover"]').forEach(function(node) {
+        if (window.bootstrap && window.bootstrap.Popover && !node._popover) {
+          node._popover = new window.bootstrap.Popover(node, {
+            trigger: 'hover',
+            html: true,
+            sanitize: false
+          });
+        }
+      });
+    }
+    initRepPopovers(document);
+    document.body.addEventListener('htmx:afterSwap', function(ev) {
+      if (ev.detail.target.id === 'order-table-container' || ev.detail.target.closest?.('tr')) initRepPopovers(ev.detail.target);
+    });
+  })();
+</script>

@@ -22,9 +22,10 @@ urlpatterns = [
     path('api/product-permissions/bulk_update/', views.bulk_update_permissions, name='bulk-update-permissions'),
     path("api/leads/filter/", views.filter_leads_api, name="filter_leads_api"),
     path('load-drop-product/', views.load_products, name='load_products') , 
-    path('api/flows/create/', views.create_flow, name='create_flow') , 
-
-     path('api/flows/', views.list_flows, name='list_flows'),
+    path('api/flows/create/', views.create_flow, name='create_flow'),
+    path('tracker.js', views.serve_tracker_by_id, name='tracker_js'),
+    path('tracker.js/', views.serve_tracker_by_id, name='tracker_js_slash'),
+    path('api/flows/', views.list_flows, name='list_flows'),
     path('api/flows/<uuid:flow_id>/', views.flow_detail, name='flow_detail'),
 
 

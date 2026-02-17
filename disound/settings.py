@@ -36,14 +36,15 @@ INSTALLED_APPS = [
     'django.contrib.contenttypes',
     'django.contrib.sessions',
     'django.contrib.messages',
-     
     'django.contrib.staticfiles',
-    'discount' ,
-        'corsheaders',
-         'channels',
-  'storages',
-  'anymail',
-
+    'discount',
+    'orders',
+    'reputation',
+    'corsheaders',
+    'channels',
+    'storages',
+    'anymail',
+    'django_filters',
 ]
 
  

@@ -727,7 +727,8 @@ function generateWhatsAppQR(phoneNumber) {
         
             <div class="cls3741_team_list">
                 {% for member in team_members %}
-                <div class="cls3741_team_item" id="agent_row_{{ member.id }}">
+                <div class="cls3741_team_item _agentRow" id="agent_row_{{ member.id }}"
+                     data-agent-id="{{ member.id }}" style="cursor:pointer;">
                     
                     <div class="d-flex align-items-center gap-3">
                         <div class="cls3741_avatar_wrapper">
@@ -751,7 +752,7 @@ function generateWhatsAppQR(phoneNumber) {
                         </div>
                     </div>
         
-                    <div class="cls3741_last_seen">
+                    <div class="cls3741_last_seen" id="seen_text_{{ member.id }}">
                         {% if member.is_online %}
                             <span class="text-success">Active Now</span>
                         {% else %}
@@ -765,36 +766,318 @@ function generateWhatsAppQR(phoneNumber) {
             </div>
         </div>
 
-<script>
-  window.updateUserStatusUI = function(userId, status) {
-    console.log(`User ${userId} is now ${status}`); // للتجربة
+<!-- ── Agent Stats Popup (overlay) ── -->
+<div class="agentPopup-overlay" id="agentPopupOverlay">
+  <div class="agentPopup-card" id="agentPopupCard">
+    <button class="agentPopup-close" id="agentPopupClose">&times;</button>
 
-    // 1. البحث عن العنصر في DOM (الصف الخاص بالموظف)
-    // تذكر أننا سمينا العناصر في HTML بـ id="status_dot_15"
-    const statusDot = document.getElementById(`status_dot_${userId}`);
-    const activeText = document.getElementById(`active_text_${userId}`); // النص (Now / 5m ago)
+    <!-- header -->
+    <div class="agentPopup-header">
+      <div class="agentPopup-avatar" id="apAvatar"></div>
+      <div class="agentPopup-identity">
+        <span class="agentPopup-name" id="apName"></span>
+        <span class="agentPopup-role" id="apRole"></span>
+      </div>
+      <span class="agentPopup-statusPill" id="apStatusPill"></span>
+    </div>
 
-    if (statusDot) {
-        // تحديث النقطة
-        if (status === 'online') {
-            statusDot.classList.remove('offline');
-            statusDot.classList.add('online');
-            
-            if(activeText) {
-                activeText.innerText = 'Active Now';
-                activeText.classList.add('text-success');
-            }
-        } else {
-            statusDot.classList.remove('online');
-            statusDot.classList.add('offline');
-            
-            if(activeText) {
-                activeText.innerText = 'Offline'; // أو اتركها كما هي
-                activeText.classList.remove('text-success');
-            }
-        }
-    }
+    <!-- last seen row (hidden when online) -->
+    <div class="agentPopup-lastSeen" id="apLastSeenRow">
+      <i class="fas fa-clock"></i>
+      <span id="apLastSeen"></span>
+    </div>
+
+    <!-- stat grid -->
+    <div class="agentPopup-grid">
+      <div class="agentPopup-stat">
+        <div class="agentPopup-statIcon" style="background:rgba(79,70,229,.12);color:#4f46e5">
+          <i class="fas fa-wifi"></i>
+        </div>
+        <div class="agentPopup-statBody">
+          <span class="agentPopup-statLabel">Online Today</span>
+          <span class="agentPopup-statVal" id="apOnlineToday">--</span>
+        </div>
+      </div>
+
+      <div class="agentPopup-stat">
+        <div class="agentPopup-statIcon" style="background:rgba(34,197,94,.12);color:#22c55e">
+          <i class="fas fa-calendar-week"></i>
+        </div>
+        <div class="agentPopup-statBody">
+          <span class="agentPopup-statLabel">Online This Week</span>
+          <span class="agentPopup-statVal" id="apOnlineWeek">--</span>
+        </div>
+      </div>
+
+      <div class="agentPopup-stat">
+        <div class="agentPopup-statIcon" style="background:rgba(234,179,8,.12);color:#eab308">
+          <i class="fas fa-paper-plane"></i>
+        </div>
+        <div class="agentPopup-statBody">
+          <span class="agentPopup-statLabel">Messages Today</span>
+          <span class="agentPopup-statVal" id="apMsgsToday">--</span>
+        </div>
+      </div>
+
+      <div class="agentPopup-stat">
+        <div class="agentPopup-statIcon" style="background:rgba(168,85,247,.12);color:#a855f7">
+          <i class="fas fa-comments"></i>
+        </div>
+        <div class="agentPopup-statBody">
+          <span class="agentPopup-statLabel">Conversations Today</span>
+          <span class="agentPopup-statVal" id="apConvosToday">--</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- response time highlight -->
+    <div class="agentPopup-responseBox" id="apResponseBox">
+      <div class="agentPopup-responseHeader">
+        <i class="fas fa-bolt"></i> Avg Response Time
+      </div>
+      <div class="agentPopup-responseBody">
+        <span class="agentPopup-responseVal" id="apAvgResponse">--</span>
+        <span class="agentPopup-responseBadge" id="apSpeedBadge">--</span>
+      </div>
+    </div>
+
+    <!-- loading skeleton (shown while fetch in progress) -->
+    <div class="agentPopup-loading" id="apLoading">
+      <div class="agentPopup-spinner"></div>
+      <span>Loading agent stats...</span>
+    </div>
+  </div>
+</div>
+
+<style>
+/* ── Agent Stats Popup ── */
+.agentPopup-overlay{
+  position:fixed;inset:0;z-index:9999;
+  background:rgba(0,0,0,.45);backdrop-filter:blur(4px);
+  display:none;align-items:center;justify-content:center;
+  animation:apFadeIn .2s ease;
 }
+.agentPopup-overlay.active{display:flex}
+@keyframes apFadeIn{from{opacity:0}to{opacity:1}}
+@keyframes apSlideUp{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:translateY(0)}}
+
+.agentPopup-card{
+  position:relative;width:380px;max-width:92vw;
+  background:var(--bg-primary,#1a1a2e);
+  border:1px solid var(--border-color,#2a2a4a);
+  border-radius:20px;padding:28px 24px 24px;
+  box-shadow:0 24px 48px rgba(0,0,0,.35);
+  animation:apSlideUp .25s ease;
+  color:var(--text-primary,#e2e8f0);
+}
+.agentPopup-close{
+  position:absolute;top:12px;right:14px;
+  background:none;border:none;font-size:22px;
+  color:var(--text-secondary,#94a3b8);cursor:pointer;
+  width:32px;height:32px;border-radius:8px;
+  display:flex;align-items:center;justify-content:center;
+  transition:all .15s;
+}
+.agentPopup-close:hover{background:rgba(255,255,255,.08);color:#fff}
+
+/* header */
+.agentPopup-header{display:flex;align-items:center;gap:12px;margin-bottom:16px}
+.agentPopup-avatar{
+  width:48px;height:48px;border-radius:14px;
+  background:linear-gradient(135deg,#4f46e5,#7c3aed);
+  display:flex;align-items:center;justify-content:center;
+  font-weight:700;font-size:18px;color:#fff;flex-shrink:0;
+}
+.agentPopup-identity{display:flex;flex-direction:column;flex:1;min-width:0}
+.agentPopup-name{font-size:15px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.agentPopup-role{font-size:11px;color:var(--text-secondary,#94a3b8);margin-top:1px}
+.agentPopup-statusPill{
+  font-size:11px;font-weight:600;padding:4px 10px;border-radius:20px;
+  white-space:nowrap;flex-shrink:0;
+}
+.agentPopup-statusPill.online{background:rgba(34,197,94,.15);color:#22c55e}
+.agentPopup-statusPill.offline{background:rgba(239,68,68,.12);color:#ef4444}
+
+/* last seen */
+.agentPopup-lastSeen{
+  display:flex;align-items:center;gap:8px;
+  font-size:12px;color:var(--text-secondary,#94a3b8);
+  background:rgba(255,255,255,.04);border-radius:10px;
+  padding:8px 12px;margin-bottom:16px;
+}
+.agentPopup-lastSeen i{font-size:11px;opacity:.7}
+
+/* stat grid */
+.agentPopup-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px}
+.agentPopup-stat{
+  display:flex;align-items:center;gap:10px;
+  background:rgba(255,255,255,.04);border-radius:12px;padding:12px;
+  transition:background .15s;
+}
+.agentPopup-stat:hover{background:rgba(255,255,255,.07)}
+.agentPopup-statIcon{
+  width:36px;height:36px;border-radius:10px;
+  display:flex;align-items:center;justify-content:center;
+  font-size:14px;flex-shrink:0;
+}
+.agentPopup-statBody{display:flex;flex-direction:column;min-width:0}
+.agentPopup-statLabel{font-size:10px;color:var(--text-secondary,#94a3b8);text-transform:uppercase;letter-spacing:.4px}
+.agentPopup-statVal{font-size:15px;font-weight:700;margin-top:2px}
+
+/* response time box */
+.agentPopup-responseBox{
+  background:rgba(255,255,255,.04);border-radius:14px;
+  padding:14px 16px;border:1px solid rgba(255,255,255,.06);
+}
+.agentPopup-responseHeader{
+  font-size:11px;text-transform:uppercase;letter-spacing:.5px;
+  color:var(--text-secondary,#94a3b8);margin-bottom:8px;
+  display:flex;align-items:center;gap:6px;
+}
+.agentPopup-responseHeader i{color:#eab308;font-size:12px}
+.agentPopup-responseBody{display:flex;align-items:center;justify-content:space-between}
+.agentPopup-responseVal{font-size:22px;font-weight:800}
+.agentPopup-responseBadge{
+  font-size:11px;font-weight:600;padding:4px 10px;border-radius:20px;
+}
+.agentPopup-responseBadge.green{background:rgba(34,197,94,.15);color:#22c55e}
+.agentPopup-responseBadge.blue{background:rgba(59,130,246,.15);color:#3b82f6}
+.agentPopup-responseBadge.yellow{background:rgba(234,179,8,.15);color:#eab308}
+.agentPopup-responseBadge.red{background:rgba(239,68,68,.15);color:#ef4444}
+.agentPopup-responseBadge.gray{background:rgba(148,163,184,.12);color:#94a3b8}
+
+/* loading */
+.agentPopup-loading{
+  position:absolute;inset:0;border-radius:20px;
+  background:var(--bg-primary,#1a1a2e);
+  display:flex;flex-direction:column;
+  align-items:center;justify-content:center;gap:12px;
+  z-index:2;
+}
+.agentPopup-loading.hidden{display:none}
+.agentPopup-spinner{
+  width:28px;height:28px;border:3px solid rgba(255,255,255,.1);
+  border-top-color:#4f46e5;border-radius:50%;
+  animation:apSpin .7s linear infinite;
+}
+@keyframes apSpin{to{transform:rotate(360deg)}}
+.agentPopup-loading span{font-size:12px;color:var(--text-secondary,#94a3b8)}
+
+/* mobile */
+@media(max-width:440px){
+  .agentPopup-card{padding:20px 16px 18px}
+  .agentPopup-grid{grid-template-columns:1fr}
+}
+</style>
+
+<script>
+(function(){
+  var overlay  = document.getElementById('agentPopupOverlay');
+  var card     = document.getElementById('agentPopupCard');
+  var closeBtn = document.getElementById('agentPopupClose');
+  var loading  = document.getElementById('apLoading');
+  var cache    = {};
+
+  function close(){
+    overlay.classList.remove('active');
+  }
+
+  closeBtn.addEventListener('click', close);
+  overlay.addEventListener('click', function(e){
+    if(e.target === overlay) close();
+  });
+  document.addEventListener('keydown', function(e){
+    if(e.key === 'Escape') close();
+  });
+
+  function show(agentId){
+    loading.classList.remove('hidden');
+    overlay.classList.add('active');
+
+    if(cache[agentId] && (Date.now() - cache[agentId]._ts < 30000)){
+      render(cache[agentId]);
+      return;
+    }
+
+    fetch('/discount/whatssapAPI/api/agent-stats/?agent_id=' + agentId)
+      .then(function(r){ return r.json(); })
+      .then(function(data){
+        if(!data.success){ loading.innerHTML = '<span style="color:#ef4444">Failed to load</span>'; return; }
+        data._ts = Date.now();
+        cache[agentId] = data;
+        render(data);
+      })
+      .catch(function(){
+        loading.innerHTML = '<span style="color:#ef4444">Network error</span>';
+      });
+  }
+
+  function render(data){
+    var a = data.agent;
+    var s = data.stats;
+
+    // avatar
+    var initials = (a.name || '?').split(' ').map(function(w){return w[0]||''}).join('').toUpperCase().slice(0,2);
+    document.getElementById('apAvatar').textContent = initials;
+
+    // identity
+    document.getElementById('apName').textContent = a.name;
+    document.getElementById('apRole').textContent = a.role;
+
+    // status pill
+    var pill = document.getElementById('apStatusPill');
+    pill.textContent = a.is_online ? 'Online' : 'Offline';
+    pill.className = 'agentPopup-statusPill ' + (a.is_online ? 'online' : 'offline');
+
+    // last seen
+    var lsRow = document.getElementById('apLastSeenRow');
+    if(a.is_online || !s.last_seen){
+      lsRow.style.display = 'none';
+    } else {
+      lsRow.style.display = 'flex';
+      document.getElementById('apLastSeen').textContent = 'Last seen ' + s.last_seen;
+    }
+
+    // stats
+    document.getElementById('apOnlineToday').textContent  = s.online_today;
+    document.getElementById('apOnlineWeek').textContent   = s.online_week;
+    document.getElementById('apMsgsToday').textContent    = s.messages_today;
+    document.getElementById('apConvosToday').textContent   = s.conversations_today;
+
+    // response time
+    document.getElementById('apAvgResponse').textContent = s.avg_response_time;
+    var badge = document.getElementById('apSpeedBadge');
+    badge.textContent = s.speed_label;
+    badge.className = 'agentPopup-responseBadge ' + s.speed_color;
+
+    loading.classList.add('hidden');
+  }
+
+  // attach click listeners to agent rows
+  document.querySelectorAll('._agentRow').forEach(function(row){
+    row.addEventListener('click', function(){
+      var id = this.getAttribute('data-agent-id');
+      if(id) show(id);
+    });
+  });
+
+  // expose for websocket status updates
+  window.updateUserStatusUI = function(userId, status){
+    var dot = document.getElementById('status_dot_' + userId);
+    var txt = document.getElementById('seen_text_' + userId);
+
+    if(dot){
+      dot.classList.remove('online','offline');
+      dot.classList.add(status === 'online' ? 'online' : 'offline');
+    }
+    if(txt){
+      txt.innerHTML = status === 'online'
+        ? '<span class="text-success">Active Now</span>'
+        : 'Offline';
+    }
+    delete cache[userId];
+  };
+})();
 </script>
 
             </div>

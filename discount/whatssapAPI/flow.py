@@ -8,6 +8,7 @@ from django.views.decorators.http import require_http_methods
 from django.utils import timezone
 from discount.models import AutoReply, Flow
 from django.db import transaction
+from discount.activites import log_activity
 
 # ---------------------
 # Serialization Helpers
@@ -740,6 +741,7 @@ def api_create_autoreply(request):
         ar.media_file = media
         ar.save()
 
+    log_activity('autoreply_created', f"AutoReply created: trigger='{trigger}' ({match_type})", request=request, related_object=ar)
     return JsonResponse({"item": serialize_autoreply(ar, request=request)}, status=201)
 
 @csrf_exempt
@@ -788,6 +790,7 @@ def api_update_autoreply(request, pk):
         ar.media_file = media
         ar.save()
 
+    log_activity('autoreply_updated', f"AutoReply #{ar.pk} updated: trigger='{ar.trigger}'", request=request, related_object=ar)
     return JsonResponse({"item": serialize_autoreply(ar, request=request)})
 
 @csrf_exempt
@@ -795,7 +798,9 @@ def api_update_autoreply(request, pk):
 def api_delete_autoreply(request, pk):
     """Delete auto-reply rule"""
     ar = get_object_or_404(AutoReply, pk=pk)
+    trigger_name = ar.trigger
     ar.delete()
+    log_activity('autoreply_deleted', f"AutoReply deleted: trigger='{trigger_name}'", request=request)
     return JsonResponse({"ok": True})
 
 @csrf_exempt
@@ -1314,7 +1319,9 @@ def api_update_flow(request, pk):
 @require_http_methods(["POST", "DELETE"])
 def api_delete_flow(request, pk):
     f = get_object_or_404(Flow, pk=pk)
+    flow_name = f.name
     f.delete()
+    log_activity('flow_deleted', f"Flow deleted: '{flow_name}'", request=request)
     return JsonResponse({"ok": True})
 
 
@@ -1565,6 +1572,7 @@ class SaveFlowView(APIView):
                             data=c.get("data", {})
                         )
 
+            log_activity('flow_created', f"Flow '{name}' created ({len(nodes_data)} nodes, {len(connections_data)} connections)", request=request, related_object=flow)
             return Response({
                 "message": "Flow created successfully",
                 "flow_id": flow.id,
@@ -1792,6 +1800,7 @@ def api_update_flows(request, pk):
         flow.updated_at = timezone.now()
         flow.save()
 
+    log_activity('flow_updated', f"Flow '{flow.name}' updated ({len(nodes_data)} nodes, {len(connections_data)} connections)", request=request, related_object=flow)
     return JsonResponse({"success": True, "status": "updated", "item": serialize_flow(flow)})
 
 

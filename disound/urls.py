@@ -17,6 +17,7 @@ Including another URLconf
 from django.contrib import admin
 from django.urls import path ,include
 from discount import views ,shopifyLink , user_dash , activites , tests
+from discount.marketing.views import serve_tracker_by_id
 from django.conf import settings
 from django.conf.urls.static import static
 from django.conf.urls import handler404
@@ -30,7 +31,10 @@ urlpatterns = [
     # tracking/get_tracking_company_data/
     path('admin/', admin.site.urls),
 
+    path('discount/marketing/tracker.js', serve_tracker_by_id, name='tracker_js_root'),
+    path('discount/marketing/tracker.js/', serve_tracker_by_id, name='tracker_js_root_slash'),
     path('discount/marketing/', include('discount.marketing.urls')),
+    path('orders/', include('orders.urls')),
     # ad spy links 
      
 

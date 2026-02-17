@@ -18,7 +18,7 @@ from django.shortcuts import get_object_or_404
 from django.contrib.auth.forms import SetPasswordForm , PasswordChangeForm
 from django.contrib.auth import update_session_auth_hash
 from django.shortcuts import redirect, render
-from .activites import activity_log
+from .activites import activity_log, log_activity
 from .Codnetwork import  fetch_leads_for_skus
 from .crypto import encrypt_token
 from django.core.mail import EmailMessage
@@ -157,16 +157,19 @@ def login_user(request):
                     error = "Your account is not verified. Please check your email for the activation link."
                 else:
                     login(request, user)
+                    log_activity('login', f"User logged in ({email})", user=user, request=request, defer=False)
                     return redirect('tracking')
             else:
+                log_activity('login_failed', f"Failed login attempt for {email}", request=request, defer=False)
                 error = "Invalid email or password."
     return render(request, 'user/login.html', {'error': error})
 
 login_required(login_url='/auth/login/')  
 def  logout(request):
     from django.contrib.auth import logout
+    log_activity('logout', 'User logged out', request=request, defer=False)
     logout(request)
-    return redirect('home')  # إعادة التوجيه إلى الصفحة الرئيسية بعد تسجيل الخروج
+    return redirect('home')
 
  
 
@@ -347,18 +350,11 @@ def register_user(email, password, user_name):
         email=email,
         password=password,
         user_name=user_name,
-        
-        
-        
-        is_active=True, 
-        
-        
+        is_active=True,
         is_verified=False,
-        
-        is_team_admin=True
-
+        is_team_admin=True,
     )
-    print('user'  ,user)
+    log_activity('user_created', f"New account registered: {email} ({user_name})", user=user, defer=False)
     
     # إنشاء ملف تعريف المستخدم
     # CustomUserCreationForm.objects.create(user=user)
@@ -621,6 +617,7 @@ def change_password(request):
             if  request.user.check_password(old_password):
                 request.user.set_password(new_password)
                 request.user.save()
+                log_activity('password_changed', 'Password changed successfully', request=request)
                 return JsonResponse({'success' : True , "message": 'password changed successfully'})
             else:
                 return JsonResponse({'success' : False , "message": 'old password is incorrect'})
@@ -640,6 +637,7 @@ def edit_profile(request):
         print(user.user_name , user.email , user.phone)
         try:
             user.save()
+            log_activity('profile_updated', f"Profile updated: {user.user_name}, {user.email}", request=request)
             return JsonResponse({'success': True, 'message': 'Profile updated successfully'})
         except Exception as e:
             return JsonResponse({'success': False, 'message': f'Failed to update profile: {str(e)}'})
@@ -1008,7 +1006,8 @@ def invite_staff(request):
 
         if not sent:
             return JsonResponse({'error': 'فشل في إرسال البريد الإلكتروني'}, status=500)
-        else:        
+        else:
+            log_activity('invite_sent', f"Team invite sent to {email} (role: {role})", request=request, related_object=invitation)
             return JsonResponse({'success': 'تم إرسال الدعوة بنجاح'}, status=200)
          
 
@@ -1069,7 +1068,7 @@ def accept_invite(request, token):
 
             # تسجيل الدخول تلقائياً
             login(request, user, backend='django.contrib.auth.backends.ModelBackend')
-
+            log_activity('invite_accepted', f"Invite accepted by {invitation.email} (admin: {invitation.admin})", user=user, request=request, defer=False)
             return JsonResponse({'status': 'success'})
 
         except Exception as e:
@@ -1156,12 +1155,14 @@ def unlink_user(request, id):
     # 1. محاولة حذف دعوة TeamInvitation
     invitation = TeamInvitation.objects.filter(id=id, admin=request.user).first()
     if invitation:
+        log_activity('member_removed', f"Invitation deleted for {invitation.email}", request=request)
         invitation.delete()
         return redirect(f'/tracking/user/?{"invitation_deleted"}')
 
     # 2. محاولة حذف مستخدم فعلي من الفريق
     member = CustomUser.objects.filter(id=id, team_admin=request.user).first()
     if member:
+        log_activity('member_removed', f"Team member removed: {member.user_name or member.email} (ID: {member.pk})", request=request)
         member.delete()
         return redirect(f'/tracking/user/?{"user_deleted"}')
 
@@ -1436,13 +1437,10 @@ def submit_order(request):
         #     gift_chosen=gift_obj ,
         #     channel= WhatsAppChannel.objects.get(id=channel_id) 
         # )
-        activity_log(
-            request,
-            activity_type='order_placed',
-            description=f"طلب جديد لـ {name} ({phone}) للمنتج {selected_product_sku}" + (f" مع هدية {gift_sku}" if gift_sku else ""),
-            related_object=None,
-            ip_address=request.META.get('REMOTE_ADDR'),
-            active_time=timezone.now()
+        log_activity(
+            'simple_order_created',
+            f"New order for {name} ({phone}), product: {selected_product_sku}" + (f", gift: {gift_sku}" if gift_sku else ""),
+            request=request, related_object=order,
         )
     else:
         try:
@@ -1625,32 +1623,51 @@ def normalize_naqel_status(raw_text):
 import hashlib
 import requests
 import json
+import base64
 from datetime import datetime
+
+IMILE_RSA_PUBLIC_KEY = """-----BEGIN PUBLIC KEY-----
+MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA3dFPiKNZwt+HoBbPAG/t
+7kZC2k3pBX2eCl5LeyeW8woNuEV5bA5kB9Y9KKTOQng62ERGPLwi84CdIB8s265
+ljQUib//iO3jVrZesJueO5Xu+s80s3Z/89jgJleT1XawN1GubgkGXOoT1a7tvX8+
+aItkGgR//48ELqJVVUL+yGsBtXxFjNmOEWxBJNQuwAf9yWcCIl1enD60GjZjPWrs
+fw8QUqam7K5e45ealcPEYGenNePwuPpCq6twdD0YYYzKdRN0dZP1uTviFpNfph90
+c9YgQ8kgDkRMcpjVv6KZ+bg5JZ4sK6LkV4vwOjPijisthHBvUXhu3fyhMgvoDO/j
+5gwIDAQAB
+-----END PUBLIC KEY-----"""
+
+
+def _imile_rsa_sign(waybill_no):
+    """Encrypt the waybill number with iMile's RSA public key for the sign header."""
+    from Crypto.PublicKey import RSA
+    from Crypto.Cipher import PKCS1_v1_5
+    key = RSA.import_key(IMILE_RSA_PUBLIC_KEY)
+    cipher = PKCS1_v1_5.new(key)
+    encrypted = cipher.encrypt(waybill_no.encode('utf-8'))
+    return base64.b64encode(encrypted).decode('utf-8')
 
 
 def track_imile_final(waybill_no):
-    # 1. التوقيع السري الذي اكتشفته أنت 🕵️‍♂️
     SECRET_SALT = "imileTrackQuery2024"
-    
-    # 2. تشفير التوقيع
+
     raw_string = f"{waybill_no}{SECRET_SALT}"
-    signature = hashlib.md5(raw_string.encode('utf-8')).hexdigest()
-    
-    # 3. الرابط
-    url = f"https://www.imile.com/saastms/mobileWeb/track/query?waybillNo={waybill_no}&code={signature}"
-    
+    md5_code = hashlib.md5(raw_string.encode('utf-8')).hexdigest()
+
+    url = f"https://www.imile.com/saastms/mobileWeb/track/query?waybillNo={waybill_no}&code={md5_code}"
+
     headers = {
         'User-Agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 16_6 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.6 Mobile/15E148 Safari/604.1',
         'Accept': 'application/json',
-        'lang': 'en_US'
+        'lang': 'en_US',
+        'sign': _imile_rsa_sign(waybill_no),
     }
 
     try:
         response = requests.get(url, headers=headers, timeout=10)
-        
+
         if response.status_code == 200:
             data = response.json()
-            
+
             # التحقق من نجاح الطلب
             if data.get('status') == 'success' and data.get('resultObject'):
                 result = data['resultObject']
@@ -1781,23 +1798,37 @@ def track_injaz(request):
 
     elif order_number.startswith("6"):
         resulta = track_imile_final(order_number)
-        print(resulta.get('raw_status'))
-        if resulta :
-            # get_status = normalize_imile_status(resulta., resulta['history'])
-            context = {'order_status' : resulta.get('order_status', None), # order_status,
-                        'destination' : resulta.get('destination', None), # destination,
-                        'tracking_company' : "imile",
-                        'order_number' : resulta.get('tracking_number', order_number), #tracking_number , 
-                        'expected_delivery' : resulta.get('expected_delivery', None), #expected_delivery,
-                        'timeline' : resulta.get('history', None), #history,
-                        # 'status' : resulta['status'],
-                }
-            # context = json.dumps(context)
-        # if get_status :
-        #     update = SimpleOrder.objects.filter(agent = request.user , tracking_number = order_number).update(status = get_status)
 
-        return JsonResponse({"message": "Order status updated" , "data": context }, status=200)
-        # return JsonResponse({"message": "Order number required"}, status=400)
+        if not resulta or not resulta.get('ok'):
+            error_msg = resulta.get('error', 'Unknown error') if resulta else 'No response from iMile'
+            return JsonResponse({
+                "error": error_msg,
+                "detail": f"iMile returned no tracking data for {order_number}. "
+                          "The shipment may not exist, may have been purged, "
+                          "or iMile's tracking service is temporarily unavailable.",
+                "tracking_number": order_number,
+                "tracking_company": "imile",
+            }, status=404)
+
+        get_status = resulta.get('order_status')
+        context = {
+            'order_status': get_status,
+            'destination': resulta.get('destination'),
+            'tracking_company': "imile",
+            'order_number': resulta.get('order_number', order_number),
+            'expected_delivery': resulta.get('expected_delivery'),
+            'timeline': resulta.get('history'),
+            'failed_attempts': resulta.get('failed_attempts', 0),
+            'last_update': resulta.get('last_update'),
+            'raw_status': resulta.get('raw_status'),
+        }
+
+        if get_status:
+            SimpleOrder.objects.filter(
+                agent=request.user, tracking_number=order_number
+            ).update(status=get_status)
+
+        return JsonResponse({"message": "Order status updated", "data": context}, status=200)
     if not order_number:
         return JsonResponse({"message": "Order number required"}, status=400)
 

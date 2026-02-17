@@ -864,7 +864,38 @@ color:#ede9e9 !important;
            <a href="/tracking/" class="btn nav_link active" id="track1">Tracking</a>
             <a href="{% url 'user' %}" class="btn nav_link">Account</a>
             <a href="{% url 'analytics' %}" class="btn nav-link2">Analytics</a>
-         
+            <script>
+                (function() {
+                    var STORAGE_KEY = 'tracking-theme';
+                    var root = document.documentElement;
+                    function getTheme() {
+                        try { return localStorage.getItem(STORAGE_KEY) || 'dark'; } catch (e) { return 'dark'; }
+                    }
+                    function setTheme(theme) {
+                        theme = theme === 'light' ? 'light' : 'dark';
+                        root.setAttribute('data-theme', theme);
+                        try { localStorage.setItem(STORAGE_KEY, theme); } catch (e) {}
+                        var darkIcon = document.querySelector('.theme-icon-dark');
+                        var lightIcon = document.querySelector('.theme-icon-light');
+                        if (darkIcon && lightIcon) {
+                            darkIcon.style.display = theme === 'dark' ? 'inline-block' : 'none';
+                            lightIcon.style.display = theme === 'light' ? 'inline-block' : 'none';
+                        }
+                    }
+                    function toggleTheme() {
+                        setTheme(getTheme() === 'dark' ? 'light' : 'dark');
+                    }
+                    setTheme(getTheme());
+                    document.addEventListener('DOMContentLoaded', function() {
+                        var btn = document.getElementById('theme-toggle');
+                        if (btn) btn.addEventListener('click', toggleTheme);
+                    });
+                })();
+                </script>
+                <button type="button" id="theme-toggle" class="btn theme-toggle-btn" title="Toggle dark/light theme" aria-label="Toggle theme">
+                    <i class="fas fa-moon theme-icon-dark" aria-hidden="true"></i>
+                    <i class="fas fa-sun theme-icon-light" aria-hidden="true" style="display: none;"></i>
+                </button>
         </div>
     </nav>
  
@@ -876,7 +907,7 @@ color:#ede9e9 !important;
             <a class="nav-link" href="#" data-section="leads-tracking-section">Lead Management</a>
             <a class="nav-link" href="#" data-section="update-section">Inventory & Data Update</a>
             <a class="nav-link" href="#" id="Codproduct" data-section="future-features-1-section">Product Hub</a>
-             
+            
 {% if request.user.is_team_admin or user_permusstion.can_create_orders %}
 
             <a class="nav-link" href="#" data-section="leads-created-section">Add Leads</a>
@@ -885,6 +916,7 @@ color:#ede9e9 !important;
 
         </nav>
 
+        
         <div class="section-content active" id="future-whatssap_API">
              
             <script src="{% static 'js/script2.js' %}" ></script>
@@ -894,7 +926,943 @@ color:#ede9e9 !important;
             </div>
 
 
-
+ 
+        
+         
+        
+         
+        
+        
+        
+        
+        
+        
+          <script>
+          // ---------- State ----------
+         // بدّل تعريف state الحالي إلى هذا
+        const state = {
+          data: {
+            kpis: { spend:0, total_orders:0, confirmation_rate:0, delivery_rate:0 },
+            orders: [],
+            campaigns: [],
+            visits: [],
+            last_update: new Date().toISOString()
+          },
+          selectedPlatform: 'all',
+          periodDays: 7,
+          charts: { main: null, donut: null }
+        };
+        
+        
+          // ---------- Helpers ----------
+          function safeNumber(v){ return (v === null || v === undefined || isNaN(Number(v))) ? 0 : Number(v); }
+          const safeNum = safeNumber;
+        
+          function formatPercent(x){
+            if (x === null || x === undefined || isNaN(Number(x))) return '—';
+            const n = Number(x);
+            const value = (n <= 1 ? n * 100 : n);
+            return value.toFixed(1) + '%';
+          }
+          // Conversion by visitors only when we have visits; otherwise show — to avoid misleading "100%"
+          function formatConvByVisits(confirmed, visits) {
+            var v = safeNumber(visits);
+            if (v === 0) return '—';
+            return formatPercent(safeNumber(confirmed) / v);
+          }
+          function formatConvByOrders(confirmed, orders) {
+            var o = safeNumber(orders);
+            if (o === 0) return '—';
+            return formatPercent(safeNumber(confirmed) / o);
+          }
+        
+          function escapeHtml(str){ if (str === null || str === undefined) return ''; return String(str).replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;').replaceAll('"','&quot;'); }
+        
+          // CSRF helper for Django POSTs
+          function getCookie(name) {
+            const v = document.cookie.match('(^|;)\\s*' + name + '\\s*=\\s*([^;]+)');
+            return v ? v.pop() : '';
+          }
+        
+          // ---------- Extract orders robustly from backend payload ----------
+          function extractOrdersFromPayload(payload){
+            // console.log('[debug] extractOrdersFromPayload payload keys:', payload && typeof payload === 'object' ? Object.keys(payload) : typeof payload, payload);
+            if (!payload || typeof payload !== 'object') return [];
+            if (Array.isArray(payload.orders)) {  return payload.orders; }
+            for (const key of ['orders_data','items','rows','results','leads','data']){
+              if (Array.isArray(payload[key])) {  return payload[key]; }
+            }
+            if (Array.isArray(payload.data)) {  return payload.data; }
+            if (payload.data && Array.isArray(payload.data.orders)) {  return payload.data.orders; }
+            // fallback: find any array of objects that looks like orders
+            for (const k of Object.keys(payload)){
+              const v = payload[k];
+              if (Array.isArray(v) && v.length>0 && typeof v[0] === 'object'){
+                const sample = v[0];
+                if ('status' in sample || 'phone' in sample || 'phone_normalized' in sample || 'id' in sample || 'external_order_id' in sample || 'attribution_data__utm_campaign' in sample || 'matched_visit__utm_campaign' in sample) {
+                  
+                  return v;
+                }
+              }
+            }
+            return [];
+          }
+        
+          // ---------- Convert orders -> campaigns (flexible) ----------
+          function convertOrdersToCampaigns(orders, visitsMap = {}){
+            if (!Array.isArray(orders) || orders.length === 0) return [];
+            const campaignMap = {};
+            function pick(o, keys){
+              for (const k of keys){
+                if (k.includes('__')){ if (Object.prototype.hasOwnProperty.call(o,k) && o[k] !== undefined && o[k] !== null && o[k] !== '') return o[k]; }
+                else { if (Object.prototype.hasOwnProperty.call(o,k) && o[k] !== undefined && o[k] !== null && o[k] !== '') return o[k]; const parts = k.split('.'); if (parts.length>1){ let cur=o; let ok=true; for(const p of parts){ if (cur && Object.prototype.hasOwnProperty.call(cur,p)) cur=cur[p]; else { ok=false; break; } } if (ok && cur!==undefined && cur!==null && cur!=='') return cur; } }
+              }
+              return null;
+            }
+        
+            orders.forEach(order => {
+              const campaignKey = pick(order, ['attribution_data__utm_campaign','matched_visit__utm_campaign','utm_campaign','campaign_name','campaign']) || 'Unknown Campaign';
+              const platform = pick(order, ['attribution_data__utm_source','matched_visit__utm_source','platform','site_source_name','utm_source']) || 'unknown';
+              const campaignId = pick(order, ['attribution_data__ad_id','matched_visit__ad_id','campaign_id','ad_id','id']) || '';
+              if (!campaignMap[campaignKey]){
+                campaignMap[campaignKey] = { campaign_name: campaignKey, campaign_id: campaignId, platform: platform, platform_label: (typeof platform==='string' && platform.length)?(platform.charAt(0).toUpperCase()+platform.slice(1)):'Platform', total_orders:0, confirmed_orders:0, delivered_orders:0, cancelled_orders:0, meta_orders:[] };
+              }
+              const node = campaignMap[campaignKey];
+              node.total_orders += 1; node.meta_orders.push(order);
+              const status = (pick(order, ['status','order_status'])||'').toString().toLowerCase();
+              if (status==='confirmed') node.confirmed_orders +=1;
+              if (status==='delivered') node.delivered_orders +=1;
+              if (status==='cancelled' || status==='canceled') node.cancelled_orders +=1;
+            });
+        
+            const campaigns = Object.values(campaignMap).map(c => {
+              const t = safeNum(c.total_orders); const confirmed = safeNum(c.confirmed_orders); const delivered = safeNum(c.delivered_orders);
+              const confirmation_rate = t > 0 ? (confirmed / t) : 0;
+              const delivery_rate = confirmed > 0 ? (delivered / confirmed) : 0;
+              const visits = safeNum(visitsMap[c.campaign_name] || 0);
+              // Conversion = orders / visits (how many visits became orders)
+              const conversion_rate = visits > 0 ? (t / visits) : null;
+              return { campaign_name: c.campaign_name, campaign_id: c.campaign_id||'', platform: c.platform, platform_label: c.platform_label, total_orders: t, orders: t, confirmed_orders: confirmed, delivered_orders: delivered, cancelled_orders: safeNum(c.cancelled_orders), confirmation_rate: Number(confirmation_rate), delivery_rate: Number(delivery_rate), conversion_rate: conversion_rate !== null ? Number(conversion_rate) : null, visits: visits };
+            });
+            campaigns.sort((a,b)=> (b.orders||0)-(a.orders||0));
+            return campaigns;
+          }
+        
+         
+        
+        
+        
+        
+          // ---------- Renderers ----------
+          function renderKPIs(kpis){
+            var v = document.getElementById('kpiVisitors'); if (v) v.innerText = String(kpis.total_visits != null ? kpis.total_visits : (kpis.visits != null ? kpis.visits : 0));
+            var o = document.getElementById('kpiOrders'); if (o) o.innerText = String(kpis.total_orders != null ? kpis.total_orders : (kpis.orders != null ? kpis.orders : 0));
+            var c = document.getElementById('kpiConfirmed'); if (c) c.innerText = String(kpis.confirmed_orders != null ? kpis.confirmed_orders : 0);
+            var d = document.getElementById('kpiDelivered'); if (d) d.innerText = String(kpis.delivered_orders != null ? kpis.delivered_orders : 0);
+            var s = document.getElementById('kpiSpend'); if (s) s.innerText = '$' + (kpis.spend != null && Number(kpis.spend) !== 0 ? Number(kpis.spend).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2}) : '0.00');
+            var conv = document.getElementById('kpiConversion'); if (conv) conv.innerText = formatPercent(kpis.conversion_rate != null ? kpis.conversion_rate : 0);
+            var confRate = document.getElementById('kpiConfirmRate'); if (confRate) confRate.innerText = formatPercent(kpis.confirmation_rate != null ? kpis.confirmation_rate : 0);
+            var delRate = 0;
+            if (typeof kpis.delivery_rate !== 'undefined' && kpis.delivery_rate != null) delRate = kpis.delivery_rate;
+            else if (kpis.confirmed_orders && kpis.delivered_orders) delRate = (kpis.delivered_orders / kpis.confirmed_orders) || 0;
+            var delEl = document.getElementById('kpiDelivery'); if (delEl) delEl.innerText = formatPercent(delRate);
+          }
+        
+          function renderPlatformBadge(platformKey){ const el = document.getElementById('platformBadge'); if (!el) return; if (platformKey==='all'){ el.innerText='All Platforms'; el.className='badge-platform bg-blue-100 text-blue-800'; } else{ el.innerText = platformKey.charAt(0).toUpperCase()+platformKey.slice(1); el.className='badge-platform bg-gray-100 text-gray-800'; } }
+        
+          // Toggle a block element (div) - no table-row quirks
+          function setBlockVisible(el, visible) {
+            if (!el) return;
+            el.style.display = visible ? 'block' : 'none';
+          }
+          function isBlockHidden(el) {
+            if (!el) return true;
+            return el.style.display === 'none';
+          }
+          function setRowVisible(tr, visible) {
+            if (!tr) return;
+            if (visible) { tr.style.removeProperty ? tr.style.removeProperty('display') : (tr.style.display = 'table-row'); }
+            else { tr.style.display = 'none'; }
+          }
+          function isRowHidden(tr) {
+            if (!tr) return true;
+            return tr.style.display === 'none';
+          }
+          function makeToggleButton(targetId, isDiv) {
+            var b = document.createElement('button');
+            b.type = 'button';
+            b.className = 'px-2 py-1 mr-2 text-sm rounded bg-gray-100 hover:bg-gray-200';
+            b.innerText = '▶';
+            b.addEventListener('click', function(ev) {
+              ev.stopPropagation();
+              var el = document.getElementById(targetId);
+              if (!el) return;
+              var hidden = isDiv ? isBlockHidden(el) : isRowHidden(el);
+              if (isDiv) setBlockVisible(el, hidden); else setRowVisible(el, hidden);
+              b.innerText = hidden ? '▼' : '▶';
+            });
+            return b;
+          }
+        
+          // Backend may send adsets as flat list of ads (each with ad_adset_name). Group by ad_adset_name into adset -> ads.
+          function normalizeCampaignsAdsets(campaigns) {
+            if (!Array.isArray(campaigns)) return campaigns;
+            return campaigns.map(function(c) {
+              var adsetsRaw = c.adsets;
+              if (!Array.isArray(adsetsRaw) || adsetsRaw.length === 0) return c;
+              var first = adsetsRaw[0];
+              if (Array.isArray(first.ads)) return c;
+              var byAdset = {};
+              adsetsRaw.forEach(function(ad) {
+                var key = (ad.ad_adset_name || ad.ad_name || ad.ad_id || 'AdSet').toString();
+                if (!byAdset[key]) byAdset[key] = { name: key, id: ad.adset_id || ad.ad_id || '', ads: [], orders: 0, confirmed_orders: 0, visits: 0, placements: [] };
+                byAdset[key].ads.push(ad);
+                byAdset[key].orders += safeNumber(ad.orders || 0);
+                byAdset[key].confirmed_orders += safeNumber(ad.confirmed_orders || 0);
+                byAdset[key].visits += safeNumber(ad.visits || 0);
+                if (Array.isArray(ad.placements)) byAdset[key].placements = byAdset[key].placements.concat(ad.placements);
+              });
+              var adsets = Object.values(byAdset).map(function(g) { return { ad_adset_name: g.name, adset_id: g.id, orders: g.orders, confirmed_orders: g.confirmed_orders, visits: g.visits, placements: g.placements, ads: g.ads }; });
+              return Object.assign({}, c, { adsets: adsets });
+            });
+          }
+        
+          function renderTable(campaigns, visitsMap) {
+            visitsMap = visitsMap || {};
+            var tbody = document.getElementById('campaignTableBody');
+            if (!tbody) return;
+            tbody.innerHTML = '';
+            var rows = Array.isArray(campaigns) ? campaigns : [];
+            var normalized = normalizeCampaignsAdsets(rows);
+            if (normalized.length === 0) {
+              tbody.innerHTML = '<tr><td class="px-4 py-6 text-left tiny text-gray-500" colspan="7">No campaigns to show</td></tr>';
+              var infoEl = document.getElementById('tableInfo');
+              if (infoEl) infoEl.innerText = '0 campaigns';
+              return;
+            }
+            normalized.forEach(function(c, campaignIndex) {
+              var campaignDetailsId = 'campaign-details-' + campaignIndex;
+              var campaignName = c.campaign_name || c.name || 'Unknown Campaign';
+              var platformLabel = c.platform_label || c.platform || 'Platform';
+              var campaignId = c.campaign_id || c.id || '';
+              var orders = safeNumber(c.orders || 0);
+              var confirmedOrders = safeNumber(c.confirmed_orders || 0);
+              var deliveredOrders = safeNumber(c.delivered_orders || 0);
+              var deliveryRate = (confirmedOrders > 0 && deliveredOrders > 0) ? (deliveredOrders / confirmedOrders) : safeNumber(c.delivery_rate || 0);
+              var visits = safeNumber((typeof c.visits !== 'undefined') ? c.visits : (visitsMap[campaignName]) || 0);
+              // Conversion rate = orders / visits (what % of visits became orders)
+              var conversionRate = null;
+              if (visits > 0) conversionRate = (typeof c.conversion_by_visits !== 'undefined' && c.conversion_by_visits !== null) ? Number(c.conversion_by_visits) : (orders / visits);
+              else if (orders > 0 && visits === 0) conversionRate = null;
+        
+              var tr = document.createElement('tr');
+              tr.className = 'bg-white';
+              var firstTd = document.createElement('td');
+              firstTd.className = 'px-4 py-3 text-left';
+              var hasAdsets = Array.isArray(c.adsets) && c.adsets.length > 0;
+              if (hasAdsets) {
+                firstTd.appendChild(makeToggleButton(campaignDetailsId, false));
+                var sp = document.createElement('span');
+                sp.style.marginLeft = '8px';
+                firstTd.appendChild(sp);
+              } else {
+                var sp0 = document.createElement('span');
+                sp0.style.display = 'inline-block';
+                sp0.style.width = '22px';
+                firstTd.appendChild(sp0);
+              }
+              var campaignHtml = document.createElement('div');
+              campaignHtml.innerHTML = '<div class="font-medium">' + escapeHtml(campaignName) + '</div><div class="tiny text-gray-500">' + escapeHtml(platformLabel) + '</div>';
+              firstTd.appendChild(campaignHtml);
+              tr.appendChild(firstTd);
+              tr.appendChild((function(){ var td = document.createElement('td'); td.className = 'px-4 py-3 text-center tiny'; td.innerText = campaignId; return td; })());
+              tr.appendChild((function(){ var td = document.createElement('td'); td.className = 'px-4 py-3 text-center font-semibold'; td.innerText = String(orders); return td; })());
+              tr.appendChild((function(){ var td = document.createElement('td'); td.className = 'px-4 py-3 text-center'; td.innerText = String(confirmedOrders); return td; })());
+              tr.appendChild((function(){ var td = document.createElement('td'); td.className = 'px-4 py-3 text-center'; td.innerText = formatPercent(deliveryRate); return td; })());
+              tr.appendChild((function(){ var td = document.createElement('td'); td.className = 'px-4 py-3 text-center'; td.innerText = String(visits); return td; })());
+              tr.appendChild((function(){ var td = document.createElement('td'); td.className = 'px-4 py-3 text-center'; td.innerText = (conversionRate !== null ? formatPercent(conversionRate) : '—'); return td; })());
+              if (hasAdsets) {
+                tr.style.cursor = 'pointer';
+                tr.addEventListener('click', function(ev) {
+                  if (ev.target.tagName === 'BUTTON') return;
+                  var el = document.getElementById(campaignDetailsId);
+                  if (!el) return;
+                  var hidden = isRowHidden(el);
+                  setRowVisible(el, hidden);
+                  var btn = firstTd.querySelector('button');
+                  if (btn) btn.innerText = hidden ? '▼' : '▶';
+                });
+              }
+              tbody.appendChild(tr);
+        
+              var detailsTr = document.createElement('tr');
+              detailsTr.id = campaignDetailsId;
+              detailsTr.style.display = 'none';
+              detailsTr.className = 'bg-gray-50';
+              var detailsTd = document.createElement('td');
+              detailsTd.colSpan = 7;
+              var container = document.createElement('div');
+              container.className = 'analytics-campaign-details';
+              container.style.padding = '12px 16px';
+        
+              if (hasAdsets) {
+                c.adsets.forEach(function(as, adsetIndex) {
+                  var adsetDetailsId = campaignDetailsId + '-adset-' + adsetIndex + '-details';
+                  var adsetName = as.ad_adset_name || as.ad_name || as.ad_id || as.name || 'AdSet';
+                  var adsetId = as.adset_id || as.ad_id || as.id || '';
+                  var asOrders = safeNumber(as.orders || 0);
+                  var asConfirmed = safeNumber(as.confirmed_orders || 0);
+                  var asDelivered = safeNumber(as.delivered_orders || 0);
+                  var asDeliveryRate = asConfirmed > 0 ? (asDelivered / asConfirmed) : 0;
+                  var asVisits = safeNumber(as.visits || 0);
+                  var asConvVisits = asVisits > 0 ? (asConfirmed / asVisits) : null;
+                  var asConvOrders = asOrders > 0 ? (asConfirmed / asOrders) : null;
+                  var hasAds = Array.isArray(as.ads) && as.ads.length > 0;
+        
+                  var adsetBlock = document.createElement('div');
+                  adsetBlock.className = 'analytics-adset-card';
+                  var adsetHeader = document.createElement('div');
+                  adsetHeader.className = 'analytics-adset-header';
+                  adsetHeader.appendChild(makeToggleButton(adsetDetailsId, true));
+                  var adsetTitle = document.createElement('div');
+                  adsetTitle.className = 'analytics-adset-title';
+                  adsetTitle.innerHTML = escapeHtml(adsetName);
+                  adsetHeader.appendChild(adsetTitle);
+                  if (adsetId) {
+                    var adsetIdSpan = document.createElement('span');
+                    adsetIdSpan.className = 'analytics-adset-id';
+                    adsetIdSpan.textContent = 'ID: ' + adsetId;
+                    adsetHeader.appendChild(adsetIdSpan);
+                  }
+                  var adsetMetrics = document.createElement('div');
+                  adsetMetrics.className = 'analytics-metrics';
+                  function addMetric(parent, label, value, cssClass) {
+                    var m = document.createElement('span');
+                    m.className = 'analytics-metric ' + (cssClass || 'analytics-metric--muted');
+                    m.textContent = label + ': ' + value;
+                    parent.appendChild(m);
+                  }
+                  addMetric(adsetMetrics, 'Visitors', String(asVisits), 'analytics-metric--visitors');
+                  addMetric(adsetMetrics, 'Orders', String(asOrders), 'analytics-metric--orders');
+                  addMetric(adsetMetrics, 'Confirmed', String(asConfirmed), 'analytics-metric--confirmed');
+                  addMetric(adsetMetrics, 'Delivery', formatPercent(asDeliveryRate), 'analytics-metric--delivery');
+                  addMetric(adsetMetrics, 'Conv (visitors)', asVisits > 0 ? formatPercent(asConvVisits) : '—', 'analytics-metric--conv');
+                  if (asVisits === 0 && asOrders > 0) addMetric(adsetMetrics, 'Conv (orders)', formatPercent(asConvOrders), 'analytics-metric--muted');
+                  adsetHeader.appendChild(adsetMetrics);
+                  adsetBlock.appendChild(adsetHeader);
+        
+                  var adsetDetailsDiv = document.createElement('div');
+                  adsetDetailsDiv.id = adsetDetailsId;
+                  adsetDetailsDiv.className = 'analytics-ads-panel';
+                  adsetDetailsDiv.style.display = 'none';
+                  if (hasAds) {
+                    var adsList = document.createElement('div');
+                    as.ads.forEach(function(ad) {
+                      var adName = ad.ad_name || ad.name || '';
+                      var adId = ad.ad_id || ad.id || '';
+                      var adOrders = safeNumber(ad.orders || 0);
+                      var adConfirmed = safeNumber(ad.confirmed_orders || 0);
+                      var adDelivered = safeNumber(ad.delivered_orders || 0);
+                      var adDeliveryRate = adConfirmed > 0 ? (adDelivered / adConfirmed) : 0;
+                      var adVisits = safeNumber(ad.visits || 0);
+                      var adConvV = adVisits > 0 ? (adConfirmed / adVisits) : null;
+                      var adConvO = adOrders > 0 ? (adConfirmed / adOrders) : null;
+                      var adLine = document.createElement('div');
+                      adLine.className = 'analytics-ad-row';
+                      var adNameEl = document.createElement('div');
+                      adNameEl.innerHTML = '<span class="analytics-ad-name">' + escapeHtml(adName || adId || 'Ad') + '</span><span class="analytics-ad-id">ID: ' + escapeHtml(adId) + '</span>';
+                      adLine.appendChild(adNameEl);
+                      var adMetricsEl = document.createElement('div');
+                      adMetricsEl.className = 'analytics-ad-metrics';
+                      addMetric(adMetricsEl, 'Visitors', String(adVisits), 'analytics-metric--visitors');
+                      addMetric(adMetricsEl, 'Orders', String(adOrders), 'analytics-metric--orders');
+                      addMetric(adMetricsEl, 'Confirmed', String(adConfirmed), 'analytics-metric--confirmed');
+                      addMetric(adMetricsEl, 'Delivery', formatPercent(adDeliveryRate), 'analytics-metric--delivery');
+                      addMetric(adMetricsEl, 'Conv (visitors)', adVisits > 0 ? formatPercent(adConvV) : '—', 'analytics-metric--conv');
+                      if (adVisits === 0 && adOrders > 0) addMetric(adMetricsEl, 'Conv (orders)', formatPercent(adConvO), 'analytics-metric--muted');
+                      adLine.appendChild(adMetricsEl);
+                      if (Array.isArray(ad.placements) && ad.placements.length > 0) {
+                        var plDiv = document.createElement('div');
+                        plDiv.className = 'analytics-placements';
+                        var plText = ad.placements.map(function(pl) {
+                          var pLabel = pl.placement || pl.site_source_name || pl.platform || pl.name || 'placement';
+                          return pLabel + ': ' + safeNumber(pl.orders || 0) + ' orders';
+                        }).join(' · ');
+                        plDiv.textContent = 'Placements: ' + plText;
+                        adLine.appendChild(plDiv);
+                      }
+                      adsList.appendChild(adLine);
+                    });
+                    adsetDetailsDiv.appendChild(adsList);
+                  } else {
+                    adsetDetailsDiv.innerHTML = '<div class="tiny text-gray-500">No ads in this adset.</div>';
+                  }
+                  adsetBlock.appendChild(adsetDetailsDiv);
+                  adsetHeader.addEventListener('click', function(ev) {
+                    if (ev.target.tagName === 'BUTTON') return;
+                    var hidden = isBlockHidden(adsetDetailsDiv);
+                    setBlockVisible(adsetDetailsDiv, hidden);
+                    var btn = adsetHeader.querySelector('button');
+                    if (btn) btn.innerText = hidden ? '▼' : '▶';
+                  });
+                  container.appendChild(adsetBlock);
+                });
+              } else {
+                container.innerHTML = '<div class="tiny text-gray-500">No adsets for this campaign.</div>';
+              }
+              detailsTd.appendChild(container);
+              detailsTr.appendChild(detailsTd);
+              tbody.appendChild(detailsTr);
+            });
+            var infoEl2 = document.getElementById('tableInfo');
+            if (infoEl2) infoEl2.innerText = normalized.length + ' campaign' + (normalized.length !== 1 ? 's' : '');
+          }
+        
+          // ---------- charts helpers ----------
+          function destroyChartsIfExist(){ try{ if (typeof Chart !== 'undefined' && Chart.getChart){ const existingMain = Chart.getChart('mainChart'); if (existingMain) existingMain.destroy(); const existingDonut = Chart.getChart('smallDonut'); if (existingDonut) existingDonut.destroy(); } }catch(e){} if (state.charts.main){ try{ state.charts.main.destroy(); }catch(e){} state.charts.main=null;} if (state.charts.donut){ try{ state.charts.donut.destroy(); }catch(e){} state.charts.donut=null; }
+          }
+        
+          // Build timeseries for last N days from orders (orders must have created_at string)
+          function generateTimeSeriesFromOrders(orders, days = state.periodDays){
+            const labels = []; const dateCounts = {}; const convCounts = {};
+            const now = new Date(); for (let i = days-1; i>=0; i--){ const d = new Date(now); d.setDate(now.getDate()-i); const key = d.toISOString().slice(0,10); labels.push(key); dateCounts[key]=0; convCounts[key]=0; }
+            if (Array.isArray(orders)){
+              orders.forEach(o => {
+                const created = o.created_at || o.created || o.date;
+                if (!created) return;
+                const d = new Date(created);
+                if (isNaN(d)) return;
+                const k = d.toISOString().slice(0,10);
+                if (k in dateCounts) dateCounts[k] += 1;
+                // treat confirmed as conversion
+                const status = (o.status||'').toString().toLowerCase(); if (status==='confirmed') convCounts[k] += 1;
+              });
+            }
+            const ordersArr = labels.map(l => dateCounts[l] || 0); const convArr = labels.map(l => convCounts[l] || 0);
+            return { labels, orders: ordersArr, conversions: convArr };
+          }
+         
+          function initCharts(){ 
+        
+         destroyChartsIfExist(); const canvasMain = document.getElementById('mainChart'); if (canvasMain){ const ts = generateTimeSeriesFromOrders(state.data && state.data.orders ? state.data.orders : [], state.periodDays); state.charts.main = new Chart(canvasMain, { type:'line', data:{ labels: ts.labels, datasets:[ { label:'Orders', data: ts.orders, borderColor:'#3b82f6', backgroundColor:'#bfdbfe', tension:0.35 }, { label:'Conversions', data: ts.conversions, borderColor:'#10b981', backgroundColor:'#bbf7d0', tension:0.35 } ] }, options:{ responsive:true, maintainAspectRatio:false, scales:{ y:{ beginAtZero:true } }, plugins:{ legend:{ position:'top' } } } }); }
+            const canvasDonut = document.getElementById('smallDonut'); if (canvasDonut){ const k = state.data && state.data.kpis ? state.data.kpis : {}; const deliveryPct = (k.confirmed_orders && k.delivered_orders) ? (k.delivered_orders / k.confirmed_orders * 100) : 0; state.charts.donut = new Chart(canvasDonut, { type:'doughnut', data:{ labels:['Delivery','Remaining'], datasets:[{ data:[deliveryPct, Math.max(0,100-deliveryPct)], backgroundColor:['#6366f1','#e5e7eb'] }] }, options:{ responsive:true, maintainAspectRatio:false, plugins:{ legend:{ display:false }, tooltip:{ callbacks:{ label: (ctx)=> ctx.label + ': ' + Number(ctx.raw).toFixed(1) + '%' } } }} }); }
+          }
+        
+          function updateCharts(){ if (!state.charts.main && !state.charts.donut){ initCharts(); return; } const ts = generateTimeSeriesFromOrders(state.data && state.data.orders ? state.data.orders : [], state.periodDays); if (state.charts.main){ state.charts.main.data.labels = ts.labels; if (Array.isArray(state.charts.main.data.datasets) && state.charts.main.data.datasets.length>=2){ state.charts.main.data.datasets[0].data = ts.orders; state.charts.main.data.datasets[1].data = ts.conversions; } state.charts.main.update(); } if (state.charts.donut){ const k = state.data && state.data.kpis ? state.data.kpis : {}; const deliveryPct = (k.confirmed_orders && k.delivered_orders) ? (k.delivered_orders / k.confirmed_orders * 100) : 0; state.charts.donut.data.datasets[0].data = [deliveryPct, Math.max(0,100-deliveryPct)]; state.charts.donut.update(); } }
+        
+          // ---------- Network helpers ----------
+          async function fetchWithRetry(url, opts={}, retries=2, backoff=400){ for (let attempt=0; attempt<=retries; attempt++){ try{ const res = await fetch(url, opts); if (!res.ok){ if (res.status>=400 && res.status<500) throw new Error(`HTTP ${res.status}`); throw new Error('HTTP '+res.status); } return await res.json(); } catch(err){ if (attempt===retries) throw err; await new Promise(r=>setTimeout(r, backoff*Math.pow(2,attempt))); } } }
+        
+          async function fetchDashboardData(){ const platform = encodeURIComponent(state.selectedPlatform || 'all'); const period = encodeURIComponent(state.periodDays || 7); const url = `/discount/marketing/api/dashboard-data?platform=${platform}&period=${period}`; try{ const payload = await fetchWithRetry(url, { credentials:'same-origin' }, 2, 400);  return payload; } catch(e){ console.warn('fetchDashboardData failed, using empty mock', e); return { kpis:{spend:0,total_orders:0,confirmation_rate:0,delivery_rate:0}, orders:[], campaigns:[], visits:[], last_update: new Date().toISOString() }; } }
+        
+          async function ajaxFetchOrders(endpoint='/discount/marketing/api/fetch-orders/', body={}){
+            const btn = document.getElementById('refreshBtn'); if (btn){ btn.disabled = true; btn.dataset.prevText = btn.innerText; btn.innerText = '🔄 Refreshing...'; }
+            try{
+              const res = await fetch(endpoint, { method:'POST', credentials:'same-origin', headers:{ 'Content-Type':'application/json', 'X-CSRFToken': getCookie('csrftoken') }, body: JSON.stringify(body) });
+              const text = await res.text(); let json = null; try{ json = text ? JSON.parse(text) : null; }catch(e){ json = null; }
+              if (!res.ok) throw new Error(`HTTP ${res.status} ${res.statusText} — ${text}`);
+              return json;
+            } finally {
+              if (btn){ btn.disabled = false; btn.innerText = btn.dataset.prevText || '🔄 Refresh'; delete btn.dataset.prevText; }
+            initCharts();
+            }
+          }
+        
+          // ---------- Main refresh ----------
+          function prepareVisitsMap(payload){ const visitsMap = {}; if (payload.visits && Array.isArray(payload.visits)){ payload.visits.forEach(v => { const key = v.utm_campaign || v.campaign || v.campaign_name || ''; const cnt = v.count || v.visits || v.value || 0; if (key) visitsMap[key] = safeNum(cnt); }); } else if (payload.total_visits && typeof payload.total_visits === 'object'){ Object.assign(visitsMap, payload.total_visits); } return visitsMap; }
+        
+          async function refreshData(){ const btn = document.getElementById('refreshBtn'); if (btn){ btn.disabled = true; btn.dataset.prevText = btn.innerText; btn.innerText = '🔄 Refreshing...'; }
+            try{
+              const payload = await fetchDashboardData(); state.data = payload; 
+              const visitsMap = prepareVisitsMap(payload);
+              // extract orders or use campaigns directly
+              const ordersList = extractOrdersFromPayload(state.data);
+              let campaigns = [];
+              if (Array.isArray(state.data.campaigns) && state.data.campaigns.length>0){  campaigns = state.data.campaigns; }
+              else if (Array.isArray(ordersList) && ordersList.length>0){ campaigns = convertOrdersToCampaigns(ordersList, visitsMap); }
+              else { campaigns = []; }
+              // apply filter
+              // Backend already returns data for the selected platform/period; no client-side filter needed
+              renderKPIs(state.data.kpis || {}); renderPlatformBadge(state.selectedPlatform); renderTable(campaigns, visitsMap);
+              // charts
+              updateCharts();
+              const last = document.getElementById('lastUpdate'); if (last) last.innerText = 'Last update: ' + (state.data.last_update || new Date().toISOString());
+               
+            } catch(err){ console.error('خطأ في تحديث البيانات:', err); alert('Error fetching dashboard data: ' + (err.message || err)); }
+            finally{ if (btn){ btn.disabled = false; btn.innerText = btn.dataset.prevText || '🔄 Refresh'; delete btn.dataset.prevText; } }
+          }
+        
+          // ---------- Bind events ----------
+          function bindEvents(){
+            var refreshBtn = document.getElementById('refreshBtn');
+            if (refreshBtn) refreshBtn.addEventListener('click', async function(){ try{ await ajaxFetchOrders(); await refreshData(); } catch(e){ console.error('refresh click error', e); } });
+            var exportBtn = document.getElementById('exportBtn');
+            if (exportBtn) exportBtn.addEventListener('click', function(){ exportVisibleTableToCSV(); });
+            var platformSelect = document.getElementById('platformSelect');
+            if (platformSelect) {
+              platformSelect.addEventListener('change', function(e){
+                state.selectedPlatform = e.target.value || 'all';
+                refreshData().catch(function(err){ console.warn('Platform filter refresh failed:', err); });
+              });
+            }
+            var periodSelect = document.getElementById('periodSelect');
+            if (periodSelect) {
+              periodSelect.addEventListener('change', function(e){
+                state.periodDays = parseInt(e.target.value, 10) || 7;
+                refreshData().catch(function(err){ console.warn('Period filter refresh failed:', err); });
+              });
+            }
+            var refreshInline = document.getElementById('refreshBtnInline');
+            if (refreshInline) refreshInline.addEventListener('click', function(){ var r = document.getElementById('refreshBtn'); if (r) r.click(); });
+          }
+        
+          // ---------- Export CSV ----------
+          function exportVisibleTableToCSV(filename = 'campaigns.csv'){ const rows = [['Campaign Name','Campaign ID','Orders','Confirmed','Delivery Rate','Visitors','Conversion Rate']]; (state.data && state.data.campaigns ? state.data.campaigns : []).forEach(c => { rows.push([c.campaign_name||'', c.campaign_id||'', c.orders||0, c.confirmed_orders||0, formatPercent(c.delivery_rate||0), c.visits||0, (typeof c.conversion_by_visits!=='undefined' && c.conversion_by_visits!==null) ? formatPercent(c.conversion_by_visits) : (typeof c.conversion_by_orders!=='undefined' && c.conversion_by_orders!==null) ? formatPercent(c.conversion_by_orders) : '-']); }); const csv = rows.map(r => r.map(v => `"${String(v).replace(/"/g,'""')}"`).join(',')).join('\n'); const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' }); const link = document.createElement('a'); link.href = URL.createObjectURL(blob); link.download = filename; link.style.display = 'none'; document.body.appendChild(link); link.click(); document.body.removeChild(link); }
+        
+          // ---------- Init ----------
+          document.addEventListener('DOMContentLoaded', function(){ bindEvents(); // initial render (empty or mock)
+            renderKPIs({}); renderTable([]); initCharts(); // try to fetch real data
+            refreshData().catch(err=> console.warn('Initial refresh failed:', err)); });
+          </script>
+        
+        <!-- reccomondations script -->
+        
+        
+        <script>
+        (function(){
+          // ----------------- Helpers -----------------
+        function escapeHtml(str){
+          if (str === null || str === undefined) return '';
+          return String(str).replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;').replaceAll('"','&quot;');
+        }
+        
+        function formatPercent(x){
+          if (x === null || x === undefined || isNaN(Number(x))) return '-';
+          return (Number(x) * 100).toFixed(1) + '%';
+        }
+          function safeNum(v){ return Number(v || 0); }
+        
+          function getCookie(name) {
+            const v = document.cookie.match('(^|;)\\s*' + name + '\\s*=\\s*([^;]+)');
+            return v ? v.pop() : '';
+          }
+        
+          // ----------------- Renderers (must be defined BEFORE fetch) -----------------
+          function renderPlatformComparisons(platforms_summary) {
+            const container = document.getElementById('platformComparisons');
+            if (!container) return;
+            container.innerHTML = '';
+            const keys = Object.keys(platforms_summary || {});
+            if (keys.length === 0) {
+              container.innerHTML = '<div class="tiny text-gray-500">No platform data available.</div>';
+              return;
+            }
+        
+            const table = document.createElement('table');
+            table.className = 'min-w-full divide-y';
+            table.innerHTML = `<thead><tr class="tiny text-gray-600">
+                <th class="px-2 py-1 text-left">Platform</th>
+                <th class="px-2 py-1 text-center">Visits</th>
+                <th class="px-2 py-1 text-center">Confirmed</th>
+                <th class="px-2 py-1 text-center">Conv Rate</th>
+                <th class="px-2 py-1 text-center">Delivery Rate</th>
+                <th class="px-2 py-1 text-center">Avg CPA</th>
+              </tr></thead>`;
+            const tbody = document.createElement('tbody');
+            keys.forEach(k => {
+              const s = platforms_summary[k] || {};
+              const tr = document.createElement('tr');
+              tr.className = 'bg-white';
+              tr.innerHTML = `<td class="px-2 py-1 text-left font-medium">${escapeHtml(k)}</td>
+                <td class="px-2 py-1 text-center">${safeNum(s.visits)}</td>
+                <td class="px-2 py-1 text-center">${safeNum(s.confirmed)}</td>
+                <td class="px-2 py-1 text-center">${formatPercent(s.conversion_rate||0)}</td>
+                <td class="px-2 py-1 text-center">${formatPercent(s.delivery_rate||0)}</td>
+                <td class="px-2 py-1 text-center">${s.avg_cpa ? '$' + Number(s.avg_cpa).toFixed(2) : '-'}</td>`;
+              tbody.appendChild(tr);
+            });
+            table.appendChild(tbody);
+            container.appendChild(table);
+          }
+        
+          function renderGranularRecommendations(recs) {
+            const container = document.getElementById('recommendations');
+            if (!container) return;
+            container.innerHTML = '';
+            if (!Array.isArray(recs) || recs.length === 0) {
+              container.innerHTML = '<div class="tiny text-gray-500">No recommendations at this time (not enough signal).</div>';
+              return;
+            }
+            recs.forEach(r => {
+              const card = document.createElement('div');
+              card.className = 'bg-gray-50 p-3 rounded';
+              const title = document.createElement('div');
+              title.className = 'flex justify-between items-start';
+              const left = document.createElement('div');
+              left.innerHTML = `<div class="font-medium">${escapeHtml((r.type||'').replace(/_/g,' '))} ${r.platform ? ' — ' + escapeHtml(r.platform) : ''} ${r.campaign ? ' — ' + escapeHtml(r.campaign) : ''}</div>
+                                <div class="tiny text-gray-600 mt-1">${escapeHtml(r.reason || '')}</div>`;
+              const right = document.createElement('div');
+              right.className = 'tiny text-gray-500 text-right';
+              right.innerHTML = `Score: <strong>${Math.round(r.score||0)}</strong><br>Confidence: <strong>${Math.round((r.confidence||0)*100)}%</strong>`;
+              title.appendChild(left); title.appendChild(right);
+              card.appendChild(title);
+        
+              // actions
+              const actions = document.createElement('div');
+              actions.className = 'mt-2 flex gap-2';
+              const actBtn = document.createElement('button');
+              actBtn.className = 'px-3 py-1 bg-blue-600 text-white rounded text-sm';
+              actBtn.innerText = (r.suggested_action && r.suggested_action.action) ? 'Suggest Action' : 'Log';
+              actBtn.addEventListener('click', function(){ applyRecommendation(r.id, r); });
+              const detailsBtn = document.createElement('button');
+              detailsBtn.className = 'px-3 py-1 bg-gray-200 rounded text-sm';
+              detailsBtn.innerText = 'Details';
+              detailsBtn.addEventListener('click', function(){
+                let d = card.querySelector('.rec-details');
+                if (!d) {
+                  d = document.createElement('div');
+                  d.className = 'rec-details mt-3 tiny text-gray-700';
+                  d.innerHTML = '<pre>' + escapeHtml(JSON.stringify(r.explanation || r, null, 2)) + '</pre>';
+                  card.appendChild(d);
+                } else {
+                  d.style.display = d.style.display === 'none' ? 'block' : 'none';
+                }
+              });
+              actions.appendChild(actBtn); actions.appendChild(detailsBtn);
+              card.appendChild(actions);
+        
+              container.appendChild(card);
+            });
+          }
+        
+        
+        
+         /* Enhanced recommendation renderer — use instead of older renderGranularRecommendations.
+           يفترض وجود:
+           - عنصر DOM id="recommendations" (حاوية التوصيات)
+           - دالة applyRecommendation(id, payload) مُعرّفة (أو تُستخدم الدالة الموجودة)
+           - دالة ignoreRecommendation(id) مُعرّفة
+           - helper escapeHtml, formatPercent متاحة (أعد تعريفها إن لم تكن موجودة)
+        */
+         
+        
+        // small toast utility to show feedback to user
+        function createToast(message, type = 'info', timeout = 3500){
+          const wrapId = 'toast-wrap';
+          let wrap = document.getElementById(wrapId);
+          if (!wrap){
+            wrap = document.createElement('div');
+            wrap.id = wrapId;
+            wrap.style.position = 'fixed';
+            wrap.style.right = '20px';
+            wrap.style.bottom = '20px';
+            wrap.style.zIndex = 1200;
+            document.body.appendChild(wrap);
+          }
+          const colors = { info:'bg-blue-600', success:'bg-green-600', warn:'bg-yellow-600', error:'bg-red-600' };
+          const el = document.createElement('div');
+          el.className = `${colors[type] || colors.info} text-white px-4 py-2 rounded shadow mb-2 tiny`;
+          el.innerText = message;
+          wrap.appendChild(el);
+          setTimeout(()=> { el.style.opacity = '0'; setTimeout(()=> el.remove(), 300); }, timeout);
+          return el;
+        }
+        
+        // color mapping to visually distinguish types
+        const REC_TYPE_STYLE = {
+          platform_outperforming: { color: 'bg-gradient-to-r from-green-400 to-green-600', icon: '📈' },
+          reallocate_from_to: { color: 'bg-gradient-to-r from-yellow-400 to-yellow-600', icon: '🔁' },
+          placement_prefer: { color: 'bg-gradient-to-r from-indigo-400 to-indigo-600', icon: '📌' },
+          investigate_shipping: { color: 'bg-gradient-to-r from-red-400 to-red-600', icon: '🚚' },
+          scale_campaign_on_platform: { color: 'bg-gradient-to-r from-purple-400 to-purple-600', icon: '🚀' },
+          debug_sample: { color: 'bg-gradient-to-r from-gray-400 to-gray-600', icon: '🧪' }
+        };
+        function renderGranularRecommendationsPro(recs) {
+          const container = document.getElementById('recommendations');
+          if (!container) return;
+          container.innerHTML = '';
+        
+          if (!Array.isArray(recs) || recs.length === 0) {
+            container.innerHTML = `<div class="p-4 tiny text-gray-600">No recommendations at this time (not enough signal).</div>`;
+            return;
+          }
+        
+          const grid = document.createElement('div');
+          grid.className = 'rec-grid';
+        
+          recs.forEach((r, idx) => {
+            const style = REC_TYPE_STYLE[r.type] || { color: 'bg-gray-400', icon: '💡' };
+        
+            const card = document.createElement('article');
+            card.className = 'rec-card';
+            card.setAttribute('role','article');
+            card.setAttribute('aria-labelledby', `rec-title-${idx}`);
+        
+            // header row
+            const header = document.createElement('div');
+            header.className = 'rec-header';
+        
+            const accent = document.createElement('div');
+            accent.className = 'rec-accent';
+            // use provided color class if present, else fallback solid color
+            if (style.color && style.color.startsWith('bg-')) {
+              accent.className = 'rec-accent ' + style.color;
+            } else {
+              accent.style.background = style.color || '#6b7280';
+            }
+            accent.innerText = style.icon || '💡';
+            header.appendChild(accent);
+        
+            const meta = document.createElement('div');
+            meta.className = 'rec-meta';
+            const title = document.createElement('h4');
+            title.id = `rec-title-${idx}`;
+            title.className = 'rec-title';
+            const platformPart = r.platform ? ` — ${escapeHtml(r.platform)}` : '';
+            const campaignPart = r.campaign ? ` — ${escapeHtml(r.campaign)}` : '';
+            title.innerText = `${(r.type||'Recommendation').replace(/_/g,' ')}${platformPart}${campaignPart}`;
+            meta.appendChild(title);
+        
+            const sub = document.createElement('div');
+            sub.className = 'rec-sub';
+            sub.innerText = r.reason || (r.explanation && r.explanation.summary) || '';
+            meta.appendChild(sub);
+        
+            // badges: sample size, score, suggested action summary
+            const badges = document.createElement('div');
+            badges.className = 'rec-badges';
+            const scoreBadge = document.createElement('div');
+            scoreBadge.className = 'rec-badge';
+            scoreBadge.innerText = `Score ${Math.round(r.score||0)}`;
+            badges.appendChild(scoreBadge);
+        
+            if (r.explanation && r.explanation.platform_stats && r.explanation.platform_stats.visits){
+              const sampleBadge = document.createElement('div');
+              sampleBadge.className = 'rec-badge';
+              sampleBadge.innerText = `Sample ${r.explanation.platform_stats.visits} visits`;
+              badges.appendChild(sampleBadge);
+            }
+            if (r.suggested_action && r.suggested_action.action){
+              const actionBadge = document.createElement('div');
+              actionBadge.className = 'rec-badge';
+              actionBadge.innerText = r.suggested_action.action + (r.suggested_action.by_percent ? ` • ${r.suggested_action.by_percent}%` : '');
+              badges.appendChild(actionBadge);
+            }
+            meta.appendChild(badges);
+        
+            header.appendChild(meta);
+            card.appendChild(header);
+        
+            // confidence bar row
+            const confWrap = document.createElement('div');
+            confWrap.className = 'conf-wrap';
+            const confPct = Math.round((r.confidence||0)*100);
+            const confPercent = document.createElement('div');
+            confPercent.className = 'conf-percent';
+            confPercent.innerText = `${confPct}%`;
+            const confBar = document.createElement('div');
+            confBar.className = 'conf-bar';
+            const confFill = document.createElement('div');
+            confFill.className = 'conf-fill';
+            // animate width after inserted
+            confFill.style.width = '0%';
+            confBar.appendChild(confFill);
+            confWrap.appendChild(confPercent);
+            confWrap.appendChild(confBar);
+            card.appendChild(confWrap);
+        
+            // suggested action text (small)
+            const actionText = document.createElement('div');
+            actionText.className = 'tiny text-gray-700';
+            if (r.suggested_action && r.suggested_action.action) {
+              actionText.innerHTML = `<strong>Action:</strong> ${escapeHtml(r.suggested_action.action)} ${r.suggested_action.by_percent ? `— ${r.suggested_action.by_percent}%` : ''}`;
+            } else {
+              actionText.innerHTML = `<span class="text-gray-400">No direct action suggested</span>`;
+            }
+            card.appendChild(actionText);
+        
+            // actions row (Apply / Ignore / Details)
+            const actions = document.createElement('div');
+            actions.className = 'rec-actions';
+            const applyBtn = document.createElement('button');
+            applyBtn.className = 'btn-rec btn-rec-apply';
+            applyBtn.innerText = 'Apply';
+            applyBtn.addEventListener('click', () => applyRecommendation(r.id || `rec-${idx}`, r));
+        
+            const ignoreBtn = document.createElement('button');
+            ignoreBtn.className = 'btn-rec btn-rec-ignore';
+            ignoreBtn.innerText = 'Ignore';
+            ignoreBtn.addEventListener('click', () => {
+              if (confirm('Ignore this recommendation?')) {
+                if (typeof ignoreRecommendation === 'function') ignoreRecommendation(r.id || `rec-${idx}`);
+                else createToast('Ignored (local)'); // fallback
+              }
+            });
+        
+            const detailsToggle = document.createElement('button');
+            detailsToggle.className = 'btn-rec btn-rec-details';
+            detailsToggle.innerText = 'Details';
+            detailsToggle.addEventListener('click', () => {
+              const open = detailsBlock.classList.toggle('rec-details-open');
+              if (open) detailsToggle.setAttribute('aria-expanded','true'); else detailsToggle.setAttribute('aria-expanded','false');
+            });
+        
+            actions.appendChild(applyBtn);
+            actions.appendChild(ignoreBtn);
+            actions.appendChild(detailsToggle);
+            card.appendChild(actions);
+        
+            // details block (calculation + explanation) — collapsed by default
+            const detailsBlock = document.createElement('div');
+            detailsBlock.className = 'rec-details-block';
+            // Build human-friendly explanation if exists
+            let explanationHtml = '';
+            if (r.explanation) {
+              // If platform_stats exist, show numbers
+              if (r.explanation.platform_stats) {
+                const ps = r.explanation.platform_stats;
+                explanationHtml += `<div><strong>Platform stats:</strong> visits: ${ps.visits||0}, confirmed: ${ps.confirmed||0}, delivered: ${ps.delivered||0}, conv_rate: ${formatPercent(ps.conversion_rate|| (ps.confirmed && ps.visits ? ps.confirmed/ps.visits : 0))}, delivery_rate: ${formatPercent(ps.delivery_rate|| (ps.delivered && ps.confirmed ? ps.delivered/ps.confirmed : 0))}</div>`;
+              }
+              // If campaign_raw or other calc steps exist, pretty-print them
+              if (r.explanation.campaign_raw) {
+                explanationHtml += `<div style="margin-top:8px;"><strong>Campaign breakdown:</strong><pre style="white-space:pre-wrap; margin:6px 0 0 0;">${escapeHtml(JSON.stringify(r.explanation.campaign_raw, null, 2))}</pre></div>`;
+              } else {
+                // fallback: full explanation object
+                explanationHtml += `<pre style="white-space:pre-wrap">${escapeHtml(JSON.stringify(r.explanation, null, 2))}</pre>`;
+              }
+            } else {
+              explanationHtml = '<div class="tiny text-gray-500">No detailed explanation available.</div>';
+            }
+            detailsBlock.innerHTML = explanationHtml;
+            card.appendChild(detailsBlock);
+        
+            // append card to grid
+            grid.appendChild(card);
+        
+            // small deferred animation: set width after appended
+            requestAnimationFrame(() => {
+              confFill.style.width = `${confPct}%`;
+            });
+          });
+        
+          container.appendChild(grid);
+        }
+        
+        
+        
+        
+          // ----------------- Actions (apply/ignore) -----------------
+          const RECOMMENDATION_ACTION_ENDPOINT = '/discount/marketing/api/recommendation-action/'; // عدّل إذا لزم
+        
+          async function applyRecommendation(recId, recPayload) {
+            if (!confirm(`Apply suggested action for rec ${recId}?`)) return;
+            try {
+              const res = await fetch(RECOMMENDATION_ACTION_ENDPOINT, {
+                method: 'POST',
+                credentials: 'same-origin',
+                headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCookie('csrftoken') },
+                body: JSON.stringify({ action: 'apply', id: recId, payload: recPayload })
+              });
+              if (!res.ok) throw new Error('HTTP ' + res.status);
+              const data = await res.json();
+              alert('Action applied: ' + (data.message || 'OK'));
+              fetchAndRenderRecommendations(); // refresh
+            } catch (err) {
+              console.error('applyRecommendation error', err);
+              alert('Failed to apply recommendation: ' + (err.message || err));
+            }
+          }
+        
+          async function ignoreRecommendation(recId) {
+            if (!confirm('Ignore this recommendation?')) return;
+            try {
+              const res = await fetch(RECOMMENDATION_ACTION_ENDPOINT, {
+                method: 'POST',
+                credentials: 'same-origin',
+                headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCookie('csrftoken') },
+                body: JSON.stringify({ action: 'ignore', id: recId })
+              });
+              if (!res.ok) throw new Error('HTTP ' + res.status);
+              const data = await res.json();
+              alert('Recommendation ignored');
+              fetchAndRenderRecommendations(); // refresh
+            } catch (err) {
+              console.error('ignoreRecommendation error', err);
+              alert('Failed to ignore recommendation: ' + (err.message || err));
+            }
+          }
+        
+          // ----------------- Fetch + render wrapper -----------------
+          const RECOMMENDATIONS_ENDPOINT_BASE = '/discount/marketing/api/analytics-with-recommendations';
+        
+          async function fetchAndRenderRecommendations(options = {}) {
+            const platform = encodeURIComponent(options.platform || (window.state && window.state.selectedPlatform) || 'all');
+            const period = encodeURIComponent(options.period || (window.state && window.state.periodDays) || 30);
+            const url = `${RECOMMENDATIONS_ENDPOINT_BASE}?platform=${platform}&period=${period}`;
+        
+            const containerPlatforms = document.getElementById('platformComparisons');
+            const containerRecs = document.getElementById('recommendations');
+            if (containerPlatforms) containerPlatforms.innerHTML = '<div class="tiny text-gray-500">Loading platform comparisons...</div>';
+            if (containerRecs) containerRecs.innerHTML = '<div class="tiny text-gray-500">Loading recommendations...</div>';
+        
+            try {
+              const res = await fetch(url, { credentials: 'same-origin' });
+              console.log('HTTP status:', res.status);
+              const txt = await res.text();
+              console.log('RAW response text (first 2000 chars):', txt.slice(0,2000));
+              let payload;
+              try {
+                payload = JSON.parse(txt);
+              } catch (e) {
+                console.error('Response is not JSON', e);
+                throw new Error('Invalid JSON from server. See raw response in console.');
+              }
+        
+              const platforms_summary = payload.platforms_summary || payload.platforms || {};
+              const recs = payload.recommendations || [];
+        
+              renderPlatformComparisons(platforms_summary);
+              // renderGranularRecommendations(recs);
+              renderGranularRecommendationsPro(recs);
+        
+              // optional state update
+              if (!window.state) window.state = {};
+              window.state.platforms_summary = platforms_summary;
+              window.state.recommendations = recs;
+        
+            } catch (err) {
+              console.error('fetchAndRenderRecommendations error', err);
+              if (containerPlatforms) containerPlatforms.innerHTML = '<div class="tiny text-red-500">Failed to load platform data</div>';
+              if (containerRecs) containerRecs.innerHTML = '<div class="tiny text-red-500">Failed to load recommendations</div>';
+            }
+          }
+        
+          // ----------------- Init on DOM ready -----------------
+          document.addEventListener('DOMContentLoaded', function(){
+            // ensure DOM elements exist
+            if (!document.getElementById('platformComparisons')) {
+              console.warn('Missing #platformComparisons element — create it in your HTML to show platform comparisons.');
+            }
+            if (!document.getElementById('recommendations')) {
+              console.warn('Missing #recommendations element — create it in your HTML to show recommendations.');
+            }
+        
+            // initial fetch
+            fetchAndRenderRecommendations();
+        
+            // wire refresh button if exists
+            const refreshBtn = document.getElementById('refreshBtn');
+            if (refreshBtn) {
+              refreshBtn.addEventListener('click', function() {
+                fetchAndRenderRecommendations();
+              });
+            }
+          });
+        
+        })(); // end IIFE
+        </script>
+        
+      
            <div class="section-content" id="order-tracking-section" style="overflow: auto; height: auto; ">
             {% if orders %}
             <div class="card">
@@ -1382,6 +2350,30 @@ comp_btn.forEach(function(btn) {
         } else if (this.id == 'chat-btn')
         document.querySelector('.chatcardup').classList.remove('d-none')
     });
+
+    // Open chat from URL (e.g. from orders page: ?openChat=1&phone=...&name=...)
+    var urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.get('openChat') === '1') {
+      var phone = urlParams.get('phone') || '';
+      var name = urlParams.get('name') || '';
+      if (phone) {
+        var chatBtn = document.getElementById('chat-btn');
+        if (chatBtn) { chatBtn.classList.add('activecard'); chatBtn.click(); }
+        var chatCard = document.querySelector('.chatcardup');
+        if (chatCard) chatCard.classList.remove('d-none');
+        function tryOpenChat() {
+          if (typeof window.openChat === 'function') {
+            window.openChat(phone, name);
+            var inp = document.querySelector('.cls9999_chat_input_container');
+            if (inp && inp.classList.contains('d-none')) inp.classList.remove('d-none');
+            return;
+          }
+          setTimeout(tryOpenChat, 100);
+        }
+        setTimeout(tryOpenChat, 150);
+        try { history.replaceState({}, '', window.location.pathname); } catch (e) {}
+      }
+    }
 });
 
 });

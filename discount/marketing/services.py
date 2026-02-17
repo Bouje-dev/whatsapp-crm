@@ -17,7 +17,7 @@ logger = logging.getLogger(__name__)
 COD_API_BASE = os.environ.get('COD_BASE_URL', 'https://api.cod.network')  # ضع في ENV القيمة الحقيقية
 COD_API_KEY = os.environ.get('COD_API_KEY', '')
  
-# مثال عام: استبدل المسارات والحقول حسب وثائق المزود لديك
+ 
 def fetch_orders_from_cod(since=None, limit=100):
     
     """جلب قائمة الطلبات من وسيط COD. يعيد لائحة من dicts (كل dict هو payload لطلب).
@@ -55,7 +55,7 @@ def fetch_tracking_status_from_carrier(tracking_number, carrier_api_url=None, ap
         resp = requests.get(f"{carrier_api_url.rstrip('/')}/track/{tracking_number}", timeout=20, headers={'Authorization': f"Bearer {api_key}"} if api_key else {})
         resp.raise_for_status()
         data = resp.json()
-        # تحويل حالة الشركة لـ one of our states (مثال تقريبي)
+     
         carrier_status = data.get('status') or data.get('delivery_status') or ''
         mapped = 'unknown'
         if 'deliv' in carrier_status.lower():

@@ -3,7 +3,7 @@ import uuid
 import math
 from typing import List, Dict, Any, Optional
 
-# إعداد قابل للتعديل
+
 CFG = {
     "MIN_VISITS_PLATFORM": 50,
     "MIN_VISITS_PLACEMENT": 20,

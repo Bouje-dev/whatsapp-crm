@@ -95,13 +95,20 @@
         background-color: var(--background-primary);
         color: var(--text-light);
         line-height: 1.6;
-        min-height: 100vh;
-        display: flex;
-        flex-direction: column;
         margin: 0;
         direction: ltr;
         padding: 0;
-        overflow-x: hidden; /* Prevent horizontal scroll */
+        overflow: hidden;
+        height: 100vh;
+        display: flex;
+        flex-direction: column;
+    }
+    .main-container {
+        flex: 1;
+        min-height: 0;
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
     }
 
    
@@ -542,14 +549,14 @@ direction: rtl;
 }
 </style> -->
 </head>
-<body class="bg-gray-50 text-gray-800">
+<div class="analytics-page-root bg-gray-50 text-gray-800">
 
      <nav class="analytyc-tabs-nav">
   <a class="nav-link active" href="#" data-section="Performance-data">Performance</a>
 
   <a class="nav-link" href="#" data-section="script-setting-up">Set Up Script</a>
-  <a class="nav-link" href="#" data-section="facebook-data">Facebook Ads Data</a>
-
+  <!-- <a class="nav-link" href="#" data-section="facebook-data">Facebook Ads Data</a> -->
+  <a class="nav-link" href="#" data-section="order-manaagement">Order Management</a>
    
 </nav>
 <style>
@@ -577,6 +584,25 @@ direction: rtl;
     border-radius: 0.25rem 0.25rem 0 0;
 }
 
+.analytics-page-root {
+    flex: 1;
+    min-height: 0;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+}
+.analytyc-tabs-nav {
+    flex-shrink: 0;
+}
+.tab-section {
+    flex: 1 1 0;
+    min-height: 0;
+    overflow-y: auto;
+    overflow-x: hidden;
+}
+.tab-section[style*="display: none"] {
+    display: none !important;
+}
 </style>
 <!-- script for capturing visit  -->
 <div id="script-setting-up" class="tab-section script_sections" style="display: none;"> 
@@ -586,7 +612,7 @@ direction: rtl;
 <style>
 /* Professional UI (compact) - classes end with -S to avoid conflicts */
 :root{--bg:#071427;--muted:#94a3b8;--accent:#06b6d4;--accent-2:#0ea5a4;--success:#16a34a;--danger:#ef4444;--radius:12px;}
-.script_sections{font-family:Inter,system-ui,Arial;margin:0;background:linear-gradient(180deg,#071427 0%, #0b1220 60%);color:#e6f3f7; padding:28px 0; min-height:100vh;}
+.script_sections{font-family:Inter,system-ui,Arial;margin:0;background:linear-gradient(180deg,#071427 0%, #0b1220 60%);color:#e6f3f7;padding:28px 0;box-sizing:border-box;}
 .container-S{max-width:1100px;margin:0 auto;}
 .header-S{display:flex;align-items:center;justify-content:space-between;margin-bottom:18px;}
 .h-title-S{font-size:20px;font-weight:700;}
@@ -608,10 +634,10 @@ direction: rtl;
 .icon-btn-S{background:transparent;color:var(--muted);border:1px solid rgba(255,255,255,0.02);padding:8px;border-radius:8px;cursor:pointer;font-weight:700;}
 .preview-S{background:#020617;color:#bfeef6;padding:8px;border-radius:8px;font-family:monospace;font-size:12px;max-width:240px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;}
 .side-col-S{background:linear-gradient(180deg, rgba(255,255,255,0.015), transparent);border-radius:var(--radius);padding:14px;border:1px solid rgba(255,255,255,0.03);height:fit-content;}
-.slide-panel-S{position:fixed;right:24px;top:24px;width:520px;max-width:calc(100% - 48px);height:calc(100% - 48px);background:linear-gradient(180deg,#021223,#051220);border-radius:14px;box-shadow:0 30px 80px rgba(2,6,23,0.7);transform:translateY(12px) translateX(20px) scale(.99);opacity:0;pointer-events:none;transition:all 260ms cubic-bezier(.2,.9,.3,1);display:flex;flex-direction:column;overflow:hidden;border:1px solid rgba(255,255,255,0.04);z-index:1200;}
-.slide-panel-S.open{transform:translateY(0) translateX(0) scale(1);opacity:1;pointer-events:auto;}
-.panel-header-S{padding:16px 18px;display:flex;gap:12px;align-items:center;justify-content:space-between;border-bottom:1px solid rgba(255,255,255,0.02);}
-.panel-body-S{padding:16px;overflow:auto;display:grid;gap:12px;}
+.flow-form-inline-S{display:none;margin-bottom:24px;padding:20px;background:linear-gradient(180deg,rgba(255,255,255,0.03),transparent);border-radius:var(--radius);border:1px solid rgba(255,255,255,0.06);}
+.flow-form-inline-S.visible{display:block;}
+.flow-form-header-S{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;padding-bottom:12px;border-bottom:1px solid rgba(255,255,255,0.06);}
+.flow-form-body-S{display:grid;gap:12px;}
 .field-S{display:flex;flex-direction:column;gap:6px;}
 .input-S{padding:10px 12px;border-radius:8px;border:1px solid rgba(255,255,255,0.04);background:transparent;color:#e6f3f7;outline:none;}
 .select-S{padding:10px 12px;border-radius:8px;border:1px solid rgba(255,255,255,0.04);background:transparent;color:#e6f3f7;}
@@ -622,7 +648,10 @@ direction: rtl;
 .coupon-row-S{display:flex;gap:8px;align-items:center;}
 .generated-area-S{background:#02101a;border-radius:8px;padding:10px;color:#9fe8ef;font-family:monospace;font-size:12px;max-height:240px;overflow:auto;white-space:pre-wrap;}
 .kv-S{display:flex;gap:8px;color:var(--muted);font-size:13px;align-items:center;}
-@media(max-width:980px){.dashboard-wrap-S{grid-template-columns:1fr;} .slide-panel-S{left:24px;right:24px;top:24px;width:auto;} }
+.radio-group-S{display:flex;flex-wrap:wrap;}
+.radio-option-S{display:flex;align-items:center;gap:8px;cursor:pointer;color:#e6f3f7;font-size:14px;}
+.radio-option-S input[type="radio"]{accent-color:var(--accent);cursor:pointer;}
+@media(max-width:980px){.dashboard-wrap-S{grid-template-columns:1fr;} }
 </style>
 
 <!-- <div class="container-all">  -->
@@ -633,7 +662,97 @@ direction: rtl;
       <div class="h-sub-S">Server-backed flows: create, edit, deploy scripts</div>
     </div>
     <div>
-      <button id="addBtn-S" class="btn-S btn-primary-S">＋ Add Script</button>
+      <button id="addBtn-S" class="btn-S btn-primary-S">Add Script</button>
+    </div>
+  </div>
+
+  <!-- Inline create/edit form (same page, not modal) -->
+  <div id="flowFormInline-S" class="flow-form-inline-S" aria-hidden="true">
+    <div class="flow-form-header-S">
+      <div id="panelTitle-S" style="font-weight:700;">Create Flow</div>
+      <button id="closePanel-S" class="icon-btn-S" type="button">Close</button>
+    </div>
+    <div class="flow-form-body-S">
+      <div class="field-S col-full-S">
+        <label class="small-muted-S">Flow name</label>
+        <input id="flowName-S" class="input-S" placeholder="Internal name" />
+      </div>
+      <div class="field-S col-full-S">
+        <label class="small-muted-S">Allowed domains (comma separated)</label>
+        <input id="allowedDomains-S" class="input-S" placeholder="yourstore.com, shop.other.com" />
+        <div class="small-muted-S">Server will validate request origin if API key omitted.</div>
+      </div>
+      <div class="field-S col-full-S">
+        <label class="small-muted-S">Description</label>
+        <textarea id="flowDescription-S" class="input-S" rows="3" placeholder="Optional description for this flow"></textarea>
+      </div>
+      <div class="field-S col-full-S">
+        <label class="small-muted-S">Block double customers</label>
+        <div class="form-row-S radio-group-S" style="gap:16px;margin-top:6px;">
+          <label class="radio-option-S">
+            <input type="radio" name="blockDouble-S" value="yes" id="blockDoubleYes-S" />
+            <span>Yes – block duplicate customers</span>
+          </label>
+          <label class="radio-option-S">
+            <input type="radio" name="blockDouble-S" value="no" id="blockDoubleNo-S" checked />
+            <span>No</span>
+          </label>
+        </div>
+        <div class="small-muted-S">Prevent the same visitor/customer from being counted or rewarded twice.</div>
+      </div>
+      <!-- <div class="field-S col-full-S">
+        <label class="small-muted-S">Store URL (merchant)</label>
+        <input id="storeUrl-S" class="input-S" placeholder="https://merchant.example" />
+      </div>
+      <div class="form-row-S">
+        <div class="field-S col-half-S">
+          <label class="small-muted-S">Enable Smart Discount</label>
+          <select id="enableDiscount-S" class="select-S"><option value="no">No</option><option value="yes">Yes</option></select>
+        </div>
+      </div> -->
+      <!-- <div id="discountBlock-S" style="display:none;">
+        <div class="form-row-S">
+          <div class="field-S col-half-S"><label class="small-muted-S">Show after visits</label><input id="visitsThreshold-S" class="input-S" type="number" min="1" value="2" /></div>
+          <div class="field-S col-half-S"><label class="small-muted-S">Coupon mode</label><select id="couponMode-S" class="select-S"><option value="show">Show only</option><option value="auto">Auto-apply</option></select></div>
+        </div>
+        <div class="form-row-S">
+          <div class="field-S col-half-S"><label class="small-muted-S">Discount (%)</label><input id="discountPercent-S" class="input-S" type="number" min="0" max="100" value="10" /></div>
+          <div class="field-S col-half-S"><label class="small-muted-S">Tiers (visit:percent)</label><input id="tiers-S" class="input-S" placeholder="2:10,3:15" /></div>
+        </div>
+        <div class="form-row-S">
+          <div class="field-S col-half-S"><label class="small-muted-S">Alternate product page?</label><select id="alternatePage-S" class="select-S"><option value="no">No</option><option value="yes">Yes</option></select></div>
+          <div class="field-S col-half-S" id="altWrap-S" style="display:none;"><label class="small-muted-S">Alternate Page URL</label><input id="altUrl-S" class="input-S" placeholder="https://merchant.example/alt" /></div>
+        </div>
+        <div class="field-S col-full-S">
+          <label class="small-muted-S">Coupon code (leave empty to auto-generate)</label>
+          <div style="display:flex;gap:8px;">
+            <input id="couponCode-S" class="input-S" placeholder="AUTO-XXXX" />
+            <button id="genCoupon-S" class="btn-S" type="button">Generate</button>
+          </div>
+        </div>
+      </div> -->
+
+
+      <!-- <div class="form-row-S"> -->
+        <!-- <div class="field-S col-half-S"><label class="small-muted-S">Visitor Source</label><select id="visitorSource-S" class="select-S"><option value="all">All</option><option value="tiktok">TikTok</option><option value="facebook">Facebook</option></select></div> -->
+        <!-- <div class="field-S col-half-S"><label class="small-muted-S">Audience</label><select id="audience-S" class="select-S"><option value="public">Public</option><option value="tiktok">TikTok only</option><option value="facebook">Facebook only</option></select></div> -->
+      <!-- </div> -->
+      <!-- <div class="field-S col-full-S"><label class="small-muted-S">Add-ons (notes)</label><textarea id="addons-S" class="input-S" rows="3" placeholder="e.g. SMS notify"></textarea></div> -->
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+        <button id="createBtn-S" class="btn-S btn-primary-S" type="button">Create Script (Save Flow)</button>
+        <!-- <label style="display:flex;align-items:center;gap:8px;color:var(--muted);font-size:13px;">
+          <input id="includeKey-S" type="checkbox" /> Include API key in script
+        </label> -->
+      </div>
+
+
+      <div style="height:8px;"></div>
+      <div style="font-weight:700;margin-bottom:6px;">Generated Script</div>
+      <div id="generated-S" class="generated-area-S">// Script will appear here after create</div>
+      <div style="display:flex;gap:8px;margin-top:10px;">
+        <button id="copyBtn-S" class="btn-S btn-primary-S" type="button">Copy Script</button>
+        <!-- <button id="saveBtn-S" class="btn-S" type="button">Save script to flow</button> -->
+      </div>
     </div>
   </div>
 
@@ -643,7 +762,7 @@ direction: rtl;
         <div style="font-weight:800;">Your Flows</div>
         <div style="color:var(--muted);font-size:13px;">Manage server flows</div>
       </div>
-      <div id="scriptsArea-S" class="scripts-grid-S"></div>
+      <div id="scriptsArea-S" style="height: 429px; overflow: auto;" class="scripts-grid-S"></div>
     </div>
 
     
@@ -663,702 +782,348 @@ direction: rtl;
   </div>
 </div>
 
-<!-- slide panel (create/edit) -->
-<div id="panel-S" class="slide-panel-S" aria-hidden="true">
-  <div class="panel-header-S">
-    <div id="panelTitle-S" style="font-weight:800;">Create Flow</div>
-    <div><button id="closePanel-S" class="icon-btn-S">✕</button></div>
-  </div>
-
-  <div class="panel-body-S">
-    <div class="field-S col-full-S">
-      <label class="small-muted-S">Flow name</label>
-      <input id="flowName-S" class="input-S" placeholder="Internal name" />
-    </div>
-
-    <div class="field-S col-full-S">
-      <label class="small-muted-S">Allowed domains (comma separated)</label>
-      <input id="allowedDomains-S" class="input-S" placeholder="yourstore.com,shop.other.com" />
-      <div class="small-muted-S">Server will validate request origin if API key omitted.</div>
-    </div>
-
-    <div class="field-S col-full-S">
-      <label class="small-muted-S">Store URL (merchant)</label>
-      <input id="storeUrl-S" class="input-S" placeholder="https://merchant.example" />
-    </div>
-
-    <div class="form-row-S">
-      <div class="field-S col-half-S">
-        <label class="small-muted-S">Enable Smart Discount</label>
-        <select id="enableDiscount-S" class="select-S"><option value="no">No</option><option value="yes">Yes</option></select>
-      </div>
-      <div class="field-S col-half-S">
-        <label class="small-muted-S">Block repeat order (48h)</label>
-        <select id="blockRepeat-S" class="select-S"><option value="no">No</option><option value="yes">Yes</option></select>
-      </div>
-    </div>
-
-    <div id="discountBlock-S" style="display:none;">
-      <div class="form-row-S">
-        <div class="field-S col-half-S"><label class="small-muted-S">Show after visits</label><input id="visitsThreshold-S" class="input-S" type="number" min="1" value="2" /></div>
-        <div class="field-S col-half-S"><label class="small-muted-S">Coupon mode</label><select id="couponMode-S" class="select-S"><option value="show">Show only</option><option value="auto">Auto-apply</option></select></div>
-      </div>
-
-      <div class="form-row-S">
-        <div class="field-S col-half-S"><label class="small-muted-S">Discount (%)</label><input id="discountPercent-S" class="input-S" type="number" min="0" max="100" value="10" /></div>
-        <div class="field-S col-half-S"><label class="small-muted-S">Tiers (visit:percent)</label><input id="tiers-S" class="input-S" placeholder="2:10,3:15" /></div>
-      </div>
-
-      <div class="form-row-S">
-        <div class="field-S col-half-S"><label class="small-muted-S">Alternate product page?</label><select id="alternatePage-S" class="select-S"><option value="no">No</option><option value="yes">Yes</option></select></div>
-        <div class="field-S col-half-S" id="altWrap-S" style="display:none;"><label class="small-muted-S">Alternate Page URL</label><input id="altUrl-S" class="input-S" placeholder="https://merchant.example/alt" /></div>
-      </div>
-
-      <div class="field-S col-full-S">
-        <label class="small-muted-S">Coupon code (leave empty to auto-generate)</label>
-        <div style="display:flex;gap:8px;">
-          <input id="couponCode-S" class="input-S" placeholder="AUTO-XXXX" />
-          <button id="genCoupon-S" class="btn-S">Generate</button>
-        </div>
-      </div>
-    </div>
-
-    <div class="form-row-S">
-      <div class="field-S col-half-S"><label class="small-muted-S">Visitor Source</label><select id="visitorSource-S" class="select-S"><option value="all">All</option><option value="tiktok">TikTok</option><option value="facebook">Facebook</option></select></div>
-      <div class="field-S col-half-S"><label class="small-muted-S">Audience</label><select id="audience-S" class="select-S"><option value="public">Public</option><option value="tiktok">TikTok only</option><option value="facebook">Facebook only</option></select></div>
-    </div>
-
-    <div class="field-S col-full-S"><label class="small-muted-S">Add-ons (notes)</label><textarea id="addons-S" class="input-S" rows="3" placeholder="e.g. SMS notify"></textarea></div>
-
-    <div style="display:flex;gap:8px;align-items:center;">
-      <button id="createBtn-S" class="btn-S btn-primary-S">Create Script (Save Flow)</button>
-      <label style="margin-left:auto;display:flex;align-items:center;gap:8px;color:var(--muted);font-size:13px;">
-        <input id="includeKey-S" type="checkbox" /> Include API key in script
-      </label>
-    </div>
-
-    <div style="height:8px;"></div>
-    <div style="font-weight:700;margin-bottom:6px;">Generated Script</div>
-    <div id="generated-S" class="generated-area-S">// Script will appear here after create</div>
-
-    <div style="display:flex;gap:8px;margin-top:10px;">
-      <button id="copyBtn-S" class="btn-S btn-primary-S">Copy Script</button>
-      <button id="saveBtn-S" class="btn-S">Save script to flow</button>
-    </div>
-  </div>
-</div>
-
 <script>
-/*
-  Server-backed Flows UI
-  - Change ENDPOINTS below if necessary
-  - Server endpoints assumed:
-      POST /discount/marketing/api/flows/create/   -> create flow (returns {flow_id, api_key})
-      GET  /discount/marketing/api/flows/          -> list flows (returns {flows: [...]})
-      PATCH/DELETE /discount/marketing/api/flows/<flow_id>/  -> modify/delete
-  - Endpoints should use session auth (login_required). CSRF token read from cookie.
-*/
-
-// --- CONFIG: change if needed ---
-const FLOW_CREATE_ENDPOINT = '/discount/marketing/api/flows/create/';
-const LIST_FLOWS_ENDPOINT = '/discount/marketing/api/flows/';
-const FLOW_DETAIL_ENDPOINT = id => `/discount/marketing/api/flows/${id}/`;
-const CAPTURE_VISIT_ENDPOINT = window.location.origin + '/discount/marketing/api/capture-visit/';
-const COLLECTOR_ENDPOINT = '/collect';
-// console.log(CAPTURE_VISIT_ENDPOINT)
-// --- DOM refs ---
-const addBtn = document.getElementById('addBtn-S');
-const panel = document.getElementById('panel-S');
-const closePanel = document.getElementById('closePanel-S');
-const createBtn = document.getElementById('createBtn-S');
-const generatedDiv = document.getElementById('generated-S');
-const copyBtn = document.getElementById('copyBtn-S');
-const saveBtn = document.getElementById('saveBtn-S');
-
-const flowName = document.getElementById('flowName-S');
-const allowedDomains = document.getElementById('allowedDomains-S');
-const storeUrl = document.getElementById('storeUrl-S');
-const enableDiscount = document.getElementById('enableDiscount-S');
-const discountBlock = document.getElementById('discountBlock-S');
-const visitsThreshold = document.getElementById('visitsThreshold-S');
-const couponMode = document.getElementById('couponMode-S');
-const discountPercent = document.getElementById('discountPercent-S');
-const tiers = document.getElementById('tiers-S');
-const alternatePage = document.getElementById('alternatePage-S');
-const altWrap = document.getElementById('altWrap-S');
-const altUrl = document.getElementById('altUrl-S');
-const couponCode = document.getElementById('couponCode-S');
-const genCoupon = document.getElementById('genCoupon-S');
-const visitorSource = document.getElementById('visitorSource-S');
-const audience = document.getElementById('audience-S');
-const addons = document.getElementById('addons-S');
-const includeKey = document.getElementById('includeKey-S');
-
-const scriptsArea = document.getElementById('scriptsArea-S');
-const countBox = document.getElementById('count-S');
-
-let editingFlowId = null; // if editing
-
-// CSRF helper
-function getCookie(name){
-  const m = document.cookie.match('(^|;)\\s*' + name + '\\s*=\\s*([^;]+)');
-  return m ? m.pop() : '';
-}
-const CSRF = getCookie('csrftoken') || '';
-
-// UI interactions
-addBtn.addEventListener('click', () => openPanelForCreate());
-closePanel.addEventListener('click', () => closePanelFn());
-enableDiscount.addEventListener('change', () => { discountBlock.style.display = enableDiscount.value === 'yes' ? '' : 'none'; });
-alternatePage.addEventListener('change', () => { altWrap.style.display = alternatePage.value === 'yes' ? '' : 'none'; });
-genCoupon.addEventListener('click', (e)=> { e.preventDefault(); couponCode.value = 'AUTO-'+Math.random().toString(36).slice(2,7).toUpperCase(); });
-
-// open / close panel
-function openPanelForCreate(){
-  editingFlowId = null;
-  panel.classList.add('open'); panel.setAttribute('aria-hidden','false');
-  document.getElementById('panelTitle-S').textContent = 'Create Flow';
-  clearForm();
-  generatedDiv.textContent = '// Script will appear here after create';
-}
-function openPanelForEdit(flow){
-  editingFlowId = flow.flow_id;
-  panel.classList.add('open'); panel.setAttribute('aria-hidden','false');
-  document.getElementById('panelTitle-S').textContent = 'Edit Flow';
-  // populate form from flow.config if present otherwise best-effort
-  flowName.value = flow.name || '';
-  allowedDomains.value = flow.allowed_domains || (flow.config && flow.config.allowedDomains) || '';
-  storeUrl.value = (flow.config && flow.config.storeUrl) || '';
-  enableDiscount.value = (flow.config && flow.config.enableDiscount) ? 'yes' : 'no';
-  discountBlock.style.display = enableDiscount.value === 'yes' ? '' : 'none';
-  if(flow.config){
-    visitsThreshold.value = flow.config.visitsThreshold || 2;
-    couponMode.value = flow.config.couponMode || 'show';
-    discountPercent.value = flow.config.discountPercent || 10;
-    tiers.value = (flow.config.tiers || []).map(t => t.join(':')).join(',');
-    alternatePage.value = flow.config.alternatePage ? 'yes' : 'no';
-    altWrap.style.display = alternatePage.value === 'yes' ? '' : 'none';
-    altUrl.value = flow.config.altPageUrl || '';
-    couponCode.value = flow.config.couponCode || '';
-    visitorSource.value = flow.config.visitorSource || 'all';
-    audience.value = flow.config.audience || 'public';
-    addons.value = flow.config.addons || '';
-  }
-  generatedDiv.textContent = flow.script || '// script preview';
-}
-
-function closePanelFn(){
-  panel.classList.remove('open'); panel.setAttribute('aria-hidden','true');
-  editingFlowId = null;
-}
-
-// clear form
-function clearForm(){
-  flowName.value=''; allowedDomains.value=''; storeUrl.value='';
-  enableDiscount.value='no'; discountBlock.style.display='none';
-  visitsThreshold.value=2; couponMode.value='show'; discountPercent.value=10; tiers.value='';
-  alternatePage.value='no'; altWrap.style.display='none'; altUrl.value=''; couponCode.value='';
-  visitorSource.value='all'; audience.value='public'; addons.value=''; includeKey.checked=false;
-}
-
-// escape html
-function esc(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
-
-// --- build config from form
-function buildConfigFromForm(){
-  const cfg = {};
-  cfg.storeUrl = (storeUrl.value||'').trim();
-  cfg.storeHash = cfg.storeUrl ? btoa(cfg.storeUrl).slice(0,12) : 's_default';
-  cfg.enableDiscount = enableDiscount.value === 'yes';
-  cfg.blockRepeat = document.getElementById('blockRepeat-S') ? (document.getElementById('blockRepeat-S').value === 'yes') : false;
-  cfg.visitorSource = visitorSource.value; cfg.audience = audience.value; cfg.addons = addons.value.trim();
-  if(cfg.enableDiscount){
-    cfg.visitsThreshold = parseInt(visitsThreshold.value || '2', 10);
-    cfg.couponMode = couponMode.value;
-    cfg.discountPercent = parseInt(discountPercent.value || '0', 10);
-    cfg.tiers = [];
-    (tiers.value||'').split(',').map(s=>s.trim()).filter(Boolean).forEach(pair=>{
-      const [v,p] = pair.split(':').map(x=>x.trim()); if(v && p) cfg.tiers.push([parseInt(v,10), parseInt(p,10)]);
-    });
-    cfg.alternatePage = alternatePage.value === 'yes';
-    cfg.altPageUrl = cfg.alternatePage ? (altUrl.value||'').trim() : '';
-    cfg.couponCode = (couponCode.value||'').trim() || ('AUTO-'+Math.random().toString(36).slice(2,7).toUpperCase());
-    cfg.couponMessage = `You got ${cfg.discountPercent}% off! Use ${cfg.couponCode}`;
-  }
-  cfg.createdAt = new Date().toISOString();
-  return cfg;
-}
-
-// --- buildCombinedScript (same pattern used earlier)
-function buildCombinedScript(cfg){
-  const safeCfg = JSON.stringify(cfg).replace(/</g,'\\u003c');
-  const script = `
-  // STORE TRACKER (auto-generated, combined)
-
 (function(){
-  window.__STORE_TRACKER_CFG = ${safeCfg};
-
-  // --- Local keys / config ---
-  const visitorKey = '__visitor_id';
-  const createdKey = '__visitor_created_at';
-  const visitsKeyPrefix = '__sv_visits_';
-  const collectorUrlDefault = '/collect';
-  const captureVisitEndpointDefault = '/discount/marketing/api/capture-visit/';
-  const QUEUE_KEY = '__st_phone_capture_queue_v1';
-  const SENT_MARK_KEY = '__st_phone_last_sent_v1';
-  const DEDUP_MS = 24*60*60*1000; // 24h
-
-  // --- ensure visitor id + createdAt (same behaviour as original) ---
-  let visitor_Id = null;
-  let visitorCreatedAt = null;
-  (function ensureVisitor(){
-    try{
-      visitor_Id = localStorage.getItem(visitorKey);
-      if(!visitor_Id){
-        visitor_Id = Math.random().toString(36).substr(2);
-        localStorage.setItem(visitorKey, visitor_Id);
-      }
-      visitorCreatedAt = localStorage.getItem(createdKey);
-      if(!visitorCreatedAt){
-        visitorCreatedAt = new Date().toISOString();
-        localStorage.setItem(createdKey, visitorCreatedAt);
-      }
-    }catch(e){
-      // ignore storage errors
-    }
-  })();
-
-  // --- small helpers ---
-  function trySendBeacon(url, bodyObj){
-    try{
-      const payload = typeof bodyObj === 'string' ? bodyObj : JSON.stringify(bodyObj);
-      if(navigator.sendBeacon){
-        try{ const ok = navigator.sendBeacon(url, payload); if(ok) return true; }catch(e){}
-      }
-      try { fetch(url, {method:'POST', headers:{'Content-Type':'application/json'}, body: payload, keepalive:true}).catch(()=>{}); return true; } catch(e){ return false; }
-    }catch(e){ return false; }
+  var flowForm = document.getElementById('flowFormInline-S');
+  var addBtn = document.getElementById('addBtn-S');
+  var closeBtn = document.getElementById('closePanel-S');
+  if (addBtn && flowForm) {
+    addBtn.addEventListener('click', function(){
+      window._editingFlowId = null;
+      if (document.getElementById('panelTitle-S')) document.getElementById('panelTitle-S').textContent = 'Create Flow';
+      if (flowNameEl) flowNameEl.value = '';
+      if (allowedDomainsEl) allowedDomainsEl.value = '';
+      if (flowDescriptionEl) flowDescriptionEl.value = '';
+      var blockNo = document.getElementById('blockDoubleNo-S');
+      var blockYes = document.getElementById('blockDoubleYes-S');
+      if (blockNo) blockNo.checked = true;
+      if (blockYes) blockYes.checked = false;
+      if (generatedDiv) generatedDiv.textContent = '// Script will appear here after create';
+      flowForm.classList.add('visible');
+      flowForm.setAttribute('aria-hidden', 'false');
+      flowForm.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
   }
-  function getParam(name){
-    try{
-      name = name.replace(/[[]]/g,'$&');
-      const regex = new RegExp('[?&]'+name+'=([^&#]*)');
-      const results = regex.exec(location.search);
-      return results ? decodeURIComponent(results[1].replace(/\\+/g,' ')) : '';
-    }catch(e){ return ''; }
+  if (closeBtn && flowForm) {
+    closeBtn.addEventListener('click', function(){
+      flowForm.classList.remove('visible');
+      flowForm.setAttribute('aria-hidden', 'true');
+    });
   }
-  function collectUtm(){
+  var enableDiscount = document.getElementById('enableDiscount-S');
+  var discountBlock = document.getElementById('discountBlock-S');
+  var alternatePage = document.getElementById('alternatePage-S');
+  var altWrap = document.getElementById('altWrap-S');
+  if (enableDiscount && discountBlock) {
+    enableDiscount.addEventListener('change', function(){
+      discountBlock.style.display = enableDiscount.value === 'yes' ? 'block' : 'none';
+    });
+  }
+  if (alternatePage && altWrap) {
+    alternatePage.addEventListener('change', function(){
+      altWrap.style.display = alternatePage.value === 'yes' ? 'block' : 'none';
+    });
+  }
+  var genCoupon = document.getElementById('genCoupon-S');
+  var couponCode = document.getElementById('couponCode-S');
+  if (genCoupon && couponCode) {
+    genCoupon.addEventListener('click', function(e){
+      e.preventDefault();
+      couponCode.value = 'AUTO-' + Math.random().toString(36).slice(2, 7).toUpperCase();
+    });
+  }
+  window.getFlowFormConfigS = function(){
+    var flowDescriptionEl = document.getElementById('flowDescription-S');
+    var blockDoubleEl = document.querySelector('input[name="blockDouble-S"]:checked');
     return {
-      utm_campaign: getParam('utm_campaign') || getParam('utm_campaign_id') || '',
-      utm_source: getParam('utm_source') || '',
-      utm_medium: getParam('utm_medium') || '',
-      ad_id: getParam('ad_id') || '',
-      site_source_name: getParam('site_source_name') || '',
-      ad_name: getParam('ad_name') || ''
+      description: flowDescriptionEl ? (flowDescriptionEl.value || '').trim() : '',
+      blockRepeat: blockDoubleEl ? (blockDoubleEl.value === 'yes') : false
     };
+  };
+
+  var createBtn = document.getElementById('createBtn-S');
+  var generatedDiv = document.getElementById('generated-S');
+  var flowNameEl = document.getElementById('flowName-S');
+  var allowedDomainsEl = document.getElementById('allowedDomains-S');
+  var flowDescriptionEl = document.getElementById('flowDescription-S');
+
+  function getCookie(name) {
+    var m = document.cookie.match('(^|;)\\s*' + name + '\\s*=\\s*([^;]+)');
+    return m ? m.pop() : '';
   }
-  function normalizePhone(raw){
-    if(!raw) return '';
-    let s = raw.trim();
-    if(s.startsWith('+')) s = '+' + s.slice(1).replace(/[^\\d]/g,'');
-    else s = s.replace(/[^\\d]/g,'');
+
+  function stripHtmlAndScript(str) {
+    if (typeof str !== 'string') return '';
+    return str
+      .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '')
+      .replace(/<[^>]+>/g, '')
+      .replace(/javascript:/gi, '')
+      .replace(/on\w+\s*=/gi, '')
+      .replace(/&lt;/g, '')
+      .replace(/&gt;/g, '')
+      .replace(/&#x?[0-9a-f]+;/gi, '');
+  }
+  function sanitizeFlowName(name) {
+    var s = stripHtmlAndScript(String(name || '').trim());
+    s = s.replace(/[<>\"'&\\]/g, '').substring(0, 200);
     return s;
   }
-  function simpleValid(phone){
-    const digits = phone.replace(/[^\\d]/g,'');
-    return digits.length >= 7;
+  function sanitizeAllowedDomains(domains) {
+    var s = stripHtmlAndScript(String(domains || '').trim());
+    s = s.replace(/[<>\"'\\;]/g, '').replace(/\s*,\s*/g, ',').substring(0, 1000);
+    return s;
   }
-  function readCfg(){ try{ return window.__STORE_TRACKER_CFG || {}; }catch(e){ return {}; } }
-
-  // --- initial pageview (same fields as original) ---
-  (function sendInitialPageview(){
-    try{
-      const cfg = readCfg();
-      const key = visitsKeyPrefix + (cfg.storeHash || 'default');
-      let v = parseInt(localStorage.getItem(key) || '0', 10);
-      v = (isNaN(v) ? 1 : v + 1);
-      localStorage.setItem(key, v);
-
-      const utm = collectUtm();
-      const payload = {
-        event: 'pageview',
-        ts: Date.now(),
-        visitorId: visitor_Id,
-        url: location.href,
-        key: key,
-        referrer: document.referrer || null,
-        visits: v,
-        store: cfg.storeUrl || null,
-        utm_campaign: utm.utm_campaign,
-        utm_source: utm.utm_source,
-        utm_medium: utm.utm_medium,
-        ad_id: utm.ad_id,
-        site_source_name: utm.site_source_name,
-        ad_name: utm.ad_name,
-        userAgent: navigator.userAgent || null,
-        flow_id: cfg.flow_id || null
-      };
-
-      const target = cfg.captureVisitEndpoint || captureVisitEndpointDefault || cfg.collectorUrl || collectorUrlDefault;
-      trySendBeacon(target, payload);
-    }catch(e){}
-  })();
-
-  // --- queue for failed sends (phone payloads) ---
-  function enqueuePayload(payload){
-    try{
-      const q = JSON.parse(localStorage.getItem(QUEUE_KEY) || '[]');
-      q.push({ payload: payload, attempts:0, next: Date.now() });
-      localStorage.setItem(QUEUE_KEY, JSON.stringify(q));
-    }catch(e){}
+  function sanitizeDescription(desc) {
+    var s = stripHtmlAndScript(String(desc || '').trim());
+    s = s.replace(/[<>\"'\\]/g, '').substring(0, 2000);
+    return s;
   }
-  async function attemptSend(payload){
-    try{
-      const cfg = readCfg();
-      const url = cfg.captureVisitEndpoint || captureVisitEndpointDefault || cfg.collectorUrl || collectorUrlDefault;
-      const body = JSON.stringify(payload);
-      if(navigator.sendBeacon){
-        try{ const ok = navigator.sendBeacon(url, body); if(ok) return { ok:true, method:'beacon' }; }catch(e){}
+  function sanitizeFlowFormData(name, allowed_domains, config) {
+    return {
+      name: sanitizeFlowName(name),
+      allowed_domains: sanitizeAllowedDomains(allowed_domains),
+      config: {
+        description: config && config.description !== undefined ? sanitizeDescription(config.description) : '',
+        blockRepeat: !!(config && config.blockRepeat)
       }
-      try{
-        const resp = await fetch(url, { method:'POST', headers:{'Content-Type':'application/json'}, body, keepalive:true });
-        if(resp && resp.ok) return { ok:true, status: resp.status, method:'fetch' };
-        return { ok:false, status: resp && resp.status };
-      }catch(err){
-        return { ok:false, error: err && err.message };
+    };
+  }
+  function isDuplicateFlow(existingFlows, name, allowed_domains) {
+    var n = (name || '').toLowerCase().trim();
+    var d = (allowed_domains || '').toLowerCase().replace(/\s*,\s*/g, ',').trim();
+    if (!n && !d) return false;
+    for (var i = 0; i < existingFlows.length; i++) {
+      var f = existingFlows[i];
+      var fn = (f.name || '').toLowerCase().trim();
+      var fd = (f.allowed_domains || '').toLowerCase().replace(/\s*,\s*/g, ',').trim();
+      if (fn === n && fd === d) return f;
+    }
+    return null;
+  }
+
+  if (createBtn && generatedDiv) {
+    createBtn.addEventListener('click', function(){
+      var editingId = window._editingFlowId;
+      var rawName = (flowNameEl && flowNameEl.value) ? flowNameEl.value : '';
+      var rawAllowed = (allowedDomainsEl && allowedDomainsEl.value) ? allowedDomainsEl.value : '';
+      var extra = getFlowFormConfigS();
+      var sanitized = sanitizeFlowFormData(rawName, rawAllowed, { description: extra.description, blockRepeat: extra.blockRepeat });
+      var name = sanitized.name;
+      var allowed_domains = sanitized.allowed_domains;
+      var config = sanitized.config;
+
+      if (!editingId && !name) {
+        alert('Flow name is required.');
+        return;
       }
-    }catch(e){ return { ok:false, error: String(e) }; }
-  }
-  async function processQueueOnce(){
-    try{
-      const raw = localStorage.getItem(QUEUE_KEY);
-      if(!raw) return;
-      let q = JSON.parse(raw || '[]');
-      if(!Array.isArray(q) || q.length === 0) return;
-      const now = Date.now();
-      const remaining = [];
-      for(const entry of q){
-        if(entry.next && entry.next > now){ remaining.push(entry); continue; }
-        const res = await attemptSend(entry.payload);
-        if(res.ok){
-          try{ localStorage.setItem(SENT_MARK_KEY, JSON.stringify({ phone: entry.payload.raw_phone, ts: Date.now() })); }catch(e){}
-        } else {
-          entry.attempts = (entry.attempts||0) + 1;
-          entry.next = Date.now() + Math.min(60000 * Math.pow(2, Math.min(entry.attempts,6)), 60*60*1000);
-          if(entry.attempts <= 8) remaining.push(entry);
-        }
-        await new Promise(r => setTimeout(r, 150));
-      }
-      localStorage.setItem(QUEUE_KEY, JSON.stringify(remaining));
-    }catch(e){}
-  }
-  window.addEventListener('online', processQueueOnce);
-  setInterval(processQueueOnce, 30 * 1000);
 
-  // --- prevent duplicate local sends ---
-  function wasRecentlySent(phone){
-    try{
-      const o = JSON.parse(localStorage.getItem(SENT_MARK_KEY) || 'null');
-      return o && o.phone === phone && (Date.now() - o.ts) < DEDUP_MS;
-    }catch(e){ return false; }
-  }
-  function markSent(phone){
-    try{ localStorage.setItem(SENT_MARK_KEY, JSON.stringify({ phone, ts: Date.now() })); }catch(e){}
-  }
+      createBtn.disabled = true;
+      createBtn.textContent = editingId ? 'Saving...' : 'Creating...';
+      generatedDiv.textContent = '// Validating...';
 
-  // --- attach to external button: read phone on click and send (no UI changes) ---
-  function attachToExternalButton(){
-    try{
-      const form = document.querySelector('form#express-checkout-form') || document.querySelector('form');
-      if(!form) return;
-      const externalBtn = document.querySelector('.single-submit') || document.querySelector('button[type="button"]');
-      if(!externalBtn) return;
+      var csrf = getCookie('csrftoken');
 
-      externalBtn.addEventListener('click', function(){
-        try{
-          const phoneEl = form.querySelector('input[name="phone"]');
-          if(!phoneEl) return;
-          const raw = phoneEl.value || '';
-          const phone = normalizePhone(raw);
-          if(!phone) return;
-          if(wasRecentlySent(phone)) return;
-
-          // build payload similar to original but event typed
-          const cfg = readCfg();
-          const utm = collectUtm();
-          const payload = {
-            event: 'phone_capture',
-            raw_phone: phone,
-            visitorId: localStorage.getItem(visitorKey) || visitor_Id || null,
-            url: location.href,
-            referrer: document.referrer || null,
-            store: cfg.storeUrl || null,
-            utm_campaign: utm.utm_campaign,
-            utm_source: utm.utm_source,
-            utm_medium: utm.utm_medium,
-            ad_id: utm.ad_id,
-            site_source_name: utm.site_source_name,
-            ad_name: utm.ad_name,
-            userAgent: navigator.userAgent || null,
-            flow_id: cfg.flow_id || null,
-            ts: Date.now()
-          };
-
-          // try immediate send -> if fail enqueue
-          (async function(){
-            try{
-              const res = await attemptSend(payload);
-              if(res.ok){ markSent(phone); return; }
-              enqueuePayload(payload);
-            }catch(e){
-              enqueuePayload(payload);
+      if (editingId) {
+        fetch('/discount/marketing/api/flows/' + editingId + '/', {
+          method: 'PATCH',
+          credentials: 'include',
+          headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrf, 'Accept': 'application/json' },
+          body: JSON.stringify({ name: name, allowed_domains: allowed_domains, config: config })
+        })
+          .then(function(res){ return res.json().then(function(data){ return { ok: res.ok, data: data }; }); })
+          .then(function(result){
+            if (result.ok) {
+              window._editingFlowId = null;
+              if (document.getElementById('panelTitle-S')) document.getElementById('panelTitle-S').textContent = 'Create Flow';
+              flowForm.classList.remove('visible');
+              flowForm.setAttribute('aria-hidden', 'true');
+              renderFlows();
+              generatedDiv.textContent = '// Flow updated. Open Edit again to see script.';
+            } else {
+              generatedDiv.textContent = '// Error: ' + (result.data.error || 'Update failed');
+              if (result.data.error) alert('Error: ' + result.data.error);
             }
-          })();
-        }catch(e){}
-        // do not block or prevent default: let platform handle form/submit normally
-      }, { passive: true });
-    }catch(e){}
-  }
-
-  if(document.readyState === 'loading'){
-    document.addEventListener('DOMContentLoaded', attachToExternalButton);
-  } else {
-    attachToExternalButton();
-  }
-
-})();
-`;
-return script;
-
-}
-
-// --- Server interactions ---
-
-async function createFlowOnServer(name, allowed_domains, config){
-  const body = { name: name||'', allowed_domains: allowed_domains||'', config: config||{} };
-  const resp = await fetch(FLOW_CREATE_ENDPOINT, {
-    method: 'POST',
-    credentials: 'include',
-    headers: { 'Content-Type': 'application/json', 'X-CSRFToken': CSRF },
-    body: JSON.stringify(body)
-  });
-  const data = await resp.json();
-  if(!resp.ok) throw new Error(data.error || 'Create flow failed');
-  return data; // expect { flow_id, api_key, created_at }
-}
-
-async function listFlowsFromServer(){
-  const resp = await fetch(LIST_FLOWS_ENDPOINT, { method: 'GET', credentials: 'include', headers: { 'Accept': 'application/json' } });
-  const data = await resp.json();
-  if(!resp.ok) throw new Error(data.error || 'Failed to list flows');
-  return data.flows || [];
-}
-
-async function patchFlowOnServer(flowId, patchObj){
-  const resp = await fetch(FLOW_DETAIL_ENDPOINT(flowId), {
-    method: 'PATCH',
-    credentials: 'include',
-    headers: { 'Content-Type': 'application/json', 'X-CSRFToken': CSRF },
-    body: JSON.stringify(patchObj)
-  });
-  const data = await resp.json();
-  if(!resp.ok) throw new Error(data.error || 'Update failed');
-  return data;
-}
-
-async function deleteFlowOnServer(flowId){
-  const resp = await fetch(FLOW_DETAIL_ENDPOINT(flowId), {
-    method: 'DELETE',
-    credentials: 'include',
-    headers: { 'X-CSRFToken': CSRF }
-  });
-  if(!resp.ok) { const data = await resp.json(); throw new Error(data.error || 'Delete failed'); }
-  return true;
-}
-
-// --- UI: render flows list from server ---
-async function renderFlows(){
-  try {
-    const flows = await listFlowsFromServer();
-    countBox.textContent = `${flows.length} flow${flows.length!==1 ? 's':''}`;
-    if(!flows.length){
-      scriptsArea.innerHTML = `<div class="empty-S"><div style="font-weight:700;color:#cfeff3">No flows yet</div><div style="color:var(--muted);max-width:320px;text-align:center;">Create your first flow — press “＋ Add Script”.</div></div>`;
-      return;
-    }
-    scriptsArea.innerHTML = '';
-    flows.forEach(f => {
-      const card = document.createElement('div');
-      card.className = 'script-card-S';
-      card.innerHTML = `
-        <div class="script-meta-S">
-          <div style="display:flex;align-items:center;justify-content:flex-end;gap:8px;">
-            <div style="text-align:right;">
-              <div class="script-title-S">${esc(f.name || (f.config && f.config.storeUrl) || 'Untitled')}</div>
-              <div class="script-sub-S">flow: ${esc(f.flow_id)} • created: ${esc(f.createdAt)} • ${f.active ? 'Active' : 'Inactive'}</div>
-            </div>
-            <div style="display:flex;align-items:center;">
-              <span class="status-dot-S ${f.active ? 'dot-on-S':'dot-off-S'}" title="${f.active ? 'Active':'Inactive'}"></span>
-            </div>
-          </div>
-        </div>
-        <div style="display:flex;flex-direction:column;gap:8px;align-items:flex-end;">
-          <div class="preview-S">${esc((f.script||'').slice(0,120))}</div>
-          <div class="card-actions-S">
-            <button class="icon-btn-S btn-toggle-S" data-id="${f.flow_id}">${f.active ? 'Stop' : 'Start'}</button>
-            <button class="icon-btn-S btn-edit-S" data-id="${f.flow_id}">Edit</button>
-            <button class="icon-btn-S btn-copy-S" data-id="${f.flow_id}">Copy</button>
-            <button class="icon-btn-S btn-delete-S" data-id="${f.flow_id}">Delete</button>
-          </div>
-        </div>
-
-       `;
-      scriptsArea.appendChild(card);
-    });
-
-    // attach handlers
-    scriptsArea.querySelectorAll('.btn-toggle-S').forEach(b => b.addEventListener('click', async (e) => {
-      const id = e.currentTarget.dataset.id;
-      try {
-        // toggle: fetch current list to get the flow object; simpler: call list and find
-        const flows = await listFlowsFromServer();
-        const flow = flows.find(x => x.flow_id === id);
-        if(!flow) throw new Error('Flow not found');
-        await patchFlowOnServer(id, { active: !flow.active });
-        renderFlows();
-      } catch(err){ console.error(err); alert('Toggle failed: '+err.message); }
-    }));
-
-    scriptsArea.querySelectorAll('.btn-edit-S').forEach(b => b.addEventListener('click', async (e) => {
-      const id = e.currentTarget.dataset.id;
-      try {
-        const flows = await listFlowsFromServer();
-        const flow = flows.find(x => x.flow_id === id);
-        if(!flow) throw new Error('Flow not found');
-        openPanelForEdit(flow);
-      } catch(err){ console.error(err); alert('Edit failed: '+err.message); }
-    }));
-
-    scriptsArea.querySelectorAll('.btn-copy-S').forEach(b => b.addEventListener('click', async (e) => {
-      const id = e.currentTarget.dataset.id;
-      try {
-        const flows = await listFlowsFromServer();
-        const flow = flows.find(x => x.flow_id === id);
-        if(!flow || !flow.script) return alert('No script available to copy');
-        await navigator.clipboard.writeText(flow.script);
-        alert('Script copied to clipboard');
-      } catch(err){ console.error(err); fallbackCopy(flow && flow.script || ''); }
-    }));
-
-    scriptsArea.querySelectorAll('.btn-delete-S').forEach(b => b.addEventListener('click', async (e) => {
-      const id = e.currentTarget.dataset.id;
-      if(!confirm('Delete this flow?')) return;
-      try { await deleteFlowOnServer(id); renderFlows(); } catch(err){ console.error(err); alert('Delete failed: '+err.message); }
-    }));
-
-  } catch(err){
-    console.error('renderFlows error', err);
-    scriptsArea.innerHTML = `<div class="empty-S"><div style="font-weight:700;color:#fca5a5">Error loading flows</div><div style="color:var(--muted);max-width:320px;text-align:center;">${esc(err.message || 'Failed to load')}</div></div>`;
-  }
-}
-
-// --- Create / Update flow flow ---
-createBtn.addEventListener('click', async (e) => {
-  e.preventDefault();
-  const name = (flowName.value||'').trim();
-  const allowed = (allowedDomains.value||'').trim();
-  const cfg = buildConfigFromForm();
-  cfg.storeUrl = (storeUrl.value||'').trim();
-  cfg.collectorUrl = COLLECTOR_ENDPOINT;
-  cfg.captureVisitEndpoint = CAPTURE_VISIT_ENDPOINT;
-
-  if(!cfg.storeUrl) return alert('Store URL is required');
-
-  createBtn.disabled = true;
-  createBtn.textContent = 'Processing...';
-
-  try {
-    if(!editingFlowId){
-      // create flow on server
-      const serverResp = await createFlowOnServer(name, allowed, cfg);
-      const flowId = serverResp.flow_id;
-      const apiKey = serverResp.api_key;
-      if(!flowId) throw new Error('No flow_id returned from server');
-      // attach flow info to config
-      cfg.flow_id = flowId;
-      if(includeKey.checked) cfg.flow_api_key = apiKey;
-      // generate script
-      const scriptText = buildCombinedScript(cfg);
-      generatedDiv.textContent = scriptText;
-      // save script back to server
-      await patchFlowOnServer(flowId, { script: scriptText, config: cfg, allowed_domains: allowed, name });
-      alert('Flow created. Flow ID: ' + flowId + (apiKey ? '\\nAPI key shown once; copy it if needed.' : ''));
-      // show api key to user (only once)
-      if(apiKey) {
-        // show small modal via prompt (one-time)
-        prompt('Flow API Key (copy it now):', apiKey);
+          })
+          .catch(function(err){
+            generatedDiv.textContent = '// Network error';
+            console.error(err);
+            alert('Request failed.');
+          })
+          .finally(function(){ createBtn.disabled = false; createBtn.textContent = 'Create Script (Save Flow)'; });
+        return;
       }
-    } else {
-      // editing existing flow: update config + regenerate script + patch
-      const flowId = editingFlowId;
-      cfg.flow_id = flowId; // re-use existing id
-      // do NOT re-issue api key here
-      // generate script
-      const scriptText = buildCombinedScript(cfg);
-      generatedDiv.textContent = scriptText;
-      await patchFlowOnServer(flowId, { script: scriptText, config: cfg, allowed_domains: allowed, name });
-      alert('Flow updated.');
-    }
-    closePanelFn();
-    await renderFlows();
-  } catch(err){
-    console.error(err);
-    alert('Operation failed: ' + (err.message || err));
-  } finally {
-    createBtn.disabled = false;
-    createBtn.textContent = editingFlowId ? 'Save Changes' : 'Create Script (Save Flow)';
+
+      generatedDiv.textContent = '// Checking for duplicate...';
+      fetch('/discount/marketing/api/flows/', { method: 'GET', credentials: 'include', headers: { 'Accept': 'application/json' } })
+        .then(function(r){ return r.json(); })
+        .then(function(listData){
+          var flows = listData.flows || [];
+          var duplicate = isDuplicateFlow(flows, name, allowed_domains);
+          if (duplicate) {
+            createBtn.disabled = false;
+            createBtn.textContent = 'Create Script (Save Flow)';
+            generatedDiv.textContent = '// A flow with this name and allowed domains already exists. Use Edit instead.';
+            alert('A flow with the same name and allowed domains already exists. Please use Edit on the existing flow or change the name/domains.');
+            return;
+          }
+          generatedDiv.textContent = '// Sending to server...';
+          return fetch('/discount/marketing/api/flows/create/', {
+            method: 'POST',
+            credentials: 'include',
+            headers: {
+              'Content-Type': 'application/json',
+              'X-CSRFToken': csrf,
+              'Accept': 'application/json'
+            },
+            body: JSON.stringify({ name: name, allowed_domains: allowed_domains, config: config })
+          })
+            .then(function(res){ return res.json().then(function(data){ return { ok: res.ok, data: data }; }); })
+            .then(function(result){
+              if (result.ok && result.data.script) {
+                generatedDiv.textContent = result.data.script;
+                createBtn.textContent = 'Create Script (Save Flow)';
+                if (typeof renderFlows === 'function') renderFlows();
+              } else {
+                generatedDiv.textContent = '// Error: ' + (result.data.error || 'Failed to create flow');
+                createBtn.textContent = 'Create Script (Save Flow)';
+                if (result.data.error) alert('Error: ' + result.data.error);
+              }
+            });
+        })
+        .catch(function(err){
+          generatedDiv.textContent = '// Network error: ' + (err.message || 'Request failed');
+          createBtn.textContent = 'Create Script (Save Flow)';
+          console.error(err);
+          alert('Request failed. Check console.');
+        })
+        .finally(function(){
+          createBtn.disabled = false;
+        });
+    });
   }
-});
 
-// Save script to flow button (explicit)
-saveBtn.addEventListener('click', async () => {
-  if(!editingFlowId) return alert('No flow selected to save into.');
-  const cfg = buildConfigFromForm();
-  cfg.storeUrl = (storeUrl.value||'').trim();
-  const scriptText = buildCombinedScript(cfg);
-  try {
-    await patchFlowOnServer(editingFlowId, { script: scriptText, config: cfg, name: flowName.value || '' });
-    alert('Script saved to flow.');
-    closePanelFn(); renderFlows();
-  } catch(err){ console.error(err); alert('Save failed: '+err.message); }
-});
+  var copyBtn = document.getElementById('copyBtn-S');
+  if (copyBtn && generatedDiv) {
+    copyBtn.addEventListener('click', function(){
+      var txt = generatedDiv.textContent || '';
+      if (!txt || txt.indexOf('//') === 0 && txt.indexOf('Script will appear') !== -1) {
+        alert('No script to copy. Create a flow first.');
+        return;
+      }
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(txt).then(function(){ alert('Copied to clipboard'); }).catch(function(){ fallbackCopy(txt); });
+      } else {
+        fallbackCopy(txt);
+      }
+    });
+  }
+  function fallbackCopy(txt) {
+    var ta = document.createElement('textarea');
+    ta.value = txt;
+    document.body.appendChild(ta);
+    ta.select();
+    try { document.execCommand('copy'); alert('Copied'); } catch(e) { alert('Copy failed'); }
+    ta.remove();
+  }
 
-// copy generated
-copyBtn.addEventListener('click', async () => {
-  const txt = generatedDiv.textContent || '';
-  if(!txt) return alert('No script to copy');
-  try { await navigator.clipboard.writeText(txt); alert('Copied to clipboard'); } catch(e){ fallbackCopy(txt); }
-});
+  function esc(s) { return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
 
-// fallback copy
-function fallbackCopy(text){ const ta = document.createElement('textarea'); ta.value = text; document.body.appendChild(ta); ta.select(); try{ document.execCommand('copy'); alert('Copied (fallback)'); }catch(e){ alert('Copy failed'); } ta.remove(); }
+  window.renderFlows = function() {
+    var scriptsArea = document.getElementById('scriptsArea-S');
+    var countBox = document.getElementById('count-S');
+    if (!scriptsArea) return;
+    fetch('/discount/marketing/api/flows/', { method: 'GET', credentials: 'include', headers: { 'Accept': 'application/json' } })
+      .then(function(r){ return r.json(); })
+      .then(function(data){
+        var flows = data.flows || [];
+        if (countBox) countBox.textContent = flows.length + ' flow' + (flows.length !== 1 ? 's' : '');
+        if (flows.length === 0) {
+          scriptsArea.innerHTML = '<div class="empty-S"><div style="font-weight:700;color:#cfeff3">No flows yet</div><div style="color:var(--muted);max-width:320px;text-align:center;">Create your first flow — click "Add Script".</div></div>';
+          return;
+        }
+        scriptsArea.innerHTML = '';
+        flows.forEach(function(f){
+          var card = document.createElement('div');
+          card.className = 'script-card-S';
+          var createdStr = f.createdAt ? new Date(f.createdAt).toLocaleDateString() : '—';
+          var usedStr = (f.visits_count !== undefined && f.visits_count !== null) ? (f.visits_count + ' visit' + (f.visits_count !== 1 ? 's' : '')) : '—';
+          card.innerHTML =
+            '<div class="script-meta-S"><div style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;">' +
+              '<div style="flex:1;min-width:0;">' +
+                '<div class="script-title-S">' + esc(f.name || 'Untitled') + '</div>' +
+                '<div class="script-sub-S">Created: ' + esc(createdStr) + ' &middot; Used: ' + esc(usedStr) + '</div>' +
+                '<div class="script-sub-S">' + (f.active ? '<span style="color:var(--success);">Active</span>' : '<span style="color:var(--danger);">Disabled</span>') + '</div>' +
+              '</div>' +
+              '<div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;">' +
+                '<button type="button" class="icon-btn-S btn-toggle-S" data-id="' + esc(f.flow_id) + '" data-active="' + (f.active ? '1' : '0') + '">' + (f.active ? 'Disable' : 'Enable') + '</button>' +
+                '<button type="button" class="icon-btn-S btn-edit-S" data-id="' + esc(f.flow_id) + '">Edit</button>' +
+              '</div>' +
+            '</div></div>';
+          scriptsArea.appendChild(card);
+        });
 
-// initial load
-renderFlows();
+        scriptsArea.querySelectorAll('.btn-toggle-S').forEach(function(btn){
+          btn.addEventListener('click', function(){
+            var id = btn.getAttribute('data-id');
+            var active = btn.getAttribute('data-active') === '1';
+            var newActive = !active;
+            var csrf = getCookie('csrftoken');
+            fetch('/discount/marketing/api/flows/' + id + '/', {
+              method: 'PATCH',
+              credentials: 'include',
+              headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrf },
+              body: JSON.stringify({ active: newActive })
+            })
+              .then(function(r){ return r.json(); })
+              .then(function(){
+                renderFlows();
+              })
+              .catch(function(err){ console.error(err); alert('Failed to update flow'); });
+          });
+        });
 
-// utility escape (again)
-function escapeHtml(s){ return esc(s); }
+        scriptsArea.querySelectorAll('.btn-edit-S').forEach(function(btn){
+          btn.addEventListener('click', function(){
+            var id = btn.getAttribute('data-id');
+            var flow = flows.find(function(x){ return x.flow_id === id; });
+            if (!flow) return;
+            if (flowNameEl) flowNameEl.value = flow.name || '';
+            if (allowedDomainsEl) allowedDomainsEl.value = flow.allowed_domains || '';
+            if (flowDescriptionEl) flowDescriptionEl.value = (flow.config && flow.config.description) || '';
+            var blockYes = document.getElementById('blockDoubleYes-S');
+            var blockNo = document.getElementById('blockDoubleNo-S');
+            var blockRepeat = !!(flow.config && flow.config.blockRepeat);
+            if (blockYes) blockYes.checked = blockRepeat;
+            if (blockNo) blockNo.checked = !blockRepeat;
+            if (generatedDiv) generatedDiv.textContent = flow.script || '// Script for this flow';
+            window._editingFlowId = id;
+            if (document.getElementById('panelTitle-S')) document.getElementById('panelTitle-S').textContent = 'Edit Flow';
+            flowForm.classList.add('visible');
+            flowForm.setAttribute('aria-hidden', 'false');
+            flowForm.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          });
+        });
+      })
+      .catch(function(err){
+        console.error('load flows', err);
+        scriptsArea.innerHTML = '<div class="empty-S"><div style="font-weight:700;color:#fca5a5">Error loading flows</div></div>';
+      });
+  };
+
+  document.addEventListener('DOMContentLoaded', function(){ renderFlows(); });
+})();
 </script>
 
-<!-- </div> -->
-
+ 
+ 
   
  
 
 
 </div>
 
-<div id="facebook-data" class="tab-section" style="display: none;">
-  <h2>Facebook Ads Data Section</h2>
-  <p>هنا محتوى فيسبوك.</p>
+<div id="order-manaagement" class="tab-section" style="display: none;">
+  {% include "orders/order_list.html" %}
 </div>
  
 
@@ -1378,16 +1143,14 @@ document.addEventListener("DOMContentLoaded", function () {
         }
       });
       
-      // إخفاء كل البطاقات
-      sections.forEach(section => section.style.display = "none");
+      // Hide all tab sections
+      sections.forEach(section => { section.style.display = "none"; });
 
-      // جلب الـ id من data-section
       const targetId = this.getAttribute("data-section");
       const targetSection = document.getElementById(targetId);
 
       if (targetSection) {
-        targetSection.style.display = "block"; // إظهار البطاقة المطلوبة
-        targetSection.scrollIntoView({ behavior: "smooth" }); // النزول لها
+        targetSection.style.display = "block"; // visible section gets flex space and scrolls inside
       }
     });
   });
@@ -1418,46 +1181,105 @@ document.addEventListener("DOMContentLoaded", function () {
       </div>
     </header>
 
-    <!-- KPIs -->
-    <section class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-      <div class="bg-white p-4 rounded-lg card-shadow">
-        <div class="flex justify-between">
-          <div>
-            <div class="text-sm text-gray-500">Total Spend</div>
-            <div id="kpiSpend" class="text-xl font-bold">$0</div>
+    <!-- KPI Cards -->
+    <style>
+      .kpi-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; margin-bottom: 24px; }
+      @media (min-width: 768px) { .kpi-grid { grid-template-columns: repeat(4, 1fr); } }
+      .kpi-card { background: #fff; padding: 16px 18px; border-radius: 12px; box-shadow: 0 1px 4px rgba(0,0,0,0.06); border: 1px solid #f0f0f0; position: relative; transition: border-color .15s, box-shadow .15s; }
+      .kpi-card:hover { border-color: #e0e0e0; box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
+      .kpi-label { font-size: 12px; color: #6b7280; font-weight: 500; margin-bottom: 4px; }
+      .kpi-value { font-size: 22px; font-weight: 700; color: #111827; line-height: 1.2; }
+      .kpi-sub { font-size: 11px; color: #9ca3af; margin-top: 4px; }
+      .kpi-rate { display: inline-block; font-size: 12px; font-weight: 600; padding: 2px 8px; border-radius: 6px; margin-top: 6px; }
+      .kpi-rate--blue { background: #dbeafe; color: #1d4ed8; }
+      .kpi-rate--green { background: #d1fae5; color: #047857; }
+      .kpi-rate--purple { background: #f3e8ff; color: #6b21a8; }
+      .kpi-rate--amber { background: #fef3c7; color: #b45309; }
+      /* Source dropup */
+      .kpi-visitors-wrap { position: relative; }
+      .kpi-source-dropup { display: none; position: absolute; bottom: calc(100% + 8px); left: 0; right: 0; min-width: 280px; background: #fff; border-radius: 12px; box-shadow: 0 8px 24px rgba(0,0,0,0.14); border: 1px solid #e5e7eb; z-index: 50; padding: 0; overflow: hidden; }
+      .kpi-visitors-wrap:hover .kpi-source-dropup { display: block; }
+      .kpi-source-dropup::after { content: ''; position: absolute; bottom: -6px; left: 24px; width: 12px; height: 12px; background: #fff; border-right: 1px solid #e5e7eb; border-bottom: 1px solid #e5e7eb; transform: rotate(45deg); }
+      .kpi-src-header { display: grid; grid-template-columns: 1fr 70px 70px; padding: 10px 14px; background: #f8fafc; font-size: 11px; font-weight: 600; color: #6b7280; text-transform: uppercase; letter-spacing: .03em; border-bottom: 1px solid #f0f0f0; }
+      .kpi-src-row { display: grid; grid-template-columns: 1fr 70px 70px; padding: 9px 14px; font-size: 13px; color: #374151; border-bottom: 1px solid #f8f8f8; transition: background .1s; }
+      .kpi-src-row:last-child { border-bottom: none; }
+      .kpi-src-row:hover { background: #f8fafc; }
+      .kpi-src-name { font-weight: 600; display: flex; align-items: center; gap: 6px; }
+      .kpi-src-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+      .kpi-src-num { text-align: center; font-variant-numeric: tabular-nums; }
+      .kpi-src-empty { padding: 16px 14px; text-align: center; font-size: 12px; color: #9ca3af; }
+    </style>
+
+    <section class="kpi-grid">
+      <!-- 1. Total Spend -->
+      <div class="kpi-card">
+        <div class="kpi-label">Total Spend</div>
+        <div id="kpiSpend" class="kpi-value">$0</div>
+        <div class="kpi-sub">Ad budget spent</div>
+      </div>
+
+      <!-- 2. Total Visitors (with source dropup) -->
+      <div class="kpi-card kpi-visitors-wrap">
+        <div class="kpi-label">Total Visitors</div>
+        <div id="kpiVisitors" class="kpi-value">0</div>
+        <div class="kpi-sub">Hover for source breakdown</div>
+        <!-- Dropup card -->
+        <div class="kpi-source-dropup" id="kpiSourceDropup">
+          <div class="kpi-src-header">
+            <span>Source</span>
+            <span style="text-align:center">Visitors</span>
+            <span style="text-align:center">Orders</span>
           </div>
-          <div class="text-right tiny text-gray-500">Last 7 days</div>
+          <div id="kpiSourceBody">
+            <div class="kpi-src-empty">No data yet</div>
+          </div>
         </div>
       </div>
 
-      <div class="bg-white p-4 rounded-lg card-shadow">
-        <div class="flex justify-between">
-          <div>
-            <div class="text-sm text-gray-500">Orders</div>
-            <div id="kpiOrders" class="text-xl font-bold">0</div>
-          </div>
-          <div class="text-right tiny text-gray-500">Confirmed + Delivered</div>
-        </div>
+      <!-- 3. Total Orders + Conversion Rate -->
+      <div class="kpi-card">
+        <div class="kpi-label">Total Orders</div>
+        <div id="kpiOrders" class="kpi-value">0</div>
+        <div class="kpi-rate kpi-rate--purple"><span id="kpiConversion">0%</span> conversion</div>
+        <div class="kpi-sub">Visitors &rarr; Orders</div>
       </div>
 
-      <div class="bg-white p-4 rounded-lg card-shadow">
-        <div class="flex justify-between">
-          <div>
-            <div class="text-sm text-gray-500">Avg Conversion Rate</div>
-            <div id="kpiConversion" class="text-xl font-bold">0%</div>
-          </div>
-          <div class="text-right tiny text-gray-500">Visitors → Orders</div>
-        </div>
+      <!-- 4. Confirmed + Confirmation Rate -->
+      <div class="kpi-card">
+        <div class="kpi-label">Confirmed</div>
+        <div id="kpiConfirmed" class="kpi-value">0</div>
+        <div class="kpi-rate kpi-rate--blue"><span id="kpiConfirmRate">0%</span> confirmation</div>
+        <div class="kpi-sub">Orders &rarr; Confirmed</div>
       </div>
 
-      <div class="bg-white p-4 rounded-lg card-shadow">
-        <div class="flex justify-between">
-          <div>
-            <div class="text-sm text-gray-500">Avg Delivery Rate</div>
-            <div id="kpiDelivery" class="text-xl font-bold">0%</div>
-          </div>
-          <div class="text-right tiny text-gray-500">Delivered / Confirmed</div>
-        </div>
+      <!-- 5. Shipped -->
+      <div class="kpi-card">
+        <div class="kpi-label">Shipped</div>
+        <div id="kpiShipped" class="kpi-value">0</div>
+        <div class="kpi-sub">In transit</div>
+      </div>
+
+      <!-- 6. Delivered + Delivery Rate -->
+      <div class="kpi-card">
+        <div class="kpi-label">Delivered</div>
+        <div id="kpiDelivered" class="kpi-value">0</div>
+        <div class="kpi-rate kpi-rate--green"><span id="kpiDelivery">0%</span> delivery</div>
+        <div class="kpi-sub">Confirmed &rarr; Delivered</div>
+      </div>
+
+      <!-- 7. Cancelled -->
+      <div class="kpi-card">
+        <div class="kpi-label">Cancelled</div>
+        <div id="kpiCancelled" class="kpi-value">0</div>
+        <div class="kpi-rate kpi-rate--amber"><span id="kpiCancelRate">0%</span> cancel</div>
+        <div class="kpi-sub">Orders cancelled</div>
+      </div>
+
+      <!-- 8. Matched Visits -->
+      <div class="kpi-card">
+        <div class="kpi-label">Matched Visits</div>
+        <div id="kpiMatched" class="kpi-value">0</div>
+        <div class="kpi-sub">Orders linked to ads</div>
       </div>
     </section>
 
@@ -1551,6 +1373,31 @@ document.addEventListener("DOMContentLoaded", function () {
     <!-- TABLE -->
   <!-- TABLE -->
 <section class="bg-white p-4 rounded-lg card-shadow">
+  <style>
+  .analytics-campaign-details { background: #f8fafc; border-radius: 10px; }
+  .analytics-adset-card { border: 1px solid #e2e8f0; border-radius: 10px; margin-bottom: 12px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.06); }
+  .analytics-adset-card:hover { border-color: #cbd5e1; }
+  .analytics-adset-header { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; padding: 12px 16px; background: #fff; cursor: pointer; transition: background 0.15s; }
+  .analytics-adset-header:hover { background: #f8fafc; }
+  .analytics-adset-title { font-weight: 600; color: #1e293b; }
+  .analytics-adset-id { font-size: 12px; color: #64748b; }
+  .analytics-metrics { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+  .analytics-metric { display: inline-flex; align-items: center; padding: 4px 10px; border-radius: 6px; font-size: 12px; font-weight: 500; }
+  .analytics-metric--visitors { background: #dbeafe; color: #1d4ed8; }
+  .analytics-metric--orders { background: #fef3c7; color: #b45309; }
+  .analytics-metric--confirmed { background: #d1fae5; color: #047857; }
+  .analytics-metric--delivery { background: #e0e7ff; color: #4338ca; }
+  .analytics-metric--conv { background: #f3e8ff; color: #6b21a8; }
+  .analytics-metric--muted { background: #f1f5f9; color: #64748b; }
+  .analytics-ads-panel { padding: 12px 16px; background: #f1f5f9; border-top: 1px solid #e2e8f0; }
+  .analytics-ad-row { padding: 10px 14px; background: #fff; border-radius: 8px; margin-bottom: 8px; border: 1px solid #e2e8f0; }
+  .analytics-ad-row:last-child { margin-bottom: 0; }
+  .analytics-ad-name { font-weight: 600; color: #334155; font-size: 14px; }
+  .analytics-ad-id { font-size: 12px; color: #64748b; margin-left: 8px; }
+  .analytics-ad-metrics { margin-top: 6px; display: flex; flex-wrap: wrap; gap: 6px; }
+  .analytics-placements { font-size: 11px; color: #64748b; margin-top: 6px; }
+  </style>
+
   <div class="flex items-center justify-between mb-3">
     <h3 class="font-semibold">Campaigns</h3>
     <div class="tiny text-gray-500">Showing top campaigns by orders</div>
@@ -1624,10 +1471,21 @@ const state = {
   const safeNum = safeNumber;
 
   function formatPercent(x){
-    if (x === null || x === undefined || isNaN(Number(x))) return '-';
+    if (x === null || x === undefined || isNaN(Number(x))) return '—';
     const n = Number(x);
     const value = (n <= 1 ? n * 100 : n);
     return value.toFixed(1) + '%';
+  }
+  // Conversion by visitors only when we have visits; otherwise show — to avoid misleading "100%"
+  function formatConvByVisits(confirmed, visits) {
+    var v = safeNumber(visits);
+    if (v === 0) return '—';
+    return formatPercent(safeNumber(confirmed) / v);
+  }
+  function formatConvByOrders(confirmed, orders) {
+    var o = safeNumber(orders);
+    if (o === 0) return '—';
+    return formatPercent(safeNumber(confirmed) / o);
   }
 
   function escapeHtml(str){ if (str === null || str === undefined) return ''; return String(str).replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;').replaceAll('"','&quot;'); }
@@ -1705,70 +1563,309 @@ const state = {
 
 
   // ---------- Renderers ----------
+  var SOURCE_COLORS = { facebook:'#1877f2', fb:'#1877f2', meta:'#1877f2', instagram:'#e1306c', google:'#4285f4', tiktok:'#000000', snapchat:'#fffc00', direct:'#6b7280' };
+  function srcColor(name){ var k = (name||'').toLowerCase().replace(/\s+/g,''); for (var s in SOURCE_COLORS){ if (k.indexOf(s)!==-1) return SOURCE_COLORS[s]; } return '#6b7280'; }
+
   function renderKPIs(kpis){
-    document.getElementById('kpiSpend').innerText = '$' + (kpis.spend ? Number(kpis.spend).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2}) : '0.00');
-    document.getElementById('kpiOrders').innerText = String(kpis.total_orders || kpis.orders || 0);
-    document.getElementById('kpiConversion').innerText = formatPercent(kpis.confirmation_rate || kpis.conversion_rate || 0);
-    // compute delivery rate from kpis if provided, else 0
-    let delivery = 0;
-    if (typeof kpis.delivery_rate !== 'undefined') delivery = kpis.delivery_rate; else if (kpis.confirmed_orders && kpis.delivered_orders) delivery = (kpis.delivered_orders / kpis.confirmed_orders || 0);
-    document.getElementById('kpiDelivery').innerText = formatPercent(delivery);
+    var totalOrders = kpis.total_orders || kpis.orders || 0;
+    var confirmed = kpis.confirmed_orders || 0;
+    var shipped = kpis.shipped_orders || 0;
+    var delivered = kpis.delivered_orders || 0;
+    var cancelled = kpis.cancelled_orders || 0;
+    var visitors = kpis.total_visits || kpis.visits || 0;
+    var matched = kpis.matched_visits || 0;
+
+    // Values
+    var el;
+    el = document.getElementById('kpiSpend'); if (el) el.innerText = '$' + (kpis.spend ? Number(kpis.spend).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2}) : '0.00');
+    el = document.getElementById('kpiVisitors'); if (el) el.innerText = String(visitors);
+    el = document.getElementById('kpiOrders'); if (el) el.innerText = String(totalOrders);
+    el = document.getElementById('kpiConfirmed'); if (el) el.innerText = String(confirmed);
+    el = document.getElementById('kpiShipped'); if (el) el.innerText = String(shipped);
+    el = document.getElementById('kpiDelivered'); if (el) el.innerText = String(delivered);
+    el = document.getElementById('kpiCancelled'); if (el) el.innerText = String(cancelled);
+    el = document.getElementById('kpiMatched'); if (el) el.innerText = String(matched);
+
+    // Rates
+    var convRate = visitors > 0 ? (totalOrders / visitors) : 0;
+    var confRate = totalOrders > 0 ? (confirmed / totalOrders) : 0;
+    var delRate = confirmed > 0 ? (delivered / confirmed) : 0;
+    var cancelRate = totalOrders > 0 ? (cancelled / totalOrders) : 0;
+
+    el = document.getElementById('kpiConversion'); if (el) el.innerText = formatPercent(convRate);
+    el = document.getElementById('kpiConfirmRate'); if (el) el.innerText = formatPercent(confRate);
+    el = document.getElementById('kpiDelivery'); if (el) el.innerText = formatPercent(delRate);
+    el = document.getElementById('kpiCancelRate'); if (el) el.innerText = formatPercent(cancelRate);
+
+    // Source breakdown dropup
+    var body = document.getElementById('kpiSourceBody');
+    if (body) {
+      var sources = kpis.source_breakdown || [];
+      if (sources.length === 0) {
+        body.innerHTML = '<div class="kpi-src-empty">No visitor data yet</div>';
+      } else {
+        var html = '';
+        sources.forEach(function(s) {
+          var name = s.source || 'Direct';
+          var color = srcColor(name);
+          html += '<div class="kpi-src-row">'
+            + '<div class="kpi-src-name"><span class="kpi-src-dot" style="background:' + color + '"></span>' + escapeHtml(name) + '</div>'
+            + '<div class="kpi-src-num">' + s.visitors + '</div>'
+            + '<div class="kpi-src-num">' + s.orders + '</div>'
+            + '</div>';
+        });
+        body.innerHTML = html;
+      }
+    }
   }
 
   function renderPlatformBadge(platformKey){ const el = document.getElementById('platformBadge'); if (!el) return; if (platformKey==='all'){ el.innerText='All Platforms'; el.className='badge-platform bg-blue-100 text-blue-800'; } else{ el.innerText = platformKey.charAt(0).toUpperCase()+platformKey.slice(1); el.className='badge-platform bg-gray-100 text-gray-800'; } }
 
-  function makeToggleButton(targetId){ const b = document.createElement('button'); b.className='px-2 py-1 mr-2 text-sm rounded bg-gray-100'; b.innerText='▶'; b.addEventListener('click', ()=>{ const el = document.getElementById(targetId); if (!el) return; if (el.style.display === 'none' || !el.style.display){ el.style.display = 'table-row'; b.innerText='▼'; } else { el.style.display = 'none'; b.innerText='▶'; } }); return b; }
+  // Toggle a block element (div) - no table-row quirks
+  function setBlockVisible(el, visible) {
+    if (!el) return;
+    el.style.display = visible ? 'block' : 'none';
+  }
+  function isBlockHidden(el) {
+    if (!el) return true;
+    return el.style.display === 'none';
+  }
+  function setRowVisible(tr, visible) {
+    if (!tr) return;
+    if (visible) { tr.style.removeProperty ? tr.style.removeProperty('display') : (tr.style.display = 'table-row'); }
+    else { tr.style.display = 'none'; }
+  }
+  function isRowHidden(tr) {
+    if (!tr) return true;
+    return tr.style.display === 'none';
+  }
+  function makeToggleButton(targetId, isDiv) {
+    var b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'px-2 py-1 mr-2 text-sm rounded bg-gray-100 hover:bg-gray-200';
+    b.innerText = '▶';
+    b.addEventListener('click', function(ev) {
+      ev.stopPropagation();
+      var el = document.getElementById(targetId);
+      if (!el) return;
+      var hidden = isDiv ? isBlockHidden(el) : isRowHidden(el);
+      if (isDiv) setBlockVisible(el, hidden); else setRowVisible(el, hidden);
+      b.innerText = hidden ? '▼' : '▶';
+    });
+    return b;
+  }
 
-  // renderTable adapted to analytics_view_data payload
-  function renderTable(campaigns, visitsMap = {}){
-    const tbody = document.getElementById('campaignTableBody'); if (!tbody) return; tbody.innerHTML = '';
-    const rows = Array.isArray(campaigns) ? campaigns : [];
-    if (rows.length === 0){ tbody.innerHTML = '<tr><td class="px-4 py-6 text-left tiny text-gray-500" colspan="7">No campaigns to show</td></tr>'; document.getElementById('tableInfo').innerText = '0 campaigns'; return; }
-    rows.forEach((c, campaignIndex)=>{
-      const campaignRowId = `campaign-row-${campaignIndex}`; const campaignDetailsId = `campaign-details-${campaignIndex}`;
-      const campaignName = c.campaign_name || c.name || 'Unknown Campaign'; const platformLabel = c.platform_label || c.platform || 'Platform'; const campaignId = c.campaign_id || c.id || '';
-      const orders = safeNumber(c.orders || 0); const confirmedOrders = safeNumber(c.confirmed_orders || 0); const deliveredOrders = safeNumber(c.delivered_orders || 0); const deliveryRate = safeNumber(c.delivery_rate || 0);
-      const visits = safeNumber((typeof c.visits !== 'undefined') ? c.visits : (visitsMap && visitsMap[campaignName]) || 0);
-      const conversionRate = (typeof c.conversion_by_visits !== 'undefined' && c.conversion_by_visits !== null) ? Number(c.conversion_by_visits) : (typeof c.conversion_by_orders !== 'undefined' && c.conversion_by_orders !== null) ? Number(c.conversion_by_orders) : (visits>0? (confirmedOrders / visits) : (orders>0? (confirmedOrders / orders) : 0));
+  // Backend may send adsets as flat list of ads (each with ad_adset_name). Group by ad_adset_name into adset -> ads.
+  function normalizeCampaignsAdsets(campaigns) {
+    if (!Array.isArray(campaigns)) return campaigns;
+    return campaigns.map(function(c) {
+      var adsetsRaw = c.adsets;
+      if (!Array.isArray(adsetsRaw) || adsetsRaw.length === 0) return c;
+      var first = adsetsRaw[0];
+      if (Array.isArray(first.ads)) return c;
+      var byAdset = {};
+      adsetsRaw.forEach(function(ad) {
+        var key = (ad.ad_adset_name || ad.ad_name || ad.ad_id || 'AdSet').toString();
+        if (!byAdset[key]) byAdset[key] = { name: key, id: ad.adset_id || ad.ad_id || '', ads: [], orders: 0, confirmed_orders: 0, visits: 0, placements: [] };
+        byAdset[key].ads.push(ad);
+        byAdset[key].orders += safeNumber(ad.orders || 0);
+        byAdset[key].confirmed_orders += safeNumber(ad.confirmed_orders || 0);
+        byAdset[key].visits += safeNumber(ad.visits || 0);
+        if (Array.isArray(ad.placements)) byAdset[key].placements = byAdset[key].placements.concat(ad.placements);
+      });
+      var adsets = Object.values(byAdset).map(function(g) { return { ad_adset_name: g.name, adset_id: g.id, orders: g.orders, confirmed_orders: g.confirmed_orders, visits: g.visits, placements: g.placements, ads: g.ads }; });
+      return Object.assign({}, c, { adsets: adsets });
+    });
+  }
 
-      const tr = document.createElement('tr'); tr.id = campaignRowId; tr.className='bg-white';
-      const firstTd = document.createElement('td'); firstTd.className='px-4 py-3 text-left';
-      const hasAdsets = Array.isArray(c.adsets) && c.adsets.length>0; if (hasAdsets){ const toggle = makeToggleButton(campaignDetailsId); firstTd.appendChild(toggle); const spacer = document.createElement('span'); spacer.style.marginLeft='8px'; firstTd.appendChild(spacer); } else { const spacer = document.createElement('span'); spacer.style.display='inline-block'; spacer.style.width='22px'; firstTd.appendChild(spacer); }
-      const campaignHtml = document.createElement('div'); campaignHtml.innerHTML = `<div class="font-medium">${escapeHtml(campaignName)}</div><div class="tiny text-gray-500">${escapeHtml(platformLabel)}</div>`; firstTd.appendChild(campaignHtml); tr.appendChild(firstTd);
-      const idTd = document.createElement('td'); idTd.className='px-4 py-3 text-center tiny'; idTd.innerText = campaignId; tr.appendChild(idTd);
-      const ordersTd = document.createElement('td'); ordersTd.className='px-4 py-3 text-center font-semibold'; ordersTd.innerText = String(orders); tr.appendChild(ordersTd);
-      const confirmedTd = document.createElement('td'); confirmedTd.className='px-4 py-3 text-center'; confirmedTd.innerText = String(confirmedOrders); tr.appendChild(confirmedTd);
-      const deliveryRateTd = document.createElement('td'); deliveryRateTd.className='px-4 py-3 text-center'; deliveryRateTd.innerText = formatPercent(deliveryRate); tr.appendChild(deliveryRateTd);
-      const visitsTd = document.createElement('td'); visitsTd.className='px-4 py-3 text-center'; visitsTd.innerText = String(visits); tr.appendChild(visitsTd);
-      const convTd = document.createElement('td'); convTd.className='px-4 py-3 text-center'; convTd.innerText = (conversionRate !== null ? formatPercent(conversionRate) : '-'); tr.appendChild(convTd);
+  function renderTable(campaigns, visitsMap) {
+    visitsMap = visitsMap || {};
+    var tbody = document.getElementById('campaignTableBody');
+    if (!tbody) return;
+    tbody.innerHTML = '';
+    var rows = Array.isArray(campaigns) ? campaigns : [];
+    var normalized = normalizeCampaignsAdsets(rows);
+    if (normalized.length === 0) {
+      tbody.innerHTML = '<tr><td class="px-4 py-6 text-left tiny text-gray-500" colspan="7">No campaigns to show</td></tr>';
+      var infoEl = document.getElementById('tableInfo');
+      if (infoEl) infoEl.innerText = '0 campaigns';
+      return;
+    }
+    normalized.forEach(function(c, campaignIndex) {
+      var campaignDetailsId = 'campaign-details-' + campaignIndex;
+      var campaignName = c.campaign_name || c.name || 'Unknown Campaign';
+      var platformLabel = c.platform_label || c.platform || 'Platform';
+      var campaignId = c.campaign_id || c.id || '';
+      var orders = safeNumber(c.orders || 0);
+      var confirmedOrders = safeNumber(c.confirmed_orders || 0);
+      var deliveredOrders = safeNumber(c.delivered_orders || 0);
+      var deliveryRate = (confirmedOrders > 0 && deliveredOrders > 0) ? (deliveredOrders / confirmedOrders) : safeNumber(c.delivery_rate || 0);
+      var visits = safeNumber((typeof c.visits !== 'undefined') ? c.visits : (visitsMap[campaignName]) || 0);
+      var conversionRate = null;
+      if (visits > 0) conversionRate = (typeof c.conversion_by_visits !== 'undefined' && c.conversion_by_visits !== null) ? Number(c.conversion_by_visits) : (confirmedOrders / visits);
+      else if (orders > 0 && visits === 0) conversionRate = null;
+
+      var tr = document.createElement('tr');
+      tr.className = 'bg-white';
+      var firstTd = document.createElement('td');
+      firstTd.className = 'px-4 py-3 text-left';
+      var hasAdsets = Array.isArray(c.adsets) && c.adsets.length > 0;
+      if (hasAdsets) {
+        firstTd.appendChild(makeToggleButton(campaignDetailsId, false));
+        var sp = document.createElement('span');
+        sp.style.marginLeft = '8px';
+        firstTd.appendChild(sp);
+      } else {
+        var sp0 = document.createElement('span');
+        sp0.style.display = 'inline-block';
+        sp0.style.width = '22px';
+        firstTd.appendChild(sp0);
+      }
+      var campaignHtml = document.createElement('div');
+      campaignHtml.innerHTML = '<div class="font-medium">' + escapeHtml(campaignName) + '</div><div class="tiny text-gray-500">' + escapeHtml(platformLabel) + '</div>';
+      firstTd.appendChild(campaignHtml);
+      tr.appendChild(firstTd);
+      tr.appendChild((function(){ var td = document.createElement('td'); td.className = 'px-4 py-3 text-center tiny'; td.innerText = campaignId; return td; })());
+      tr.appendChild((function(){ var td = document.createElement('td'); td.className = 'px-4 py-3 text-center font-semibold'; td.innerText = String(orders); return td; })());
+      tr.appendChild((function(){ var td = document.createElement('td'); td.className = 'px-4 py-3 text-center'; td.innerText = String(confirmedOrders); return td; })());
+      tr.appendChild((function(){ var td = document.createElement('td'); td.className = 'px-4 py-3 text-center'; td.innerText = formatPercent(deliveryRate); return td; })());
+      tr.appendChild((function(){ var td = document.createElement('td'); td.className = 'px-4 py-3 text-center'; td.innerText = String(visits); return td; })());
+      tr.appendChild((function(){ var td = document.createElement('td'); td.className = 'px-4 py-3 text-center'; td.innerText = (conversionRate !== null ? formatPercent(conversionRate) : '—'); return td; })());
+      if (hasAdsets) {
+        tr.style.cursor = 'pointer';
+        tr.addEventListener('click', function(ev) {
+          if (ev.target.tagName === 'BUTTON') return;
+          var el = document.getElementById(campaignDetailsId);
+          if (!el) return;
+          var hidden = isRowHidden(el);
+          setRowVisible(el, hidden);
+          var btn = firstTd.querySelector('button');
+          if (btn) btn.innerText = hidden ? '▼' : '▶';
+        });
+      }
       tbody.appendChild(tr);
 
-      // details
-      const detailsTr = document.createElement('tr'); detailsTr.id = campaignDetailsId; detailsTr.style.display='none'; detailsTr.className='bg-gray-50'; const detailsTd = document.createElement('td'); detailsTd.colSpan=7; const container = document.createElement('div'); container.style.padding='8px 0';
-      if (hasAdsets){ const adsetsTable = document.createElement('table'); adsetsTable.style.width='100%'; adsetsTable.className='min-w-full'; adsetsTable.innerHTML = `<thead><tr class="tiny text-gray-600"><th class="px-3 py-2 text-left">AdSet / Ad</th><th class="px-3 py-2 text-center">AdSet ID / Ad ID</th><th class="px-3 py-2 text-center">Orders</th><th class="px-3 py-2 text-center">Confirmed</th><th class="px-3 py-2 text-center">Visits</th><th class="px-3 py-2 text-center">Conversion</th><th class="px-3 py-2 text-center">Placements</th></tr></thead>`; const adsetsTbody = document.createElement('tbody');
-        c.adsets.forEach((as, adsetIndex)=>{
-          const adsetRowId = `${campaignDetailsId}-adset-${adsetIndex}`; const adsetDetailsId = `${adsetRowId}-details`;
-          const adsetName = as.ad_adset_name || as.ad_name || as.ad_id || as.name || 'AdSet'; const adsetId = as.adset_id || as.ad_id || as.id || '';
-          const asOrders = safeNumber(as.orders || 0); const asConfirmed = safeNumber(as.confirmed_orders || 0); const asVisits = safeNumber(as.visits || 0);
-          let asConv = null; if (typeof as.conversion_by_visits !== 'undefined' && as.conversion_by_visits !== null) asConv = Number(as.conversion_by_visits); else if (typeof as.conversion_by_orders !== 'undefined' && as.conversion_by_orders !== null) asConv = Number(as.conversion_by_orders); else if (asVisits>0) asConv = asConfirmed / asVisits; else if (asOrders>0) asConv = asConfirmed / asOrders; else asConv = 0;
-          const ar = document.createElement('tr'); ar.className='bg-white'; const aFirst = document.createElement('td'); aFirst.className='px-3 py-2 text-left'; const hasAds = Array.isArray(as.ads) && as.ads.length>0; if (hasAds){ const toggle = makeToggleButton(adsetDetailsId); aFirst.appendChild(toggle); aFirst.appendChild(document.createElement('span')).style.marginLeft='6px'; } else { const spacer = document.createElement('span'); spacer.style.display='inline-block'; spacer.style.width='22px'; aFirst.appendChild(spacer); }
-          const an = document.createElement('div'); an.innerHTML = `<div class="font-medium">${escapeHtml(adsetName)}</div><div class="tiny text-gray-500">${escapeHtml(platformLabel)}</div>`; aFirst.appendChild(an); ar.appendChild(aFirst);
-          const aidTd = document.createElement('td'); aidTd.className='px-3 py-2 text-center tiny'; aidTd.innerText = adsetId; ar.appendChild(aidTd);
-          const aOrdersTd = document.createElement('td'); aOrdersTd.className='px-3 py-2 text-center'; aOrdersTd.innerText = String(asOrders); ar.appendChild(aOrdersTd);
-          const aConfTd = document.createElement('td'); aConfTd.className='px-3 py-2 text-center'; aConfTd.innerText = String(asConfirmed); ar.appendChild(aConfTd);
-          const aVisitsTd = document.createElement('td'); aVisitsTd.className='px-3 py-2 text-center'; aVisitsTd.innerText = String(asVisits); ar.appendChild(aVisitsTd);
-          const aConvTd = document.createElement('td'); aConvTd.className='px-3 py-2 text-center'; aConvTd.innerText = (asConv!==null?formatPercent(asConv):'-'); ar.appendChild(aConvTd);
-          const aPlacTd = document.createElement('td'); aPlacTd.className='px-3 py-2 text-center'; ar.appendChild(aPlacTd);
-          if (Array.isArray(as.placements) && as.placements.length>0){ const list = document.createElement('div'); list.className='tiny text-gray-700'; as.placements.forEach(pl=>{ const pLabel = pl.placement||pl.site_source_name||pl.platform||pl.name||'placement'; const pOrders = safeNumber(pl.orders||0); const pVisits = safeNumber(pl.visits||0); const line = document.createElement('div'); line.innerText = `${pLabel} — orders: ${pOrders}${pVisits? ' — visits: '+pVisits : ''}`; list.appendChild(line); }); aPlacTd.appendChild(list); }
-          adsetsTbody.appendChild(ar);
-          const adsetDetailsTr = document.createElement('tr'); adsetDetailsTr.id = adsetDetailsId; adsetDetailsTr.style.display='none'; adsetDetailsTr.className='bg-gray-50'; const adsetDetailsTd = document.createElement('td'); adsetDetailsTd.colSpan = 7;
-          if (Array.isArray(as.ads) && as.ads.length>0){ const adsTable = document.createElement('table'); adsTable.style.width='100%'; adsTable.className='min-w-full'; adsTable.innerHTML = `<thead><tr class="tiny text-gray-600"><th class="px-2 py-1 text-left">Ad / Ad ID</th><th class="px-2 py-1 text-center">Orders</th><th class="px-2 py-1 text-center">Confirmed</th><th class="px-2 py-1 text-center">Visits</th><th class="px-2 py-1 text-center">Conversion</th><th class="px-2 py-1 text-center">Placements</th></tr></thead>`; const adsTbody = document.createElement('tbody');
-            as.ads.forEach(ad=>{ const adName = ad.ad_name||ad.name||''; const adId = ad.ad_id||ad.id||''; const adOrders = safeNumber(ad.orders||0); const adConfirmed = safeNumber(ad.confirmed_orders||0); const adVisits = safeNumber(ad.visits||0); let adConv = null; if (typeof ad.conversion_by_visits!=='undefined' && ad.conversion_by_visits!==null) adConv = Number(ad.conversion_by_visits); else if (typeof ad.conversion_by_orders!=='undefined' && ad.conversion_by_orders!==null) adConv = Number(ad.conversion_by_orders); else if (adVisits>0) adConv = adConfirmed/adVisits; else if (adOrders>0) adConv = adConfirmed/adOrders; else adConv = 0; const adr = document.createElement('tr'); adr.className='bg-white'; adr.innerHTML = `<td class="px-2 py-1 text-left"><div class="font-medium">${escapeHtml(adName)}</div><div class="tiny text-gray-500">${escapeHtml(adId)}</div></td><td class="px-2 py-1 text-center">${adOrders}</td><td class="px-2 py-1 text-center">${adConfirmed}</td><td class="px-2 py-1 text-center">${adVisits}</td><td class="px-2 py-1 text-center">${adConv!==null?formatPercent(adConv):'-'}</td><td class="px-2 py-1 text-center"></td>`; if (Array.isArray(ad.placements) && ad.placements.length>0){ const placementsCell = adr.querySelector('td:last-child'); const list = document.createElement('div'); list.className='tiny text-gray-700'; ad.placements.forEach(pl=>{ const pLabel = pl.placement||pl.site_source_name||pl.platform||pl.name||'placement'; const pOrders = safeNumber(pl.orders||0); const pVisits = safeNumber(pl.visits||0); const line = document.createElement('div'); line.innerText = `${pLabel} — orders: ${pOrders}${pVisits? ' — visits: '+pVisits : ''}`; list.appendChild(line); }); placementsCell.appendChild(list); } adsTbody.appendChild(adr); }); adsTable.appendChild(adsTbody); adsetDetailsTd.appendChild(adsTable); } else { adsetDetailsTd.innerHTML = `<div class="tiny text-gray-500">No ads data for this adset.</div>`; } adsetDetailsTr.appendChild(adsetDetailsTd); adsetsTbody.appendChild(adsetDetailsTr);
-        }); adsetsTable.appendChild(adsetsTbody); container.appendChild(adsetsTable);
-      } else { container.innerHTML = `<div class="tiny text-gray-500">No adsets data for this campaign.</div>`; }
-      detailsTd.appendChild(container); detailsTr.appendChild(detailsTd); tbody.appendChild(detailsTr);
+      var detailsTr = document.createElement('tr');
+      detailsTr.id = campaignDetailsId;
+      detailsTr.style.display = 'none';
+      detailsTr.className = 'bg-gray-50';
+      var detailsTd = document.createElement('td');
+      detailsTd.colSpan = 7;
+      var container = document.createElement('div');
+      container.className = 'analytics-campaign-details';
+      container.style.padding = '12px 16px';
+
+      if (hasAdsets) {
+        c.adsets.forEach(function(as, adsetIndex) {
+          var adsetDetailsId = campaignDetailsId + '-adset-' + adsetIndex + '-details';
+          var adsetName = as.ad_adset_name || as.ad_name || as.ad_id || as.name || 'AdSet';
+          var adsetId = as.adset_id || as.ad_id || as.id || '';
+          var asOrders = safeNumber(as.orders || 0);
+          var asConfirmed = safeNumber(as.confirmed_orders || 0);
+          var asDelivered = safeNumber(as.delivered_orders || 0);
+          var asDeliveryRate = asConfirmed > 0 ? (asDelivered / asConfirmed) : 0;
+          var asVisits = safeNumber(as.visits || 0);
+          var asConvVisits = asVisits > 0 ? (asConfirmed / asVisits) : null;
+          var asConvOrders = asOrders > 0 ? (asConfirmed / asOrders) : null;
+          var hasAds = Array.isArray(as.ads) && as.ads.length > 0;
+
+          var adsetBlock = document.createElement('div');
+          adsetBlock.className = 'analytics-adset-card';
+          var adsetHeader = document.createElement('div');
+          adsetHeader.className = 'analytics-adset-header';
+          adsetHeader.appendChild(makeToggleButton(adsetDetailsId, true));
+          var adsetTitle = document.createElement('div');
+          adsetTitle.className = 'analytics-adset-title';
+          adsetTitle.innerHTML = escapeHtml(adsetName);
+          adsetHeader.appendChild(adsetTitle);
+          if (adsetId) {
+            var adsetIdSpan = document.createElement('span');
+            adsetIdSpan.className = 'analytics-adset-id';
+            adsetIdSpan.textContent = 'ID: ' + adsetId;
+            adsetHeader.appendChild(adsetIdSpan);
+          }
+          var adsetMetrics = document.createElement('div');
+          adsetMetrics.className = 'analytics-metrics';
+          function addMetric(parent, label, value, cssClass) {
+            var m = document.createElement('span');
+            m.className = 'analytics-metric ' + (cssClass || 'analytics-metric--muted');
+            m.textContent = label + ': ' + value;
+            parent.appendChild(m);
+          }
+          addMetric(adsetMetrics, 'Visitors', String(asVisits), 'analytics-metric--visitors');
+          addMetric(adsetMetrics, 'Orders', String(asOrders), 'analytics-metric--orders');
+          addMetric(adsetMetrics, 'Confirmed', String(asConfirmed), 'analytics-metric--confirmed');
+          addMetric(adsetMetrics, 'Delivery', formatPercent(asDeliveryRate), 'analytics-metric--delivery');
+          addMetric(adsetMetrics, 'Conv (visitors)', asVisits > 0 ? formatPercent(asConvVisits) : '—', 'analytics-metric--conv');
+          if (asVisits === 0 && asOrders > 0) addMetric(adsetMetrics, 'Conv (orders)', formatPercent(asConvOrders), 'analytics-metric--muted');
+          adsetHeader.appendChild(adsetMetrics);
+          adsetBlock.appendChild(adsetHeader);
+
+          var adsetDetailsDiv = document.createElement('div');
+          adsetDetailsDiv.id = adsetDetailsId;
+          adsetDetailsDiv.className = 'analytics-ads-panel';
+          adsetDetailsDiv.style.display = 'none';
+          if (hasAds) {
+            var adsList = document.createElement('div');
+            as.ads.forEach(function(ad) {
+              var adName = ad.ad_name || ad.name || '';
+              var adId = ad.ad_id || ad.id || '';
+              var adOrders = safeNumber(ad.orders || 0);
+              var adConfirmed = safeNumber(ad.confirmed_orders || 0);
+              var adDelivered = safeNumber(ad.delivered_orders || 0);
+              var adDeliveryRate = adConfirmed > 0 ? (adDelivered / adConfirmed) : 0;
+              var adVisits = safeNumber(ad.visits || 0);
+              var adConvV = adVisits > 0 ? (adConfirmed / adVisits) : null;
+              var adConvO = adOrders > 0 ? (adConfirmed / adOrders) : null;
+              var adLine = document.createElement('div');
+              adLine.className = 'analytics-ad-row';
+              var adNameEl = document.createElement('div');
+              adNameEl.innerHTML = '<span class="analytics-ad-name">' + escapeHtml(adName || adId || 'Ad') + '</span><span class="analytics-ad-id">ID: ' + escapeHtml(adId) + '</span>';
+              adLine.appendChild(adNameEl);
+              var adMetricsEl = document.createElement('div');
+              adMetricsEl.className = 'analytics-ad-metrics';
+              addMetric(adMetricsEl, 'Visitors', String(adVisits), 'analytics-metric--visitors');
+              addMetric(adMetricsEl, 'Orders', String(adOrders), 'analytics-metric--orders');
+              addMetric(adMetricsEl, 'Confirmed', String(adConfirmed), 'analytics-metric--confirmed');
+              addMetric(adMetricsEl, 'Delivery', formatPercent(adDeliveryRate), 'analytics-metric--delivery');
+              addMetric(adMetricsEl, 'Conv (visitors)', adVisits > 0 ? formatPercent(adConvV) : '—', 'analytics-metric--conv');
+              if (adVisits === 0 && adOrders > 0) addMetric(adMetricsEl, 'Conv (orders)', formatPercent(adConvO), 'analytics-metric--muted');
+              adLine.appendChild(adMetricsEl);
+              if (Array.isArray(ad.placements) && ad.placements.length > 0) {
+                var plDiv = document.createElement('div');
+                plDiv.className = 'analytics-placements';
+                var plText = ad.placements.map(function(pl) {
+                  var pLabel = pl.placement || pl.site_source_name || pl.platform || pl.name || 'placement';
+                  return pLabel + ': ' + safeNumber(pl.orders || 0) + ' orders';
+                }).join(' · ');
+                plDiv.textContent = 'Placements: ' + plText;
+                adLine.appendChild(plDiv);
+              }
+              adsList.appendChild(adLine);
+            });
+            adsetDetailsDiv.appendChild(adsList);
+          } else {
+            adsetDetailsDiv.innerHTML = '<div class="tiny text-gray-500">No ads in this adset.</div>';
+          }
+          adsetBlock.appendChild(adsetDetailsDiv);
+          adsetHeader.addEventListener('click', function(ev) {
+            if (ev.target.tagName === 'BUTTON') return;
+            var hidden = isBlockHidden(adsetDetailsDiv);
+            setBlockVisible(adsetDetailsDiv, hidden);
+            var btn = adsetHeader.querySelector('button');
+            if (btn) btn.innerText = hidden ? '▼' : '▶';
+          });
+          container.appendChild(adsetBlock);
+        });
+      } else {
+        container.innerHTML = '<div class="tiny text-gray-500">No adsets for this campaign.</div>';
+      }
+      detailsTd.appendChild(container);
+      detailsTr.appendChild(detailsTd);
+      tbody.appendChild(detailsTr);
     });
-    const info = document.getElementById('tableInfo'); if (info) info.innerText = `${rows.length} campaigns`; 
+    var infoEl2 = document.getElementById('tableInfo');
+    if (infoEl2) infoEl2.innerText = normalized.length + ' campaign' + (normalized.length !== 1 ? 's' : '');
   }
 
   // ---------- charts helpers ----------
@@ -1835,9 +1932,8 @@ const state = {
       else if (Array.isArray(ordersList) && ordersList.length>0){ campaigns = convertOrdersToCampaigns(ordersList, visitsMap); }
       else { campaigns = []; }
       // apply filter
-      let filtered = campaigns;
-      if (state.selectedPlatform && state.selectedPlatform !== 'all') filtered = campaigns.filter(c => (c.platform||'').toLowerCase() === state.selectedPlatform.toLowerCase());
-      renderKPIs(state.data.kpis || {}); renderPlatformBadge(state.selectedPlatform); renderTable(filtered, visitsMap);
+      // Backend already returns data for the selected platform/period; no client-side filter needed
+      renderKPIs(state.data.kpis || {}); renderPlatformBadge(state.selectedPlatform); renderTable(campaigns, visitsMap);
       // charts
       updateCharts();
       const last = document.getElementById('lastUpdate'); if (last) last.innerText = 'Last update: ' + (state.data.last_update || new Date().toISOString());
@@ -1847,9 +1943,28 @@ const state = {
   }
 
   // ---------- Bind events ----------
-  function bindEvents(){ const refreshBtn = document.getElementById('refreshBtn'); if (refreshBtn) refreshBtn.addEventListener('click', async function(){ try{ // option: call ajaxFetchOrders() to pull fresh orders from partner (uncomment if needed)
-        await ajaxFetchOrders();
-        await refreshData(); } catch(e){ console.error('refresh click error', e); } }); const exportBtn = document.getElementById('exportBtn'); if (exportBtn) exportBtn.addEventListener('click', ()=>exportVisibleTableToCSV()); const platformSelect = document.getElementById('platformSelect'); if (platformSelect) platformSelect.addEventListener('change', (e)=>{ state.selectedPlatform = e.target.value; let campaigns = Array.isArray(state.data && state.data.campaigns) && state.data.campaigns.length ? state.data.campaigns : convertOrdersToCampaigns(state.data && state.data.orders ? state.data.orders : [], {}); if (state.selectedPlatform !== 'all') campaigns = campaigns.filter(c => (c.platform||'').toLowerCase() === state.selectedPlatform.toLowerCase()); renderTable(campaigns); renderPlatformBadge(state.selectedPlatform); }); const periodSelect = document.getElementById('periodSelect'); if (periodSelect) periodSelect.addEventListener('change', (e)=>{ state.periodDays = parseInt(e.target.value,10) || 7; }); const refreshInline = document.getElementById('refreshBtnInline'); if (refreshInline) refreshInline.addEventListener('click', ()=>{ document.getElementById('refreshBtn').click(); }); }
+  function bindEvents(){
+    var refreshBtn = document.getElementById('refreshBtn');
+    if (refreshBtn) refreshBtn.addEventListener('click', async function(){ try{ await ajaxFetchOrders(); await refreshData(); } catch(e){ console.error('refresh click error', e); } });
+    var exportBtn = document.getElementById('exportBtn');
+    if (exportBtn) exportBtn.addEventListener('click', function(){ exportVisibleTableToCSV(); });
+    var platformSelect = document.getElementById('platformSelect');
+    if (platformSelect) {
+      platformSelect.addEventListener('change', function(e){
+        state.selectedPlatform = e.target.value || 'all';
+        refreshData().catch(function(err){ console.warn('Platform filter refresh failed:', err); });
+      });
+    }
+    var periodSelect = document.getElementById('periodSelect');
+    if (periodSelect) {
+      periodSelect.addEventListener('change', function(e){
+        state.periodDays = parseInt(e.target.value, 10) || 7;
+        refreshData().catch(function(err){ console.warn('Period filter refresh failed:', err); });
+      });
+    }
+    var refreshInline = document.getElementById('refreshBtnInline');
+    if (refreshInline) refreshInline.addEventListener('click', function(){ var r = document.getElementById('refreshBtn'); if (r) r.click(); });
+  }
 
   // ---------- Export CSV ----------
   function exportVisibleTableToCSV(filename = 'campaigns.csv'){ const rows = [['Campaign Name','Campaign ID','Orders','Confirmed','Delivery Rate','Visitors','Conversion Rate']]; (state.data && state.data.campaigns ? state.data.campaigns : []).forEach(c => { rows.push([c.campaign_name||'', c.campaign_id||'', c.orders||0, c.confirmed_orders||0, formatPercent(c.delivery_rate||0), c.visits||0, (typeof c.conversion_by_visits!=='undefined' && c.conversion_by_visits!==null) ? formatPercent(c.conversion_by_visits) : (typeof c.conversion_by_orders!=='undefined' && c.conversion_by_orders!==null) ? formatPercent(c.conversion_by_orders) : '-']); }); const csv = rows.map(r => r.map(v => `"${String(v).replace(/"/g,'""')}"`).join(',')).join('\n'); const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' }); const link = document.createElement('a'); link.href = URL.createObjectURL(blob); link.download = filename; link.style.display = 'none'; document.body.appendChild(link); link.click(); document.body.removeChild(link); }
@@ -2297,6 +2412,7 @@ function renderGranularRecommendationsPro(recs) {
 })(); // end IIFE
 </script>
 
+</div><!-- .analytics-page-root -->
 
 {% block extra_scripts %}
  

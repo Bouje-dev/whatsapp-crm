@@ -6,6 +6,7 @@ from django.http import JsonResponse
 from django.views.decorators.http import require_POST
 from django.contrib.auth.decorators import login_required
 from discount.models import WhatsAppChannel
+from discount.activites import log_activity
 
 @login_required
 @require_POST
@@ -75,6 +76,7 @@ def update_channel_settings(request):
 
         # حفظ في قاعدة البيانات
         channel.save()
+        log_activity('wa_channel_updated', f"Channel settings updated: {channel.name}", request=request, related_object=channel)
 
         # ---------------------------------------------------------
         # 5. المزامنة مع Meta (فقط إذا تغير البروفايل)
@@ -292,12 +294,14 @@ def confirm_delete_channel(request):
             return JsonResponse({'status': 'error', 'message': 'Incorrect code'}, status=400)
 
        
+        channel_name = channel.name
+        channel_phone = channel.phone_number
         channel.delete()
         
         # تنظيف الكاش
         cache.delete(cache_key)
-
-        return JsonResponse({'status': 'success', 'message': 'Channel deleted successfully'}) # غير الرابط حسب مشروعك
+        log_activity('wa_channel_deleted', f"Channel deleted: {channel_name} ({channel_phone})", request=request)
+        return JsonResponse({'status': 'success', 'message': 'Channel deleted successfully'})
 
     except Exception as e:
         return JsonResponse({'status': 'error', 'message': str(e)}, status=500)

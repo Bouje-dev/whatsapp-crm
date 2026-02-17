@@ -396,12 +396,11 @@ class WebhookConsumer(AsyncWebsocketConsumer):
             mime = payload_content.get("mime")
              
 
-      
-        if not reciver:
-            await self.send(json.dumps({"type": "error", "message": "missing 'reciver' (or 'to') field"}))
-            return
-        
-        if msg_type == "media_upload":
+            if not reciver:
+                await self.send(json.dumps({"type": "error", "message": "missing 'reciver' (or 'to') field"}))
+                return
+            
+            if msg_type == "media_upload":
                 if not file_b64:
                     await self.send(json.dumps({"type": "error", "message": "missing file data for media_upload"}))
                     return
@@ -413,31 +412,21 @@ class WebhookConsumer(AsyncWebsocketConsumer):
                     "body": body,
                     "type": payload_content.get("type") or payload_content.get("file_type") or "unknown"
                 }
-        elif msg_type in ['image', 'video', 'audio', 'document'] :
-                msg_type = msg_type
+            elif msg_type in ['image', 'video', 'audio', 'document']:
                 message_payload = {
                     "body": caption,
                     "media_id": payload_content.get("media_id"),
                     "template": payload_content.get("template"),
                     "media_type": msg_type,
                     "media_url": payload_content.get("file") or payload_content.get("media_url"),
-                   
-                #     "data": None, 
-                # "filename": payload_content.get("filename"),
-                # "mime": payload_content.get("mime")
                 }
-        else:
-                # file_url = payload_content.get("file") or payload_content.get("media_url")
-
-                # final_media_type = msg_type if msg_type in ['image', 'video', 'audio', 'document'] else payload_content.get("media_type", "text")
+            else:
                 message_payload = {
                     "body": body,
                     "media_id": payload_content.get("media_id"),
                     "template": payload_content.get("template"),
-                    # "media_type": final_media_type,
-                    # "media_url": file_url
                 }
-        try:
+            try:
                 if is_internal_note:
                     # 1. الحفظ في قاعدة البيانات
                     saved_msg = await self.save_message_db(
@@ -501,7 +490,7 @@ class WebhookConsumer(AsyncWebsocketConsumer):
                         "payload": result
                     }))
 
-        except Exception as e:
+            except Exception as e:
                 print(f"Error processing message: {e}")
                 await self.send(text_data=json.dumps({
                     "type": "error",
@@ -535,12 +524,17 @@ class WebhookConsumer(AsyncWebsocketConsumer):
     
     @database_sync_to_async
     def update_user_status(self, user, status):
-        # تحديث حالة المستخدم
         try:
             u = User.objects.get(id=user.id)
             u.is_online = status
             u.last_seen = timezone.now()
             u.save()
+            from discount.activites import log_activity_async
+            log_activity_async(
+                'ws_connect' if status else 'ws_disconnect',
+                f"{'Connected' if status else 'Disconnected'}: {u.user_name or u.username}",
+                user=u,
+            )
         except User.DoesNotExist:
             pass
 

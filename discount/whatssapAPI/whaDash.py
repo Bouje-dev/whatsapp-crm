@@ -1,8 +1,10 @@
 from discount.user_dash import change_password
-from django.db.models import Count
+from django.db.models import Count, Avg, F, ExpressionWrapper, DurationField, Q
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404
-from discount.models import Contact, WhatsAppChannel  , CannedResponse
+from django.utils import timezone
+from datetime import timedelta
+from discount.models import Contact, WhatsAppChannel, CannedResponse, CustomUser, Message, Activity
 
 def api_lifecycle_stats(request):
     user = request.user
@@ -201,3 +203,178 @@ def get_canned_responses(request):
         })
     from django.core.serializers.json import DjangoJSONEncoder
     return JsonResponse({'status': 'success', 'data': data}, encoder=DjangoJSONEncoder)
+
+
+def api_agent_stats(request):
+    """
+    Returns performance stats for a specific agent:
+    - Total online time (today + this week)
+    - Average response time (across channels the agent has access to)
+    - Last time online (if currently offline)
+    - Messages sent today
+    - Conversations handled today
+    """
+    if not request.user.is_authenticated:
+        return JsonResponse({"error": "Unauthorized"}, status=401)
+    if not (getattr(request.user, 'is_team_admin', False) or request.user.is_superuser):
+        return JsonResponse({"error": "Forbidden"}, status=403)
+
+    agent_id = request.GET.get('agent_id')
+    if not agent_id:
+        return JsonResponse({"error": "agent_id required"}, status=400)
+
+    try:
+        agent = CustomUser.objects.get(pk=agent_id)
+    except CustomUser.DoesNotExist:
+        return JsonResponse({"error": "Agent not found"}, status=404)
+
+    now = timezone.now()
+    today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
+    week_start = today_start - timedelta(days=today_start.weekday())
+
+    # --- 1. Online time from Activity logs (login/logout pairs) ---
+    def calc_online_seconds(since):
+        activities = list(
+            Activity.objects.filter(
+                user=agent,
+                activity_type__in=['login', 'logout'],
+                timestamp__gte=since
+            ).order_by('timestamp').values_list('activity_type', 'timestamp')
+        )
+        total = timedelta()
+        login_time = None
+        for atype, ts in activities:
+            if atype == 'login':
+                login_time = ts
+            elif atype == 'logout' and login_time:
+                total += ts - login_time
+                login_time = None
+        if login_time and agent.is_online:
+            total += now - login_time
+        return total.total_seconds()
+
+    online_today_secs = calc_online_seconds(today_start)
+    online_week_secs = calc_online_seconds(week_start)
+
+    def fmt_duration(secs):
+        secs = int(secs)
+        if secs < 60:
+            return f"{secs}s"
+        h, rem = divmod(secs, 3600)
+        m, s = divmod(rem, 60)
+        if h > 0:
+            return f"{h}h {m}m"
+        return f"{m}m {s}s"
+
+    # --- 2. Average response time ---
+    # Find customer messages that got a reply from this agent.
+    # A "response" = first agent message (is_from_me=True, user=agent)
+    # after a customer message (is_from_me=False) in the same sender thread.
+    # We use a pragmatic approach: for each agent reply, find the most recent
+    # customer message before it in the same sender thread, compute the delta.
+    agent_channels = WhatsAppChannel.objects.filter(
+        Q(owner=request.user) | Q(assigned_agents=request.user)
+    ).distinct()
+
+    agent_replies = Message.objects.filter(
+        user=agent,
+        is_from_me=True,
+        is_internal=False,
+        channel__in=agent_channels,
+        timestamp__gte=week_start,
+    ).order_by('timestamp').select_related('channel')
+
+    response_deltas = []
+    checked_senders = {}
+
+    for reply in agent_replies[:200]:
+        last_customer_msg = Message.objects.filter(
+            sender=reply.sender,
+            is_from_me=False,
+            channel=reply.channel,
+            timestamp__lt=reply.timestamp,
+        ).order_by('-timestamp').values_list('timestamp', flat=True).first()
+
+        if last_customer_msg:
+            delta = (reply.timestamp - last_customer_msg).total_seconds()
+            if 0 < delta < 86400:
+                response_deltas.append(delta)
+
+    avg_response_secs = (sum(response_deltas) / len(response_deltas)) if response_deltas else None
+
+    def fmt_response_time(secs):
+        if secs is None:
+            return "No data"
+        secs = int(secs)
+        if secs < 60:
+            return f"{secs}s"
+        h, rem = divmod(secs, 3600)
+        m, s = divmod(rem, 60)
+        if h > 0:
+            return f"{h}h {m}m"
+        return f"{m}m"
+
+    # --- 3. Last seen ---
+    last_seen_str = None
+    if not agent.is_online and agent.last_seen:
+        diff = now - agent.last_seen
+        if diff.total_seconds() < 60:
+            last_seen_str = "Just now"
+        elif diff.total_seconds() < 3600:
+            last_seen_str = f"{int(diff.total_seconds() // 60)}m ago"
+        elif diff.total_seconds() < 86400:
+            last_seen_str = f"{int(diff.total_seconds() // 3600)}h ago"
+        else:
+            last_seen_str = agent.last_seen.strftime("%b %d, %I:%M %p")
+
+    # --- 4. Messages sent today ---
+    msgs_today = Message.objects.filter(
+        user=agent, is_from_me=True, is_internal=False,
+        timestamp__gte=today_start
+    ).count()
+
+    # --- 5. Unique conversations today ---
+    convos_today = Message.objects.filter(
+        user=agent, is_from_me=True, is_internal=False,
+        timestamp__gte=today_start
+    ).values('sender').distinct().count()
+
+    # --- 6. Response time rating ---
+    if avg_response_secs is None:
+        speed_label = "No data"
+        speed_color = "gray"
+    elif avg_response_secs < 120:
+        speed_label = "Excellent"
+        speed_color = "green"
+    elif avg_response_secs < 300:
+        speed_label = "Good"
+        speed_color = "blue"
+    elif avg_response_secs < 900:
+        speed_label = "Average"
+        speed_color = "yellow"
+    else:
+        speed_label = "Slow"
+        speed_color = "red"
+
+    return JsonResponse({
+        "success": True,
+        "agent": {
+            "id": agent.id,
+            "name": f"{agent.user_name or agent.first_name} {agent.last_name or ''}".strip(),
+            "is_online": agent.is_online,
+            "role": getattr(agent, 'role', 'Agent') or 'Agent',
+        },
+        "stats": {
+            "online_today": fmt_duration(online_today_secs),
+            "online_today_secs": online_today_secs,
+            "online_week": fmt_duration(online_week_secs),
+            "online_week_secs": online_week_secs,
+            "avg_response_time": fmt_response_time(avg_response_secs),
+            "avg_response_secs": avg_response_secs,
+            "speed_label": speed_label,
+            "speed_color": speed_color,
+            "last_seen": last_seen_str,
+            "messages_today": msgs_today,
+            "conversations_today": convos_today,
+        },
+    })

@@ -671,7 +671,7 @@ async function fetchTemplates() {
     if(!_tplListContainer) return;
     _tplListContainer.innerHTML = '<div class="loading-spinner">Loading...</div>';
     const activeChannel = window.currentChannelId || '{{ initial_channel_id|default:"null" }}';
-    console.log('channel' , activeChannel)
+    
         if (!activeChannel || activeChannel === 'null') {
             listContainer.innerHTML = '<div style="padding:20px;text-align:center;color:gray;">لا توجد قناة محددة</div>';
             return;
