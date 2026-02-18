@@ -20,10 +20,16 @@
 </script>
   
   {% if user_channels %}
-  
+  <style>
+    @media (max-width: 768px) {
+        .clc3432423 {
+            display: none !important;
+        }
+    }
+</style>
     <div class="cls3741_container">
       {% if user.is_team_admin or user.is_superuser %}
-      <aside class="workspace-sidebar">
+      <aside class="workspace-sidebar clc3432423">
 
         <div class="workspace-list">
        
@@ -197,6 +203,10 @@
       </aside>
 
       {% endif %}
+    <button type="button" class="cls3741_hamburger" id="cls3741_hamburger" aria-label="Open menu" aria-expanded="false">
+      <span></span><span></span><span></span>
+    </button>
+    <div class="cls3741_sidebar_overlay" id="cls3741_sidebar_overlay" aria-hidden="true"></div>
     <!-- sidebar -->
     <aside class="cls3741_sidebar" role="navigation" aria-label="Sidebar">
       <div class="cls3741_brand">
@@ -220,6 +230,33 @@
             </div> 
         </div>
     </div>
+
+    {% if user.is_team_admin or user.is_superuser %}
+    <div class="cls3741_sidebar_channels_mobile" aria-label="Switch channel">
+      <div class="cls3741_sidebar_channels_title">Channels</div>
+      <div class="workspace-list workspace-list-in-sidebar">
+        {% for channel in user_channels %}
+        <div class="workspace-item {% if channel.id == initial_channel_id %}active{% endif %}"
+             data-channel-id="{{ channel.id }}"
+             data-name="{{ channel.name }}"
+             {% if channel.profile_image %}data-profile="{{ channel.profile_image.url }}"{% else %}data-profile=""{% endif %}
+             data-agents="{{ channel.assigned_agents.count }}"
+             onclick="switchChannel('{{ channel.id }}')"
+             title="{{ channel.name }}">
+          {% if channel.profile_image %}
+          <img src="{{ channel.profile_image.url }}" alt="" style="width: 40px; height: 40px; border-radius: 12px;">
+          {% else %}
+          {{ channel.name|slice:":1"|upper }}
+          {% endif %}
+          {% if channel.unread_count > 0 %}<span class="unread-dot"></span>{% endif %}
+        </div>
+        {% endfor %}
+        <div class="workspace-item add-new" onclick="openAddChannelModal()">
+          <svg viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" stroke-width="2" fill="none"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+        </div>
+      </div>
+    </div>
+    {% endif %}
  
   
 <nav class="cls3741_nav collapsed" aria-label="Main menu">
@@ -558,7 +595,7 @@
   
 <main class="cls3741_main">
     
-  <section class="cls3741_panel cls3741_panel_dashboard" style="position: relative;">
+  <section class="cls3741_panel cls3741_panel_dashboard" style="position: relative; width: 100%; max-width: 100%; min-width: 0; overflow-x: hidden;">
     <div id="settings_loaderD" class="loading-overlay d-none">
         <div class="text-center">
             <div class="spinner-border text-primary mb-3" style="width: 3rem; height: 3rem;" role="status"></div>
@@ -582,11 +619,7 @@
             </button>
         </div>
     </div>
-<div class="main1" style="    overflow: auto;
-overflow-anchor: inherit;
-scrollbar-width: none;
- 
-width: 100%;">
+<div class="main1" style="overflow: auto; overflow-anchor: inherit; scrollbar-width: none; width: 100%; max-width: 100%; min-width: 0;">
 
  
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
@@ -1245,8 +1278,73 @@ function filterContactsByStage(stageKey) {
   /* --- Dashboard Layout --- */
 .cls3741_panel_dashboard {
     padding: 24px;
-    /* max-width: ; */
     margin: 0 auto;
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
+}
+.cls3741_panel_dashboard * {
+    box-sizing: border-box;
+}
+.cls3741_panel_dashboard .main1 {
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+}
+.cls3741_panel_dashboard .cls3741_account_card,
+.cls3741_panel_dashboard .cls3741_stats_grid,
+.cls3741_panel_dashboard .cycle_card,
+.cls3741_panel_dashboard .cls3741_section_title,
+.cls3741_panel_dashboard .cls3741_lifecycle_container,
+.cls3741_panel_dashboard .cls3741_chart_section {
+    max-width: 100%;
+    min-width: 0;
+}
+.cls3741_panel_dashboard .cls3741_lifecycle_container {
+    grid-template-columns: repeat(auto-fill, minmax(min(200px, 100%), 1fr));
+}
+.cls3741_panel_dashboard .cls3741_team_card,
+.cls3741_panel_dashboard .cls3741_team_list {
+    min-width: 0;
+    max-width: 100%;
+}
+.cls3741_panel_dashboard .account_info_grid {
+    min-width: 0;
+    grid-template-columns: repeat(auto-fit, minmax(min(180px, 100%), 1fr));
+}
+.cls3741_panel_dashboard .info_item {
+    min-width: 0;
+}
+.cls3741_panel_dashboard .info_item .val {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    word-break: break-word;
+}
+.cls3741_panel_dashboard #qrcode_container,
+.cls3741_panel_dashboard .qr_img_wrapper {
+    max-width: 100% !important;
+    width: 120px !important;
+    height: 120px !important;
+}
+.cls3741_panel_dashboard .chart_container {
+    max-width: 100%;
+    min-width: 0;
+}
+.cls3741_panel_dashboard .stat_card {
+    min-width: 0;
+    max-width: 100%;
+}
+.cls3741_panel_dashboard .cls3741_lifecycle_card {
+    min-width: 0;
+}
+.cls3741_panel_dashboard .cls3741_dash_header {
+    min-width: 0;
+    max-width: 100%;
+}
+.cls3741_panel_dashboard #settings_loaderD {
+    max-width: 100%;
+    left: 0;
+    right: 0;
 }
 
 .cls3741_dash_header {
@@ -1316,7 +1414,7 @@ function filterContactsByStage(stageKey) {
 /* --- 2. KPI Stats Grid --- */
 .cls3741_stats_grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(min(240px, 100%), 1fr));
     gap: 18px;
     margin-bottom: 24px;
 }
@@ -1383,11 +1481,154 @@ function filterContactsByStage(stageKey) {
     width: 100%;
 }
 
-/* Mobile Responsive */
+/* Mobile Responsive - Dashboard */
 @media (max-width: 768px) {
-    .cls3741_account_card { flex-direction: column; text-align: center; }
-    .account_qr_section { border-right: none; border-bottom: 1px solid var(--border-color); padding-bottom: 20px; padding-right: 0; margin-bottom: 20px; width: 100%; }
-    .account_info_grid { grid-template-columns: 1fr 1fr; width: 100%; text-align: left; }
+    .cls3741_panel_dashboard {
+        padding: 12px 14px 20px;
+        overflow-x: hidden;
+        min-width: 0;
+        box-sizing: border-box;
+    }
+    .cls3741_dash_header {
+        flex-wrap: wrap;
+        gap: 12px;
+        margin-bottom: 16px;
+    }
+    .cls3741_dash_header h2 {
+        font-size: 18px;
+        width: 100%;
+        margin: 0;
+    }
+    .cls3741_dash_actions {
+        flex-wrap: wrap;
+        gap: 8px;
+    }
+    .cls3741_btn_refresh {
+        padding: 8px 14px;
+        font-size: 13px;
+        min-height: 40px;
+    }
+    .status_badge {
+        font-size: 11px;
+        padding: 5px 10px;
+    }
+    .main1 {
+        padding: 0 2px;
+        -webkit-overflow-scrolling: touch;
+    }
+    .cls3741_account_card {
+        flex-direction: column;
+        text-align: center;
+        padding: 16px;
+        gap: 16px;
+        margin-bottom: 16px;
+    }
+    .account_qr_section {
+        border-right: none;
+        border-bottom: 1px solid var(--border-color);
+        padding-bottom: 16px;
+        padding-right: 0;
+        margin-bottom: 0;
+        width: 100%;
+    }
+    #qrcode_container.qr_img_wrapper,
+    .cls3741_account_card .qr_img_wrapper,
+    #qrcode_container {
+        width: 100px !important;
+        height: 100px !important;
+        max-width: 100%;
+        margin: 0 auto;
+    }
+    .account_info_grid {
+        grid-template-columns: 1fr 1fr;
+        width: 100%;
+        text-align: left;
+        gap: 14px;
+    }
+    .info_item .val { font-size: 14px; }
+    .cls3741_stats_grid {
+        grid-template-columns: 1fr;
+        gap: 12px;
+        margin-bottom: 16px;
+    }
+    .stat_card {
+        padding: 14px 16px;
+        gap: 12px;
+    }
+    .stat_icon {
+        width: 42px;
+        height: 42px;
+        font-size: 18px;
+    }
+    .stat_number { font-size: 22px; }
+    .stat_label { font-size: 12px; }
+    .stat_content div[style*="font-size: 13px"],
+    .stat_content div[style*="font-size: 11px"] {
+        font-size: 12px !important;
+    }
+    .cycle_card {
+        flex-direction: column;
+        text-align: center;
+        padding: 16px;
+        gap: 12px;
+    }
+    .cls3741_team_card .cls3741_card_header {
+        flex-wrap: wrap;
+        gap: 8px;
+    }
+    .cls3741_team_card .cls3741_card_title { font-size: 14px; }
+    .cls3741_team_item {
+        flex-wrap: wrap;
+        padding: 10px 12px;
+    }
+    .cls3741_section_title {
+        flex-wrap: wrap;
+        gap: 8px;
+        margin-bottom: 12px;
+    }
+    .cls3741_section_title h3 {
+        font-size: 15px;
+        margin: 0;
+    }
+    .cls3741_lifecycle_container {
+        grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+        gap: 12px;
+        -webkit-overflow-scrolling: touch;
+        padding-bottom: 8px;
+        margin-bottom: 16px;
+    }
+    .cls3741_lifecycle_card {
+        min-width: 0;
+        padding: 12px;
+    }
+    .cls3741_chart_section {
+        padding: 16px;
+        border-radius: 12px;
+    }
+    .chart_header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 10px;
+        margin-bottom: 14px;
+    }
+    .chart_header h3 { font-size: 14px; }
+    .chart_legend { flex-wrap: wrap; gap: 8px; }
+    .chart_container {
+        height: 220px;
+        min-height: 200px;
+    }
+    #settings_loaderD.loading-overlay {
+        padding: 1rem;
+    }
+}
+@media (max-width: 480px) {
+    .cls3741_panel_dashboard { padding: 10px 12px 16px; }
+    .cls3741_dash_header h2 { font-size: 16px; }
+    .account_info_grid { grid-template-columns: 1fr; }
+    .cls3741_lifecycle_container {
+        grid-template-columns: 1fr;
+    }
+    .chart_container { height: 200px; }
 }
 </style>
 
@@ -2097,7 +2338,7 @@ window.loadDashboardData = loadDashboardData;
 
 
 
-<section class="cls3741_panel cls3741_panel_chats" style="display:none;">
+<section class="cls3741_panel cls3741_panel_chats" style="display:none; width:100%; max-width:100%; min-width:0; overflow-x:hidden;">
  
   <div class="cls3741_chats_root">
 
@@ -2490,6 +2731,9 @@ window.resetFilters = function() {
      <!-- CENTER: chat conversation -->
     <div class="cls3741_chat_col" id="cls3741_chat_col" aria-live="polite">
       <div class="cls3741_chat_header">
+        <button type="button" class="cls3741_chat_back_btn" id="cls3741_chat_back_btn" aria-label="Back to conversations" title="Back to conversations">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg>
+        </button>
         <div style="display:flex;align-items:center;gap:10px">
           <div class="cls3741_contact_avatar" id="cls3741_active_avatar">B</div>
           <div>
@@ -2540,6 +2784,7 @@ window.resetFilters = function() {
                     <div class="pulse-icon"></div> <span id="collision_text"></span>
                 </div>
             </div>
+          <div class="cls3741_input_send_row">
           <div class="cls3741_input_row">
               <textarea 
                 id="cls3741_message_input" 
@@ -2547,6 +2792,22 @@ window.resetFilters = function() {
                 placeholder="Type your message... or use / for short responses"
                 rows="1"
               ></textarea>
+          </div>
+          <div class="cls3741_send_record_slot" id="cls3741_send_record_slot">
+                  <button type="button" id="cls3741_audio_btn" class="cls3741_icon_btn cls3741_mobile_record_btn" title="Record Voice">
+                      <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                          <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path><path d="M19 10v2a7 7 0 0 1-14 0v-2"></path><line x1="12" y1="19" x2="12" y2="23"></line><line x1="8" y1="23" x2="16" y2="23"></line>
+                      </svg>
+                  </button>
+              <div class="cls3741_send_group">
+                  <button type="button" id="cls3741_send_btn" class="cls3741_send_button" disabled>
+                      <span>Send</span>
+                      <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                          <line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+                      </svg>
+                  </button>
+              </div>
+          </div>
           </div>
     
           <div class="cls3741_actions_row">
@@ -2625,7 +2886,11 @@ function sendInternalNote(text) {
              
 
               <div class="cls3741_tools_group">
-                  
+                  <button type="button" id="cls3741_tools_more_btn" class="cls3741_tool_btn cls3741_tools_more_btn" title="More" aria-label="More options" aria-expanded="false" aria-controls="cls3741_tools_expanded">
+                      <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="1"></circle><circle cx="19" cy="12" r="1"></circle><circle cx="5" cy="12" r="1"></circle></svg>
+                      <span class="cls3741_btn_label">More</span>
+                  </button>
+                  <div class="cls3741_tools_expanded" id="cls3741_tools_expanded" role="menu">
                   <button type="button" id="open_template" class="cls3741_tool_btn" title="Templates">
                       <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                           <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
@@ -2678,12 +2943,6 @@ function sendInternalNote(text) {
                   
                   <div class="cls3741_divider"></div>
     
-                  <button type="button" id="cls3741_audio_btn" class="cls3741_icon_btn" title="Record Voice">
-                      <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                          <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path><path d="M19 10v2a7 7 0 0 1-14 0v-2"></path><line x1="12" y1="19" x2="12" y2="23"></line><line x1="8" y1="23" x2="16" y2="23"></line>
-                      </svg>
-                  </button>
-    
                   <div style="position:relative;">
                   <button type="button" id="cls3741_ai_assist_btn" class="cls3741_tool_btn ai_assist_btn" title="AI Assist — Generate a smart reply">
                     <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -2729,16 +2988,8 @@ function sendInternalNote(text) {
                     </div>
                   </div>
                   </div>
+                  </div>
     
-              </div>
-    
-              <div class="cls3741_send_group">
-                  <button type="button" id="cls3741_send_btn" class="cls3741_send_button" disabled>
-                      <span>Send</span>
-                      <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                          <line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
-                      </svg>
-                  </button>
               </div>
     
           </div>
@@ -3290,6 +3541,37 @@ function sendCannedResponseDirectly(item) {
         color: #94a3b8;
       }
     
+      /* Input + Send/Record on one row */
+      .cls3741_input_send_row {
+        display: flex;
+        flex-direction: row;
+        align-items: flex-end;
+        gap: 8px;
+        width: 100%;
+        min-width: 0;
+      }
+      .cls3741_input_row {
+        flex: 1;
+        min-width: 0;
+      }
+      .cls3741_input_row .cls3741_chat_textarea {
+        width: 100%;
+      }
+      .cls3741_send_record_slot {
+        display: flex;
+        align-items: center;
+        flex-shrink: 0;
+        gap: 4px;
+      }
+      /* When input empty: show record, hide send */
+      .cls3741_send_record_slot .cls3741_mobile_record_btn { display: flex; }
+      .cls3741_send_record_slot .cls3741_send_group { display: none; }
+      .cls3741_send_record_slot.has-text .cls3741_mobile_record_btn { display: none; }
+      .cls3741_send_record_slot.has-text .cls3741_send_group { display: flex; }
+      /* More button: hidden on desktop */
+      .cls3741_tools_more_btn { display: none; }
+      .cls3741_tools_expanded { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+
       /* صف الأزرار السفلي */
       .cls3741_actions_row {
         display: flex;
@@ -3699,9 +3981,17 @@ function sendCannedResponseDirectly(item) {
     <aside class="cls3741_user_col d-none" style="width: 400px; padding:0px !important;  scrollbar-width: none;" id="cls3741_user_col" aria-label="Contact info">
       <div id="sidebar-main-wrapper" class="quick-sidebar-container" style=" scrollbar-width: none;">
 
+      
+
         <div id="crm_view_panel" class="view-panel fade-in">
             
             <div class="crm-profile-section">
+                <div class="sidebar-back-bar" role="banner">
+                    <button type="button" class="sidebar-back-btn" id="sidebar_back_to_chat_btn" aria-label="Back to chat" onclick="document.getElementById('cls3741_open_info').click();">
+                      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg>
+                      <span>Back to chat</span>
+                    </button>
+                  </div>
                 <div class="crm-avatar d-none" id="crm-avatar_sidbar">
                     <span>{{ active_contact.name|slice:":1"|upper }}</span>
                 </div>
@@ -4318,6 +4608,35 @@ document.addEventListener("DOMContentLoaded", function() {
 
 
 
+          /* --- Sidebar back bar (Back to chat) --- */
+        .sidebar-back-bar {
+            flex-shrink: 0;
+            padding: 12px 16px;
+            border-bottom: 1px solid var(--qs-border);
+            background: rgba(255,255,255,0.02);
+        }
+        .sidebar-back-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 12px;
+            border: none;
+            border-radius: var(--qs-radius);
+            background: transparent;
+            color: var(--qs-text-muted);
+            font-size: 0.9rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: color 0.2s, background 0.2s;
+        }
+        .sidebar-back-btn:hover {
+            color: var(--qs-text);
+            background: var(--qs-surface);
+        }
+        .sidebar-back-btn svg {
+            flex-shrink: 0;
+        }
+
           /* --- Quick Sidebar Variables --- */
         :root {
             --qs-bg: #111827;           /* خلفية داكنة جداً */
@@ -4628,7 +4947,7 @@ $('#cls3741_attach_btn').on('click', function() {
           
         </div>
     </div>
-            <div id="templates_table_wrap" style="background:linear-gradient(180deg, rgba(255,255,255,0.01), rgba(255,255,255,0.005));padding:8px;border-radius:10px;border:1px solid rgba(255,255,255,0.03);overflow:auto">
+            <div id="templates_table_wrap" class="table-responsive" style="background:linear-gradient(180deg, rgba(255,255,255,0.01), rgba(255,255,255,0.005));padding:8px;border-radius:10px;border:1px solid rgba(255,255,255,0.03);overflow:auto">
             <table id="templates_table" style="width:100%;border-collapse:collapse">
                 <thead>
                     <tr style="text-align:left;
@@ -5958,7 +6277,7 @@ $(document).ready(function() {
             </div>
         </div>
     
-        <div id="templates_table_wrap" style="padding:16px;border-radius:12px;border:1px solid var(--border);overflow:auto ;background: linear-gradient(180deg, rgba(255, 255, 255, 0.01), rgba(255, 255, 255, 0.005));padding: 8px;border-radius: 10px;border: 1px solid rgba(255, 255, 255, 0.03);overflow: auto;">
+        <div id="templates_table_wrap" class="table-responsive" style="padding:16px;border-radius:12px;border:1px solid var(--border);overflow:auto;background: linear-gradient(180deg, rgba(255, 255, 255, 0.01), rgba(255, 255, 255, 0.005));padding: 8px;border-radius: 10px;border: 1px solid rgba(255, 255, 255, 0.03);">
             <table id="templates_table" style="width:100%;border-collapse:collapse;min-width:600px; border-color: #202020;border-style: solid;border-width: 0;">
                 <thead>
                     <tr style="text-align:left;border-bottom: 1px solid #202020;">
@@ -6998,9 +7317,24 @@ document.addEventListener("DOMContentLoaded", function() {
     const messagesArea = document.getElementById('cls3741_messages_area');
     const messageInput = document.getElementById('cls3741_message_input'); // تم التصحيح
     const sendBtnmain = document.getElementById('cls3741_send_btn');
-    messageInput.addEventListener('input', function() {
-      sendBtnmain.disabled = this.value.trim() === '';
-    });
+    const sendRecordSlot = document.getElementById('cls3741_send_record_slot');
+    if (messageInput) {
+      messageInput.addEventListener('input', function() { if (window.__updateSendRecordVisibility) window.__updateSendRecordVisibility(); });
+    }
+    var toolsMoreBtn = document.getElementById('cls3741_tools_more_btn');
+    var toolsGroup = toolsMoreBtn && toolsMoreBtn.closest('.cls3741_tools_group');
+    if (toolsMoreBtn && toolsGroup) {
+      toolsMoreBtn.addEventListener('click', function() {
+        toolsGroup.classList.toggle('is-open');
+        toolsMoreBtn.setAttribute('aria-expanded', toolsGroup.classList.contains('is-open'));
+      });
+      document.addEventListener('click', function(e) {
+        if (toolsGroup.classList.contains('is-open') && !toolsGroup.contains(e.target)) {
+          toolsGroup.classList.remove('is-open');
+          toolsMoreBtn.setAttribute('aria-expanded', 'false');
+        }
+      });
+    }
 
     // عناصر الوسائط من الواجهة الفعلية
     const imageInput = document.getElementById('cls3741_image_input');
@@ -7023,6 +7357,16 @@ document.addEventListener("DOMContentLoaded", function() {
 
     let queuedFile = null;
     let queuedFileType = null;
+
+    function updateSendRecordVisibility() {
+      var hasText = messageInput && messageInput.value.trim() !== '';
+      var hasQueuedMedia = queuedFile && queuedFileType;
+      var showSend = hasText || hasQueuedMedia;
+      if (sendBtnmain) sendBtnmain.disabled = !showSend;
+      if (sendRecordSlot) sendRecordSlot.classList.toggle('has-text', showSend);
+    }
+    window.__updateSendRecordVisibility = updateSendRecordVisibility;
+    updateSendRecordVisibility();
 
     // 🔥 متغيرات البحث والفلترة
     let allContactsData = [];
@@ -8392,6 +8736,9 @@ function escapeHtml(s) {
 
     // دالة محسنة لاختيار جهة اتصال
     function onContactSelected(el){
+      if (window.matchMedia('(max-width: 768px)').matches) {
+        document.querySelector('.cls3741_chats_root')?.classList.add('mobile-show-chat');
+      }
       window.current_phone = el.getAttribute('data-phone');
       const phone = el.getAttribute('data-phone');
       const name = el.getAttribute('data-name') || null;
@@ -8562,6 +8909,7 @@ async function sendMessageLocal_ws(fileObj = null, fileType = null) {
             queuedFile = null;
             queuedFileType = null;
             if (mediaPreview) mediaPreview.innerHTML = '';
+            updateSendRecordVisibility();
         }
 
     } else {
@@ -8576,9 +8924,7 @@ async function sendMessageLocal_ws(fileObj = null, fileType = null) {
     // if (messageInput && payload.body) messageInput.value = payload.body;
 
   } finally {
-    // إعادة تفعيل الزر دائماً
-    if (sendBtnmain) sendBtnmain.disabled = false;
-    // إعادة التركيز
+    updateSendRecordVisibility();
     if (messageInput) messageInput.focus();
   }
 }
@@ -8602,11 +8948,10 @@ async function sendMessageLocal_ws(fileObj = null, fileType = null) {
         background: var(--bg-tertiary, #f1f3f4);
         border-radius: 12px;
         margin: 8px 0;
-        border: 1px solid var(--border-color, #e5e7eb);
-      `;
+        border: 1px solid var(--border-color, #e5e7eb); `;
+
 
       let previewContent = '';
-      
       if (type === 'image') {
         previewContent = `
           <img src="${URL.createObjectURL(file)}" style="width: 60px; height: 60px; border-radius: 8px; object-fit: cover;">
@@ -8647,6 +8992,7 @@ async function sendMessageLocal_ws(fileObj = null, fileType = null) {
         queuedFile = null;
         queuedFileType = null;
         mediaPreview.innerHTML = '';
+        updateSendRecordVisibility();
       });
 
       mediaPreview.appendChild(wrapper);
@@ -8733,6 +9079,7 @@ async function sendMessageLocal_ws(fileObj = null, fileType = null) {
               queuedFileType = 'audio';
               renderMediaPreview(queuedFile, 'audio');
               stream.getTracks().forEach(track => track.stop());
+              updateSendRecordVisibility();
             };
             
             mediaRecorder.start();
@@ -8778,12 +9125,17 @@ async function sendMessageLocal_ws(fileObj = null, fileType = null) {
       messageInput.addEventListener('keydown', function(e) {
         if(e.key === 'Enter' && !e.shiftKey) {
           e.preventDefault();
-          console.log('⌨️ Enter تم الضغط عليه');
-          
-          if(queuedFile && queuedFileType) {
-            sendMessageLocal_ws(queuedFile, queuedFileType);
+          var hasText = messageInput.value.trim() !== '';
+          var hasQueued = queuedFile && queuedFileType;
+          if (hasText || hasQueued) {
+            if(hasQueued) {
+              sendMessageLocal_ws(queuedFile, queuedFileType);
+            } else {
+              sendMessageLocal_ws();
+            }
           } else {
-            sendMessageLocal_ws();
+            messageInput.value = '';
+            updateSendRecordVisibility();
           }
         }
       });
@@ -9074,8 +9426,10 @@ window.fetchContactsAndUpdateUIws = function(wsData, isFullReload) {
       const normalized = (phone||'').replace(/^\+/, '').replace(/\s+/g,'');
       const item = contactsListEl.querySelector(`.cls3741_contact_item[data-phone="${normalized}"]`);
       if(item){ 
-        
         item.click(); 
+        if (window.matchMedia('(max-width: 768px)').matches) {
+          document.querySelector('.cls3741_chats_root')?.classList.add('mobile-show-chat');
+        }
         return; 
       }
       
@@ -9093,10 +9447,58 @@ window.fetchContactsAndUpdateUIws = function(wsData, isFullReload) {
       messagesArea.appendChild(createLoadingMessage());
       
       fetchMessagesForCurrentws();
+      if (window.matchMedia('(max-width: 768px)').matches) {
+        document.querySelector('.cls3741_chats_root')?.classList.add('mobile-show-chat');
+      }
        
       // fetchContactsAndUpdateUI();
        
     };
+
+    var chatBackBtn = document.getElementById('cls3741_chat_back_btn');
+    var chatsRoot = document.querySelector('.cls3741_chats_root');
+    if (chatBackBtn && chatsRoot) {
+      chatBackBtn.addEventListener('click', function() {
+        chatsRoot.classList.remove('mobile-show-chat');
+      });
+    }
+    document.querySelectorAll('.cls3741_btn[data-target="chats"]').forEach(function(btn) {
+      btn.addEventListener('click', function() {
+        if (chatsRoot && window.matchMedia('(max-width: 768px)').matches) {
+          chatsRoot.classList.remove('mobile-show-chat');
+        }
+      });
+    });
+
+    (function() {
+      var hamburger = document.getElementById('cls3741_hamburger');
+      var overlay = document.getElementById('cls3741_sidebar_overlay');
+      function closeNav() {
+        document.body.classList.remove('mobile-nav-open');
+        if (hamburger) hamburger.setAttribute('aria-expanded', 'false');
+        if (overlay) overlay.classList.remove('visible');
+      }
+      function openNav() {
+        document.body.classList.add('mobile-nav-open');
+        if (hamburger) hamburger.setAttribute('aria-expanded', 'true');
+        if (overlay) overlay.classList.add('visible');
+      }
+      function toggleNav() {
+        if (document.body.classList.contains('mobile-nav-open')) closeNav(); else openNav();
+      }
+      if (hamburger) hamburger.addEventListener('click', toggleNav);
+      if (overlay) overlay.addEventListener('click', closeNav);
+      document.querySelectorAll('.cls3741_sidebar .cls3741_btn').forEach(function(btn) {
+        btn.addEventListener('click', function() {
+          if (window.matchMedia('(max-width: 768px)').matches) closeNav();
+        });
+      });
+      document.querySelectorAll('.cls3741_sidebar .workspace-item').forEach(function(item) {
+        item.addEventListener('click', function() {
+          if (window.matchMedia('(max-width: 768px)').matches) closeNav();
+        });
+      });
+    })();
     
     window.__chatInput = window.__chatInput || {};
     window.__chatInput.setCurrentPhone = function(phone, channelId = null) {

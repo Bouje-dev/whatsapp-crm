@@ -3,7 +3,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <title>Order Tracking Dashboard</title>
     
     
@@ -144,26 +144,39 @@
 }
         /* Main Content Area */
         .main-content-area {
-    
-    /* height: 100vh; */
-    /* width: 100%; */
-    display: flex;
-    flex-direction: column;
-    overflow: hidden;
-
-            max-width: 100%; /* Ensure responsiveness */
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            max-width: 100%;
+            flex: 1;
+            min-height: 0;
         }
         @media (max-width: 767.98px) {
             .main-content-area {
-                padding: 1rem;
+                padding: 0.5rem;
+            }
+            #future-whatssap_API .cls3741_hamburger {
+                /* top: 4.5rem; */
             }
         }
 
         /* Page Tabs (formerly dashboard-nav-buttons) */
         .page-tabs-nav {
             display: flex;
-            margin-bottom: 2rem; /* Space below tabs */
-            border-bottom: var(--border-width) solid var(--border-card); /* Separator below tabs */
+            margin-bottom: 2rem;
+            border-bottom: var(--border-width) solid var(--border-card);
+            flex-shrink: 0;
+        }
+        @media (max-width: 767.98px) {
+            .page-tabs-nav {
+                margin-bottom: 0.75rem;
+                overflow-x: auto;
+                -webkit-overflow-scrolling: touch;
+                scrollbar-width: thin;
+            }
+            .page-tabs-nav .nav-link {
+                white-space: nowrap;
+            }
         }
 
         .page-tabs-nav .nav-link {
@@ -649,11 +662,18 @@
             display: none;
         }
         .section-content.active {
-            height: 100vh; /* إجبارها على أخذ طول الشاشة */
-    display: flex;
-    /* flex-direction: column; */
-    overflow: hidden;
-            /* display: block; */
+            display: flex;
+            flex-direction: column;
+            flex: 1;
+            min-height: 0;
+            overflow: hidden;
+        }
+        #future-whatssap_API .cls3741_container {
+            flex: 1;
+            min-height: 0;
+            display: flex;
+            width: 100%;
+            max-width: 100%;
         }
 
         .product-item {

@@ -1,4 +1,3 @@
-import json
 import logging
 import requests
 from django.conf import settings
@@ -13,6 +12,7 @@ def get_api_key():
     """Retrieve the OpenAI API key from Django settings or environment."""
     import os
     return getattr(settings, "OPENAI_API_KEY", None) or os.environ.get("OPENAI_API_KEY", "")
+
 
 def build_system_prompt(language_hint="auto"):
     """

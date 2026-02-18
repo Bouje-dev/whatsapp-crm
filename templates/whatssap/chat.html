@@ -233,6 +233,44 @@ font-weight: bold;
 
 /* ---------- keyframes (الدوّارة) ---------- */
 @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+
+/* ---------- Mobile responsive ---------- */
+@media (max-width: 768px) {
+  .cls9999_chat_col {
+    min-height: 100vh;
+    max-height: none;
+  }
+  .cls9999_chat_header {
+    padding: 10px 12px;
+    min-height: 48px;
+  }
+  .cls9999_active_name_title { font-size: 15px; }
+  .cls9999_active_lastseen { font-size: 12px; }
+  .cls9999_contact_avatar {
+    width: 36px;
+    height: 36px;
+    font-size: 14px;
+  }
+  .cls9999_messages_area {
+    padding: 12px 14px 100px;
+  }
+  .cls9999_msg_bubble {
+    max-width: 85%;
+    padding: 10px 14px;
+    font-size: 15px;
+  }
+  .cls9999_chat_input_wrapper {
+    padding: 10px 12px;
+    padding-bottom: max(10px, env(safe-area-inset-bottom));
+    position: sticky;
+    bottom: 0;
+    background: #f0f0f0;
+  }
+  .cls9999_chat_textarea {
+    font-size: 16px;
+    min-height: 22px;
+  }
+}
 </style>
 
 
