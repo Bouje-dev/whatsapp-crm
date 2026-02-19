@@ -2763,12 +2763,12 @@ window.resetFilters = function() {
       
       </div>
 
-      <!-- منطقة إدخال الرسائل والوسائط - تصميم مشابه للواتساب -->
-      <div class="cls3741_chat_input_wrapper">
+      
+      <div class="cls3741_chat_input_wrapper" role="region" aria-label="Message input">
    
-        <div class="cls3741_media_preview" id="cls3741_media_preview" style="min-height: 0; max-height: fit-content;"></div>
+        <div class="cls3741_media_preview cls3741_media_preview_phone" id="cls3741_media_preview" style="min-height: 0; max-height: fit-content;"></div>
 
-        <div id="slash_menu" class="cls3741_slash_menu" style="display: none;">
+        <div id="slash_menu" class="cls3741_slash_menu cls3741_slash_menu_phone" style="display: none;">
             <div class="slash_header">Quick Replies</div>
             <ul id="slash_list" class="slash_list">
                 </ul>
@@ -2778,7 +2778,7 @@ window.resetFilters = function() {
         <input type="hidden" id="canned_file_url" value="">
         <input type="hidden" id="canned_file_type" value="">
  
-        <div class="cls3741_input_container">
+        <div class="cls3741_input_container cls3741_input_container_phone">
             <div id="collision_alert_bar" class="cls3741_collision_bar" style="display: none;">
                 <div class="d-flex align-items-center gap-2">
                     <div class="pulse-icon"></div> <span id="collision_text"></span>
@@ -3501,6 +3501,130 @@ function sendCannedResponseDirectly(item) {
         <input type="file" id="cls3741_video_input" class="cls3741_hidden_input" accept="video/*">
         <input type="file" id="cls3741_audio_input" class="cls3741_hidden_input" accept="audio/*">
     </div>
+
+    <style>
+      /* ========== PHONE: Chat input redesign (max-width: 768px) ========== */
+      @media (max-width: 768px) {
+        .cls3741_chat_input_wrapper {
+          padding: 12px 14px !important;
+          padding-bottom: max(14px, env(safe-area-inset-bottom)) !important;
+          background: #0a0a0a !important;
+          border-top: 1px solid #1f2937 !important;
+          box-shadow: 0 -4px 20px rgba(0,0,0,0.2) !important;
+        }
+        .cls3741_input_container,
+        .cls3741_input_container_phone {
+          background: #151b26 !important;
+          border: 1px solid #1f2937 !important;
+          border-radius: 24px !important;
+          padding: 12px 14px !important;
+          gap: 12px !important;
+          box-shadow: inset 0 1px 2px rgba(0,0,0,0.2) !important;
+        }
+        .cls3741_input_send_row {
+          align-items: flex-end;
+          gap: 10px;
+        }
+        .cls3741_input_row .cls3741_chat_textarea {
+          font-size: 16px !important;
+          min-height: 26px !important;
+          padding: 10px 0 !important;
+          color: #f3f4f6 !important;
+          background: transparent !important;
+        }
+        .cls3741_input_row .cls3741_chat_textarea::placeholder {
+          color: #6b7280 !important;
+        }
+        .cls3741_send_record_slot .cls3741_mobile_record_btn {
+          min-width: 48px !important;
+          min-height: 48px !important;
+          padding: 0 !important;
+          border-radius: 50% !important;
+          background: rgba(255,255,255,0.08) !important;
+          color: #9ca3af !important;
+        }
+        .cls3741_send_record_slot .cls3741_mobile_record_btn:hover {
+          background: rgba(255,255,255,0.12) !important;
+          color: #f3f4f6 !important;
+        }
+        .cls3741_send_record_slot .cls3741_send_button {
+          min-width: 48px !important;
+          min-height: 48px !important;
+          padding: 10px 18px !important;
+          border-radius: 24px !important;
+          font-size: 15px !important;
+          font-weight: 600 !important;
+        }
+        .cls3741_send_record_slot.has-text .cls3741_send_group .cls3741_send_button:not([disabled]) {
+          background: #10b981 !important;
+          color: #fff !important;
+          box-shadow: 0 2px 12px rgba(16,185,129,0.4) !important;
+        }
+        .cls3741_tools_more_btn {
+          min-width: 48px !important;
+          min-height: 48px !important;
+          padding: 10px 16px !important;
+          border-radius: 24px !important;
+          background: rgba(255,255,255,0.06) !important;
+          border: 1px solid #374151 !important;
+          color: #9ca3af !important;
+          font-size: 14px !important;
+        }
+        .cls3741_tools_more_btn:hover {
+          background: rgba(255,255,255,0.1) !important;
+          color: #f3f4f6 !important;
+        }
+        .cls3741_tools_expanded {
+          padding-top: 12px !important;
+          margin-top: 10px !important;
+          border-top: 1px solid #1f2937 !important;
+          gap: 10px !important;
+        }
+        .cls3741_tools_group .cls3741_tool_btn,
+        .cls3741_tools_group .cls3741_icon_btn {
+          min-width: 44px !important;
+          min-height: 44px !important;
+          padding: 10px !important;
+          border-radius: 12px !important;
+          color: #9ca3af !important;
+          background: transparent !important;
+        }
+        .cls3741_tools_group .cls3741_tool_btn:hover,
+        .cls3741_tools_group .cls3741_icon_btn:hover {
+          background: rgba(255,255,255,0.08) !important;
+          color: #f3f4f6 !important;
+        }
+        .cls3741_media_preview_phone {
+          padding: 0 0 10px !important;
+          max-height: 110px !important;
+          overflow-y: auto !important;
+        }
+        .cls3741_slash_menu_phone {
+          border-radius: 14px !important;
+          margin-bottom: 10px !important;
+          max-height: 220px !important;
+          box-shadow: 0 6px 24px rgba(0,0,0,0.25) !important;
+        }
+        .cls3741_note_overlay {
+          border-radius: 16px !important;
+          overflow: hidden !important;
+        }
+      }
+      @media (max-width: 480px) {
+        .cls3741_chat_input_wrapper { padding: 10px 12px !important; }
+        .cls3741_input_container,
+        .cls3741_input_container_phone {
+          padding: 10px 12px !important;
+          border-radius: 20px !important;
+        }
+        .cls3741_send_record_slot .cls3741_mobile_record_btn,
+        .cls3741_send_record_slot .cls3741_send_button {
+          min-width: 44px !important;
+          min-height: 44px !important;
+        }
+        .cls3741_tools_more_btn { min-width: 44px !important; min-height: 44px !important; }
+      }
+    </style>
     
     <style>
       /* --- CSS الجديد النظيف والمطابق للصورة --- */

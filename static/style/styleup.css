@@ -2975,67 +2975,150 @@ position: relative;
         padding: 8px 12px;
       }
       /* Chat input: wrap tools on small screens */
+      /* ─── Phone: professional chat input redesign ─── */
       .cls3741_chat_input_wrapper {
-        padding: 8px 10px;
-        padding-bottom: max(8px, env(safe-area-inset-bottom));
+        padding: 10px 12px;
+        padding-bottom: max(12px, env(safe-area-inset-bottom));
+        background: var(--bg-primary);
+        border-top: 1px solid var(--border-color);
+        box-shadow: 0 -2px 12px rgba(0,0,0,0.06);
       }
-      .cls3741_input_container {
-        padding: 8px 10px;
+      .cls3741_input_container,
+      .cls3741_input_container_phone {
+        padding: 10px 12px;
         min-width: 0;
+        border-radius: 20px;
+        background: var(--bg-tertiary);
+        border: 1px solid var(--border-color);
+        box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+        gap: 10px;
       }
       .cls3741_actions_row {
         flex-wrap: wrap;
         gap: 6px;
       }
-      /* Mobile: one row = input + send/record */
+      /* One row: input + send/record */
       .cls3741_input_send_row {
         flex-direction: row;
         align-items: flex-end;
-        gap: 6px;
+        gap: 8px;
+      }
+      .cls3741_input_row .cls3741_chat_textarea {
+        font-size: 16px;
+        min-height: 24px;
+        padding: 10px 0;
+        line-height: 1.4;
+      }
+      .cls3741_send_record_slot {
+        gap: 0;
+        align-items: center;
+      }
+      .cls3741_send_record_slot .cls3741_mobile_record_btn {
+        min-width: 44px;
+        min-height: 44px;
+        padding: 10px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: transparent;
+        color: var(--text-secondary);
+        transition: color 0.2s, background 0.2s;
+      }
+      .cls3741_send_record_slot .cls3741_mobile_record_btn:hover {
+        color: var(--text-primary);
+        background: var(--bg-hover);
       }
       .cls3741_send_record_slot .cls3741_send_button {
         min-width: 44px;
         min-height: 44px;
-        padding: 8px 14px;
+        padding: 10px 16px;
+        border-radius: 22px;
+        font-size: 14px;
+        font-weight: 600;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 6px;
       }
-      /* Mobile: tools under one "More" button */
+      .cls3741_send_record_slot.has-text .cls3741_send_group .cls3741_send_button:not([disabled]) {
+        box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+      }
+      /* More button: pill style */
       .cls3741_tools_more_btn {
         display: flex !important;
+        min-width: 44px;
+        min-height: 44px;
+        padding: 10px 14px;
+        border-radius: 22px;
+        background: transparent;
+        border: 1px solid var(--border-color);
+        color: var(--text-secondary);
+        font-weight: 500;
+        font-size: 13px;
+      }
+      .cls3741_tools_more_btn:hover {
+        background: var(--bg-hover);
+        color: var(--text-primary);
+        border-color: var(--border-light);
       }
       .cls3741_tools_expanded {
         display: none !important;
         width: 100%;
         flex-wrap: wrap;
-        gap: 8px;
-        padding: 8px 0 0;
+        gap: 10px;
+        padding: 12px 0 0;
         border-top: 1px solid var(--border-color);
-        margin-top: 6px;
+        margin-top: 8px;
       }
       .cls3741_tools_group.is-open .cls3741_tools_expanded {
         display: flex !important;
       }
       .cls3741_tools_group {
         flex-wrap: wrap;
-        gap: 4px;
+        gap: 6px;
         min-width: 0;
       }
-      .cls3741_tool_btn,
-      .cls3741_icon_btn {
-        min-width: 40px;
-        min-height: 40px;
+      .cls3741_tools_group .cls3741_tool_btn,
+      .cls3741_tools_group .cls3741_icon_btn {
+        min-width: 44px;
+        min-height: 44px;
+        padding: 10px;
+        border-radius: 12px;
+        color: var(--text-secondary);
+      }
+      .cls3741_tools_group .cls3741_tool_btn:hover,
+      .cls3741_tools_group .cls3741_icon_btn:hover {
+        background: var(--bg-hover);
+        color: var(--text-primary);
       }
       .cls3741_send_button {
         min-width: 44px;
-        min-height: 40px;
+        min-height: 44px;
       }
       .cls3741_note_overlay,
       #collision_alert_bar.cls3741_collision_bar {
         max-width: 100%;
+        border-radius: 16px;
+      }
+      .cls3741_media_preview_phone {
+        padding: 0 0 8px;
+        max-height: 120px;
+        overflow-y: auto;
+      }
+      .cls3741_slash_menu_phone {
+        border-radius: 12px;
+        margin-bottom: 8px;
+        max-height: 200px;
+        overflow-y: auto;
+        box-shadow: 0 4px 20px rgba(0,0,0,0.12);
       }
       .ai-assist-panel,
       .emoji-picker-panel {
         width: min(380px, calc(100vw - 24px));
         max-width: calc(100vw - 24px);
+        border-radius: 16px;
+        box-shadow: 0 8px 32px rgba(0,0,0,0.15);
       }
       .emoji-picker-panel {
         width: min(320px, calc(100vw - 24px));
@@ -3071,11 +3154,19 @@ position: relative;
       .cls3741_filter_buttons { padding: 6px 10px; }
       .cls3741_contact_item { padding: 10px 8px; min-height: 52px; }
       .cls3741_chat_header { padding: 6px 10px 6px 6px; }
-      .cls3741_chat_input_wrapper { padding: 6px 8px; padding-bottom: max(6px, env(safe-area-inset-bottom)); }
-      .cls3741_input_container { padding: 6px 8px; }
+      .cls3741_chat_input_wrapper { padding: 8px 10px; padding-bottom: max(10px, env(safe-area-inset-bottom)); }
+      .cls3741_input_container,
+      .cls3741_input_container_phone { padding: 8px 10px; border-radius: 18px; gap: 8px; }
+      .cls3741_input_row .cls3741_chat_textarea { min-height: 22px; padding: 8px 0; }
+      .cls3741_send_record_slot .cls3741_mobile_record_btn,
+      .cls3741_send_record_slot .cls3741_send_button { min-width: 42px; min-height: 42px; padding: 8px; }
+      .cls3741_tools_more_btn { min-width: 42px; min-height: 42px; padding: 8px 12px; font-size: 12px; }
+      .cls3741_tools_group .cls3741_tool_btn,
+      .cls3741_tools_group .cls3741_icon_btn { min-width: 42px; min-height: 42px; padding: 8px; }
       .cls3741_tool_btn .cls3741_btn_label { display: none; }
       .cls3741_msg_bubble { max-width: 90%; padding: 8px 12px; font-size: 14px; }
       .cls3741_messages_area { padding: 10px 12px 80px; }
+      .cls3741_media_preview_phone { max-height: 100px; }
     }
 
     /* 🔥 CSS للمشغل الصوتي البسيط والأنيق */
