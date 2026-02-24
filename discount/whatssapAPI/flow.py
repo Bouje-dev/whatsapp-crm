@@ -67,13 +67,69 @@ def serialize_flow(obj):
             content_data['mediaType'] = getattr(n, 'media_type', 'image')
             content_data['delay'] = getattr(n, 'delay', 0)
 
-        # --- 4. أي عقد أخرى (أزرار، تأخير، إلخ) ---
-        # نقوم بمحاولة استرجاع أي بيانات أخرى مخزنة كنص (إذا كنت تخزن JSON داخل النص)
-        # أو نعتمد على الحقول المباشرة
+        # --- 4. AI Agent ---
+        elif n.node_type == 'ai-agent':
+            content_data['product_context'] = getattr(n, 'product_context', '') or ''
+            content_data['context_source'] = getattr(n, 'context_source', 'MANUAL') or 'MANUAL'
+            content_data['voice_enabled'] = getattr(n, 'voice_enabled', False)
+            ac = getattr(n, 'ai_model_config', None) or {}
+            content_data['ai_model_config'] = ac
+            content_data['product_id'] = ac.get('product_id')
+            content_data['delay'] = getattr(n, 'delay', 0)
+            content_data['response_mode'] = getattr(n, 'response_mode', None) or 'TEXT_ONLY'
+            content_data['node_voice_id'] = getattr(n, 'node_voice_id', None) or ''
+            content_data['node_language'] = getattr(n, 'node_language', None) or ''
+            content_data['node_gender'] = getattr(n, 'node_gender', None) or ''
+            content_data['persona_id'] = getattr(n, 'persona_id', None)
+            content_data['voice_stability'] = getattr(n, 'voice_stability', None)
+            content_data['voice_similarity'] = getattr(n, 'voice_similarity', None)
+            content_data['voice_speed'] = getattr(n, 'voice_speed', None)
+            media_list = []
+            try:
+                for m in getattr(n, 'media_assets', []).all():
+                    media_list.append({
+                        'id': m.id,
+                        'file_path': m.file.name if m.file else None,
+                        'file_url': m.file.url if m.file else None,
+                        'file_type': m.file_type or 'Image',
+                        'description': m.description or '',
+                    })
+            except Exception:
+                pass
+            content_data['media'] = media_list
+
+        # --- 5. Follow-up node ---
+        elif n.node_type == 'follow-up':
+            try:
+                fu = getattr(n, 'follow_up_config', None)
+                if fu:
+                    content_data['delay_hours'] = getattr(fu, 'delay_hours', 6)
+                    content_data['response_type'] = getattr(fu, 'response_type', 'TEXT') or 'TEXT'
+                    content_data['ai_personalized'] = getattr(fu, 'ai_personalized', False)
+                    content_data['caption'] = (getattr(fu, 'caption', None) or '') or ''
+                    content_data['file_url'] = fu.file_attachment.url if fu.file_attachment else ''
+                    content_data['file_path'] = fu.file_attachment.name if fu.file_attachment else ''
+                else:
+                    content_data['delay_hours'] = 6
+                    content_data['response_type'] = 'TEXT'
+                    content_data['ai_personalized'] = False
+                    content_data['caption'] = ''
+                    content_data['file_url'] = ''
+                    content_data['file_path'] = ''
+            except Exception:
+                content_data['delay_hours'] = 6
+                content_data['response_type'] = 'TEXT'
+                content_data['ai_personalized'] = False
+                content_data['caption'] = ''
+
+        # --- 5b. Google Sheets node ---
+        elif n.node_type == 'google-sheets':
+            content_data['label'] = (n.content_text or '').strip() or 'Export to Google Sheets'
+
+        # --- 6. أي عقد أخرى (أزرار، تأخير، إلخ) ---
         else:
             content_data['text'] = n.content_text
             content_data['delay'] = getattr(n, 'delay', 0)
-            # أضف هنا أي حقول أخرى حسب الـ Model الخاص بك
 
         # تجميع العقدة
         nodes.append({
@@ -302,6 +358,63 @@ def process_flow_for_message(flow, message_text, phone, media_type=None):
                         'type': 'delay',
                         'duration': delay
                     })
+
+            elif node_type == 'ai-agent':
+                # AI Agent: Elite Sales Consultant prompt + product context + trust_score (JSON flow path)
+                content = current_node.get('content', {}) or {}
+                product_context = content.get('product_context', '').strip() or None
+                try:
+                    from ai_assistant.services import generate_reply_with_tools
+                    from discount.orders_ai import (
+                        extract_order_data_from_reply,
+                        save_order_from_ai,
+                        should_accept_order_data,
+                        get_trust_score,
+                        increment_trust_score,
+                        reset_trust_score,
+                    )
+                    from discount.whatssapAPI.process_messages import format_order_confirmation
+                    from django.db import transaction as db_transaction
+                    conversation = [{"role": "customer", "body": message_text or ""}]
+                    trust_score = get_trust_score(flow.channel_id, phone) if flow.channel_id else 0
+                    result = generate_reply_with_tools(
+                        conversation,
+                        custom_instruction=None,
+                        product_context=product_context,
+                        trust_score=trust_score,
+                    )
+                    reply_text = (result.get("reply") or "").strip()
+                    current_stage = result.get("stage")
+                    order_was_saved = False
+                    saved_order = None
+                    if reply_text:
+                        reply_text, order_data = extract_order_data_from_reply(reply_text)
+                        if order_data and flow.channel_id and should_accept_order_data(conversation, order_data, current_stage=current_stage, trust_score=trust_score):
+                            with db_transaction.atomic():
+                                saved_order = save_order_from_ai(
+                                    flow.channel,
+                                    customer_phone=phone,
+                                    customer_name=order_data.get("name"),
+                                    customer_city=order_data.get("city") or order_data.get("address"),
+                                    sku=order_data.get("sku") or None,
+                                    product_name=order_data.get("product_name") or None,
+                                    agent_name="AI Agent",
+                                    bot_session_id=f"{getattr(flow.channel, 'id', '')}:{phone}"[:100] if flow.channel else None,
+                                )
+                            if saved_order:
+                                order_was_saved = True
+                    if order_was_saved and saved_order:
+                        reply_text = format_order_confirmation(saved_order)
+                    if flow.channel_id:
+                        if order_was_saved:
+                            reset_trust_score(flow.channel_id, phone)
+                        else:
+                            increment_trust_score(flow.channel_id, phone)
+                except Exception as e:
+                    print(f"❌ AI_AGENT node failed: {e}")
+                    reply_text = None
+                if reply_text:
+                    responses.append({'type': 'text', 'content': reply_text, 'delay': content.get('delay', 0)})
                 
             else:
                 print(f"ℹ️ Unknown node type: {node_type}")
@@ -943,7 +1056,7 @@ def autobot_save_flow(request):
                 flow_obj.name = name
                 flow_obj.description = description
                 flow_obj.trigger_keywords = trigger_keywords
-                flow_obj.flow_data = flow_data
+                flow_obj.config = flow_data
                 flow_obj.updated_at = timezone.now()
                 flow_obj.save()
                 
@@ -954,7 +1067,7 @@ def autobot_save_flow(request):
                     name=name,
                     description=description,
                     trigger_keywords=trigger_keywords,
-                    flow_data=flow_data
+                    config=flow_data
                 )
                 print(f"✅ تم إنشاء تدفق جديد: {flow_obj.id}")
 
@@ -1308,7 +1421,7 @@ def api_update_flow(request, pk):
     if name is not None:
         f.name = name
     if config is not None:
-        f.flow_data = json.dumps(config, ensure_ascii=False)
+        f.config = config if isinstance(config, dict) else {}
     if active is not None:
         f.active = bool(active)
     f.updated_at = timezone.now()
@@ -1729,7 +1842,7 @@ def api_update_flows(request, pk):
                     # إذا كان بداية محادثة: فعل الخيار وفرغ الكلمات
                     flow.trigger_on_start = True
                     flow.trigger_keywords = ""
-                    clean_text = "" 
+                    clean_text = ""
                 else:
                     # إذا كان كلمات مفتاحية
                     flow.trigger_on_start = False
@@ -1737,8 +1850,18 @@ def api_update_flows(request, pk):
                     clean_text = raw_keywords
                 # ---------------------------
 
+            elif ntype == "ai-agent":
+                clean_text = content.get("product_context", "") or ""
+                # voice_enabled, context_source, ai_model_config stored below
+            elif ntype == "follow-up":
+                clean_text = content.get("caption", "") or ""
+                clean_delay = 0
+            elif ntype == "google-sheets":
+                clean_text = content.get("label", "Export to Google Sheets") or "Export to Google Sheets"
+                clean_delay = 0
+
             # إنشاء كائن العقدة
-            new_node = Node.objects.create(
+            create_kw = dict(
                 flow=flow,
                 node_id=nid,
                 node_type=ntype,
@@ -1747,10 +1870,91 @@ def api_update_flows(request, pk):
                 delay=clean_delay,
                 position_x=position.get("x", 0),
                 position_y=position.get("y", 0),
-                media_type=media_type_val, # استخدام المتغير المهيأ
-                updated_at=timezone.now()
+                media_type=media_type_val,
+                updated_at=timezone.now(),
             )
+            if ntype == "ai-agent":
+                create_kw["product_context"] = content.get("product_context", "") or clean_text
+                create_kw["context_source"] = content.get("context_source", "MANUAL") or "MANUAL"
+                create_kw["voice_enabled"] = bool(content.get("voice_enabled", False))
+                ai_cfg = content.get("ai_model_config") if isinstance(content.get("ai_model_config"), dict) else {}
+                if not isinstance(ai_cfg, dict):
+                    ai_cfg = {}
+                pid = content.get("product_id")
+                try:
+                    ai_cfg["product_id"] = int(pid) if pid is not None and str(pid).strip() else None
+                except (TypeError, ValueError):
+                    ai_cfg["product_id"] = None
+                create_kw["ai_model_config"] = ai_cfg
+                create_kw["response_mode"] = content.get("response_mode") or "TEXT_ONLY"
+                create_kw["node_voice_id"] = (content.get("node_voice_id") or "").strip() or None
+                create_kw["node_language"] = (content.get("node_language") or "").strip() or None
+                create_kw["node_gender"] = (content.get("node_gender") or "").strip() or None
+                pid = content.get("persona_id")
+                try:
+                    create_kw["persona_id"] = int(pid) if pid is not None and int(pid) > 0 else None
+                except (TypeError, ValueError):
+                    create_kw["persona_id"] = None
+                vs = content.get("voice_stability")
+                create_kw["voice_stability"] = float(vs) if vs is not None and str(vs).replace(".", "").replace("-", "").isdigit() else None
+                vsim = content.get("voice_similarity")
+                create_kw["voice_similarity"] = float(vsim) if vsim is not None and str(vsim).replace(".", "").replace("-", "").isdigit() else None
+                vsp = content.get("voice_speed")
+                create_kw["voice_speed"] = float(vsp) if vsp is not None and str(vsp).replace(".", "").replace("-", "").isdigit() else None
+            new_node = Node.objects.create(**create_kw)
             node_map[nid] = new_node
+
+            if ntype == "follow-up":
+                from discount.models import FollowUpNode
+                delay_hours = content.get("delay_hours")
+                try:
+                    delay_hours = int(delay_hours) if delay_hours is not None else 6
+                except (TypeError, ValueError):
+                    delay_hours = 6
+                response_type = (content.get("response_type") or "TEXT").strip().upper()
+                if response_type not in ("TEXT", "AUDIO", "IMAGE", "VIDEO"):
+                    response_type = "TEXT"
+                ai_personalized = bool(content.get("ai_personalized", False))
+                caption = (content.get("caption") or "").strip()
+                FollowUpNode.objects.update_or_create(
+                    node=new_node,
+                    defaults={
+                        "delay_hours": delay_hours,
+                        "response_type": response_type,
+                        "ai_personalized": ai_personalized,
+                        "caption": caption,
+                    },
+                )
+
+            if ntype == "google-sheets":
+                from discount.models import GoogleSheetsConfig, GoogleSheetsNode
+                gs_config = None
+                try:
+                    cfg = GoogleSheetsConfig.objects.filter(user=flow.user).first() if getattr(flow, "user", None) else None
+                    if cfg:
+                        gs_config = cfg
+                except Exception:
+                    pass
+                GoogleSheetsNode.objects.update_or_create(
+                    node=new_node,
+                    defaults={"config": gs_config},
+                )
+
+            if ntype == "ai-agent":
+                from discount.models import NodeMedia
+                for m in content.get("media") or []:
+                    fp = m.get("file_path") or m.get("file")
+                    if not fp:
+                        continue
+                    file_type = m.get("file_type") or "Image"
+                    if file_type not in ("Image", "Video"):
+                        file_type = "Image"
+                    NodeMedia.objects.create(
+                        node=new_node,
+                        file=fp,
+                        file_type=file_type,
+                        description=(m.get("description") or "")[:255],
+                    )
 
             # تعيين عقدة البداية
             if ntype == "trigger":
@@ -1804,6 +2008,52 @@ def api_update_flows(request, pk):
     return JsonResponse({"success": True, "status": "updated", "item": serialize_flow(flow)})
 
 
+@csrf_exempt
+@require_http_methods(["POST"])
+def api_upload_flow_node_media(request):
+    """Upload a media file for an AI Agent node. Returns file_path and file_url for inclusion in flow save payload."""
+    import uuid
+    from django.core.files.storage import default_storage
+    try:
+        flow_id = request.POST.get("flow_id")
+        node_id = (request.POST.get("node_id") or "").strip()
+        file_type = (request.POST.get("file_type") or "Image").strip()
+        if file_type not in ("Image", "Video"):
+            file_type = "Image"
+        description = (request.POST.get("description") or "")[:255]
+        file_obj = request.FILES.get("file")
+        if not file_obj or not flow_id or not node_id:
+            return JsonResponse({"error": "flow_id, node_id, and file are required"}, status=400)
+        ext = os.path.splitext(getattr(file_obj, "name", "file"))[1] or (".jpg" if file_type == "Image" else ".mp4")
+        safe_id = re.sub(r"[^a-zA-Z0-9_-]", "", node_id)[:80]
+        path = f"flow_node_media/{flow_id}/{safe_id}/{uuid.uuid4().hex}{ext}"
+        default_storage.save(path, file_obj)
+        try:
+            url = default_storage.url(path)
+        except Exception:
+            url = path
+        return JsonResponse({"file_path": path, "file_url": url, "file_type": file_type, "description": description})
+    except Exception as e:
+        import logging
+        logging.getLogger(__name__).exception("api_upload_flow_node_media: %s", e)
+        return JsonResponse({"error": str(e)}, status=500)
+
+
+@csrf_exempt
+@require_http_methods(["POST"])
+def api_scrape_product_url(request):
+    """POST url=... Returns structured product data for AI Agent node (product_context, product_name, prices, market, additional)."""
+    try:
+        url = (request.POST.get("url") or request.body.decode("utf-8") or "").strip()
+        if not url:
+            return JsonResponse({"error": "url required"}, status=400)
+        from discount.whatssapAPI.flow_utils import scrape_and_extract_product
+        data = scrape_and_extract_product(url)
+        return JsonResponse(data)
+    except Exception as e:
+        import logging
+        logging.getLogger(__name__).exception("api_scrape_product_url: %s", e)
+        return JsonResponse({"error": str(e), "product_context": "", "product_name": "", "prices": "", "market": "", "additional": ""}, status=500)
 
 
 def api_off_flows(request, pk):
@@ -1823,8 +2073,333 @@ def api_off_flows(request, pk):
         return JsonResponse({"success": True, "status": "deactivated", "item": serialize_flow(flow)})
 
 
+# ---------------------
+# Persona Gallery (Flow Builder AI Node)
+# ---------------------
+from django.contrib.auth.decorators import login_required
+from django.views.decorators.http import require_http_methods
+from django.core.cache import cache
 
 
+def _get_channel_for_user(request, channel_id):
+    """Return WhatsAppChannel if request.user can access it, else None."""
+    if not channel_id or not request.user.is_authenticated:
+        return None
+    try:
+        ch = WhatsAppChannel.objects.get(id=channel_id)
+        if request.user == ch.owner or request.user.is_team_admin or request.user.is_superuser:
+            return ch
+    except WhatsAppChannel.DoesNotExist:
+        pass
+    return None
+
+
+@login_required
+@require_http_methods(["GET"])
+def api_list_personas(request):
+    """
+    GET ?channel_id= optional.
+    Returns standard_agents (system personas user can use), my_voices (cloned), can_use_premium.
+    Basic: only standard-tier system personas. Premium: standard + premium system + own cloned.
+    """
+    from discount.models import VoicePersona
+    from discount.services.security_check import FEATURE_PERSONA_GALLERY, FEATURE_VOICE_CLONING
+
+    user = request.user
+    can_premium = getattr(user, "is_feature_allowed", None) and user.is_feature_allowed(FEATURE_PERSONA_GALLERY)
+    can_cloned = getattr(user, "is_feature_allowed", None) and user.is_feature_allowed(FEATURE_VOICE_CLONING)
+
+    cache_key_std = f"personas_standard_{user.id}"
+    cache_key_my = f"personas_my_{user.id}"
+    standard = cache.get(cache_key_std)
+    my_voices = cache.get(cache_key_my)
+    if standard is None:
+        # System personas: standard tier for all; premium tier only if can_premium
+        qs = VoicePersona.objects.filter(is_system=True, owner__isnull=True).order_by("tier", "name")
+        standard = []
+        for p in qs:
+            if p.tier == VoicePersona.TIER_STANDARD:
+                standard.append({
+                    "id": p.id,
+                    "name": p.name,
+                    "description": p.description or "",
+                    "voice_id": p.voice_id,
+                    "provider": getattr(p, "provider", None) or "ELEVENLABS",
+                    "language_code": p.language_code,
+                    "behavioral_instructions": (p.behavioral_instructions or "")[:500],
+                    "tier": p.tier,
+                })
+            elif p.tier == VoicePersona.TIER_PREMIUM and can_premium:
+                standard.append({
+                    "id": p.id,
+                    "name": p.name,
+                    "description": p.description or "",
+                    "voice_id": p.voice_id,
+                    "provider": getattr(p, "provider", None) or "ELEVENLABS",
+                    "language_code": p.language_code,
+                    "behavioral_instructions": (p.behavioral_instructions or "")[:500],
+                    "tier": p.tier,
+                })
+        cache.set(cache_key_std, standard, timeout=300)
+    if my_voices is None:
+        my_voices = []
+        if can_cloned:
+            for p in VoicePersona.objects.filter(owner=user).order_by("name"):
+                my_voices.append({
+                    "id": p.id,
+                    "name": p.name,
+                    "description": p.description or "",
+                    "voice_id": p.voice_id,
+                    "provider": getattr(p, "provider", None) or "ELEVENLABS",
+                    "language_code": p.language_code,
+                    "behavioral_instructions": (p.behavioral_instructions or "")[:500],
+                    "tier": "cloned",
+                })
+        cache.set(cache_key_my, my_voices, timeout=120)
+    return JsonResponse({
+        "success": True,
+        "standard_agents": standard,
+        "my_voices": my_voices,
+        "can_use_premium": can_premium,
+    })
+
+
+@login_required
+@require_http_methods(["POST"])
+def api_preview_voice(request):
+    """
+    POST persona_id, channel_id, text (optional).
+    Returns audio/mpeg (MP3) for both ELEVENLABS and OPENAI personas. Temp file deleted after serving.
+    """
+    from discount.models import VoicePersona
+    from discount.whatssapAPI.voice_engine import generate_audio_file
+
+    persona_id = request.POST.get("persona_id")
+    channel_id = request.POST.get("channel_id")
+    text = (request.POST.get("text") or "مرحباً، أنا مساعدك الذكي.").strip()[:500]
+    if not persona_id:
+        return JsonResponse({"status": "error", "message": "persona_id required"}, status=400)
+    channel = _get_channel_for_user(request, channel_id)
+    if not channel:
+        return JsonResponse({"status": "error", "message": "Channel not found"}, status=404)
+    try:
+        persona = VoicePersona.objects.get(id=persona_id)
+    except VoicePersona.DoesNotExist:
+        return JsonResponse({"status": "error", "message": "Persona not found"}, status=404)
+    # Security: only system or own cloned
+    if persona.owner_id and persona.owner_id != request.user.id:
+        return JsonResponse({"status": "error", "message": "Not your persona"}, status=403)
+    provider = (getattr(persona, "provider", None) or "ELEVENLABS").strip().upper()
+    api_key = (getattr(channel, "elevenlabs_api_key", None) or "").strip() or os.environ.get("ELEVENLABS_API_KEY", "").strip()
+    if provider == "ELEVENLABS" and not api_key:
+        return JsonResponse({"status": "error", "message": "ElevenLabs API key not set for this channel"}, status=400)
+    # Unified MP3 via generate_audio_file (ELEVENLABS → eleven_multilingual_v2; OPENAI → tts-1 + voice_id)
+    preview_settings = type("PreviewSettings", (), {
+        "voice_provider": provider,
+        "ai_voice_provider": provider,
+        "selected_voice_id": (getattr(persona, "voice_id", None) or "").strip(),
+        "voice_stability": 0.5,
+        "voice_similarity": 0.75,
+        "voice_speed": 1.0,
+        "elevenlabs_api_key": api_key if provider == "ELEVENLABS" else "",
+    })()
+    path = generate_audio_file(text, preview_settings)
+    if not path or not os.path.exists(path):
+        return JsonResponse({"status": "error", "message": "Could not generate sample"}, status=502)
+    try:
+        with open(path, "rb") as f:
+            content = f.read()
+        from django.http import HttpResponse
+        resp = HttpResponse(content, content_type="audio/mpeg")
+        resp["Content-Disposition"] = 'inline; filename="persona_preview.mp3"'
+        return resp
+    finally:
+        try:
+            os.remove(path)
+        except OSError:
+            pass
+
+
+# ---------------------
+# Google Sheets integration: Global Service Account + per-user spreadsheet_id/sheet/mapping
+# ---------------------
+@csrf_exempt
+@require_http_methods(["GET", "PUT", "POST"])
+def api_google_sheets_config(request):
+    """
+    GET: Return current user's config + service_account_email (from Global JSON only; never expose full credentials).
+    PUT/POST: Update config. Body: spreadsheet_id?, sheet_name?, column_mapping?.
+             Optional service_account_json for backward compat when global creds not set.
+    """
+    from django.contrib.auth.decorators import login_required
+    from discount.models import GoogleSheetsConfig
+    from discount.crypto import encrypt_token
+    from discount.services.google_sheets_service import get_global_service_account_email, get_global_client
+    if not getattr(request, "user", None) or not request.user.is_authenticated:
+        return JsonResponse({"error": "Authentication required"}, status=401)
+    user = request.user
+    if request.method == "GET":
+        cfg = GoogleSheetsConfig.objects.filter(user=user).first()
+        # Service account email: from service, then settings, then per-user encrypted JSON
+        service_account_email = get_global_service_account_email()
+        if not service_account_email:
+            try:
+                from django.conf import settings as django_settings
+                service_account_email = (getattr(django_settings, "GOOGLE_SHEETS_SERVICE_ACCOUNT_EMAIL", None) or "").strip()
+            except Exception:
+                pass
+        if not service_account_email and cfg and cfg.service_account_json_encrypted:
+            try:
+                from discount.crypto import decrypt_token
+                raw = decrypt_token(cfg.service_account_json_encrypted)
+                info = json.loads(raw)
+                service_account_email = (info.get("client_email") or "").strip()
+            except Exception:
+                pass
+        # Always return a string for frontend (never null)
+        service_account_email = (service_account_email or "").strip()
+        has_global = bool(get_global_client())
+        configured = bool(
+            (has_global and cfg and (cfg.spreadsheet_id or "").strip())
+            or (cfg and cfg.service_account_json_encrypted)
+        )
+        from discount.services.google_sheets_service import SHEETS_MAPPING_AVAILABLE_FIELDS
+        available_fields = SHEETS_MAPPING_AVAILABLE_FIELDS
+        if not cfg:
+            return JsonResponse({
+                "spreadsheet_id": "",
+                "sheet_name": "Orders",
+                "column_mapping": {},
+                "sheets_mapping": [],
+                "available_fields": available_fields,
+                "configured": False,
+                "service_account_email": service_account_email,
+            })
+        return JsonResponse({
+            "spreadsheet_id": (cfg.spreadsheet_id or ""),
+            "sheet_name": (cfg.sheet_name or "Orders"),
+            "column_mapping": cfg.column_mapping if isinstance(cfg.column_mapping, dict) else {},
+            "sheets_mapping": cfg.sheets_mapping if isinstance(cfg.sheets_mapping, list) else [],
+            "available_fields": available_fields,
+            "configured": configured,
+            "service_account_email": service_account_email,
+        })
+    # PUT or POST: update config
+    try:
+        if request.content_type and "application/json" in request.content_type:
+            data = json.loads(request.body.decode("utf-8") or "{}")
+        else:
+            data = request.POST.dict()
+    except Exception:
+        return JsonResponse({"error": "Invalid JSON"}, status=400)
+    cfg, _ = GoogleSheetsConfig.objects.get_or_create(user=user, defaults={"spreadsheet_id": "", "sheet_name": "Orders"})
+    if "spreadsheet_id" in data:
+        cfg.spreadsheet_id = (data.get("spreadsheet_id") or "").strip()
+    if "sheet_name" in data:
+        cfg.sheet_name = (data.get("sheet_name") or "Orders").strip() or "Orders"
+    if "column_mapping" in data:
+        cm = data.get("column_mapping")
+        cfg.column_mapping = cm if isinstance(cm, dict) else {}
+    if "sheets_mapping" in data:
+        sm = data.get("sheets_mapping")
+        cfg.sheets_mapping = sm if isinstance(sm, list) else []
+    if "service_account_json" in data:
+        raw = data.get("service_account_json")
+        if raw is None or raw == "":
+            cfg.service_account_json_encrypted = None
+        else:
+            try:
+                if isinstance(raw, dict):
+                    raw = json.dumps(raw)
+                elif not isinstance(raw, str):
+                    raw = str(raw)
+                cfg.service_account_json_encrypted = encrypt_token(raw)
+            except Exception as e:
+                return JsonResponse({"error": "Failed to encrypt credentials: " + str(e)}, status=400)
+    cfg.updated_at = timezone.now()
+    cfg.save()
+    return JsonResponse({
+        "success": True,
+        "spreadsheet_id": (cfg.spreadsheet_id or ""),
+        "sheet_name": (cfg.sheet_name or "Orders"),
+        "column_mapping": cfg.column_mapping,
+        "sheets_mapping": cfg.sheets_mapping if isinstance(cfg.sheets_mapping, list) else [],
+        "configured": bool(cfg.service_account_json_encrypted),
+    })
+
+
+@csrf_exempt
+@require_http_methods(["GET"])
+def api_google_sheets_service_email(request):
+    """
+    GET: Return the Service Account client_email only (from Global JSON; never expose credentials).
+         Used so the merchant can share their sheet with this email.
+    """
+    if not getattr(request, "user", None) or not request.user.is_authenticated:
+        return JsonResponse({"error": "Authentication required"}, status=401)
+    from discount.services.google_sheets_service import get_global_service_account_email, get_global_client
+    email = get_global_service_account_email()
+    if not email:
+        try:
+            from django.conf import settings as django_settings
+            email = (getattr(django_settings, "GOOGLE_SHEETS_SERVICE_ACCOUNT_EMAIL", None) or "").strip()
+        except Exception:
+            pass
+    if not email:
+        from discount.models import GoogleSheetsConfig
+        from discount.crypto import decrypt_token
+        cfg = GoogleSheetsConfig.objects.filter(user=request.user).first()
+        if cfg and cfg.service_account_json_encrypted:
+            try:
+                raw = decrypt_token(cfg.service_account_json_encrypted)
+                info = json.loads(raw)
+                email = (info.get("client_email") or "").strip()
+            except Exception:
+                pass
+    return JsonResponse({"service_account_email": (email or "").strip(), "configured": bool(get_global_client() or email)})
+
+
+@csrf_exempt
+@require_http_methods(["POST"])
+def api_google_sheets_test_connection(request):
+    """
+    POST: Test connection using Global Service Account (or user credentials).
+    Body: spreadsheet_id (required for test). On success, saves spreadsheet_id to user's config.
+    Returns { "success": true/false, "message": "..." }. Friendly message on permission denied.
+    """
+    from django.contrib.auth.decorators import login_required
+    from discount.models import GoogleSheetsConfig
+    from discount.services.google_sheets_service import test_connection
+    if not getattr(request, "user", None) or not request.user.is_authenticated:
+        return JsonResponse({"success": False, "message": "Authentication required"}, status=401)
+    try:
+        if request.content_type and "application/json" in request.content_type:
+            data = json.loads(request.body.decode("utf-8") or "{}")
+        else:
+            data = request.POST.dict()
+        spreadsheet_id = (data.get("spreadsheet_id") or "").strip()
+    except Exception:
+        spreadsheet_id = ""
+    if not spreadsheet_id:
+        return JsonResponse({"success": False, "message": "Spreadsheet ID is required."})
+    cfg, _ = GoogleSheetsConfig.objects.get_or_create(user=request.user, defaults={"spreadsheet_id": "", "sheet_name": "Orders"})
+    # Use a temp config with the spreadsheet_id to test (credentials come from global or cfg)
+    class _TestConfig:
+        pass
+    t = _TestConfig()
+    t.spreadsheet_id = spreadsheet_id
+    t.sheet_name = getattr(cfg, "sheet_name", "Orders") or "Orders"
+    t.service_account_json_encrypted = getattr(cfg, "service_account_json_encrypted", None)
+    t.column_mapping = getattr(cfg, "column_mapping", None)
+    try:
+        ok, msg = test_connection(t)
+    except Exception as e:
+        ok, msg = False, str(e)
+    if ok:
+        cfg.spreadsheet_id = spreadsheet_id
+        cfg.updated_at = timezone.now()
+        cfg.save()
+    return JsonResponse({"success": ok, "message": msg or ("Connection successful" if ok else "Connection failed")})
 
 
 

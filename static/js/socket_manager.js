@@ -194,6 +194,30 @@ const ChatSocket = {
             break;
         }
 
+        case 'handover':
+        case 'handover_new_message': {
+            const payload = data.payload || {};
+            const channelId = payload.channel_id != null ? String(payload.channel_id) : null;
+            const customerPhone = (payload.customer_phone || '').toString().replace(/\D/g, '');
+            const reason = payload.reason || 'Needs Human Action';
+            const currentChannelId = (typeof window.getCurrentChannelId === 'function' ? window.getCurrentChannelId() : null) || window._activeChannelId || (window.currentChannelId != null ? String(window.currentChannelId) : null);
+            const channelMatch = !channelId || !currentChannelId || (String(currentChannelId) === String(channelId));
+
+            if (customerPhone && channelMatch) {
+                const activePhone = (typeof window.getCurrentChatPhone === 'function') ? window.getCurrentChatPhone() : null;
+                const cleanActive = activePhone ? activePhone.toString().replace(/\D/g, '') : '';
+                if (cleanActive === customerPhone && typeof window.updateHitlUI === 'function') {
+                    window.updateHitlUI(activePhone);
+                    var hitlBadge = document.getElementById('hitl_badge');
+                    if (hitlBadge) hitlBadge.title = reason;
+                }
+                if (typeof window.setContactNeedsHuman === 'function') {
+                    window.setContactNeedsHuman(payload.customer_phone || customerPhone, true, reason, channelId);
+                }
+            }
+            break;
+        }
+
         case 'message_status_update':{
             const payload = data.payload;
             console.log('Message ststus' , payload)

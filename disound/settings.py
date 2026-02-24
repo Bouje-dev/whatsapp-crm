@@ -11,11 +11,57 @@ MEDIA_URL = '/media/'
 MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 load_dotenv(os.path.join(BASE_DIR, '.env'))
 
+# Google Sheets: support JSON in env (multi-line .env can be truncated by load_dotenv) or path to file
+_gs_json = os.environ.get("GOOGLE_SHEETS_CREDENTIALS_JSON", "").strip()
+if not _gs_json or "client_email" not in _gs_json:
+    _gs_file = os.environ.get("GOOGLE_SHEETS_CREDENTIALS_FILE", "").strip()
+    if _gs_file and os.path.isfile(_gs_file):
+        with open(_gs_file, "r", encoding="utf-8") as _f:
+            _gs_json = _f.read().strip()
+    elif not _gs_json or "client_email" not in _gs_json:
+        _env_path = os.path.join(BASE_DIR, ".env")
+        if os.path.isfile(_env_path):
+            with open(_env_path, "r", encoding="utf-8") as _f:
+                _content = _f.read()
+            _key = "GOOGLE_SHEETS_CREDENTIALS_JSON"
+            _idx = _content.find(_key)
+            if _idx >= 0:
+                _eq = _content.find("=", _idx + len(_key))
+                if _eq < 0:
+                    _eq = _idx + len(_key)
+                _start = _eq + 1
+                while _start < len(_content) and _content[_start] in " \t\r\n":
+                    _start += 1
+                _quote = _content[_start : _start + 1] if _start < len(_content) else ""
+                if _quote in ("'", '"'):
+                    _end = _start + 1
+                    while _end < len(_content):
+                        _ch = _content[_end]
+                        if _ch == _quote and _content[_end - 1 : _end] != "\\":
+                            break
+                        _end += 1
+                    _gs_json = _content[_start + 1 : _end].strip()
+GOOGLE_SHEETS_CREDENTIALS_JSON = _gs_json if _gs_json else ""
+
+# Display-only: service account email for Integrations UI. Set from env or extract from JSON.
+_gs_email = os.environ.get("GOOGLE_SHEETS_SERVICE_ACCOUNT_EMAIL", "").strip()
+if not _gs_email and _gs_json:
+    try:
+        import json as _json
+        _parsed = _json.loads(_gs_json)
+        if isinstance(_parsed, dict):
+            _gs_email = (_parsed.get("client_email") or "").strip()
+    except Exception:
+        pass
+GOOGLE_SHEETS_SERVICE_ACCOUNT_EMAIL = _gs_email or ""
 
 SECRET_KEY = 'django-insecure-8*lzwv5+jl80b65ev5=atx-bn2&-bf^jk7)y&886_xbf2)m_%('
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
+
+# Admin: allow editing user Plan from Django admin. Set to False in production to lock plan changes.
+ALLOW_ADMIN_PLAN_EDITS = os.environ.get("ALLOW_ADMIN_PLAN_EDITS", "true").lower() in ("true", "1", "yes")
 
 # ALLOWED_HOSTS = []
 CSRF_TRUSTED_ORIGINS = [
@@ -340,3 +386,7 @@ SECURE_CROSS_ORIGIN_OPENER_POLICY = 'same-origin-allow-popups'
 META_APP_ID = os.getenv('META_APP_ID', '843023434947245')
 META_APP_SECRET = os.getenv('META_APP_SECRET')
 META_API_VERSION = 'v24.0'
+
+
+import os
+GOOGLE_SHEETS_CREDENTIALS_JSON = os.environ.get("GOOGLE_SHEETS_CREDENTIALS_JSON", "")

@@ -1340,43 +1340,65 @@ $(document).ready(function() {
         </div>
 
         {% if request.user.is_team_admin %}
-        <!-- Current Plan Section -->
+        <!-- Plans Section: Free, Basic, Premium -->
         <div id="current-plan" class="content-area-pane">
             <div class="section-header-container">
-                <h1 class="section-header">Current Plan</h1>
-                <p class="section-description">View your current subscription details and upgrade your plan.</p>
+                <h1 class="section-header">Plans</h1>
+                <p class="section-description">Choose your plan. Upgrade to unlock AI voice, voice cloning, and auto-reply.</p>
             </div>
-            <div class="card">
-                <div class="card-header">
-                    <i class="fas fa-credit-card"></i> Subscription Details
-                </div>
-                <div class="card-body">
-                    <div class="row align-items-center">
-                        <div class="col-md-6">
-                            <h5 class="mb-2" style="color: var(--text-light);">{{ user.subscription.plan.name }}</h5>
-                            <p class="mb-1 text-muted">Start Date: <span style="color: var(--text-light);">{{ user.subscription.start_date|date:"Y/m/d" }}</span></p>
-                            <p class="mb-1 text-muted">End Date: <span style="color: var(--text-light);">{{ user.subscription.end_date|date:"Y/m/d" }}</span></p>
-                            <p class="mb-0 text-muted">Status: 
-                                <span class="badge {% if user.subscription.is_active %}badge-success{% else %}badge-warning{% endif %}">
-                                    {% if user.subscription.is_active %}Active{% else %}Expired{% endif %}
-                                </span>
-                            </p>
+            <div class="row g-4">
+                {% for plan in plans %}
+                <div class="col-md-4">
+                    <div class="card h-100 {% if current_plan and current_plan.id == plan.id %}border-primary border-2{% endif %}">
+                        <div class="card-header d-flex justify-content-between align-items-center">
+                            <i class="fas fa-{% if plan.name == 'Premium' %}crown{% elif plan.name == 'Basic' %}bolt{% else %}leaf{% endif %}"></i>
+                            <span class="fw-bold" style="color: var(--text-light);">{{ plan.name }}</span>
+                            {% if current_plan and current_plan.id == plan.id %}
+                            <span class="badge bg-success">Current</span>
+                            {% endif %}
                         </div>
-                        <div class="col-md-6 text-md-end mt-3 mt-md-0">
-                            <div class="progress-compact mb-2">
-                                <div class="progress-bar-fill" role="progressbar" 
-                                    style="width: 10%" 
-                                    aria-valuenow="10%" 
-                                    aria-valuemin="0" aria-valuemax="100">
-                                </div>
+                        <div class="card-body">
+                            <div class="mb-3">
+                                <span class="fs-4 fw-bold" style="color: var(--text-light);">
+                                    {% if plan.price == 0 or plan.price == None %}Free{% else %}{{ plan.price }} SAR{% endif %}
+                                </span>
+                                {% if plan.price and plan.price > 0 %}<span class="text-muted small">/ month</span>{% endif %}
                             </div>
-                            <p class="text-muted mb-3">{{ user.subscription.days_remaining }} days remaining</p>
-                            <a href="{% url 'upgrade_plan' %}" class="btn btn-info-accent">
-                                <i class="fas fa-arrow-up"></i> Upgrade Plan
+                            <ul class="list-unstyled mb-4">
+                                <li class="mb-2">
+                                    {% if plan.can_use_ai_voice %}<i class="fas fa-check text-success me-2"></i>{% else %}<i class="fas fa-times text-muted me-2"></i>{% endif %}
+                                    <span style="color: var(--text-light);">AI Voice</span>
+                                </li>
+                                <li class="mb-2">
+                                    {% if plan.can_use_voice_cloning %}<i class="fas fa-check text-success me-2"></i>{% else %}<i class="fas fa-times text-muted me-2"></i>{% endif %}
+                                    <span style="color: var(--text-light);">Voice Cloning</span>
+                                </li>
+                                <li class="mb-2">
+                                    {% if plan.can_use_auto_reply %}<i class="fas fa-check text-success me-2"></i>{% else %}<i class="fas fa-times text-muted me-2"></i>{% endif %}
+                                    <span style="color: var(--text-light);">AI Auto Reply</span>
+                                </li>
+                            </ul>
+                            {% if current_plan and current_plan.id == plan.id %}
+                            <button type="button" class="btn btn-outline-secondary w-100" disabled>
+                                <i class="fas fa-check me-1"></i> Current Plan
+                            </button>
+                            {% else %}
+                            <a href="{% url 'upgrade_plan' %}?plan={{ plan.name }}" class="btn btn-info-accent w-100">
+                                <i class="fas fa-arrow-up me-1"></i> Upgrade
                             </a>
+                            {% endif %}
                         </div>
                     </div>
                 </div>
+                {% empty %}
+                <div class="col-12">
+                    <div class="card">
+                        <div class="card-body text-center text-muted">
+                            <p class="mb-0">No plans available. Run <code>python manage.py init_plans</code> to create Free, Basic, and Premium plans.</p>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
             </div>
         </div>
 

@@ -881,8 +881,8 @@
     min-height: 0;
   }
 
-  .cls3741_panel h2{margin:0 0 8px 0;font-size:20px;color:#e9f9fb}
-  .cls3741_panel p{margin:0;color:var(--muted);line-height:1.45}
+  .cls3741_panel h2{margin:0 0 8px 0;font-size:20px;color:#000000}
+  .cls3741_panel p{margin:0;line-height:1.45}
 
   /* البطاقة الجانبية للشات */
   .cls3741_sidecard{

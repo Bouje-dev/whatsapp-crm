@@ -353,7 +353,7 @@
         .app-container {
             display: none;
             flex-direction: row;
-            height: 75vh;
+            height: 100%;
         }
 
         .flow-builder-active {
@@ -506,7 +506,7 @@
         /* Flow Node Styles */
         .flow-node {
             position: absolute;
-            width: 280px;
+            width: 400px;
             background: var(--surface);
             border: 2px solid var(--border);
             border-radius: 12px;
@@ -525,6 +525,15 @@
             border-color: var(--primary);
             box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.2);
         }
+
+        .flow-node[data-node-type="google-sheets"] .node-header {
+            background: linear-gradient(135deg, #0F9D58, #0B8043);
+        }
+        .flow-node[data-node-type="google-sheets"].selected {
+            border-color: #0F9D58;
+            box-shadow: 0 0 0 3px rgba(15, 157, 88, 0.25);
+        }
+        .flow-node[data-node-type="google-sheets"] .node-icon { background: rgba(255,255,255,0.25); }
 
         .node-header {
             background: linear-gradient(135deg, var(--primary), var(--primary-dark));
@@ -648,6 +657,43 @@
             transition: all 0.2s ease;
         }
 
+        /* AI Agent node: product summary & required fields */
+        .ai-agent-node-body .form-label.required::after { content: ' *'; color: #ef4444; }
+        .ai-agent-product-summary {
+            background: var(--surface-light);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 0.75rem 1rem;
+            margin-top: 0.75rem;
+        }
+        .ai-agent-product-summary .summary-title {
+            font-size: 0.7rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: var(--text-muted);
+            margin-bottom: 0.5rem;
+            padding-bottom: 0.35rem;
+            border-bottom: 1px solid var(--border);
+        }
+        .ai-agent-product-summary .summary-row {
+            margin-top: 0.4rem;
+            word-break: break-word;
+            font-size: 0.8125rem;
+            line-height: 1.4;
+        }
+        .ai-agent-product-summary .summary-row strong { color: var(--text-secondary); font-weight: 600; }
+        .ai-agent-tab-btn {
+    padding: 5px 13px;
+    font-size: 0.8rem;
+    font-weight: 700;
+    border-radius: 4px;
+    border: 1px solid #ddd;
+    background: #f5f5f5;
+    cursor: pointer;
+    color: #1e293c;
+}
+        .ai-agent-tab-btn.active { background: #4d71ab; color: #fff; border-color: #4d71ab; }
         .form-input:focus, .form-select:focus, .form-textarea:focus {
             outline: none;
             border-color: var(--primary);
@@ -1102,6 +1148,27 @@
                         </div>
                         <div class="component-desc">Delay before the next action</div>
                     </div>
+                    <div class="component-item" data-type="ai-agent" draggable="true">
+                        <div class="component-header">
+                            <div class="component-icon">🤖</div>
+                            <div class="component-title">AI Sales Agent</div>
+                        </div>
+                        <div class="component-desc">Product context + GPT reply (text/voice)</div>
+                    </div>
+                    <div class="component-item" data-type="follow-up" draggable="true">
+                        <div class="component-header">
+                            <div class="component-icon">📅</div>
+                            <div class="component-title">AI Follow-up</div>
+                        </div>
+                        <div class="component-desc">Re-engage after delay (text/audio/image/video)</div>
+                    </div>
+                    <div class="component-item" data-type="google-sheets" draggable="true">
+                        <div class="component-header">
+                            <div class="component-icon">📊</div>
+                            <div class="component-title">Google Sheets</div>
+                        </div>
+                        <div class="component-desc">Export order data to a sheet (Name, Phone, Address…)</div>
+                    </div>
                     <div class="component-item" data-type="webhook" draggable="true">
                         <div class="component-header">
                             <div class="component-icon">🌐</div>
@@ -1500,6 +1567,56 @@ closeCreateFlowForm() {
             return response.json();
         }
 
+        async handleAiNodeMediaFile(file, nodeId, mediaListEl, saveHintEl) {
+            const flowId = this.currentFlowId;
+            if (!flowId) {
+                if (saveHintEl) saveHintEl.style.display = 'block';
+                return;
+            }
+            const isVideo = (file.type || '').toLowerCase().startsWith('video/');
+            const fileType = isVideo ? 'Video' : 'Image';
+            const desc = (file.name || 'Media').replace(/\.[^.]*$/, '');
+            const form = new FormData();
+            form.append('flow_id', flowId);
+            form.append('node_id', nodeId);
+            form.append('file', file);
+            form.append('file_type', fileType);
+            form.append('description', desc);
+            form.append('csrfmiddlewaretoken', this.csrfToken || '');
+            try {
+                const r = await fetch(this.apiBaseUrl + '/api/flows/node-media-upload/', {
+                    method: 'POST',
+                    body: form,
+                    headers: { 'X-CSRFToken': this.csrfToken || '' }
+                });
+                const j = await r.json();
+                if (j.error) { alert(j.error); return; }
+                const row = document.createElement('div');
+                row.className = 'ai-agent-media-row';
+                row.style.cssText = 'display:flex; align-items:center; gap:6px; margin-bottom:6px; font-size:0.8rem;';
+                row.dataset.filePath = j.file_path || '';
+                row.dataset.fileType = j.file_type || fileType;
+                const labelInput = document.createElement('input');
+                labelInput.type = 'text';
+                labelInput.className = 'form-input ai-agent-media-description';
+                labelInput.placeholder = 'Label for AI';
+                labelInput.value = j.description || desc;
+                labelInput.style.flex = '1';
+                labelInput.style.minWidth = '0';
+                const delBtn = document.createElement('button');
+                delBtn.type = 'button';
+                delBtn.className = 'btn btn-danger btn-sm';
+                delBtn.textContent = '✕';
+                delBtn.addEventListener('click', () => row.remove());
+                row.appendChild(labelInput);
+                row.appendChild(delBtn);
+                mediaListEl.appendChild(row);
+                if (saveHintEl) saveHintEl.style.display = 'none';
+            } catch (e) {
+                alert('Upload failed: ' + (e.message || e));
+            }
+        }
+
         escapeHtml(text) {
             const div = document.createElement('div');
             div.textContent = text;
@@ -1560,6 +1677,7 @@ closeCreateFlowForm() {
 
 class FlowBuilder {
     constructor() {
+        this.apiBaseUrl = '/discount/whatssapAPI';
         this.csrfToken = getCookie('csrftoken');
         this.selectedNode = null;
         this.nodeCounter = 0;
@@ -1765,7 +1883,10 @@ this.connectionBranch = null;
             'update-contact': this.createUpdateContactNodeTemplate,
             'add-tags': this.createAddTagsNodeTemplate,
             'remove-tags': this.createRemoveTagsNodeTemplate,
-            'trigger': this.createTriggerNodeTemplate
+            'trigger': this.createTriggerNodeTemplate,
+            'ai-agent': this.createAiAgentNodeTemplate,
+            'follow-up': this.createFollowUpNodeTemplate,
+            'google-sheets': this.createGoogleSheetsNodeTemplate
         };
         return templates[type] || templates['text-message'];
     }
@@ -2038,6 +2159,256 @@ this.connectionBranch = null;
         `;
     }
 
+    createAiAgentNodeTemplate(nodeId) {
+        return `
+            <div class="node-header">
+                <div class="node-icon">🤖</div>
+                <div class="node-title">AI Sales Agent</div>
+                <div class="node-type">ai-agent</div>
+            </div>
+            <div class="node-body ai-agent-node-body">
+                <div class="ai-agent-tabs" style="display:flex; gap:4px; margin-bottom:8px; flex-wrap:wrap;">
+                    <button type="button" class="ai-agent-tab-btn active" data-tab="product">Product</button>
+                    <button type="button" class="ai-agent-tab-btn" data-tab="identity">Identity</button>
+                    <button type="button" class="ai-agent-tab-btn" data-tab="response">Response</button>
+                    <button type="button" class="ai-agent-tab-btn" data-tab="media">Media</button>
+                </div>
+                <div class="ai-agent-tab-content" data-tab="product">
+                    <div class="form-group">
+                        <label class="form-label">Context source</label>
+                        <select class="form-select ai-agent-context-source">
+                            <option value="PRODUCT_SELECT">Select from my products</option>
+                            <option value="MANUAL">Manual</option>
+                            <option value="URL_SCRAPER">URL Scraper</option>
+                        </select>
+                    </div>
+                    <div class="form-group ai-agent-product-select-row" style="display:none;" data-product-row-node="${nodeId}">
+                        <label class="form-label required">Your products</label>
+                        <select class="form-select ai-agent-product-select" style="width:100%;">
+                            <option value="">— Load products —</option>
+                        </select>
+                        <p class="text-muted small mt-1 mb-0" style="font-size:0.75rem;">Products are from the Product section. Create products there first if the list is empty.</p>
+                    </div>
+                    <div class="form-group ai-agent-manual-context-row">
+                        <label class="form-label required">Product details (Price, Shipping, Features)</label>
+                        <textarea class="form-textarea ai-agent-product-context" rows="3" placeholder="Product name, SKU, Prices, Shipping (Free/Paid), Market..."></textarea>
+                        <div class="ai-agent-product-summary" style="display:none;">
+                            <div class="summary-title">Saved product</div>
+                            <div class="summary-row"><strong>Product name:</strong> <span class="ai-agent-summary-name"></span></div>
+                            <div class="summary-row"><strong>Prices:</strong> <span class="ai-agent-summary-prices"></span></div>
+                            <div class="summary-row"><strong>Shipping:</strong> <span class="ai-agent-summary-shipping"></span></div>
+                            <div class="summary-row"><strong>Market:</strong> <span class="ai-agent-summary-market"></span></div>
+                        </div>
+                    </div>
+                    <div class="form-group" style="display:none;" id="ai-agent-url-row-${nodeId}">
+                        <label class="form-label">Product URL</label>
+                        <input type="url" class="form-input ai-agent-product-url" placeholder="https://...">
+                        <button type="button" class="btn btn-sm btn-outline-secondary mt-1 ai-agent-fetch-url" style="Background:#4d71ab; color:white;">Fetch from URL</button>
+                    </div>
+                    <div class="node-properties">
+                        <div class="node-property">
+                            <span>Delay:</span>
+                            <input type="number" value="0" min="0" class="delay-input form-input ai-agent-delay" style="width: 60px;"> sec
+                        </div>
+                    </div>
+                    <button type="button" class="btn btn-sm btn-outline-primary mt-2 ai-agent-test-btn">Test AI</button>
+                </div>
+
+ 
+
+
+                <!-- Identity tab -->
+                <div class="ai-agent-tab-content" data-tab="identity" style="display:none;">
+                    <!-- Language: always visible (needed for GPT text generation) -->
+                    <div class="form-group ai-agent-language-row" style="margin-top:8px;">
+                        <label class="form-label">Language</label>
+                        <input type="text" class="form-input ai-agent-node-language" placeholder="e.g. AR_MA, EN_US" maxlength="20" style="font-size:0.8rem;">
+                    </div>
+
+                    <!-- Voice Settings: hidden when response_mode === TEXT_ONLY -->
+                    <div class="ai-agent-voice-settings-section ai-agent-visibility-transition">
+                        <div class="form-group mt-3 pt-3" style="border-top:1px solid rgba(255,255,255,0.1);">
+                            <label class="form-label">Voice provider</label>
+                            <select class="form-select ai-agent-voice-provider" style="font-size:0.8rem;">
+                                <option value="ELEVENLABS">ElevenLabs</option>
+                                <option value="OPENAI">OpenAI</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Fallback (legacy)</label>
+                            <select class="form-select ai-agent-node-voice-id" style="font-size:0.8rem;">
+                                <option value="">Default channel voice</option>
+                                <option value="native">Native-sounding</option>
+                            </select>
+                            <select class="form-select ai-agent-node-gender mt-1" style="font-size:0.8rem;">
+                                <option value="">—</option>
+                                <option value="MALE">Male</option>
+                                <option value="FEMALE">Female</option>
+                            </select>
+                        </div>
+
+                        <!-- Sales Agent (Voice Selection) -->
+                        <input type="hidden" class="ai-agent-persona-id" value="">
+                        <div class="persona-section">
+                            <div class="persona-section-header">
+                                <h4 class="persona-section-title">Sales Agent</h4>
+                                <p class="persona-section-desc">Choose a voice and personality for this node. Premium unlocks high-quality and cloned voices.</p>
+                            </div>
+                            <div class="ai-agent-no-voices-msg persona-gallery-empty" style="display:none;" role="status">
+                                <span class="persona-gallery-empty-icon">🔇</span>
+                                <p class="persona-gallery-empty-text">No voices found for this selection.</p>
+                            </div>
+                            <div class="persona-tabs-wrap">
+                                <div class="ai-agent-persona-tabs" role="tablist">
+                                    <button type="button" class="ai-agent-persona-tab active" data-persona-tab="standard" role="tab" aria-selected="true">
+                                        <span class="persona-tab-icon">👤</span>
+                                        <span>Standard Agents</span>
+                                    </button>
+                                    <button type="button" class="ai-agent-persona-tab" data-persona-tab="my" role="tab" aria-selected="false">
+                                        <span class="persona-tab-icon">🎙</span>
+                                        <span>My Voices</span>
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="persona-gallery-wrap">
+                                <div class="ai-agent-persona-gallery ai-agent-persona-gallery-standard" data-tab="standard" role="tabpanel"></div>
+                                <div class="ai-agent-persona-gallery ai-agent-persona-gallery-my" data-tab="my" role="tabpanel" style="display:none;"></div>
+                            </div>
+                            <div class="ai-agent-persona-premium-hint persona-premium-banner" style="display:none;">
+                                <span class="persona-premium-icon">👑</span>
+                                <span>Upgrade to Premium to use high-quality and cloned voices.</span>
+                            </div>
+                        </div>
+
+                        <!-- Voice customizer (ElevenLabs sliders; hidden for OpenAI) -->
+                        <div class="form-group mt-3 pt-3 ai-agent-voice-sliders-wrap" style="border-top:1px solid rgba(255,255,255,0.1);">
+                            <label class="form-label">Voice customizer</label>
+                            <p class="ai-agent-openai-note text-muted small mb-2" style="display:none;">OpenAI uses standard optimized settings.</p>
+                            <div class="ai-agent-sliders-inner">
+                                <div class="d-flex justify-content-between small mb-1"><span class="text-muted">Stability</span><span class="ai-agent-voice-stability-val">0.5</span></div>
+                                <input type="range" class="form-range ai-agent-voice-stability" min="0" max="1" step="0.05" value="0.5" style="width:100%;">
+                                <div class="d-flex justify-content-between small mb-1 mt-2"><span class="text-muted">Similarity</span><span class="ai-agent-voice-similarity-val">0.75</span></div>
+                                <input type="range" class="form-range ai-agent-voice-similarity" min="0" max="1" step="0.05" value="0.75" style="width:100%;">
+                                <div class="d-flex justify-content-between small mb-1 mt-2"><span class="text-muted">Speed</span><span class="ai-agent-voice-speed-val">1</span></div>
+                                <input type="range" class="form-range ai-agent-voice-speed" min="0.5" max="1.5" step="0.05" value="1" style="width:100%;">
+                            </div>
+                        </div>
+                    </div>
+
+
+
+
+
+
+                </div>
+                <div class="ai-agent-tab-content" data-tab="response" style="display:none;">
+                    <div class="form-group">
+                        <label class="form-label">Response mode</label>
+                        <select class="form-select ai-agent-response-mode">
+                            <option value="TEXT_ONLY">Text only — Fast and cheap</option>
+                            <option value="AUDIO_ONLY">Audio only — High-trust (voice)</option>
+                            <option value="AUTO_SMART">Auto — Text for short, Audio for pitch/closing</option>
+                        </select>
+                    </div>
+                    <div class="form-group form-check">
+                        <input type="checkbox" class="form-check-input ai-agent-voice-enabled" id="ai-voice-${nodeId}">
+                        <label class="form-check-label" for="ai-voice-${nodeId}">Voice response (legacy)</label>
+                    </div>
+                </div>
+                <div class="ai-agent-tab-content" data-tab="media" style="display:none;">
+                    <div class="form-group">
+                        <label class="form-label">Media gallery</label>
+                        <p class="text-muted" style="font-size:0.75rem; margin-bottom:6px;">Add product images/videos. Give each a label so the AI knows when to show it (e.g. &quot;Product Close-up&quot;, &quot;How-to-use Video&quot;).</p>
+                        <div class="ai-agent-media-dropzone" style="border:2px dashed #ccc; border-radius:8px; padding:12px; text-align:center; margin-bottom:8px; min-height:60px;">
+                            <span class="ai-agent-media-drop-text">Drop files here or click to upload</span>
+                            <input type="file" class="ai-agent-media-file-input" accept="image/*,video/*" multiple style="display:none;">
+                        </div>
+                        <div class="ai-agent-media-list" data-node-id="${nodeId}"></div>
+                        <p class="ai-agent-media-save-hint text-muted" style="font-size:0.7rem; display:none;">Save the flow first to upload media.</p>
+                    </div>
+                </div>
+            </div>
+            <div class="node-footer">
+                <button type="button" class="btn btn-secondary btn-sm connect-btn" data-node-id="${nodeId}">Connect</button>
+                <button type="button" class="btn btn-danger btn-sm delete-node-btn">Delete</button>
+            </div>
+        `;
+    }
+
+
+
+    createGoogleSheetsNodeTemplate(nodeId) {
+        return `
+            <div class="node-header">
+                <div class="node-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zM9 17H7v-7h2v7zm4 0h-2V7h2v10zm4 0h-2v-4h2v4z"/></svg></div>
+                <div class="node-title">Google Sheets</div>
+                <div class="node-type">google-sheets</div>
+            </div>
+            <div class="node-body">
+                <div class="form-group form-check mb-2">
+                    <input type="checkbox" class="form-check-input google-sheets-send-all" id="gs-send-all-${nodeId}" checked>
+                    <label class="form-check-label" for="gs-send-all-${nodeId}" style="font-size:0.85rem;">Send all conversation data</label>
+                </div>
+                <p class="text-muted" style="font-size:0.8rem; margin:0 0 8px 0;">This node exports current variables to your linked Google Sheet (Settings → Integrations).</p>
+                <div class="google-sheets-preview rounded p-2" style="background:rgba(0,0,0,0.15); font-size:0.75rem; color:var(--text-secondary); min-height:36px;">
+                    <span class="google-sheets-preview-text">Quick preview: loading…</span>
+                </div>
+                <input type="hidden" class="google-sheets-label" value="Export to Google Sheets">
+            </div>
+            <div class="node-footer">
+                <button type="button" class="btn btn-secondary btn-sm connect-btn" data-node-id="${nodeId}">Connect</button>
+                <button type="button" class="btn btn-danger btn-sm delete-node-btn">Delete</button>
+            </div>
+        `;
+    }
+
+    createFollowUpNodeTemplate(nodeId) {
+        return `
+            <div class="node-header">
+                <div class="node-icon">📅</div>
+                <div class="node-title">AI Follow-up</div>
+                <div class="node-type">follow-up</div>
+            </div>
+            <div class="node-body">
+                <div class="form-group">
+                    <label class="form-label">Delay (hours)</label>
+                    <input type="number" class="form-input follow-up-delay-hours" value="6" min="1" max="168" step="1" style="width:80px;">
+                    <span class="text-muted" style="font-size:0.75rem;">hours before re-engage</span>
+                </div>
+                <div class="form-group form-check">
+                    <input type="checkbox" class="form-check-input follow-up-ai-personalized" id="follow-up-ai-${nodeId}">
+                    <label class="form-check-label" for="follow-up-ai-${nodeId}">Use AI to personalize message</label>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Response type</label>
+                    <select class="form-select follow-up-response-type" style="font-size:0.85rem;">
+                        <option value="TEXT">Text</option>
+                        <option value="AUDIO">Audio</option>
+                        <option value="IMAGE">Image</option>
+                        <option value="VIDEO">Video</option>
+                    </select>
+                </div>
+                <input type="hidden" class="follow-up-file-path" value="">
+                <div class="form-group follow-up-media-wrap">
+                    <label class="form-label">Media (optional)</label>
+                    <div class="follow-up-media-dropzone" style="border:2px dashed #64748b; border-radius:8px; padding:12px; text-align:center; min-height:50px; font-size:0.8rem; color:#94a3b8;">
+                        <span class="follow-up-media-text">Drop or click to upload</span>
+                        <input type="file" class="follow-up-media-input" accept="image/*,video/*,audio/*" style="display:none;">
+                    </div>
+                    <p class="follow-up-file-name text-muted" style="font-size:0.7rem; margin-top:4px; display:none;"></p>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Message / Caption</label>
+                    <textarea class="form-textarea follow-up-caption" rows="2" placeholder="Default text or caption for media (e.g. مرحباً، تذكرنا أنك مهتم...)" style="font-size:0.85rem;"></textarea>
+                </div>
+            </div>
+            <div class="node-footer">
+                <button type="button" class="btn btn-secondary btn-sm connect-btn" data-node-id="${nodeId}">Connect</button>
+                <button type="button" class="btn btn-danger btn-sm delete-node-btn">Delete</button>
+            </div>
+        `;
+    }
+
     createTriggerNodeTemplate(nodeId) {
         return `
             <div class="node-header">
@@ -2148,6 +2519,225 @@ this.connectionBranch = null;
                         e.stopPropagation();
                         this.removeNode(nodeId);
                     });
+                }
+                // AI Agent: Fetch from URL → modal edit → confirm → save & show summary
+                if (nodeElement.dataset.nodeType === 'ai-agent') {
+                    const self = this;
+                    const fetchUrlBtn = nodeElement.querySelector('.ai-agent-fetch-url');
+                    if (fetchUrlBtn) {
+                        fetchUrlBtn.addEventListener('click', async (e) => {
+                            e.stopPropagation();
+                            const urlInput = nodeElement.querySelector('.ai-agent-product-url');
+                            const ta = nodeElement.querySelector('.ai-agent-product-context');
+                            if (!urlInput || !ta) return;
+                            const url = urlInput.value.trim();
+                            if (!url) { alert('Enter a product URL'); return; }
+                            fetchUrlBtn.disabled = true;
+                            try {
+                                const fd = new FormData();
+                                fd.append('url', url);
+                                fd.append('csrfmiddlewaretoken', this.csrfToken || '');
+                                const r = await fetch('{% url "api_scrape_product_url" %}', { method: 'POST', body: fd });
+                                const j = await r.json();
+                                if (j.error) { alert(j.error); fetchUrlBtn.disabled = false; return; }
+                                // Open edit modal with extracted data
+                                const modal = document.getElementById('aiProductConfirmModal');
+                                const nameIn = document.getElementById('ai-product-edit-name');
+                                const pricesIn = document.getElementById('ai-product-edit-prices');
+                                const marketIn = document.getElementById('ai-product-edit-market');
+                                const additionalIn = document.getElementById('ai-product-edit-additional');
+                                const shippingIn = document.getElementById('ai-product-edit-shipping');
+                                if (modal && nameIn && pricesIn && marketIn && additionalIn) {
+                                    nameIn.value = j.product_name || '';
+                                    pricesIn.value = j.prices || '';
+                                    marketIn.value = (j.market || '').trim() || 'Morocco';
+                                    additionalIn.value = j.additional || '';
+                                    if (shippingIn) shippingIn.value = '';
+                                    window.aiProductClearValidationErrors && window.aiProductClearValidationErrors();
+                                    modal.style.display = 'flex';
+                                    modal.dataset.targetNodeId = nodeId;
+                                } else {
+                                    ta.value = j.product_context || ta.value;
+                                }
+                            } catch (err) { alert('Request failed'); }
+                            fetchUrlBtn.disabled = false;
+                        });
+                    }
+                    const testBtn = nodeElement.querySelector('.ai-agent-test-btn');
+                    if (testBtn) {
+                        testBtn.addEventListener('click', (e) => {
+                            e.stopPropagation();
+                            alert('Save the flow and trigger it (e.g. with a keyword) to test the AI reply in chat.');
+                        });
+                    }
+                    const contextSource = nodeElement.querySelector('.ai-agent-context-source');
+                    const urlRow = nodeElement.querySelector('#ai-agent-url-row-' + nodeId);
+                    const productSelectRow = nodeElement.querySelector('.ai-agent-product-select-row');
+                    const manualContextRow = nodeElement.querySelector('.ai-agent-manual-context-row');
+                    const productSelect = nodeElement.querySelector('.ai-agent-product-select');
+                    const productContextTa = nodeElement.querySelector('.ai-agent-product-context');
+                    function updateProductSourceVisibility() {
+                        const v = contextSource ? contextSource.value : 'MANUAL';
+                        if (urlRow) urlRow.style.display = v === 'URL_SCRAPER' ? 'block' : 'none';
+                        if (productSelectRow) productSelectRow.style.display = v === 'PRODUCT_SELECT' ? 'block' : 'none';
+                        if (manualContextRow) manualContextRow.style.display = (v === 'MANUAL' || v === 'URL_SCRAPER') ? 'block' : 'none';
+                        if (v === 'PRODUCT_SELECT' && productSelect && productSelect.options.length <= 1) loadProductsForAiNode(nodeElement);
+                    }
+                    if (contextSource) {
+                        contextSource.addEventListener('change', updateProductSourceVisibility);
+                        updateProductSourceVisibility();
+                    }
+                    async function loadProductsForAiNode(nodeEl) {
+                        const sel = nodeEl.querySelector('.ai-agent-product-select');
+                        if (!sel) return;
+                        const chId = window.currentChannelId || (typeof window.getCurrentChannelId === 'function' && window.getCurrentChannelId());
+                        if (!chId) { sel.innerHTML = '<option value="">No channel selected</option>'; return; }
+                        sel.innerHTML = '<option value="">Loading…</option>';
+                        const baseUrl = (typeof window.flowBuilder !== 'undefined' && window.flowBuilder.apiBaseUrl) ? window.flowBuilder.apiBaseUrl : (self.apiBaseUrl || '/discount/whatssapAPI');
+                        const url = baseUrl + '/api_products/?channel_id=' + encodeURIComponent(chId);
+                        try {
+                            const r = await fetch(url, { credentials: 'same-origin', headers: { 'Accept': 'application/json' } });
+                            const contentType = r.headers.get('Content-Type') || '';
+                            if (!r.ok) {
+                                const text = await r.text();
+                                console.error('Products API error', r.status, url, text.slice(0, 200));
+                                sel.innerHTML = '<option value="">Failed to load (' + r.status + ')</option>';
+                                return;
+                            }
+                            const j = contentType.indexOf('json') >= 0 ? await r.json() : { products: [] };
+                            const list = j.products || [];
+                            sel.innerHTML = '<option value="">— Select a product —</option>';
+                            list.forEach(p => {
+                                const opt = document.createElement('option');
+                                opt.value = p.id;
+                                opt.textContent = (p.name || 'Product') + (p.price ? ' — ' + p.price + ' ' + (p.currency || 'MAD') : '');
+                                opt.dataset.sku = p.sku || '';
+                                opt.dataset.name = p.name || '';
+                                opt.dataset.price = p.price != null ? String(p.price) : '';
+                                opt.dataset.currency = p.currency || 'MAD';
+                                opt.dataset.description = (p.description || '').slice(0, 500);
+                                sel.appendChild(opt);
+                            });
+                        } catch (e) {
+                            console.error('Products load failed', e);
+                            sel.innerHTML = '<option value="">Failed to load products</option>';
+                        }
+                    }
+                    if (productSelect && productContextTa) {
+                        productSelect.addEventListener('change', () => {
+                            const opt = productSelect.options[productSelect.selectedIndex];
+                            if (!opt || !opt.value) return;
+                            const name = opt.dataset.name || opt.textContent.split('—')[0].trim();
+                            const sku = opt.dataset.sku || '';
+                            const price = opt.dataset.price || '';
+                            const currency = opt.dataset.currency || 'MAD';
+                            const desc = opt.dataset.description || '';
+                            const lines = [
+                                'Product name: ' + name,
+                                'SKU: ' + sku,
+                                'Prices: ' + (price ? price + ' ' + currency : '—'),
+                                'Description: ' + (desc || '—'),
+                                'Shipping: Free or Paid',
+                                'Market: Morocco'
+                            ];
+                            productContextTa.value = lines.join('\n');
+                            const summary = nodeElement.querySelector('.ai-agent-product-summary');
+                            if (summary) {
+                                const nameSpan = nodeElement.querySelector('.ai-agent-summary-name');
+                                const pricesSpan = nodeElement.querySelector('.ai-agent-summary-prices');
+                                if (nameSpan) nameSpan.textContent = name || '—';
+                                if (pricesSpan) pricesSpan.textContent = (price ? price + ' ' + currency : '—');
+                                nodeElement.querySelector('.ai-agent-summary-shipping') && (nodeElement.querySelector('.ai-agent-summary-shipping').textContent = '—');
+                                nodeElement.querySelector('.ai-agent-summary-market') && (nodeElement.querySelector('.ai-agent-summary-market').textContent = 'Morocco');
+                                summary.style.display = 'block';
+                            }
+                        });
+                    }
+                    // Tabs
+                    nodeElement.querySelectorAll('.ai-agent-tab-btn').forEach(btn => {
+                        btn.addEventListener('click', (e) => {
+                            e.stopPropagation();
+                            const tab = btn.dataset.tab;
+                            nodeElement.querySelectorAll('.ai-agent-tab-btn').forEach(b => b.classList.remove('active'));
+                            btn.classList.add('active');
+                            nodeElement.querySelectorAll('.ai-agent-tab-content').forEach(c => {
+                                c.style.display = c.dataset.tab === tab ? 'block' : 'none';
+                            });
+                            if (tab === 'identity' && typeof window.loadAiAgentPersonaGalleries === 'function') {
+                                const std = nodeElement.querySelector('.ai-agent-persona-gallery-standard');
+                                if (std && !std.dataset.loaded) window.loadAiAgentPersonaGalleries(nodeElement);
+                                if (typeof window.applyAiNodeVisibility === 'function') window.applyAiNodeVisibility(nodeElement);
+                            }
+                        });
+                    });
+                    nodeElement._loadProductsForAiNode = loadProductsForAiNode;
+                    nodeElement._updateProductSourceVisibility = updateProductSourceVisibility;
+                    // Conditional visibility: response_mode, voice_provider, gender
+                    const responseModeEl = nodeElement.querySelector('.ai-agent-response-mode');
+                    const voiceProviderEl = nodeElement.querySelector('.ai-agent-voice-provider');
+                    const nodeGenderEl = nodeElement.querySelector('.ai-agent-node-gender');
+                    [responseModeEl, voiceProviderEl, nodeGenderEl].forEach(el => {
+                        if (el) el.addEventListener('change', () => { if (typeof window.applyAiNodeVisibility === 'function') window.applyAiNodeVisibility(nodeElement); });
+                    });
+                    if (typeof window.applyAiNodeVisibility === 'function') window.applyAiNodeVisibility(nodeElement);
+                    // Persona sub-tabs (Standard Agents / My Voices) – bind on node so click always works
+                    nodeElement.querySelectorAll('.ai-agent-persona-tab').forEach(btn => {
+                        btn.addEventListener('click', (e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            const tabName = btn.getAttribute('data-persona-tab');
+                            nodeElement.querySelectorAll('.ai-agent-persona-tab').forEach(t => {
+                                t.classList.remove('active');
+                                t.setAttribute('aria-selected', 'false');
+                            });
+                            btn.classList.add('active');
+                            btn.setAttribute('aria-selected', 'true');
+                            const stdGal = nodeElement.querySelector('.ai-agent-persona-gallery-standard');
+                            const myGal = nodeElement.querySelector('.ai-agent-persona-gallery-my');
+                            if (stdGal) stdGal.style.display = tabName === 'standard' ? 'grid' : 'none';
+                            if (myGal) myGal.style.display = tabName === 'my' ? 'grid' : 'none';
+                        });
+                    });
+                    // Persona: sliders update value labels
+                    const stabSlider = nodeElement.querySelector('.ai-agent-voice-stability');
+                    const stabVal = nodeElement.querySelector('.ai-agent-voice-stability-val');
+                    if (stabSlider && stabVal) stabSlider.addEventListener('input', () => { stabVal.textContent = stabSlider.value; });
+                    const simSlider = nodeElement.querySelector('.ai-agent-voice-similarity');
+                    const simVal = nodeElement.querySelector('.ai-agent-voice-similarity-val');
+                    if (simSlider && simVal) simSlider.addEventListener('input', () => { simVal.textContent = simSlider.value; });
+                    const speedSlider = nodeElement.querySelector('.ai-agent-voice-speed');
+                    const speedVal = nodeElement.querySelector('.ai-agent-voice-speed-val');
+                    if (speedSlider && speedVal) speedSlider.addEventListener('input', () => { speedVal.textContent = speedSlider.value; });
+                    // Media gallery: dropzone + upload
+                    const dropzone = nodeElement.querySelector('.ai-agent-media-dropzone');
+                    const fileInput = nodeElement.querySelector('.ai-agent-media-file-input');
+                    const mediaList = nodeElement.querySelector('.ai-agent-media-list');
+                    const saveHint = nodeElement.querySelector('.ai-agent-media-save-hint');
+                    if (dropzone && fileInput && mediaList) {
+                        dropzone.addEventListener('click', () => {
+                            if (!self.currentFlowId) {
+                                if (saveHint) saveHint.style.display = 'block';
+                                return;
+                            }
+                            fileInput.click();
+                        });
+                        ['dragenter', 'dragover'].forEach(ev => {
+                            dropzone.addEventListener(ev, (e) => { e.preventDefault(); e.stopPropagation(); dropzone.style.borderColor = '#4d71ab'; });
+                        });
+                        ['dragleave', 'drop'].forEach(ev => {
+                            dropzone.addEventListener(ev, (e) => { e.preventDefault(); e.stopPropagation(); dropzone.style.borderColor = '#ccc'; });
+                        });
+                        dropzone.addEventListener('drop', (e) => {
+                            if (!self.currentFlowId) { if (saveHint) saveHint.style.display = 'block'; return; }
+                            const files = e.dataTransfer && e.dataTransfer.files;
+                            if (files && files.length) Array.from(files).forEach(f => self.handleAiNodeMediaFile(f, nodeId, mediaList, saveHint));
+                        });
+                        fileInput.addEventListener('change', () => {
+                            const files = fileInput.files;
+                            if (files && files.length) Array.from(files).forEach(f => self.handleAiNodeMediaFile(f, nodeId, mediaList, saveHint));
+                            fileInput.value = '';
+                        });
+                    }
                 }
                 // التحقق من العقدة بعد التهيئة
                 setTimeout(() => {
@@ -2575,6 +3165,124 @@ this.connectionBranch = null;
                     const tagsInput = node.querySelector('.tags-list');
                     if (tagsInput && content.tags) tagsInput.value = content.tags;
                     break;
+
+                case 'ai-agent': {
+                    const productContextEl = node.querySelector('.ai-agent-product-context');
+                    if (productContextEl && content.product_context !== undefined) productContextEl.value = content.product_context || '';
+                    const contextSourceEl = node.querySelector('.ai-agent-context-source');
+                    if (contextSourceEl && content.context_source) contextSourceEl.value = content.context_source;
+                    if (contextSourceEl && !contextSourceEl.querySelector('option[value="PRODUCT_SELECT"]')) {
+                        const opt = document.createElement('option');
+                        opt.value = 'PRODUCT_SELECT';
+                        opt.textContent = 'Select from my products';
+                        contextSourceEl.insertBefore(opt, contextSourceEl.firstChild);
+                    }
+                    if (typeof node._updateProductSourceVisibility === 'function') node._updateProductSourceVisibility();
+                    const productId = content.product_id != null ? String(content.product_id) : '';
+                    const productSelectEl = node.querySelector('.ai-agent-product-select');
+                    if (productId && productSelectEl && typeof node._loadProductsForAiNode === 'function') {
+                        node._loadProductsForAiNode(node).then(() => { productSelectEl.value = productId; }).catch(() => {});
+                    } else if (productSelectEl && productId) productSelectEl.value = productId;
+                    const voiceCheckEl = node.querySelector('.ai-agent-voice-enabled');
+                    if (voiceCheckEl) voiceCheckEl.checked = !!content.voice_enabled;
+                    const aiDelayEl = node.querySelector('.ai-agent-delay');
+                    if (aiDelayEl && content.delay !== undefined) aiDelayEl.value = content.delay;
+                    const responseModeEl = node.querySelector('.ai-agent-response-mode');
+                    if (responseModeEl && content.response_mode) responseModeEl.value = content.response_mode;
+                    const personaIdEl = node.querySelector('.ai-agent-persona-id');
+                    if (personaIdEl && content.persona_id != null) personaIdEl.value = content.persona_id;
+                    const stabEl = node.querySelector('.ai-agent-voice-stability');
+                    if (stabEl && content.voice_stability != null) { stabEl.value = content.voice_stability; node.querySelector('.ai-agent-voice-stability-val').textContent = content.voice_stability; }
+                    const simEl = node.querySelector('.ai-agent-voice-similarity');
+                    if (simEl && content.voice_similarity != null) { simEl.value = content.voice_similarity; node.querySelector('.ai-agent-voice-similarity-val').textContent = content.voice_similarity; }
+                    const speedEl = node.querySelector('.ai-agent-voice-speed');
+                    if (speedEl && content.voice_speed != null) { speedEl.value = content.voice_speed; node.querySelector('.ai-agent-voice-speed-val').textContent = content.voice_speed; }
+                    const nodeVoiceEl = node.querySelector('.ai-agent-node-voice-id');
+                    if (nodeVoiceEl && content.node_voice_id !== undefined) nodeVoiceEl.value = content.node_voice_id || '';
+                    const nodeLangEl = node.querySelector('.ai-agent-node-language');
+                    if (nodeLangEl && content.node_language !== undefined) nodeLangEl.value = content.node_language || '';
+                    const nodeGenderEl = node.querySelector('.ai-agent-node-gender');
+                    if (nodeGenderEl && content.node_gender !== undefined) nodeGenderEl.value = content.node_gender || '';
+                    const voiceProviderEl = node.querySelector('.ai-agent-voice-provider');
+                    if (voiceProviderEl && content.voice_provider) voiceProviderEl.value = content.voice_provider;
+                    if (node.querySelector('.ai-agent-persona-gallery-standard') && !node.querySelector('.ai-agent-persona-gallery-standard').dataset.loaded) window.loadAiAgentPersonaGalleries && window.loadAiAgentPersonaGalleries(node);
+                    if (typeof window.applyAiNodeVisibility === 'function') window.applyAiNodeVisibility(node);
+                    const mediaListEl = node.querySelector('.ai-agent-media-list');
+                    if (mediaListEl && Array.isArray(content.media)) {
+                        mediaListEl.innerHTML = '';
+                        content.media.forEach(m => {
+                            const row = document.createElement('div');
+                            row.className = 'ai-agent-media-row';
+                            row.style.cssText = 'display:flex; align-items:center; gap:6px; margin-bottom:6px; font-size:0.8rem;';
+                            row.dataset.filePath = m.file_path || '';
+                            row.dataset.fileType = m.file_type || 'Image';
+                            const labelInput = document.createElement('input');
+                            labelInput.type = 'text';
+                            labelInput.className = 'form-input ai-agent-media-description';
+                            labelInput.placeholder = 'Label for AI';
+                            labelInput.value = m.description || '';
+                            labelInput.style.flex = '1';
+                            labelInput.style.minWidth = '0';
+                            const delBtn = document.createElement('button');
+                            delBtn.type = 'button';
+                            delBtn.className = 'btn btn-danger btn-sm';
+                            delBtn.textContent = '✕';
+                            delBtn.addEventListener('click', () => row.remove());
+                            row.appendChild(labelInput);
+                            row.appendChild(delBtn);
+                            mediaListEl.appendChild(row);
+                        });
+                    }
+                    const text = (content.product_context || '').trim();
+                    const summary = node.querySelector('.ai-agent-product-summary');
+                    if (summary && text) {
+                        const nameM = text.match(/Product name\s*:\s*(.+?)(?=\n\n|\nPrices|$)/is);
+                        const pricesM = text.match(/Prices\s*:\s*(.+?)(?=\n\n|\nShipping|$)/is);
+                        const shippingM = text.match(/Shipping\s*:\s*(Free|Paid)/i);
+                        const marketM = text.match(/Market\s*:\s*(.+?)(?=\n\n|$)/is);
+                        const nameSpan = node.querySelector('.ai-agent-summary-name');
+                        const pricesSpan = node.querySelector('.ai-agent-summary-prices');
+                        const shippingSpan = node.querySelector('.ai-agent-summary-shipping');
+                        const marketSpan = node.querySelector('.ai-agent-summary-market');
+                        if (nameSpan) nameSpan.textContent = (nameM && nameM[1].trim()) || '—';
+                        if (pricesSpan) pricesSpan.textContent = pricesM && pricesM[1] ? (pricesM[1].trim().length > 80 ? pricesM[1].trim().slice(0, 80) + '…' : pricesM[1].trim()) : '—';
+                        if (shippingSpan) shippingSpan.textContent = (shippingM && shippingM[1]) || '—';
+                        if (marketSpan) marketSpan.textContent = (marketM && marketM[1].trim()) || 'Morocco';
+                        summary.style.display = 'block';
+                    }
+                    break;
+                }
+
+                case 'follow-up': {
+                    const delayEl = node.querySelector('.follow-up-delay-hours');
+                    if (delayEl && content.delay_hours != null) delayEl.value = content.delay_hours;
+                    const responseTypeEl = node.querySelector('.follow-up-response-type');
+                    if (responseTypeEl && content.response_type) responseTypeEl.value = content.response_type;
+                    const aiCheckEl = node.querySelector('.follow-up-ai-personalized');
+                    if (aiCheckEl) aiCheckEl.checked = !!content.ai_personalized;
+                    const captionEl = node.querySelector('.follow-up-caption');
+                    if (captionEl && content.caption !== undefined) captionEl.value = content.caption || '';
+                    const filePathEl = node.querySelector('.follow-up-file-path');
+                    if (filePathEl && content.file_path !== undefined) filePathEl.value = content.file_path || '';
+                    break;
+                }
+
+                case 'google-sheets': {
+                    const labelEl = node.querySelector('.google-sheets-label');
+                    if (labelEl && content.label !== undefined) labelEl.value = content.label || 'Export to Google Sheets';
+                    const sendAllEl = node.querySelector('.google-sheets-send-all');
+                    if (sendAllEl) sendAllEl.checked = content.send_all_data !== false;
+                    const previewEl = node.querySelector('.google-sheets-preview-text');
+                    if (previewEl) {
+                        if (content.column_mapping_preview) {
+                            previewEl.textContent = content.column_mapping_preview;
+                        } else {
+                            previewEl.textContent = 'Columns: set in Settings → Integrations';
+                            if (typeof window.__loadGoogleSheetsPreview === 'function') window.__loadGoogleSheetsPreview(node);
+                        }
+                    }
+                    break;
+                }
                   
                 case 'trigger':
 
@@ -2601,8 +3309,43 @@ this.connectionBranch = null;
     // ==========================================
     // حفظ Flow
     // ==========================================
+    validateAiAgentNodesBeforeSave() {
+        const nodes = document.querySelectorAll('.flow-node[data-node-type="ai-agent"]');
+        for (const node of nodes) {
+            const contextSource = node.querySelector('.ai-agent-context-source');
+            const source = contextSource ? contextSource.value : 'MANUAL';
+            const productSelect = node.querySelector('.ai-agent-product-select');
+            const productId = productSelect ? productSelect.value : '';
+            const ta = node.querySelector('.ai-agent-product-context');
+            const text = (ta && ta.value) ? ta.value.trim() : '';
+            if (source === 'PRODUCT_SELECT' && productId) {
+                if (!text) return { valid: false, message: 'Select a product from "Your products" dropdown, or switch to Manual/URL to fill product details.' };
+                continue;
+            }
+            if (!text) continue;
+            const hasName = /Product name\s*:/i.test(text);
+            const hasPrices = /(?:Prices?|Price)\s*:/i.test(text);
+            const hasShipping = /Shipping\s*:/i.test(text);
+            const hasMarket = /Market\s*:/i.test(text);
+            if (!hasName || !hasPrices || !hasShipping || !hasMarket) {
+                const missing = [];
+                if (!hasName) missing.push('Product name');
+                if (!hasPrices) missing.push('Prices');
+                if (!hasShipping) missing.push('Shipping');
+                if (!hasMarket) missing.push('Market');
+                return { valid: false, message: 'AI Sales Agent node is missing required product fields: ' + missing.join(', ') + '. Use "Select from my products", "Fetch from URL", or fill the product details manually with Product name, Prices, Shipping, Market.' };
+            }
+        }
+        return { valid: true };
+    }
+
     async saveFlow() {
         try {
+            const aiCheck = this.validateAiAgentNodesBeforeSave();
+            if (!aiCheck.valid) {
+                this.showNotification(aiCheck.message, 'error');
+                return;
+            }
             const flowData = await this.collectFlowData();
             let response;
           
@@ -2739,6 +3482,56 @@ this.connectionBranch = null;
                 case 'delay':
                     content.duration = parseInt(node.querySelector('.delay-duration')?.value) || 5;
                     break;
+
+                case 'ai-agent': {
+                    content.product_context = node.querySelector('.ai-agent-product-context')?.value?.trim() || '';
+                    content.context_source = node.querySelector('.ai-agent-context-source')?.value || 'MANUAL';
+                    const productSelectVal = node.querySelector('.ai-agent-product-select')?.value;
+                    content.product_id = (productSelectVal && content.context_source === 'PRODUCT_SELECT') ? parseInt(productSelectVal, 10) : null;
+                    content.voice_enabled = node.querySelector('.ai-agent-voice-enabled')?.checked || false;
+                    content.delay = parseInt(node.querySelector('.ai-agent-delay')?.value) || 0;
+                    content.ai_model_config = {};
+                    content.response_mode = node.querySelector('.ai-agent-response-mode')?.value || 'TEXT_ONLY';
+                    const personaIdEl = node.querySelector('.ai-agent-persona-id');
+                    content.persona_id = (personaIdEl && personaIdEl.value) ? parseInt(personaIdEl.value, 10) : null;
+                    const stab = node.querySelector('.ai-agent-voice-stability')?.value;
+                    content.voice_stability = stab != null ? parseFloat(stab) : null;
+                    const sim = node.querySelector('.ai-agent-voice-similarity')?.value;
+                    content.voice_similarity = sim != null ? parseFloat(sim) : null;
+                    const spd = node.querySelector('.ai-agent-voice-speed')?.value;
+                    content.voice_speed = spd != null ? parseFloat(spd) : null;
+                    content.node_voice_id = node.querySelector('.ai-agent-node-voice-id')?.value?.trim() || '';
+                    content.node_language = node.querySelector('.ai-agent-node-language')?.value?.trim() || '';
+                    content.node_gender = node.querySelector('.ai-agent-node-gender')?.value?.trim() || '';
+                    content.voice_provider = node.querySelector('.ai-agent-voice-provider')?.value?.trim() || 'ELEVENLABS';
+                    content.media = [];
+                    node.querySelectorAll('.ai-agent-media-row').forEach(row => {
+                        const fp = row.dataset.filePath;
+                        if (fp) content.media.push({
+                            file_path: fp,
+                            file_type: row.dataset.fileType || 'Image',
+                            description: row.querySelector('.ai-agent-media-description')?.value?.trim() || ''
+                        });
+                    });
+                    break;
+                }
+
+                case 'follow-up': {
+                    const delayEl = node.querySelector('.follow-up-delay-hours');
+                    content.delay_hours = delayEl ? parseInt(delayEl.value, 10) : 6;
+                    if (isNaN(content.delay_hours) || content.delay_hours < 1) content.delay_hours = 6;
+                    content.response_type = node.querySelector('.follow-up-response-type')?.value?.trim() || 'TEXT';
+                    content.ai_personalized = node.querySelector('.follow-up-ai-personalized')?.checked || false;
+                    content.caption = node.querySelector('.follow-up-caption')?.value?.trim() || '';
+                    content.file_path = node.querySelector('.follow-up-file-path')?.value?.trim() || '';
+                    break;
+                }
+
+                case 'google-sheets': {
+                    content.label = node.querySelector('.google-sheets-label')?.value?.trim() || 'Export to Google Sheets';
+                    content.send_all_data = node.querySelector('.google-sheets-send-all')?.checked !== false;
+                    break;
+                }
                   
                 case 'webhook':
                     content.url = node.querySelector('.webhook-url')?.value?.trim() || '';
@@ -3375,6 +4168,57 @@ initializeZoom() {
         }
     }
 
+    async handleAiNodeMediaFile(file, nodeId, mediaListEl, saveHintEl) {
+        const flowId = this.currentFlowId;
+        if (!flowId) {
+            if (saveHintEl) saveHintEl.style.display = 'block';
+            return;
+        }
+        const isVideo = (file.type || '').toLowerCase().startsWith('video/');
+        const fileType = isVideo ? 'Video' : 'Image';
+        const desc = (file.name || 'Media').replace(/\.[^.]*$/, '');
+        const form = new FormData();
+        form.append('flow_id', flowId);
+        form.append('node_id', nodeId);
+        form.append('file', file);
+        form.append('file_type', fileType);
+        form.append('description', desc);
+        form.append('csrfmiddlewaretoken', this.csrfToken || '');
+        try {
+            const baseUrl = '/discount/whatssapAPI';
+            const r = await fetch(baseUrl + '/api/flows/node-media-upload/', {
+                method: 'POST',
+                body: form,
+                headers: { 'X-CSRFToken': this.csrfToken || '' }
+            });
+            const j = await r.json();
+            if (j.error) { alert(j.error); return; }
+            const row = document.createElement('div');
+            row.className = 'ai-agent-media-row';
+            row.style.cssText = 'display:flex; align-items:center; gap:6px; margin-bottom:6px; font-size:0.8rem;';
+            row.dataset.filePath = j.file_path || '';
+            row.dataset.fileType = j.file_type || fileType;
+            const labelInput = document.createElement('input');
+            labelInput.type = 'text';
+            labelInput.className = 'form-input ai-agent-media-description';
+            labelInput.placeholder = 'Label for AI';
+            labelInput.value = j.description || desc;
+            labelInput.style.flex = '1';
+            labelInput.style.minWidth = '0';
+            const delBtn = document.createElement('button');
+            delBtn.type = 'button';
+            delBtn.className = 'btn btn-danger btn-sm';
+            delBtn.textContent = '✕';
+            delBtn.addEventListener('click', () => row.remove());
+            row.appendChild(labelInput);
+            row.appendChild(delBtn);
+            mediaListEl.appendChild(row);
+            if (saveHintEl) saveHintEl.style.display = 'none';
+        } catch (e) {
+            alert('Upload failed: ' + (e.message || e));
+        }
+    }
+
     showNotification(message, type = 'info') {
         const notification = document.createElement('div');
         notification.style.cssText = `
@@ -3416,6 +4260,110 @@ initializeZoom() {
         }
        
         initializeFlowBuilder();
+
+        // AI Product modal: Confirm & Cancel (one-time bind)
+        const aiProductModal = document.getElementById('aiProductConfirmModal');
+        const aiProductCancelBtn = document.getElementById('ai-product-confirm-cancel');
+        const aiProductOkBtn = document.getElementById('ai-product-confirm-ok');
+        if (aiProductModal && aiProductCancelBtn && aiProductOkBtn) {
+            document.querySelectorAll('.ai-product-field').forEach(field => {
+                field.addEventListener('input', () => { field.classList.remove('is-invalid'); });
+                field.addEventListener('change', () => { field.classList.remove('is-invalid'); });
+            });
+            const errName = document.getElementById('ai-product-err-name');
+            const errPrices = document.getElementById('ai-product-err-prices');
+            const errShipping = document.getElementById('ai-product-err-shipping');
+            document.getElementById('ai-product-edit-name')?.addEventListener('input', () => { if (errName) errName.textContent = ''; });
+            document.getElementById('ai-product-edit-prices')?.addEventListener('input', () => { if (errPrices) errPrices.textContent = ''; });
+            document.getElementById('ai-product-edit-shipping')?.addEventListener('change', () => { if (errShipping) errShipping.textContent = ''; });
+            aiProductCancelBtn.addEventListener('click', () => {
+                aiProductModal.style.display = 'none';
+                delete aiProductModal.dataset.targetNodeId;
+                window.aiProductClearValidationErrors && window.aiProductClearValidationErrors();
+            });
+            const apmBackdrop = aiProductModal.querySelector('.apm-backdrop');
+            if (apmBackdrop) apmBackdrop.addEventListener('click', () => {
+                aiProductModal.style.display = 'none';
+                delete aiProductModal.dataset.targetNodeId;
+                window.aiProductClearValidationErrors && window.aiProductClearValidationErrors();
+            });
+
+            window.aiProductClearValidationErrors = function() {
+                ['ai-product-err-name', 'ai-product-err-prices', 'ai-product-err-shipping'].forEach(id => {
+                    const el = document.getElementById(id);
+                    if (el) { el.textContent = ''; el.classList.remove('is-visible'); }
+                });
+                document.querySelectorAll('.ai-product-field').forEach(f => f.classList.remove('is-invalid'));
+            };
+
+            window.aiProductValidateForm = function() {
+                window.aiProductClearValidationErrors();
+                const name = (document.getElementById('ai-product-edit-name')?.value || '').trim();
+                const prices = (document.getElementById('ai-product-edit-prices')?.value || '').trim();
+                const shipping = (document.getElementById('ai-product-edit-shipping')?.value || '').trim();
+                let valid = true;
+                const errName = document.getElementById('ai-product-err-name');
+                const errPrices = document.getElementById('ai-product-err-prices');
+                const errShipping = document.getElementById('ai-product-err-shipping');
+                const nameIn = document.getElementById('ai-product-edit-name');
+                const pricesIn = document.getElementById('ai-product-edit-prices');
+                const shippingIn = document.getElementById('ai-product-edit-shipping');
+                if (!name) {
+                    if (errName) { errName.textContent = 'Product name is required.'; errName.classList.add('is-visible'); }
+                    if (nameIn) nameIn.classList.add('is-invalid');
+                    valid = false;
+                }
+                if (!prices) {
+                    if (errPrices) { errPrices.textContent = 'Prices are required.'; errPrices.classList.add('is-visible'); }
+                    if (pricesIn) pricesIn.classList.add('is-invalid');
+                    valid = false;
+                }
+                if (shipping !== 'Free' && shipping !== 'Paid') {
+                    if (errShipping) { errShipping.textContent = 'Please select Free or Paid.'; errShipping.classList.add('is-visible'); }
+                    if (shippingIn) shippingIn.classList.add('is-invalid');
+                    valid = false;
+                }
+                return valid;
+            };
+
+            aiProductOkBtn.addEventListener('click', () => {
+                if (!window.aiProductValidateForm()) return;
+                const nodeId = aiProductModal.dataset.targetNodeId;
+                if (!nodeId) { aiProductModal.style.display = 'none'; return; }
+                const nodeEl = document.getElementById(nodeId);
+                const name = (document.getElementById('ai-product-edit-name')?.value || '').trim();
+                const prices = (document.getElementById('ai-product-edit-prices')?.value || '').trim();
+                const shipping = (document.getElementById('ai-product-edit-shipping')?.value || '').trim();
+                const market = (document.getElementById('ai-product-edit-market')?.value || '').trim() || 'Morocco';
+                const additional = (document.getElementById('ai-product-edit-additional')?.value || '').trim();
+                const parts = [];
+                parts.push('Product name: ' + name);
+                parts.push('Prices: ' + prices);
+                parts.push('Shipping: ' + (shipping === 'Free' || shipping === 'Paid' ? shipping : ''));
+                parts.push('Market: ' + market);
+                if (additional) parts.push(additional);
+                const fullText = parts.join('\n\n');
+                if (nodeEl) {
+                    const ta = nodeEl.querySelector('.ai-agent-product-context');
+                    const summary = nodeEl.querySelector('.ai-agent-product-summary');
+                    const nameSpan = nodeEl.querySelector('.ai-agent-summary-name');
+                    const pricesSpan = nodeEl.querySelector('.ai-agent-summary-prices');
+                    const shippingSpan = nodeEl.querySelector('.ai-agent-summary-shipping');
+                    const marketSpan = nodeEl.querySelector('.ai-agent-summary-market');
+                    if (ta) ta.value = fullText;
+                    if (summary && nameSpan && pricesSpan && marketSpan) {
+                        nameSpan.textContent = name || '—';
+                        pricesSpan.textContent = prices ? (prices.length > 80 ? prices.slice(0, 80) + '…' : prices) : '—';
+                        if (shippingSpan) shippingSpan.textContent = shipping === 'Free' || shipping === 'Paid' ? shipping : '—';
+                        marketSpan.textContent = market || 'Morocco';
+                        summary.style.display = 'block';
+                    }
+                }
+                aiProductModal.style.display = 'none';
+                delete aiProductModal.dataset.targetNodeId;
+                window.aiProductClearValidationErrors && window.aiProductClearValidationErrors();
+            });
+        }
     });
 
     function showAutomationsList() {
@@ -3426,6 +4374,51 @@ initializeZoom() {
 </script>
 
 
+
+<!-- AI Product Edit & Confirm Modal -->
+<div id="aiProductConfirmModal" class="apm-overlay" style="display: none;" aria-modal="true" role="dialog" aria-labelledby="apm-title">
+    <div class="apm-backdrop" data-dismiss="modal"></div>
+    <div class="apm-card">
+        <header class="apm-header">
+            <div class="apm-header-icon" aria-hidden="true">📦</div>
+            <h2 id="apm-title" class="apm-title">Edit product data</h2>
+            <p class="apm-subtitle">Review and edit the extracted data. Fields marked with <span class="apm-asterisk">*</span> are required.</p>
+        </header>
+        <div class="apm-body">
+            <section class="apm-section">
+                <label class="apm-label apm-label-required" for="ai-product-edit-name">Product name <span class="apm-asterisk">*</span></label>
+                <input type="text" id="ai-product-edit-name" class="apm-input ai-product-field" placeholder="e.g. Wireless Headphones Pro" maxlength="500" autocomplete="off">
+                <span class="apm-error" id="ai-product-err-name" aria-live="polite"></span>
+            </section>
+            <section class="apm-section">
+                <label class="apm-label apm-label-required" for="ai-product-edit-prices">Prices <span class="apm-asterisk">*</span></label>
+                <textarea id="ai-product-edit-prices" class="apm-textarea ai-product-field" rows="2" placeholder="e.g. 299 MAD, 29.99 USD" maxlength="1500"></textarea>
+                <span class="apm-error" id="ai-product-err-prices" aria-live="polite"></span>
+            </section>
+            <section class="apm-section">
+                <label class="apm-label apm-label-required" for="ai-product-edit-shipping">Shipping method <span class="apm-asterisk">*</span></label>
+                <select id="ai-product-edit-shipping" class="apm-select ai-product-field" aria-describedby="ai-product-err-shipping">
+                    <option value="">Select...</option>
+                    <option value="Free">Free</option>
+                    <option value="Paid">Paid</option>
+                </select>
+                <span class="apm-error" id="ai-product-err-shipping" aria-live="polite"></span>
+            </section>
+            <section class="apm-section">
+                <label class="apm-label" for="ai-product-edit-market">Market</label>
+                <input type="text" id="ai-product-edit-market" class="apm-input ai-product-field" placeholder="e.g. Morocco" value="Morocco" maxlength="500">
+            </section>
+            <section class="apm-section">
+                <label class="apm-label" for="ai-product-edit-additional">Additional details</label>
+                <textarea id="ai-product-edit-additional"  style="min-height: 186px;" class="apm-textarea ai-product-field" rows="3" placeholder="Specs, features, delivery info..."></textarea>
+            </section>
+        </div>
+        <footer class="apm-footer">
+            <button type="button" id="ai-product-confirm-cancel" class="apm-btn apm-btn-secondary">Cancel</button>
+            <button type="button" id="ai-product-confirm-ok" class="apm-btn apm-btn-primary">Confirm &amp; save</button>
+        </footer>
+    </div>
+</div>
 
 <!-- Create Flow Modal -->
 <div id="createFlowModal" class="cf-modal">
@@ -3536,6 +4529,560 @@ initializeZoom() {
     background: #3a68d8;
 }
 
+/* AI Product modal: validation & layout */
+/* ========== AI Product Modal — professional overlay ========== */
+#aiProductConfirmModal.apm-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 9999;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    padding: 1.5rem;
+    box-sizing: border-box;
+}
+.apm-backdrop {
+    position: absolute;
+    inset: 0;
+    background: rgba(15, 23, 42, 0.52);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+}
+.apm-card {
+    position: relative;
+    width: 100%;
+    max-width: 520px;
+    max-height: calc(100vh - 3rem);
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    background: #ffffff;
+    border-radius: 16px;
+    box-shadow: 0 24px 48px rgba(15, 23, 42, 0.18), 0 0 0 1px rgba(15, 23, 42, 0.06);
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+}
+.apm-header {
+    flex-shrink: 0;
+    padding: 1.5rem 1.75rem 0;
+    text-align: center;
+}
+.apm-header-icon {
+    width: 48px;
+    height: 48px;
+    margin: 0 auto 0.75rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.5rem;
+    background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
+    border-radius: 12px;
+    color: #0c4a6e;
+}
+.apm-title {
+    margin: 0 0 0.25rem 0;
+    font-size: 1.35rem;
+    font-weight: 700;
+    color: #0f172a;
+    letter-spacing: -0.02em;
+    line-height: 1.3;
+}
+.apm-subtitle {
+    margin: 0 0 0 0;
+    font-size: 0.8125rem;
+    color: #64748b;
+    line-height: 1.45;
+    max-width: 36ch;
+    margin-left: auto;
+    margin-right: auto;
+}
+.apm-asterisk { color: #b91c1c; font-weight: 600; }
+.apm-body {
+    flex: 1;
+    overflow-y: auto;
+    padding: 1.25rem 1.75rem 1rem;
+}
+.apm-section {
+    margin-bottom: 1.1rem;
+}
+.apm-section:last-of-type { margin-bottom: 0; }
+.apm-label {
+    display: block;
+    font-size: 0.8125rem;
+    font-weight: 600;
+    color: #334155;
+    margin-bottom: 0.4rem;
+    letter-spacing: 0.01em;
+}
+.apm-label-required { color: #1e293b; }
+.apm-input,
+.apm-textarea,
+.apm-select {
+    width: 100%;
+    padding: 0.625rem 0.875rem;
+    font-size: 0.9375rem;
+    line-height: 1.45;
+    color: #0f172a;
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 10px;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease, background-color 0.2s ease;
+    box-sizing: border-box;
+}
+.apm-input::placeholder,
+.apm-textarea::placeholder { color: #94a3b8; }
+.apm-input:hover,
+.apm-textarea:hover,
+.apm-select:hover {
+    border-color: #cbd5e1;
+}
+.apm-input:focus,
+.apm-textarea:focus,
+.apm-select:focus {
+    outline: none;
+    border-color: #3b82f6;
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.18);
+    background: #fff;
+}
+.apm-textarea {
+    min-height: 72px;
+    resize: vertical;
+}
+.apm-select {
+    cursor: pointer;
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%2364748b' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 0.75rem center;
+    padding-right: 2.25rem;
+}
+.apm-error {
+    display: block;
+    font-size: 0.75rem;
+    color: #b91c1c;
+    margin-top: 0.35rem;
+    min-height: 1.125rem;
+    visibility: hidden;
+}
+.apm-error.is-visible { visibility: visible; }
+.ai-product-field.is-invalid {
+    border-color: #b91c1c !important;
+    box-shadow: 0 0 0 2px rgba(185, 28, 28, 0.12) !important;
+    background: #fef2f2 !important;
+}
+.apm-footer {
+    flex-shrink: 0;
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.75rem;
+    padding: 1rem 1.75rem 1.5rem;
+    border-top: 1px solid #f1f5f9;
+    background: #fafbfc;
+}
+.apm-btn {
+    padding: 0.625rem 1.25rem;
+    font-size: 0.9375rem;
+    font-weight: 600;
+    border-radius: 10px;
+    cursor: pointer;
+    transition: background-color 0.2s ease, color 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+    border: none;
+    font-family: inherit;
+}
+.apm-btn-secondary {
+    color: #475569;
+    background: #fff;
+    border: 1px solid #e2e8f0;
+}
+.apm-btn-secondary:hover {
+    background: #f8fafc;
+    border-color: #cbd5e1;
+    color: #334155;
+}
+.apm-btn-primary {
+    color: #fff;
+    background: linear-gradient(180deg, #2563eb 0%, #1d4ed8 100%);
+    box-shadow: 0 1px 2px rgba(0,0,0,0.06);
+}
+.apm-btn-primary:hover {
+    background: linear-gradient(180deg, #1d4ed8 0%, #1e40af 100%);
+    box-shadow: 0 2px 8px rgba(37, 99, 235, 0.35);
+}
+/* —— Persona section (Identity tab) —— */
+.persona-section { margin-bottom: 0; }
+.persona-section-header { margin-bottom: 14px; }
+.persona-section-title {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: #e2e8f0;
+  margin: 0 0 4px 0;
+  letter-spacing: -0.01em;
+}
+.persona-section-desc {
+  font-size: 0.75rem;
+  color: #94a3b8;
+  line-height: 1.4;
+  margin: 0;
+}
+.persona-tabs-wrap {
+  margin-bottom: 12px;
+}
+.ai-agent-persona-tabs {
+  display: flex;
+  gap: 6px;
+  padding: 4px;
+  background: rgba(0,0,0,0.2);
+  border-radius: 10px;
+  width: fit-content;
+}
+.ai-agent-persona-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: #94a3b8;
+  background: transparent;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: color 0.2s, background 0.2s;
+}
+.ai-agent-persona-tab:hover {
+  color: #e2e8f0;
+  background: rgba(255,255,255,0.06);
+}
+.ai-agent-persona-tab.active {
+  color: #fff;
+  background: #4d71ab;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+}
+.persona-tab-icon { font-size: 0.9rem; opacity: 0.9; }
+.persona-gallery-wrap {
+  min-height: 120px;
+  padding: 12px;
+  background: rgba(0,0,0,0.15);
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 12px;
+}
+.ai-agent-persona-gallery {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 10px;
+  max-height: 220px;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+.ai-agent-persona-gallery::-webkit-scrollbar { width: 6px; }
+.ai-agent-persona-gallery::-webkit-scrollbar-track { background: rgba(255,255,255,0.05); border-radius: 3px; }
+.ai-agent-persona-gallery::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.15); border-radius: 3px; }
+.persona-premium-banner {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 12px;
+  padding: 10px 12px;
+  font-size: 0.75rem;
+  color: #f59e0b;
+  background: rgba(245, 158, 11, 0.1);
+  border: 1px solid rgba(245, 158, 11, 0.25);
+  border-radius: 8px;
+}
+.persona-premium-icon { font-size: 1rem; }
+/* —— Persona cards (injected by JS) —— */
+.ai-agent-persona-card {
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 12px;
+  padding: 12px;
+  cursor: pointer;
+  text-align: center;
+  transition: border-color 0.2s, background 0.2s, box-shadow 0.2s;
+  background: rgba(255,255,255,0.04);
+  position: relative;
+}
+.ai-agent-persona-card:hover {
+  border-color: rgba(77, 113, 171, 0.5);
+  background: rgba(77, 113, 171, 0.12);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+}
+.ai-agent-persona-card.selected {
+  border-color: #4d71ab;
+  background: rgba(77, 113, 171, 0.2);
+  box-shadow: 0 0 0 1px #4d71ab;
+}
+.ai-agent-persona-card .name {
+  font-weight: 600;
+  font-size: 0.8rem;
+  color: #e2e8f0;
+  margin-bottom: 6px;
+  line-height: 1.3;
+  min-height: 2.6em;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.ai-agent-persona-card .desc {
+  font-size: 0.7rem;
+  color: #94a3b8;
+  margin-bottom: 10px;
+  line-height: 1.35;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.ai-agent-persona-card .play-btn {
+  font-size: 0.7rem;
+  padding: 5px 10px;
+  border-radius: 6px;
+  border: 1px solid rgba(255,255,255,0.2);
+  background: rgba(255,255,255,0.06);
+  color: #94a3b8;
+  cursor: pointer;
+  transition: background 0.2s, color 0.2s;
+}
+.ai-agent-persona-card .play-btn:hover {
+  background: rgba(77, 113, 171, 0.3);
+  color: #e2e8f0;
+  border-color: #4d71ab;
+}
+/* Empty state when no personas / no cloned voices */
+.persona-gallery-empty {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 24px 16px;
+  text-align: center;
+  color: #94a3b8;
+  background: rgba(255,255,255,0.03);
+  border: 1px dashed rgba(255,255,255,0.12);
+  border-radius: 10px;
+  min-height: 100px;
+}
+.persona-gallery-empty-icon { font-size: 1.5rem; margin-bottom: 8px; opacity: 0.7; }
+.persona-gallery-empty-text { font-size: 0.8rem; margin: 0 0 4px 0; color: #94a3b8; }
+.persona-gallery-empty-hint { font-size: 0.7rem; margin: 0; color: #64748b; }
 
+/* —— AI Node conditional visibility (Voice Settings / Provider / Gender) —— */
+.ai-agent-visibility-transition {
+  transition: opacity 0.25s ease, max-height 0.3s ease;
+  overflow: hidden;
+}
+.ai-agent-voice-settings-section.ai-agent-visibility-hidden {
+  max-height: 0 !important;
+  opacity: 0;
+  pointer-events: none;
+  visibility: hidden;
+  margin: 0 !important;
+  padding: 0 !important;
+  border: none !important;
+}
+.ai-agent-voice-settings-section:not(.ai-agent-visibility-hidden) {
+  max-height: 1200px;
+  opacity: 1;
+}
+.ai-agent-sliders-inner {
+  transition: opacity 0.2s ease;
+}
+.ai-agent-voice-sliders-wrap.ai-agent-visibility-hidden .ai-agent-sliders-inner {
+  opacity: 0;
+  pointer-events: none;
+  max-height: 0;
+  overflow: hidden;
+}
+.ai-agent-persona-card.ai-agent-persona-filtered-out {
+  display: none !important;
+}
  </style>
+<script>
+(function() {
+  function getChannelId() {
+    return (typeof window.currentChannelId !== 'undefined' && window.currentChannelId) || (document.querySelector('[data-current-channel-id]') && document.querySelector('[data-current-channel-id]').getAttribute('data-current-channel-id')) || '';
+  }
+
+  /** OpenAI tts-1 voice_id -> gender (for filtering) */
+  var OPENAI_VOICE_GENDER = { alloy: 'MALE', onyx: 'MALE', nova: 'FEMALE', shimmer: 'FEMALE', echo: 'MALE', fable: 'MALE' };
+
+  /**
+   * Apply conditional visibility for AI Node: response_mode, provider, gender.
+   * Call on load, when response_mode/voice_provider/gender change, and after persona gallery load.
+   */
+  window.applyAiNodeVisibility = function(node) {
+    if (!node || !node.querySelector) return;
+    var responseModeEl = node.querySelector('.ai-agent-response-mode');
+    var voiceSection = node.querySelector('.ai-agent-voice-settings-section');
+    var providerEl = node.querySelector('.ai-agent-voice-provider');
+    var genderEl = node.querySelector('.ai-agent-node-gender');
+    var slidersWrap = node.querySelector('.ai-agent-voice-sliders-wrap');
+    var openaiNote = node.querySelector('.ai-agent-openai-note');
+    var noVoicesMsg = node.querySelector('.ai-agent-no-voices-msg');
+    var personaIdInput = node.querySelector('.ai-agent-persona-id');
+
+    var responseMode = (responseModeEl && responseModeEl.value) ? responseModeEl.value : 'TEXT_ONLY';
+    var provider = (providerEl && providerEl.value) ? providerEl.value.trim().toUpperCase() : 'ELEVENLABS';
+    var gender = (genderEl && genderEl.value) ? genderEl.value.trim() : '';
+
+    // Level 1: Response mode -> hide/show entire Voice Settings (Language stays visible)
+    if (voiceSection) {
+      if (responseMode === 'TEXT_ONLY') {
+        voiceSection.classList.add('ai-agent-visibility-hidden');
+      } else {
+        voiceSection.classList.remove('ai-agent-visibility-hidden');
+      }
+    }
+
+    // Level 2: Provider -> hide sliders for OpenAI, show note
+    if (slidersWrap) {
+      if (provider === 'OPENAI') {
+        slidersWrap.classList.add('ai-agent-visibility-hidden');
+      } else {
+        slidersWrap.classList.remove('ai-agent-visibility-hidden');
+      }
+    }
+    if (openaiNote) {
+      openaiNote.style.display = provider === 'OPENAI' ? 'block' : 'none';
+    }
+
+    // Level 3: Filter persona cards by provider + gender; reset selection if invalid
+    var cards = node.querySelectorAll('.ai-agent-persona-card');
+    var visibleCount = 0;
+    var firstVisibleId = null;
+    cards.forEach(function(card) {
+      var cardProvider = (card.dataset.provider || 'ELEVENLABS').toUpperCase();
+      var cardGender = (card.dataset.gender || '').trim();
+      var providerMatch = cardProvider === provider;
+      var genderMatch = !gender || !cardGender || cardGender === gender;
+      var show = providerMatch && genderMatch;
+      if (show) {
+        card.classList.remove('ai-agent-persona-filtered-out');
+        visibleCount++;
+        if (firstVisibleId === null) firstVisibleId = card.dataset.personaId;
+      } else {
+        card.classList.add('ai-agent-persona-filtered-out');
+      }
+    });
+    if (personaIdInput && visibleCount > 0) {
+      var currentId = personaIdInput.value ? parseInt(personaIdInput.value, 10) : null;
+      var currentCard = node.querySelector('.ai-agent-persona-card.selected');
+      var currentStillVisible = currentCard && !currentCard.classList.contains('ai-agent-persona-filtered-out');
+      if (currentId && !currentStillVisible) {
+        personaIdInput.value = firstVisibleId || '';
+        node.querySelectorAll('.ai-agent-persona-card').forEach(function(c) { c.classList.remove('selected'); });
+        var firstCard = node.querySelector('.ai-agent-persona-card:not(.ai-agent-persona-filtered-out)');
+        if (firstCard) firstCard.classList.add('selected');
+      }
+    }
+    if (noVoicesMsg) {
+      noVoicesMsg.style.display = visibleCount === 0 ? 'flex' : 'none';
+    }
+  };
+
+  window.loadAiAgentPersonaGalleries = function(node) {
+    var stdGallery = node && node.querySelector('.ai-agent-persona-gallery-standard');
+    var myGallery = node && node.querySelector('.ai-agent-persona-gallery-my');
+    var personaIdInput = node && node.querySelector('.ai-agent-persona-id');
+    var selectedId = personaIdInput ? (personaIdInput.value ? parseInt(personaIdInput.value, 10) : null) : null;
+    if (!stdGallery) return;
+    var base = (typeof window.location !== 'undefined' && window.location.origin) ? window.location.origin : '';
+    var apiBase = base + '/discount/whatssapAPI';
+    fetch(apiBase + '/api/personas/')
+      .then(function(r) { return r.json(); })
+      .then(function(data) {
+        if (!data.success) return;
+        function renderCard(p) {
+          var card = document.createElement('div');
+          card.className = 'ai-agent-persona-card';
+          card.dataset.personaId = p.id;
+          card.dataset.provider = (p.provider || 'ELEVENLABS').toUpperCase();
+          var voiceId = (p.voice_id || '').toLowerCase();
+          if (card.dataset.provider === 'OPENAI' && OPENAI_VOICE_GENDER[voiceId]) card.dataset.gender = OPENAI_VOICE_GENDER[voiceId];
+          else if (p.gender) card.dataset.gender = (p.gender || '').toUpperCase();
+          if (selectedId === p.id) card.classList.add('selected');
+          card.innerHTML = '<div class="name">' + (p.name || '') + '</div><div class="desc">' + (p.description || '').substring(0, 60) + '</div><button type="button" class="btn btn-sm btn-outline-secondary play-btn ai-agent-play-sample">Play</button>';
+          card.querySelector('.ai-agent-play-sample').addEventListener('click', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            var chId = getChannelId();
+            var form = new FormData();
+            form.append('persona_id', p.id);
+            form.append('channel_id', chId);
+            form.append('text', 'مرحباً، أنا مساعدك الذكي.');
+            fetch(apiBase + '/api/preview-voice/', { method: 'POST', body: form, credentials: 'same-origin', headers: { 'X-CSRFToken': (document.querySelector('[name=csrfmiddlewaretoken]') && document.querySelector('[name=csrfmiddlewaretoken]').value) || '' } })
+              .then(function(res) {
+                if (!res.ok) return res.json().then(function(j) { alert(j.message || 'Preview failed'); });
+                return res.blob();
+              })
+              .then(function(blob) {
+                if (!blob) return;
+                var url = URL.createObjectURL(blob);
+                var audio = new Audio(url);
+                audio.play();
+                audio.onended = function() { URL.revokeObjectURL(url); };
+              });
+          });
+          card.addEventListener('click', function(e) {
+            if (e.target.classList.contains('ai-agent-play-sample')) return;
+            node.querySelectorAll('.ai-agent-persona-card').forEach(function(c) { c.classList.remove('selected'); });
+            card.classList.add('selected');
+            if (personaIdInput) personaIdInput.value = p.id;
+          });
+          return card;
+        }
+        stdGallery.innerHTML = '';
+        var standardList = data.standard_agents || [];
+        standardList.forEach(function(p) {
+          stdGallery.appendChild(renderCard(p));
+        });
+        if (standardList.length === 0) {
+          var emptyStd = document.createElement('div');
+          emptyStd.className = 'persona-gallery-empty';
+          emptyStd.innerHTML = '<span class="persona-gallery-empty-icon">👤</span><p class="persona-gallery-empty-text">No standard agents found.</p>';
+          stdGallery.appendChild(emptyStd);
+        }
+        stdGallery.dataset.loaded = '1';
+        if (myGallery) {
+          myGallery.innerHTML = '';
+          var myList = data.my_voices || [];
+          myList.forEach(function(p) {
+            myGallery.appendChild(renderCard(p));
+          });
+          if (myList.length === 0) {
+            var emptyMy = document.createElement('div');
+            emptyMy.className = 'persona-gallery-empty';
+            emptyMy.innerHTML = '<span class="persona-gallery-empty-icon">🎙</span><p class="persona-gallery-empty-text">No cloned voices found.</p><p class="persona-gallery-empty-hint">Clone your voice in Settings → Automation → Voice Identity.</p>';
+            myGallery.appendChild(emptyMy);
+          }
+          myGallery.dataset.loaded = '1';
+        }
+        if (data.can_use_premium === false && node.querySelector('.ai-agent-persona-premium-hint')) {
+          node.querySelector('.ai-agent-persona-premium-hint').style.display = 'block';
+        }
+        if (typeof window.applyAiNodeVisibility === 'function') window.applyAiNodeVisibility(node);
+      })
+      .catch(function() {
+        stdGallery.dataset.loaded = '1';
+        stdGallery.innerHTML = '<div class="persona-gallery-empty"><span class="persona-gallery-empty-icon">⚠️</span><p class="persona-gallery-empty-text">Could not load agents. Try again.</p></div>';
+      });
+  };
+})();
+
+window.__loadGoogleSheetsPreview = function(node) {
+  if (!node || !node.querySelector) return;
+  var previewEl = node.querySelector('.google-sheets-preview-text');
+  if (!previewEl) return;
+  var apiBase = typeof window.flowBuilder !== 'undefined' && window.flowBuilder.apiBaseUrl ? window.flowBuilder.apiBaseUrl : '/discount/whatssapAPI';
+  fetch(apiBase + '/api/google-sheets/config/', { method: 'GET', credentials: 'same-origin' })
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+      var m = data.column_mapping || {};
+      var keys = Object.keys(m).sort(function(a, b) { return (a.length - b.length) || a.localeCompare(b); });
+      var parts = keys.map(function(c) { return c + ' \u2192 ' + m[c]; });
+      previewEl.textContent = parts.length ? parts.join(', ') : 'No columns mapped (Settings \u2192 Integrations)';
+    })
+    .catch(function() { previewEl.textContent = 'Columns: set in Settings \u2192 Integrations'; });
+};
+</script>
  

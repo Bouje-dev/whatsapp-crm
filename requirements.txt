@@ -64,3 +64,5 @@ beautifulsoup4
 django-anymail[sendgrid]
 pycryptodome>=3.20.0
 openai>=1.0.0
+gspread>=6.0.0
+google-auth>=2.0.0

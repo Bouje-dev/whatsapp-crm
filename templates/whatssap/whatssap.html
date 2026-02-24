@@ -28,181 +28,6 @@
     }
 </style>
     <div class="cls3741_container">
-      {% if user.is_team_admin or user.is_superuser %}
-      <aside class="workspace-sidebar clc3432423">
-
-        <div class="workspace-list">
-       
-          {% for channel in user_channels %}
-          <div class="workspace-item {% if channel.id == initial_channel_id %}active{% endif %}" 
-               data-channel-id="{{ channel.id }}"
-               
-               /* 🔥 البيانات المخزنة للاستخدام الفوري 🔥 */
-               data-name="{{ channel.name }}"
-               {% if channel.profile_image %}
-
-               data-profile = "{{ channel.profile_image.url }}"
-               {% else %}
-               data-profile = ""
-               {% endif %}
-               data-agents="{{ channel.assigned_agents.count }}" 
-               
-               onclick="switchChannel('{{ channel.id }}')"
-               title="{{ channel.name }}">
-               {% if channel.profile_image %}
-               <img src="{{ channel.profile_image.url }}" alt="Profile Image" style="width: 50px; height: 50px; border-radius: 13px;  ">
-               {% else %}
-               {{ channel.name|slice:":1"|upper }}
-               {% endif %}
-              
-               {% if channel.unread_count > 0 %}
-                  <span class="unread-dot"></span>
-               {% endif %}
-          </div>
-          {% endfor %}
-  
-          <div class="workspace-item add-new" onclick="openAddChannelModal()">
-            <svg viewBox="0 0 24 24" width="24" height="24" stroke="currentColor" stroke-width="2" fill="none">
-              <line x1="12" y1="5" x2="12" y2="19"></line>
-              <line x1="5" y1="12" x2="19" y2="12"></line>
-            </svg>
-          </div>
-        </div>
-  
-        
-
-<style>
-  /* --- 1. شريط القنوات (أقصى اليسار) --- */
-.workspace-sidebar {
-  width: 80px; /* عرض أوسع قليلاً */
- 
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  padding: 20px 0;
-  z-index: 50;
-  flex-shrink: 0;
-}
-
-.workspace-list {
-  display: flex;
-  flex-direction: column;
-  gap: 16px; /* مسافة أكبر بين العناصر */
-  width: 100%;
-  align-items: center;
-}
-
-/* --- عنصر القناة --- */
-.workspace-item {
-  width: 52px;
-  height: 52px;
-  border-radius: 50%; /* دائرة كاملة افتراضياً */
-  background-color: #ffffff; /* أبيض */
-  color: #374151;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-weight: 700;
-  font-size: 20px;
-  cursor: pointer;
-  transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1); /* حركة ناعمة */
-  position: relative;
-  box-shadow: 0 2px 5px rgba(0,0,0,0.05);
-}
-
-/* عند التحويم */
-.workspace-item:hover {
-  border-radius: 16px; /* يتحول لمربع ناعم */
-  background-color: #4f46e5; /* لون البراند (بنفسجي/أزرق) */
-  color: white;
-}
-
-/* --- القناة النشطة (التصميم المتصل) --- */
-.workspace-item.active {
-  border-radius: 16px;
-  background-color: #4f46e5; /* لون النشاط */
-  color: white;
-  box-shadow: 0 4px 12px rgba(79, 70, 229, 0.3);
-  position: relative;
-}
-
-/* الشريط الأبيض المنحني (الكيرف) بجانب القناة النشطة */
-/* هذا الجزء يخلق وهم الاتصال مع المحتوى الأبيض */
-.workspace-item.active::after {
-  content: '';
-  position: absolute;
-  right: -26px; /* يخرج من الشريط */
-  top: 50%;
-  transform: translateY(-50%);
-  width: 20px;
-  height: 40px;
-  background-color: #ffffff; /* نفس لون خلفية المحتوى الرئيسي */
-  border-radius: 20px 0 0 20px; /* نصف دائرة لليسار */
-  z-index: -1; /* خلف الدائرة */
-  opacity: 0; /* يمكن تفعيله لو أردت التصميم المتصل تماماً */
-}
-
-/* مؤشر جانبي صغير (خط أبيض) */
-.workspace-item::before {
-  content: '';
-  position: absolute;
-  left: -12px;
-  top: 50%;
-  transform: translateY(-50%);
-  width: 4px;
-  height: 0; /* مخفي */
-  background-color: #000;
-  border-radius: 0 4px 4px 0;
-  transition: height 0.2s;
-}
-
-/* إظهار المؤشر عند التحويم */
-.workspace-item:hover::before {
-  height: 20px;
-}
-.workspace-item.active::before {
-  height: 36px; /* أطول عند النشاط */
-  background-color: #4f46e5;
-}
-
-/* --- زر الإضافة --- */
-.workspace-item.add-new {
-  background-color: transparent;
-  border: 2px dashed #d1d5db;
-  color: #9ca3af;
-  box-shadow: none;
-}
-.workspace-item.add-new:hover {
-  border-color: #4f46e5;
-  color: #4f46e5;
-  background-color: rgba(79, 70, 229, 0.1);
-}
-
-/* نقطة التنبيه (Unread) */
-.unread-dot {
-  position: absolute;
-  top: -2px;
-  right: -2px;
-  width: 14px;
-  height: 14px;
-  background-color: #ef4444;
-  border: 3px solid #f3f4f6; /* لون الحدود نفس لون خلفية الشريط */
-  border-radius: 50%;
-}
-
-/* --- تحسين المحتوى الرئيسي ليناسب التصميم --- */
-.main-content-wrapper {
-  background-color: #ffffff; /* أبيض نقي */
-  border-radius: 30px 0 0 30px; /* انحناء كبير في الزاوية اليسرى */
-  margin: 10px 10px 10px 0; /* مسافة صغيرة من الأعلى والأسفل */
-  box-shadow: -5px 0 20px rgba(0,0,0,0.05); /* ظل خفيف للفصل */
-  overflow: hidden;
-  flex: 1;
-}
-</style>
-      </aside>
-
-      {% endif %}
     <button type="button" class="cls3741_hamburger" id="cls3741_hamburger" aria-label="Open menu" aria-expanded="false">
       <span></span><span></span><span></span>
     </button>
@@ -302,7 +127,152 @@
     <i class="fas fa-comment-dots cls3741_icon"></i>
     <span class="cls3741_tooltip">Quick Reply</span>
 </button>
+
+  <button class="cls3741_btn" data-target="products">
+      <i class="fas fa-cube cls3741_icon"></i>
+      <span class="cls3741_tooltip">Product</span>
+  </button>
+
+  {% if user.is_team_admin or user.is_superuser %}
+  <aside class="workspace-sidebar clc3432423" style="margin-top: auto;">
+    <div class="workspace-list">
+      {% for channel in user_channels %}
+      <div class="workspace-item {% if channel.id == initial_channel_id %}active{% endif %}"
+           data-channel-id="{{ channel.id }}"
+           data-name="{{ channel.name }}"
+           {% if channel.profile_image %}data-profile="{{ channel.profile_image.url }}"
+           {% else %}data-profile=""
+           {% endif %}
+           data-agents="{{ channel.assigned_agents.count }}"
+           onclick="switchChannel('{{ channel.id }}')"
+           title="{{ channel.name }}">
+        {% if channel.profile_image %}
+        <img src="{{ channel.profile_image.url }}" alt="Profile Image" style="width: 50px; height: 50px; border-radius: 13px;">
+        {% else %}
+        {{ channel.name|slice:":1"|upper }}
+        {% endif %}
+        {% if channel.unread_count > 0 %}
+        <span class="unread-dot"></span>
+        {% endif %}
+      </div>
+      {% endfor %}
+      <div class="workspace-item add-new" onclick="openAddChannelModal()">
+        <svg viewBox="0 0 24 24" width="24" height="24" stroke="currentColor" stroke-width="2" fill="none">
+          <line x1="12" y1="5" x2="12" y2="19"></line>
+          <line x1="5" y1="12" x2="19" y2="12"></line>
+        </svg>
+      </div>
+    </div>
+  </aside>
+  {% endif %}
 </nav>
+
+<style>
+/* --- Workspace sidebar (channels) - now in nav --- */
+.workspace-sidebar {
+  width: 80px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 20px 0;
+  z-index: 50;
+  flex-shrink: 0;
+}
+.workspace-list {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  width: 100%;
+  align-items: center;
+}
+.workspace-item {
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  background-color: #ffffff;
+  color: #374151;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 20px;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+  position: relative;
+  box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+}
+.workspace-item:hover {
+  border-radius: 16px;
+  background-color: #4f46e5;
+  color: white;
+}
+.workspace-item.active {
+  border-radius: 16px;
+  background-color: #4f46e5;
+  color: white;
+  box-shadow: 0 4px 12px rgba(79, 70, 229, 0.3);
+  position: relative;
+}
+.workspace-item.active::after {
+  content: '';
+  position: absolute;
+  right: -26px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 20px;
+  height: 40px;
+  background-color: #ffffff;
+  border-radius: 20px 0 0 20px;
+  z-index: -1;
+  opacity: 0;
+}
+.workspace-item::before {
+  content: '';
+  position: absolute;
+  left: -12px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 4px;
+  height: 0;
+  background-color: #000;
+  border-radius: 0 4px 4px 0;
+  transition: height 0.2s;
+}
+.workspace-item:hover::before { height: 20px; }
+.workspace-item.active::before {
+  height: 36px;
+  background-color: #4f46e5;
+}
+.workspace-item.add-new {
+  background-color: transparent;
+  border: 2px dashed #d1d5db;
+  color: #9ca3af;
+  box-shadow: none;
+}
+.workspace-item.add-new:hover {
+  border-color: #4f46e5;
+  color: #4f46e5;
+  background-color: rgba(79, 70, 229, 0.1);
+}
+.unread-dot {
+  position: absolute;
+  top: -2px;
+  right: -2px;
+  width: 14px;
+  height: 14px;
+  background-color: #ef4444;
+  border: 3px solid #f3f4f6;
+  border-radius: 50%;
+}
+.main-content-wrapper {
+  background-color: #ffffff;
+  border-radius: 30px 0 0 30px;
+  margin: 10px 10px 10px 0;
+  box-shadow: -5px 0 20px rgba(0,0,0,0.05);
+  overflow: hidden;
+  flex: 1;
+}
+</style>
 
       <!-- <div style="font-size:13px;color:var(--muted);padding:8px 10px">
         <div>حالة الحساب</div>
@@ -1130,6 +1100,248 @@ function generateWhatsAppQR(phoneNumber) {
             {% endif %} 
         </div>
     </div>
+
+    <!-- AI Sales Agent Analytics (embedded) -->
+    <div class="cls3741_section_title" style="margin-top: 8px;">
+      <h3><i class="fas fa-chart-line me-2"></i>AI Sales Agent Analytics</h3>
+      <div class="d-flex flex-wrap gap-2 align-items-center">
+        <div class="dropdown">
+          <button class="btn btn-outline-primary btn-sm dropdown-toggle" type="button" id="aiRangeDropdown" data-bs-toggle="dropdown" aria-expanded="false">
+            <i class="fas fa-calendar-alt me-1"></i> <span id="aiRangeLabel">This Month</span>
+          </button>
+          <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="aiRangeDropdown">
+            <li><a class="dropdown-item ai-range-option" href="#" data-range="today">Today</a></li>
+            <li><a class="dropdown-item ai-range-option" href="#" data-range="7d">Last 7 Days</a></li>
+            <li><a class="dropdown-item ai-range-option" href="#" data-range="month">This Month</a></li>
+          </ul>
+        </div>
+        <a id="aiExportCsvBtn" class="btn btn-outline-success btn-sm" href="#" download><i class="fas fa-file-csv me-1"></i> Export CSV</a>
+      </div>
+    </div>
+    <div id="aiAnalyticsNoChannel" class="cls3741_lifecycle_card" style="display: none; border-left: 3px solid var(--accent);">
+      <div class="cls3741_lc_header"><span>⚠️</span> Select a channel to view AI analytics.</div>
+    </div>
+    <div id="aiAnalyticsLoader" class="text-center py-4 d-none" style="color: var(--text-secondary);">
+      <div class="spinner-border text-primary" role="status"></div>
+      <p class="mt-2 mb-0">Loading AI analytics...</p>
+    </div>
+    <div id="aiAnalyticsContent" style="display: none;">
+      <div class="cls3741_stats_grid" style="margin-bottom: 20px;">
+        <div class="stat_card">
+          <div class="stat_icon green">🤖</div>
+          <div class="stat_content">
+            <div class="stat_label">Orders Closed by AI</div>
+            <div class="stat_number" id="aiStatOrders">0</div>
+            <small class="text-muted">[ORDER_DATA] triggered</small>
+          </div>
+        </div>
+        <div class="stat_card">
+          <div class="stat_icon blue">⏱</div>
+          <div class="stat_content">
+            <div class="stat_label">Time Saved</div>
+            <div class="stat_number" id="aiStatTimeSaved">0h</div>
+            <small class="text-muted" id="aiStatTimeSavedSub">—</small>
+          </div>
+        </div>
+        <div class="stat_card">
+          <div class="stat_icon purple">📈</div>
+          <div class="stat_content">
+            <div class="stat_label">AI Success Rate</div>
+            <div class="stat_number" id="aiStatRate">0%</div>
+            <small class="text-muted">Conversions / Chats</small>
+          </div>
+        </div>
+      </div>
+      <div class="row g-3 mb-4" style="max-width: 100%; margin-left: 0; margin-right: 0;">
+        <div class="col-12 col-lg-8" style="padding: 0 9px;">
+          <div class="cls3741_chart_section" style="margin-bottom: 0;">
+            <div class="chart_header"><h3>AI vs Manual Sales (Last 30 days)</h3></div>
+            <div class="chart_container" style="height: 220px;">
+              <canvas id="aiChartAiVsManual"></canvas>
+            </div>
+          </div>
+        </div>
+        <div class="col-12 col-lg-4" style="padding: 0 9px;">
+          <div class="cls3741_chart_section" style="margin-bottom: 0;">
+            <div class="chart_header"><h3>Top Products (AI)</h3></div>
+            <div class="chart_container" style="height: 220px;">
+              <canvas id="aiChartTopProducts"></canvas>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="cls3741_chart_section" style="margin-top: 0;">
+        <div class="chart_header"><h3>API Usage (Characters)</h3></div>
+        <p class="text-muted small mb-2">ElevenLabs &amp; Whisper in selected period</p>
+        <div class="progress" style="height: 24px; background: var(--bg-tertiary);">
+          <div class="progress-bar bg-secondary" id="aiApiProgressBar" role="progressbar" style="width: 0%;" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100">0</div>
+        </div>
+        <div class="d-flex justify-content-between mt-2 small text-muted">
+          <span id="aiApiUsedLabel">0 characters used</span>
+          <span id="aiApiRemainingLabel">—</span>
+        </div>
+      </div>
+    </div>
+
+<script>
+(function() {
+    var aiChartAiVsManual = null;
+    var aiChartTopProducts = null;
+    var aiCurrentRange = 'month';
+    var aiRangeLabels = { today: 'Today', '7d': 'Last 7 Days', month: 'This Month' };
+    var baseUrl = '/discount/whatssapAPI/api/ai-analytics/';
+    var exportBaseUrl = '/discount/whatssapAPI/api/ai-analytics/export-csv/';
+
+    function aiApiUrl(channelId, range) {
+        return baseUrl + '?channel_id=' + encodeURIComponent(channelId) + '&range=' + encodeURIComponent(range);
+    }
+    function aiExportUrl(channelId, range) {
+        return exportBaseUrl + '?channel_id=' + encodeURIComponent(channelId) + '&range=' + encodeURIComponent(range);
+    }
+
+    function aiSetLoading(show) {
+        var loader = document.getElementById('aiAnalyticsLoader');
+        var content = document.getElementById('aiAnalyticsContent');
+        if (loader) loader.classList.toggle('d-none', !show);
+        if (content) { content.style.display = show ? 'none' : 'block'; }
+    }
+
+    function aiApplyData(data) {
+        var o = document.getElementById('aiStatOrders');
+        var t = document.getElementById('aiStatTimeSaved');
+        var ts = document.getElementById('aiStatTimeSavedSub');
+        var r = document.getElementById('aiStatRate');
+        if (o) o.textContent = data.total_ai_orders || 0;
+        if (t) t.textContent = data.hours_saved_label || '0h';
+        if (ts) ts.textContent = data.total_ai_messages
+            ? 'Your AI has done the work of a full-time employee for ' + (data.hours_saved || 0) + ' hours this period.'
+            : '—';
+        if (r) r.textContent = (data.ai_conversion_rate || 0) + '%';
+
+        var used = data.api_characters_used || 0;
+        var maxVal = 500000;
+        var pct = Math.min(100, Math.round((used / maxVal) * 100));
+        var bar = document.getElementById('aiApiProgressBar');
+        if (bar) {
+            bar.style.width = pct + '%';
+            bar.setAttribute('aria-valuenow', used);
+            bar.textContent = pct + '%';
+        }
+        var ul = document.getElementById('aiApiUsedLabel');
+        var rl = document.getElementById('aiApiRemainingLabel');
+        if (ul) ul.textContent = used.toLocaleString() + ' characters used';
+        if (rl) rl.textContent = data.api_credits_remaining != null ? (data.api_credits_remaining + ' remaining') : '—';
+
+        var chartData = data.chart_ai_vs_manual || [];
+        var labels = chartData.map(function(d) { return d.date ? d.date.slice(5) : ''; });
+        var ctx1 = document.getElementById('aiChartAiVsManual');
+        if (ctx1) {
+            if (aiChartAiVsManual) {
+                aiChartAiVsManual.data.labels = labels;
+                aiChartAiVsManual.data.datasets[0].data = chartData.map(function(d) { return d.ai_orders; });
+                aiChartAiVsManual.data.datasets[1].data = chartData.map(function(d) { return d.manual_orders; });
+                aiChartAiVsManual.update();
+            } else {
+                aiChartAiVsManual = new Chart(ctx1.getContext('2d'), {
+                    type: 'line',
+                    data: {
+                        labels: labels,
+                        datasets: [
+                            { label: 'AI Orders', data: chartData.map(function(d) { return d.ai_orders; }), borderColor: '#22c55e', backgroundColor: 'rgba(34,197,94,0.1)', fill: true, tension: 0.3 },
+                            { label: 'Manual Orders', data: chartData.map(function(d) { return d.manual_orders; }), borderColor: '#4f46e5', backgroundColor: 'rgba(79,70,229,0.1)', fill: true, tension: 0.3 }
+                        ]
+                    },
+                    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'top' } }, scales: { y: { beginAtZero: true } } }
+                });
+            }
+        }
+
+        var top = data.top_products || [];
+        var ctx2 = document.getElementById('aiChartTopProducts');
+        if (ctx2) {
+            if (aiChartTopProducts) {
+                aiChartTopProducts.data.labels = top.map(function(p) { return p.product_name; });
+                aiChartTopProducts.data.datasets[0].data = top.map(function(p) { return p.count; });
+                aiChartTopProducts.update();
+            } else {
+                aiChartTopProducts = new Chart(ctx2.getContext('2d'), {
+                    type: 'bar',
+                    data: {
+                        labels: top.map(function(p) { return p.product_name; }),
+                        datasets: [{ label: 'Orders', data: top.map(function(p) { return p.count; }), backgroundColor: 'rgba(34,197,94,0.7)' }]
+                    },
+                    options: { indexAxis: 'y', responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { x: { beginAtZero: true } } }
+                });
+            }
+        }
+    }
+
+    function loadAiAnalytics(channelId) {
+        var noChannel = document.getElementById('aiAnalyticsNoChannel');
+        var content = document.getElementById('aiAnalyticsContent');
+        var loader = document.getElementById('aiAnalyticsLoader');
+        var cid = channelId || window.currentChannelId || (document.querySelector('.workspace-item.active') && document.querySelector('.workspace-item.active').getAttribute('data-channel-id'));
+        if (!cid || cid === 'null') {
+            if (noChannel) noChannel.style.display = 'block';
+            if (content) content.style.display = 'none';
+            if (loader) loader.classList.add('d-none');
+            return;
+        }
+        if (noChannel) noChannel.style.display = 'none';
+        aiCurrentRange = aiCurrentRange || 'month';
+        var rangeLabel = document.getElementById('aiRangeLabel');
+        if (rangeLabel) rangeLabel.textContent = aiRangeLabels[aiCurrentRange] || aiCurrentRange;
+        var exportBtn = document.getElementById('aiExportCsvBtn');
+        if (exportBtn) exportBtn.href = aiExportUrl(cid, aiCurrentRange);
+        aiSetLoading(true);
+        fetch(aiApiUrl(cid, aiCurrentRange))
+            .then(function(r) { return r.json(); })
+            .then(function(res) {
+                aiSetLoading(false);
+                if (res.success && res.data) {
+                    aiApplyData(res.data);
+                    if (content) content.style.display = 'block';
+                }
+            })
+            .catch(function() {
+                aiSetLoading(false);
+            });
+    }
+
+    document.querySelectorAll('.ai-range-option').forEach(function(el) {
+        el.addEventListener('click', function(e) {
+            e.preventDefault();
+            aiCurrentRange = el.getAttribute('data-range');
+            var label = document.getElementById('aiRangeLabel');
+            if (label) label.textContent = aiRangeLabels[aiCurrentRange] || aiCurrentRange;
+            var cid = window.currentChannelId || (document.querySelector('.workspace-item.active') && document.querySelector('.workspace-item.active').getAttribute('data-channel-id'));
+            if (cid) {
+                var exportBtn = document.getElementById('aiExportCsvBtn');
+                if (exportBtn) exportBtn.href = aiExportUrl(cid, aiCurrentRange);
+                aiSetLoading(true);
+                fetch(aiApiUrl(cid, aiCurrentRange))
+                    .then(function(r) { return r.json(); })
+                    .then(function(res) {
+                        aiSetLoading(false);
+                        if (res.success && res.data) aiApplyData(res.data);
+                    })
+                    .catch(function() { aiSetLoading(false); });
+            }
+        });
+    });
+    var exportBtnEl = document.getElementById('aiExportCsvBtn');
+    if (exportBtnEl) exportBtnEl.addEventListener('click', function() {
+        var cid = window.currentChannelId || (document.querySelector('.workspace-item.active') && document.querySelector('.workspace-item.active').getAttribute('data-channel-id'));
+        if (cid) this.href = aiExportUrl(cid, aiCurrentRange);
+    });
+
+    window.loadAiAnalytics = loadAiAnalytics;
+    // Initial load when script runs (in case loadDashboardData ran before this script)
+    var initialCid = window.currentChannelId || (document.querySelector('.workspace-item.active') && document.querySelector('.workspace-item.active').getAttribute('data-channel-id'));
+    if (initialCid && initialCid !== 'null') loadAiAnalytics(initialCid);
+})();
+</script>
+
     <div class="cls3741_section_title">
       <h3><i class="fas fa-route me-2"></i>Contact Lifecycle</h3>
       <span class="cls3741_badge_gray">Pipeline View</span>
@@ -1683,6 +1895,10 @@ async function loadDashboardData(channelId) {
 
             // 2. تحديث الرسم البياني
             updateChart(data.chart);
+            // 3. تحميل AI Analytics إن وُجدت الدالة
+            if (typeof window.loadAiAnalytics === 'function') {
+                window.loadAiAnalytics(activeId);
+            }
         }
         if (data.account.phone_number) {
             generateWhatsAppQR(data.account.phone_number);
@@ -2742,8 +2958,18 @@ window.resetFilters = function() {
           </div>
           
         </div>
-        <div style="margin-left:auto;display:flex;gap:8px">
-         <!-- <button id="make_important" class="cls3741_action_btn" title="Make important">important</button> -->
+        <div style="margin-left:auto;display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+          <div id="hitl_badge_wrap" class="hitl-badge-wrap" style="display:none;">
+            <span id="hitl_badge" class="hitl-badge" title="Needs Human Action">Needs Human</span>
+            <button type="button" id="hitl_reenable_btn" class="hitl-reenable-btn" title="Re-enable AI">Re-enable AI</button>
+          </div>
+          <div class="hitl-toggle-wrap" title="AI handles this chat when On">
+            <span class="hitl-toggle-label">AI</span>
+            <label class="hitl-switch">
+              <input type="checkbox" id="hitl_ai_toggle" checked>
+              <span class="hitl-slider"></span>
+            </label>
+          </div>
           <button id="cls3741_open_info" class="cls3741_action_btn" title="Open contact info" style="width: 100%;padding: 10px;width: 100%; height: 100%;">Open</button>
         </div>
       </div>
@@ -2969,6 +3195,18 @@ function sendInternalNote(text) {
                         <button class="ai-generate-btn" id="ai_generate_btn">Generate</button>
                       </div>
 
+                      <div class="ai-response-type-row">
+                        <span class="ai-response-type-label">Response type:</span>
+                        <label class="ai-response-type-option">
+                          <input type="radio" name="ai_response_type" value="text" id="ai_response_type_text" checked>
+                          <span>Text</span>
+                        </label>
+                        <label class="ai-response-type-option">
+                          <input type="radio" name="ai_response_type" value="audio" id="ai_response_type_audio">
+                          <span>Audio</span>
+                        </label>
+                      </div>
+
                       <div class="ai-loading-skeleton" id="ai_loading">
                         <div class="ai-skel-line"></div>
                         <div class="ai-skel-line"></div>
@@ -2987,6 +3225,8 @@ function sendInternalNote(text) {
                       </div>
                     </div>
                   </div>
+
+
                   </div>
                   </div>
     
@@ -3270,8 +3510,17 @@ function sendCannedResponseDirectly(item) {
     const tokensInfo   = document.getElementById('ai_tokens_info');
     const messageInput = document.getElementById('cls3741_message_input');
     const sendBtn      = document.getElementById('cls3741_send_btn');
+    const responseTypeText = document.getElementById('ai_response_type_text');
+    const responseTypeAudio = document.getElementById('ai_response_type_audio');
 
     if (!aiBtn || !panel) return;
+
+    function isAudioResponseType() {
+      return responseTypeAudio && responseTypeAudio.checked;
+    }
+    function updateUseButtonLabel() {
+      if (useBtn) useBtn.textContent = isAudioResponseType() ? 'Send as voice' : 'Use Reply';
+    }
 
     function getActivePhone() {
         return typeof window.getCurrentChatPhone === 'function' ? window.getCurrentChatPhone() : null;
@@ -3325,6 +3574,7 @@ function sendCannedResponseDirectly(item) {
         tokensInfo.textContent = tokens ? `${tokens} tokens used` : '';
         resultArea.classList.add('visible');
         errorEl.classList.remove('visible');
+        updateUseButtonLabel();
     }
 
     async function requestAI() {
@@ -3399,15 +3649,47 @@ function sendCannedResponseDirectly(item) {
         }
     });
 
-    // Use Reply -> put text in message input
-    useBtn.addEventListener('click', function() {
-        if (!messageInput || !resultText.textContent) return;
-        messageInput.value = resultText.textContent;
-        messageInput.dispatchEvent(new Event('input', { bubbles: true }));
-        messageInput.focus();
-        if (sendBtn) sendBtn.disabled = false;
-        togglePanel(false);
+    // Use Reply / Send as voice
+    useBtn.addEventListener('click', async function() {
+        if (!resultText.textContent) return;
+        const phone = getActivePhone();
+        const channelId = getActiveChannelId();
+        if (isAudioResponseType()) {
+            useBtn.disabled = true;
+            useBtn.textContent = 'Sending…';
+            try {
+                const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]')?.value;
+                const res = await fetch('/ai-assistant/api/send-as-voice/', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken },
+                    body: JSON.stringify({ channel_id: channelId, phone: phone, text: resultText.textContent }),
+                });
+                const data = await res.json();
+                if (res.ok && data.success) {
+                    togglePanel(false);
+                } else {
+                    showError(data.error || 'Failed to send as voice.');
+                }
+            } catch (err) {
+                showError('Network error. Could not send as voice.');
+                console.error(err);
+            } finally {
+                useBtn.disabled = false;
+                updateUseButtonLabel();
+            }
+        } else {
+            if (messageInput) {
+                messageInput.value = resultText.textContent;
+                messageInput.dispatchEvent(new Event('input', { bubbles: true }));
+                messageInput.focus();
+            }
+            if (sendBtn) sendBtn.disabled = false;
+            togglePanel(false);
+        }
     });
+
+    if (responseTypeText) responseTypeText.addEventListener('change', updateUseButtonLabel);
+    if (responseTypeAudio) responseTypeAudio.addEventListener('change', updateUseButtonLabel);
 
     // Close panel when clicking outside
     document.addEventListener('click', function(e) {
@@ -3855,6 +4137,29 @@ function sendCannedResponseDirectly(item) {
       }
       .ai-generate-btn:hover { box-shadow: 0 2px 8px rgba(99,102,241,0.4); }
       .ai-generate-btn:disabled { opacity: 0.6; cursor: not-allowed; }
+
+      .ai-response-type-row {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin-bottom: 12px;
+        flex-wrap: wrap;
+      }
+      .ai-response-type-label {
+        font-size: 12px;
+        color: #64748b;
+        font-weight: 500;
+      }
+      .ai-response-type-option {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        font-size: 13px;
+        color: #334155;
+        cursor: pointer;
+        user-select: none;
+      }
+      .ai-response-type-option input { cursor: pointer; accent-color: #7c3aed; }
 
       /* Result area */
       .ai-result-area {
@@ -4761,6 +5066,38 @@ document.addEventListener("DOMContentLoaded", function() {
             flex-shrink: 0;
         }
 
+        /* --- HITL: AI Status & Needs Human badge --- */
+        .hitl-badge-wrap { display: inline-flex; align-items: center; gap: 6px; margin-right: 4px; }
+        .hitl-badge {
+            font-size: 11px; font-weight: 600; padding: 4px 8px; border-radius: 6px;
+            background: rgba(245, 158, 11, 0.25); color: #fbbf24;
+            border: 1px solid rgba(245, 158, 11, 0.5);
+        }
+        .hitl-reenable-btn {
+            font-size: 11px; padding: 4px 10px; border-radius: 6px; border: 1px solid #10b981;
+            background: rgba(16, 185, 129, 0.2); color: #34d399; cursor: pointer;
+        }
+        .hitl-reenable-btn:hover { background: rgba(16, 185, 129, 0.35); }
+        .hitl-toggle-wrap { display: inline-flex; align-items: center; gap: 6px; }
+        .hitl-toggle-label { font-size: 12px; color: var(--qs-text-muted, #9ca3af); }
+        .hitl-switch { position: relative; display: inline-block; width: 36px; height: 20px; }
+        .hitl-switch input { opacity: 0; width: 0; height: 0; }
+        .hitl-slider {
+            position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0;
+            background-color: #374151; border-radius: 20px; transition: 0.25s;
+        }
+        .hitl-slider:before {
+            position: absolute; content: ""; height: 14px; width: 14px; left: 3px; bottom: 3px;
+            background-color: white; border-radius: 50%; transition: 0.25s;
+        }
+        .hitl-switch input:checked + .hitl-slider { background-color: #10b981; }
+        .hitl-switch input:checked + .hitl-slider:before { transform: translateX(16px); }
+        .hitl-contact-badge {
+            font-size: 9px; font-weight: 600; padding: 2px 6px; border-radius: 4px;
+            background: rgba(245, 158, 11, 0.25); color: #fbbf24;
+            display: inline-block; margin-top: 2px;
+        }
+
           /* --- Quick Sidebar Variables --- */
         :root {
             --qs-bg: #111827;           /* خلفية داكنة جداً */
@@ -5085,6 +5422,7 @@ $('#cls3741_attach_btn').on('click', function() {
                         <th style="padding:10px;font-weight:700;color:#eafcff">product</th>
                         <th style="padding:10px;font-weight:700;color:#eafcff">Prices</th>
                         <th style="padding:10px;font-weight:700;color:#eafcff">Created at</th>
+                        <th style="padding:10px;font-weight:700;color:#eafcff">Sync Status</th>
                     </tr>
                 </thead>
                 <tbody id="orders_tbody" style="    border-color: inherit;
@@ -5093,7 +5431,7 @@ $('#cls3741_attach_btn').on('click', function() {
             ">
                     <!-- sample empty state -->
                     <tr> 
-                        <td colspan="5" style="padding:18px;color:var(--muted);text-align:center">No order found</td>
+                        <td colspan="8" style="padding:18px;color:var(--muted);text-align:center">No order found</td>
                     </tr>
                 </tbody>
             </table>
@@ -5128,7 +5466,7 @@ $('#cls3741_attach_btn').on('click', function() {
     const channel_id = activeChannelId || window.currentChannelId || '{{ initial_channel_id }}';
 
     if(!tbody) return;
-    tbody.innerHTML = `<tr><td colspan="5" style="padding:18px;color:var(--muted);text-align:center">Loading orders...</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="8" style="padding:18px;color:var(--muted);text-align:center">Loading orders...</td></tr>`;
     try{
       const url = `/discount/whatssapAPI/api_orders/?channel_id=${channel_id}`;
       const res = await fetch(url, {
@@ -5142,7 +5480,7 @@ $('#cls3741_attach_btn').on('click', function() {
       console.log('Orders loaded', list);
 
       if(!Array.isArray(list) || list.length === 0){
-        tbody.innerHTML = `<tr><td colspan="5" style="padding:18px;color:var(--muted);text-align:center">There are no orders yet</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="8" style="padding:18px;color:var(--muted);text-align:center">There are no orders yet</td></tr>`;
         return;
       }
 
@@ -5150,17 +5488,24 @@ $('#cls3741_attach_btn').on('click', function() {
       list.forEach(item => {
          
         const name = escapeHtml(item.customer_name || item.title || '');
-        const useremail = escapeHtml(item.created_by || item.cat || '-');
+        const createdByDisplay = escapeHtml(item.created_by_display || item.created_by || item.cat || '—');
+        const createdByIsBot = !!item.created_by_is_bot;
+        const useremail = createdByIsBot ? ('🤖 ' + createdByDisplay) : createdByDisplay;
         const customer_city = escapeHtml(item.customer_city || item.body || '-');
         const Tamount = escapeHtml(item.total_amount || '-');
         const updated = escapeHtml(item.created_at || item.last_updated || item.updated_at || '');
         const quantity = escapeHtml(item.quantity || '1');
-        const product = escapeHtml(item.product || '')
-        
+        const product = escapeHtml(item.product || '');
+        const syncStatus = (item.sheets_export_status || '').toLowerCase();
+        const syncError = escapeHtml((item.sheets_export_error || '').slice(0, 80));
+        const showSyncBtn = syncStatus === 'failed' || syncStatus === 'pending' || !syncStatus;
+        const statusLabel = syncStatus === 'success' ? 'OK' : syncStatus === 'failed' ? 'Failed' : syncStatus === 'pending' ? 'Pending' : '—';
+        const statusColor = syncStatus === 'success' ? '#22c55e' : syncStatus === 'failed' ? '#ef4444' : '#eab308';
 
         const tr = document.createElement('tr');
+        tr.setAttribute('data-order-id', item.id);
         tr.innerHTML = `  
-         <td style="padding:10px;background: #0f1017; font-weight:bolder;">${useremail}</td>
+         <td style="padding:10px;background: #0f1017; font-weight:bolder;" title="${createdByIsBot ? 'Created by AI Agent' : ''}">${useremail}</td>
           <td style="padding:10px">${name}</td>
        
           <td style="padding:10px;color:var(--muted);max-width:320px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${customer_city}</td>
@@ -5169,12 +5514,54 @@ $('#cls3741_attach_btn').on('click', function() {
           
           <td style="padding:10px">${Tamount}</td>
           <td style="padding:10px">${updated}</td>
+          <td style="padding:10px">
+            <span style="color:${statusColor};font-weight:600">${statusLabel}</span>
+            ${showSyncBtn ? `<button type="button" class="cls3741_btn_sync_order" data-order-id="${item.id}" title="${syncError}" style="margin-left:6px;padding:4px 8px;font-size:0.75rem;border-radius:6px;background:rgba(34,197,94,0.2);color:#22c55e;border:1px solid #22c55e;cursor:pointer">&#8635; Sync Now</button>` : ''}
+          </td>
         `;
         tbody.appendChild(tr);
       });
+
+      // Bind Sync Now buttons
+      tbody.querySelectorAll('.cls3741_btn_sync_order').forEach(function(btn) {
+        btn.addEventListener('click', function() {
+          const orderId = this.getAttribute('data-order-id');
+          if (!orderId) return;
+          const csrfInput = document.querySelector('input[name="csrfmiddlewaretoken"]') || document.querySelector('meta[name="csrf-token"]');
+          const csrf = csrfInput ? (csrfInput.value || csrfInput.getAttribute('content')) : '';
+          const opts = { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrf, 'Accept': 'application/json' }, credentials: 'same-origin' };
+          if (csrf) opts.body = JSON.stringify({});
+          btn.disabled = true;
+          btn.textContent = '…';
+          fetch('/discount/whatssapAPI/api_orders/' + orderId + '/sync/', opts)
+            .then(function(r) { return r.json().then(function(j) { return { ok: r.ok, json: j }; }); })
+            .then(function(res) {
+              if (res.ok && res.json.success) {
+                if (typeof showToast === 'function') showToast('Success: ' + (res.json.message || 'Synced to Google Sheets'), 'success');
+                else alert('Success: ' + (res.json.message || 'Synced to Google Sheets'));
+                btn.style.display = 'none';
+                var done = document.createElement('span');
+                done.textContent = ' Done';
+                done.style.color = '#22c55e';
+                done.style.fontWeight = '600';
+                done.style.marginLeft = '6px';
+                btn.parentNode.appendChild(done);
+                loadTemplates();
+              } else {
+                if (typeof showToast === 'function') showToast('Error: ' + (res.json.message || 'Sync failed'), 'error');
+                else alert('Error: ' + (res.json.message || 'Sync failed'));
+              }
+            })
+            .catch(function(e) {
+              if (typeof showToast === 'function') showToast('Error: ' + (e.message || 'Request failed'), 'error');
+              else alert('Error: ' + (e.message || 'Request failed'));
+            })
+            .finally(function() { btn.disabled = false; btn.textContent = '\u8635 Sync Now'; });
+        });
+      });
     } catch(err) {
       console.error('loadOrders error', err);
-      tbody.innerHTML = `<tr><td colspan="5" style="padding:18px;color:var(--muted);text-align:center">Failed to load orders</td></tr>`;
+      tbody.innerHTML = `<tr><td colspan="8" style="padding:18px;color:var(--muted);text-align:center">Failed to load orders</td></tr>`;
     }
   }
 
@@ -5187,6 +5574,772 @@ $('#cls3741_attach_btn').on('click', function() {
 </script>
 
 
+  </section>
+
+
+  <!-- ------------------- Product (create product) — Professional layout + Live preview ------------------- -->
+  <section class="cls3741_panel cls3741_panel_products" style="display: none; padding: 24px; height: 100%; overflow: auto;">
+    <style>
+      .product-panel { max-width: 1280px; margin: 0 auto; }
+      .product-panel .product-header { margin-bottom: 28px; }
+      .product-panel .product-header h2 { font-size: 1.5rem; font-weight: 700; color: #f1f5f9; letter-spacing: -0.02em; margin: 0 0 6px 0; }
+      .product-panel .product-header p { font-size: 0.9rem; color: #94a3b8; margin: 0; }
+      .product-panel-layout { display: grid; grid-template-columns: 1fr 380px; gap: 24px; align-items: start; }
+      @media (max-width: 1024px) { .product-panel-layout { grid-template-columns: 1fr; } }
+      .product-panel .product-form-col { min-width: 0; }
+      .product-panel .product-card { background: rgba(15, 23, 42, 0.6); border: 1px solid rgba(255,255,255,0.08); border-radius: 14px; padding: 22px; margin-bottom: 20px; }
+      .product-panel .product-card-title { font-size: 0.8rem; font-weight: 600; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 16px; padding-bottom: 10px; border-bottom: 1px solid rgba(255,255,255,0.06); }
+      .product-panel .form-row { margin-bottom: 18px; }
+      .product-panel .form-row:last-child { margin-bottom: 0; }
+      .product-panel label { display: block; font-size: 0.875rem; font-weight: 600; color: #e2e8f0; margin-bottom: 8px; }
+      .product-panel label .req { color: #f87171; }
+      .product-panel input[type="text"], .product-panel input[type="number"], .product-panel textarea, .product-panel input[type="file"] { width: 100%; padding: 11px 14px; border-radius: 10px; border: 1px solid rgba(255,255,255,0.1); background: rgba(2, 6, 23, 0.5); color: #f1f5f9; font-size: 0.9rem; transition: border-color 0.2s, box-shadow 0.2s; }
+      .product-panel input:focus, .product-panel textarea:focus { outline: none; border-color: #6366f1; box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.2); }
+      .product-panel input::placeholder, .product-panel textarea::placeholder { color: #64748b; }
+      .product-panel textarea { resize: vertical; min-height: 88px; }
+      .product-panel .form-hint { font-size: 0.8rem; color: #64748b; margin-top: 6px; }
+      .product-panel .offer-tiers { margin-top: 12px; }
+      .product-panel .offer-tier-row { display: flex; gap: 12px; align-items: center; margin-bottom: 10px; }
+      .product-panel .offer-tier-row input { flex: 0 0 100px; }
+      .product-panel .offer-tier-row input.price-inp { flex: 1 1 120px; }
+      .product-panel .offer-tier-row .tier-remove { flex: 0 0 auto; padding: 8px 12px; border-radius: 8px; background: rgba(239, 68, 68, 0.15); color: #fca5a5; border: 1px solid rgba(239, 68, 68, 0.3); cursor: pointer; font-size: 0.85rem; }
+      .product-panel .offer-tier-row .tier-remove:hover { background: rgba(239, 68, 68, 0.25); }
+      .product-panel .btn-add-tier { display: inline-flex; align-items: center; gap: 8px; padding: 10px 16px; border-radius: 10px; background: rgba(99, 102, 241, 0.2); color: #a5b4fc; border: 1px dashed rgba(99, 102, 241, 0.5); cursor: pointer; font-size: 0.9rem; font-weight: 500; margin-top: 8px; }
+      .product-panel .btn-add-tier:hover { background: rgba(99, 102, 241, 0.3); color: #c7d2fe; }
+      .product-panel .product-alert { padding: 14px 18px; border-radius: 12px; margin-bottom: 20px; font-size: 0.9rem; }
+      .product-panel .product-alert.error { background: rgba(239, 68, 68, 0.12); border: 1px solid rgba(239, 68, 68, 0.3); color: #fca5a5; }
+      .product-panel .product-alert.success { background: rgba(34, 197, 94, 0.12); border: 1px solid rgba(34, 197, 94, 0.3); color: #86efac; }
+      .product-panel .btn-submit { padding: 14px 28px; border-radius: 12px; background: linear-gradient(135deg, #4f46e5 0%, #6366f1 100%); color: white; font-weight: 600; font-size: 0.95rem; border: none; cursor: pointer; box-shadow: 0 4px 14px rgba(79, 70, 229, 0.4); transition: transform 0.15s, box-shadow 0.15s; }
+      .product-panel .btn-submit:hover { transform: translateY(-1px); box-shadow: 0 6px 20px rgba(79, 70, 229, 0.45); }
+      .product-panel .btn-submit:disabled { opacity: 0.7; cursor: not-allowed; transform: none; }
+      .product-panel .product-list-view { min-width: 0; }
+      .product-panel .product-list-header { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; margin-bottom: 16px; }
+      .product-panel .product-list-title { font-size: 1.1rem; font-weight: 600; color: #e2e8f0; margin: 0; }
+      .product-panel .product-btn-add { padding: 10px 18px; font-size: 0.9rem; }
+      .product-panel .product-form-wrap { min-width: 0; }
+      .product-panel .product-form-header { display: flex; align-items: center; gap: 12px; margin-bottom: 20px; flex-wrap: wrap; }
+      .product-panel .product-btn-back { padding: 8px 14px; border-radius: 10px; border: 1px solid rgba(255,255,255,0.15); background: rgba(255,255,255,0.06); color: #94a3b8; font-size: 0.875rem; cursor: pointer; display: inline-flex; align-items: center; gap: 8px; transition: background 0.2s, color 0.2s; }
+      .product-panel .product-btn-back:hover { background: rgba(255,255,255,0.1); color: #e2e8f0; }
+      .product-panel .product-form-heading { font-size: 1rem; font-weight: 600; color: #e2e8f0; }
+      .product-panel .product-list-grid { display: flex; flex-wrap: wrap; gap: 14px; }
+      .product-panel .product-list-card { position: relative; padding: 14px; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.06); border-radius: 12px; min-width: 160px; transition: border-color 0.2s, background 0.2s; cursor: pointer; }
+      .product-panel .product-list-card:hover { background: rgba(255,255,255,0.06); border-color: rgba(255,255,255,0.1); }
+      .product-panel .product-list-card.product-selected { border-color: #6366f1; background: rgba(99, 102, 241, 0.08); box-shadow: 0 0 0 1px #6366f1; }
+      .product-panel .product-list-card img { width: 100%; height: 100px; object-fit: cover; border-radius: 8px; display: block; pointer-events: none; }
+      .product-panel .product-list-card .no-img { width: 100%; height: 100px; background: rgba(255,255,255,0.06); border-radius: 8px; display: flex; align-items: center; justify-content: center; color: #64748b; font-size: 0.85rem; }
+      .product-panel .product-list-card .name { margin-top: 10px; font-weight: 600; color: #e2e8f0; font-size: 0.95rem; }
+      .product-panel .product-list-card .price { margin-top: 4px; color: #94a3b8; font-size: 0.875rem; }
+      .product-panel .product-list-card .product-card-edit { position: absolute; top: 8px; right: 8px; width: 28px; height: 28px; border-radius: 8px; border: none; background: rgba(99, 102, 241, 0.9); color: #fff; display: flex; align-items: center; justify-content: center; cursor: pointer; z-index: 1; opacity: 0.85; transition: opacity 0.2s; font-size: 0.75rem; }
+      .product-panel .product-list-card .product-card-edit:hover { opacity: 1; background: #6366f1; }
+      .product-panel .product-list-card .product-card-edit i { pointer-events: none; }
+      /* Add product modal */
+      .product-add-modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.6); z-index: 10000; display: flex; align-items: center; justify-content: center; padding: 20px; opacity: 0; visibility: hidden; transition: opacity 0.2s, visibility 0.2s; }
+      .product-add-modal-overlay.product-add-modal-open { opacity: 1; visibility: visible; }
+      .product-add-modal { background: linear-gradient(180deg, #1e293b 0%, #0f172a 100%); border: 1px solid rgba(255,255,255,0.1); border-radius: 16px; max-width: 420px; width: 100%; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.5); overflow: hidden; }
+      .product-add-modal .product-add-modal-header { padding: 20px 24px; border-bottom: 1px solid rgba(255,255,255,0.08); font-size: 1.15rem; font-weight: 600; color: #f1f5f9; }
+      .product-add-modal .product-add-modal-body { padding: 24px; }
+      .product-add-modal .product-add-options { display: flex; flex-direction: column; gap: 12px; }
+      .product-add-modal .product-add-option { display: flex; align-items: center; gap: 16px; padding: 16px 18px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.1); background: rgba(255,255,255,0.03); cursor: pointer; transition: background 0.2s, border-color 0.2s; }
+      .product-add-modal .product-add-option:hover { background: rgba(255,255,255,0.06); border-color: rgba(99, 102, 241, 0.4); }
+      .product-add-modal .product-add-option-icon { width: 44px; height: 44px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 1.2rem; color: #a5b4fc; background: rgba(99, 102, 241, 0.2); }
+      .product-add-modal .product-add-option-text { flex: 1; }
+      .product-add-modal .product-add-option-title { font-weight: 600; color: #e2e8f0; margin-bottom: 2px; }
+      .product-add-modal .product-add-option-desc { font-size: 0.8rem; color: #94a3b8; }
+      .product-add-modal .product-add-ai-step { display: none; }
+      .product-add-modal .product-add-ai-step.visible { display: block; }
+      .product-add-modal .product-add-ai-step label { display: block; font-size: 0.875rem; font-weight: 600; color: #e2e8f0; margin-bottom: 8px; }
+      .product-add-modal .product-add-ai-step input[type="url"] { width: 100%; padding: 12px 14px; border-radius: 10px; border: 1px solid rgba(255,255,255,0.1); background: rgba(2,6,23,0.5); color: #f1f5f9; font-size: 0.9rem; margin-bottom: 12px; }
+      .product-add-modal .product-add-ai-step .product-add-ai-actions { display: flex; gap: 10px; align-items: center; }
+      .product-add-modal .product-add-ai-step .product-add-ai-loading { display: none; align-items: center; gap: 8px; color: #94a3b8; font-size: 0.875rem; }
+      .product-add-modal .product-add-ai-step .product-add-ai-loading.visible { display: flex; }
+      .product-add-modal .product-add-ai-error { margin-top: 12px; padding: 12px; border-radius: 10px; background: rgba(239,68,68,0.12); border: 1px solid rgba(239,68,68,0.3); color: #fca5a5; font-size: 0.875rem; display: none; }
+      .product-add-modal .product-add-ai-error.visible { display: block; }
+      .product-add-modal .product-add-back { margin-top: 16px; padding: 8px 0; color: #94a3b8; font-size: 0.875rem; cursor: pointer; background: none; border: none; }
+      .product-add-modal .product-add-back:hover { color: #e2e8f0; }
+      @keyframes product-spin { to { transform: rotate(360deg); } }
+      /* Product preview card */
+      .product-preview-card { position: sticky; top: 24px; background: rgba(15, 23, 42, 0.85); border: 1px solid rgba(255,255,255,0.1); border-radius: 16px; padding: 0; overflow: hidden; box-shadow: 0 10px 40px rgba(0,0,0,0.2); }
+      .product-preview-card .preview-label { font-size: 0.75rem; font-weight: 600; color: #64748b; text-transform: uppercase; letter-spacing: 0.08em; padding: 14px 20px; border-bottom: 1px solid rgba(255,255,255,0.06); }
+      .product-preview-card .preview-body { padding: 20px; }
+      .product-preview-card .preview-image-wrap { width: 100%; aspect-ratio: 1; background: rgba(0,0,0,0.2); border-radius: 12px; overflow: hidden; margin-bottom: 18px; display: flex; align-items: center; justify-content: center; }
+      .product-preview-card .preview-image-wrap img { width: 100%; height: 100%; object-fit: cover; display: block; }
+      .product-preview-card .preview-image-wrap .preview-placeholder { color: #475569; font-size: 0.85rem; text-align: center; padding: 24px; }
+      .product-preview-card .preview-thumbs { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 16px; }
+      .product-preview-card .preview-thumbs { align-items: center; }
+      .product-preview-card .preview-thumbs .preview-thumb-wrap { position: relative; display: inline-block; }
+      .product-preview-card .preview-thumbs .preview-thumb-wrap img,
+      .product-preview-card .preview-thumbs .preview-thumb-wrap .preview-thumb-video { width: 56px; height: 56px; object-fit: cover; border-radius: 8px; border: 2px solid rgba(255,255,255,0.1); cursor: pointer; display: block; }
+      .product-preview-card .preview-thumbs .preview-thumb-video { display: flex; align-items: center; justify-content: center; background: #1e293b; color: #94a3b8; font-size: 1.2rem; }
+      .product-preview-card .preview-thumbs .preview-thumb-remove { position: absolute; top: 2px; right: 2px; width: 20px; height: 20px; border-radius: 50%; border: none; background: rgba(239,68,68,0.95); color: #fff; font-size: 14px; line-height: 1; cursor: pointer; display: flex; align-items: center; justify-content: center; padding: 0; z-index: 2; box-shadow: 0 1px 3px rgba(0,0,0,0.3); }
+      .product-preview-card .preview-thumbs .preview-thumb-remove:hover { background: #ef4444; }
+      .product-preview-card .preview-image-wrap video { width: 100%; height: 100%; object-fit: cover; }
+      .product-preview-card .preview-title { font-size: 1.15rem; font-weight: 700; color: #f1f5f9; margin: 0 0 8px 0; line-height: 1.3; }
+      .product-preview-card .preview-price { font-size: 1.25rem; font-weight: 700; color: #6366f1; margin-bottom: 14px; }
+      .product-preview-card .preview-desc { font-size: 0.875rem; color: #94a3b8; line-height: 1.55; margin-bottom: 14px; white-space: pre-wrap; word-break: break-word; }
+      .product-preview-card .preview-tiers { margin-bottom: 14px; }
+      .product-preview-card .preview-tiers .tier-item { font-size: 0.85rem; color: #cbd5e1; padding: 6px 0; border-bottom: 1px solid rgba(255,255,255,0.05); }
+      .product-preview-card .preview-how { font-size: 0.8rem; color: #64748b; line-height: 1.5; padding-top: 12px; border-top: 1px solid rgba(255,255,255,0.06); white-space: pre-wrap; word-break: break-word; }
+    </style>
+
+    <div class="product-panel">
+      <div id="product_form_errors" class="product-alert error" style="display:none;"></div>
+      <div id="product_form_success" class="product-alert success" style="display:none;"></div>
+
+      <!-- Add product modal: Create manual | Generate with AI -->
+      <div id="product_add_modal_overlay" class="product-add-modal-overlay" aria-hidden="true">
+        <div class="product-add-modal" role="dialog" aria-labelledby="product_add_modal_title" aria-modal="true">
+          <div id="product_add_modal_title" class="product-add-modal-header">Add product</div>
+          <div class="product-add-modal-body">
+            <div id="product_add_options" class="product-add-options">
+              <button type="button" id="product_add_manual" class="product-add-option" data-action="manual">
+                <span class="product-add-option-icon"><i class="fas fa-edit"></i></span>
+                <span class="product-add-option-text">
+                  <span class="product-add-option-title">Create manual</span>
+                  <span class="product-add-option-desc">Fill in product details yourself</span>
+                </span>
+              </button>
+              <button type="button" id="product_add_ai" class="product-add-option" data-action="ai">
+                <span class="product-add-option-icon"><i class="fas fa-magic"></i></span>
+                <span class="product-add-option-text">
+                  <span class="product-add-option-title">Generate with AI</span>
+                  <span class="product-add-option-desc">Paste a product page link to extract details</span>
+                </span>
+              </button>
+            </div>
+            <div id="product_add_ai_step" class="product-add-ai-step">
+              <label for="product_add_url">Product page link</label>
+              <input type="url" id="product_add_url" placeholder="https://example.com/product-page" autocomplete="url">
+              <div class="product-add-ai-actions">
+                <button type="button" id="product_add_generate_btn" class="btn-submit" style="padding:10px 20px;"><i class="fas fa-sparkles"></i> Generate</button>
+                <div id="product_add_ai_loading" class="product-add-ai-loading">
+                  <span class="spinner" style="width:18px;height:18px;border:2px solid rgba(148,163,184,0.3);border-top-color:#6366f1;border-radius:50%;animation:product-spin 0.8s linear infinite;"></span>
+                  <span>Extracting product details…</span>
+                </div>
+              </div>
+              <div id="product_add_ai_error" class="product-add-ai-error"></div>
+              <button type="button" id="product_add_ai_back" class="product-add-back"><i class="fas fa-arrow-left"></i> Back</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="product-panel-layout">
+        <div class="product-form-col">
+          <!-- List view: Your products (default) -->
+          <div id="product_list_view" class="product-list-view">
+            <div class="product-list-header">
+              <h3 class="product-list-title">Your products</h3>
+              <button type="button" id="product_btn_add" class="btn-submit product-btn-add"><i class="fas fa-plus"></i> Add product</button>
+            </div>
+            <div id="product_list" class="product-list-grid">
+              <p style="color: #64748b;">Loading…</p>
+            </div>
+          </div>
+
+          <!-- Form view: Create / Edit (hidden by default) -->
+          <div id="product_form_wrap" class="product-form-wrap" style="display:none;">
+            <div class="product-form-header">
+              <button type="button" id="product_btn_back" class="product-btn-back" aria-label="Back to list"><i class="fas fa-arrow-left"></i> Back to list</button>
+              <span id="product_form_heading" class="product-form-heading">New product</span>
+            </div>
+            <form id="product_create_form">
+              <input type="hidden" name="csrfmiddlewaretoken" value="{{ csrf_token }}">
+              <input type="hidden" name="channel_id" id="product_channel_id" value="{{ initial_channel_id }}">
+              <input type="hidden" name="offer" id="product_offer_hidden" value="">
+              <input type="hidden" name="product_id" id="product_edit_id" value="">
+              <input type="hidden" name="image_urls" id="product_image_urls" value="">
+
+              <div class="product-card">
+                <div class="product-card-title">Basic information</div>
+                <div class="form-row">
+                  <label>Product name <span class="req">*</span></label>
+                  <input type="text" name="name" id="product_name" required placeholder="e.g. Wireless Earbuds X1">
+                </div>
+                <div class="form-row">
+                  <label>Base price <span class="req">*</span></label>
+                  <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;">
+                    <input type="text" name="price" id="product_price" required placeholder="e.g. 299.00" style="flex:1;min-width:120px;">
+                    <label for="product_currency" class="sr-only">Currency</label>
+                    <select name="currency" id="product_currency" style="min-width:100px;padding:11px 14px;border-radius:10px;border:1px solid rgba(255,255,255,0.1);background:rgba(2,6,23,0.5);color:#f1f5f9;font-size:0.9rem;">
+                      <option value="MAD" selected>MAD</option>
+                      <option value="USD">USD</option>
+                      <option value="EUR">EUR</option>
+                      <option value="GBP">GBP</option>
+                      <option value="CAD">CAD</option>
+                      <option value="AED">AED</option>
+                      <option value="XOF">XOF</option>
+                      <option value="TND">TND</option>
+                      <option value="DZD">DZD</option>
+                      <option value="EGP">EGP</option>
+                    </select>
+                  </div>
+                  <div class="form-hint">Single unit price. Default currency: MAD (Moroccan Dirham).</div>
+                </div>
+                <div class="form-row">
+                  <label>Description <span class="req">*</span></label>
+                  <textarea name="description" id="product_description" required rows="4" placeholder="Describe the product, features, and benefits..."></textarea>
+                </div>
+              </div>
+
+              <div class="product-card">
+                <div class="product-card-title">Pricing tiers & offers (optional)</div>
+                <p class="form-hint" style="margin-bottom: 12px;">Add quantity-based prices (currency matches the one selected above).</p>
+                <div id="offer_tiers_container" class="offer-tiers"></div>
+                <button type="button" id="btn_add_offer_tier" class="btn-add-tier"><i class="fas fa-plus"></i> Add offer tier</button>
+              </div>
+
+              <div class="product-card">
+                <div class="product-card-title">Product photos & videos <span class="req">*</span></div>
+                <div class="form-row">
+                  <input type="file" name="images" id="product_images" accept="image/*,video/*" multiple style="display:none;">
+                  <button type="button" id="product_images_btn" class="btn-add-tier" style="margin-bottom:8px;"><i class="fas fa-plus"></i> Add photos / videos</button>
+                  <div id="product_media_count" class="form-hint">At least one photo or video required. When editing, add new files to replace existing.</div>
+                </div>
+              </div>
+
+              <div class="product-card">
+                <div class="product-card-title">Optional details</div>
+                <div class="form-row">
+                  <label>How to use</label>
+                  <textarea name="how_to_use" id="product_how_to_use" rows="3" placeholder="Usage instructions..."></textarea>
+                </div>
+                <div class="form-row">
+                  <label>Testimonial — audio / video / image</label>
+                  <input type="file" name="testimonial" id="product_testimonial" accept="image/*,audio/*,video/*">
+                </div>
+              </div>
+
+              <button type="submit" id="product_submit_btn" class="btn-submit">Create Product</button>
+            </form>
+          </div>
+        </div>
+
+        <div class="product-preview-card">
+          <div class="preview-label">Live preview</div>
+          <div class="preview-body">
+            <div class="preview-image-wrap" id="preview_main_image">
+              <span class="preview-placeholder">Select a product or add one to see preview</span>
+            </div>
+            <div class="preview-thumbs" id="preview_thumbs" style="display:none;"></div>
+            <h3 class="preview-title" id="preview_title">Product name</h3>
+            <div class="preview-price" id="preview_price">— MAD</div>
+            <div class="preview-desc" id="preview_desc">Description will appear here.</div>
+            <div class="preview-tiers" id="preview_tiers" style="display:none;"></div>
+            <div class="preview-how" id="preview_how" style="display:none;"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script>
+    (function() {
+      var channelId = '{{ initial_channel_id }}';
+      var previewObjectUrls = [];
+      var productMediaFiles = [];
+      function getProductChannelId() {
+        var ch = document.querySelector('.workspace-item.active');
+        return (ch && ch.getAttribute('data-channel-id')) || channelId || '';
+      }
+
+      function getProductCurrency() {
+        var sel = document.getElementById('product_currency');
+        return (sel && sel.value) ? sel.value.trim() : 'MAD';
+      }
+      function updateProductPreview() {
+        var form = document.getElementById('product_create_form');
+        if (!form) return;
+        var name = (form.querySelector('#product_name') && form.querySelector('#product_name').value || '').trim() || 'Product name';
+        var price = (form.querySelector('#product_price') && form.querySelector('#product_price').value || '').trim() || '—';
+        var currency = getProductCurrency();
+        var desc = (form.querySelector('#product_description') && form.querySelector('#product_description').value || '').trim() || 'Description will appear here.';
+        var how = (form.querySelector('#product_how_to_use') && form.querySelector('#product_how_to_use').value || '').trim();
+        var titleEl = document.getElementById('preview_title');
+        var pricePreviewEl = document.getElementById('preview_price');
+        var descPreviewEl = document.getElementById('preview_desc');
+        var tiersEl = document.getElementById('preview_tiers');
+        var howPreviewEl = document.getElementById('preview_how');
+        if (titleEl) titleEl.textContent = name;
+        if (pricePreviewEl) pricePreviewEl.textContent = price + (price !== '—' ? ' ' + currency : ' ' + currency);
+        if (descPreviewEl) descPreviewEl.textContent = desc;
+        if (howPreviewEl) {
+          if (how) { howPreviewEl.textContent = 'How to use: ' + how; howPreviewEl.style.display = 'block'; }
+          else { howPreviewEl.textContent = ''; howPreviewEl.style.display = 'none'; }
+        }
+        var rows = document.querySelectorAll('#offer_tiers_container .offer-tier-row');
+        var tierParts = [];
+        rows.forEach(function(r) {
+          var q = (r.querySelector('.tier-qty') && r.querySelector('.tier-qty').value || '').trim();
+          var p = (r.querySelector('.tier-price') && r.querySelector('.tier-price').value || '').trim();
+          if (q && p) tierParts.push(q + ' pc → ' + p + ' ' + currency);
+        });
+        if (tiersEl) {
+          if (tierParts.length) { tiersEl.innerHTML = tierParts.map(function(t) { return '<div class="tier-item">' + t + '</div>'; }).join(''); tiersEl.style.display = 'block'; }
+          else { tiersEl.innerHTML = ''; tiersEl.style.display = 'none'; }
+        }
+      }
+
+      function isVideoFile(file) { return file.type && file.type.indexOf('video/') === 0; }
+      function updatePreviewImagesFromList() {
+        previewObjectUrls.forEach(function(url) { try { URL.revokeObjectURL(url); } catch (e) {} });
+        previewObjectUrls = [];
+        var mainWrap = document.getElementById('preview_main_image');
+        var thumbsWrap = document.getElementById('preview_thumbs');
+        var countEl = document.getElementById('product_media_count');
+        if (!mainWrap || !thumbsWrap) return;
+        if (countEl) countEl.textContent = productMediaFiles.length ? productMediaFiles.length + ' photo(s)/video(s) added. Click "Add photos / videos" to add more.' : 'At least one photo or video required. Click above to add.';
+        if (!productMediaFiles.length) {
+          mainWrap.innerHTML = '<span class="preview-placeholder">Add photos or videos to see preview</span>';
+          thumbsWrap.innerHTML = '';
+          thumbsWrap.style.display = 'none';
+          return;
+        }
+        var first = productMediaFiles[0];
+        var firstUrl = URL.createObjectURL(first);
+        previewObjectUrls.push(firstUrl);
+        if (isVideoFile(first)) {
+          mainWrap.innerHTML = '<video src="' + firstUrl + '" controls muted playsinline></video>';
+        } else {
+          mainWrap.innerHTML = '<img src="' + firstUrl + '" alt="">';
+        }
+        var thumbsHtml = '';
+        for (var i = 0; i < productMediaFiles.length; i++) {
+          var f = productMediaFiles[i];
+          var u = URL.createObjectURL(f);
+          previewObjectUrls.push(u);
+          if (isVideoFile(f)) {
+            thumbsHtml += '<div class="preview-thumb-wrap" data-index="' + i + '"><div class="preview-thumb-video" title="Video"><i class="fas fa-video"></i></div><button type="button" class="preview-thumb-remove" aria-label="Remove">×</button></div>';
+          } else {
+            thumbsHtml += '<div class="preview-thumb-wrap" data-index="' + i + '"><img src="' + u + '" alt=""><button type="button" class="preview-thumb-remove" aria-label="Remove">×</button></div>';
+          }
+        }
+        thumbsWrap.innerHTML = thumbsHtml;
+        thumbsWrap.style.display = 'flex';
+        thumbsWrap.querySelectorAll('.preview-thumb-wrap').forEach(function(wrap) {
+          var idx = parseInt(wrap.getAttribute('data-index'), 10);
+          var thumbEl = wrap.querySelector('img, .preview-thumb-video');
+          thumbEl.addEventListener('click', function() {
+            var file = productMediaFiles[idx];
+            if (!file) return;
+            var url = URL.createObjectURL(file);
+            if (isVideoFile(file)) mainWrap.innerHTML = '<video src="' + url + '" controls muted playsinline></video>';
+            else mainWrap.innerHTML = '<img src="' + url + '" alt="">';
+          });
+          wrap.querySelector('.preview-thumb-remove').addEventListener('click', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            productMediaFiles.splice(idx, 1);
+            updatePreviewImagesFromList();
+          });
+        });
+      }
+
+      var offerTierIndex = 0;
+      function addOfferTierRow(qty, price) {
+        var container = document.getElementById('offer_tiers_container');
+        if (!container) return;
+        var row = document.createElement('div');
+        row.className = 'offer-tier-row';
+        row.dataset.tierIndex = offerTierIndex++;
+        row.innerHTML = '<input type="number" min="1" step="1" placeholder="Qty" class="tier-qty" value="' + (qty || '') + '">' +
+          '<input type="text" placeholder="Price (' + (getProductCurrency()) + ')" class="tier-price price-inp" value="' + (price || '') + '">' +
+          '<button type="button" class="tier-remove" aria-label="Remove">Remove</button>';
+        container.appendChild(row);
+        row.querySelector('.tier-remove').addEventListener('click', function() { row.remove(); updateProductPreview(); });
+        ['input', 'change'].forEach(function(ev) {
+          row.querySelector('.tier-qty').addEventListener(ev, updateProductPreview);
+          row.querySelector('.tier-price').addEventListener(ev, updateProductPreview);
+        });
+        updateProductPreview();
+      }
+      document.getElementById('btn_add_offer_tier').addEventListener('click', function() { addOfferTierRow('', ''); });
+
+      var form = document.getElementById('product_create_form');
+      if (form) {
+        form.addEventListener('input', function() { updateProductPreview(); });
+        form.addEventListener('change', function() { updateProductPreview(); });
+        form.addEventListener('keyup', function() { updateProductPreview(); });
+      }
+      var imagesInput = document.getElementById('product_images');
+      var imagesBtn = document.getElementById('product_images_btn');
+      if (imagesBtn && imagesInput) {
+        imagesBtn.addEventListener('click', function() { imagesInput.click(); });
+        imagesInput.addEventListener('change', function() {
+          var files = imagesInput.files ? Array.prototype.slice.call(imagesInput.files) : [];
+          files.forEach(function(f) { productMediaFiles.push(f); });
+          imagesInput.value = '';
+          updatePreviewImagesFromList();
+        });
+      }
+      updateProductPreview();
+
+      function getOfferTiersAsString() {
+        var rows = document.querySelectorAll('#offer_tiers_container .offer-tier-row');
+        var arr = [];
+        rows.forEach(function(r) {
+          var q = (r.querySelector('.tier-qty') && r.querySelector('.tier-qty').value || '').trim();
+          var p = (r.querySelector('.tier-price') && r.querySelector('.tier-price').value || '').trim();
+          if (q && p) arr.push({ qty: q, price: p });
+        });
+        return arr.length ? JSON.stringify(arr) : '';
+      }
+
+      var selectedProductId = null;
+
+      function showListView() {
+        var listView = document.getElementById('product_list_view');
+        var formWrap = document.getElementById('product_form_wrap');
+        if (listView) listView.style.display = 'block';
+        if (formWrap) formWrap.style.display = 'none';
+      }
+      function showFormView(isEdit) {
+        var listView = document.getElementById('product_list_view');
+        var formWrap = document.getElementById('product_form_wrap');
+        var heading = document.getElementById('product_form_heading');
+        var submitBtn = document.getElementById('product_submit_btn');
+        if (listView) listView.style.display = 'none';
+        if (formWrap) formWrap.style.display = 'block';
+        if (heading) heading.textContent = isEdit ? 'Edit product' : 'New product';
+        if (submitBtn) submitBtn.textContent = isEdit ? 'Update Product' : 'Create Product';
+      }
+
+      function showPreviewFromProduct(p) {
+        var mainWrap = document.getElementById('preview_main_image');
+        var thumbsWrap = document.getElementById('preview_thumbs');
+        var titleEl = document.getElementById('preview_title');
+        var priceEl = document.getElementById('preview_price');
+        var descEl = document.getElementById('preview_desc');
+        var tiersEl = document.getElementById('preview_tiers');
+        var howEl = document.getElementById('preview_how');
+        if (!p) {
+          if (mainWrap) mainWrap.innerHTML = '<span class="preview-placeholder">Select a product or add one to see preview</span>';
+          if (thumbsWrap) { thumbsWrap.innerHTML = ''; thumbsWrap.style.display = 'none'; }
+          if (titleEl) titleEl.textContent = 'Product name';
+          if (priceEl) priceEl.textContent = '— MAD';
+          if (descEl) descEl.textContent = 'Description will appear here.';
+          if (tiersEl) { tiersEl.innerHTML = ''; tiersEl.style.display = 'none'; }
+          if (howEl) { howEl.textContent = ''; howEl.style.display = 'none'; }
+          return;
+        }
+        var imgs = p.images || [];
+        var vids = p.videos || [];
+        var curr = (p.currency || 'MAD').trim() || 'MAD';
+        var firstMedia = imgs[0] || vids[0];
+        if (mainWrap) {
+          if (vids[0]) mainWrap.innerHTML = '<video src="' + vids[0] + '" controls muted playsinline></video>';
+          else if (imgs[0]) mainWrap.innerHTML = '<img src="' + imgs[0] + '" alt="">';
+          else mainWrap.innerHTML = '<span class="preview-placeholder">No media</span>';
+        }
+        if (thumbsWrap) {
+          var all = imgs.concat(vids);
+          if (all.length <= 1) { thumbsWrap.innerHTML = ''; thumbsWrap.style.display = 'none'; }
+          else {
+            var thumbsHtml = '';
+            for (var i = 0; i < all.length; i++) {
+              if (vids.indexOf(all[i]) !== -1) thumbsHtml += '<div class="preview-thumb-video" title="Video"><i class="fas fa-video"></i></div>';
+              else thumbsHtml += '<img src="' + all[i] + '" alt="">';
+            }
+            thumbsWrap.innerHTML = thumbsHtml;
+            thumbsWrap.style.display = 'flex';
+          }
+        }
+        if (titleEl) titleEl.textContent = p.name || 'Product name';
+        if (priceEl) priceEl.textContent = (p.price || '—') + ' ' + curr;
+        if (descEl) descEl.textContent = p.description || 'Description will appear here.';
+        var offerArr = [];
+        try { if (p.offer) offerArr = JSON.parse(p.offer); } catch (e) {}
+        if (tiersEl) {
+          if (offerArr.length) {
+            tiersEl.innerHTML = offerArr.map(function(t) { return '<div class="tier-item">' + (t.qty || '') + ' pc → ' + (t.price || '') + ' ' + curr + '</div>'; }).join('');
+            tiersEl.style.display = 'block';
+          } else { tiersEl.innerHTML = ''; tiersEl.style.display = 'none'; }
+        }
+        if (howEl) {
+          if (p.how_to_use) { howEl.textContent = 'How to use: ' + (p.how_to_use || ''); howEl.style.display = 'block'; }
+          else { howEl.textContent = ''; howEl.style.display = 'none'; }
+        }
+      }
+
+      function loadProductList() {
+        var cid = getProductChannelId();
+        var wrap = document.getElementById('product_list');
+        if (!wrap) return;
+        wrap.innerHTML = '<p style="color:#64748b">Loading…</p>';
+        fetch('/discount/whatssapAPI/api_products/?channel_id=' + encodeURIComponent(cid), { credentials: 'same-origin' })
+          .then(function(r) { return r.json(); })
+          .then(function(data) {
+            var list = data.products || [];
+            if (list.length === 0) {
+              wrap.innerHTML = '<p style="color:#64748b">No products yet. Click "Add product" to create one.</p>';
+              return;
+            }
+            wrap.innerHTML = list.map(function(p) {
+              var imgs = (p.images || [])[0];
+              var imgHtml = imgs ? '<img src="' + imgs + '" alt="">' : '<div class="no-img">—</div>';
+              var curr = (p.currency || 'MAD').trim() || 'MAD';
+              var cardId = 'product-card-' + p.id;
+              return '<div class="product-list-card" data-product-id="' + p.id + '" id="' + cardId + '">' +
+                '<button type="button" class="product-card-edit" aria-label="Edit product" title="Edit"><i class="fas fa-pen"></i></button>' +
+                imgHtml + '<div class="name">' + (p.name || '').split(/\s+/).slice(0, 4).join(' ').replace(/</g, '&lt;') + '</div><div class="price">' + (p.price ? (p.price + ' ' + curr) : '') + '</div></div>';
+            }).join('');
+            wrap.querySelectorAll('.product-list-card').forEach(function(card) {
+              var id = card.getAttribute('data-product-id');
+              card.addEventListener('click', function(e) {
+                if (e.target.closest('.product-card-edit')) return;
+                selectedProductId = id;
+                wrap.querySelectorAll('.product-list-card').forEach(function(c) { c.classList.remove('product-selected'); });
+                card.classList.add('product-selected');
+                fetch('/discount/whatssapAPI/api_products/' + id + '/?channel_id=' + encodeURIComponent(getProductChannelId()), { credentials: 'same-origin' })
+                  .then(function(r) { return r.json(); })
+                  .then(function(p) { showPreviewFromProduct(p); })
+                  .catch(function() { showPreviewFromProduct(null); });
+              });
+              card.querySelector('.product-card-edit').addEventListener('click', function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                fetch('/discount/whatssapAPI/api_products/' + id + '/?channel_id=' + encodeURIComponent(getProductChannelId()), { credentials: 'same-origin' })
+                  .then(function(r) { return r.json(); })
+                  .then(function(p) { openFormForEdit(p); });
+              });
+            });
+          })
+          .catch(function() { wrap.innerHTML = '<p style="color:#64748b">Failed to load products.</p>'; });
+      }
+
+      function openFormForEdit(p) {
+        document.getElementById('product_edit_id').value = p.id;
+        document.getElementById('product_name').value = p.name || '';
+        document.getElementById('product_price').value = p.price || '';
+        var currSel = document.getElementById('product_currency');
+        if (currSel) { currSel.value = (p.currency || 'MAD').trim() || 'MAD'; }
+        document.getElementById('product_description').value = p.description || '';
+        document.getElementById('product_how_to_use').value = p.how_to_use || '';
+        var container = document.getElementById('offer_tiers_container');
+        container.innerHTML = '';
+        try {
+          var arr = p.offer ? JSON.parse(p.offer) : [];
+          arr.forEach(function(t) { addOfferTierRow(t.qty, t.price); });
+        } catch (e) {}
+        productMediaFiles = [];
+        updatePreviewImagesFromList();
+        updateProductPreview();
+        showFormView(true);
+      }
+
+      function openAddProductModal() {
+        var overlay = document.getElementById('product_add_modal_overlay');
+        if (overlay) {
+          overlay.classList.add('product-add-modal-open');
+          overlay.setAttribute('aria-hidden', 'false');
+          document.getElementById('product_add_options').style.display = 'flex';
+          document.getElementById('product_add_ai_step').classList.remove('visible');
+          document.getElementById('product_add_url').value = '';
+          document.getElementById('product_add_ai_error').classList.remove('visible');
+          document.getElementById('product_add_ai_error').textContent = '';
+          document.getElementById('product_add_generate_btn').style.display = '';
+          document.getElementById('product_add_ai_loading').classList.remove('visible');
+        }
+      }
+      function closeAddProductModal() {
+        var overlay = document.getElementById('product_add_modal_overlay');
+        if (overlay) {
+          overlay.classList.remove('product-add-modal-open');
+          overlay.setAttribute('aria-hidden', 'true');
+        }
+      }
+      function openFormWithGeneratedData(p) {
+        document.getElementById('product_edit_id').value = '';
+        document.getElementById('product_image_urls').value = (p.image_urls && p.image_urls.length) ? JSON.stringify(p.image_urls) : '';
+        document.getElementById('product_name').value = p.name || '';
+        document.getElementById('product_price').value = p.price || '';
+        var currSel = document.getElementById('product_currency');
+        if (currSel) currSel.value = (p.currency || 'MAD').trim() || 'MAD';
+        document.getElementById('product_description').value = p.description || '';
+        document.getElementById('product_how_to_use').value = p.how_to_use || '';
+        document.getElementById('offer_tiers_container').innerHTML = '';
+        productMediaFiles = [];
+        updatePreviewImagesFromList();
+        var urls = p.image_urls || [];
+        if (urls.length) {
+          var mainWrap = document.getElementById('preview_main_image');
+          var thumbsWrap = document.getElementById('preview_thumbs');
+          if (mainWrap) mainWrap.innerHTML = '<img src="' + urls[0] + '" alt="">';
+          if (thumbsWrap) {
+            var thumbsHtml = '';
+            for (var i = 0; i < urls.length; i++) thumbsHtml += '<img src="' + urls[i] + '" alt="">';
+            thumbsWrap.innerHTML = thumbsHtml;
+            thumbsWrap.style.display = 'flex';
+          }
+        }
+        updateProductPreview();
+        showFormView(false);
+      }
+
+      document.getElementById('product_btn_add').addEventListener('click', function() {
+        openAddProductModal();
+      });
+      document.getElementById('product_add_modal_overlay').addEventListener('click', function(e) {
+        if (e.target === this) closeAddProductModal();
+      });
+      document.getElementById('product_add_manual').addEventListener('click', function() {
+        closeAddProductModal();
+        document.getElementById('product_edit_id').value = '';
+        document.getElementById('product_image_urls').value = '';
+        document.getElementById('product_create_form').reset();
+        document.getElementById('offer_tiers_container').innerHTML = '';
+        productMediaFiles = [];
+        updatePreviewImagesFromList();
+        updateProductPreview();
+        showFormView(false);
+      });
+      document.getElementById('product_add_ai').addEventListener('click', function() {
+        document.getElementById('product_add_options').style.display = 'none';
+        document.getElementById('product_add_ai_step').classList.add('visible');
+      });
+      document.getElementById('product_add_ai_back').addEventListener('click', function() {
+        document.getElementById('product_add_options').style.display = 'flex';
+        document.getElementById('product_add_ai_step').classList.remove('visible');
+        document.getElementById('product_add_url').value = '';
+        document.getElementById('product_add_ai_error').classList.remove('visible');
+      });
+      document.getElementById('product_add_generate_btn').addEventListener('click', function() {
+        var urlInput = document.getElementById('product_add_url');
+        var url = (urlInput && urlInput.value || '').trim();
+        var errEl = document.getElementById('product_add_ai_error');
+        var loadingEl = document.getElementById('product_add_ai_loading');
+        var btnEl = document.getElementById('product_add_generate_btn');
+        errEl.classList.remove('visible');
+        if (!url) {
+          errEl.textContent = 'Please enter a product page link.';
+          errEl.classList.add('visible');
+          return;
+        }
+        if (!url.startsWith('http://') && !url.startsWith('https://')) {
+          errEl.textContent = 'Please enter a valid URL (e.g. https://…).';
+          errEl.classList.add('visible');
+          return;
+        }
+        btnEl.style.display = 'none';
+        loadingEl.classList.add('visible');
+        var fd = new FormData();
+        fd.append('url', url);
+        fd.append('csrfmiddlewaretoken', (document.querySelector('input[name="csrfmiddlewaretoken"]') || {}).value || '');
+        fetch('/discount/whatssapAPI/api_products/extract_from_link/', {
+          method: 'POST',
+          body: fd,
+          credentials: 'same-origin',
+          headers: { 'X-CSRFToken': (document.querySelector('input[name="csrfmiddlewaretoken"]') || {}).value || '' }
+        })
+          .then(function(r) { return r.json(); })
+          .then(function(res) {
+            loadingEl.classList.remove('visible');
+            btnEl.style.display = '';
+            if (res.success && res.product) {
+              closeAddProductModal();
+              openFormWithGeneratedData(res.product);
+            } else {
+              errEl.textContent = res.error || 'We did not find anything in this link. Try another URL or create the product manually.';
+              errEl.classList.add('visible');
+            }
+          })
+          .catch(function() {
+            loadingEl.classList.remove('visible');
+            btnEl.style.display = '';
+            errEl.textContent = 'Request failed. Check your connection and try again.';
+            errEl.classList.add('visible');
+          });
+      });
+      document.getElementById('product_btn_back').addEventListener('click', function() {
+        showListView();
+        loadProductList();
+      });
+
+      document.getElementById('product_channel_id').value = getProductChannelId();
+      var form = document.getElementById('product_create_form');
+      if (form) {
+        form.addEventListener('submit', function(e) {
+          e.preventDefault();
+          var editId = (document.getElementById('product_edit_id') && document.getElementById('product_edit_id').value || '').trim();
+          var isEdit = !!editId;
+          var name = (document.getElementById('product_name') && document.getElementById('product_name').value || '').trim();
+          var price = (document.getElementById('product_price') && document.getElementById('product_price').value || '').trim();
+          var desc = (document.getElementById('product_description') && document.getElementById('product_description').value || '').trim();
+          var files = productMediaFiles.slice();
+          var errEl = document.getElementById('product_form_errors');
+          var successEl = document.getElementById('product_form_success');
+          var btn = document.getElementById('product_submit_btn');
+          var offerHidden = document.getElementById('product_offer_hidden');
+          if (errEl) errEl.style.display = 'none';
+          if (successEl) successEl.style.display = 'none';
+          var errs = [];
+          if (!name) errs.push('Product name is required.');
+          if (!price) errs.push('Price is required.');
+          if (!desc) errs.push('Description is required.');
+          if (!isEdit && files.length === 0) {
+            var urlsVal = (document.getElementById('product_image_urls') && document.getElementById('product_image_urls').value || '').trim();
+            var parsedUrls = [];
+            try { if (urlsVal) parsedUrls = JSON.parse(urlsVal); } catch (e) {}
+            if (!parsedUrls || !parsedUrls.length) errs.push('At least one photo or video is required.');
+          }
+          if (errs.length) {
+            if (errEl) { errEl.innerHTML = errs.join('<br>'); errEl.style.display = 'block'; }
+            return;
+          }
+          if (offerHidden) offerHidden.value = getOfferTiersAsString();
+          var fd = new FormData(form);
+          fd.set('channel_id', getProductChannelId());
+          fd.set('offer', offerHidden ? offerHidden.value : '');
+          fd.delete('images');
+          fd.delete('product_id');
+          files.forEach(function(file) { fd.append('images', file); });
+          if (btn) btn.disabled = true;
+          var url = isEdit ? ('/discount/whatssapAPI/api_products/' + editId + '/update/') : '/discount/whatssapAPI/api_products/create/';
+          fetch(url, { method: 'POST', body: fd, credentials: 'same-origin', headers: { 'X-CSRFToken': (document.querySelector('input[name="csrfmiddlewaretoken"]') || {}).value || '' } })
+            .then(function(r) { return r.json().then(function(j) { return { ok: r.ok, json: j }; }); })
+            .then(function(res) {
+              if (res.ok && res.json.success) {
+                if (successEl) { successEl.style.display = 'block'; successEl.textContent = isEdit ? 'Product updated successfully.' : 'Product created successfully.'; }
+                form.reset();
+                document.getElementById('product_edit_id').value = '';
+                document.getElementById('product_image_urls').value = '';
+                document.getElementById('offer_tiers_container').innerHTML = '';
+                productMediaFiles = [];
+                updatePreviewImagesFromList();
+                updateProductPreview();
+                if (btn) btn.disabled = false;
+                showListView();
+                loadProductList();
+                if (isEdit && res.json.product_id) {
+                  selectedProductId = String(res.json.product_id);
+                  setTimeout(function() {
+                    document.querySelectorAll('.product-list-card').forEach(function(c) { c.classList.remove('product-selected'); });
+                    var card = document.querySelector('.product-list-card[data-product-id="' + res.json.product_id + '"]');
+                    if (card) card.classList.add('product-selected');
+                    fetch('/discount/whatssapAPI/api_products/' + res.json.product_id + '/?channel_id=' + encodeURIComponent(getProductChannelId()), { credentials: 'same-origin' })
+                      .then(function(r) { return r.json(); })
+                      .then(showPreviewFromProduct);
+                  }, 300);
+                }
+              } else {
+                if (errEl) { errEl.innerHTML = (res.json.error || (res.json.errors && res.json.errors.join('<br>')) || (isEdit ? 'Failed to update product.' : 'Failed to create product.')); errEl.style.display = 'block'; }
+              }
+            })
+            .catch(function() { if (errEl) { errEl.innerHTML = 'Network error. Try again.'; errEl.style.display = 'block'; } })
+            .finally(function() { if (btn) btn.disabled = false; });
+        });
+      }
+      var productsNavBtn = document.querySelector('.cls3741_btn[data-target="products"]');
+      if (productsNavBtn && !productsNavBtn.dataset._boundProducts) {
+        productsNavBtn.addEventListener('click', function() {
+          document.getElementById('product_channel_id').value = getProductChannelId();
+          showListView();
+          loadProductList();
+          updateProductPreview();
+          updatePreviewImagesFromList();
+        });
+        productsNavBtn.dataset._boundProducts = '1';
+      }
+    })();
+    </script>
   </section>
 
 
@@ -7433,7 +8586,101 @@ document.addEventListener("DOMContentLoaded", function() {
     messages: "{% url 'get_messages' %}",
     contacts: "{% url 'api_contacts' %}",
     lastmsg:"{% url 'get_last_message' %}"
-  };  
+  };
+
+  window.updateHitlUI = function(phone) {
+    var cid = window.currentChannelId || currentChannelId;
+    var wrap = document.getElementById('hitl_badge_wrap');
+    var toggle = document.getElementById('hitl_ai_toggle');
+    if (!phone || !cid) {
+      if (wrap) wrap.style.display = 'none';
+      if (toggle) toggle.checked = true;
+      return;
+    }
+    fetch('/discount/whatssapAPI/api/chat-session/status/?channel_id=' + encodeURIComponent(cid) + '&customer_phone=' + encodeURIComponent(phone.replace(/^\+/,'')), { credentials: 'same-origin' })
+      .then(function(r) { return r.json(); })
+      .then(function(data) {
+        var on = data.ai_enabled !== false;
+        if (toggle) toggle.checked = on;
+        if (wrap) {
+          wrap.style.display = on ? 'none' : 'inline-flex';
+          var badge = document.getElementById('hitl_badge');
+          if (badge && data.handover_reason) badge.title = data.handover_reason;
+        }
+      })
+      .catch(function() { if (wrap) wrap.style.display = 'none'; if (toggle) toggle.checked = true; });
+  };
+
+  window.setContactNeedsHuman = function(phone, needsHuman, reason, payloadChannelId) {
+    var list = document.getElementById('cls3741_contacts_list');
+    if (!list || !phone) return;
+    if (payloadChannelId != null) {
+      var curCh = (typeof window.getCurrentChannelId === 'function' ? window.getCurrentChannelId() : null) || window._activeChannelId || window.currentChannelId;
+      if (curCh != null && String(curCh) !== String(payloadChannelId)) return;
+    }
+    var normalized = ('' + phone).replace(/\D/g, '');
+    var item = list.querySelector('.cls3741_contact_item[data-phone="' + phone + '"]') ||
+               list.querySelector('.cls3741_contact_item[data-phone="+' + normalized + '"]') ||
+               list.querySelector('.cls3741_contact_item[data-phone="' + normalized + '"]') ||
+               Array.from(list.querySelectorAll('.cls3741_contact_item')).find(function(el) {
+                 var p = (el.getAttribute('data-phone') || '').replace(/\D/g, '');
+                 return p === normalized;
+               });
+    if (!item) return;
+    var col = item.querySelector('div[style*="flex-direction:column"]');
+    if (!col) col = item.querySelector('.cls3741_contact_meta') && item.querySelector('.cls3741_contact_meta').parentElement ? item.lastElementChild : item.lastElementChild;
+    if (!col) return;
+    var existing = col.querySelector('.hitl-contact-badge');
+    if (needsHuman) {
+      if (!existing) {
+        var span = document.createElement('span');
+        span.className = 'hitl-contact-badge';
+        span.title = reason || 'Needs Human Action';
+        span.textContent = 'Human';
+        col.insertBefore(span, col.querySelector('.cls3741_contact_badge') || col.firstChild);
+      } else if (reason) existing.title = reason;
+    } else if (existing) existing.remove();
+  };
+
+  (function(){
+    var hitlToggle = document.getElementById('hitl_ai_toggle');
+    if (hitlToggle) {
+      hitlToggle.addEventListener('change', function() {
+        var phone = window.currentPhone || currentPhone;
+        var cid = window.currentChannelId || currentChannelId;
+        if (!phone || !cid) return;
+        var form = new FormData();
+        form.append('channel_id', cid);
+        form.append('customer_phone', phone.replace(/^\+/,''));
+        form.append('ai_enabled', hitlToggle.checked ? 'true' : 'false');
+        fetch('/discount/whatssapAPI/api/chat-session/toggle-ai/', { method: 'POST', body: form, credentials: 'same-origin', headers: { 'X-CSRFToken': (document.querySelector('[name=csrfmiddlewaretoken]') && document.querySelector('[name=csrfmiddlewaretoken]').value) || '' } })
+          .then(function(r) { return r.json(); })
+          .then(function(data) {
+            var wrap = document.getElementById('hitl_badge_wrap');
+            if (wrap) wrap.style.display = (data.ai_enabled !== false) ? 'none' : 'inline-flex';
+          });
+      });
+    }
+    var reenableBtn = document.getElementById('hitl_reenable_btn');
+    if (reenableBtn) {
+      reenableBtn.addEventListener('click', function() {
+        var phone = window.currentPhone || currentPhone;
+        var cid = window.currentChannelId || currentChannelId;
+        if (!phone || !cid) return;
+        var form = new FormData();
+        form.append('channel_id', cid);
+        form.append('customer_phone', phone.replace(/^\+/,''));
+        fetch('/discount/whatssapAPI/api/chat-session/re-enable-ai/', { method: 'POST', body: form, credentials: 'same-origin', headers: { 'X-CSRFToken': (document.querySelector('[name=csrfmiddlewaretoken]') && document.querySelector('[name=csrfmiddlewaretoken]').value) || '' } })
+          .then(function(r) { return r.json(); })
+          .then(function(data) {
+            if (data.success) {
+              if (typeof window.updateHitlUI === 'function') window.updateHitlUI(phone);
+              if (typeof window.setContactNeedsHuman === 'function') window.setContactNeedsHuman(phone, false);
+            }
+          });
+      });
+    }
+  })();
 
   (function(){
     // العناصر - محدثة للعناصر الفعلية في الـDOM
@@ -7826,6 +9073,12 @@ function makeMessageNode(m) {
                     <source src="${audioSrc}" type="audio/mp4">
                 </audio>
             </div>
+            ${(m.body && String(m.body).trim()) ? `
+            <div class="cls3741_audio_transcription" style="margin-top:8px; padding:6px 10px; background:var(--surface-light,#f1f5f9); border-radius:8px; font-size:13px; color:var(--text-secondary,#475569); border-right:3px solid #44bfa3;">
+                <span class="transcription-label" style="font-weight:600; color:var(--text-muted,#64748b);">👂 Heard:</span>
+                <span class="transcription-text">${escapeHtml(String(m.body).trim())}</span>
+            </div>
+            ` : ''}
             <div class="cls3741_msg_footer" style="display:flex; justify-content:flex-end; gap: 5px; margin-top:5px;">
                 ${timeHtml} ${msg_status}
             </div>
@@ -8709,6 +9962,7 @@ async function fetchContactsAndUpdateUIws(wsData = null, loadFromApi = false) {
     const initial = (c.name || '').trim().charAt(0).toUpperCase() || '?';
     const isUnread = c.unread && c.unread > 0;
     const badge = isUnread ? `<div class="cls3741_contact_badge green">${c.unread}</div>` : '';
+    const needsHumanBadge = c.needs_human ? '<span class="hitl-contact-badge" title="Needs Human Action">Human</span>' : '';
     const snippetClass = isUnread ? 'cls3741_contact_snippet green' : 'cls3741_contact_snippet';
     let statusIconHTML = '';
     const avatarSrc = c.profile_picture 
@@ -8732,7 +9986,7 @@ async function fetchContactsAndUpdateUIws(wsData = null, loadFromApi = false) {
         </div>
         <div style="display:flex; flex-direction:column; align-items:flex-end; gap:4px;">
              <span class="cls3741_msg_time" style="font-size:10px; color:var(--text-secondary);">${c.timestamp || 'Now'}</span>
-
+             ${needsHumanBadge}
              ${badge}
         </div>
     `;
@@ -8797,6 +10051,7 @@ window.updateContactItemSingle = function(contactData) {
     // الآن contactData.unread أصبح 0 إذا كان الشات مفتوحاً، لذا لن يظهر البادج
     const isUnread = contactData.unread && contactData.unread > 0;
     const badgeHtml = isUnread ? `<div class="cls3741_contact_badge green">${contactData.unread}</div>` : '';
+    const needsHumanHtml = contactData.needs_human ? '<span class="hitl-contact-badge" title="Needs Human Action">Human</span>' : '';
     
     // تلوين النص بالأخضر فقط إذا كانت غير مقروءة
     const snippetClass = isUnread ? 'cls3741_contact_snippet green' : 'cls3741_contact_snippet';
@@ -8832,6 +10087,7 @@ window.updateContactItemSingle = function(contactData) {
         </div>
         <div style="display:flex; flex-direction:column; align-items:flex-end; gap:4px;">
              <span class="cls3741_msg_time" style="font-size:10px; color:var(--text-secondary);">${contactData.timestamp || 'Now'}</span>
+             ${needsHumanHtml}
              ${badgeHtml}
         </div>
     `;
@@ -8929,7 +10185,7 @@ console.log('assigned_agent_id', AssignedA)
           }
         }
       });
-
+      if (typeof window.updateHitlUI === 'function') window.updateHitlUI(phone);
 
      
     }

@@ -231,6 +231,18 @@ font-weight: bold;
     width: 30%;
 }
 
+/* Transcribed text below incoming audio (what the AI heard) */
+.cls9999_audio_transcription {
+    margin-top: 8px;
+    padding: 6px 10px;
+    font-size: 12px;
+    color: #555;
+    background: rgba(0,0,0,0.05);
+    border-radius: 8px;
+    border-left: 3px solid #075e54;
+    line-height: 1.4;
+}
+
 /* ---------- keyframes (الدوّارة) ---------- */
 @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
 
@@ -1227,6 +1239,7 @@ document.addEventListener('DOMContentLoaded', function () {
     } else if (m.type === 'video') {
       wrapper.innerHTML = `<video controls class="cls9999_media_video"><source src="${escapeHtml(m.url||'')}" type="${escapeHtml(m.mime||'video/mp4')}"></video><div class="cls9999_msg_footer">${timeHtml}</div>`;
     } else if (m.type === 'audio') {
+        const transcriptionHtml = (!isMe && m.body) ? `<div class="cls9999_audio_transcription" title="Transcribed text (what the AI heard)">${escapeHtml(m.body)}</div>` : '';
         wrapper.innerHTML = `
           <div class="audio-message ${isMe ? 'fromMe' : 'fromThem'}" role="group" aria-label="audio message">
             <button class="audio-play" type="button" aria-label="Play audio">▶</button>
@@ -1239,6 +1252,7 @@ document.addEventListener('DOMContentLoaded', function () {
               متصفحك لا يدعم تشغيل الصوت.
             </audio>
           </div>
+          ${transcriptionHtml}
           <div class="cls3741_msg_footer" style="display:flex; justify-content:flex-end; 
     gap: 5px;">
             ${timeHtml}

@@ -1,8 +1,10 @@
 import json
+import os
 import re
 import requests
 from discount.user_dash import user
 from django.http import JsonResponse
+from django.shortcuts import render
 from django.views.decorators.http import require_POST
 from django.contrib.auth.decorators import login_required
 from discount.models import WhatsAppChannel
@@ -74,6 +76,60 @@ def update_channel_settings(request):
         channel.enable_collision_detection = request.POST.get('enable_collision_detection') == 'on'
         # channel.show_blue_ticks = request.POST.get('show_blue_ticks') == 'on' # إذا كنت تستخدمها
 
+        # AI Voice & Sales Intelligence
+        channel.ai_auto_reply = request.POST.get('ai_auto_reply') == 'on'
+        channel.ai_voice_enabled = request.POST.get('ai_voice_enabled') == 'on'
+        channel.voice_provider = request.POST.get('voice_provider', 'OPENAI').strip() or 'OPENAI'
+        if channel.voice_provider not in ('OPENAI', 'ELEVENLABS'):
+            channel.voice_provider = 'OPENAI'
+        if hasattr(channel, 'ai_voice_provider'):
+            channel.ai_voice_provider = channel.voice_provider
+        channel.voice_gender = request.POST.get('voice_gender', 'FEMALE').strip() or 'FEMALE'
+        if channel.voice_gender not in ('MALE', 'FEMALE'):
+            channel.voice_gender = 'FEMALE'
+        try:
+            delay = int(request.POST.get('voice_delay_seconds', 20))
+            channel.voice_delay_seconds = max(10, min(30, delay))
+        except (TypeError, ValueError):
+            channel.voice_delay_seconds = 20
+        channel.ai_order_capture = request.POST.get('ai_order_capture') != 'off'  # default True
+        if hasattr(channel, 'order_notify_method'):
+            channel.order_notify_method = (request.POST.get('order_notify_method') or '').strip() or ''
+            if channel.order_notify_method not in ('', 'EMAIL', 'WHATSAPP'):
+                channel.order_notify_method = ''
+        if hasattr(channel, 'order_notify_email'):
+            channel.order_notify_email = (request.POST.get('order_notify_email') or '').strip() or None
+        if hasattr(channel, 'order_notify_whatsapp_phone'):
+            channel.order_notify_whatsapp_phone = (request.POST.get('order_notify_whatsapp_phone') or '').strip() or None
+        # Only update API key when user provided a non-empty value (never wipe with empty on save)
+        _new_key = (request.POST.get('elevenlabs_api_key') or '').strip()
+        if _new_key:
+            channel.elevenlabs_api_key = _new_key
+        channel.voice_cloning_enabled = request.POST.get('voice_cloning_enabled') == 'on'
+        if not _channel_is_premium(channel):
+            channel.voice_cloning_enabled = False
+        # Hard-guard: clear features if plan does not allow (prevents UI/API bypass)
+        if not _store_can_feature(channel, 'auto_reply'):
+            channel.ai_auto_reply = False
+        if not _store_can_feature(channel, 'ai_voice'):
+            channel.ai_voice_enabled = False
+        # Voice Studio
+        if hasattr(channel, 'voice_language'):
+            channel.voice_language = request.POST.get('voice_language', 'AUTO').strip() or 'AUTO'
+            if channel.voice_language not in ('AUTO', 'AR_MA', 'AR_SA', 'FR_FR', 'EN_US'):
+                channel.voice_language = 'AUTO'
+        if hasattr(channel, 'voice_stability'):
+            try:
+                channel.voice_stability = max(0.0, min(1.0, float(request.POST.get('voice_stability', 0.5))))
+            except (TypeError, ValueError):
+                channel.voice_stability = 0.5
+        if hasattr(channel, 'voice_similarity'):
+            try:
+                channel.voice_similarity = max(0.0, min(1.0, float(request.POST.get('voice_similarity', 0.75))))
+            except (TypeError, ValueError):
+                channel.voice_similarity = 0.75
+        # ai_voice_provider kept in sync with voice_provider above
+
         # حفظ في قاعدة البيانات
         channel.save()
         log_activity('wa_channel_updated', f"Channel settings updated: {channel.name}", request=request, related_object=channel)
@@ -113,7 +169,14 @@ def update_channel_settings(request):
             # نرسل الإعدادات الجديدة ليتم تحديث واجهة الجافاسكريبت فوراً
             'config': {
                 'enable_collision_detection': channel.enable_collision_detection,
-                'enable_welcome_msg': channel.enable_welcome_msg
+                'enable_welcome_msg': channel.enable_welcome_msg,
+                'ai_auto_reply': getattr(channel, 'ai_auto_reply', False),
+                'ai_voice_enabled': getattr(channel, 'ai_voice_enabled', False),
+                'voice_provider': getattr(channel, 'voice_provider', 'OPENAI'),
+                'voice_gender': getattr(channel, 'voice_gender', 'FEMALE'),
+                'voice_delay_seconds': getattr(channel, 'voice_delay_seconds', 20),
+                'ai_order_capture': getattr(channel, 'ai_order_capture', True),
+                'voice_cloning_enabled': getattr(channel, 'voice_cloning_enabled', False),
             }
         }
 
@@ -360,6 +423,21 @@ def fetch_and_update_meta_profile(channel):
 
 
 
+def _channel_is_premium(channel):
+    """True if store (channel owner) plan allows voice cloning. Uses Plan model."""
+    return _store_can_feature(channel, 'voice_cloning')
+
+
+def _store_can_feature(channel, feature_name):
+    """True if channel owner's plan allows the feature."""
+    if not channel or not getattr(channel, 'owner', None):
+        return False
+    store = channel.owner
+    if hasattr(store, 'is_feature_allowed') and callable(store.is_feature_allowed):
+        return store.is_feature_allowed(feature_name)
+    return False
+
+
 @login_required
 @require_POST
 def get_channel_settings(request):
@@ -403,8 +481,33 @@ def get_channel_settings(request):
             
             'b_welcom_enable': channel.enable_welcome_msg,
             'b_welcom_body': channel.welcome_msg_body or '',
-            
-            'b_img': img_url
+            'b_img': img_url,
+            # AI Voice & Sales
+            'ai_auto_reply': getattr(channel, 'ai_auto_reply', False),
+            'ai_voice_enabled': getattr(channel, 'ai_voice_enabled', False),
+            'voice_provider': getattr(channel, 'voice_provider', 'OPENAI'),
+            'voice_gender': getattr(channel, 'voice_gender', 'FEMALE'),
+            'voice_delay_seconds': getattr(channel, 'voice_delay_seconds', 20),
+            'ai_order_capture': getattr(channel, 'ai_order_capture', True),
+            'order_notify_method': getattr(channel, 'order_notify_method', '') or '',
+            'order_notify_email': getattr(channel, 'order_notify_email', '') or '',
+            'order_notify_whatsapp_phone': getattr(channel, 'order_notify_whatsapp_phone', '') or '',
+            'elevenlabs_api_key': getattr(channel, 'elevenlabs_api_key', '') or '',
+            'voice_cloning_enabled': getattr(channel, 'voice_cloning_enabled', False),
+            'is_premium': _channel_is_premium(channel),
+            # Plan-based feature flags for UI paywall (backend re-verifies on use)
+            'plan_can_ai_voice': _store_can_feature(channel, 'ai_voice'),
+            'plan_can_voice_cloning': _store_can_feature(channel, 'voice_cloning'),
+            'plan_can_auto_reply': _store_can_feature(channel, 'auto_reply'),
+            'plan_can_advanced_tones': _store_can_feature(channel, 'advanced_tones'),
+            'voice_language': getattr(channel, 'voice_language', 'AUTO'),
+            'voice_stability': getattr(channel, 'voice_stability', 0.5),
+            'voice_similarity': getattr(channel, 'voice_similarity', 0.75),
+            'cloned_voice_id': getattr(channel, 'cloned_voice_id', '') or '',
+            'ai_voice_provider': getattr(channel, 'ai_voice_provider', 'OPENAI'),
+            'elevenlabs_model_id': getattr(channel, 'elevenlabs_model_id', 'eleven_multilingual_v2'),
+            'selected_voice_id': getattr(channel, 'selected_voice_id', '') or '',
+            'voice_preview_url': getattr(channel, 'voice_preview_url', '') or '',
         }
            
         return JsonResponse({'status': 'success', 'data': data})
@@ -413,3 +516,189 @@ def get_channel_settings(request):
         return JsonResponse({'status': 'error', 'message': 'Not found'}, status=404)
     except Exception as e:
         return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
+
+
+def _get_channel_for_user(request, channel_id):
+    """Return channel if request.user has access (owner, team_admin, superuser, or assigned_agent), else None."""
+    if not channel_id:
+        return None
+    try:
+        channel = WhatsAppChannel.objects.get(id=channel_id)
+    except WhatsAppChannel.DoesNotExist:
+        return None
+    user = request.user
+    if user == channel.owner or user.is_superuser or getattr(user, 'is_team_admin', False):
+        return channel
+    if channel.assigned_agents.filter(pk=user.pk).exists():
+        return channel
+    return None
+
+
+@login_required
+@require_POST
+def voice_preview(request):
+    """POST channel_id, optional text. Returns MP3 file for preview. Temp file deleted after send."""
+    channel_id = request.POST.get('channel_id')
+    channel = _get_channel_for_user(request, channel_id)
+    if not channel:
+        return JsonResponse({'status': 'error', 'message': 'Channel not found'}, status=404)
+    text = request.POST.get('text', '').strip() or None
+    try:
+        from discount.whatssapAPI.voice_engine import get_preview_audio
+        path = get_preview_audio(channel, text=text)
+        if not path or not os.path.exists(path):
+            return JsonResponse({'status': 'error', 'message': 'Could not generate preview'}, status=502)
+        with open(path, 'rb') as f:
+            content = f.read()
+        try:
+            os.remove(path)
+        except OSError:
+            pass
+        from django.http import HttpResponse
+        r = HttpResponse(content, content_type='audio/mpeg')
+        r['Content-Disposition'] = 'inline; filename="preview.mp3"'
+        return r
+    except Exception as e:
+        import logging
+        logging.getLogger(__name__).exception("voice_preview: %s", e)
+        return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
+
+
+@login_required
+@require_POST
+def voice_clone(request):
+    """POST channel_id, file (audio sample). Clone voice via ElevenLabs, save to channel, and create a VoicePersona for My Voices with a unique name."""
+    channel_id = request.POST.get('channel_id')
+    channel = _get_channel_for_user(request, channel_id)
+    if not channel:
+        return JsonResponse({'status': 'error', 'message': 'Channel not found'}, status=404)
+    if not request.FILES.get('file'):
+        return JsonResponse({'status': 'error', 'message': 'No audio file provided'}, status=400)
+    try:
+        from discount.whatssapAPI.voice_engine import clone_voice
+        from discount.models import VoicePersona
+        from django.core.cache import cache
+        voice_id, err = clone_voice(channel, request.FILES['file'])
+        if err:
+            return JsonResponse({'status': 'error', 'message': err}, status=400)
+        user = getattr(channel, 'owner', None) or request.user
+        # Create a VoicePersona so it appears in Flow Builder "My Voices" with a unique name
+        existing_names = set(
+            VoicePersona.objects.filter(owner=user, is_system=False).values_list('name', flat=True)
+        )
+        num = 1
+        while f"My Voice {num}" in existing_names:
+            num += 1
+        name = f"My Voice {num}"
+        VoicePersona.objects.create(
+            name=name,
+            description="Cloned voice",
+            voice_id=voice_id,
+            is_system=False,
+            owner=user,
+            behavioral_instructions="",
+            language_code="AR_MA",
+            tier=VoicePersona.TIER_STANDARD,
+        )
+        cache.delete(f"personas_my_{user.id}")
+        return JsonResponse({'status': 'success', 'voice_id': voice_id})
+    except Exception as e:
+        import logging
+        logging.getLogger(__name__).exception("voice_clone: %s", e)
+        return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
+
+
+# ---------------------------------------------------------------------------
+# Voice Gallery (multilingual v2, native-friendly Arabic)
+# ---------------------------------------------------------------------------
+
+@login_required
+def voice_gallery_page(request):
+    """Render Voice Gallery; channel_id in GET or POST."""
+    channel_id = request.GET.get('channel_id') or request.POST.get('channel_id')
+    channel = _get_channel_for_user(request, channel_id) if channel_id else None
+    return render(request, 'whatssap/voice_gallery.html', {
+        'channel': channel,
+        'channel_id': channel.id if channel else None,
+    })
+
+
+@login_required
+@require_POST
+def voice_gallery_list(request):
+    """Return VOICE_GALLERY + current selected_voice_id and voice_preview_url for channel."""
+    channel_id = request.POST.get('channel_id')
+    channel = _get_channel_for_user(request, channel_id)
+    if not channel:
+        return JsonResponse({'status': 'error', 'message': 'Channel not found'}, status=404)
+    from discount.whatssapAPI.voice_engine import VOICE_GALLERY
+    api_key = (getattr(channel, 'elevenlabs_api_key', None) or '').strip() or os.environ.get('ELEVENLABS_API_KEY', '').strip()
+    return JsonResponse({
+        'status': 'success',
+        'voices': VOICE_GALLERY,
+        'selected_voice_id': getattr(channel, 'selected_voice_id', None) or '',
+        'voice_preview_url': getattr(channel, 'voice_preview_url', None) or '',
+        'has_api_key': bool(api_key),
+    })
+
+
+@login_required
+@require_POST
+def voice_gallery_preview(request):
+    """POST channel_id, voice_id, optional text. Returns MP3 for that voice (multilingual_v2). Temp file deleted after send."""
+    channel_id = request.POST.get('channel_id')
+    channel = _get_channel_for_user(request, channel_id)
+    if not channel:
+        return JsonResponse({'status': 'error', 'message': 'Channel not found'}, status=404)
+    voice_id = (request.POST.get('voice_id') or '').strip()
+    if not voice_id:
+        return JsonResponse({'status': 'error', 'message': 'voice_id required'}, status=400)
+    text = (request.POST.get('text') or 'مرحباً، أنا مساعدك الذكي.').strip()[:500]
+    try:
+        from discount.whatssapAPI.voice_engine import generate_voice_sample
+        api_key = (getattr(channel, 'elevenlabs_api_key', None) or '').strip() or os.environ.get('ELEVENLABS_API_KEY', '').strip()
+        if not api_key:
+            return JsonResponse({
+                'status': 'error',
+                'message': 'ElevenLabs API key not set. Save your API key in Channel Settings → Voice Identity → ElevenLabs API Key, then try again.',
+            }, status=400)
+        path, err = generate_voice_sample(voice_id, text, api_key=api_key)
+        if err:
+            return JsonResponse({'status': 'error', 'message': err}, status=400)
+        if not path or not os.path.exists(path):
+            return JsonResponse({'status': 'error', 'message': 'Could not generate sample'}, status=502)
+        with open(path, 'rb') as f:
+            content = f.read()
+        try:
+            os.remove(path)
+        except OSError:
+            pass
+        from django.http import HttpResponse
+        r = HttpResponse(content, content_type='audio/mpeg')
+        r['Content-Disposition'] = 'inline; filename="voice_sample.mp3"'
+        return r
+    except Exception as e:
+        import logging
+        logging.getLogger(__name__).exception("voice_gallery_preview: %s", e)
+        return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
+
+
+@login_required
+@require_POST
+def voice_gallery_select(request):
+    """POST channel_id, voice_id, optional voice_preview_url. Save selected voice to channel."""
+    channel_id = request.POST.get('channel_id')
+    channel = _get_channel_for_user(request, channel_id)
+    if not channel:
+        return JsonResponse({'status': 'error', 'message': 'Channel not found'}, status=404)
+    voice_id = (request.POST.get('voice_id') or '').strip()
+    if not voice_id:
+        return JsonResponse({'status': 'error', 'message': 'voice_id required'}, status=400)
+    voice_preview_url = (request.POST.get('voice_preview_url') or '').strip() or None
+    if not hasattr(channel, 'selected_voice_id'):
+        return JsonResponse({'status': 'error', 'message': 'Model not supported'}, status=400)
+    channel.selected_voice_id = voice_id
+    if hasattr(channel, 'voice_preview_url'):
+        channel.voice_preview_url = voice_preview_url or ''
+    channel.save(update_fields=['selected_voice_id', 'voice_preview_url'] if hasattr(channel, 'voice_preview_url') else ['selected_voice_id'])
+    return JsonResponse({'status': 'success', 'selected_voice_id': voice_id})

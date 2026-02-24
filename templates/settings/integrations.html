@@ -1,0 +1,442 @@
+{% load static %}
+<!-- Google Sheets Integration (Integrations tab content) -->
+<div id="integrations-google-sheets" class="integrations-google-sheets">
+    <div class="mb-4">
+        <h5 class="text-white fw-bold mb-1"><i class="fas fa-table text-success me-2"></i> Google Sheets</h5>
+        <p class="text-muted small mb-0">Export order data (Name, Phone, Address, etc.) to a Google Sheet when a flow reaches the Google Sheets node.</p>
+    </div>
+
+    <!-- Instructions Card: Service Account Email + Copy -->
+    <div class="card inner-card mb-4 p-4">
+        <h6 class="text-white fw-semibold mb-3"><i class="fas fa-info-circle me-2 text-info"></i> Share your sheet with this email</h6>
+        <p class="text-muted small mb-3">In Google Sheets, click <strong class="text-white">Share</strong> and add the following email as <strong class="text-white">Editor</strong>.</p>
+        <div class="d-flex flex-wrap align-items-center gap-2">
+            <code id="gs-service-email" class="flex-grow-1 modern-input py-2 px-3 rounded" style="font-size:0.9rem; min-height:42px;">Loading…</code>
+            <button type="button" class="btn btn-outline-light btn-sm" id="gs-copy-email" title="Copy">
+                <i class="fas fa-copy me-1"></i> Copy
+            </button>
+        </div>
+        <p class="text-muted small mt-2 mb-0" id="gs-email-hint">Upload credentials below to see the service account email.</p>
+    </div>
+
+    <!-- Connection Form -->
+    <div class="card inner-card mb-4 p-4">
+        <h6 class="text-white fw-semibold mb-3">Connection</h6>
+        <div class="row g-3">
+            <div class="col-md-6">
+                <label class="form-label-modern">Spreadsheet ID <span class="text-danger">*</span></label>
+                <input type="text" id="gs-spreadsheet-id" class="form-control modern-input" placeholder="1abc123... (from the sheet URL)" maxlength="128">
+                <div class="invalid-feedback" id="gs-spreadsheet-id-error">Spreadsheet ID cannot be empty.</div>
+            </div>
+            <div class="col-md-6">
+                <label class="form-label-modern">Default Sheet Name</label>
+                <input type="text" id="gs-sheet-name" class="form-control modern-input" value="Orders" placeholder="Orders" maxlength="128">
+            </div>
+        </div>
+        <div class="mt-3 d-flex flex-wrap align-items-center gap-3">
+            <button type="button" class="btn btn-save-glow btn-sm" id="gs-save-connection">
+                <i class="fas fa-save me-1"></i> Save
+            </button>
+            <button type="button" class="btn btn-outline-info btn-sm" id="gs-test-connection">
+                <i class="fas fa-plug me-1"></i> Test Connection
+            </button>
+            <span id="gs-connection-status" class="badge bg-secondary">—</span>
+        </div>
+    </div>
+
+    <!-- Service Account JSON (credentials) -->
+    <div class="card inner-card mb-4 p-4">
+        <h6 class="text-white fw-semibold mb-3">Credentials (Service Account JSON)</h6>
+        <p class="text-muted small mb-2">Paste the full JSON key from Google Cloud Console (IAM → Service Accounts → Keys). We store it encrypted.</p>
+        <textarea id="gs-service-account-json" class="form-control modern-input font-monospace" rows="6" placeholder='{"type": "service_account", "project_id": "...", "private_key_id": "...", ...}'></textarea>
+        <div class="mt-2">
+            <button type="button" class="btn btn-outline-secondary btn-sm" id="gs-save-credentials">
+                <i class="fas fa-lock me-1"></i> Save credentials
+            </button>
+        </div>
+    </div>
+
+    <!-- Drag-and-Drop Field Mapping -->
+    <div class="card inner-card mb-4 p-4">
+        <h6 class="text-white fw-semibold mb-3"><i class="fas fa-arrows-alt me-2 text-info"></i> Drag-and-Drop Field Mapping</h6>
+        <p class="text-muted small mb-3">Drag fields from <strong>Available</strong> into <strong>Active Sheet Columns</strong> and set the header name for each. Order in Active = column order in the sheet.</p>
+        <div class="row g-3">
+            <div class="col-md-5">
+                <label class="form-label-modern small text-muted">Available Database Fields</label>
+                <div id="gs-available-fields" class="gs-drag-list border rounded p-2" style="min-height:220px;background:rgba(0,0,0,0.2);">
+                    <!-- Filled by JS from available_fields -->
+                </div>
+            </div>
+            <div class="col-md-7">
+                <label class="form-label-modern small text-muted">Active Sheet Columns <span class="text-info">(drag to reorder)</span></label>
+                <div id="gs-active-columns" class="gs-drag-list border rounded p-2" style="min-height:220px;background:rgba(0,0,0,0.2);">
+                    <!-- Filled by JS from sheets_mapping -->
+                </div>
+            </div>
+        </div>
+        <div class="mt-3">
+            <button type="button" class="btn btn-save-glow btn-sm" id="gs-save-sheets-mapping">
+                <i class="fas fa-save me-1"></i> Save Mapping
+            </button>
+        </div>
+    </div>
+
+    <!-- Legacy Field Mapping Table (Column → Variable) -->
+    <div class="card inner-card mb-4 p-4">
+        <h6 class="text-white fw-semibold mb-3">Legacy Field Mapping <span class="text-muted fw-normal small">(Column → Variable)</span></h6>
+        <p class="text-muted small mb-3">If you don't use the drag-and-drop above, map columns (A, B, C…) to variables here.</p>
+        <div class="table-responsive">
+            <table class="table table-dark table-borderless" id="gs-mapping-table">
+                <thead>
+                    <tr>
+                        <th>Column</th>
+                        <th>Variable</th>
+                        <th width="60"></th>
+                    </tr>
+                </thead>
+                <tbody id="gs-mapping-tbody">
+                </tbody>
+            </table>
+        </div>
+        <button type="button" class="btn btn-outline-light btn-sm" id="gs-add-mapping-row"><i class="fas fa-plus me-1"></i> Add row</button>
+        <button type="button" class="btn btn-outline-secondary btn-sm ms-2" id="gs-save-mapping"><i class="fas fa-save me-1"></i> Save legacy mapping</button>
+    </div>
+</div>
+
+<style>
+.integrations-google-sheets .inner-card { background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08); }
+.integrations-google-sheets .form-control.modern-input { background: #0d1117; border: 1px solid #30363d; color: #e6edf3; }
+.integrations-google-sheets #gs-mapping-table td, .integrations-google-sheets #gs-mapping-table th { border-color: #30363d; }
+.integrations-google-sheets .badge.bg-success { background: #238636 !important; }
+.integrations-google-sheets .badge.bg-danger { background: #da3633 !important; }
+.gs-drag-list .gs-item { padding: 8px 10px; margin-bottom: 6px; border-radius: 8px; background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.1); cursor: grab; display: flex; align-items: center; gap: 8px; }
+.gs-drag-list .gs-item:active { cursor: grabbing; }
+.gs-drag-list .gs-item.sortable-ghost { opacity: 0.5; }
+.gs-drag-list .gs-active-item .gs-header-input { flex: 1; min-width: 0; padding: 4px 8px; font-size: 0.875rem; background: #0d1117; border: 1px solid #30363d; color: #e6edf3; border-radius: 6px; }
+.gs-drag-list .gs-active-item .gs-field-label { font-size: 0.8rem; color: #8b949e; min-width: 100px; }
+</style>
+<script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
+
+<script>
+(function() {
+    var base = '/discount/whatssapAPI';
+    var csrf = document.querySelector('[name=csrfmiddlewaretoken]') && document.querySelector('[name=csrfmiddlewaretoken]').value;
+
+    function getCookie(n) {
+        var m = document.cookie.match('(^| )' + n + '=([^;]+)');
+        return m ? decodeURIComponent(m[2]) : '';
+    }
+    if (!csrf) csrf = getCookie('csrftoken');
+
+    function showToast(msg, type) {
+        if (typeof Swal !== 'undefined') Swal.fire({ icon: type, title: type === 'success' ? 'Saved' : 'Notice', text: msg, timer: 3000, showConfirmButton: false, background: '#1e293b', color: '#fff' });
+        else alert(msg);
+    }
+
+    var availableFieldsList = [];
+    var sortableAvailable = null;
+    var sortableActive = null;
+
+    function renderAvailableFields(available) {
+        var el = document.getElementById('gs-available-fields');
+        if (!el) return;
+        el.innerHTML = '';
+        (available || []).forEach(function(f) {
+            var field = (f.field || f.key || '').trim();
+            var label = (f.label || f.field || field).trim();
+            if (!field) return;
+            var div = document.createElement('div');
+            div.className = 'gs-item gs-available-item';
+            div.setAttribute('data-field', field);
+            div.setAttribute('data-label', label);
+            div.textContent = label;
+            el.appendChild(div);
+        });
+    }
+
+    function renderActiveColumns(mapping) {
+        var el = document.getElementById('gs-active-columns');
+        if (!el) return;
+        el.innerHTML = '';
+        (mapping || []).forEach(function(m) {
+            var field = (m.field || m.key || '').trim();
+            var header = (m.header || m.label || m.field || field).trim();
+            var div = document.createElement('div');
+            div.className = 'gs-item gs-active-item';
+            div.setAttribute('data-field', field);
+            div.setAttribute('data-label', header);
+            var labelSpan = document.createElement('span');
+            labelSpan.className = 'gs-field-label';
+            labelSpan.textContent = field;
+            var input = document.createElement('input');
+            input.type = 'text';
+            input.className = 'gs-header-input';
+            input.placeholder = 'Header name';
+            input.value = header;
+            div.appendChild(labelSpan);
+            div.appendChild(input);
+            el.appendChild(div);
+        });
+    }
+
+    function initSortable() {
+        var availableEl = document.getElementById('gs-available-fields');
+        var activeEl = document.getElementById('gs-active-columns');
+        if (!availableEl || !activeEl || typeof Sortable === 'undefined') return;
+        if (sortableAvailable) sortableAvailable.destroy();
+        if (sortableActive) sortableActive.destroy();
+        sortableAvailable = new Sortable(availableEl, {
+            group: { name: 'gs-mapping', pull: true, put: true },
+            sort: false,
+            ghostClass: 'sortable-ghost',
+            onAdd: function(ev) {
+                var el = ev.item;
+                el.classList.remove('gs-active-item');
+                el.classList.add('gs-available-item');
+                var input = el.querySelector('.gs-header-input');
+                if (input && input.value.trim()) el.setAttribute('data-label', input.value.trim());
+                var label = el.getAttribute('data-label') || el.getAttribute('data-field') || '';
+                el.innerHTML = '';
+                el.textContent = label;
+            }
+        });
+        sortableActive = new Sortable(activeEl, {
+            group: { name: 'gs-mapping', pull: true, put: true },
+            ghostClass: 'sortable-ghost',
+            onAdd: function(ev) {
+                var el = ev.item;
+                el.classList.add('gs-active-item');
+                if (el.querySelector('.gs-header-input')) return;
+                var field = el.getAttribute('data-field');
+                var label = el.getAttribute('data-label') || field || '';
+                el.textContent = '';
+                var labelSpan = document.createElement('span');
+                labelSpan.className = 'gs-field-label';
+                labelSpan.textContent = field || '';
+                var input = document.createElement('input');
+                input.type = 'text';
+                input.className = 'gs-header-input';
+                input.placeholder = 'Header name';
+                input.value = label;
+                el.appendChild(labelSpan);
+                el.appendChild(input);
+            }
+        });
+    }
+
+    function getSheetsMappingFromActive() {
+        var out = [];
+        document.querySelectorAll('#gs-active-columns .gs-active-item').forEach(function(el) {
+            var field = (el.getAttribute('data-field') || '').trim();
+            if (!field) return;
+            var input = el.querySelector('.gs-header-input');
+            var header = (input && input.value) ? input.value.trim() : field;
+            out.push({ field: field, header: header || field });
+        });
+        return out;
+    }
+
+    function loadConfig() {
+        fetch(base + '/api/google-sheets/config/', { credentials: 'same-origin', headers: { 'Accept': 'application/json' } })
+            .then(function(r) { return r.json(); })
+            .then(function(data) {
+                document.getElementById('gs-spreadsheet-id').value = data.spreadsheet_id || '';
+                document.getElementById('gs-sheet-name').value = data.sheet_name || 'Orders';
+                renderMappingTable(data.column_mapping || {});
+                availableFieldsList = data.available_fields || [];
+                renderAvailableFields(availableFieldsList);
+                renderActiveColumns(data.sheets_mapping || []);
+                initSortable();
+            })
+            .catch(function() { renderMappingTable({}); renderAvailableFields([]); renderActiveColumns([]); initSortable(); });
+    }
+
+    function loadServiceEmail() {
+        fetch(base + '/api/google-sheets/service-email/', { credentials: 'same-origin', headers: { 'Accept': 'application/json' } })
+            .then(function(r) { return r.json(); })
+            .then(function(data) {
+                var el = document.getElementById('gs-service-email');
+                var hint = document.getElementById('gs-email-hint');
+                if (data.service_account_email) {
+                    el.textContent = data.service_account_email;
+                    hint.textContent = 'Share your Google Sheet with this email as Editor.';
+                } else {
+                    el.textContent = '—';
+                    hint.textContent = 'Upload credentials below to see the service account email.';
+                }
+            });
+    }
+
+    var COL_LETTERS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
+    function renderMappingTable(mapping) {
+        var tbody = document.getElementById('gs-mapping-tbody');
+        tbody.innerHTML = '';
+        var used = {};
+        Object.keys(mapping).forEach(function(col) { used[col] = true; });
+        Object.keys(mapping).sort().forEach(function(col) {
+            addMappingRow(tbody, col, mapping[col], used);
+        });
+        if (tbody.querySelectorAll('tr').length === 0) addMappingRow(tbody, 'A', '', used);
+    }
+
+    function addMappingRow(tbody, col, variable, used) {
+        used = used || {};
+        var tr = document.createElement('tr');
+        var colSelect = document.createElement('select');
+        colSelect.className = 'form-select form-select-sm modern-input gs-col-select';
+        colSelect.style.maxWidth = '80px';
+        COL_LETTERS.forEach(function(c) {
+            var opt = document.createElement('option');
+            opt.value = c;
+            opt.textContent = c;
+            if (c === col) opt.selected = true;
+            colSelect.appendChild(opt);
+        });
+        var varInput = document.createElement('input');
+        varInput.type = 'text';
+        varInput.className = 'form-control form-control-sm modern-input gs-var-input';
+        varInput.placeholder = 'e.g. customer_name, phone, city';
+        varInput.value = variable;
+        var delBtn = document.createElement('button');
+        delBtn.type = 'button';
+        delBtn.className = 'btn btn-outline-danger btn-sm';
+        delBtn.innerHTML = '<i class="fas fa-times"></i>';
+        delBtn.addEventListener('click', function() { tr.remove(); });
+        tr.appendChild(document.createElement('td')).appendChild(colSelect);
+        tr.appendChild(document.createElement('td')).appendChild(varInput);
+        tr.appendChild(document.createElement('td')).appendChild(delBtn);
+        tbody.appendChild(tr);
+    }
+
+    function getMappingFromTable() {
+        var out = {};
+        document.querySelectorAll('#gs-mapping-tbody tr').forEach(function(tr) {
+            var col = tr.querySelector('.gs-col-select');
+            var v = tr.querySelector('.gs-var-input');
+            if (col && v && v.value.trim()) out[col.value] = v.value.trim();
+        });
+        return out;
+    }
+
+    document.getElementById('gs-add-mapping-row').addEventListener('click', function() {
+        var tbody = document.getElementById('gs-mapping-tbody');
+        var used = {};
+        tbody.querySelectorAll('.gs-col-select').forEach(function(s) { used[s.value] = true; });
+        var next = COL_LETTERS.find(function(c) { return !used[c]; }) || 'A';
+        addMappingRow(tbody, next, '', used);
+    });
+
+    document.getElementById('gs-save-connection').addEventListener('click', function() {
+        var sid = document.getElementById('gs-spreadsheet-id').value.trim();
+        var sheetName = document.getElementById('gs-sheet-name').value.trim() || 'Orders';
+        var payload = { spreadsheet_id: sid, sheet_name: sheetName, column_mapping: getMappingFromTable() };
+        if (!sid) {
+            document.getElementById('gs-spreadsheet-id').classList.add('is-invalid');
+            return;
+        }
+        document.getElementById('gs-spreadsheet-id').classList.remove('is-invalid');
+        fetch(base + '/api/google-sheets/config/', {
+            method: 'POST',
+            credentials: 'same-origin',
+            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrf },
+            body: JSON.stringify(payload)
+        }).then(function(r) { return r.json(); })
+            .then(function(data) {
+                if (data.error) { showToast(data.error, 'error'); return; }
+                showToast('Settings saved.', 'success');
+                loadServiceEmail();
+            }).catch(function() { showToast('Failed to save.', 'error'); });
+    });
+
+    document.getElementById('gs-test-connection').addEventListener('click', function() {
+        var sid = document.getElementById('gs-spreadsheet-id').value.trim();
+        var statusEl = document.getElementById('gs-connection-status');
+        statusEl.textContent = 'Testing…';
+        statusEl.className = 'badge bg-secondary';
+        fetch(base + '/api/google-sheets/test-connection/', {
+            method: 'POST',
+            credentials: 'same-origin',
+            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrf },
+            body: JSON.stringify(sid ? { spreadsheet_id: sid } : {})
+        }).then(function(r) { return r.json(); })
+            .then(function(data) {
+                if (data.success) {
+                    statusEl.textContent = 'Connected';
+                    statusEl.className = 'badge bg-success';
+                } else {
+                    statusEl.textContent = 'Not connected';
+                    statusEl.className = 'badge bg-danger';
+                }
+                if (data.message && !data.success) showToast(data.message, 'error');
+            }).catch(function() {
+                statusEl.textContent = 'Error';
+                statusEl.className = 'badge bg-danger';
+            });
+    });
+
+    document.getElementById('gs-save-credentials').addEventListener('click', function() {
+        var raw = document.getElementById('gs-service-account-json').value.trim();
+        if (!raw) { showToast('Paste your Service Account JSON first.', 'error'); return; }
+        var payload = {};
+        try {
+            payload.service_account_json = JSON.parse(raw);
+        } catch (e) {
+            payload.service_account_json = raw;
+        }
+        fetch(base + '/api/google-sheets/config/', {
+            method: 'POST',
+            credentials: 'same-origin',
+            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrf },
+            body: JSON.stringify(payload)
+        }).then(function(r) { return r.json(); })
+            .then(function(data) {
+                if (data.error) { showToast(data.error, 'error'); return; }
+                showToast('Credentials saved (encrypted).', 'success');
+                document.getElementById('gs-service-account-json').value = '';
+                loadServiceEmail();
+            }).catch(function() { showToast('Failed to save.', 'error'); });
+    });
+
+    document.getElementById('gs-save-mapping').addEventListener('click', function() {
+        var payload = { column_mapping: getMappingFromTable() };
+        fetch(base + '/api/google-sheets/config/', {
+            method: 'POST',
+            credentials: 'same-origin',
+            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrf },
+            body: JSON.stringify(payload)
+        }).then(function(r) { return r.json(); })
+            .then(function(data) {
+                if (data.error) { showToast(data.error, 'error'); return; }
+                showToast('Legacy mapping saved.', 'success');
+            }).catch(function() { showToast('Failed to save.', 'error'); });
+    });
+
+    document.getElementById('gs-save-sheets-mapping').addEventListener('click', function() {
+        var mapping = getSheetsMappingFromActive();
+        var payload = { sheets_mapping: mapping };
+        fetch(base + '/api/google-sheets/config/', {
+            method: 'POST',
+            credentials: 'same-origin',
+            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrf },
+            body: JSON.stringify(payload)
+        }).then(function(r) { return r.json(); })
+            .then(function(data) {
+                if (data.error) { showToast(data.error, 'error'); return; }
+                showToast('Mapping saved. Sheet columns will use this order and headers.', 'success');
+            }).catch(function() { showToast('Failed to save.', 'error'); });
+    });
+
+    document.getElementById('gs-copy-email').addEventListener('click', function() {
+        var email = document.getElementById('gs-service-email').textContent;
+        if (!email || email === 'Loading…' || email === '—') return;
+        navigator.clipboard && navigator.clipboard.writeText(email).then(function() { showToast('Copied to clipboard.', 'success'); }).catch(function() { showToast('Copy failed.', 'error'); });
+    });
+
+    if (document.getElementById('integrations-google-sheets').closest('.tab-pane')) {
+        var tabEl = document.querySelector('[data-bs-target="#content-integrations"]');
+        if (tabEl) tabEl.addEventListener('shown.bs.tab', function() { loadConfig(); loadServiceEmail(); });
+    }
+    loadConfig();
+    loadServiceEmail();
+})();
+</script>

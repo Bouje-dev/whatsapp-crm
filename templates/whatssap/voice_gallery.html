@@ -1,0 +1,233 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Voice Gallery – Native-friendly Arabic</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        :root {
+            --bg-dark: #0d1117;
+            --bg-card: #161b22;
+            --border: #30363d;
+            --text: #e6edf3;
+            --muted: #8b949e;
+            --primary: #58a6ff;
+            --success: #3fb950;
+        }
+        body { background: var(--bg-dark); color: var(--text); min-height: 100vh; }
+        .voice-gallery-container { max-width: 1200px; margin: 0 auto; padding: 1.5rem; }
+        .voice-card {
+            background: var(--bg-card);
+            border: 2px solid var(--border);
+            border-radius: 16px;
+            padding: 1.25rem;
+            height: 100%;
+            transition: border-color 0.2s, box-shadow 0.2s;
+            cursor: pointer;
+        }
+        .voice-card:hover { border-color: var(--muted); }
+        .voice-card.voice-card-selected {
+            border-color: var(--primary);
+            box-shadow: 0 0 0 1px var(--primary);
+        }
+        .voice-card .name { font-weight: 600; color: var(--text); margin-bottom: 0.35rem; }
+        .voice-card .tags { font-size: 0.75rem; color: var(--muted); margin-bottom: 0.75rem; }
+        .voice-card .tags span { margin-right: 0.35rem; }
+        .badge-native { background: linear-gradient(135deg, #238636, #2ea043); color: #fff; font-size: 0.7rem; }
+        .btn-play-sample { padding: 0.4rem 0.75rem; font-size: 0.85rem; }
+        .tooltip-multilingual {
+            font-size: 0.8rem; color: var(--muted);
+            border-bottom: 1px dotted var(--muted); cursor: help;
+        }
+        .filter-bar { margin-bottom: 1.5rem; }
+        .filter-bar select { background: var(--bg-card); color: var(--text); border-color: var(--border); }
+        @media (max-width: 576px) {
+            .voice-gallery-container { padding: 0.75rem; }
+            .voice-card { padding: 1rem; }
+        }
+    </style>
+</head>
+<body>
+    <div class="voice-gallery-container">
+        <div class="d-flex flex-wrap align-items-center justify-content-between gap-3 mb-4">
+            <div>
+                <h5 class="text-white mb-1">Voice Gallery</h5>
+                <p class="text-muted small mb-0">
+                    <span class="tooltip-multilingual" data-bs-toggle="tooltip" title="These voices use our advanced Multilingual V2 model for natural Arabic pronunciation.">
+                        <i class="fas fa-info-circle me-1"></i> Multilingual V2 – natural Arabic
+                    </span>
+                </p>
+            </div>
+            {% if channel_id %}
+            <a href="javascript:window.close();" class="btn btn-outline-secondary btn-sm">Close</a>
+            {% endif %}
+        </div>
+
+        <div id="api_key_alert" class="alert alert-warning d-none mb-3" role="alert">
+            <i class="fas fa-key me-2"></i>
+            <strong>ElevenLabs API key required.</strong> To play samples and use these voices, set your API key in <strong>Channel Settings → Voice Identity → ElevenLabs API Key</strong> and save. You can still select a voice without playing a sample.
+        </div>
+
+        <div class="filter-bar row g-2">
+            <div class="col-auto">
+                <label class="form-label small text-muted mb-0">Gender</label>
+                <select id="filter_gender" class="form-select form-select-sm">
+                    <option value="">All</option>
+                    <option value="MALE">Male</option>
+                    <option value="FEMALE">Female</option>
+                </select>
+            </div>
+            <div class="col-auto">
+                <label class="form-label small text-muted mb-0">Language</label>
+                <select id="filter_lang" class="form-select form-select-sm">
+                    <option value="">All</option>
+                    <option value="arabic">Optimized for Arabic</option>
+                    <option value="french">Optimized for French</option>
+                </select>
+            </div>
+        </div>
+
+        <div id="voice_cards" class="row g-3">
+            <!-- Filled by JS -->
+        </div>
+
+        <p class="text-muted small mt-4 mb-0">
+            <i class="fas fa-headphones me-1"></i> Click <strong>Play Sample</strong> to hear a short clip. Click a card to select that voice.
+        </p>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        (function() {
+            var channelId = {{ channel_id|default:0 }};
+            var voices = [];
+            var selectedVoiceId = '';
+
+            function renderCards() {
+                var gender = document.getElementById('filter_gender').value;
+                var lang = document.getElementById('filter_lang').value;
+                var list = voices.filter(function(v) {
+                    if (gender && v.gender !== gender) return false;
+                    if (lang === 'arabic' && !v.native_arabic) return false;
+                    if (lang === 'french' && v.tags.indexOf('French') === -1) return false;
+                    return true;
+                });
+                var html = '';
+                list.forEach(function(v) {
+                    var tagsHtml = (v.tags || []).map(function(t) { return '<span>' + t + '</span>'; }).join('');
+                    if (v.native_arabic) tagsHtml += ' <span class="badge badge-native">👑 Native Support</span>';
+                    var selected = v.id === selectedVoiceId ? ' voice-card-selected' : '';
+                    html += '<div class="col-12 col-sm-6 col-lg-4 voice-card' + selected + '" data-voice-id="' + v.id + '" data-voice-label="' + (v.label || v.name) + '">' +
+                        '<div class="name">' + (v.label || v.name) + '</div>' +
+                        '<div class="tags">' + tagsHtml + '</div>' +
+                        '<button type="button" class="btn btn-outline-primary btn-play-sample btn-sm" data-voice-id="' + v.id + '" onclick="event.stopPropagation();">' +
+                        '<i class="fas fa-play me-1"></i> Play Sample</button>' +
+                        '</div>';
+                });
+                document.getElementById('voice_cards').innerHTML = html || '<div class="col-12 text-muted">No voices match the filters.</div>';
+                bindCardClicks();
+                bindPlayClicks();
+            }
+
+            function bindCardClicks() {
+                document.querySelectorAll('.voice-card[data-voice-id]').forEach(function(el) {
+                    el.onclick = function() {
+                        var voiceId = this.getAttribute('data-voice-id');
+                        var label = this.getAttribute('data-voice-label');
+                        selectVoice(voiceId, label);
+                    };
+                });
+            }
+
+            function bindPlayClicks() {
+                document.querySelectorAll('.btn-play-sample').forEach(function(btn) {
+                    btn.onclick = function(e) {
+                        e.stopPropagation();
+                        var voiceId = this.getAttribute('data-voice-id');
+                        playSample(voiceId, this);
+                    };
+                });
+            }
+
+            function playSample(voiceId, btnEl) {
+                if (!channelId) { alert('Channel not selected.'); return; }
+                var formData = new FormData();
+                formData.append('channel_id', channelId);
+                formData.append('voice_id', voiceId);
+                formData.append('csrfmiddlewaretoken', '{{ csrf_token }}');
+                formData.append('text', 'مرحباً، أنا مساعدك الذكي.');
+                var icon = btnEl.querySelector('i');
+                icon.className = 'fas fa-circle-notch fa-spin me-1';
+                btnEl.disabled = true;
+                fetch('{% url "voice_gallery_preview" %}', { method: 'POST', body: formData, credentials: 'same-origin' })
+                    .then(function(r) {
+                        if (!r.ok) return r.json().then(function(j) { throw new Error(j.message || 'Preview failed'); });
+                        return r.blob();
+                    })
+                    .then(function(blob) {
+                        var url = URL.createObjectURL(blob);
+                        var audio = new Audio(url);
+                        audio.onended = function() { URL.revokeObjectURL(url); };
+                        audio.onerror = function() { URL.revokeObjectURL(url); };
+                        audio.play().catch(function() {});
+                    })
+                    .catch(function(err) { alert(err.message || 'Could not play sample.'); })
+                    .finally(function() {
+                        icon.className = 'fas fa-play me-1';
+                        btnEl.disabled = false;
+                    });
+            }
+
+            function selectVoice(voiceId, label) {
+                selectedVoiceId = voiceId;
+                renderCards();
+                if (!channelId) return;
+                var formData = new FormData();
+                formData.append('channel_id', channelId);
+                formData.append('voice_id', voiceId);
+                formData.append('csrfmiddlewaretoken', '{{ csrf_token }}');
+                fetch('{% url "voice_gallery_select" %}', { method: 'POST', body: formData, credentials: 'same-origin' })
+                    .then(function(r) { return r.json(); })
+                    .then(function(data) {
+                        if (data.status === 'success') {
+                            if (typeof showToast === 'function') showToast('Voice selected: ' + (label || voiceId), 'success');
+                        } else {
+                            alert(data.message || 'Selection failed');
+                        }
+                    })
+                    .catch(function() { alert('Request failed'); });
+            }
+
+            document.getElementById('filter_gender').onchange = renderCards;
+            document.getElementById('filter_lang').onchange = renderCards;
+
+            if (channelId) {
+                var formData = new FormData();
+                formData.append('channel_id', channelId);
+                formData.append('csrfmiddlewaretoken', '{{ csrf_token }}');
+                fetch('{% url "voice_gallery_list" %}', { method: 'POST', body: formData, credentials: 'same-origin' })
+                    .then(function(r) { return r.json(); })
+                    .then(function(data) {
+                        if (data.status === 'success') {
+                            voices = data.voices || [];
+                            selectedVoiceId = data.selected_voice_id || '';
+                            if (!data.has_api_key) {
+                                document.getElementById('api_key_alert').classList.remove('d-none');
+                            }
+                            renderCards();
+                        }
+                    })
+                    .catch(function() { document.getElementById('voice_cards').innerHTML = '<div class="col-12 text-danger">Could not load voices.</div>'; });
+            } else {
+                document.getElementById('voice_cards').innerHTML = '<div class="col-12 text-warning">Open this page from channel settings with a channel selected.</div>';
+            }
+
+            var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+            tooltipTriggerList.forEach(function(el) { new bootstrap.Tooltip(el); });
+        })();
+    </script>
+</body>
+</html>

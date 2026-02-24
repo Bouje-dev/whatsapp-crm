@@ -103,6 +103,30 @@
     background-color: #10151c !important;
 }
 
+/* --- Plan paywall: disabled / locked states --- */
+.feature-locked {
+    opacity: 0.5;
+    pointer-events: none;
+    cursor: not-allowed;
+    position: relative;
+}
+.feature-locked .form-check-input,
+.feature-locked .form-select,
+.feature-locked .form-range,
+.feature-locked input {
+    cursor: not-allowed;
+}
+.pro-badge {
+    display: inline-block;
+    padding: 2px 8px;
+    font-size: 0.7rem;
+    font-weight: 600;
+    color: #1a1a1a;
+    background: linear-gradient(135deg, #f5c518, #d4a012);
+    border-radius: 6px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+}
+
 .input-group-text.modern-addon {
     background-color: #161b22;
     border: 1px solid #30363d;
@@ -139,6 +163,13 @@
 .inner-card:hover {
     border-color: rgba(255, 255, 255, 0.1);
 }
+
+/* Google Sheets drag-and-drop mapping */
+.gs-drag-list .gs-item { padding: 8px 10px; margin-bottom: 6px; border-radius: 8px; background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.1); cursor: grab; display: flex; align-items: center; gap: 8px; }
+.gs-drag-list .gs-item:active { cursor: grabbing; }
+.gs-drag-list .gs-item.sortable-ghost { opacity: 0.5; }
+.gs-drag-list .gs-active-item .gs-header-input { flex: 1; min-width: 0; padding: 4px 8px; font-size: 0.875rem; background: #0d1117; border: 1px solid #30363d; color: #e6edf3; border-radius: 6px; }
+.gs-drag-list .gs-active-item .gs-field-label { font-size: 0.8rem; color: #8b949e; min-width: 100px; }
 
 /* --- زر الحفظ --- */
 .btn-save-glow {
@@ -196,6 +227,11 @@
                 {% endif %}
 
                 <li class="nav-item">
+                    <button class="nav-link" data-bs-toggle="tab" data-bs-target="#content-integrations">
+                        <i class="fas fa-plug me-2"></i> Integrations
+                    </button>
+                </li>
+                <li class="nav-item">
                     <button class="nav-link {% if not user.is_team_admin %}active{% endif %}" data-bs-toggle="tab" data-bs-target="#content-personal">
                         <i class="fas fa-user-cog me-2"></i> Preferences
                     </button>
@@ -203,7 +239,7 @@
             </ul>
         </div>
 
-        <div class="card-body p-4">
+        <div class="card-body p-4" id="whatsapp-settings-card-body" data-google-sheets-api-base="{% url 'api_google_sheets_config' %}">
             <form id="whatsappSettingsForm">
                 <div class="tab-content">
                     
@@ -335,36 +371,283 @@
                     </div>
 
                     <div class="tab-pane fade" id="content-automation">
-                        <div class="row g-4">
-                            <div class="col-lg-6">
-                                <div class="p-4 inner-card h-100">
-                                    <h6 class="text-white mb-3 d-flex align-items-center">
-                                        <i class="fas fa-hand-sparkles text-warning me-2"></i> Welcome Message
-                                    </h6>
-                                    <div class="form-check form-switch mb-3">
-                                        <input class="form-check-input" type="checkbox" name="enable_welcome_msg" id="switch_welcome" {% if channel.enable_welcome_msg %}checked{% endif %}>
-                                        <label class="form-check-label text-muted" for="switch_welcome">Enable auto-greeting</label>
+                        <div class="automation-tab">
+                            <!-- Row 1: Welcome + Workflow -->
+                            <div class="row g-4 mb-4">
+                                <div class="col-md-6">
+                                    <div class="automation-card automation-card-welcome">
+                                        <div class="automation-card-head">
+                                            <span class="automation-card-icon bg-warning bg-opacity-25 text-warning"><i class="fas fa-hand-sparkles"></i></span>
+                                            <div>
+                                                <h6 class="automation-card-title mb-0">Welcome Message</h6>
+                                                <p class="automation-card-desc mb-0">Auto-greet new contacts</p>
+                                            </div>
+                                        </div>
+                                        <div class="automation-card-body">
+                                            <div class="form-check form-switch mb-3">
+                                                <input class="form-check-input" type="checkbox" name="enable_welcome_msg" id="switch_welcome" {% if channel.enable_welcome_msg %}checked{% endif %}>
+                                                <label class="form-check-label text-muted" for="switch_welcome">Enable auto-greeting</label>
+                                            </div>
+                                            <div id="welcome_config_area" class="{% if not channel.enable_welcome_msg %}d-none{% endif %}">
+                                                <label class="form-label text-muted small">Message</label>
+                                                <textarea name="welcome_msg_body" class="form-control modern-input" rows="3" placeholder="Hi! How can we help?">{{ channel.welcome_msg_body }}</textarea>
+                                            </div>
+                                        </div>
                                     </div>
-                                    <div id="welcome_config_area" class="{% if not channel.enable_welcome_msg %}d-none{% endif %}">
-                                        <textarea name="welcome_msg_body" class="form-control modern-input" rows="3">{{ channel.welcome_msg_body }}</textarea>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="automation-card automation-card-workflow">
+                                        <div class="automation-card-head">
+                                            <span class="automation-card-icon bg-info bg-opacity-25 text-info"><i class="fas fa-cogs"></i></span>
+                                            <div>
+                                                <h6 class="automation-card-title mb-0">Workflow</h6>
+                                                <p class="automation-card-desc mb-0">Agent &amp; team behavior</p>
+                                            </div>
+                                        </div>
+                                        <div class="automation-card-body">
+                                            <div class="automation-setting-row">
+                                                <div>
+                                                    <span class="text-white fw-semibold d-block">Collision Detection</span>
+                                                    <small class="text-muted">Alert when multiple agents reply to the same chat.</small>
+                                                </div>
+                                                <div class="form-check form-switch mb-0">
+                                                    <input class="form-check-input" type="checkbox" name="enable_collision_detection" {% if channel.enable_collision_detection %}checked{% endif %}>
+                                                </div>
+                                            </div>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
-                            
-                            <div class="col-lg-6">
-                                <div class="p-4 inner-card h-100">
-                                    <h6 class="text-white mb-3 d-flex align-items-center">
-                                        <i class="fas fa-cogs text-info me-2"></i> Workflow
-                                    </h6>
-                                    <div class="d-flex justify-content-between align-items-center mb-3">
-                                        <div>
-                                            <span class="text-white d-block fw-bold" style="font-size: 0.9rem;">Collision Detection</span>
-                                            <small class="text-muted" style="font-size: 0.75rem;">Show alert when agents overlap.</small>
-                                        </div>
-                                        <div class="form-check form-switch">
-                                            <input class="form-check-input" type="checkbox" name="enable_collision_detection" {% if channel.enable_collision_detection %}checked{% endif %}>
+
+                            <!-- AI Sales Voice Orchestrator -->
+                            <div class="automation-ai-section">
+                                <div class="automation-ai-header">
+                                    <span class="automation-ai-badge"><i class="fas fa-robot me-1"></i> AI Sales Voice</span>
+                                    <p class="automation-ai-subtitle mb-0">Autopilot, voice identity, and order capture</p>
+                                </div>
+                                <div class="row g-4">
+                                    <div class="col-lg-4" id="ai_autopilot_card" title="">
+                                        <div class="automation-card h-100">
+                                            <div class="automation-card-head">
+                                                <span class="automation-card-icon bg-primary bg-opacity-25 text-primary"><i class="fas fa-rocket"></i></span>
+                                                <h6 class="automation-card-title mb-0">Automation</h6>
+                                            </div>
+                                            <div class="automation-card-body">
+                                                <div class="form-check form-switch mb-4">
+                                                    <input class="form-check-input" type="checkbox" name="ai_auto_reply" id="switch_ai_autopilot" {% if channel.ai_auto_reply %}checked{% endif %}>
+                                                    <label class="form-check-label text-muted" for="switch_ai_autopilot">Full Autopilot</label>
+                                                </div>
+                                                <label class="form-label text-muted small d-flex justify-content-between">
+                                                    <span>Response delay</span>
+                                                    <span id="voice_delay_value" class="text-white">20</span>s
+                                                </label>
+                                                <input type="range" class="form-range" name="voice_delay_seconds" id="voice_delay_slider" min="10" max="30" value="{{ channel.voice_delay_seconds|default:20 }}">
+                                            </div>
                                         </div>
                                     </div>
+
+                                    <div class="col-lg-4" id="ai_voice_identity_card" title="">
+                                        <div class="automation-card automation-card-voice h-100">
+                                            <div class="automation-card-head">
+                                                <span class="automation-card-icon bg-success bg-opacity-25 text-success"><i class="fas fa-microphone-alt"></i></span>
+                                                <h6 class="automation-card-title mb-0">Voice Identity</h6>
+                                            </div>
+                                            <div class="automation-card-body">
+                                                <div class="row g-2 mb-3">
+                                                    <div class="col-6">
+                                                        <label class="form-label text-muted small mb-1">Provider</label>
+                                                        <select name="voice_provider" class="form-select form-select-sm modern-input">
+                                                            <option value="OPENAI" {% if channel.voice_provider == 'OPENAI' %}selected{% endif %}>OpenAI TTS</option>
+                                                            <option value="ELEVENLABS" {% if channel.voice_provider == 'ELEVENLABS' %}selected{% endif %}>ElevenLabs</option>
+                                                        </select>
+                                                    </div>
+                                                    <div class="col-6">
+                                                        <label class="form-label text-muted small mb-1">Gender</label>
+                                                        <select name="voice_gender" class="form-select form-select-sm modern-input">
+                                                            <option value="FEMALE" {% if channel.voice_gender == 'FEMALE' %}selected{% endif %}>Female</option>
+                                                            <option value="MALE" {% if channel.voice_gender == 'MALE' %}selected{% endif %}>Male</option>
+                                                        </select>
+                                                    </div>
+                                                </div>
+                                                <div class="mb-3">
+                                                    <label class="form-label text-muted small mb-1">Language</label>
+                                                    <select name="voice_language" class="form-select form-select-sm modern-input" id="voice_language_select">
+                                                        <option value="AUTO" {% if channel.voice_language == 'AUTO' %}selected{% endif %}>Auto-Detect</option>
+                                                        <option value="AR_MA" {% if channel.voice_language == 'AR_MA' %}selected{% endif %}>Arabic (Morocco)</option>
+                                                        <option value="AR_SA" {% if channel.voice_language == 'AR_SA' %}selected{% endif %}>Arabic (Saudi)</option>
+                                                        <option value="FR_FR" {% if channel.voice_language == 'FR_FR' %}selected{% endif %}>French (France)</option>
+                                                        <option value="EN_US" {% if channel.voice_language == 'EN_US' %}selected{% endif %}>English (US)</option>
+                                                    </select>
+                                                    <span class="d-inline-block mt-1" data-bs-toggle="tooltip" title="Auto-Detect: AI responds in the customer's language."><i class="fas fa-info-circle text-muted small"></i></span>
+                                                </div>
+                                                <div class="automation-voice-switches">
+                                                    <div class="form-check form-switch mb-2">
+                                                        <input class="form-check-input" type="checkbox" name="ai_voice_enabled" id="switch_ai_voice" {% if channel.ai_voice_enabled %}checked{% endif %}>
+                                                        <label class="form-check-label text-muted" for="switch_ai_voice">Send as voice</label>
+                                                    </div>
+                                                    <div class="form-check form-switch mb-2" id="voice_cloning_row" title="">
+                                                        <input class="form-check-input" type="checkbox" name="voice_cloning_enabled" id="switch_voice_cloning" {% if channel.voice_cloning_enabled %}checked{% endif %}>
+                                                        <label class="form-check-label text-muted" for="switch_voice_cloning">Voice Cloning <span class="pro-badge ms-1">👑 PRO</span></label>
+                                                        <span class="ms-1" data-bs-toggle="tooltip" title="Clone your own voice. Premium only."><i class="fas fa-info-circle text-muted small"></i></span>
+                                                    </div>
+                                                </div>
+                                                <div class="mt-2 {% if channel.voice_provider != 'ELEVENLABS' %}d-none{% endif %}" id="elevenlabs_key_wrap">
+                                                    <label class="form-label text-muted small mb-1">ElevenLabs API Key</label>
+                                                    <input type="password" name="elevenlabs_api_key" class="form-control form-control-sm modern-input" placeholder="Paste key from elevenlabs.io" autocomplete="off">
+                                                    <small class="text-warning d-block mt-1 small">Save settings so Voice Gallery can use it.</small>
+                                                    <a href="#" id="btn_voice_gallery" class="btn btn-outline-info btn-sm mt-2 w-100 d-none" target="_blank" rel="noopener"><i class="fas fa-th-large me-1"></i> Voice Gallery</a>
+                                                </div>
+                                                <div class="automation-block mt-3 pt-3" id="tone_control_card" title="">
+                                                    <h6 class="text-white mb-2 small">Tone <span class="pro-badge ms-1">👑 PRO</span></h6>
+                                                    <label class="form-label text-muted small d-flex justify-content-between mb-1">Stability <span id="voice_stability_value" class="text-white">0.5</span></label>
+                                                    <input type="range" class="form-range mb-2" name="voice_stability" id="voice_stability_slider" min="0" max="1" step="0.05" value="{{ channel.voice_stability|default:0.5 }}">
+                                                    <label class="form-label text-muted small d-flex justify-content-between mb-1">Similarity <span id="voice_similarity_value" class="text-white">0.75</span></label>
+                                                    <input type="range" class="form-range" name="voice_similarity" id="voice_similarity_slider" min="0" max="1" step="0.05" value="{{ channel.voice_similarity|default:0.75 }}">
+                                                </div>
+                                                <div class="automation-block mt-3 pt-3" id="voice_clone_section">
+                                                    <h6 class="text-white mb-2 small">Clone <span class="pro-badge ms-1">👑 PRO</span></h6>
+                                                    <input type="file" id="clone_audio_input" class="form-control form-control-sm modern-input mb-2" accept="audio/*">
+                                                    <button type="button" class="btn btn-outline-primary btn-sm w-100 mb-2" id="btn_process_clone">
+                                                        <i class="fas fa-cog fa-spin d-none" id="clone_spinner"></i>
+                                                        <i class="fas fa-upload me-1" id="clone_icon"></i> Process &amp; Clone
+                                                    </button>
+                                                    <span class="badge bg-secondary" id="clone_status_badge">Not Set</span>
+                                                </div>
+                                                <div class="automation-block mt-3 pt-3">
+                                                    <label class="form-label text-muted small mb-1">Preview</label>
+                                                    <input type="text" class="form-control form-control-sm modern-input mb-2" id="preview_text_input" placeholder="مرحباً، أنا مساعدك الذكي..." value="">
+                                                    <button type="button" class="btn btn-outline-info btn-sm w-100" id="btn_play_preview"><i class="fas fa-play me-1"></i> Play</button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div class="col-lg-4">
+                                        <div class="automation-card h-100">
+                                            <div class="automation-card-head">
+                                                <span class="automation-card-icon bg-warning bg-opacity-25 text-warning"><i class="fas fa-shopping-cart"></i></span>
+                                                <h6 class="automation-card-title mb-0">Sales Intelligence</h6>
+                                            </div>
+                                            <div class="automation-card-body">
+                                                <div class="form-check form-switch mb-2">
+                                                    <input class="form-check-input" type="checkbox" name="ai_order_capture" id="switch_ai_order_capture" {% if channel.ai_order_capture %}checked{% endif %}>
+                                                    <label class="form-check-label text-muted" for="switch_ai_order_capture">Automatic Order Extraction</label>
+                                                </div>
+                                                <p class="text-muted small mb-0">Extract name, city &amp; address from chat and create orders.</p>
+                                                <div class="automation-block mt-3 pt-3 {% if not channel.ai_order_capture %}d-none{% endif %}" id="order_notify_wrap">
+                                                    <label class="form-label text-muted small mb-2">Notify when AI creates an order</label>
+                                                    <select name="order_notify_method" id="order_notify_method" class="form-select form-select-sm modern-input mb-2">
+                                                        <option value="" {% if not channel.order_notify_method %}selected{% endif %}>Off</option>
+                                                        <option value="EMAIL" {% if channel.order_notify_method == 'EMAIL' %}selected{% endif %}>Email</option>
+                                                        <option value="WHATSAPP" {% if channel.order_notify_method == 'WHATSAPP' %}selected{% endif %}>WhatsApp</option>
+                                                    </select>
+                                                    <div id="order_notify_email_row" class="mb-2 {% if channel.order_notify_method != 'EMAIL' %}d-none{% endif %}">
+                                                        <input type="email" name="order_notify_email" id="order_notify_email" class="form-control form-control-sm modern-input" placeholder="your@email.com" value="{{ channel.order_notify_email|default:'' }}">
+                                                    </div>
+                                                    <div id="order_notify_whatsapp_row" class="mb-2 {% if channel.order_notify_method != 'WHATSAPP' %}d-none{% endif %}">
+                                                        <input type="text" name="order_notify_whatsapp_phone" id="order_notify_whatsapp_phone" class="form-control form-control-sm modern-input" placeholder="+1234567890" value="{{ channel.order_notify_whatsapp_phone|default:'' }}">
+                                                        <small class="text-muted" style="font-size: 0.7rem;">With country code (e.g. +212...)</small>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <style>
+                        .automation-tab { padding: 0 2px; }
+                        .automation-card { background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); border-radius: 14px; overflow: hidden; transition: border-color .2s, box-shadow .2s; }
+                        .automation-card:hover { border-color: rgba(255,255,255,0.12); box-shadow: 0 4px 20px rgba(0,0,0,0.15); }
+                        .automation-card-head { display: flex; align-items: center; gap: 12px; padding: 1rem 1.25rem; border-bottom: 1px solid rgba(255,255,255,0.06); }
+                        .automation-card-icon { width: 40px; height: 40px; border-radius: 10px; display: inline-flex; align-items: center; justify-content: center; font-size: 1rem; flex-shrink: 0; }
+                        .automation-card-title { font-size: 0.95rem; font-weight: 600; color: #e6edf3; }
+                        .automation-card-desc { font-size: 0.75rem; color: #8b949e; margin-top: 2px; }
+                        .automation-card-body { padding: 1.25rem; }
+                        .automation-setting-row { display: flex; justify-content: space-between; align-items: center; gap: 1rem; flex-wrap: wrap; }
+                        .automation-ai-section { background: linear-gradient(180deg, rgba(88,166,255,0.06) 0%, transparent 100%); border: 1px solid rgba(88,166,255,0.12); border-radius: 16px; padding: 1.5rem; margin-top: 0.5rem; }
+                        .automation-ai-header { margin-bottom: 1.25rem; }
+                        .automation-ai-badge { display: inline-flex; align-items: center; font-size: 0.85rem; font-weight: 600; color: #58a6ff; background: rgba(88,166,255,0.12); padding: 6px 12px; border-radius: 8px; }
+                        .automation-ai-subtitle { font-size: 0.8rem; color: #8b949e; margin-top: 8px; }
+                        .automation-block { border-top: 1px solid rgba(255,255,255,0.08); }
+                        .automation-voice-switches { padding: 8px 0; }
+                        @media (max-width: 991px) { .automation-ai-section { padding: 1rem; } .automation-card-body { padding: 1rem; } }
+                        </style>
+                    </div>
+
+                    <!-- Integrations: Google Sheets (Global Service Account) -->
+                    <div class="tab-pane fade" id="content-integrations">
+                        <div class="row">
+                            <div class="col-lg-8">
+                                <h5 class="text-white mb-3"><i class="fas fa-table text-success me-2"></i> Google Sheets</h5>
+                                <p class="text-muted small mb-4">Export order data (Name, Phone, Address, etc.) to a Google Sheet when a flow reaches the Google Sheets node. Connection uses a global service account—no per-user credentials.</p>
+
+                                <!-- Connection Box -->
+                                <div class="inner-card p-4 mb-4 border border-secondary">
+                                    <h6 class="text-white mb-3">Connection</h6>
+                                    <p class="text-muted small mb-3"><strong class="text-white">1.</strong> Share your spreadsheet with this email (as Editor).</p>
+                                    <div class="d-flex align-items-center gap-2 flex-wrap mb-4">
+                                        <code id="gs-service-account-email" class="modern-input flex-grow-1 p-2 rounded" style="font-size:0.85rem; word-break:break-all;">—</code>
+                                        <button type="button" class="btn btn-outline-light btn-sm" id="gs-copy-email" title="Copy">
+                                            <i class="fas fa-copy"></i> Copy
+                                        </button>
+                                    </div>
+                                    <p class="text-muted small mb-2"><strong class="text-white">2.</strong> Paste your Spreadsheet ID below.</p>
+                                    <div class="mb-3">
+                                        <input type="text" id="gs-spreadsheet-id" class="form-control modern-input" placeholder="e.g. 1abc123xyz..." maxlength="128">
+                                        <small class="text-muted">From the sheet URL: docs.google.com/spreadsheets/d/<strong>SPREADSHEET_ID</strong>/edit</small>
+                                    </div>
+                                    <div class="d-flex align-items-center gap-3 flex-wrap">
+                                        <button type="button" class="btn btn-save-glow" id="gs-test-connection"><i class="fas fa-plug me-1"></i> Test connection</button>
+                                        <span id="gs-connection-status" class="badge bg-secondary">—</span>
+                                    </div>
+                                    <p class="text-muted small mt-2 mb-0">On success, your Spreadsheet ID is saved to your profile. If you see a permission error, share the sheet with the email above as Editor.</p>
+                                </div>
+
+                                <!-- Sheet name + Save (optional) -->
+                                <div class="inner-card p-4 mb-4">
+                                    <h6 class="text-white mb-3">Sheet & mapping</h6>
+                                    <div class="mb-3">
+                                        <label class="form-label-modern">Default Sheet Name</label>
+                                        <input type="text" id="gs-sheet-name" class="form-control modern-input" value="Orders" placeholder="Orders" maxlength="128">
+                                    </div>
+                                    <button type="button" class="btn btn-outline-light btn-sm" id="gs-save-config">Save sheet name & mapping</button>
+                                </div>
+
+                                <!-- Drag-and-Drop Field Mapping -->
+                                <div class="inner-card p-4 mb-4">
+                                    <h6 class="text-white mb-2"><i class="fas fa-arrows-alt me-2 text-info"></i> Drag-and-Drop Field Mapping</h6>
+                                    <p class="text-muted small mb-3">Drag fields from <strong>Available</strong> into <strong>Active Sheet Columns</strong>. Set the header name for each. Order = column order in the sheet.</p>
+                                    <div class="row g-3">
+                                        <div class="col-md-5">
+                                            <label class="form-label-modern small text-muted">Available Database Fields</label>
+                                            <div id="gs-available-fields" class="gs-drag-list border rounded p-2" style="min-height:200px;background:rgba(0,0,0,0.2);">
+                                            </div>
+                                        </div>
+                                        <div class="col-md-7">
+                                            <label class="form-label-modern small text-muted">Active Sheet Columns <span class="text-info">(drag to reorder)</span></label>
+                                            <div id="gs-active-columns" class="gs-drag-list border rounded p-2" style="min-height:200px;background:rgba(0,0,0,0.2);">
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="mt-3">
+                                        <button type="button" class="btn btn-save-glow btn-sm" id="gs-save-sheets-mapping">
+                                            <i class="fas fa-save me-1"></i> Save Mapping
+                                        </button>
+                                    </div>
+                                </div>
+
+                                <!-- Legacy Field Mapping (Column → Variable) -->
+                                <div class="inner-card p-4 mb-4">
+                                    <h6 class="text-white mb-2">Legacy field mapping</h6>
+                                    <p class="text-muted small mb-3">If you don't use drag-and-drop above, map columns (A, B, C…) to variables here.</p>
+                                    <div class="table-responsive">
+                                        <table class="table table-dark table-borderless" id="gs-mapping-table">
+                                            <thead><tr><th>Column</th><th>Variable</th><th></th></tr></thead>
+                                            <tbody id="gs-mapping-tbody"></tbody>
+                                        </table>
+                                    </div>
+                                    <button type="button" class="btn btn-outline-secondary btn-sm" id="gs-add-mapping-row"><i class="fas fa-plus me-1"></i> Add row</button>
                                 </div>
                             </div>
                         </div>
@@ -405,8 +688,7 @@
     </div>
 </div>
 
-
-
+<script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
 <script>
     window.loadSetting = function (channel_id){      
      
@@ -415,7 +697,18 @@
     
     // إظهار لودينج بسيط إن أردت
     $('#settings_modal').modal('show'); 
-    
+    function toggleOrderNotifyWrap() {
+        if ($('#switch_ai_order_capture').is(':checked')) {
+            $('#order_notify_wrap').removeClass('d-none');
+        } else {
+            $('#order_notify_wrap').addClass('d-none');
+        }
+    }
+    function toggleOrderNotifyInputs() {
+        var m = $('#order_notify_method').val();
+        $('#order_notify_email_row').toggleClass('d-none', m !== 'EMAIL');
+        $('#order_notify_whatsapp_row').toggleClass('d-none', m !== 'WHATSAPP');
+    }
     $.ajax({
         url: '{% url "get_channel_settings" %}',  
         type: 'POST',
@@ -449,6 +742,70 @@
                 } else {
                     $('#welcome_config_area').addClass('d-none');
                 }
+
+                // AI Voice & Sales Orchestrator
+                $('#voice_delay_slider').val(data.voice_delay_seconds || 20);
+                $('#voice_delay_value').text(data.voice_delay_seconds || 20);
+                $('input[name="ai_auto_reply"]').prop('checked', !!data.ai_auto_reply);
+                $('input[name="ai_voice_enabled"]').prop('checked', !!data.ai_voice_enabled);
+                $('select[name="voice_provider"]').val(data.voice_provider || 'OPENAI');
+                $('select[name="voice_gender"]').val(data.voice_gender || 'FEMALE');
+                $('input[name="ai_order_capture"]').prop('checked', data.ai_order_capture !== false);
+                $('select[name="order_notify_method"]').val(data.order_notify_method || '');
+                $('input[name="order_notify_email"]').val(data.order_notify_email || '');
+                $('input[name="order_notify_whatsapp_phone"]').val(data.order_notify_whatsapp_phone || '');
+                toggleOrderNotifyWrap();
+                toggleOrderNotifyInputs();
+                $('input[name="voice_cloning_enabled"]').prop('checked', !!data.voice_cloning_enabled);
+                $('#switch_voice_cloning').prop('disabled', !data.is_premium);
+                $('input[name="elevenlabs_api_key"]').val(data.elevenlabs_api_key || '');
+                if (data.voice_provider === 'ELEVENLABS') {
+                    $('#elevenlabs_key_wrap').removeClass('d-none');
+                    $('#btn_voice_gallery').attr('href', '{% url "voice_gallery_page" %}?channel_id=' + (channel_id || '')).removeClass('d-none');
+                } else {
+                    $('#elevenlabs_key_wrap').addClass('d-none');
+                    $('#btn_voice_gallery').addClass('d-none');
+                }
+                // When not premium, ensure we don't submit voice_cloning (backend will set false)
+                if (!data.is_premium) { $('input[name="voice_cloning_enabled"]').prop('checked', false); }
+
+                // Plan paywall: apply .feature-locked and tooltip when plan does not allow feature
+                var lockTip = 'This feature is locked. Upgrade to Premium to unlock.';
+                $('#ai_autopilot_card').removeClass('feature-locked').attr('title', '');
+                $('#ai_autopilot_card').find('input, select').prop('disabled', false);
+                if (!data.plan_can_auto_reply) {
+                    $('#ai_autopilot_card').addClass('feature-locked').attr('title', lockTip);
+                    $('#ai_autopilot_card').find('input, select').prop('disabled', true);
+                }
+                $('#ai_voice_identity_card').removeClass('feature-locked').attr('title', '');
+                $('#ai_voice_identity_card').find('input, select').prop('disabled', false);
+                if (!data.plan_can_ai_voice) {
+                    $('#ai_voice_identity_card').addClass('feature-locked').attr('title', lockTip);
+                    $('#ai_voice_identity_card').find('input, select').prop('disabled', true);
+                }
+                $('#voice_cloning_row').removeClass('feature-locked').attr('title', '');
+                $('#switch_voice_cloning').prop('disabled', false);
+                if (!data.plan_can_voice_cloning) {
+                    $('#voice_cloning_row').addClass('feature-locked').attr('title', lockTip);
+                    $('#switch_voice_cloning').prop('disabled', true);
+                }
+                // Voice Studio: language, tone sliders, clone status
+                $('select[name="voice_language"]').val(data.voice_language || 'AUTO');
+                var stab = parseFloat(data.voice_stability);
+                var sim = parseFloat(data.voice_similarity);
+                if (!isNaN(stab)) { $('#voice_stability_slider').val(stab); $('#voice_stability_value').text(stab); }
+                if (!isNaN(sim)) { $('#voice_similarity_slider').val(sim); $('#voice_similarity_value').text(sim); }
+                $('#tone_control_card').removeClass('feature-locked').attr('title', '');
+                $('#tone_control_card').find('input').prop('disabled', false);
+                if (!data.plan_can_advanced_tones) {
+                    $('#tone_control_card').addClass('feature-locked').attr('title', lockTip);
+                    $('#tone_control_card').find('input').prop('disabled', true);
+                }
+                $('#clone_status_badge').removeClass('bg-success').addClass('bg-secondary').text(data.cloned_voice_id ? 'Ready' : 'Not Set');
+                if (data.cloned_voice_id) { $('#clone_status_badge').removeClass('bg-secondary').addClass('bg-success'); }
+                $('#voice_clone_section').find('#clone_audio_input, #btn_process_clone').prop('disabled', !data.plan_can_voice_cloning);
+                var defaultPreview = 'مرحباً، أنا مساعدك الذكي، كيف يمكنني مساعدتك اليوم؟';
+                if (!$('#preview_text_input').val()) { $('#preview_text_input').attr('placeholder', defaultPreview); }
 
             } else {
                 console.error('Server returned error:', response.message);
@@ -538,6 +895,122 @@ $('#btn_open_settings').on('click', function() {
         }
     });
 
+    // AI Voice: delay slider live value
+    $('#voice_delay_slider').on('input', function() {
+        $('#voice_delay_value').text($(this).val());
+    });
+
+    // Tone Control sliders (Stability / Similarity)
+    $('#voice_stability_slider').on('input', function() {
+        $('#voice_stability_value').text($(this).val());
+    });
+    $('#voice_similarity_slider').on('input', function() {
+        $('#voice_similarity_value').text($(this).val());
+    });
+
+    // AI Voice: show ElevenLabs key field when provider is ELEVENLABS
+    $('select[name="voice_provider"]').on('change', function() {
+        if ($(this).val() === 'ELEVENLABS') {
+            $('#elevenlabs_key_wrap').removeClass('d-none');
+        } else {
+            $('#elevenlabs_key_wrap').addClass('d-none');
+        }
+    });
+
+   
+  
+    $('#switch_ai_order_capture').on('change', toggleOrderNotifyWrap);
+    $('#order_notify_method').on('change', toggleOrderNotifyInputs);
+
+    // Process & Clone: upload file and call clone API
+    $('#btn_process_clone').on('click', function() {
+        var fileInput = $('#clone_audio_input')[0];
+        if (!fileInput || !fileInput.files || !fileInput.files.length) {
+            if (typeof showToast === 'function') showToast('Please select an audio file first', 'warning');
+            return;
+        }
+        var channelId = window.currentChannelId;
+        if (!channelId) {
+            if (typeof showToast === 'function') showToast('Channel not selected', 'warning');
+            return;
+        }
+        var formData = new FormData();
+        formData.append('csrfmiddlewaretoken', '{{ csrf_token }}');
+        formData.append('channel_id', channelId);
+        formData.append('file', fileInput.files[0]);
+        var btn = $('#btn_process_clone');
+        var spinner = $('#clone_spinner');
+        var icon = $('#clone_icon');
+        btn.prop('disabled', true);
+        spinner.removeClass('d-none');
+        icon.addClass('d-none');
+        $.ajax({
+            url: '{% url "voice_clone" %}',
+            type: 'POST',
+            data: formData,
+            processData: false,
+            contentType: false,
+            dataType: 'json',
+            success: function(res) {
+                if (res.status === 'success') {
+                    $('#clone_status_badge').removeClass('bg-secondary').addClass('bg-success').text('Ready');
+                    if (typeof showToast === 'function') showToast('Voice cloned successfully', 'success');
+                } else {
+                    if (typeof showToast === 'function') showToast(res.message || 'Clone failed', 'error');
+                }
+            },
+            error: function(xhr) {
+                var msg = 'Clone request failed';
+                try { var j = JSON.parse(xhr.responseText); if (j.message) msg = j.message; } catch(e) {}
+                if (typeof showToast === 'function') showToast(msg, 'error');
+            },
+            complete: function() {
+                btn.prop('disabled', false);
+                spinner.addClass('d-none');
+                icon.removeClass('d-none');
+            }
+        });
+    });
+
+    // Play Preview: fetch MP3 and play
+    $('#btn_play_preview').on('click', function() {
+        var channelId = window.currentChannelId;
+        if (!channelId) {
+            if (typeof showToast === 'function') showToast('Channel not selected', 'warning');
+            return;
+        }
+        var text = $('#preview_text_input').val() || $('#preview_text_input').attr('placeholder') || 'مرحباً، أنا مساعدك الذكي، كيف يمكنني مساعدتك اليوم؟';
+        var formData = new FormData();
+        formData.append('csrfmiddlewaretoken', '{{ csrf_token }}');
+        formData.append('channel_id', channelId);
+        formData.append('text', text);
+        var btn = $('#btn_play_preview');
+        btn.prop('disabled', true);
+        fetch('{% url "voice_preview" %}', {
+            method: 'POST',
+            body: formData,
+            credentials: 'same-origin'
+        }).then(function(r) {
+            if (!r.ok) return r.json().then(function(j) { throw new Error(j.message || 'Preview failed'); });
+            return r.blob();
+        }).then(function(blob) {
+            var url = URL.createObjectURL(blob);
+            var audio = new Audio(url);
+            audio.onended = function() { URL.revokeObjectURL(url); };
+            audio.onerror = function() { URL.revokeObjectURL(url); };
+            audio.play().catch(function(e) {
+                if (typeof showToast === 'function') showToast('Could not play audio', 'warning');
+            });
+        }).catch(function(err) {
+            if (typeof showToast === 'function') showToast(err.message || 'Preview failed', 'error');
+        }).finally(function() {
+            btn.prop('disabled', false);
+        });
+    });
+
+    // Tooltip for Voice Cloning PRO
+    var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+    tooltipTriggerList.map(function (el) { return new bootstrap.Tooltip(el); });
 });
 
 // ==========================================
@@ -717,4 +1190,282 @@ function showToast(message, type) {
         console.log(`[${type.toUpperCase()}] ${message}`);
     }
 }
+
+// ——— Google Sheets Integrations tab ———
+(function() {
+    var _card = document.getElementById('whatsapp-settings-card-body');
+    var _base = (_card && _card.getAttribute('data-google-sheets-api-base')) || '';
+    var API_BASE = _base ? _base.replace(/\/config\/?$/, '') : '/discount/whatssapAPI/api/google-sheets';
+    var COLS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
+    var availableFieldsList = [];
+    var sortableAvailable = null;
+    var sortableActive = null;
+
+    function getCsrfHeaders() {
+        var tok = document.querySelector('input[name="csrfmiddlewaretoken"]');
+        return { 'X-CSRFToken': tok ? tok.value : '', 'Content-Type': 'application/json' };
+    }
+    function setServiceAccountEmail(email) {
+        var el = document.getElementById('gs-service-account-email');
+        if (el) el.textContent = (email && String(email).trim()) ? String(email).trim() : '—';
+    }
+
+    function renderAvailableFields(available) {
+        var el = document.getElementById('gs-available-fields');
+        if (!el) return;
+        el.innerHTML = '';
+        (available || []).forEach(function(f) {
+            var field = (f.field || f.key || '').trim();
+            var label = (f.label || f.field || field).trim();
+            if (!field) return;
+            var div = document.createElement('div');
+            div.className = 'gs-item gs-available-item';
+            div.setAttribute('data-field', field);
+            div.setAttribute('data-label', label);
+            div.textContent = label;
+            el.appendChild(div);
+        });
+    }
+    function renderActiveColumns(mapping) {
+        var el = document.getElementById('gs-active-columns');
+        if (!el) return;
+        el.innerHTML = '';
+        (mapping || []).forEach(function(m) {
+            var field = (m.field || m.key || '').trim();
+            var header = (m.header || m.label || m.field || field).trim();
+            var div = document.createElement('div');
+            div.className = 'gs-item gs-active-item';
+            div.setAttribute('data-field', field);
+            div.setAttribute('data-label', header);
+            var labelSpan = document.createElement('span');
+            labelSpan.className = 'gs-field-label';
+            labelSpan.textContent = field;
+            var input = document.createElement('input');
+            input.type = 'text';
+            input.className = 'gs-header-input';
+            input.placeholder = 'Header name';
+            input.value = header;
+            div.appendChild(labelSpan);
+            div.appendChild(input);
+            el.appendChild(div);
+        });
+    }
+    function initSortable() {
+        var availableEl = document.getElementById('gs-available-fields');
+        var activeEl = document.getElementById('gs-active-columns');
+        if (!availableEl || !activeEl || typeof Sortable === 'undefined') return;
+        if (sortableAvailable) sortableAvailable.destroy();
+        if (sortableActive) sortableActive.destroy();
+        sortableAvailable = new Sortable(availableEl, {
+            group: { name: 'gs-mapping', pull: true, put: true },
+            sort: false,
+            ghostClass: 'sortable-ghost',
+            onAdd: function(ev) {
+                var el = ev.item;
+                el.classList.remove('gs-active-item');
+                el.classList.add('gs-available-item');
+                var input = el.querySelector('.gs-header-input');
+                if (input && input.value.trim()) el.setAttribute('data-label', input.value.trim());
+                var label = el.getAttribute('data-label') || el.getAttribute('data-field') || '';
+                el.innerHTML = '';
+                el.textContent = label;
+            }
+        });
+        sortableActive = new Sortable(activeEl, {
+            group: { name: 'gs-mapping', pull: true, put: true },
+            ghostClass: 'sortable-ghost',
+            onAdd: function(ev) {
+                var el = ev.item;
+                el.classList.add('gs-active-item');
+                if (el.querySelector('.gs-header-input')) return;
+                var field = el.getAttribute('data-field');
+                var label = el.getAttribute('data-label') || field || '';
+                el.textContent = '';
+                var labelSpan = document.createElement('span');
+                labelSpan.className = 'gs-field-label';
+                labelSpan.textContent = field || '';
+                var input = document.createElement('input');
+                input.type = 'text';
+                input.className = 'gs-header-input';
+                input.placeholder = 'Header name';
+                input.value = label;
+                el.appendChild(labelSpan);
+                el.appendChild(input);
+            }
+        });
+    }
+    function getSheetsMappingFromActive() {
+        var out = [];
+        document.querySelectorAll('#gs-active-columns .gs-active-item').forEach(function(el) {
+            var field = (el.getAttribute('data-field') || '').trim();
+            if (!field) return;
+            var input = el.querySelector('.gs-header-input');
+            var header = (input && input.value) ? input.value.trim() : field;
+            out.push({ field: field, header: header || field });
+        });
+        return out;
+    }
+
+    function loadGoogleSheetsConfig() {
+        fetch(API_BASE + '/config/', { method: 'GET', credentials: 'same-origin' })
+            .then(function(r) { return r.json(); })
+            .then(function(data) {
+                document.getElementById('gs-spreadsheet-id').value = data.spreadsheet_id || '';
+                document.getElementById('gs-sheet-name').value = data.sheet_name || 'Orders';
+                setServiceAccountEmail(data.service_account_email);
+                var statusEl = document.getElementById('gs-connection-status');
+                statusEl.textContent = data.configured ? 'Not tested' : 'Not connected';
+                statusEl.className = 'badge ' + (data.configured ? 'bg-secondary' : 'bg-secondary');
+                renderMappingTable(data.column_mapping || {});
+                availableFieldsList = data.available_fields || [];
+                renderAvailableFields(availableFieldsList);
+                renderActiveColumns(data.sheets_mapping || []);
+                initSortable();
+                if (!data.service_account_email || !String(data.service_account_email).trim()) {
+                    fetch(API_BASE + '/service-email/', { method: 'GET', credentials: 'same-origin' })
+                        .then(function(r2) { return r2.json(); })
+                        .then(function(data2) {
+                            if (data2.service_account_email) setServiceAccountEmail(data2.service_account_email);
+                        })
+                        .catch(function() {});
+                }
+            })
+            .catch(function() {
+                var statusEl = document.getElementById('gs-connection-status');
+                if (statusEl) statusEl.textContent = 'Error loading';
+                renderAvailableFields([]);
+                renderActiveColumns([]);
+                initSortable();
+            });
+    }
+    function renderMappingTable(columnMapping) {
+        var tbody = document.getElementById('gs-mapping-tbody');
+        tbody.innerHTML = '';
+        var keys = Object.keys(columnMapping).sort(function(a, b) { return (a.length - b.length) || a.localeCompare(b); });
+        keys.forEach(function(col) {
+            addMappingRow(tbody, col, columnMapping[col]);
+        });
+        if (keys.length === 0) addMappingRow(tbody, 'A', 'customer_name');
+    }
+    function addMappingRow(tbody, col, variable) {
+        var tr = document.createElement('tr');
+        var colSelect = document.createElement('select');
+        colSelect.className = 'form-select form-select-sm modern-input';
+        COLS.forEach(function(c) {
+            var opt = document.createElement('option');
+            opt.value = c; opt.textContent = c;
+            if (c === (col || 'A')) opt.selected = true;
+            colSelect.appendChild(opt);
+        });
+        var varInput = document.createElement('input');
+        varInput.type = 'text';
+        varInput.className = 'form-control form-control-sm modern-input';
+        varInput.placeholder = 'e.g. customer_name, phone, city';
+        varInput.value = variable || '';
+        var delBtn = document.createElement('button');
+        delBtn.type = 'button';
+        delBtn.className = 'btn btn-outline-danger btn-sm';
+        delBtn.innerHTML = '<i class="fas fa-times"></i>';
+        delBtn.onclick = function() { tr.remove(); };
+        tr.appendChild(document.createElement('td')).appendChild(colSelect);
+        tr.appendChild(document.createElement('td')).appendChild(varInput);
+        tr.appendChild(document.createElement('td')).appendChild(delBtn);
+        tbody.appendChild(tr);
+    }
+    function getColumnMappingFromTable() {
+        var out = {};
+        document.querySelectorAll('#gs-mapping-tbody tr').forEach(function(tr) {
+            var col = tr.querySelector('select');
+            var variable = (tr.querySelector('input[type="text"]') || {}).value;
+            if (col && variable && variable.trim()) out[col.value] = variable.trim();
+        });
+        return out;
+    }
+    var addRowBtn = document.getElementById('gs-add-mapping-row');
+    if (addRowBtn) addRowBtn.onclick = function() {
+        addMappingRow(document.getElementById('gs-mapping-tbody'), 'A', '');
+    };
+    document.getElementById('gs-copy-email').onclick = function() {
+        var el = document.getElementById('gs-service-account-email');
+        var text = el.textContent;
+        if (text && text !== '—') {
+            navigator.clipboard.writeText(text).then(function() { showToast('Email copied', 'success'); });
+        }
+    };
+    document.getElementById('gs-save-config').onclick = function() {
+        var spreadsheetId = document.getElementById('gs-spreadsheet-id').value.trim();
+        var sheetName = document.getElementById('gs-sheet-name').value.trim() || 'Orders';
+        var payload = {
+            spreadsheet_id: spreadsheetId,
+            sheet_name: sheetName,
+            column_mapping: getColumnMappingFromTable(),
+            sheets_mapping: getSheetsMappingFromActive()
+        };
+        fetch(API_BASE + '/config/', {
+            method: 'POST',
+            credentials: 'same-origin',
+            headers: getCsrfHeaders(),
+            body: JSON.stringify(payload)
+        }).then(function(r) { return r.json(); })
+          .then(function(data) {
+              if (data.error) { showToast(data.error, 'error'); return; }
+              showToast('Settings saved', 'success');
+              loadGoogleSheetsConfig();
+          })
+          .catch(function() { showToast('Failed to save', 'error'); });
+    };
+    var saveSheetsMappingBtn = document.getElementById('gs-save-sheets-mapping');
+    if (saveSheetsMappingBtn) {
+        saveSheetsMappingBtn.onclick = function() {
+            var mapping = getSheetsMappingFromActive();
+            fetch(API_BASE + '/config/', {
+                method: 'POST',
+                credentials: 'same-origin',
+                headers: getCsrfHeaders(),
+                body: JSON.stringify({ sheets_mapping: mapping })
+            }).then(function(r) { return r.json(); })
+              .then(function(data) {
+                  if (data.error) { showToast(data.error, 'error'); return; }
+                  showToast('Mapping saved. Sheet columns will use this order and headers.', 'success');
+                  loadGoogleSheetsConfig();
+              })
+              .catch(function() { showToast('Failed to save', 'error'); });
+        };
+    }
+    document.getElementById('gs-test-connection').onclick = function() {
+        var statusEl = document.getElementById('gs-connection-status');
+        var spreadsheetId = document.getElementById('gs-spreadsheet-id').value.trim();
+        if (!spreadsheetId) {
+            showToast('Enter a Spreadsheet ID first', 'error');
+            return;
+        }
+        statusEl.textContent = 'Testing...';
+        statusEl.className = 'badge bg-secondary';
+        fetch(API_BASE + '/test-connection/', {
+            method: 'POST',
+            credentials: 'same-origin',
+            headers: getCsrfHeaders(),
+            body: JSON.stringify({ spreadsheet_id: spreadsheetId })
+        }).then(function(r) { return r.json(); })
+          .then(function(data) {
+              statusEl.textContent = data.success ? 'Connected' : (data.message || 'Failed');
+              statusEl.className = 'badge ' + (data.success ? 'bg-success' : 'bg-danger');
+              if (data.success) showToast('Connection successful. Spreadsheet ID saved.', 'success');
+          })
+          .catch(function() { statusEl.textContent = 'Error'; statusEl.className = 'badge bg-danger'; });
+    };
+    if (typeof $ !== 'undefined') {
+        $('#content-integrations').on('show.bs.tab', function() { loadGoogleSheetsConfig(); });
+    }
+    var tabEl = document.querySelector('[data-bs-target="#content-integrations"]');
+    if (tabEl) tabEl.addEventListener('shown.bs.tab', function() { loadGoogleSheetsConfig(); });
+    document.addEventListener('DOMContentLoaded', function() {
+        var emailEl = document.getElementById('gs-service-account-email');
+        if (emailEl) setTimeout(loadGoogleSheetsConfig, 150);
+    });
+    if (document.readyState === 'complete' || document.readyState === 'interactive') {
+        var emailEl = document.getElementById('gs-service-account-email');
+        if (emailEl) setTimeout(loadGoogleSheetsConfig, 200);
+    }
+})();
 </script>

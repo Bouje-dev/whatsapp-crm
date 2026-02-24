@@ -566,7 +566,7 @@ def whatsapp_webhook(request):
         try:
    
             data = json.loads(request.body.decode("utf-8"))
-            print("📨 Received WhatsApp webhook ," , data)
+             
             
             for entry in data.get("entry", []):
                 for change in entry.get("changes", []):
@@ -611,8 +611,7 @@ def process_message_statuses(statuses):
             recipient_id = status.get('recipient_id')
             timestamp = status.get('timestamp')
             
-            print(f"📊 Message status: {message_id} -> {status_value}")
-            
+             
             # تحديث حالة الرسالة في قاعدة البيانات إذا لزم الأمر
             if message_id:
                 try:
@@ -1587,6 +1586,16 @@ def api_contacts2(request):
             for c in Contact.objects.filter(phone__in=senders_phones, channel=target_channel)
         }
 
+        # HITL: which senders have AI disabled (Needs Human Action)
+        from discount.models import ChatSession
+        needs_human_phones = set(
+            ChatSession.objects.filter(
+                channel=target_channel,
+                customer_phone__in=senders_phones,
+                ai_enabled=False,
+            ).values_list('customer_phone', flat=True)
+        )
+
         final_data = []
         for item in page_obj:
             phone = item['sender']
@@ -1616,7 +1625,8 @@ def api_contacts2(request):
                 "fromMe": msg.is_from_me if msg else False,
                 "timestamp": item['last_msg_time'].strftime("%H:%M") if item['last_msg_time'] else "",
                 "channel_id": target_channel.id,
-                "assigned_agent_id": assigned_agent_id 
+                "assigned_agent_id": assigned_agent_id,
+                "needs_human": phone in needs_human_phones,
             })
 
         return JsonResponse({
@@ -2339,36 +2349,537 @@ def api_orders(request):
         if o.product:
             product_name = o.product.name 
         else:
-            
             product_name = getattr(o, "product_name", "Unknown Product")
 
-         
-        # print(f"Order ID: {o.id} | Agent: {o.agent} | User: {o.agent.user_name}")
+        agent = o.agent
+        created_by_username = agent.username if agent else "—"
+        created_by_is_bot = getattr(agent, "is_bot", False) if agent else False
+        created_by_display = (getattr(agent, "agent_role", None) or created_by_username) if agent else "—"
+
         data.append({
             "id": o.id,
-            "order_id": o.order_id, # مفيد للعرض
+            "order_id": o.order_id,
             "customer_name": o.customer_name or "Unknown",
-            
-            # انتبه: اسم الحقل في المودل هو price وليس product_price
-            "total_amount": float(o.price) if o.price else 0.0, 
-            
+            "total_amount": float(o.price) if o.price else 0.0,
             "customer_phone": o.customer_phone,
             "customer_city": o.customer_city,
-            "status": o.status, # الحالة (pending, shipped...)
-             
-            "product": product_name,  
-            "created_by":  o.agent.username  ,
-            "quantity" : round(o.quantity) ,
+            "status": o.status,
+            "product": product_name,
+            "created_by": created_by_username,
+            "created_by_display": created_by_display,
+            "created_by_is_bot": created_by_is_bot,
+            "quantity": round(o.quantity),
             "created_at": o.created_at.strftime("%Y-%m-%d %H:%M") if o.created_at else None,
+            "sheets_export_status": getattr(o, "sheets_export_status", None) or "",
+            "sheets_export_error": (getattr(o, "sheets_export_error", None) or "")[:200],
         })
         
    
     return JsonResponse({"orders": data})
 
 
+@login_required
+@csrf_exempt
+@require_http_methods(["POST"])
+def api_order_sync_google_sheets(request, order_id):
+    """
+    Manually trigger Google Sheets sync for a SimpleOrder.
+    POST /discount/whatssapAPI/api_orders/<order_id>/sync/
+    Returns { "success": bool, "message": str }.
+    """
+    from discount.models import SimpleOrder
+    from discount.services.google_sheets_service import sync_order_to_google_sheets
+
+    try:
+        order = SimpleOrder.objects.select_related("channel", "agent").get(pk=order_id)
+    except SimpleOrder.DoesNotExist:
+        return JsonResponse({"success": False, "message": "Order not found"}, status=404)
+
+    user = request.user
+    # Access: channel owner, assigned agent, or superuser
+    if not user.is_superuser:
+        if not order.channel or order.channel.owner_id != user.id:
+            if order.agent_id != user.id:
+                return JsonResponse({"success": False, "message": "Not allowed to sync this order"}, status=403)
+
+    success, message = sync_order_to_google_sheets(order_id)
+    return JsonResponse({"success": success, "message": message or ("Synced" if success else "Sync failed")})
 
 
+@require_GET
+def api_products_list(request):
+    """GET ?channel_id= — list products for channel (admin = channel.owner)."""
+    user = getattr(request, "user", None)
+    if not user or not user.is_authenticated:
+        return JsonResponse({"products": [], "error": "Authentication required"}, status=401)
+    from discount.models import Products, ProductImage, ProductVideo
+    target_channel = get_target_channel(user, request.GET.get("channel_id"))
+    if not target_channel or not target_channel.owner_id:
+        return JsonResponse({"products": []})
+    qs = Products.objects.filter(admin_id=target_channel.owner_id).order_by("-id")
+    data = []
+    for p in qs:
+        imgs = ProductImage.objects.filter(product=p).order_by("order", "id")
+        vids = ProductVideo.objects.filter(product=p).order_by("order", "id")
+        image_urls = [m.image.url for m in imgs if m.image]
+        video_urls = [v.video.url for v in vids if v.video]
+        data.append({
+            "id": p.id,
+            "name": p.name or "",
+            "sku": p.sku or "",
+            "price": str(p.price) if p.price is not None else "",
+            "currency": (p.currency or "MAD").strip() or "MAD",
+            "description": (p.description or "")[:200],
+            "how_to_use": (p.how_to_use or "")[:200] if p.how_to_use else "",
+            "offer": p.offer or "",
+            "testimonial_url": p.testimonial.url if p.testimonial else None,
+            "images": image_urls,
+            "videos": video_urls,
+        })
+    return JsonResponse({"products": data})
 
+
+@login_required
+@csrf_exempt
+@require_http_methods(["POST"])
+def api_products_create(request):
+    """
+    Create product. Required: name, price, description, at least one image.
+    Optional: how_to_use, offer, testimonial (file).
+    POST multipart: channel_id, name, price, description, how_to_use, offer, testimonial, images (multiple files).
+    """
+    from decimal import Decimal, InvalidOperation
+    from discount.models import Products, ProductImage, ProductVideo
+
+    user = request.user
+    channel = get_target_channel(user, request.POST.get("channel_id") or request.GET.get("channel_id"))
+    if not channel or not channel.owner_id:
+        return JsonResponse({"success": False, "error": "Channel not found or permission denied"}, status=403)
+
+    name = (request.POST.get("name") or "").strip()
+    price_raw = (request.POST.get("price") or "").strip()
+    currency = (request.POST.get("currency") or "").strip() or "MAD"
+    if len(currency) > 10:
+        currency = currency[:10]
+    description = (request.POST.get("description") or "").strip()
+    how_to_use = (request.POST.get("how_to_use") or "").strip() or None
+    offer = (request.POST.get("offer") or "").strip() or None
+
+    errors = []
+    if not name:
+        errors.append("Product name is required.")
+    if not price_raw:
+        errors.append("Price is required.")
+    else:
+        try:
+            price_val = Decimal(price_raw)
+            if price_val < 0:
+                errors.append("Price must be a positive number.")
+        except (InvalidOperation, ValueError):
+            errors.append("Price must be a valid number.")
+    if not description:
+        errors.append("Description is required.")
+
+    media_files = request.FILES.getlist("images") or request.FILES.getlist("image") or []
+    image_urls_raw = request.POST.get("image_urls", "").strip()
+    image_urls = []
+    if image_urls_raw:
+        try:
+            image_urls = json.loads(image_urls_raw)
+            if not isinstance(image_urls, list):
+                image_urls = []
+            image_urls = [u for u in image_urls if u and isinstance(u, str) and u.startswith("http")][:10]
+        except (ValueError, TypeError):
+            image_urls = []
+    if not media_files and not image_urls:
+        errors.append("At least one product photo or video is required.")
+
+    if errors:
+        return JsonResponse({"success": False, "error": " ".join(errors), "errors": errors}, status=400)
+
+    try:
+        price_val = Decimal(price_raw)
+    except (InvalidOperation, ValueError):
+        return JsonResponse({"success": False, "error": "Invalid price"}, status=400)
+
+    sku = f"PROD-{uuid.uuid4().hex[:10].upper()}"
+    while Products.objects.filter(sku=sku).exists():
+        sku = f"PROD-{uuid.uuid4().hex[:10].upper()}"
+
+    product = Products.objects.create(
+        admin_id=channel.owner_id,
+        name=name,
+        sku=sku,
+        price=price_val,
+        currency=currency,
+        description=description,
+        how_to_use=how_to_use or None,
+        offer=offer or None,
+        stock=0,
+    )
+
+    testimonial_file = request.FILES.get("testimonial")
+    if testimonial_file:
+        product.testimonial = testimonial_file
+        product.save(update_fields=["testimonial"])
+
+    img_order = 0
+    vid_order = 0
+    if media_files:
+        for f in media_files:
+            content_type = (getattr(f, "content_type") or "").lower()
+            if content_type.startswith("video/"):
+                ProductVideo.objects.create(product=product, video=f, order=vid_order)
+                vid_order += 1
+            else:
+                ProductImage.objects.create(product=product, image=f, order=img_order)
+                img_order += 1
+    elif image_urls:
+        for i, img_url in enumerate(image_urls):
+            try:
+                r = requests.get(img_url, timeout=10, headers={"User-Agent": "Mozilla/5.0 (compatible; ProductBot/1.0)"})
+                r.raise_for_status()
+                content_type = r.headers.get("Content-Type", "").split(";")[0].strip()
+                if "image" not in content_type:
+                    continue
+                fname = (img_url.split("/")[-1] or "image").split("?")[0] or "image.jpg"
+                if "." not in fname:
+                    fname += ".jpg"
+                fname = f"{uuid.uuid4().hex}_{i}.jpg"
+                ProductImage.objects.create(product=product, image=ContentFile(r.content, name=fname), order=i)
+            except Exception as e:
+                logger.warning("Failed to fetch product image %s: %s", img_url[:80], e)
+
+    return JsonResponse({
+        "success": True,
+        "product_id": product.id,
+        "message": "Product created successfully.",
+    })
+
+
+@login_required
+@require_GET
+def api_products_detail(request, product_id):
+    """GET single product full details for preview/edit. User must own channel that owns the product."""
+    from discount.models import Products, ProductImage, ProductVideo
+    user = getattr(request, "user", None)
+    if not user or not user.is_authenticated:
+        return JsonResponse({"error": "Authentication required"}, status=401)
+    product = get_object_or_404(Products, id=product_id)
+    channel = get_target_channel(user, request.GET.get("channel_id"))
+    if not channel or not channel.owner_id or product.admin_id != channel.owner_id:
+        return JsonResponse({"error": "Product not found or access denied"}, status=404)
+    imgs = ProductImage.objects.filter(product=product).order_by("order", "id")
+    vids = ProductVideo.objects.filter(product=product).order_by("order", "id")
+    image_urls = [m.image.url for m in imgs if m.image]
+    video_urls = [v.video.url for v in vids if v.video]
+    return JsonResponse({
+        "id": product.id,
+        "name": product.name or "",
+        "sku": product.sku or "",
+        "price": str(product.price) if product.price is not None else "",
+        "currency": (product.currency or "MAD").strip() or "MAD",
+        "description": product.description or "",
+        "how_to_use": product.how_to_use or "",
+        "offer": product.offer or "",
+        "testimonial_url": product.testimonial.url if product.testimonial else None,
+        "images": image_urls,
+        "videos": video_urls,
+    })
+
+
+@login_required
+@csrf_exempt
+@require_http_methods(["POST"])
+def api_products_update(request, product_id):
+    """Update product. Same fields as create; images optional (if provided, replace existing)."""
+    from decimal import Decimal, InvalidOperation
+    from discount.models import Products, ProductImage, ProductVideo
+    user = request.user
+    product = get_object_or_404(Products, id=product_id)
+    channel = get_target_channel(user, request.POST.get("channel_id") or request.GET.get("channel_id"))
+    if not channel or not channel.owner_id or product.admin_id != channel.owner_id:
+        return JsonResponse({"success": False, "error": "Product not found or permission denied"}, status=403)
+    name = (request.POST.get("name") or "").strip()
+    price_raw = (request.POST.get("price") or "").strip()
+    currency = (request.POST.get("currency") or "").strip() or "MAD"
+    if len(currency) > 10:
+        currency = currency[:10]
+    description = (request.POST.get("description") or "").strip()
+    how_to_use = (request.POST.get("how_to_use") or "").strip() or None
+    offer = (request.POST.get("offer") or "").strip() or None
+    errors = []
+    if not name:
+        errors.append("Product name is required.")
+    if not price_raw:
+        errors.append("Price is required.")
+    else:
+        try:
+            pv = Decimal(price_raw)
+            if pv < 0:
+                errors.append("Price must be a positive number.")
+        except (InvalidOperation, ValueError):
+            errors.append("Price must be a valid number.")
+    if not description:
+        errors.append("Description is required.")
+    if errors:
+        return JsonResponse({"success": False, "error": " ".join(errors), "errors": errors}, status=400)
+    try:
+        price_val = Decimal(price_raw)
+    except (InvalidOperation, ValueError):
+        return JsonResponse({"success": False, "error": "Invalid price"}, status=400)
+    media_files = request.FILES.getlist("images") or request.FILES.getlist("image") or []
+    if not media_files and not ProductImage.objects.filter(product=product).exists() and not ProductVideo.objects.filter(product=product).exists():
+        errors.append("At least one product photo or video is required.")
+        return JsonResponse({"success": False, "error": " ".join(errors), "errors": errors}, status=400)
+    product.name = name
+    product.price = price_val
+    product.currency = currency
+    product.description = description
+    product.how_to_use = how_to_use or None
+    product.offer = offer or None
+    product.save(update_fields=["name", "price", "currency", "description", "how_to_use", "offer"])
+    testimonial_file = request.FILES.get("testimonial")
+    if testimonial_file:
+        product.testimonial = testimonial_file
+        product.save(update_fields=["testimonial"])
+    if media_files:
+        ProductImage.objects.filter(product=product).delete()
+        ProductVideo.objects.filter(product=product).delete()
+        img_order = 0
+        vid_order = 0
+        for f in media_files:
+            content_type = (getattr(f, "content_type") or "").lower()
+            if content_type.startswith("video/"):
+                ProductVideo.objects.create(product=product, video=f, order=vid_order)
+                vid_order += 1
+            else:
+                ProductImage.objects.create(product=product, image=f, order=img_order)
+                img_order += 1
+    return JsonResponse({"success": True, "product_id": product.id, "message": "Product updated successfully."})
+
+
+def _scrape_product_page(url):
+    """
+    Fetch URL and extract product-like data (title, description, price, images).
+    Returns dict with keys: title, description, price, currency, image_urls, raw_text.
+    Returns None if request fails or page is empty.
+    """
+    from urllib.parse import urljoin, urlparse
+    try:
+        from bs4 import BeautifulSoup
+    except ImportError:
+        return None
+    if not url or not url.strip().startswith(("http://", "https://")):
+        return None
+    try:
+        resp = requests.get(
+            url.strip(),
+            timeout=15,
+            headers={"User-Agent": "Mozilla/5.0 (Windows NT 10.0; rv:91.0) Gecko/20100101 Firefox/91.0"},
+            allow_redirects=True,
+        )
+        resp.raise_for_status()
+        resp.encoding = resp.apparent_encoding or "utf-8"
+        html = resp.text
+    except Exception as e:
+        logger.warning("Scrape request failed for %s: %s", url[:80], e)
+        return None
+    if not html or len(html) < 200:
+        return None
+    try:
+        soup = BeautifulSoup(html, "html.parser")
+    except Exception:
+        return None
+    base_url = resp.url
+    title = None
+    og_title = soup.find("meta", property="og:title")
+    if og_title and og_title.get("content"):
+        title = (og_title["content"] or "").strip()
+    if not title and soup.title and soup.title.string:
+        title = (soup.title.string or "").strip()
+    if not title:
+        h1 = soup.find("h1")
+        if h1 and h1.get_text():
+            title = h1.get_text(strip=True)[:200]
+
+    description = None
+    og_desc = soup.find("meta", property="og:description")
+    if og_desc and og_desc.get("content"):
+        description = (og_desc["content"] or "").strip()
+    if not description:
+        meta_desc = soup.find("meta", attrs={"name": "description"})
+        if meta_desc and meta_desc.get("content"):
+            description = (meta_desc["content"] or "").strip()
+    if not description:
+        for p in soup.find_all("p", limit=5):
+            t = (p.get_text() or "").strip()
+            if len(t) > 80:
+                description = t[:1500]
+                break
+
+    price = None
+    currency = None
+    import re
+    price_pattern = re.compile(r"(\d+[\d.,\s]*(?:\.\d{2})?)\s*([A-Z]{3}|MAD|USD|EUR|DH|د\.م\.|د\.م)")
+    for elem in soup.find_all(string=price_pattern):
+        m = price_pattern.search(elem)
+        if m:
+            price = m.group(1).replace(" ", "").replace(",", ".").strip()
+            currency = (m.group(2) or "").strip().upper()
+            if currency in ("DH", "د.م.", "د.م"):
+                currency = "MAD"
+            break
+    if not price:
+        for attr in ("data-price", "data-product-price", "content"):
+            el = soup.find(attrs={attr: True})
+            if el and el.get(attr):
+                try:
+                    price = str(float(re.sub(r"[^\d.]", "", el[attr]) or 0))
+                    break
+                except ValueError:
+                    pass
+    if not currency:
+        currency = "MAD"
+
+    image_urls = []
+    og_image = soup.find("meta", property="og:image")
+    if og_image and og_image.get("content"):
+        u = urljoin(base_url, (og_image["content"] or "").strip())
+        if u.startswith("http"):
+            image_urls.append(u)
+    for img in soup.find_all("img", src=True, limit=15):
+        src = (img.get("src") or "").strip()
+        if not src or "logo" in src.lower() or "icon" in src.lower() or "pixel" in src.lower():
+            continue
+        u = urljoin(base_url, src)
+        if u.startswith("http") and u not in image_urls:
+            image_urls.append(u)
+
+    raw_text = (title or "") + "\n" + (description or "")
+    if not title and not description and not price and not image_urls:
+        return None
+    return {
+        "title": title or "",
+        "description": description or "",
+        "price": price,
+        "currency": currency or "MAD",
+        "image_urls": image_urls[:10],
+        "raw_text": raw_text[:8000],
+    }
+
+
+def _ai_extract_product(scraped_data):
+    """Send scraped data to OpenAI and return structured product dict (name, description, price, currency, image_urls, how_to_use)."""
+    try:
+        from ai_assistant.services import get_api_key, OPENAI_API_URL
+    except ImportError:
+        return None
+    api_key = get_api_key()
+    if not api_key:
+        return None
+    text = (
+        "Page title: " + (scraped_data.get("title") or "—") + "\n"
+        "Description: " + (scraped_data.get("description") or "—") + "\n"
+        "Price: " + (str(scraped_data.get("price")) if scraped_data.get("price") else "—") + "\n"
+        "Currency: " + (scraped_data.get("currency") or "—") + "\n"
+        "Image URLs: " + ", ".join(scraped_data.get("image_urls") or [])
+    )
+    system = (
+        "You are a product data extractor. Given scraped content from a product page, return a single JSON object with exactly these keys: "
+        '"name" (string, product title), "description" (string, product description), "price" (string or null, numeric price), '
+        '"currency" (string, e.g. MAD, USD), "image_urls" (array of full image URLs from the list provided, keep up to 10), '
+        '"how_to_use" (string or null). Use only information from the content. If price is missing use null. Return only valid JSON, no markdown."'
+    )
+    payload = {
+        "model": "gpt-4o-mini",
+        "messages": [
+            {"role": "system", "content": system},
+            {"role": "user", "content": text},
+        ],
+        "max_tokens": 800,
+        "temperature": 0.2,
+    }
+    try:
+        r = requests.post(
+            OPENAI_API_URL,
+            headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
+            json=payload,
+            timeout=30,
+        )
+        if r.status_code != 200:
+            return None
+        data = r.json()
+        content = (data.get("choices", [{}])[0].get("message", {}).get("content") or "").strip()
+        if not content:
+            return None
+        content = content.replace("```json", "").replace("```", "").strip()
+        return json.loads(content)
+    except Exception as e:
+        logger.warning("AI product extract failed: %s", e)
+        return None
+
+
+@login_required
+@csrf_exempt
+@require_http_methods(["POST"])
+def api_products_extract_from_link(request):
+    """
+    POST JSON or form: url = product page URL.
+    Scrapes the page; if nothing found returns error. Else sends to AI and returns structured product.
+    """
+    try:
+        if request.content_type and "application/json" in request.content_type:
+            body = json.loads(request.body.decode("utf-8") or "{}")
+            url = (body.get("url") or "").strip()
+        else:
+            url = (request.POST.get("url") or "").strip()
+    except Exception:
+        url = (request.POST.get("url") or "").strip()
+    if not url:
+        return JsonResponse({"success": False, "error": "Please provide a product link (url)."}, status=400)
+    scraped = _scrape_product_page(url)
+    if not scraped:
+        return JsonResponse({
+            "success": False,
+            "error": "We did not find anything in this link. Make sure the URL is a valid product page and try again.",
+        }, status=200)
+    product_data = _ai_extract_product(scraped)
+    if not product_data:
+        return JsonResponse({
+            "success": False,
+            "error": "We could not extract product details. Please try again or create the product manually.",
+        }, status=200)
+    name = (product_data.get("name") or "").strip() or scraped.get("title") or "Product"
+    description = (product_data.get("description") or "").strip() or scraped.get("description") or ""
+    price = product_data.get("price")
+    if price is not None:
+        price = str(price).strip().replace(",", ".")
+    else:
+        price = scraped.get("price")
+        if price is not None:
+            price = str(price).strip().replace(",", ".")
+    if not price:
+        price = ""
+    currency = (product_data.get("currency") or "").strip() or scraped.get("currency") or "MAD"
+    if len(currency) > 10:
+        currency = currency[:10]
+    image_urls = product_data.get("image_urls") or scraped.get("image_urls") or []
+    if not isinstance(image_urls, list):
+        image_urls = []
+    image_urls = [u for u in image_urls if u and isinstance(u, str) and u.startswith("http")][:10]
+    how_to_use = (product_data.get("how_to_use") or "").strip() or None
+    return JsonResponse({
+        "success": True,
+        "product": {
+            "name": name,
+            "description": description,
+            "price": price,
+            "currency": currency,
+            "image_urls": image_urls,
+            "how_to_use": how_to_use or "",
+        },
+    })
 
 
 @require_GET
@@ -2880,6 +3391,107 @@ def api_dashboard_stats(request):
     except Exception as e:
         print(f"Dashboard Error: {e}")
         return JsonResponse({'error': str(e)}, status=500)
+
+
+# ---------------------------------------------------------------------------
+# AI Sales Agent Analytics Dashboard
+# ---------------------------------------------------------------------------
+from django.http import HttpResponse
+import csv
+from io import StringIO
+
+
+def ai_analytics_dashboard_page(request):
+    """Render the AI Analytics Dashboard (channel from GET or first accessible)."""
+    if not request.user.is_authenticated:
+        from django.shortcuts import redirect
+        from django.urls import reverse
+        return redirect(reverse('login') or '/')
+    channel = get_target_channel(request.user, request.GET.get('channel_id'))
+    return render(request, 'dashboard/analytics.html', {
+        'channel': channel,
+        'channel_id': getattr(channel, 'id', None),
+    })
+
+
+def api_ai_analytics(request):
+    """JSON: AI analytics for date range. GET range=today|7d|month, channel_id=."""
+    try:
+        user = request.user
+        channel = get_target_channel(user, request.GET.get('channel_id'))
+        if not channel:
+            return JsonResponse({'error': 'Channel not found'}, status=404)
+
+        from discount.services.ai_stats import get_ai_analytics
+        now = timezone.now()
+        range_param = (request.GET.get('range') or 'month').strip().lower()
+        if range_param == 'today':
+            date_from = now.replace(hour=0, minute=0, second=0, microsecond=0)
+            date_to = now
+            label = 'Today'
+        elif range_param == '7d':
+            date_from = now - timedelta(days=7)
+            date_to = now
+            label = 'Last 7 Days'
+        else:
+            date_from = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+            date_to = now
+            label = 'This Month'
+
+        data = get_ai_analytics(channel, date_from, date_to)
+        data['range_label'] = label
+        return JsonResponse({'success': True, 'data': data})
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return JsonResponse({'error': str(e)}, status=500)
+
+
+def api_ai_analytics_export_csv(request):
+    """Export AI analytics (and optionally order list) to CSV. GET range=, channel_id=."""
+    try:
+        user = request.user
+        channel = get_target_channel(user, request.GET.get('channel_id'))
+        if not channel:
+            return HttpResponse('Channel not found', status=404)
+
+        from discount.services.ai_stats import get_ai_analytics
+        now = timezone.now()
+        range_param = (request.GET.get('range') or 'month').strip().lower()
+        if range_param == 'today':
+            date_from = now.replace(hour=0, minute=0, second=0, microsecond=0)
+            date_to = now
+        elif range_param == '7d':
+            date_from = now - timedelta(days=7)
+            date_to = now
+        else:
+            date_from = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+            date_to = now
+
+        data = get_ai_analytics(channel, date_from, date_to)
+        buf = StringIO()
+        w = csv.writer(buf)
+        w.writerow(['AI Analytics Export', date_from.date(), 'to', date_to.date()])
+        w.writerow([])
+        w.writerow(['Metric', 'Value'])
+        w.writerow(['Total AI Conversations', data['total_ai_conversations']])
+        w.writerow(['Total AI Messages', data['total_ai_messages']])
+        w.writerow(['Orders Closed by AI', data['total_ai_orders']])
+        w.writerow(['Manual Orders', data['total_manual_orders']])
+        w.writerow(['AI Success Rate (%)', data['ai_conversion_rate']])
+        w.writerow(['Time Saved (hours)', data['hours_saved']])
+        w.writerow(['API Characters Used', data['api_characters_used']])
+        w.writerow([])
+        w.writerow(['Top Products (AI)', 'Count'])
+        for row in data['top_products']:
+            w.writerow([row['product_name'], row['count']])
+        response = HttpResponse(buf.getvalue(), content_type='text/csv')
+        response['Content-Disposition'] = 'attachment; filename="ai_analytics_export.csv"'
+        return response
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return HttpResponse(str(e), status=500)
 
 
 

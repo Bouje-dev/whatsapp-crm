@@ -19,6 +19,12 @@ urlpatterns = [
     path("create_template/", views.create_template, name="create_template"),
     path("api/template/", views.api_templates, name="api_templates"),
     path("api_orders/", views.api_orders, name="api_orders"),
+    path("api_orders/<int:order_id>/sync/", views.api_order_sync_google_sheets, name="api_order_sync_google_sheets"),
+    path("api_products/", views.api_products_list, name="api_products_list"),
+    path("api_products/create/", views.api_products_create, name="api_products_create"),
+    path("api_products/extract_from_link/", views.api_products_extract_from_link, name="api_products_extract_from_link"),
+    path("api_products/<int:product_id>/", views.api_products_detail, name="api_products_detail"),
+    path("api_products/<int:product_id>/update/", views.api_products_update, name="api_products_update"),
     path("api/templates/<int:pk>/", views.update_template, name="update_template"),
 
     path("api/templateShow/<int:pk>/", views.api_template, name="api_template"),
@@ -42,6 +48,10 @@ urlpatterns = [
     path("api/flows/<int:pk>/update/", flow.api_update_flows, name="api_update_flow"),
     path("api/flows/<int:pk>/delete/", flow.api_delete_flow, name="api_delete_flow"),
     path("api/flows/<int:pk>/turnoff/", flow.api_off_flows, name="api_off_flow"),
+    path("api/flows/scrape-product-url/", flow.api_scrape_product_url, name="api_scrape_product_url"),
+    path("api/flows/node-media-upload/", flow.api_upload_flow_node_media, name="api_upload_flow_node_media"),
+    path("api/preview-voice/", flow.api_preview_voice, name="api_preview_voice"),
+    path("api/personas/", flow.api_list_personas, name="api_list_personas"),
     # Matching and Media
     path("api/match/", flow.api_match_message, name="api_match_message"),
     path("api/media/upload/", flow.api_upload_media_for_autoreply, name="api_upload_media_for_autoreply"),
@@ -61,9 +71,13 @@ urlpatterns = [
    path('api/channels/connect_meta/', views.exchange_token_and_create_channel, name='connect_meta_channel'),
 
 
-#    for dash 
+#    for dash
 path('api/dashboard/stats/', views.api_dashboard_stats, name='api_dashboard_stats'),
 path('api/dashboard/team/', views.api_team_stats, name='api_team_stats'),
+# AI Analytics Dashboard
+path('analytics/', views.ai_analytics_dashboard_page, name='ai_analytics_dashboard'),
+path('api/ai-analytics/', views.api_ai_analytics, name='api_ai_analytics'),
+path('api/ai-analytics/export-csv/', views.api_ai_analytics_export_csv, name='api_ai_analytics_export_csv'),
 
 path('api/assign-agent/', views.assign_agent_to_contact, name='assign_agent_to_contact'),
 
@@ -80,6 +94,22 @@ path('api/update-channel-settings/' , wsettings.update_channel_settings , name='
 
 path('api/get-channel-settings/' , wsettings.get_channel_settings , name='get_channel_settings'),
 
+    # Voice Studio
+    path('api/voice-preview/', wsettings.voice_preview, name='voice_preview'),
+    path('api/voice-clone/', wsettings.voice_clone, name='voice_clone'),
+    # Voice Gallery (multilingual v2, native-friendly)
+    path('voice-gallery/', wsettings.voice_gallery_page, name='voice_gallery_page'),
+    path('api/voice-gallery/list/', wsettings.voice_gallery_list, name='voice_gallery_list'),
+    path('api/voice-gallery/preview/', wsettings.voice_gallery_preview, name='voice_gallery_preview'),
+    path('api/voice-gallery/select/', wsettings.voice_gallery_select, name='voice_gallery_select'),
+    # HITL: Chat session AI status and re-enable
+    path('api/chat-session/status/', process_messages.api_chat_session_status, name='api_chat_session_status'),
+    path('api/chat-session/re-enable-ai/', process_messages.api_chat_session_reenable_ai, name='api_chat_session_reenable_ai'),
+    path('api/chat-session/toggle-ai/', process_messages.api_chat_session_toggle_ai, name='api_chat_session_toggle_ai'),
+    # Google Sheets: global config + test connection + service email
+    path('api/google-sheets/config/', flow.api_google_sheets_config, name='api_google_sheets_config'),
+    path('api/google-sheets/test-connection/', flow.api_google_sheets_test_connection, name='api_google_sheets_test_connection'),
+    path('api/google-sheets/service-email/', flow.api_google_sheets_service_email, name='api_google_sheets_service_email'),
 ]
 
 

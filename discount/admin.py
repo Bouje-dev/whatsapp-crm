@@ -23,13 +23,22 @@ admin.site.register(SimpleOrder, SimpleOrders)
 # discount/admin.py
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin
-from .models import CustomUser ,ExternalTokenmodel
+from django.conf import settings
+from .models import CustomUser, ExternalTokenmodel
 
 class CustomUserAdmin(UserAdmin):
-    list_display = ('username', 'email', 'is_verified', 'is_staff' ,'is_team_admin')
+    list_display = ('username', 'email', 'plan', 'is_verified', 'is_staff', 'is_team_admin')
+    list_filter = UserAdmin.list_filter + ('plan',)
     fieldsets = UserAdmin.fieldsets + (
         (None, {'fields': ('phone', 'is_verified')}),
+        ('Subscription', {'fields': ('plan',), 'description': 'User plan (Free/Basic/Premium). Locked in production if ALLOW_ADMIN_PLAN_EDITS is False.'}),
     )
+
+    def get_readonly_fields(self, request, obj=None):
+        readonly = list(super().get_readonly_fields(request, obj))
+        if not getattr(settings, 'ALLOW_ADMIN_PLAN_EDITS', True):
+            readonly.append('plan')
+        return readonly
 
 admin.site.register(CustomUser, CustomUserAdmin)
 
@@ -186,13 +195,17 @@ admin.site.register(GroupMessages)
 
 
 
-from .models import WhatsAppChannel , CannedResponse
+from .models import WhatsAppChannel , CannedResponse , Plan
 class ChannelAdmin(admin.ModelAdmin):
     list_display = ('name', 'phone_number', 'phone_number_id', 'business_account_id', 'access_token', 'is_active', 'created_at')
     search_fields = ('name', 'phone_number', 'phone_number_id', 'business_account_id')
     list_filter = ('is_active', 'created_at')
 admin.site.register(WhatsAppChannel, ChannelAdmin)
 admin.site.register(CannedResponse)
+
+class PlanAdmin(admin.ModelAdmin):
+    list_display = ('name', 'can_use_ai_voice', 'can_use_voice_cloning', 'can_use_auto_reply', 'price')
+admin.site.register(Plan, PlanAdmin)
 
 # from .models import ChannelPermission
 # class ChannelPermissionAdmin(admin.ModelAdmin):

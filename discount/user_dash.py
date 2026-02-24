@@ -2,7 +2,7 @@ from ast import Assign
 import logging
 from multiprocessing import context
 from django.conf import settings
-from .models import CODProduct ,SimpleOrder , CustomUser ,TeamInvitation , ExternalTokenmodel , Products , Activity ,UserProductPermission,Order
+from .models import CODProduct ,SimpleOrder , CustomUser ,TeamInvitation , ExternalTokenmodel , Products , Activity ,UserProductPermission,Order, Plan
 import time
 from urllib.parse import quote
 from django.shortcuts import render, redirect
@@ -577,6 +577,12 @@ def user(request):
             activety = None
  
 
+    # Plans for subscription section (Free, Basic, Premium)
+    all_plans = list(Plan.objects.all().order_by('price'))
+    current_plan = request.user.plan if (getattr(request.user, 'plan_id', None) and request.user.plan_id) else Plan.objects.filter(name='Free').first()
+    if not current_plan and all_plans:
+        current_plan = all_plans[0]
+
     return render(request, 'user/user.html', {
         'tokenform': tokenform,
         'activities':activety,
@@ -591,8 +597,8 @@ def user(request):
         'team_invitations': team_accounts,
         'invitations': TeamInvitation.objects.filter(admin=request.user),
         'team_accounts': team_accounts_simple,
-
-       
+        'plans': all_plans,
+        'current_plan': current_plan,
     }) 
 
 

@@ -86,6 +86,42 @@ from django.contrib.auth.models import AbstractUser, Group, Permission
 
 # discount/models.py
 
+
+class Plan(models.Model):
+    """Subscription plan controlling access to paid features (AI voice, voice cloning, auto-reply)."""
+    name = models.CharField(max_length=50, unique=True)  # e.g. Basic, Premium
+    can_use_ai_voice = models.BooleanField(default=False)
+    can_use_voice_cloning = models.BooleanField(default=False)
+    can_use_cloning = models.BooleanField(default=False, help_text="Alias for voice cloning capability")
+    can_use_advanced_tones = models.BooleanField(default=False, help_text="Stability & similarity sliders (PRO)")
+    can_use_auto_reply = models.BooleanField(default=False)
+    can_use_multi_modal = models.BooleanField(default=False, help_text="AI node media gallery & [SEND_MEDIA] in flows")
+    can_use_persona_gallery = models.BooleanField(default=False, help_text="High-quality & cloned personas in Flow Builder")
+    price = models.DecimalField(max_digits=10, decimal_places=2, default=0, null=True, blank=True)
+    max_monthly_orders = models.PositiveIntegerField(null=True, blank=True, help_text="Cap on auto-created orders per month; null = unlimited")
+
+    # Map feature_name (string) -> Plan boolean field name; extend this when adding new features
+    FEATURE_FIELDS = {
+        "ai_voice": "can_use_ai_voice",
+        "voice_cloning": "can_use_voice_cloning",
+        "cloning": "can_use_cloning",
+        "advanced_tones": "can_use_advanced_tones",
+        "auto_reply": "can_use_auto_reply",
+        "multi_modal": "can_use_multi_modal",
+        "persona_gallery": "can_use_persona_gallery",
+    }
+
+    def can_use_feature(self, feature_name):
+        """Check if this plan allows the given feature (e.g. 'ai_voice', 'voice_cloning', 'auto_reply')."""
+        field = self.FEATURE_FIELDS.get(feature_name)
+        if not field:
+            return False
+        return getattr(self, field, False)
+
+    def __str__(self):
+        return self.name
+
+
 class CustomUser(AbstractUser):
     class Meta:
         db_table = 'discount_customuser'  # تحديد اسم الجدول صراحة
@@ -93,6 +129,14 @@ class CustomUser(AbstractUser):
     # تغيير related_name لتجنب التعارضات\\
     is_online = models.BooleanField(default=False )
     last_seen = models.DateTimeField(auto_now=True , blank=True, null=True)
+    plan = models.ForeignKey(
+        Plan,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="users",
+        help_text="Subscription plan for API and feature access.",
+    )
     groups = models.ManyToManyField(
         Group,
         related_name='custom_users',
@@ -124,6 +168,17 @@ class CustomUser(AbstractUser):
         null=True,
         blank=True,
         related_name='team_members'
+    )
+    # Virtual Team Member (AI Agent) for order attribution
+    is_bot = models.BooleanField(default=False, help_text="Virtual user representing an AI agent; orders created by AI are attributed to this user.")
+    agent_role = models.CharField(max_length=120, blank=True, null=True, help_text="Display role e.g. 'Simo - AI Closer' for bot users.")
+    bot_owner = models.ForeignKey(
+        'self',
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name='bot_agents',
+        help_text="Merchant who owns this bot (only set when is_bot=True).",
     )
 
     def is_staff_member(self):
@@ -174,6 +229,21 @@ class CustomUser(AbstractUser):
             is_active=True
         ).distinct()
 
+    def get_plan(self):
+        """Return the user's plan, or the default Basic plan if none set."""
+        if self.plan_id:
+            return self.plan
+        from django.apps import apps
+        PlanModel = apps.get_model("discount", "Plan")
+        return PlanModel.objects.filter(name="Basic").first()
+
+    def is_feature_allowed(self, feature_name):
+        """Check if the user's plan allows the given feature. Zero-bypass: always check on backend."""
+        plan = self.get_plan()
+        if not plan:
+            return False
+        return plan.can_use_feature(feature_name)
+
 
     class Meta:
         verbose_name = 'Custom User'
@@ -209,8 +279,57 @@ class Products(models.Model):
     project = models.CharField(max_length=200, blank=True, null=True)  # اسم المشروع
 
     name = models.CharField(max_length=100)
-    sku = models.CharField(max_length=100, unique=True)
+    sku = models.CharField(max_length=100, unique=True, blank=True, null=True)
     stock = models.IntegerField(default=0)
+
+    # Product creation from WhatsApp dashboard (required in form: name, price, description, images)
+    price = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True, verbose_name=_('السعر'))
+    currency = models.CharField(max_length=10, default='MAD', blank=True, verbose_name=_('العملة'))
+    description = models.TextField(blank=True, null=True, verbose_name=_('الوصف'))
+    how_to_use = models.TextField(blank=True, null=True, verbose_name=_('طريقة الاستخدام'))
+    offer = models.CharField(max_length=500, blank=True, null=True, verbose_name=_('العرض'))
+    testimonial = models.FileField(
+        upload_to='product_testimonials/%Y/%m/',
+        blank=True,
+        null=True,
+        verbose_name=_('شهادة صوت/فيديو/صورة'),
+        help_text=_('Optional: audio, video or image testimonial'),
+    )
+
+
+class ProductImage(models.Model):
+    """Product photos (at least one required when creating product from dashboard)."""
+    product = models.ForeignKey(
+        Products,
+        on_delete=models.CASCADE,
+        related_name='images',
+    )
+    image = models.ImageField(upload_to='products/%Y/%m/')
+    order = models.PositiveIntegerField(default=0)
+
+    class Meta:
+        ordering = ['order', 'id']
+
+    def __str__(self):
+        return f"Image for {self.product.name} (#{self.order})"
+
+
+class ProductVideo(models.Model):
+    """Product videos (optional, from dashboard product form)."""
+    product = models.ForeignKey(
+        Products,
+        on_delete=models.CASCADE,
+        related_name='videos',
+    )
+    video = models.FileField(upload_to='products/videos/%Y/%m/')
+    order = models.PositiveIntegerField(default=0)
+
+    class Meta:
+        ordering = ['order', 'id']
+
+    def __str__(self):
+        return f"Video for {self.product.name} (#{self.order})"
+
 
 CustomUsers = get_user_model()
 
@@ -334,6 +453,33 @@ class SimpleOrder(models.Model):
     price = models.DecimalField(max_digits=10, decimal_places=2, default=0 ,verbose_name=_('السعر'))
     currency = models.CharField(max_length=10, default='SAR', null=True ,blank=True ,   verbose_name=_('العملة'))
     quantity = models.DecimalField(max_digits=10, decimal_places=2, default=1)
+    created_by_ai = models.BooleanField(default=False, help_text="Order created via AI [ORDER_DATA] / save_order")
+    created_by_bot_session = models.CharField(
+        max_length=100,
+        blank=True,
+        null=True,
+        help_text="Chat/session ID when order was created by AI (for tracing).",
+    )
+    # Google Sheets export status: blank = not applicable, pending = queued, success = exported, failed = export error (merchant can re-sync)
+    sheets_export_status = models.CharField(
+        max_length=20, blank=True, null=True,
+        choices=[('', '—'), ('pending', 'Pending'), ('success', 'Success'), ('failed', 'Failed')],
+        help_text="Google Sheets export status for dashboard re-sync",
+    )
+    sheets_export_error = models.TextField(
+        blank=True, null=True,
+        help_text="Last error message when Google Sheets sync failed (e.g. Permission Denied).",
+    )
+    shipping_company = models.CharField(
+        max_length=200, blank=True, null=True,
+        verbose_name=_('شركة الشحن'),
+        help_text="Name of the shipping/delivery company.",
+    )
+    expected_delivery_date = models.DateField(
+        null=True, blank=True,
+        verbose_name=_('تاريخ التوصيل المتوقع'),
+        help_text="Expected delivery date.",
+    )
     class Meta:
         verbose_name = _('طلب مبسط')
         verbose_name_plural = _('طلبات مبسطة')
@@ -963,6 +1109,87 @@ class WhatsAppChannel(models.Model):
     # --- 4. صلاحيات الموظفين ---
     allow_agents_delete_msg = models.BooleanField(default=False, help_text="السماح للموظفين بحذف الرسائل")
 
+    # --- 5. AI Voice & Sales Intelligence ---
+    ai_auto_reply = models.BooleanField(default=False, help_text="Full autopilot: AI replies when no flow matches")
+    ai_voice_enabled = models.BooleanField(default=False, help_text="Send AI replies as voice messages")
+    voice_provider = models.CharField(
+        max_length=20,
+        choices=[('OPENAI', 'OpenAI TTS'), ('ELEVENLABS', 'ElevenLabs')],
+        default='OPENAI',
+    )
+    voice_gender = models.CharField(
+        max_length=10,
+        choices=[('MALE', 'Male'), ('FEMALE', 'Female')],
+        default='FEMALE',
+    )
+    voice_delay_seconds = models.PositiveSmallIntegerField(
+        default=20,
+        help_text="Delay before sending voice (10-30 sec)",
+    )
+    ai_order_capture = models.BooleanField(default=True, help_text="Automatically extract and save orders from conversations")
+    elevenlabs_api_key = models.CharField(max_length=255, null=True, blank=True)
+    voice_cloning_enabled = models.BooleanField(default=False, help_text="Clone your voice (Premium only)")
+    # Advanced Voice Studio (StoreSettings)
+    VOICE_LANG_CHOICES = [
+        ("AUTO", "Auto-Detect"),
+        ("AR_MA", "Arabic (Morocco)"),
+        ("AR_SA", "Arabic (Saudi)"),
+        ("FR_FR", "French (France)"),
+        ("EN_US", "English (US)"),
+    ]
+    voice_language = models.CharField(max_length=10, choices=VOICE_LANG_CHOICES, default="AUTO")
+    voice_stability = models.FloatField(default=0.5, help_text="0.0-1.0 Emotion/Stability")
+    voice_similarity = models.FloatField(default=0.75, help_text="0.0-1.0 Similarity/Clarity")
+    cloned_voice_id = models.CharField(max_length=255, null=True, blank=True, help_text="ElevenLabs cloned voice ID")
+    ai_voice_provider = models.CharField(
+        max_length=20,
+        choices=[("OPENAI", "OpenAI TTS"), ("ELEVENLABS", "ElevenLabs")],
+        default="OPENAI",
+    )
+    # Multilingual v2 & Voice Gallery (native-friendly Arabic)
+    elevenlabs_model_id = models.CharField(
+        max_length=64,
+        default="eleven_multilingual_v2",
+        help_text="ElevenLabs model; use eleven_multilingual_v2 for natural Arabic.",
+    )
+    selected_voice_id = models.CharField(
+        max_length=255,
+        null=True,
+        blank=True,
+        help_text="ElevenLabs voice ID from the gallery (e.g. Layla, Rachel).",
+    )
+    voice_preview_url = models.URLField(
+        max_length=500,
+        null=True,
+        blank=True,
+        help_text="Sample audio URL for the selected voice in the UI.",
+    )
+    # Notify channel owner when AI creates an order (Email or WhatsApp)
+    ORDER_NOTIFY_CHOICES = [
+        ("", "Off"),
+        ("EMAIL", "Email"),
+        ("WHATSAPP", "WhatsApp"),
+    ]
+    order_notify_method = models.CharField(
+        max_length=20,
+        choices=ORDER_NOTIFY_CHOICES,
+        default="",
+        blank=True,
+        help_text="Send owner a notification when AI creates an order.",
+    )
+    order_notify_email = models.EmailField(
+        max_length=254,
+        null=True,
+        blank=True,
+        help_text="Email address for order notifications (when method is Email).",
+    )
+    order_notify_whatsapp_phone = models.CharField(
+        max_length=20,
+        null=True,
+        blank=True,
+        help_text="Phone (with country code) for WhatsApp order notifications.",
+    )
+
 class Message(models.Model):
     user = models.ForeignKey(
         CustomUser, 
@@ -1188,6 +1415,11 @@ class Flow(models.Model):
     
     config = models.JSONField(default=dict, blank=True)
 
+    @property
+    def flow_data(self):
+        """Backward compatibility: flow_data as alias for config (nodes/connections JSON)."""
+        return self.config if isinstance(self.config, dict) else {}
+
     def match_trigger(self, message_text: str = "", is_new_conversation: bool = False) -> bool:
         """
         يتحقق مما إذا كان هذا التدفق يجب أن يعمل بناءً على الرسالة أو حدث البداية.
@@ -1216,16 +1448,66 @@ class Flow(models.Model):
         return self.name
 
 
+class VoicePersona(models.Model):
+    """
+    Sales Agent persona for the Flow Builder AI node: name, voice_id, provider, and behavioral prompt.
+    System-wide (is_system=True, owner=None) or user-cloned (owner set).
+    """
+    TIER_STANDARD = "standard"   # Free for all
+    TIER_PREMIUM = "premium"     # Requires Premium plan to select
+    TIER_CHOICES = [(TIER_STANDARD, "Standard"), (TIER_PREMIUM, "Premium")]
 
+    PROVIDER_ELEVENLABS = "ELEVENLABS"
+    PROVIDER_OPENAI = "OPENAI"
+    PROVIDER_CHOICES = [(PROVIDER_ELEVENLABS, "ElevenLabs"), (PROVIDER_OPENAI, "OpenAI")]
+
+    name = models.CharField(max_length=120, help_text="e.g. Laila, Sami, Hiba - Luxury Consultant")
+    description = models.CharField(max_length=255, blank=True, help_text="e.g. Soft, calm, perfect for cosmetics")
+    voice_id = models.CharField(max_length=120, help_text="ElevenLabs or OpenAI voice ID")
+    provider = models.CharField(
+        max_length=20,
+        choices=PROVIDER_CHOICES,
+        default=PROVIDER_ELEVENLABS,
+        help_text="TTS provider for this voice",
+    )
+    is_system = models.BooleanField(default=True, help_text="System-wide persona vs user-cloned")
+    owner = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name="cloned_voice_personas",
+        help_text="Set for user-cloned voices; null for system personas",
+    )
+    behavioral_instructions = models.TextField(
+        blank=True,
+        help_text="e.g. Use high-end vocabulary, be extremely polite, use specific emojis.",
+    )
+    language_code = models.CharField(max_length=20, default="AR_MA", help_text="AR_MA, FR_FR, EN_US, etc.")
+    # System personas only: standard (free) or premium (requires plan)
+    tier = models.CharField(
+        max_length=20,
+        choices=TIER_CHOICES,
+        default=TIER_STANDARD,
+        help_text="For system personas: standard=free, premium=paid only",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["-is_system", "name"]
+        verbose_name = "Voice Persona"
+        verbose_name_plural = "Voice Personas"
+
+    def __str__(self):
+        return self.name
 
 
 class Node(models.Model):
-    # NODE_TYPES = [
-    #     ('text', 'Text Message'),
-    #     ('media', 'Media Message'),
-    #     ('mixed', 'Text + Media'),
-    #     ('condition', 'Condition'),
-    # ]
+    CONTEXT_SOURCE_CHOICES = [
+        ('MANUAL', 'Manual'),
+        ('URL_SCRAPER', 'URL Scraper'),
+    ]
 
     flow = models.ForeignKey(Flow, on_delete=models.CASCADE, related_name='nodes')
     node_type = models.CharField(max_length=30)
@@ -1240,14 +1522,139 @@ class Node(models.Model):
     started_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     completed_at = models.DateTimeField(null=True, blank=True)
-    media_type = models.CharField(max_length=20,blank=True, null=True,)
+    media_type = models.CharField(max_length=20, blank=True, null=True)
+
+    # AI Agent node (node_type = 'ai-agent')
+    product_context = models.TextField(blank=True, null=True, help_text="Product details: Name, Price, Specs, Shipping")
+    context_source = models.CharField(max_length=20, choices=CONTEXT_SOURCE_CHOICES, default='MANUAL', blank=True)
+    voice_enabled = models.BooleanField(default=False, help_text="Use voice_engine for response")
+    ai_model_config = models.JSONField(default=dict, blank=True, help_text="temperature, model_id, etc.")
+    # Per-node voice & response (Elite Sales Consultant / Multi-Modal)
+    RESPONSE_MODE_CHOICES = [
+        ("TEXT_ONLY", "Text only"),
+        ("AUDIO_ONLY", "Audio only"),
+        ("AUTO_SMART", "Auto (text for short, audio for pitch/closing)"),
+    ]
+    response_mode = models.CharField(
+        max_length=20, choices=RESPONSE_MODE_CHOICES, default="TEXT_ONLY", blank=True,
+        help_text="TEXT_ONLY, AUDIO_ONLY, or AUTO_SMART",
+    )
+    node_voice_id = models.CharField(max_length=100, blank=True, null=True, help_text="Voice ID for this node (e.g. ElevenLabs) – legacy; prefer persona")
+    node_language = models.CharField(max_length=20, blank=True, null=True, help_text="e.g. AR_MA, FR_FR, EN_US")
+    node_gender = models.CharField(max_length=10, blank=True, null=True, help_text="FEMALE or MALE")
+    # Persona gallery: one persona per node (voice + behavioral prompt)
+    persona = models.ForeignKey(
+        VoicePersona,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="nodes",
+        help_text="Sales agent persona (voice + behavior); overrides node_voice_id when set",
+    )
+    voice_stability = models.FloatField(null=True, blank=True, help_text="0.0–1.0 for ElevenLabs")
+    voice_similarity = models.FloatField(null=True, blank=True, help_text="0.0–1.0 for ElevenLabs")
+    voice_speed = models.FloatField(null=True, blank=True, help_text="0.5–1.5 for ElevenLabs")
+
     def __str__(self):
         return f"Node {self.id} ({self.node_type}) in Flow {self.flow.name}"
 
 
+class NodeMedia(models.Model):
+    """Media assets (images/videos) linked to an AI Agent node for multi-modal responses."""
+    FILE_TYPE_IMAGE = "Image"
+    FILE_TYPE_VIDEO = "Video"
+    FILE_TYPE_CHOICES = [(FILE_TYPE_IMAGE, "Image"), (FILE_TYPE_VIDEO, "Video")]
+
+    node = models.ForeignKey(Node, on_delete=models.CASCADE, related_name="media_assets")
+    file = models.FileField(upload_to="flow_node_media/%Y/%m/", blank=True, null=True, max_length=500)
+    file_type = models.CharField(max_length=10, choices=FILE_TYPE_CHOICES, default=FILE_TYPE_IMAGE)
+    description = models.CharField(max_length=255, blank=True, help_text="Label for GPT, e.g. Product Close-up, How-to-use Video")
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["created_at"]
+        verbose_name = "Node media"
+        verbose_name_plural = "Node media"
+
+    def __str__(self):
+        return f"{self.get_file_type_display()}: {self.description or self.file.name}"
 
 
+class ChatSession(models.Model):
+    """
+    Short-term memory for the AI Agent: keeps product context across messages.
+    Scoped per channel + customer_phone. Expires after 24h inactivity or after order.
+    HITL: ai_enabled=False stops the AI; merchant handles the chat manually.
+    """
+    channel = models.ForeignKey(
+        WhatsAppChannel,
+        on_delete=models.CASCADE,
+        related_name="chat_sessions",
+    )
+    customer_phone = models.CharField(max_length=32, db_index=True)
+    active_node = models.ForeignKey(
+        Node,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="active_sessions",
+        help_text="Current product/AI node context",
+    )
+    is_expired = models.BooleanField(default=False)
+    context_data = models.JSONField(default=dict, blank=True)
+    last_interaction = models.DateTimeField(auto_now=True)
+    # Human-in-the-Loop (HITL)
+    ai_enabled = models.BooleanField(
+        default=True,
+        help_text="If False, AI does not process messages; merchant handles the chat.",
+    )
+    handover_reason = models.CharField(
+        max_length=120,
+        blank=True,
+        help_text="e.g. Customer asked for human, Sentiment detected",
+    )
+    last_manual_message_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text="When the merchant last sent a manual message.",
+    )
 
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=["channel", "customer_phone"],
+                name="unique_channel_customer_session",
+            )
+        ]
+        indexes = [
+            models.Index(fields=["channel", "customer_phone"]),
+        ]
+        verbose_name = "Chat session"
+        verbose_name_plural = "Chat sessions"
+
+    def __str__(self):
+        return f"Session {self.channel_id}:{self.customer_phone} (expired={self.is_expired})"
+
+
+class HandoverLog(models.Model):
+    """Record every handover event (AI → human) for analytics and merchant review."""
+    channel = models.ForeignKey(
+        WhatsAppChannel,
+        on_delete=models.CASCADE,
+        related_name="handover_logs",
+    )
+    customer_phone = models.CharField(max_length=32, db_index=True)
+    reason = models.CharField(max_length=120, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+        indexes = [models.Index(fields=["channel", "created_at"])]
+        verbose_name = "Handover log"
+        verbose_name_plural = "Handover logs"
+
+    def __str__(self):
+        return f"Handover {self.customer_phone} @ {self.created_at} ({self.reason})"
 
 
 class Connection(models.Model):
@@ -1259,6 +1666,200 @@ class Connection(models.Model):
     def __str__(self):
         return f"{self.from_node.node_id} → {self.to_node.node_id}"
 
+
+class FollowUpNode(models.Model):
+    """
+    Config for the Smart Follow-up flow node. One-to-one with Node (node_type='follow-up').
+    Schedules re-engagement after delay_hours if the customer does not reply.
+    """
+    RESPONSE_TYPE_TEXT = "TEXT"
+    RESPONSE_TYPE_AUDIO = "AUDIO"
+    RESPONSE_TYPE_IMAGE = "IMAGE"
+    RESPONSE_TYPE_VIDEO = "VIDEO"
+    RESPONSE_TYPE_CHOICES = [
+        (RESPONSE_TYPE_TEXT, "Text"),
+        (RESPONSE_TYPE_AUDIO, "Audio"),
+        (RESPONSE_TYPE_IMAGE, "Image"),
+        (RESPONSE_TYPE_VIDEO, "Video"),
+    ]
+
+    node = models.OneToOneField(
+        Node,
+        on_delete=models.CASCADE,
+        related_name="follow_up_config",
+    )
+    delay_hours = models.PositiveIntegerField(default=6, help_text="Hours to wait before sending follow-up")
+    response_type = models.CharField(
+        max_length=10,
+        choices=RESPONSE_TYPE_CHOICES,
+        default=RESPONSE_TYPE_TEXT,
+    )
+    ai_personalized = models.BooleanField(
+        default=False,
+        help_text="If True, GPT generates the follow-up based on conversation history",
+    )
+    file_attachment = models.FileField(
+        upload_to="follow_up_media/%Y/%m/",
+        blank=True,
+        null=True,
+        max_length=500,
+        help_text="Pre-defined media for AUDIO/IMAGE/VIDEO",
+    )
+    caption = models.TextField(
+        blank=True,
+        help_text="Default message text or caption for media",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = "Follow-up node config"
+        verbose_name_plural = "Follow-up node configs"
+
+    def __str__(self):
+        return f"Follow-up (node {self.node_id}, {self.delay_hours}h, {self.response_type})"
+
+
+class GoogleSheetsConfig(models.Model):
+    """
+    Global Google Sheets connection settings per user (merchant).
+    Service Account JSON is stored encrypted. column_mapping maps sheet columns (A, B, C...)
+    to conversation/order variable names (e.g. customer_name, phone, city).
+    """
+    user = models.OneToOneField(
+        CustomUser,
+        on_delete=models.CASCADE,
+        related_name="google_sheets_config",
+    )
+    spreadsheet_id = models.CharField(
+        max_length=128,
+        help_text="Spreadsheet ID from the Google Sheets URL",
+    )
+    sheet_name = models.CharField(max_length=128, default="Orders")
+    # Encrypted JSON string of the Service Account credentials (encrypt before save, decrypt when using)
+    service_account_json_encrypted = models.TextField(blank=True, null=True)
+    # Maps column letter -> variable key, e.g. {"A": "customer_name", "B": "phone", "C": "city"}
+    column_mapping = models.JSONField(
+        default=dict,
+        blank=True,
+        help_text='{"A": "customer_name", "B": "phone", "C": "city", ...}',
+    )
+    # Drag-and-drop field mapping: list of {"field": "customer_name", "header": "Customer Name"}. Order = column order.
+    sheets_mapping = models.JSONField(
+        default=list,
+        blank=True,
+        help_text='[{"field": "customer_name", "header": "Customer Name"}, ...]',
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = "Google Sheets config"
+        verbose_name_plural = "Google Sheets configs"
+
+    def __str__(self):
+        return f"Google Sheets config for user {self.user_id} ({self.sheet_name})"
+
+
+class GoogleSheetsNode(models.Model):
+    """
+    Flow node config for Google Sheets export. When the flow reaches this node,
+    order/conversation data is exported to the sheet (using the user's GoogleSheetsConfig).
+    One-to-one with Node (node_type='google-sheets').
+    """
+    node = models.OneToOneField(
+        Node,
+        on_delete=models.CASCADE,
+        related_name="google_sheets_config",
+    )
+    # Optional override: use this config instead of user's global GoogleSheetsConfig (future use)
+    config = models.ForeignKey(
+        GoogleSheetsConfig,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="nodes",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = "Google Sheets node config"
+        verbose_name_plural = "Google Sheets node configs"
+
+    def __str__(self):
+        return f"Google Sheets node (node {self.node_id})"
+
+
+class FollowUpTask(models.Model):
+    """
+    Scheduled follow-up to be sent to a customer. Cancelled when they reply or place an order.
+    """
+    STATUS_PENDING = "PENDING"
+    STATUS_SENT = "SENT"
+    STATUS_CANCELLED = "CANCELLED"
+    STATUS_CHOICES = [
+        (STATUS_PENDING, "Pending"),
+        (STATUS_SENT, "Sent"),
+        (STATUS_CANCELLED, "Cancelled"),
+    ]
+
+    channel = models.ForeignKey(
+        WhatsAppChannel,
+        on_delete=models.CASCADE,
+        related_name="follow_up_tasks",
+    )
+    node = models.ForeignKey(
+        Node,
+        on_delete=models.CASCADE,
+        related_name="follow_up_tasks",
+        help_text="The follow-up node that created this task",
+    )
+    customer_phone = models.CharField(max_length=32, db_index=True)
+    scheduled_at = models.DateTimeField(db_index=True)
+    is_cancelled = models.BooleanField(default=False)
+    status = models.CharField(
+        max_length=20,
+        choices=STATUS_CHOICES,
+        default=STATUS_PENDING,
+        db_index=True,
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    sent_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ["scheduled_at"]
+        indexes = [
+            models.Index(fields=["channel", "customer_phone", "status"]),
+            models.Index(fields=["status", "scheduled_at"]),
+        ]
+        verbose_name = "Follow-up task"
+        verbose_name_plural = "Follow-up tasks"
+
+    def __str__(self):
+        return f"FollowUp {self.customer_phone} @ {self.scheduled_at} ({self.status})"
+
+
+class FollowUpSentLog(models.Model):
+    """Log every sent follow-up for the Analytics dashboard."""
+    channel = models.ForeignKey(
+        WhatsAppChannel,
+        on_delete=models.CASCADE,
+        related_name="follow_up_sent_logs",
+    )
+    customer_phone = models.CharField(max_length=32)
+    node_id = models.PositiveIntegerField(null=True, blank=True, help_text="Follow-up Node id")
+    response_type = models.CharField(max_length=10, blank=True)
+    sent_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-sent_at"]
+        indexes = [models.Index(fields=["channel", "sent_at"])]
+        verbose_name = "Follow-up sent log"
+        verbose_name_plural = "Follow-up sent logs"
+
+    def __str__(self):
+        return f"Follow-up to {self.customer_phone} at {self.sent_at}"
 
 
 class Tags(models.Model):
@@ -1395,3 +1996,25 @@ class CannedResponse(models.Model):
 
     def __str__(self):
         return self.shortcut
+
+
+class AIUsageLog(models.Model):
+    """Track API usage (ElevenLabs, Whisper) for analytics and overage prevention."""
+    channel = models.ForeignKey(
+        WhatsAppChannel,
+        on_delete=models.CASCADE,
+        related_name="ai_usage_logs",
+    )
+    date = models.DateField(db_index=True)
+    provider = models.CharField(max_length=32)  # e.g. elevenlabs, whisper
+    characters_used = models.PositiveIntegerField(default=0)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-date", "-created_at"]
+        indexes = [models.Index(fields=["channel", "date"])]
+        verbose_name = "AI usage log"
+        verbose_name_plural = "AI usage logs"
+
+    def __str__(self):
+        return f"{self.channel_id} {self.date} {self.provider}: {self.characters_used}"

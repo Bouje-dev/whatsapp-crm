@@ -2,8 +2,12 @@
 import json
 import os
 import logging
+from decimal import Decimal
+import random
+import threading
+import time
 from django.conf import settings
-from django.http import HttpResponse
+from django.http import HttpResponse, JsonResponse
 import requests
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_http_methods, require_GET, require_POST
@@ -24,9 +28,79 @@ import datetime as _dt
  
 import re
 
-from discount.models import CustomUser, Flow, Message ,Contact , WhatsAppChannel
+from datetime import timedelta
+
+from discount.models import CustomUser, Flow, Message, Contact, WhatsAppChannel, NodeMedia, ChatSession, SimpleOrder, Products, ProductImage
 from django.utils import timezone
 from ..channel.socket_utils import send_socket
+
+SESSION_TIMEOUT_HOURS = 24
+
+# Parse [SEND_MEDIA: <id>] from AI reply; return (cleaned_text, list of media ids)
+SEND_MEDIA_RE = re.compile(r"\[SEND_MEDIA:\s*(\d+)\]")
+# Parse [SEND_PRODUCT_IMAGE] from AI reply; return (cleaned_text, True if tag present)
+SEND_PRODUCT_IMAGE_RE = re.compile(r"\[SEND_PRODUCT_IMAGE\]", re.IGNORECASE)
+
+
+def parse_and_strip_send_media(text):
+    if not text or not isinstance(text, str):
+        return (text or "", [])
+    ids = []
+    for m in SEND_MEDIA_RE.finditer(text):
+        try:
+            ids.append(int(m.group(1)))
+        except (ValueError, IndexError):
+            pass
+    cleaned = SEND_MEDIA_RE.sub("", text).strip()
+    cleaned = re.sub(r"\n\s*\n", "\n\n", cleaned)
+    return (cleaned, ids)
+
+
+def parse_and_strip_send_product_image(text):
+    if not text or not isinstance(text, str):
+        return (text or "", False)
+    present = bool(SEND_PRODUCT_IMAGE_RE.search(text))
+    cleaned = SEND_PRODUCT_IMAGE_RE.sub("", text).strip()
+    cleaned = re.sub(r"\n\s*\n", "\n\n", cleaned)
+    return (cleaned, present)
+
+
+def format_order_confirmation(order):
+    """Build the one-time order confirmation message shown to the customer after order creation."""
+    if not order:
+        return None
+    product_name = (getattr(order, "product_name", None) or "").strip() or "—"
+    qty = getattr(order, "quantity", 1)
+    try:
+        qty = int(Decimal(str(qty)))
+    except Exception:
+        qty = 1
+    price = getattr(order, "price", None)
+    try:
+        price_val = float(Decimal(str(price))) if price is not None else 0
+    except Exception:
+        price_val = 0
+    line_total = price_val * qty
+    total = getattr(order, "price", None)
+    try:
+        total_val = float(Decimal(str(total)) * Decimal(str(qty))) if total is not None else line_total
+    except Exception:
+        total_val = line_total
+    phone = (getattr(order, "customer_phone", None) or "").strip() or "—"
+    name = (getattr(order, "customer_name", None) or "").strip() or "—"
+    city = (getattr(order, "customer_city", None) or "").strip() or "—"
+    address = city  # SimpleOrder has only customer_city; use as address
+    return (
+        f"✅ Order Confirmed!\n"
+        f"Items: {product_name} x {qty} = {line_total:.0f} MAD\n"
+        f"Total: {total_val:.0f} MAD\n"
+        f"Information:\n"
+        f"📞 Phone Number: {phone}\n"
+        f"👤 Name: {name}\n"
+        f"🏙️ City: {city}\n"
+        f"🏠 Address: {address}\n"
+        f"سوف نتواصل معك قريبا لتسليم الطلب. 🚚"
+    )
 
 
 
@@ -251,6 +325,22 @@ def send_automated_response(recipient, responses, channel=None, user=None):
 
                     if res.status_code != 200:
                         print(f"❌ Failed message {i+1}")
+                        # Fallback: if media failed, send text description when available
+                        fallback_caption = item.get("fallback_caption") or item.get("content", "").strip()
+                        if fallback_caption and msg_type in ["image", "video"]:
+                            fallback_data = {
+                                "messaging_product": "whatsapp",
+                                "to": recipient,
+                                "type": "text",
+                                "text": {"body": fallback_caption}
+                            }
+                            res_fb = requests.post(
+                                f"https://graph.facebook.com/v17.0/{phone_number_id}/messages",
+                                headers=headers,
+                                json=fallback_data
+                            )
+                            if res_fb.status_code == 200:
+                                print(f"✅ Sent fallback text for failed media")
                     else:
                         # حفظ الرسالة المرسلة في قاعدة البيانات
                         try:
@@ -415,8 +505,10 @@ def get_media_extension(media_type):
 
 # ---------------------Save sms----------------
 
-def save_incoming_message(msg, message_type, sender=None, channel=None, name=None):
-  
+def save_incoming_message(msg, message_type, sender=None, channel=None, name=None, body_override=None):
+    """
+    Save incoming WhatsApp message. If body_override is provided (e.g. transcription or vision description), use it as body.
+    """
     try:
         if not sender:
             sender = msg.get("from")
@@ -481,6 +573,8 @@ def save_incoming_message(msg, message_type, sender=None, channel=None, name=Non
                     if caption_text:
                         body = caption_text  # نجعل الكابشن هو نص الرسالة
                 break
+        if body_override is not None:
+            body = body_override
                 
         # 5. معالجة التوقيت (Timestamp)
         parsed_timestamp = None
@@ -644,11 +738,12 @@ def get_matching_flow(sender_phone: str, message_text: str, channel=None):
     if not last_msg:
         is_new_conversation = True
     else:
-        from datetime import timedelta
         if timezone.now() - last_msg.timestamp > timedelta(hours=24):
             is_new_conversation = True
 
     flows = Flow.objects.filter(active=True)
+    if channel:
+        flows = flows.filter(channel=channel)
 
     # الأولوية 1: البحث عن فلو "بداية المحادثة" إذا انطبق الشرط
     if is_new_conversation:
@@ -670,6 +765,712 @@ def get_matching_flow(sender_phone: str, message_text: str, channel=None):
     
     return None
 
+
+def get_flow_first_ai_agent_node(flow):
+    """Return the first ai-agent node in the flow (after trigger), or None. Uses select_related for connections."""
+    if not flow or not flow.start_node:
+        return None
+    connections = flow.connections.all().select_related("to_node")
+    current = flow.start_node
+    if current.node_type == "trigger":
+        conn = connections.filter(from_node=current).first()
+        if not conn:
+            return None
+        current = conn.to_node
+    visited = set()
+    while current and current.id not in visited:
+        visited.add(current.id)
+        if current.node_type == "ai-agent":
+            return current
+        conn = connections.filter(from_node=current).first()
+        if not conn:
+            break
+        current = conn.to_node
+    return None
+
+
+def update_chat_session_on_trigger(channel, customer_phone, active_node):
+    """On new trigger match: set or update ChatSession to this product (active_node)."""
+    if not channel or not customer_phone or not active_node:
+        return
+    try:
+        ChatSession.objects.update_or_create(
+            channel=channel,
+            customer_phone=customer_phone,
+            defaults={
+                "active_node": active_node,
+                "is_expired": False,
+                "last_interaction": timezone.now(),
+            },
+        )
+    except Exception as e:
+        logger.warning("update_chat_session_on_trigger: %s", e)
+
+
+def get_active_session(channel, customer_phone):
+    """Return active ChatSession for (channel, customer_phone) if not expired and within 24h. Uses select_related('active_node')."""
+    if not channel or not customer_phone:
+        return None
+    cutoff = timezone.now() - timedelta(hours=SESSION_TIMEOUT_HOURS)
+    return (
+        ChatSession.objects.filter(
+            channel=channel,
+            customer_phone=customer_phone,
+            is_expired=False,
+            last_interaction__gte=cutoff,
+        )
+        .select_related("active_node")
+        .first()
+    )
+
+
+def expire_chat_session(channel, customer_phone):
+    """Mark session as expired (e.g. after successful order)."""
+    if not channel or not customer_phone:
+        return
+    try:
+        ChatSession.objects.filter(channel=channel, customer_phone=customer_phone).update(is_expired=True)
+    except Exception as e:
+        logger.warning("expire_chat_session: %s", e)
+
+
+def _touch_session_last_interaction(channel, customer_phone):
+    """Update last_interaction so session stays active for 24h after each response."""
+    if not channel or not customer_phone:
+        return
+    try:
+        ChatSession.objects.filter(
+            channel=channel,
+            customer_phone=customer_phone,
+            is_expired=False,
+        ).update(last_interaction=timezone.now())
+    except Exception as e:
+        logger.warning("_touch_session_last_interaction: %s", e)
+
+
+def _voice_settings_for_node(channel, node):
+    """
+    Return a wrapper so generate_voice uses node's persona (voice_id) or node_voice_id,
+    and node's voice_stability, voice_similarity, voice_speed when set; otherwise channel.
+    """
+    if not node:
+        return channel
+
+    class _NodeVoiceOverride:
+        def __init__(self, _channel, _node):
+            self._channel = _channel
+            self._node = _node
+
+        def __getattr__(self, name):
+            if self._node:
+                if name == "voice_gender":
+                    v = getattr(self._node, "node_gender", None)
+                    if v and (v or "").strip():
+                        return (v or "").strip().upper()
+                if name == "selected_voice_id":
+                    try:
+                        persona = getattr(self._node, "persona", None)
+                        if persona and getattr(persona, "voice_id", None):
+                            return (persona.voice_id or "").strip()
+                    except Exception:
+                        pass
+                    v = getattr(self._node, "node_voice_id", None)
+                    if v and (v or "").strip():
+                        return (v or "").strip()
+                if name == "voice_stability":
+                    v = getattr(self._node, "voice_stability", None)
+                    if v is not None:
+                        return float(v)
+                if name == "voice_similarity":
+                    v = getattr(self._node, "voice_similarity", None)
+                    if v is not None:
+                        return float(v)
+                if name == "voice_speed":
+                    v = getattr(self._node, "voice_speed", None)
+                    if v is not None:
+                        return float(v)
+                if name in ("voice_provider", "ai_voice_provider"):
+                    try:
+                        persona = getattr(self._node, "persona", None)
+                        if persona and getattr(persona, "provider", None):
+                            return (persona.provider or "").strip().upper()
+                    except Exception:
+                        pass
+            return getattr(self._channel, name)
+
+    return _NodeVoiceOverride(channel, node)
+
+
+def _conversation_already_has_order_confirmation(conversation_messages):
+    """True if any previous agent message indicates the order was already confirmed (so we must not repeat confirmation)."""
+    if not conversation_messages:
+        return False
+    order_confirm_phrases = (
+        "تم تسجيل طلبك",
+        "طلبك تم تسجيله",
+        "order is registered",
+        "your order is confirmed",
+        "سنتواصل معك قريباً",
+    )
+    for m in conversation_messages:
+        if m.get("role") != "agent":
+            continue
+        body = (m.get("body") or "").strip().lower()
+        for phrase in order_confirm_phrases:
+            if phrase.lower() in body:
+                return True
+    return False
+
+
+def _build_state_header_from_product_context(product_context, sales_stage=None, sentiment=None):
+    """Build 'CURRENT STATE' line for GPT from product_context (product name, price), optional sales_stage and sentiment."""
+    parts = []
+    if product_context and isinstance(product_context, str):
+        text = product_context.strip()
+        if text:
+            name = ""
+            price = ""
+            for line in text.split("\n"):
+                line = line.strip()
+                if not line:
+                    continue
+                if line.lower().startswith("product name"):
+                    name = line.split(":", 1)[-1].strip() or "this product"
+                elif line.lower().startswith("prices"):
+                    price = line.split(":", 1)[-1].strip() or "see above"
+            product_name = name or "this product"
+            current_price = price or "see product details"
+            parts.append(
+                f"You are in the middle of a sale for {product_name}. Current Price: {current_price}. Do not re-introduce yourself."
+            )
+    if sales_stage:
+        parts.append(f"Current goal stage: {sales_stage}. Follow this stage and output [STAGE: ...] at the end of your reply.")
+    if sentiment == "in_hurry":
+        parts.append("Customer is in a hurry: keep replies very short and direct.")
+    if not parts:
+        return None
+    return "CURRENT STATE: " + " ".join(parts) + " Respond to the customer's last message as a continuation of this sale."
+
+
+# --- Sentiment: detect "in a hurry" from recent customer messages ---
+IN_HURRY_KEYWORDS = re.compile(
+    r"\b(quick|fast|urgent|عجل|بسرعة|فورا|rapide|vite|urgence)\b",
+    re.IGNORECASE,
+)
+MAX_AVG_WORDS_FOR_HURRY = 5
+
+
+def _infer_sentiment_from_conversation(conversation_messages, last_n=5):
+    """Infer sentiment from last_n customer messages. Returns 'in_hurry' or None."""
+    if not conversation_messages:
+        return None
+    customer_bodies = [
+        (m.get("body") or "").strip()
+        for m in conversation_messages[-last_n:]
+        if m.get("role") == "customer"
+    ]
+    if not customer_bodies:
+        return None
+    for body in customer_bodies:
+        if body and IN_HURRY_KEYWORDS.search(body):
+            return "in_hurry"
+    word_counts = [len(b.split()) for b in customer_bodies if b]
+    if word_counts and sum(word_counts) / len(word_counts) <= MAX_AVG_WORDS_FOR_HURRY and len(customer_bodies) >= 2:
+        return "in_hurry"
+    return None
+
+
+def _execute_check_stock(channel, product_id=None, sku=None):
+    """Check product stock for the channel's store. Returns a short message for the agent."""
+    from discount.models import Products
+    if not channel:
+        return "Channel not available. Cannot check stock."
+    owner = getattr(channel, "owner", None)
+    if not owner:
+        return "Store not configured. Cannot check stock."
+    try:
+        qs = Products.objects.filter(admin=owner)
+        if product_id is not None:
+            qs = qs.filter(id=int(product_id))
+        elif sku and str(sku).strip():
+            qs = qs.filter(sku=str(sku).strip())
+        else:
+            return "Please specify product_id or sku to check stock."
+        product = qs.first()
+        if not product:
+            return "Product not found."
+        stock = getattr(product, "stock", 0)
+        if stock is None:
+            stock = 0
+        if stock > 0:
+            return f"In stock: {stock} unit(s) available. Product: {getattr(product, 'name', 'Item')}."
+        return "Currently out of stock. We can notify when restocked."
+    except Exception as e:
+        logger.warning("check_stock failed: %s", e)
+        return "Unable to check stock at the moment."
+
+
+def _execute_track_order(channel, customer_phone):
+    """Look up latest order by customer_phone (optionally scoped to channel). Returns JSON string for the AI."""
+    try:
+        from discount.orders_ai import track_order as _track_order
+        data = _track_order(customer_phone, channel=channel)
+        import json as _json
+        return _json.dumps(data, ensure_ascii=False)
+    except Exception as e:
+        logger.warning("track_order failed: %s", e)
+        return '{"found": false, "status": null, "shipping_company": null, "expected_delivery_date": null, "days_until_delivery": null, "customer_name": null}'
+
+
+def _execute_apply_discount(channel, coupon_code):
+    """Validate coupon and return a message for the agent (e.g. limited-time discount)."""
+    if not coupon_code or not str(coupon_code).strip():
+        return "No coupon code provided."
+    code = str(coupon_code).strip().upper()
+    # Optional: load from channel.context_data or Node config; for now use a small allowlist
+    allowed = getattr(settings, "AI_SALES_COUPON_CODES", None) or ["WELCOME10", "RAMADAN15", "FIRST10", "COD10"]
+    if code in [c.upper() for c in allowed]:
+        return f"Coupon '{code}' is valid. You can offer a limited-time discount (e.g. 10% off) to the customer. Tell them the code is valid for this order."
+    return f"Coupon '{code}' is not valid or expired. Suggest they contact support for a valid code, or emphasize product value instead."
+
+
+def run_ai_agent_node(current_node, sender, channel, state_header=None):
+    """
+    Run the AI agent for one node (product context, GPT, media, voice). Returns list of message dicts.
+    Goal-oriented: uses ChatSession.context_data for sales_stage and sentiment; runs check_stock, apply_discount, record_order.
+    On successful order save, expires ChatSession for (channel, sender).
+    """
+    from django.conf import settings
+
+    output_messages = []
+    reply_text = None
+    order_was_saved = False
+    saved_order = None
+    try:
+        from ai_assistant.services import (
+            generate_reply_with_tools,
+            continue_after_tool_calls,
+            get_agent_name_for_node,
+            should_handover,
+            get_handover_message,
+            _is_price_or_quality_objection,
+            _is_misunderstand_message,
+        )
+        from discount.orders_ai import (
+            extract_order_data_from_reply,
+            save_order_from_ai,
+            should_accept_order_data,
+            get_trust_score,
+            increment_trust_score,
+            reset_trust_score,
+            looks_like_order_confirmation_without_data,
+        )
+        from django.db import transaction as db_transaction
+        from django.core.cache import cache
+
+        session = get_active_session(channel, sender)
+        if not session and channel and sender:
+            session, _ = ChatSession.objects.get_or_create(
+                channel=channel,
+                customer_phone=sender,
+                defaults={"active_node": current_node, "is_expired": False, "ai_enabled": True},
+            )
+        ctx = getattr(session, "context_data", None) or {} if session else {}
+        sales_stage = ctx.get("sales_stage")
+        sentiment = ctx.get("sentiment")
+        if not sentiment and channel and sender:
+            conversation_for_sentiment = get_conversation_history(sender, channel)
+            inferred = _infer_sentiment_from_conversation(conversation_for_sentiment)
+            if inferred:
+                sentiment = inferred
+                if session:
+                    ctx["sentiment"] = sentiment
+                    session.context_data = ctx
+                    session.save(update_fields=["context_data"])
+
+        product_context = (getattr(current_node, "product_context", None) or "").strip()
+        # Market target for greeting/tone/nicknames: from ai_model_config["market"] or node_language (AR_MA -> MA, AR_SA -> SA)
+        ai_config = getattr(current_node, "ai_model_config", None) or {}
+        market = (ai_config.get("market") or "").strip().upper()
+        if not market and getattr(current_node, "node_language", None):
+            lang = (current_node.node_language or "").strip().upper()
+            if lang.startswith("AR_SA") or lang == "SA":
+                market = "SA"
+            elif lang.startswith("AR_MA") or lang == "MA":
+                market = "MA"
+        if market not in ("MA", "SA", "GCC"):
+            market = "MA"
+        conversation = get_conversation_history(sender, channel)
+        if not conversation or conversation[-1].get("role") != "customer":
+            conversation = conversation or []
+            conversation.append({"role": "customer", "body": ""})
+        custom_instruction = None
+        persona = getattr(current_node, "persona", None)
+        if persona and getattr(persona, "behavioral_instructions", None):
+            identity = (persona.behavioral_instructions or "").strip()
+            product_block = f"Product Info: {product_context}" if product_context else "Product Info: (use conversation context)."
+            custom_instruction = (
+                f"Identity: {identity}. {product_block} "
+                "Task: Respond to the customer as this specific persona. Match their tone but stay true to your identity."
+            )
+        if _conversation_already_has_order_confirmation(conversation):
+            post_order_note = (
+                
+                "The customer already placed an order in this chat (order was confirmed). "
+                "Do NOT repeat 'تم تسجيل طلبك. سنتواصل معك قريباً.' or any order confirmation. "
+                "Answer their current question (e.g. delivery, another product, timing) normally."
+            )
+            custom_instruction = (custom_instruction + " " + post_order_note) if custom_instruction else post_order_note
+        # Agent name: when voice reply is on use persona name or Chuck; when off use a random name (AI thinks as human)
+        response_mode = getattr(current_node, "response_mode", None) or ""
+        voice_enabled_legacy = getattr(current_node, "voice_enabled", False)
+        voice_reply_on = (response_mode == "AUDIO_ONLY") or (response_mode == "AUTO_SMART") or voice_enabled_legacy
+        agent_name = get_agent_name_for_node(voice_reply_on, persona, market=market)
+        trust_score = get_trust_score(channel.id, sender) if channel else 0
+
+        if state_header is None and product_context:
+            state_header = _build_state_header_from_product_context(
+                product_context, sales_stage=sales_stage, sentiment=sentiment
+            )
+
+        media_context = None
+        store = getattr(channel, "owner", None) if channel else None
+        allow_multi_modal = store and getattr(store, "is_feature_allowed", None) and store.is_feature_allowed("multi_modal")
+        if allow_multi_modal:
+            try:
+                media_assets = list(getattr(current_node, "media_assets", []).all())
+                if media_assets:
+                    lines = []
+                    for m in media_assets:
+                        lines.append(f"ID {m.id}: {m.get_file_type_display()} – {m.description or m.file.name or 'Media'}")
+                    media_context = "You have the following media assets to show the customer:\n" + "\n".join(lines)
+            except Exception:
+                pass
+        # Product photo from catalog: when AI node has a selected product with image, AI can send it via [SEND_PRODUCT_IMAGE]
+        try:
+            ai_cfg = getattr(current_node, "ai_model_config", None) or {}
+            product_id = ai_cfg.get("product_id") if isinstance(ai_cfg, dict) else None
+            if product_id is not None:
+                first_img = ProductImage.objects.filter(product_id=int(product_id)).order_by("order", "id").first()
+                if first_img and first_img.image:
+                    product_photo_line = (
+                        "Product photo (from catalog): When the customer asks for a photo/image/picture of the product, "
+                        "include [SEND_PRODUCT_IMAGE] in your reply to send it. You may add a short caption."
+                    )
+                    media_context = (media_context + "\n\n" + product_photo_line) if media_context else product_photo_line
+        except (TypeError, ValueError, AttributeError):
+            pass
+
+        # Intelligent Handover (Supervisor Agent): analyze intent & bot performance before calling GPT
+        handover, handover_reason = should_handover(conversation, market=market, use_llm_intent=True)
+        if handover:
+            handover_text = get_handover_message(market)
+            result = {
+                "reply": handover_text,
+                "stage": None,
+                "handover": True,
+                "handover_reason": (handover_reason or "Customer asked for human").strip() or "Customer asked for human",
+                "tool_calls": [],
+                "raw_message": {},
+                "prompt_tokens": 0,
+                "completion_tokens": 0,
+                "model": None,
+            }
+        else:
+            result = generate_reply_with_tools(
+                conversation,
+                custom_instruction=custom_instruction,
+                product_context=product_context or None,
+                trust_score=trust_score,
+                media_context=media_context,
+                state_header=state_header,
+                sales_stage=sales_stage,
+                sentiment=sentiment,
+                market=market,
+                agent_name=agent_name,
+            )
+        tool_calls_for_info = [tc for tc in (result.get("tool_calls") or []) if tc.get("name") in ("check_stock", "apply_discount", "track_order")]
+        first_result_order_tools = [tc for tc in (result.get("tool_calls") or []) if tc.get("name") in ("save_order", "record_order")]
+        if tool_calls_for_info and channel:
+            raw_msg = result.get("raw_message") or {}
+            tool_calls_from_api = raw_msg.get("tool_calls") or []
+            tool_results = []
+            for tc in tool_calls_from_api:
+                tcid = tc.get("id")
+                fn = tc.get("function", {})
+                name = fn.get("name")
+                try:
+                    args = json.loads(fn.get("arguments") or "{}")
+                except Exception:
+                    args = {}
+                if name == "check_stock":
+                    content = _execute_check_stock(
+                        channel,
+                        product_id=args.get("product_id"),
+                        sku=args.get("sku"),
+                    )
+                    tool_results.append({"tool_call_id": tcid, "content": content})
+                elif name == "apply_discount":
+                    content = _execute_apply_discount(channel, args.get("coupon_code"))
+                    tool_results.append({"tool_call_id": tcid, "content": content})
+                elif name == "track_order":
+                    content = _execute_track_order(channel, args.get("customer_phone") or sender)
+                    tool_results.append({"tool_call_id": tcid, "content": content})
+            if tool_results:
+                try:
+                    result = continue_after_tool_calls(
+                        conversation,
+                        first_assistant_message=raw_msg,
+                        tool_results=tool_results,
+                        custom_instruction=custom_instruction,
+                        product_context=product_context or None,
+                        trust_score=trust_score,
+                        media_context=media_context,
+                        state_header=state_header,
+                        sales_stage=sales_stage,
+                        sentiment=sentiment,
+                        market=market,
+                        agent_name=agent_name,
+                    )
+                    # Preserve save_order/record_order from first response so they are still executed
+                    if first_result_order_tools:
+                        result["tool_calls"] = list(result.get("tool_calls") or []) + first_result_order_tools
+                except Exception as cont_err:
+                    logger.warning("continue_after_tool_calls failed: %s", cont_err)
+
+        reply_text = (result.get("reply") or "").strip()
+        current_stage = result.get("stage")
+        # Do not hand over when last message is price/quality objection or "you don't understand" (sales agent handles: value + ask to rephrase)
+        if result.get("handover") and conversation:
+            last_user_msg = None
+            for m in reversed(conversation):
+                if m.get("role") == "customer":
+                    last_user_msg = (m.get("body") or "").strip()
+                    break
+            if last_user_msg and (_is_price_or_quality_objection(last_user_msg) or _is_misunderstand_message(last_user_msg)):
+                result = dict(result)
+                result["handover"] = False
+                result["handover_reason"] = ""
+        if session:
+            ctx = getattr(session, "context_data", None) or {}
+            if current_stage:
+                ctx["sales_stage"] = current_stage
+            if sentiment:
+                ctx["sentiment"] = sentiment
+            if ctx != (getattr(session, "context_data", None) or {}):
+                session.context_data = ctx
+                session.save(update_fields=["context_data"])
+        # HITL: If AI requested handover, disable AI for this session and notify merchant
+        if result.get("handover") and channel and sender:
+            handover_reason = (result.get("handover_reason") or "Customer asked for human").strip() or "Customer asked for human"
+            try:
+                session, _ = ChatSession.objects.get_or_create(
+                    channel=channel,
+                    customer_phone=sender,
+                    defaults={"active_node": current_node, "is_expired": False, "ai_enabled": True},
+                )
+                session.ai_enabled = False
+                session.handover_reason = handover_reason[:120]
+                session.save(update_fields=["ai_enabled", "handover_reason"])
+                from discount.models import HandoverLog
+                HandoverLog.objects.create(channel=channel, customer_phone=sender, reason=session.handover_reason)
+                # Private note in chat: why the AI handed over (visible to team only, not to customer)
+                handover_note_body = f"AI handed over to human: {session.handover_reason}"
+                Message.objects.create(
+                    channel=channel,
+                    sender=sender,
+                    body=handover_note_body,
+                    type="note",
+                    is_internal=True,
+                    is_from_me=True,
+                    status="read",
+                )
+                team_id = getattr(channel, "owner_id", None) or (getattr(channel, "owner", None) and getattr(channel.owner, "id", None))
+                if team_id:
+                    send_socket(
+                        "handover",
+                        {
+                            "channel_id": channel.id,
+                            "customer_phone": sender,
+                            "reason": session.handover_reason,
+                            "message": reply_text[:200] if reply_text else "",
+                        },
+                        group_name=f"team_updates_{team_id}",
+                    )
+            except Exception as hitl_err:
+                logger.warning("HITL handover update: %s", hitl_err)
+        if current_stage and channel:
+            cache.set(f"sales_stage:{channel.id}:{sender}", current_stage, timeout=3600)
+
+        saved_order = None
+        if channel and getattr(channel, "ai_order_capture", True):
+            for tc in result.get("tool_calls") or []:
+                if tc.get("name") in ("save_order", "record_order"):
+                    args = tc.get("arguments") or {}
+                    args.setdefault("customer_phone", sender)
+                    if "address" in args and not args.get("customer_city"):
+                        args["customer_city"] = args.get("address")
+                    if should_accept_order_data(conversation, args, current_stage=current_stage, trust_score=trust_score):
+                        with db_transaction.atomic():
+                            args.setdefault("agent_name", agent_name)
+                            args.setdefault("bot_session_id", f"{getattr(channel, 'id', '')}:{sender}"[:100])
+                            saved_order = save_order_from_ai(channel, **args)
+                        if saved_order:
+                            order_was_saved = True
+                    else:
+                        logger.warning(
+                            "Order not saved (tool_calls save_order/record_order rejected): channel=%s sender=%s trust_score=%s stage=%r; should_accept_order_data returned False.",
+                            channel.id if channel else None,
+                            sender,
+                            trust_score,
+                            current_stage,
+                        )
+
+        if reply_text and channel and getattr(channel, "ai_order_capture", True):
+            reply_text, order_data = extract_order_data_from_reply(reply_text)
+            if order_data and should_accept_order_data(conversation, order_data, current_stage=current_stage, trust_score=trust_score):
+                with db_transaction.atomic():
+                    saved_order = save_order_from_ai(
+                        channel,
+                        customer_phone=sender,
+                        customer_name=order_data.get("name"),
+                        customer_city=order_data.get("city") or order_data.get("address"),
+                        sku=order_data.get("sku") or None,
+                        product_name=order_data.get("product_name") or None,
+                        agent_name=agent_name,
+                        bot_session_id=f"{getattr(channel, 'id', '')}:{sender}"[:100],
+                    )
+                if saved_order:
+                    order_was_saved = True
+            elif order_data:
+                logger.warning(
+                    "Order not saved (ORDER_DATA rejected): channel=%s sender=%s trust_score=%s stage=%r; should_accept_order_data returned False.",
+                    channel.id if channel else None,
+                    sender,
+                    trust_score,
+                    current_stage,
+                )
+            elif looks_like_order_confirmation_without_data(reply_text):
+                # Fail-safe: AI said "order registered" but [ORDER_DATA] tag was missing or invalid — Incomplete Capture
+                logger.warning(
+                    "Incomplete Capture: AI replied with order confirmation but no valid [ORDER_DATA] (channel=%s, sender=%s). Forcing retry.",
+                    channel.id if channel else None,
+                    sender,
+                )
+                reply_text = (
+                    "عذراً، لم نستلم تفاصيل التوصيل كاملة. من فضلك أرسل الاسم الكامل، المدينة، والعنوان مرة أخرى."
+                    " (Sorry, we didn’t get full delivery details. Please send full name, city, and address again.)"
+                )
+
+        if channel:
+            if order_was_saved:
+                reset_trust_score(channel.id, sender)
+                expire_chat_session(channel, sender)
+                # Trigger Google Sheets sync when order was saved via AI (uses channel.owner config; idempotent)
+                if saved_order and getattr(saved_order, "pk", None):
+                    try:
+                        from discount.services.google_sheets_service import sync_order_to_google_sheets
+                        import threading
+                        def _sync_saved_order():
+                            try:
+                                sync_order_to_google_sheets(saved_order.pk)
+                            except Exception as e:
+                                logger.warning("Google Sheets sync after AI order (order_id=%s): %s", saved_order.pk, e)
+                        t = threading.Thread(target=_sync_saved_order, daemon=True)
+                        t.start()
+                    except Exception as sheet_err:
+                        logger.warning("Google Sheets export after AI order: %s", sheet_err)
+                # Legacy: flow-based export when flow/user exist (may duplicate if same config)
+                try:
+                    flow = getattr(current_node, "flow", None)
+                    user = getattr(flow, "user", None) if flow else None
+                    if flow and user and (not saved_order or not getattr(saved_order, "pk", None)):
+                        _run_google_sheets_export(current_node, flow, sender, channel, user)
+                except Exception as sheet_err:
+                    logger.warning("Google Sheets export (flow) after AI order: %s", sheet_err)
+            else:
+                increment_trust_score(channel.id, sender)
+        if order_was_saved and saved_order:
+            reply_text = format_order_confirmation(saved_order)
+        if not reply_text:
+            reply_text = "تم تسجيل طلبك. سنتواصل معك قريباً."
+
+        reply_text, send_media_ids = parse_and_strip_send_media(reply_text)
+        reply_text, send_product_image = parse_and_strip_send_product_image(reply_text)
+        base_url = (getattr(settings, "SITE_URL", "") or "").rstrip("/")
+        VIDEO_SIZE_LIMIT = 16 * 1024 * 1024
+        for mid in send_media_ids:
+            if not allow_multi_modal:
+                continue
+            try:
+                media_obj = NodeMedia.objects.filter(id=mid, node=current_node).first()
+                if media_obj and media_obj.file:
+                    fallback_caption = (media_obj.description or "").strip() or "صورة/فيديو من المنتج"
+                    is_video = (media_obj.file_type or "").lower() == "video"
+                    file_size = getattr(media_obj.file, "size", None) or 0
+                    if is_video and file_size > VIDEO_SIZE_LIMIT:
+                        output_messages.append({"type": "text", "content": fallback_caption, "delay": 0})
+                        continue
+                    media_url = base_url + media_obj.file.url if base_url else media_obj.file.url
+                    msg_type = "video" if is_video else "image"
+                    output_messages.append({
+                        "type": msg_type, "media_url": media_url, "content": "",
+                        "delay": 0, "fallback_caption": fallback_caption,
+                    })
+            except Exception as me:
+                logger.warning("SEND_MEDIA %s failed: %s", mid, me)
+        if send_product_image and current_node:
+            try:
+                ai_cfg = getattr(current_node, "ai_model_config", None) or {}
+                product_id = ai_cfg.get("product_id") if isinstance(ai_cfg, dict) else None
+                if product_id is not None:
+                    first_img = ProductImage.objects.filter(product_id=int(product_id)).order_by("order", "id").first()
+                    if first_img and first_img.image:
+                        media_url = base_url + first_img.image.url if base_url else first_img.image.url
+                        output_messages.append({
+                            "type": "image", "media_url": media_url, "content": "",
+                            "delay": 0, "fallback_caption": "صورة المنتج",
+                        })
+            except Exception as pe:
+                logger.warning("SEND_PRODUCT_IMAGE failed: %s", pe)
+
+        response_mode = getattr(current_node, "response_mode", None) or ""
+        voice_enabled_legacy = getattr(current_node, "voice_enabled", False)
+        word_count = len((reply_text or "").split())
+        use_voice = (
+            (response_mode == "AUDIO_ONLY") or
+            (response_mode == "AUTO_SMART" and word_count >= 15) or
+            (response_mode not in ("TEXT_ONLY", "AUDIO_ONLY", "AUTO_SMART") and voice_enabled_legacy)
+        )
+
+        if reply_text:
+            if use_voice and channel:
+                try:
+                    from discount.whatssapAPI.voice_engine import generate_voice
+                    from django.core.files.storage import default_storage
+                    import uuid
+                    voice_settings = _voice_settings_for_node(channel, current_node)
+                    audio_path = generate_voice(reply_text, voice_settings)
+                    if audio_path and os.path.exists(audio_path):
+                        name = f"flow_audio/{uuid.uuid4().hex}.mp3"
+                        with open(audio_path, "rb") as f:
+                            default_storage.save(name, f)
+                        try:
+                            os.remove(audio_path)
+                        except OSError:
+                            pass
+                        media_url = (base_url + default_storage.url(name).lstrip("/")) if base_url else default_storage.url(name)
+                        output_messages.append({"type": "audio", "media_url": media_url, "content": "", "delay": current_node.delay or 0})
+                    else:
+                        output_messages.append({"type": "text", "content": reply_text, "delay": current_node.delay or 0})
+                except Exception as ve:
+                    logger.exception("AI_AGENT voice fallback: %s", ve)
+                    output_messages.append({"type": "text", "content": reply_text, "delay": current_node.delay or 0})
+            else:
+                output_messages.append({"type": "text", "content": reply_text, "delay": current_node.delay or 0})
+    except Exception as e:
+        logger.exception("run_ai_agent_node failed: %s", e)
+    return output_messages
 
 
 def execute_flow(flow, sender, channel=None, user=None):
@@ -756,6 +1557,25 @@ def execute_flow(flow, sender, channel=None, user=None):
                         "delay": 0
                     })
 
+            # AI AGENT (delegate to run_ai_agent_node; session expiry on order is handled inside)
+            elif current_node.node_type == "ai-agent":
+                output_messages.extend(run_ai_agent_node(current_node, sender, channel, state_header=None))
+
+            # FOLLOW-UP NODE: schedule task only; no immediate message
+            elif current_node.node_type == "follow-up":
+                try:
+                    from discount.whatssapAPI.follow_up import create_follow_up_task
+                    create_follow_up_task(current_node, channel, sender)
+                except Exception as e:
+                    logger.warning("create_follow_up_task: %s", e)
+
+            # GOOGLE SHEETS NODE: export order/conversation data asynchronously (no immediate message)
+            elif current_node.node_type == "google-sheets":
+                try:
+                    _run_google_sheets_export(current_node, flow, sender, channel, user)
+                except Exception as e:
+                    logger.warning("Google Sheets export: %s", e)
+
             # Get next node
             next_conn = connections.filter(from_node=current_node).first()
             if not next_conn:
@@ -771,6 +1591,301 @@ def execute_flow(flow, sender, channel=None, user=None):
         import traceback
         traceback.print_exc()
         return None
+
+
+def _build_order_data_for_sheets(channel, sender):
+    """
+    Build a flat dict for Google Sheets export from ChatSession.context_data and latest SimpleOrder.
+    Keys should match column_mapping variable names (e.g. customer_name, phone, city, total_price).
+    """
+    from discount.models import SimpleOrder
+    data = {}
+    if channel:
+        session = get_active_session(channel, sender)
+        if session and getattr(session, "context_data", None):
+            data.update(session.context_data)
+        latest = (
+            SimpleOrder.objects.filter(channel=channel, customer_phone=sender)
+            .order_by("-created_at")
+            .first()
+        )
+        if latest:
+            data.setdefault("customer_name", latest.customer_name)
+            data.setdefault("customer_phone", latest.customer_phone)
+            data.setdefault("phone", latest.customer_phone)
+            data.setdefault("customer_city", latest.customer_city)
+            data.setdefault("city", latest.customer_city)
+            data.setdefault("address", latest.customer_city)
+            data.setdefault("customer_country", latest.customer_country)
+            data.setdefault("product_name", latest.product_name)
+            data.setdefault("product", latest.product_name)
+            data.setdefault("price", latest.price)
+            data.setdefault("quantity", latest.quantity)
+            if latest.price is not None and latest.quantity is not None:
+                try:
+                    data.setdefault("total_price", float(latest.price) * float(latest.quantity))
+                except (TypeError, ValueError):
+                    data.setdefault("total_price", latest.price)
+            data.setdefault("order_id", latest.order_id)
+            data.setdefault("sku", latest.sku)
+    data.setdefault("phone", sender)
+    data.setdefault("customer_phone", sender)
+    return data
+
+
+def _run_google_sheets_export(current_node, flow, sender, channel, user):
+    """
+    Run Google Sheets export in a background thread so the WhatsApp flow is not blocked.
+    Uses flow.user's GoogleSheetsConfig and Global Service Account (or per-user credentials).
+    """
+    from discount.models import GoogleSheetsConfig, GoogleSheetsNode, SimpleOrder
+    from discount.services.google_sheets_service import export_to_google_sheets, get_client_for_config
+
+    config = None
+    try:
+        config = getattr(flow, "user", None) and GoogleSheetsConfig.objects.filter(user=flow.user).first()
+    except Exception:
+        pass
+    if not config or not (getattr(config, "spreadsheet_id", None) or "").strip():
+        logger.info("Google Sheets node: no config or spreadsheet_id for user %s", getattr(flow.user_id, "", ""))
+        return
+    if not get_client_for_config(config):
+        logger.info("Google Sheets node: no credentials (set GOOGLE_SHEETS_CREDENTIALS_JSON or add credentials) for user %s", getattr(flow.user_id, "", ""))
+        return
+    order_data = _build_order_data_for_sheets(channel, sender)
+    latest_order = None
+    if channel:
+        latest_order = (
+            SimpleOrder.objects.filter(channel=channel, customer_phone=sender)
+            .order_by("-created_at")
+            .first()
+        )
+        if latest_order:
+            try:
+                latest_order.sheets_export_status = "pending"
+                latest_order.save(update_fields=["sheets_export_status"])
+            except Exception:
+                pass
+
+    def _do_export():
+        try:
+            export_to_google_sheets(
+                user_id=flow.user_id,
+                order_data=order_data,
+                config=config,
+                order_instance=latest_order,
+            )
+        except Exception as e:
+            logger.exception("Google Sheets export (background): %s", e)
+            if latest_order:
+                try:
+                    latest_order.sheets_export_status = "failed"
+                    latest_order.save(update_fields=["sheets_export_status"])
+                except Exception:
+                    pass
+
+    t = threading.Thread(target=_do_export, daemon=True)
+    t.start()
+
+
+def get_conversation_history(sender, channel, limit=25):
+    """Build conversation_messages for GPT from Message model (sender + channel)."""
+    qs = Message.objects.filter(sender=sender).order_by("-timestamp")
+    if channel:
+        qs = qs.filter(channel=channel)
+    messages = list(qs[:limit])
+    messages.reverse()
+    return [
+        {"role": "agent" if m.is_from_me else "customer", "body": (m.body or "").strip() or "[media]"}
+        for m in messages
+    ]
+
+
+def try_ai_voice_reply(sender, body, channel):
+    """
+    When no flow matches: if channel.ai_auto_reply is on, get GPT sales-agent reply
+    (with optional save_order and [ORDER_DATA: ...] tag), then send as voice (with
+    channel.voice_delay_seconds) or text. Fallback to text if TTS fails.
+    Hard-guard: plan must allow auto_reply and (if voice) ai_voice at execution time.
+    """
+    if not channel:
+        return
+    ai_on = getattr(channel, "ai_auto_reply", False)
+    if not ai_on and not os.environ.get("AI_VOICE_AUTO_REPLY_ENABLED", "").strip().lower() in ("1", "true", "yes"):
+        return
+    store = getattr(channel, "owner", None)
+    try:
+        from django.core.exceptions import PermissionDenied
+        from discount.services.security_check import verify_plan_access, FEATURE_AUTO_REPLY, FEATURE_AI_VOICE
+        verify_plan_access(store, FEATURE_AUTO_REPLY)
+    except PermissionDenied:
+        logger.info("AI auto-reply skipped: plan does not allow auto_reply")
+        return
+    except ImportError as e:
+        logger.warning("AI voice reply imports failed: %s", e)
+        return
+    try:
+        from discount.whatssapAPI.voice_engine import generate_audio_file, process_and_send_voice
+        from discount.orders_ai import (
+            save_order_from_ai,
+            extract_order_data_from_reply,
+            is_order_cap_reached,
+            should_accept_order_data,
+            get_trust_score,
+            increment_trust_score,
+            reset_trust_score,
+            looks_like_order_confirmation_without_data,
+        )
+        from ai_assistant.services import generate_reply_with_tools
+    except ImportError as e:
+        logger.warning("AI voice reply imports failed: %s", e)
+        return
+
+    conversation = get_conversation_history(sender, channel)
+    if not conversation or conversation[-1].get("role") != "customer":
+        conversation.append({"role": "customer", "body": body or ""})
+
+    custom_instruction = None
+    if is_order_cap_reached(channel):
+        custom_instruction = (
+            "The store's monthly order limit has been reached. Do not call save_order and do not add [ORDER_DATA: ...]. "
+            "Politely tell the customer that the store will get back to them."
+        )
+    if _conversation_already_has_order_confirmation(conversation):
+        post_order_note = (
+            "The customer already placed an order in this chat. Do NOT repeat 'تم تسجيل طلبك. سنتواصل معك قريباً.'. "
+            "Answer their current question (e.g. delivery, another product) normally."
+        )
+        custom_instruction = (custom_instruction + " " + post_order_note) if custom_instruction else post_order_note
+
+    trust_score = get_trust_score(channel.id, sender)
+    try:
+        result = generate_reply_with_tools(
+            conversation,
+            custom_instruction=custom_instruction,
+            product_context=None,
+            trust_score=trust_score,
+        )
+    except Exception as e:
+        logger.exception("generate_reply_with_tools failed: %s", e)
+        return
+
+    # Execute info tools (track_order, check_stock, apply_discount) and get final reply
+    tool_calls = result.get("tool_calls") or []
+    info_tools = [tc for tc in tool_calls if tc.get("name") in ("track_order", "check_stock", "apply_discount")]
+    if info_tools and channel:
+        raw_msg = result.get("raw_message") or {}
+        tool_calls_from_api = raw_msg.get("tool_calls") or []
+        tool_results = []
+        for tc in tool_calls_from_api:
+            tcid = tc.get("id")
+            fn = tc.get("function", {})
+            name = fn.get("name")
+            try:
+                args = json.loads(fn.get("arguments") or "{}")
+            except Exception:
+                args = {}
+            if name == "track_order":
+                content = _execute_track_order(channel, args.get("customer_phone") or sender)
+                tool_results.append({"tool_call_id": tcid, "content": content})
+            elif name == "check_stock":
+                content = _execute_check_stock(channel, product_id=args.get("product_id"), sku=args.get("sku"))
+                tool_results.append({"tool_call_id": tcid, "content": content})
+            elif name == "apply_discount":
+                content = _execute_apply_discount(channel, args.get("coupon_code"))
+                tool_results.append({"tool_call_id": tcid, "content": content})
+        if tool_results:
+            try:
+                from ai_assistant.services import continue_after_tool_calls
+                result = continue_after_tool_calls(
+                    conversation,
+                    first_assistant_message=raw_msg,
+                    tool_results=tool_results,
+                    custom_instruction=custom_instruction,
+                    product_context=None,
+                    trust_score=trust_score,
+                )
+                order_tools = [t for t in tool_calls if t.get("name") in ("save_order", "record_order")]
+                if order_tools:
+                    result["tool_calls"] = list(result.get("tool_calls") or []) + order_tools
+            except Exception as cont_err:
+                logger.warning("continue_after_tool_calls (voice) failed: %s", cont_err)
+
+    reply_text = (result.get("reply") or "").strip()
+    current_stage = result.get("stage")
+    order_was_saved = False
+    saved_order = None
+    for tc in result.get("tool_calls") or []:
+        if tc.get("name") == "save_order" and getattr(channel, "ai_order_capture", True):
+            args = tc.get("arguments") or {}
+            args.setdefault("customer_phone", sender)
+            args.setdefault("agent_name", "AI Agent")
+            args.setdefault("bot_session_id", f"{getattr(channel, 'id', '')}:{sender}"[:100])
+            if should_accept_order_data(conversation, args, current_stage=current_stage, trust_score=trust_score):
+                saved_order = save_order_from_ai(channel, **args)
+                if saved_order:
+                    order_was_saved = True
+
+    reply_text, order_data = extract_order_data_from_reply(reply_text)
+    if order_data and getattr(channel, "ai_order_capture", True) and should_accept_order_data(conversation, order_data, current_stage=current_stage, trust_score=trust_score):
+        saved_order = save_order_from_ai(
+            channel,
+            customer_phone=sender,
+            customer_name=order_data.get("name"),
+            customer_city=order_data.get("city") or order_data.get("address"),
+            sku=order_data.get("sku") or None,
+            product_name=order_data.get("product_name") or None,
+            agent_name="AI Agent",
+            bot_session_id=f"{getattr(channel, 'id', '')}:{sender}"[:100],
+        )
+        if saved_order:
+            order_was_saved = True
+    elif looks_like_order_confirmation_without_data(reply_text):
+        reply_text = (
+            "عذراً، لم نستلم تفاصيل التوصيل كاملة. من فضلك أرسل الاسم الكامل، المدينة، والعنوان مرة أخرى."
+            " (Sorry, we didn't get full delivery details. Please send full name, city, and address again.)"
+        )
+
+    if order_was_saved:
+        reset_trust_score(channel.id, sender)
+        expire_chat_session(channel, sender)
+        if saved_order and getattr(saved_order, "pk", None):
+            try:
+                from discount.services.google_sheets_service import sync_order_to_google_sheets
+                import threading
+                def _sync_saved_order_voice():
+                    try:
+                        sync_order_to_google_sheets(saved_order.pk)
+                    except Exception as e:
+                        logger.warning("Google Sheets sync after AI order (voice path order_id=%s): %s", saved_order.pk, e)
+                threading.Thread(target=_sync_saved_order_voice, daemon=True).start()
+            except Exception as e:
+                logger.warning("Google Sheets export after AI order (voice): %s", e)
+    else:
+        increment_trust_score(channel.id, sender)
+
+    if order_was_saved and saved_order:
+        reply_text = format_order_confirmation(saved_order)
+    if not reply_text and (result.get("tool_calls") or order_data):
+        reply_text = "تم تسجيل طلبك. سنتواصل معك قريباً."
+
+    if not reply_text:
+        return
+
+    use_voice = getattr(channel, "ai_voice_enabled", False)
+    if use_voice:
+        try:
+            verify_plan_access(store, FEATURE_AI_VOICE)
+        except PermissionDenied:
+            use_voice = False
+    if use_voice:
+        try:
+            process_and_send_voice(sender, reply_text, channel, send_whatsapp_audio_file)
+        except Exception as e:
+            logger.warning("process_and_send_voice failed, falling back to text: %s", e)
+            send_automated_response(sender, [{"type": "text", "content": reply_text}], channel=channel)
+    else:
+        send_automated_response(sender, [{"type": "text", "content": reply_text}], channel=channel)
 
 
 
@@ -919,9 +2034,9 @@ def whatsapp_webhook(request):
     elif request.method == "POST":
         try:
             data = json.loads(request.body.decode("utf-8"))
-            print('👀🥰😘 recived' , data)
+            
         
-            print("📨 Received WhatsApp webhook:", data) 
+              
             for entry in data.get("entry", []):
                 for change in entry.get("changes", []):
                     value = change.get("value", {})
@@ -1005,6 +2120,77 @@ def process_messages(messages , channel = None , name = None):
             message_type = msg.get("type", "text")
             body = ""
             is_referral = False
+            body_override = None
+            transcription_failed = False
+
+            # --- AI Ears: Audio (STT) and Image (Vision) ---
+            access_token = None
+            if channel and getattr(channel, "access_token", None):
+                access_token = channel.access_token
+            if not access_token:
+                access_token = ACCESS_TOKEN
+
+            if message_type in ("audio", "voice") and access_token:
+                # Full Autopilot must be on to run Whisper (no transcription when autopilot is off)
+                if channel and not getattr(channel, "ai_auto_reply", False):
+                    pass  # Skip STT entirely: no download, no Whisper, no clean_transcription
+                else:
+                    media_id = (msg.get("voice") or msg.get("audio") or {}).get("id")
+                    if media_id:
+                        media_content = download_whatsapp_media(media_id, access_token)
+                        if media_content:
+                            try:
+                                from ai_assistant.stt_service import (
+                                    transcribe_audio,
+                                    clean_transcription,
+                                    STT_UNINTELLIGIBLE,
+                                )
+                                # Use active session node language or channel default for STT
+                                voice_language_hint = "AUTO"
+                                if channel and sender:
+                                    sess = get_active_session(channel, sender)
+                                    if sess and getattr(sess, "active_node", None):
+                                        voice_language_hint = (
+                                            getattr(sess.active_node, "node_language", None) or ""
+                                        ).strip() or getattr(channel, "voice_language", "AUTO")
+                                    else:
+                                        voice_language_hint = getattr(channel, "voice_language", "AUTO")
+                                body_override = transcribe_audio(
+                                    media_content,
+                                    voice_language_hint=voice_language_hint,
+                                )
+                                if body_override == STT_UNINTELLIGIBLE:
+                                    body_override = ""
+                                    transcription_failed = True
+                                elif body_override and body_override.strip():
+                                    body_override = clean_transcription(
+                                        body_override,
+                                        target_language=voice_language_hint or "AUTO",
+                                    )
+                            except Exception as e:
+                                logger.exception("STT transcribe_audio: %s", e)
+                            if body_override is None:
+                                body_override = ""
+                                transcription_failed = True
+                        else:
+                            transcription_failed = True
+                    else:
+                        transcription_failed = True
+                    if body_override is not None:
+                        body = body_override
+
+            elif message_type == "image" and access_token:
+                media_id = (msg.get("image") or {}).get("id")
+                if media_id:
+                    media_content = download_whatsapp_media(media_id, access_token)
+                    if media_content:
+                        try:
+                            from ai_assistant.vision_service import analyze_image
+                            body_override = analyze_image(media_content)
+                        except Exception as e:
+                            logger.exception("Vision analyze_image: %s", e)
+                        if body_override:
+                            body = body_override
 
             # --- استخراج محتوى الرسالة بذكاء ---
             
@@ -1044,35 +2230,149 @@ def process_messages(messages , channel = None , name = None):
 
             
             print(f"📩 Processing from {sender}: '{body}' (Type: {message_type}, Referral: {is_referral})")
+
+            # Stop logic: cancel any pending follow-up tasks when customer replies
+            if channel and sender:
+                try:
+                    from discount.whatssapAPI.follow_up import cancel_pending_follow_up_tasks_for_customer
+                    cancel_pending_follow_up_tasks_for_customer(channel, sender)
+                except Exception as e:
+                    logger.warning("cancel_pending_follow_up_tasks_for_customer: %s", e)
             
-            # حفظ الرسالة (تأكد من أن دالة الحفظ لديك تدعم الحقول الفارغة)
-            save_incoming_message(msg , message_type = message_type ,  channel = channel , name =name ) 
+            # حفظ الرسالة (مع نص من STT/Vision إن وجد)
+            save_incoming_message(
+                msg, message_type=message_type, channel=channel, name=name,
+                body_override=body_override if body_override is not None else None,
+            )
+
+            # Full Autopilot must be on to send any automated reply (trigger match, session, or fallback)
+            if channel and not getattr(channel, "ai_auto_reply", False):
+                continue
+
+            # HITL gatekeeper: if this session has AI disabled, normally skip AI and notify merchant.
+            # Sales-intent reset: if the customer sends a clear sales/greeting message, re-enable AI so we respond (no repeated handover message).
+            if channel and sender:
+                session_for_hitl = (
+                    ChatSession.objects.filter(channel=channel, customer_phone=sender)
+                    .order_by("-last_interaction")
+                    .first()
+                )
+                if session_for_hitl and not getattr(session_for_hitl, "ai_enabled", True):
+                    try:
+                        from ai_assistant.services import message_shows_sales_intent
+                        if body and message_shows_sales_intent(body):
+                            session_for_hitl.ai_enabled = True
+                            session_for_hitl.handover_reason = ""
+                            session_for_hitl.save(update_fields=["ai_enabled", "handover_reason"])
+                        else:
+                            team_id = getattr(channel, "owner_id", None) or (getattr(channel, "owner", None) and getattr(channel.owner, "id", None))
+                            if team_id:
+                                send_socket(
+                                    "handover_new_message",
+                                    {
+                                        "channel_id": channel.id,
+                                        "customer_phone": sender,
+                                        "reason": getattr(session_for_hitl, "handover_reason", "") or "Human takeover",
+                                    },
+                                    group_name=f"team_updates_{team_id}",
+                                )
+                            continue
+                    except Exception as e:
+                        logger.warning("HITL/sales-intent reset: %s", e)
+                        continue
+
+            # إذا فشل التحويل الصوتي، نرسل رداً ثابتاً ولا نشغل الفلو
+            if transcription_failed:
+                send_automated_response(
+                    sender,
+                    [{"type": "text", "content": "عذراً، لم أسمع المقطع الصوتي جيداً، هل يمكنك إعادة إرساله أو كتابة طلبك؟", "delay": 0}],
+                    channel=channel,
+                )
+                continue
  
             flow = None
-            
-            if is_referral:
 
-                flow = Flow.objects.filter(active=True, trigger_on_start=True).first()
+            if is_referral:
+                flows_start = Flow.objects.filter(active=True, trigger_on_start=True)
+                if channel:
+                    flows_start = flows_start.filter(channel=channel)
+                flow = flows_start.first()
                 if not flow and body:
-                     # إذا لم نجد فلو بداية، نبحث في نص الإعلان
-                     flow = get_matching_flow(sender, body, channel=channel)
+                    flow = get_matching_flow(sender, body, channel=channel)
             else:
-                # رسالة عادية
                 flow = get_matching_flow(sender, body, channel=channel)
-            
-            # --- التنفيذ ---
-            if flow:
-                print(f"🚀 Executing Flow: {flow.name}")
-                output_messages = execute_flow(flow, sender, channel=channel)
-                
+
+            # Step A: If trigger matched, check for continuation (same flow already in session)
+            session = get_active_session(channel, sender) if (flow and channel) else None
+            same_flow_continuation = (
+                flow and channel and session and getattr(session, "active_node", None)
+                and getattr(session.active_node, "flow_id", None) == flow.id
+            )
+
+            if same_flow_continuation:
+                # User already in this flow — continue conversation (don't re-run from trigger)
+                try:
+                    session.last_interaction = timezone.now()
+                    session.save(update_fields=["last_interaction"])
+                except Exception:
+                    pass
+                ctx = getattr(session, "context_data", None) or {}
+                state_header = _build_state_header_from_product_context(
+                    getattr(session.active_node, "product_context", None),
+                    sales_stage=ctx.get("sales_stage"),
+                    sentiment=ctx.get("sentiment"),
+                )
+                output_messages = run_ai_agent_node(
+                    session.active_node, sender, channel, state_header=state_header
+                )
                 if output_messages:
                     send_automated_response(sender, output_messages, channel=channel)
-                    
                     flow.usage_count += 1
                     flow.last_used = timezone.now()
                     flow.save()
+                else:
+                    try_ai_voice_reply(sender, body, channel)
+            elif flow:
+                # New trigger or different flow: bind session and run full flow
+                if channel:
+                    ai_node = get_flow_first_ai_agent_node(flow)
+                    if ai_node:
+                        update_chat_session_on_trigger(channel, sender, ai_node)
+                print(f"🚀 Executing Flow: {flow.name}")
+                output_messages = execute_flow(flow, sender, channel=channel)
+
+                if output_messages:
+                    send_automated_response(sender, output_messages, channel=channel)
+                    flow.usage_count += 1
+                    flow.last_used = timezone.now()
+                    flow.save()
+                    # Keep session active (touch) so next message without trigger still finds it
+                    if channel:
+                        _touch_session_last_interaction(channel, sender)
             else:
-                print("ℹ️ No matching flow found.")
+                # Step B: No trigger matched — try active session recovery (continue same product)
+                session = get_active_session(channel, sender) if channel else None
+                if session and getattr(session, "active_node", None):
+                    try:
+                        session.last_interaction = timezone.now()
+                        session.save(update_fields=["last_interaction"])
+                    except Exception:
+                        pass
+                    ctx = getattr(session, "context_data", None) or {}
+                    state_header = _build_state_header_from_product_context(
+                        getattr(session.active_node, "product_context", None),
+                        sales_stage=ctx.get("sales_stage"),
+                        sentiment=ctx.get("sentiment"),
+                    )
+                    output_messages = run_ai_agent_node(
+                        session.active_node, sender, channel, state_header=state_header
+                    )
+                    if output_messages:
+                        send_automated_response(sender, output_messages, channel=channel)
+                    else:
+                        try_ai_voice_reply(sender, body, channel)
+                else:
+                    try_ai_voice_reply(sender, body, channel)
                 
         except Exception as e:
             print(f"❌ Error in process_messages: {e}")
@@ -1102,8 +2402,7 @@ def process_message_statuses(statuses, channel=None) :
             recipient_id = status.get('recipient_id')
             timestamp = status.get('timestamp')
             
-            print(f"📊 Message status: {message_id} -> {status_value}")
-            print("message id"  ,  timestamp)
+            
             
             # تحديث حالة الرسالة في قاعدة البيانات إذا لزم الأمر
             if message_id:
@@ -1161,7 +2460,7 @@ def process_message_statuses(statuses, channel=None) :
 #         )
 
 
-                    print("payload  sent to skovket " ,payload)
+                     
                 except Message.DoesNotExist:
                     pass
                     
@@ -1269,7 +2568,46 @@ def convert_audio_to_ogg(input_path):
         return None
     
 
+def send_whatsapp_audio_file(recipient, audio_path, channel, user=None, group_name=None):
+    """
+    Read local audio file (e.g. from TTS), convert to OGG, send via Meta WhatsApp,
+    then delete temporary file(s). Uses send_message_socket with media_upload.
+    Returns result dict from send_message_socket; caller can check result.get("ok").
+    """
+    if not audio_path or not os.path.exists(audio_path):
+        logger.warning("send_whatsapp_audio_file: missing or invalid audio_path")
+        return {"ok": False, "error": "invalid_path"}
+    user = user or (getattr(channel, "owner", None) if channel else None)
+    group_name = group_name or (f"team_updates_{channel.owner.id}" if channel and getattr(channel, "owner", None) else "webhook_events")
+    temp_ogg_path = None
+    try:
+        temp_ogg_path = convert_audio_to_ogg(audio_path)
+        path_to_send = temp_ogg_path if temp_ogg_path else audio_path
+        with open(path_to_send, "rb") as f:
+            raw_bytes = f.read()
+        b64 = base64.b64encode(raw_bytes).decode("ascii")
+        message = {
+            "data": b64,
+            "filename": "voice_message.ogg",
+            "mime": "audio/ogg",
+            "body": "",
+            "type": "audio",
+        }
+        result = send_message_socket(
+            recipient, user, channel.id, message, "media_upload",
+            group_name=group_name, request=None,
+        )
+        return result
+    finally:
+        for p in (temp_ogg_path, audio_path):
+            try:
+                if p and os.path.exists(p):
+                    os.remove(p)
+            except Exception as e:
+                logger.warning("send_whatsapp_audio_file cleanup %s: %s", p, e)
 
+
+# from process_messages.send_message_socket 
 
 def send_message_socket(sreciver,  user ,channel_id ,  message, msg_type,
                         group_name,
@@ -1603,9 +2941,17 @@ def send_message_socket(sreciver,  user ,channel_id ,  message, msg_type,
                 if media_id:
                     msg_kwargs["media_id"] = media_id
 
-            saved_message = Message.objects.create(channel = channel , **msg_kwargs)
+            saved_message = Message.objects.create(channel=channel, **msg_kwargs)
 
             saved_message_id = saved_message.id
+            if channel and to:
+                try:
+                    session = ChatSession.objects.filter(channel=channel, customer_phone=str(to).strip()).order_by("-last_interaction").first()
+                    if session:
+                        session.last_manual_message_at = timezone.now()
+                        session.save(update_fields=["last_manual_message_at"])
+                except Exception:
+                    pass
             # media_url = ""
              
             if saved_message_id:
@@ -1700,3 +3046,107 @@ def send_message_socket(sreciver,  user ,channel_id ,  message, msg_type,
 
     # للإستخدام الداخلي نعيد dict
     return {"ok": status_code in (200,201), "result": final_payload}
+
+
+# ---------------------------------------------------------------------------
+# HITL: Chat session AI toggle & Re-enable AI API
+# ---------------------------------------------------------------------------
+def _get_channel_for_hitl(request, channel_id):
+    """Resolve channel for current user (for HITL APIs)."""
+    try:
+        from discount.whatssapAPI.views import get_target_channel
+        return get_target_channel(request.user, channel_id)
+    except Exception:
+        return None
+
+
+@require_GET
+def api_chat_session_status(request):
+    """
+    GET ?channel_id=&customer_phone=
+    Returns { ai_enabled, handover_reason } for the chat session (for UI badge and toggle).
+    """
+    from django.contrib.auth.decorators import login_required as _login_required
+    if not getattr(request, "user", None) or not request.user.is_authenticated:
+        return JsonResponse({"error": "Authentication required"}, status=401)
+    channel_id = request.GET.get("channel_id")
+    customer_phone = (request.GET.get("customer_phone") or "").strip()
+    if not channel_id or not customer_phone:
+        return JsonResponse({"ai_enabled": True, "handover_reason": ""})
+    channel = _get_channel_for_hitl(request, channel_id)
+    if not channel:
+        return JsonResponse({"error": "Channel not found"}, status=404)
+    session = (
+        ChatSession.objects.filter(channel=channel, customer_phone=customer_phone)
+        .order_by("-last_interaction")
+        .first()
+    )
+    return JsonResponse({
+        "ai_enabled": getattr(session, "ai_enabled", True) if session else True,
+        "handover_reason": (getattr(session, "handover_reason", None) or "") if session else "",
+    })
+
+
+@require_http_methods(["POST"])
+def api_chat_session_reenable_ai(request):
+    """
+    POST channel_id= & customer_phone=
+    Set ai_enabled=True for this session so the AI resumes. Clears handover_reason.
+    """
+    if not getattr(request, "user", None) or not request.user.is_authenticated:
+        return JsonResponse({"error": "Authentication required"}, status=401)
+    channel_id = request.POST.get("channel_id") or request.GET.get("channel_id")
+    customer_phone = (request.POST.get("customer_phone") or request.GET.get("customer_phone") or "").strip()
+    if not channel_id or not customer_phone:
+        return JsonResponse({"error": "channel_id and customer_phone required"}, status=400)
+    channel = _get_channel_for_hitl(request, channel_id)
+    if not channel:
+        return JsonResponse({"error": "Channel not found"}, status=404)
+    session = (
+        ChatSession.objects.filter(channel=channel, customer_phone=customer_phone)
+        .order_by("-last_interaction")
+        .first()
+    )
+    if session:
+        session.ai_enabled = True
+        session.handover_reason = ""
+        session.save(update_fields=["ai_enabled", "handover_reason"])
+    return JsonResponse({"success": True, "ai_enabled": True})
+
+
+@require_http_methods(["POST"])
+def api_chat_session_toggle_ai(request):
+    """
+    POST channel_id= & customer_phone= & ai_enabled= (true/false)
+    Merchant toggles AI on/off for this chat. When turning off, set last_manual_message_at.
+    """
+    if not getattr(request, "user", None) or not request.user.is_authenticated:
+        return JsonResponse({"error": "Authentication required"}, status=401)
+    channel_id = request.POST.get("channel_id") or request.GET.get("channel_id")
+    customer_phone = (request.POST.get("customer_phone") or request.GET.get("customer_phone") or "").strip()
+    raw = (request.POST.get("ai_enabled") or request.GET.get("ai_enabled") or "true").strip().lower()
+    ai_enabled = raw in ("1", "true", "yes")
+    if not channel_id or not customer_phone:
+        return JsonResponse({"error": "channel_id and customer_phone required"}, status=400)
+    channel = _get_channel_for_hitl(request, channel_id)
+    if not channel:
+        return JsonResponse({"error": "Channel not found"}, status=404)
+    session = (
+        ChatSession.objects.filter(channel=channel, customer_phone=customer_phone)
+        .order_by("-last_interaction")
+        .first()
+    )
+    if not session:
+        session = ChatSession.objects.create(
+            channel=channel,
+            customer_phone=customer_phone,
+            ai_enabled=ai_enabled,
+            last_manual_message_at=timezone.now() if not ai_enabled else None,
+        )
+    else:
+        session.ai_enabled = ai_enabled
+        session.handover_reason = "" if ai_enabled else (session.handover_reason or "Merchant took over")
+        if not ai_enabled:
+            session.last_manual_message_at = timezone.now()
+        session.save(update_fields=["ai_enabled", "handover_reason", "last_manual_message_at"])
+    return JsonResponse({"success": True, "ai_enabled": session.ai_enabled})
