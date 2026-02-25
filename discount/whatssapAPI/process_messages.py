@@ -41,6 +41,33 @@ SEND_MEDIA_RE = re.compile(r"\[SEND_MEDIA:\s*(\d+)\]")
 # Parse [SEND_PRODUCT_IMAGE] from AI reply; return (cleaned_text, True if tag present)
 SEND_PRODUCT_IMAGE_RE = re.compile(r"\[SEND_PRODUCT_IMAGE\]", re.IGNORECASE)
 
+# Phrases that mean "use the phone number from this chat"
+_SAME_NUMBER_PATTERN = re.compile(
+    r"^(same\s*number|this\s*number|the\s*chat\s*number|نفس\s*الرقم|هذا\s*الرقم|رقم\s*الواتساب|رقم\s*الشات|chat\s*number|same\s*as\s*chat|as\s*above)$",
+    re.IGNORECASE,
+)
+
+
+def normalize_customer_phone_for_order(phone_value, chat_sender):
+    """
+    When the customer said the phone is 'the same as in the chat', use the chat sender.
+    Returns chat_sender if phone_value is empty or indicates 'same number'; otherwise returns stripped phone_value.
+    """
+    if not chat_sender:
+        return (phone_value or "").strip() or None
+    raw = (phone_value or "").strip()
+    if not raw:
+        return chat_sender
+    if _SAME_NUMBER_PATTERN.match(raw):
+        return chat_sender
+    # Allow numeric-only (with optional +) as valid phone
+    if re.match(r"^[\d\s\+\-]+$", raw) and len(re.sub(r"\D", "", raw)) >= 8:
+        return raw
+    # If it looks like a phrase rather than a number, treat as "same number"
+    if len(raw) < 6 or not re.search(r"\d{5,}", raw):
+        return chat_sender
+    return raw
+
 
 def parse_and_strip_send_media(text):
     if not text or not isinstance(text, str):
@@ -1324,7 +1351,7 @@ def run_ai_agent_node(current_node, sender, channel, state_header=None):
             for tc in result.get("tool_calls") or []:
                 if tc.get("name") in ("save_order", "record_order"):
                     args = tc.get("arguments") or {}
-                    args.setdefault("customer_phone", sender)
+                    args["customer_phone"] = normalize_customer_phone_for_order(args.get("customer_phone"), sender)
                     if "address" in args and not args.get("customer_city"):
                         args["customer_city"] = args.get("address")
                     if should_accept_order_data(conversation, args, current_stage=current_stage, trust_score=trust_score):
@@ -1848,7 +1875,7 @@ def try_ai_voice_reply(sender, body, channel):
     for tc in result.get("tool_calls") or []:
         if tc.get("name") == "save_order" and getattr(channel, "ai_order_capture", True):
             args = tc.get("arguments") or {}
-            args.setdefault("customer_phone", sender)
+            args["customer_phone"] = normalize_customer_phone_for_order(args.get("customer_phone"), sender)
             args.setdefault("agent_name", "AI Agent")
             args.setdefault("bot_session_id", f"{getattr(channel, 'id', '')}:{sender}"[:100])
             if should_accept_order_data(conversation, args, current_stage=current_stage, trust_score=trust_score):
