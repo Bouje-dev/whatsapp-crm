@@ -2191,7 +2191,12 @@ this.connectionBranch = null;
                     </div>
                     <div class="form-group ai-agent-manual-context-row">
                         <label class="form-label required">Product details (Price, Shipping, Features)</label>
-                        <textarea class="form-textarea ai-agent-product-context" rows="3" placeholder="Product name, SKU, Prices, Shipping (Free/Paid), Market..."></textarea>
+                        <textarea class="form-textarea ai-agent-product-context" rows="3" placeholder="Product name, SKU, Prices, Delivery/Shipping, Market..."></textarea>
+                        <div class="form-group mt-2">
+                            <label class="form-label">Delivery options</label>
+                            <input type="text" class="form-input ai-agent-delivery-options" maxlength="500" placeholder="e.g. Free delivery, 30 MAD, Free above 200 MAD">
+                            <p class="text-muted small mt-1 mb-0" style="font-size:0.75rem;">When the customer asks about delivery, the AI will use this. Filled automatically when you select a product.</p>
+                        </div>
                         <div class="ai-agent-product-summary" style="display:none;">
                             <div class="summary-title">Saved product</div>
                             <div class="summary-row"><strong>Product name:</strong> <span class="ai-agent-summary-name"></span></div>
@@ -2616,6 +2621,7 @@ this.connectionBranch = null;
                                 opt.dataset.price = p.price != null ? String(p.price) : '';
                                 opt.dataset.currency = p.currency || 'MAD';
                                 opt.dataset.description = (p.description || '').slice(0, 500);
+                                opt.dataset.deliveryOptions = (p.delivery_options || '').trim() || '';
                                 sel.appendChild(opt);
                             });
                         } catch (e) {
@@ -2632,22 +2638,27 @@ this.connectionBranch = null;
                             const price = opt.dataset.price || '';
                             const currency = opt.dataset.currency || 'MAD';
                             const desc = opt.dataset.description || '';
+                            const deliveryOpts = (opt.dataset.deliveryoptions || opt.dataset.deliveryOptions || '').trim();
+                            const deliveryLine = deliveryOpts ? deliveryOpts : 'Free or Paid';
                             const lines = [
                                 'Product name: ' + name,
                                 'SKU: ' + sku,
                                 'Prices: ' + (price ? price + ' ' + currency : '—'),
                                 'Description: ' + (desc || '—'),
-                                'Shipping: Free or Paid',
+                                'Delivery: ' + deliveryLine,
                                 'Market: Morocco'
                             ];
                             productContextTa.value = lines.join('\n');
+                            const deliveryInput = nodeElement.querySelector('.ai-agent-delivery-options');
+                            if (deliveryInput) deliveryInput.value = deliveryLine;
                             const summary = nodeElement.querySelector('.ai-agent-product-summary');
                             if (summary) {
                                 const nameSpan = nodeElement.querySelector('.ai-agent-summary-name');
                                 const pricesSpan = nodeElement.querySelector('.ai-agent-summary-prices');
                                 if (nameSpan) nameSpan.textContent = name || '—';
                                 if (pricesSpan) pricesSpan.textContent = (price ? price + ' ' + currency : '—');
-                                nodeElement.querySelector('.ai-agent-summary-shipping') && (nodeElement.querySelector('.ai-agent-summary-shipping').textContent = '—');
+                                const shipEl = nodeElement.querySelector('.ai-agent-summary-shipping');
+                                if (shipEl) shipEl.textContent = deliveryLine || '—';
                                 nodeElement.querySelector('.ai-agent-summary-market') && (nodeElement.querySelector('.ai-agent-summary-market').textContent = 'Morocco');
                                 summary.style.display = 'block';
                             }
@@ -3169,6 +3180,11 @@ this.connectionBranch = null;
                 case 'ai-agent': {
                     const productContextEl = node.querySelector('.ai-agent-product-context');
                     if (productContextEl && content.product_context !== undefined) productContextEl.value = content.product_context || '';
+                    const deliveryOptsEl = node.querySelector('.ai-agent-delivery-options');
+                    if (deliveryOptsEl && (content.product_context || '').trim()) {
+                        const deliveryM = (content.product_context || '').match(/(?:Delivery|Shipping)\s*:\s*(.+?)(?=\n|$)/i);
+                        deliveryOptsEl.value = (deliveryM && deliveryM[1]) ? deliveryM[1].trim() : '';
+                    }
                     const contextSourceEl = node.querySelector('.ai-agent-context-source');
                     if (contextSourceEl && content.context_source) contextSourceEl.value = content.context_source;
                     if (contextSourceEl && !contextSourceEl.querySelector('option[value="PRODUCT_SELECT"]')) {
@@ -3238,7 +3254,7 @@ this.connectionBranch = null;
                     if (summary && text) {
                         const nameM = text.match(/Product name\s*:\s*(.+?)(?=\n\n|\nPrices|$)/is);
                         const pricesM = text.match(/Prices\s*:\s*(.+?)(?=\n\n|\nShipping|$)/is);
-                        const shippingM = text.match(/Shipping\s*:\s*(Free|Paid)/i);
+                        const shippingM = text.match(/(?:Delivery|Shipping)\s*:\s*(.+?)(?=\n|$)/i);
                         const marketM = text.match(/Market\s*:\s*(.+?)(?=\n\n|$)/is);
                         const nameSpan = node.querySelector('.ai-agent-summary-name');
                         const pricesSpan = node.querySelector('.ai-agent-summary-prices');
@@ -3246,7 +3262,7 @@ this.connectionBranch = null;
                         const marketSpan = node.querySelector('.ai-agent-summary-market');
                         if (nameSpan) nameSpan.textContent = (nameM && nameM[1].trim()) || '—';
                         if (pricesSpan) pricesSpan.textContent = pricesM && pricesM[1] ? (pricesM[1].trim().length > 80 ? pricesM[1].trim().slice(0, 80) + '…' : pricesM[1].trim()) : '—';
-                        if (shippingSpan) shippingSpan.textContent = (shippingM && shippingM[1]) || '—';
+                        if (shippingSpan) shippingSpan.textContent = (shippingM && shippingM[1].trim()) || '—';
                         if (marketSpan) marketSpan.textContent = (marketM && marketM[1].trim()) || 'Morocco';
                         summary.style.display = 'block';
                     }
@@ -3325,7 +3341,7 @@ this.connectionBranch = null;
             if (!text) continue;
             const hasName = /Product name\s*:/i.test(text);
             const hasPrices = /(?:Prices?|Price)\s*:/i.test(text);
-            const hasShipping = /Shipping\s*:/i.test(text);
+            const hasShipping = /(?:Delivery|Shipping)\s*:/i.test(text);
             const hasMarket = /Market\s*:/i.test(text);
             if (!hasName || !hasPrices || !hasShipping || !hasMarket) {
                 const missing = [];
@@ -3484,7 +3500,14 @@ this.connectionBranch = null;
                     break;
 
                 case 'ai-agent': {
-                    content.product_context = node.querySelector('.ai-agent-product-context')?.value?.trim() || '';
+                    let productContextText = node.querySelector('.ai-agent-product-context')?.value?.trim() || '';
+                    const deliveryOptsInput = node.querySelector('.ai-agent-delivery-options');
+                    const deliveryOptsVal = (deliveryOptsInput && deliveryOptsInput.value) ? deliveryOptsInput.value.trim() : '';
+                    if (deliveryOptsVal) {
+                        productContextText = productContextText.replace(/\n?(?:Delivery|Shipping)\s*:\s*[^\n]*/gi, '').trim();
+                        productContextText = (productContextText + '\nDelivery: ' + deliveryOptsVal).trim();
+                    }
+                    content.product_context = productContextText;
                     content.context_source = node.querySelector('.ai-agent-context-source')?.value || 'MANUAL';
                     const productSelectVal = node.querySelector('.ai-agent-product-select')?.value;
                     content.product_id = (productSelectVal && content.context_source === 'PRODUCT_SELECT') ? parseInt(productSelectVal, 10) : null;

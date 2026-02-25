@@ -187,7 +187,15 @@ MARKET_CONFIG = {
         "greeting": "Give a warm Gulf-style welcome. Keep it concise. Never repeat the same exact greeting.",
         "consent_ask": "Ask for their permission to confirm the order and prepare the shipment in a respectful Saudi tone.",
         "data_request": "Request [Full Name, City/Neighborhood, Address] in ONE clear, welcoming sentence so you can dispatch their order immediately."
-    }
+    },
+    "GCC": {  # Gulf (UAE, Kuwait, Bahrain, Qatar, Oman) — same vibe as SA
+        "market_identity": "Gulf Arab Market",
+        "tone_desc": "Polite, respectful, generous, and welcoming Saudi/Gulf dialect.",
+        "nicknames": "Use natural Gulf phrases like (يا غالي، أبشر، حياك الله) but keep it subtle and varied.",
+        "greeting": "Give a warm Gulf-style welcome. Keep it concise. Never repeat the same exact greeting.",
+        "consent_ask": "Ask for their permission to confirm the order and prepare the shipment in a respectful tone.",
+        "data_request": "Request [Full Name, City/Neighborhood, Address] in ONE clear, welcoming sentence so you can dispatch their order immediately."
+    },
 }
 DEFAULT_MARKET = "MA"
 
@@ -487,6 +495,68 @@ def _get_market_config(market=None):
     return MARKET_CONFIG[DEFAULT_MARKET]
 
 
+# Dialect hints: customer used these in their messages → prefer this market for tone
+_MOROCCAN_HINTS = re.compile(
+    r"\b(واش|دابا|بغيت|غادي|خويا|لالة|تبارك الله|الأمانة|على الراس|ماشي مشكل|فين|واش تقدر|بغيتي|كيفاش|وصلات|طلبيتي)\b",
+    re.IGNORECASE,
+)
+_SAUDI_GCC_HINTS = re.compile(
+    r"\b(وش|أبشر|حياك الله|يا غالي|تامر أمر|إن شاء الله|ماشاء الله|كيف|وين|طلبي|رقم الطلب)\b",
+    re.IGNORECASE,
+)
+
+
+def infer_market_from_conversation(conversation_messages):
+    """
+    Infer market (tone) from prior customer messages. Use when the user has chatted before
+    so we reply in the same dialect they use (AR_MA → MA, AR_SA → SA, etc.).
+    conversation_messages: list of {"role": "customer"|"agent", "body": "..."}.
+    Returns 'MA', 'SA', 'GCC', or None if unclear.
+    """
+    if not conversation_messages:
+        return None
+    customer_text = " ".join(
+        (m.get("body") or "").strip()
+        for m in conversation_messages
+        if m.get("role") == "customer" and (m.get("body") or "").strip()
+    )
+    if not customer_text or customer_text == "[media]":
+        return None
+    ma_count = len(_MOROCCAN_HINTS.findall(customer_text))
+    sa_count = len(_SAUDI_GCC_HINTS.findall(customer_text))
+    if ma_count > sa_count:
+        return "MA"
+    if sa_count > ma_count:
+        return "SA"
+    return None
+
+
+def infer_market_from_phone(phone):
+    """
+    Infer market from customer phone number (first-time chatters, or when no conversation tone).
+    +966 → SA, +212 → MA, +971/+973/+965/+974/+968 → GCC.
+    Returns 'MA', 'SA', 'GCC', or None.
+    """
+    if not phone:
+        return None
+    s = (phone or "").strip().replace(" ", "").replace("-", "")
+    if not s.startswith("+"):
+        if s.startswith("966"):
+            return "SA"
+        if s.startswith("212"):
+            return "MA"
+        if s.startswith(("971", "973", "965", "974", "968")):
+            return "GCC"
+        return None
+    if s.startswith("+966"):
+        return "SA"
+    if s.startswith("+212"):
+        return "MA"
+    if s.startswith(("+971", "+973", "+965", "+974", "+968")):
+        return "GCC"
+    return None
+
+
 def get_agent_name_for_node(voice_reply_on, persona=None, market=None):
     """
     Return the agent's display name for the AI prompt.
@@ -704,9 +774,12 @@ You must achieve these goals using your own natural wording based on the context
 - **Vibe Example:** "Should I keep one piece aside for you?" or "Are we good to prepare your shipment?" (Adapt to their dialect dynamically).
 
 **3. The Single-Block Data Request (When they say YES):**
-- **Goal:** Ask for their [Full Name, Phone Number, and Detailed Address] in ONE single, natural sentence. Tell them you need it to ship today.
+- **Goal:** Ask for their [Full Name, Phone Number, and Address] in ONE single, natural sentence. Tell them you need it to ship today.
 - **Rule:** DO NOT ask step-by-step. Ask for everything at once.
 - **Rule:** Do NOT ask the customer to place an order more than twice in the whole conversation. Only ask them to order after you have sent at least 3–4 messages to them (i.e. do not ask to order in your first or second reply; wait for some exchange first).
+- **Phone:** If the customer did not provide a phone number, send them their phone number (the number they are chatting from) and ask them to confirm it is correct. If they say something that means "same number" / "this number" / "نفس الرقم" / "هذا الرقم" / "the one you have", use the chat phone number. Do NOT save the order until you have a phone number that is real numeric digits only.
+- **Address:** Take the address from the customer's response. You do NOT require full address details: either their city OR just the address (e.g. street/building) is enough. Do not insist on both city and full address.
+- **Duplicate:** Do NOT save the same order more than once. If you already confirmed this order in this conversation, do not call save_order/record_order or output [ORDER_DATA] again.
 
 **4. Rejection Recovery (If they say "No" / "Expensive"):**
 - **Step 1 Goal:** Do not give up. Instantly offer a 10% "New Customer" discount. Calculate and show the new price. Frame it as a personal favor from you ({name}).
@@ -722,20 +795,34 @@ You must achieve these goals using your own natural wording based on the context
 
 # ⚙️ STRICT SYSTEM ACTIONS (DATA PARSING)
 While your conversation is dynamic, your data extraction must be mathematically strict:
-- **Required for Order:** 1. Product Name/SKU (From Context), 2. Full Name, 3. Phone, 4. Address.
-- **The Atomic Rule:** Once the user provides all missing data, you MUST confirm the order naturally AND output the technical tag in the SAME response:
-  `[ORDER_DATA: {{"name": "...", "phone": "...", "address": "...", "city": "...", "sku": "..."}}]`
+- **Required for Order:** 1. Product Name/SKU (From Context), 2. Full Name, 3. Phone (numeric only), 4. Address (city OR address text is enough).
+- **Phone rule:** If the customer did not give a phone number, tell them their number (from the chat) and ask them to confirm. If they indicate "same number" / "this number" / "نفس الرقم", use the chat number. Do NOT save the order until you have a phone number that is real numeric digits (no letters, no spaces that break the number).
+- **Address rule:** Use exactly what the customer wrote for address. City only, or address only, or both — any of these is acceptable. Do not require full street + city + zip.
+- **No duplicate:** Do NOT save the same order more than once in this conversation. If you already confirmed the order (تم تسجيل طلبك / Order Registered), do NOT output [ORDER_DATA] or call save_order/record_order again for the same order.
+- **The Atomic Rule:** Once you have product + name + phone (numeric) + address, confirm the order AND output the technical tag in the SAME response:
+  `[ORDER_DATA: {{"name": "...", "phone": "...", "address": "...", "city": "..." (optional), "sku": "..."}}]`
 - **Rule:** NEVER say "Order Registered" or confirm the order unless you have all requirements AND output the `[ORDER_DATA]` tag.
 - **Rule:** Use `[HANDOVER]` ONLY if the user is extremely angry, uses profanity, or explicitly demands a human manager 3 times.
 
 # IDENTITY & TONE PARAMETERS
 - Agent Name: {name}
-- Market Vibe: {tone_desc}
+- **Tone for THIS customer (use it; do not use a global tone):** {tone_desc}
+  (This tone was chosen from their prior messages or from their phone region — stick to it for this chat.)
 - Vocabulary Hints: {vocabulary_pool}
 
 # PRODUCT CONTEXT
 {product_block}
+
+# DELIVERY / SHIPPING (use product context above)
+- When the customer asks about delivery, shipping, or delivery cost (e.g. واش التوصيل مجاني، كام التوصيل، شحال التوصيل، delivery cost, free delivery), answer **only** from the "Delivery:" or "Shipping:" line in the PRODUCT CONTEXT above.
+- If it says free delivery (or equivalent), tell them delivery is free. If it gives a price or conditions (e.g. "30 MAD", "Free above 200 MAD"), tell them exactly that. Do not invent delivery info; use only what is in the product context.
 """
+
+
+
+
+
+
 
 SALES_AGENT_SYSTEM_PROMPT = (
     f"""
@@ -769,14 +856,19 @@ Do not use verbatim scripts. Achieve these goals based on the context:
 
 
 # 🛒 ORDER COLLECTION (SINGLE BLOCK METHOD)
-- You need exactly 3 things: Name, Phone (confirm if present), and Full Address.
-- **Rule:** Ask for ALL missing data in ONE single, polite message. Do NOT ask for them one by one. 
-- *Example Goal:* "Excellent choice! To ship this today, please send me your Full Name, Phone Number, and Delivery Address in one message."
-- Once you have all 3, output `[ORDER_DATA: {...}]` and confirm the order in the SAME atomic response.
+- You need: Name, Phone (numeric), and Address (city or address text — full details not required).
+- **Phone:** If the customer did not provide a phone number, send them their number (from the chat) and ask them to confirm. If they say "same number" / "this number" / "نفس الرقم", use the chat number. Do NOT save the order until you have a real numeric phone number.
+- **Address:** Take the address from the customer's response. City only OR address only is OK; do not require full address details.
+- **Rule:** Ask for ALL missing data in ONE single, polite message. Do NOT ask for them one by one.
+- **No duplicate:** Do NOT save the same order more than once. If you already confirmed this order in this chat, do not output [ORDER_DATA] or call save_order/record_order again.
+- Once you have name + phone (numeric) + address, output `[ORDER_DATA: {...}]` and confirm the order in the SAME atomic response.
 
 # 💡 SALES PSYCHOLOGY
 - **Value over Price:** Always mention a benefit (e.g., free shipping, warranty) when discussing price.
 - **The "Save the Deal" Drop:** If the user hesitates or says "No" / "Expensive", offer a one-time 10% discount to close the deal instantly.
+
+# 🚚 DELIVERY / SHIPPING
+- When the customer asks about delivery, shipping, or delivery cost (e.g. واش التوصيل مجاني، كام التوصيل، free delivery), answer **only** from the "Delivery:" or "Shipping:" line in the PRODUCT CONTEXT. If it says free delivery, tell them it is free; otherwise tell them the delivery options exactly as stated. Do not invent delivery info.
 
     """
 )
@@ -787,14 +879,14 @@ SAVE_ORDER_TOOL = {
     "type": "function",
     "function": {
         "name": "save_order",
-        "description": "Save a new order ONLY when you have: (1) A PRODUCT — sku or product_name from the product context (REQUIRED; do NOT call without a product); (2) customer_name (full or first name); (3) customer_phone (from chat); (4) delivery address (customer_city or address). Do NOT call if product, name, or address is missing. Always include sku or product_name from the product context above.",
+        "description": "Save a new order ONLY when you have: (1) A PRODUCT — sku or product_name from product context (REQUIRED); (2) customer_name; (3) customer_phone — must be real numeric digits (use chat number if customer confirmed 'same number'); (4) delivery address — take from customer response (city OR address is enough). Do NOT call if phone is not numeric or if you already saved this order in this conversation. Call only once per order.",
         "parameters": {
             "type": "object",
             "properties": {
                 "customer_name": {"type": "string", "description": "Full name or first name of the customer"},
-                "customer_phone": {"type": "string", "description": "Phone number (we have it from chat)"},
-                "customer_city": {"type": "string", "description": "Delivery address (required). City optional; include if provided."},
-                "address": {"type": "string", "description": "Full delivery address if different from city"},
+                "customer_phone": {"type": "string", "description": "Phone number — numeric digits only. Use the chat sender number if customer said same number / هذا الرقم / نفس الرقم."},
+                "customer_city": {"type": "string", "description": "City or area (optional). Use if customer provided it."},
+                "address": {"type": "string", "description": "Delivery address from customer response. City only, or address only, or both — all acceptable."},
                 "sku": {"type": "string", "description": "Product SKU from product context (REQUIRED — use from context above)"},
                 "product_name": {"type": "string", "description": "Product name from product context (REQUIRED if sku not available)"},
                 "price": {"type": "number", "description": "Price if mentioned"},
@@ -839,14 +931,14 @@ RECORD_ORDER_TOOL = {
     "type": "function",
     "function": {
         "name": "record_order",
-        "description": "Record the order ONLY when you have: (1) A PRODUCT — sku or product_name from product context (REQUIRED); (2) customer_name; (3) customer_phone; (4) delivery address. Do NOT call without a product. Always include sku or product_name from the product context. Triggers sync (e.g. Google Sheets).",
+        "description": "Record the order ONLY when you have: (1) A PRODUCT — sku or product_name from product context (REQUIRED); (2) customer_name; (3) customer_phone — numeric only (use chat number if customer confirmed same number); (4) address from customer (city OR address OK). Do NOT call without a product or if you already recorded this order in this conversation. Call only once per order. Triggers sync (e.g. Google Sheets).",
         "parameters": {
             "type": "object",
             "properties": {
                 "customer_name": {"type": "string", "description": "Full name or first name of the customer"},
-                "customer_phone": {"type": "string", "description": "Phone number (we have it from chat)"},
-                "customer_city": {"type": "string", "description": "Delivery address (required). City optional if provided."},
-                "address": {"type": "string", "description": "Full delivery address (use if different from city field)"},
+                "customer_phone": {"type": "string", "description": "Phone number — numeric digits only. Use chat sender number if customer said same number."},
+                "customer_city": {"type": "string", "description": "City or area (optional). Use if customer provided it."},
+                "address": {"type": "string", "description": "Delivery address from customer. City only, or address only, or both — all acceptable."},
                 "sku": {"type": "string", "description": "Product SKU from product context (REQUIRED)"},
                 "product_name": {"type": "string", "description": "Product name from product context (REQUIRED if sku not available)"},
                 "price": {"type": "number", "description": "Price if mentioned"},

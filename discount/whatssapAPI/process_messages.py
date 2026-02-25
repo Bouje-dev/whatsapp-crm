@@ -1089,18 +1089,35 @@ def run_ai_agent_node(current_node, sender, channel, state_header=None):
                     session.save(update_fields=["context_data"])
 
         product_context = (getattr(current_node, "product_context", None) or "").strip()
-        # Market target for greeting/tone/nicknames: from ai_model_config["market"] or node_language (AR_MA -> MA, AR_SA -> SA)
+        conversation = get_conversation_history(sender, channel)
+        # Market/tone: do NOT use a global tone. 3 options:
+        # (1) If there were chats before with this user → infer tone from that conversation (AR_MA → MA, AR_SA → SA).
+        # (2) If first time and we have product context → use node market (from ai_model_config or node_language).
+        # (3) If first time and no product context → infer from phone number (e.g. +966 → AR_SA, +212 → AR_MA).
         ai_config = getattr(current_node, "ai_model_config", None) or {}
-        market = (ai_config.get("market") or "").strip().upper()
-        if not market and getattr(current_node, "node_language", None):
+        node_market = (ai_config.get("market") or "").strip().upper()
+        if not node_market and getattr(current_node, "node_language", None):
             lang = (current_node.node_language or "").strip().upper()
             if lang.startswith("AR_SA") or lang == "SA":
-                market = "SA"
+                node_market = "SA"
             elif lang.startswith("AR_MA") or lang == "MA":
-                market = "MA"
-        if market not in ("MA", "SA", "GCC"):
-            market = "MA"
-        conversation = get_conversation_history(sender, channel)
+                node_market = "MA"
+        if node_market not in ("MA", "SA", "GCC"):
+            node_market = "MA"
+        from ai_assistant.services import infer_market_from_conversation, infer_market_from_phone
+        has_prior_conversation = len(conversation) > 1 and any(
+            m.get("role") == "customer" and (m.get("body") or "").strip() and (m.get("body") or "").strip() != "[media]"
+            for m in conversation
+        )
+        if has_prior_conversation:
+            inferred = infer_market_from_conversation(conversation)
+            market = inferred if inferred else node_market
+        else:
+            if product_context:
+                market = node_market
+            else:
+                inferred = infer_market_from_phone(sender)
+                market = inferred if inferred else node_market
         if not conversation or conversation[-1].get("role") != "customer":
             conversation = conversation or []
             conversation.append({"role": "customer", "body": ""})
@@ -1745,6 +1762,16 @@ def try_ai_voice_reply(sender, body, channel):
     if not conversation or conversation[-1].get("role") != "customer":
         conversation.append({"role": "customer", "body": body or ""})
 
+    # Dynamic market/tone: from prior conversation dialect, else from phone (no node/product here)
+    from ai_assistant.services import infer_market_from_conversation, infer_market_from_phone
+    has_prior = len(conversation) > 1 and any(
+        m.get("role") == "customer" and (m.get("body") or "").strip() and (m.get("body") or "").strip() != "[media]"
+        for m in conversation
+    )
+    market = infer_market_from_conversation(conversation) if has_prior else infer_market_from_phone(sender)
+    if market not in ("MA", "SA", "GCC"):
+        market = "MA"
+
     custom_instruction = None
     if is_order_cap_reached(channel):
         custom_instruction = (
@@ -1765,6 +1792,7 @@ def try_ai_voice_reply(sender, body, channel):
             custom_instruction=custom_instruction,
             product_context=None,
             trust_score=trust_score,
+            market=market,
         )
     except Exception as e:
         logger.exception("generate_reply_with_tools failed: %s", e)
@@ -1796,7 +1824,7 @@ def try_ai_voice_reply(sender, body, channel):
                 tool_results.append({"tool_call_id": tcid, "content": content})
         if tool_results:
             try:
-                from ai_assistant.services import continue_after_tool_calls
+                from ai_assistant.services import continue_after_tool_calls, get_agent_name_for_node
                 result = continue_after_tool_calls(
                     conversation,
                     first_assistant_message=raw_msg,
@@ -1804,6 +1832,8 @@ def try_ai_voice_reply(sender, body, channel):
                     custom_instruction=custom_instruction,
                     product_context=None,
                     trust_score=trust_score,
+                    market=market,
+                    agent_name=get_agent_name_for_node(False, None, market=market),
                 )
                 order_tools = [t for t in tool_calls if t.get("name") in ("save_order", "record_order")]
                 if order_tools:

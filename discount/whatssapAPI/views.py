@@ -2432,6 +2432,7 @@ def api_products_list(request):
             "description": (p.description or "")[:200],
             "how_to_use": (p.how_to_use or "")[:200] if p.how_to_use else "",
             "offer": p.offer or "",
+            "delivery_options": (p.delivery_options or "").strip() or "",
             "testimonial_url": p.testimonial.url if p.testimonial else None,
             "images": image_urls,
             "videos": video_urls,
@@ -2464,6 +2465,9 @@ def api_products_create(request):
     description = (request.POST.get("description") or "").strip()
     how_to_use = (request.POST.get("how_to_use") or "").strip() or None
     offer = (request.POST.get("offer") or "").strip() or None
+    delivery_options = (request.POST.get("delivery_options") or "").strip() or None
+    if delivery_options and len(delivery_options) > 500:
+        delivery_options = delivery_options[:500]
 
     errors = []
     if not name:
@@ -2515,6 +2519,7 @@ def api_products_create(request):
         description=description,
         how_to_use=how_to_use or None,
         offer=offer or None,
+        delivery_options=delivery_options,
         stock=0,
     )
 
@@ -2582,6 +2587,7 @@ def api_products_detail(request, product_id):
         "description": product.description or "",
         "how_to_use": product.how_to_use or "",
         "offer": product.offer or "",
+        "delivery_options": (product.delivery_options or "").strip() or "",
         "testimonial_url": product.testimonial.url if product.testimonial else None,
         "images": image_urls,
         "videos": video_urls,
@@ -2608,6 +2614,9 @@ def api_products_update(request, product_id):
     description = (request.POST.get("description") or "").strip()
     how_to_use = (request.POST.get("how_to_use") or "").strip() or None
     offer = (request.POST.get("offer") or "").strip() or None
+    delivery_options = (request.POST.get("delivery_options") or "").strip() or None
+    if delivery_options and len(delivery_options) > 500:
+        delivery_options = delivery_options[:500]
     errors = []
     if not name:
         errors.append("Product name is required.")
@@ -2638,7 +2647,8 @@ def api_products_update(request, product_id):
     product.description = description
     product.how_to_use = how_to_use or None
     product.offer = offer or None
-    product.save(update_fields=["name", "price", "currency", "description", "how_to_use", "offer"])
+    product.delivery_options = delivery_options
+    product.save(update_fields=["name", "price", "currency", "description", "how_to_use", "offer", "delivery_options"])
     testimonial_file = request.FILES.get("testimonial")
     if testimonial_file:
         product.testimonial = testimonial_file

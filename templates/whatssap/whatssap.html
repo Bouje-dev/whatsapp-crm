@@ -174,7 +174,7 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  padding: 20px 0;
+  /* padding: 20px 0; */
   z-index: 50;
   flex-shrink: 0;
 }
@@ -5800,6 +5800,11 @@ $('#cls3741_attach_btn').on('click', function() {
               <div class="product-card">
                 <div class="product-card-title">Optional details</div>
                 <div class="form-row">
+                  <label>Delivery options</label>
+                  <input type="text" name="delivery_options" id="product_delivery_options" maxlength="500" placeholder="e.g. Free delivery, 30 MAD, Free above 200 MAD">
+                  <div class="form-hint">Shown to customers when they ask about delivery. Leave blank if not set.</div>
+                </div>
+                <div class="form-row">
                   <label>How to use</label>
                   <textarea name="how_to_use" id="product_how_to_use" rows="3" placeholder="Usage instructions..."></textarea>
                 </div>
@@ -6112,6 +6117,8 @@ $('#cls3741_attach_btn').on('click', function() {
         var currSel = document.getElementById('product_currency');
         if (currSel) { currSel.value = (p.currency || 'MAD').trim() || 'MAD'; }
         document.getElementById('product_description').value = p.description || '';
+        var deliveryEl = document.getElementById('product_delivery_options');
+        if (deliveryEl) deliveryEl.value = (p.delivery_options || '').trim() || '';
         document.getElementById('product_how_to_use').value = p.how_to_use || '';
         var container = document.getElementById('offer_tiers_container');
         container.innerHTML = '';
@@ -6154,6 +6161,8 @@ $('#cls3741_attach_btn').on('click', function() {
         var currSel = document.getElementById('product_currency');
         if (currSel) currSel.value = (p.currency || 'MAD').trim() || 'MAD';
         document.getElementById('product_description').value = p.description || '';
+        var deliveryEl = document.getElementById('product_delivery_options');
+        if (deliveryEl) deliveryEl.value = (p.delivery_options || '').trim() || '';
         document.getElementById('product_how_to_use').value = p.how_to_use || '';
         document.getElementById('offer_tiers_container').innerHTML = '';
         productMediaFiles = [];

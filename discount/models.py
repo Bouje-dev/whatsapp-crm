@@ -288,6 +288,13 @@ class Products(models.Model):
     description = models.TextField(blank=True, null=True, verbose_name=_('الوصف'))
     how_to_use = models.TextField(blank=True, null=True, verbose_name=_('طريقة الاستخدام'))
     offer = models.CharField(max_length=500, blank=True, null=True, verbose_name=_('العرض'))
+    delivery_options = models.CharField(
+        max_length=500,
+        blank=True,
+        null=True,
+        verbose_name=_('خيارات التوصيل'),
+        help_text=_('e.g. "Free delivery", "30 MAD", "Free above 200 MAD" — shown to customer when they ask about delivery'),
+    )
     testimonial = models.FileField(
         upload_to='product_testimonials/%Y/%m/',
         blank=True,
