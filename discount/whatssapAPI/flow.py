@@ -2264,7 +2264,16 @@ def api_google_sheets_config(request):
             or (cfg and cfg.service_account_json_encrypted)
         )
         from discount.services.google_sheets_service import SHEETS_MAPPING_AVAILABLE_FIELDS
+        from discount.models import SimpleOrder
         available_fields = SHEETS_MAPPING_AVAILABLE_FIELDS
+        orders_exported_count = 0
+        try:
+            orders_exported_count = SimpleOrder.objects.filter(
+                channel__owner_id=user.id,
+                sheets_export_status="success",
+            ).count()
+        except Exception:
+            pass
         if not cfg:
             return JsonResponse({
                 "spreadsheet_id": "",
@@ -2274,6 +2283,7 @@ def api_google_sheets_config(request):
                 "available_fields": available_fields,
                 "configured": False,
                 "service_account_email": service_account_email,
+                "orders_exported_count": orders_exported_count,
             })
         return JsonResponse({
             "spreadsheet_id": (cfg.spreadsheet_id or ""),
@@ -2283,6 +2293,7 @@ def api_google_sheets_config(request):
             "available_fields": available_fields,
             "configured": configured,
             "service_account_email": service_account_email,
+            "orders_exported_count": orders_exported_count,
         })
     # PUT or POST: update config
     try:

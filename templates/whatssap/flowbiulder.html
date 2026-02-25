@@ -989,10 +989,19 @@
 
     <!-- Flow Builder -->
     <div class="app-container none" id="flow-builder-container">
-
-         
-
-
+            <div id="flow-unsaved-modal" class="flow-unsaved-modal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.6); z-index:10000; align-items:center; justify-content:center;">
+                <div class="flow-unsaved-modal-content" style="background:var(--surface, #1e293b); border-radius:12px; padding:24px; max-width:380px; box-shadow:0 25px 50px -12px rgba(0,0,0,0.5);">
+                    <p class="flow-unsaved-modal-message" style="margin:0 0 20px; color:var(--text-primary, #f1f5f9); font-size:1rem;">You need to save your progress before leaving.</p>
+                    <div id="flow-unsaved-modal-spinner" style="display:none; margin-bottom:16px; text-align:center;">
+                        <span style="display:inline-block; width:28px; height:28px; border:3px solid rgba(255,255,255,0.2); border-top-color:#fff; border-radius:50%; animation: flow-unsaved-spin 0.8s linear infinite;"></span>
+                    </div>
+                    <div id="flow-unsaved-modal-buttons" style="display:flex; gap:12px; justify-content:flex-end;">
+                        <button type="button" id="flow_unsaved_cancel" class="btn btn-secondary">Cancel</button>
+                        <button type="button" id="flow_unsaved_save" class="btn btn-primary">Save now</button>
+                    </div>
+                </div>
+            </div>
+            <style>@keyframes flow-unsaved-spin { to { transform: rotate(360deg); } }</style>
         <!-- Main Content -->
         <main class="main-content">
             <!-- Header -->
@@ -1003,13 +1012,43 @@
                 Back
             </button>
             <script>
-                document.getElementById('back_to_auto').addEventListener('click', function() {
+            (function() {
+                function goBackToAutomations() {
                     document.getElementById('flow-builder-container').classList.add('none');
-                     document.getElementById('flow-builder-container').classList.remove('flow-builder-active');
-
-                     
+                    document.getElementById('flow-builder-container').classList.remove('flow-builder-active');
                     document.getElementById('automations-container').classList.remove('none');
+                }
+                var modal = document.getElementById('flow-unsaved-modal');
+                var btnCancel = document.getElementById('flow_unsaved_cancel');
+                var btnSave = document.getElementById('flow_unsaved_save');
+                var spinner = document.getElementById('flow-unsaved-modal-spinner');
+                var buttonsWrap = document.getElementById('flow-unsaved-modal-buttons');
+                function showUnsavedModal() {
+                    if (modal) { modal.style.display = 'flex'; if (spinner) spinner.style.display = 'none'; if (buttonsWrap) buttonsWrap.style.display = 'flex'; }
+                }
+                function hideUnsavedModal() {
+                    if (modal) modal.style.display = 'none';
+                }
+                document.getElementById('back_to_auto').addEventListener('click', function() {
+                    var fb = window.flowBuilder;
+                    if (fb && fb.hasUnsavedChanges) { showUnsavedModal(); } else { goBackToAutomations(); }
                 });
+                if (btnCancel) btnCancel.addEventListener('click', hideUnsavedModal);
+                if (btnSave) btnSave.addEventListener('click', function() {
+                    var fb = window.flowBuilder;
+                    if (!fb) { hideUnsavedModal(); goBackToAutomations(); return; }
+                    if (spinner) spinner.style.display = 'block';
+                    if (buttonsWrap) buttonsWrap.style.display = 'none';
+                    fb.saveFlow().then(function(ok) {
+                        if (spinner) spinner.style.display = 'none';
+                        if (buttonsWrap) buttonsWrap.style.display = 'flex';
+                        if (ok) { hideUnsavedModal(); goBackToAutomations(); }
+                    }).catch(function() {
+                        if (spinner) spinner.style.display = 'none';
+                        if (buttonsWrap) buttonsWrap.style.display = 'flex';
+                    });
+                });
+            })();
             </script>
         </div>
                 <div class="header-actions">
@@ -1693,6 +1732,7 @@ class FlowBuilder {
         this.minZoom = 0.3;
         this.maxZoom = 3.0;
         this.isLoadingFlow = false;
+        this.hasUnsavedChanges = false;
         this.initializeElements();
         this.initializeEventListeners();
         this.initializeJsPlumb();
@@ -1704,7 +1744,7 @@ class FlowBuilder {
 
 this.connectionBranch = null;
         
-        // --- أضف هذه الأسطر الجديدة هنا ---
+         
         this.zoomLevel = 1.0;
         // ابدأ من منتصف الكانفاس العملاق (5000/2 = 2500 تقريباً)
         this.pan = { x: -2000, y: -2000 }; 
@@ -1795,10 +1835,12 @@ this.connectionBranch = null;
     setupJsPlumbEvents() {
         this.jsPlumbInstance.bind("connection", (info) => {
             this.updateStats();
+            this.hasUnsavedChanges = true;
             console.log('🔗 Connection established:', info);
         });
         this.jsPlumbInstance.bind("connectionDetached", (info) => {
             this.updateStats();
+            this.hasUnsavedChanges = true;
             console.log('🔗 Connection detached:', info);
         });
         this.jsPlumbInstance.bind("click", (conn, originalEvent) => {
@@ -1863,6 +1905,7 @@ this.connectionBranch = null;
         this.flowCanvas.appendChild(node);
         this.initializeNodeSafe(node);
         this.updateStats();
+        this.hasUnsavedChanges = true;
       
         return nodeId;
     }
@@ -2592,6 +2635,17 @@ this.connectionBranch = null;
                         contextSource.addEventListener('change', updateProductSourceVisibility);
                         updateProductSourceVisibility();
                     }
+                    if (nodeElement.dataset.savedProductId) {
+                        const pid = nodeElement.dataset.savedProductId;
+                        loadProductsForAiNode(nodeElement).then(function() {
+                            const sel = nodeElement.querySelector('.ai-agent-product-select');
+                            if (sel && pid) {
+                                sel.value = pid;
+                                sel.dispatchEvent(new Event('change', { bubbles: true }));
+                            }
+                            delete nodeElement.dataset.savedProductId;
+                        }).catch(function() { delete nodeElement.dataset.savedProductId; });
+                    }
                     async function loadProductsForAiNode(nodeEl) {
                         const sel = nodeEl.querySelector('.ai-agent-product-select');
                         if (!sel) return;
@@ -2848,7 +2902,7 @@ this.connectionBranch = null;
             }
           
             this.showNotification('Flow loaded successfully! ✨', 'success');
-          
+            this.hasUnsavedChanges = false;
         } catch (error) {
             console.error('❌ Load flow error:', error);
             this.showNotification('Failed to load flow: ' + error.message, 'error');
@@ -3196,9 +3250,13 @@ this.connectionBranch = null;
                     if (typeof node._updateProductSourceVisibility === 'function') node._updateProductSourceVisibility();
                     const productId = content.product_id != null ? String(content.product_id) : '';
                     const productSelectEl = node.querySelector('.ai-agent-product-select');
-                    if (productId && productSelectEl && typeof node._loadProductsForAiNode === 'function') {
-                        node._loadProductsForAiNode(node).then(() => { productSelectEl.value = productId; }).catch(() => {});
-                    } else if (productSelectEl && productId) productSelectEl.value = productId;
+                    if (productId && productSelectEl) {
+                        if (typeof node._loadProductsForAiNode === 'function') {
+                            node._loadProductsForAiNode(node).then(() => { productSelectEl.value = productId; productSelectEl.dispatchEvent(new Event('change', { bubbles: true })); }).catch(() => {});
+                        } else {
+                            node.dataset.savedProductId = productId;
+                        }
+                    }
                     const voiceCheckEl = node.querySelector('.ai-agent-voice-enabled');
                     if (voiceCheckEl) voiceCheckEl.checked = !!content.voice_enabled;
                     const aiDelayEl = node.querySelector('.ai-agent-delay');
@@ -3331,10 +3389,13 @@ this.connectionBranch = null;
             const contextSource = node.querySelector('.ai-agent-context-source');
             const source = contextSource ? contextSource.value : 'MANUAL';
             const productSelect = node.querySelector('.ai-agent-product-select');
-            const productId = productSelect ? productSelect.value : '';
+            const productId = productSelect ? (productSelect.value || '').trim() : '';
             const ta = node.querySelector('.ai-agent-product-context');
             const text = (ta && ta.value) ? ta.value.trim() : '';
-            if (source === 'PRODUCT_SELECT' && productId) {
+            if (source === 'PRODUCT_SELECT') {
+                if (!productId) {
+                    return { valid: false, message: 'When Context source is "Select from my products", you must select a product from the "Your products" dropdown. Either select a product or change the context source to Manual/URL.' };
+                }
                 if (!text) return { valid: false, message: 'Select a product from "Your products" dropdown, or switch to Manual/URL to fill product details.' };
                 continue;
             }
@@ -3360,11 +3421,10 @@ this.connectionBranch = null;
             const aiCheck = this.validateAiAgentNodesBeforeSave();
             if (!aiCheck.valid) {
                 this.showNotification(aiCheck.message, 'error');
-                return;
+                return false;
             }
             const flowData = await this.collectFlowData();
             let response;
-          
             if (this.currentFlowId) {
                 const payload = {
                     name: this.currentFlowName || '',
@@ -3372,43 +3432,40 @@ this.connectionBranch = null;
                     config: flowData,
                     trigger_keywords: this.extractTriggerKeywords(flowData.nodes)
                 };
-              
                 response = await this.apiPost(
                     `/discount/whatssapAPI/api/flows/${this.currentFlowId}/update/`,
                     payload
                 );
             } else {
                 const flowName = prompt('Enter flow name:');
-                if (!flowName) return;
+                if (!flowName) return false;
                 const flowDescription = prompt('Enter flow description (optional):') || '';
-              
                 const payload = {
                     name: flowName,
                     description: flowDescription,
                     config: flowData,
                     trigger_keywords: this.extractTriggerKeywords(flowData.nodes)
                 };
-              
                 response = await this.apiPost('/discount/whatssapAPI/api/flows/create/', payload);
-              
                 if (response.item && response.item.id) {
                     this.currentFlowId = response.item.id;
                     this.currentFlowName = flowName;
                     this.currentFlowDescription = flowDescription;
                 }
             }
-          
             if (response && (response.success || response.item)) {
+                this.hasUnsavedChanges = false;
                 this.showNotification('Flow saved successfully! ✨', 'success');
                 if (window.automationsList) {
                     window.automationsList.loadAutomations();
                 }
-            } else {
-                throw new Error(response.error || 'Unknown error');
+                return true;
             }
+            throw new Error(response.error || 'Unknown error');
         } catch (error) {
             console.error('Save error:', error);
             this.showNotification('Failed to save flow: ' + error.message, 'error');
+            return false;
         }
     }
 
@@ -3739,7 +3796,12 @@ this.connectionBranch = null;
         this.flowCanvas.addEventListener('change', (e) => {
             if (e.target.classList.contains('media-file')) {
                 this.handleFileUpload(e);
+            } else if (e.target.closest('.flow-node')) {
+                this.hasUnsavedChanges = true;
             }
+        });
+        this.flowCanvas.addEventListener('input', (e) => {
+            if (e.target.closest('.flow-node')) this.hasUnsavedChanges = true;
         });
     }
 
@@ -3949,7 +4011,7 @@ initializeZoom() {
         // إعادة تعيين العداد
         this.nodeCounter = 0;
         this.updateStats();
-      
+        this.hasUnsavedChanges = false;
         if (!silent) {
             this.showNotification('Canvas cleared successfully', 'success');
         }
@@ -4009,7 +4071,7 @@ initializeZoom() {
             if (this.selectedNode && this.selectedNode.id === nodeId) {
                 this.selectedNode = null;
             }
-          
+            this.hasUnsavedChanges = true;
             this.updateStats();
             this.showNotification('Node deleted', 'success');
         }
@@ -5100,12 +5162,18 @@ window.__loadGoogleSheetsPreview = function(node) {
   fetch(apiBase + '/api/google-sheets/config/', { method: 'GET', credentials: 'same-origin' })
     .then(function(r) { return r.json(); })
     .then(function(data) {
-      var m = data.column_mapping || {};
-      var keys = Object.keys(m).sort(function(a, b) { return (a.length - b.length) || a.localeCompare(b); });
-      var parts = keys.map(function(c) { return c + ' \u2192 ' + m[c]; });
-      previewEl.textContent = parts.length ? parts.join(', ') : 'No columns mapped (Settings \u2192 Integrations)';
+      var sheetName = (data.sheet_name || 'Orders').trim() || 'Orders';
+      var count = typeof data.orders_exported_count === 'number' ? data.orders_exported_count : 0;
+      var configured = data.configured && (data.spreadsheet_id || '').trim();
+      if (!configured) {
+        previewEl.textContent = 'Sheet: not linked. Configure in Settings \u2192 Integrations';
+        return;
+      }
+      var text = 'Sheet: \u201C' + sheetName + '\u201D';
+      if (count >= 0) text += ' \u00B7 ' + count + ' order' + (count === 1 ? '' : 's') + ' exported';
+      previewEl.textContent = text;
     })
-    .catch(function() { previewEl.textContent = 'Columns: set in Settings \u2192 Integrations'; });
+    .catch(function() { previewEl.textContent = 'Quick preview: load failed. Check Settings \u2192 Integrations'; });
 };
 </script>
  
