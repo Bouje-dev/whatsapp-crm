@@ -178,7 +178,8 @@ MARKET_CONFIG = {
         "nicknames": "Feel free to naturally sprinkle words like (خويا، لالة، على الراس والعين، الأمانة، تبارك الله) but NEVER force them or repeat them.",
         "greeting": "Greet the customer warmly in Darija, keeping it very short and natural. Vary your greeting every time.",
         "consent_ask": "Politely ask if they are ready to start the order process to get their package delivered. Do not use the exact same phrase twice.",
-        "data_request": "Ask for [Full Name, City, Detailed Address] in ONE single, friendly Moroccan sentence. Explain you need it to ship the order today."
+        "data_request": "Ask for [Full Name, City, Detailed Address] in ONE single, friendly Moroccan sentence. Explain you need it to ship the order today.",
+        "order_confirmation_fallback": "تم تسجيل طلبك، غادي نتواصلو معاك قريباً. على الراس والعين.",
     },
     "SA": {  # السعودية
        
@@ -186,7 +187,8 @@ MARKET_CONFIG = {
         "nicknames": "Use natural Saudi phrases like (يا غالي، أبشر بسعدك، تامر أمر، حياك الله) but keep it subtle and varied.",
         "greeting": "Give a warm Gulf-style welcome. Keep it concise. Never repeat the same exact greeting.",
         "consent_ask": "Ask for their permission to confirm the order and prepare the shipment in a respectful Saudi tone.",
-        "data_request": "Request [Full Name, City/Neighborhood, Address] in ONE clear, welcoming sentence so you can dispatch their order immediately."
+        "data_request": "Request [Full Name, City/Neighborhood, Address] in ONE clear, welcoming sentence so you can dispatch their order immediately.",
+        "order_confirmation_fallback": "تم تسجيل طلبك، سنتواصل معك قريباً إن شاء الله. حياك الله.",
     },
     "GCC": {  # Gulf (UAE, Kuwait, Bahrain, Qatar, Oman) — same vibe as SA
         "market_identity": "Gulf Arab Market",
@@ -194,7 +196,8 @@ MARKET_CONFIG = {
         "nicknames": "Use natural Gulf phrases like (يا غالي، أبشر، حياك الله) but keep it subtle and varied.",
         "greeting": "Give a warm Gulf-style welcome. Keep it concise. Never repeat the same exact greeting.",
         "consent_ask": "Ask for their permission to confirm the order and prepare the shipment in a respectful tone.",
-        "data_request": "Request [Full Name, City/Neighborhood, Address] in ONE clear, welcoming sentence so you can dispatch their order immediately."
+        "data_request": "Request [Full Name, City/Neighborhood, Address] in ONE clear, welcoming sentence so you can dispatch their order immediately.",
+        "order_confirmation_fallback": "تم تسجيل طلبك، سنتواصل معك قريباً إن شاء الله. حياك الله.",
     },
 }
 DEFAULT_MARKET = "MA"
@@ -495,6 +498,12 @@ def _get_market_config(market=None):
     return MARKET_CONFIG[DEFAULT_MARKET]
 
 
+def get_order_confirmation_fallback(market=None):
+    """Return a short order-confirmation fallback message matching the market/tone (client tone_desc)."""
+    m = _get_market_config(market)
+    return m.get("order_confirmation_fallback") or "تم تسجيل طلبك. سنتواصل معك قريباً."
+
+
 # Dialect hints: customer used these in their messages → prefer this market for tone
 _MOROCCAN_HINTS = re.compile(
     r"\b(واش|دابا|بغيت|غادي|خويا|لالة|تبارك الله|الأمانة|على الراس|ماشي مشكل|فين|واش تقدر|بغيتي|كيفاش|وصلات|طلبيتي)\b",
@@ -756,11 +765,19 @@ def _master_sales_closer_prompt(product_context, trust_score=0, sales_stage=None
 You are {name}, a highly skilled, human-like sales representative for a premium e-commerce store. You are NOT a robot, and you never sound like an automated system.
 
 # 🚨 CRITICAL CONVERSATION RULES (STRICTLY ENFORCED)
-1. **THE MIRROR EFFECT:** Detect the user's exact dialect (Moroccan, Saudi, Egyptian, etc.) and mirror it flawlessly. If unsure, use warm "White Arabic" (Modern Standard Arabic). NEVER mix dialects (e.g., no Saudi words for a Moroccan user).
-2. **EXTREME BREVITY:** Keep answers VERY SHORT. Max 1-2 sentences. No filler, no long paragraphs, no robotic pleasantries. Get straight to the point like you are chatting on WhatsApp.
-3. **NEVER REPEAT YOURSELF:** Read the conversation history. NEVER use the same greeting, same apology, or start a sentence the same way twice. Vary your wording dynamically.
-4. **NO INTERROGATION:** Do not ask more than ONE question per message.
-5. **NEVER SURRENDER:** NEVER say "Contact our representative" or "يرجى التواصل مع ممثلينا". YOU are the representative. Keep the conversation alive at all costs.
+1. **TONE LOCK — NEVER FORGET, NEVER SWITCH:** The tone_desc below is fixed for this entire conversation. You MUST keep the same dialect and tone from the first message to the last. If tone is Moroccan Darija, reply ONLY in Moroccan Darija for the whole chat — do NOT switch to فصحى (MSA), Saudi, or other dialects. If tone is Saudi/Gulf, stay in that dialect only. Never mix dialects. Never forget your persona ({name}) or the tone_desc.
+2. **THE MIRROR EFFECT (within the locked tone):** Within the tone_desc, mirror the user's energy and style. If they speak Moroccan Darija, reply in authentic Moroccan Darija and keep it for all subsequent messages. NEVER mix dialects (e.g., no Saudi words for a Moroccan user).
+3. **EXTREME BREVITY:** Keep answers VERY SHORT. Max 1-2 sentences. No filler, no long paragraphs, no robotic pleasantries. Get straight to the point like you are chatting on WhatsApp.
+4. **NEVER REPEAT YOURSELF:** Read the conversation history. NEVER use the same greeting, same apology, or start a sentence the same way twice. Vary your wording dynamically.
+5. **NO INTERROGATION:** Do not ask more than ONE question per message.
+6. **NEVER SURRENDER:** NEVER say "Contact our representative" or "يرجى التواصل مع ممثلينا". YOU are the representative. Keep the conversation alive at all costs.
+
+# STRICT RULES (ANTI-ROBOTIC)
+1. **NO REPETITION:** Never ask "Shall we start the order?" or "واش نبدأو في إجراءات الطلب؟" more than once in the same context. 
+2. **SOFT NUDGE:** If the user is hesitating, do NOT push. Instead, say: "Take your time" (خذ وقتك أخي) or "Whenever you are ready, you are welcome" (وقتما بغيتي مرحبا بك).
+3. **NO SUPPORT PHRASES:** Avoid "How can I help you today?" (كيفاش نقدر نعاونك؟). It sounds like a generic AI. Instead, use: "I'm here for you" (أنا معاك) or "Anything else you want to know about the quality?" (واش كاين شي حاجة أخرى بغيتي تعرفها على الجودة؟).
+4. **NEVER SAY:** " كيف يمكنني مساعدتك اليوم" or Something that sounds like a generic AI.
+
 
 # YOUR DYNAMIC PLAYBOOK (GOALS & VIBES - DO NOT COPY VERBATIM)
 You must achieve these goals using your own natural wording based on the context:
@@ -804,10 +821,10 @@ While your conversation is dynamic, your data extraction must be mathematically 
 - **Rule:** NEVER say "Order Registered" or confirm the order unless you have all requirements AND output the `[ORDER_DATA]` tag.
 - **Rule:** Use `[HANDOVER]` ONLY if the user is extremely angry, uses profanity, or explicitly demands a human manager 3 times.
 
-# IDENTITY & TONE PARAMETERS
-- Agent Name: {name}
-- **Tone for THIS customer (use it; do not use a global tone):** {tone_desc}
-  (This tone was chosen from their prior messages or from their phone region — stick to it for this chat.)
+# IDENTITY & TONE PARAMETERS (NEVER FORGET — NEVER SWITCH)
+- Agent Name: {name} — stay in this persona for the entire conversation.
+- **Tone for THIS conversation (LOCKED — use for every message):** {tone_desc}
+  This tone was chosen from their prior messages or phone region. You MUST use it for the ENTIRE chat. Do NOT switch to another dialect or فصحى mid-conversation. If this is Moroccan tone, keep every reply in Moroccan Darija. If Saudi/Gulf, keep every reply in that dialect. Never mix.
 - Vocabulary Hints: {vocabulary_pool}
 
 # PRODUCT CONTEXT
@@ -964,7 +981,73 @@ TRACK_ORDER_TOOL = {
     },
 }
 
-SALES_AGENT_TOOLS = [SAVE_ORDER_TOOL, CHECK_STOCK_TOOL, APPLY_DISCOUNT_TOOL, RECORD_ORDER_TOOL, TRACK_ORDER_TOOL]
+SEARCH_PRODUCTS_TOOL = {
+    "type": "function",
+    "function": {
+        "name": "search_products",
+        "description": "Search the store catalog for products matching the customer's request. Call when the customer asks if we have a product (e.g. 'do you have moringa?', 'واش كاين موريغا؟') or what we have similar to X. Returns the closest matching products we have. If we don't have the exact product, use this to find and suggest the closest alternatives (e.g. same category or similar use).",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "query": {"type": "string", "description": "What the customer is looking for (e.g. 'moringa supplement', 'vitamin D', 'perfume for men')."},
+            },
+            "required": ["query"],
+        },
+    },
+}
+
+# -----------------------------------------------------------------------------
+# Order Extraction Tool (no product params — product comes from session context)
+# Use this when you have gathered customer_name, shipping_city, shipping_address,
+# and phone_number from the chat. The backend binds the current session product.
+# -----------------------------------------------------------------------------
+SUBMIT_CUSTOMER_ORDER_TOOL = {
+    "type": "function",
+    "function": {
+        "name": "submit_customer_order",
+        "description": (
+            "Submit the customer's order with the exact shipping details they provided. "
+            "Call ONLY when you have collected all four: customer name, city, full address, and phone number. "
+            "The product is already known from the session — do NOT pass product/SKU. "
+            "Extract each value exactly as the customer wrote it; do not guess or format."
+        ),
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "customer_name": {
+                    "type": "string",
+                    "description": "The full name or first name the customer gave for delivery. Extract exactly as written; do not correct or translate.",
+                },
+                "shipping_city": {
+                    "type": "string",
+                    "description": "The city or area for delivery, exactly as the customer wrote it (e.g. Casablanca, الدار البيضاء).",
+                },
+                "shipping_address": {
+                    "type": "string",
+                    "description": "The full delivery address (street, building, landmark, etc.) exactly as the customer provided. Do not shorten or reformat.",
+                },
+                "phone_number": {
+                    "type": "string",
+                    "description": (
+                        "The exact phone number provided by the user. Do not format it; extract it exactly as written. "
+                        "Accept formats like 06XXXXXXXX, 07XXXXXXXX, +2126XXXXXXXX, 2126XXXXXXXX. Must be a valid Moroccan mobile (10 digits)."
+                    ),
+                },
+            },
+            "required": ["customer_name", "shipping_city", "shipping_address", "phone_number"],
+        },
+    },
+}
+
+SALES_AGENT_TOOLS = [
+    SAVE_ORDER_TOOL,
+    CHECK_STOCK_TOOL,
+    APPLY_DISCOUNT_TOOL,
+    RECORD_ORDER_TOOL,
+    TRACK_ORDER_TOOL,
+    SEARCH_PRODUCTS_TOOL,
+    SUBMIT_CUSTOMER_ORDER_TOOL,
+]
 
 
 def build_messages_payload_sales(conversation_messages, custom_instruction=None, product_context=None, trust_score=0, media_context=None, state_header=None, sales_stage=None, sentiment=None, market=None, agent_name=None):
@@ -1118,7 +1201,7 @@ def generate_reply_with_tools(conversation_messages, custom_instruction=None, pr
         except Exception as e:
             logger.warning("parse tool %s arguments: %s", name, e)
             continue
-        if name in ("save_order", "check_stock", "apply_discount", "record_order", "track_order"):
+        if name in ("save_order", "check_stock", "apply_discount", "record_order", "track_order", "search_products", "submit_customer_order"):
             tool_calls.append({"name": name, "arguments": args})
     usage = data.get("usage", {})
     # Strip [STAGE: ...] from reply and expose for funnel state tracking
@@ -1217,7 +1300,7 @@ def continue_after_tool_calls(
         except Exception as e:
             logger.warning("parse tool %s arguments: %s", name, e)
             continue
-        if name in ("save_order", "check_stock", "apply_discount", "record_order", "track_order"):
+        if name in ("save_order", "check_stock", "apply_discount", "record_order", "track_order", "search_products", "submit_customer_order"):
             tool_calls.append({"name": name, "arguments": args})
     usage = data.get("usage", {})
     reply_clean, stage = parse_and_strip_stage(reply_text)

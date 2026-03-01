@@ -295,6 +295,34 @@ class Products(models.Model):
         verbose_name=_('خيارات التوصيل'),
         help_text=_('e.g. "Free delivery", "30 MAD", "Free above 200 MAD" — shown to customer when they ask about delivery'),
     )
+    # AI product classification and prompt routing (must match ai_assistant.product_classifier.VALID_CATEGORIES)
+    PRODUCT_CATEGORY_CHOICES = [
+        ('beauty_and_skincare', _('Beauty & Skincare')),
+        ('electronics_and_gadgets', _('Electronics & Gadgets')),
+        ('fragrances', _('Fragrances')),
+        ('fashion_and_apparel', _('Fashion & Apparel')),
+        ('health_and_supplements', _('Health & Supplements')),
+        ('home_and_kitchen', _('Home & Kitchen')),
+        ('general_retail', _('General')),
+        # Legacy (kept for existing DB rows)
+        ('beauty', _('Beauty')),
+        ('electronics', _('Electronics')),
+        ('general', _('General')),
+    ]
+    category = models.CharField(
+        max_length=32,
+        choices=PRODUCT_CATEGORY_CHOICES,
+        default='general_retail',
+        blank=True,
+        verbose_name=_('Product category (AI-classified or manual)'),
+        help_text=_('Used for dynamic sales persona: beauty, electronics, fragrances, general'),
+    )
+    seller_custom_persona = models.TextField(
+        blank=True,
+        null=True,
+        verbose_name=_('Custom selling instructions'),
+        help_text=_('Optional: seller instructions appended to the AI sales prompt for this product'),
+    )
     testimonial = models.FileField(
         upload_to='product_testimonials/%Y/%m/',
         blank=True,

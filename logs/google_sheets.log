@@ -48,3 +48,15 @@
 2026-02-24 20:05:51,885 [WARNING] Order 20 not found
 2026-02-24 20:05:52,691 [INFO] sync_order_to_google_sheets attempt order_id=20
 2026-02-24 20:05:54,466 [INFO] order_id=20 sync success
+2026-02-26 19:47:13,807 [INFO] sync_order_to_google_sheets attempt order_id=21
+2026-02-26 19:47:15,664 [INFO] sync_order_to_google_sheets attempt order_id=21
+2026-02-26 19:47:16,211 [INFO] order_id=21 sync success
+2026-02-26 19:47:17,471 [INFO] order_id=21 sync success
+2026-02-28 18:34:11,362 [INFO] sync_order_to_google_sheets attempt order_id=22
+2026-02-28 18:34:11,366 [WARNING] Order 22 not found
+2026-02-28 18:34:13,817 [INFO] sync_order_to_google_sheets attempt order_id=22
+2026-02-28 18:34:16,712 [INFO] order_id=22 sync success
+2026-02-28 18:56:56,613 [INFO] sync_order_to_google_sheets attempt order_id=23
+2026-02-28 18:56:56,618 [WARNING] Order 23 not found
+2026-02-28 18:56:57,280 [INFO] sync_order_to_google_sheets attempt order_id=23
+2026-02-28 18:56:59,659 [INFO] order_id=23 sync success

@@ -391,17 +391,19 @@ def process_flow_for_message(flow, message_text, phone, media_type=None):
                         reply_text, order_data = extract_order_data_from_reply(reply_text)
                         if order_data and flow.channel_id and should_accept_order_data(conversation, order_data, current_stage=current_stage, trust_score=trust_score):
                             with db_transaction.atomic():
-                                saved_order = save_order_from_ai(
+                                save_res = save_order_from_ai(
                                     flow.channel,
                                     customer_phone=phone,
                                     customer_name=order_data.get("name"),
                                     customer_city=order_data.get("city") or order_data.get("address"),
                                     sku=order_data.get("sku") or None,
                                     product_name=order_data.get("product_name") or None,
+                                    price=order_data.get("price"),
                                     agent_name="AI Agent",
                                     bot_session_id=f"{getattr(flow.channel, 'id', '')}:{phone}"[:100] if flow.channel else None,
                                 )
-                            if saved_order:
+                            if save_res is not None and not isinstance(save_res, dict):
+                                saved_order = save_res
                                 order_was_saved = True
                     if order_was_saved and saved_order:
                         reply_text = format_order_confirmation(saved_order)

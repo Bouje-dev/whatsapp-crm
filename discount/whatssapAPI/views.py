@@ -2433,11 +2433,63 @@ def api_products_list(request):
             "how_to_use": (p.how_to_use or "")[:200] if p.how_to_use else "",
             "offer": p.offer or "",
             "delivery_options": (p.delivery_options or "").strip() or "",
+            "category": (getattr(p, "category", None) or "general_retail").strip() or "general_retail",
+            "seller_custom_persona": (getattr(p, "seller_custom_persona", None) or "").strip() or "",
             "testimonial_url": p.testimonial.url if p.testimonial else None,
             "images": image_urls,
             "videos": video_urls,
         })
     return JsonResponse({"products": data})
+
+
+# Human-readable labels for product categories (for UI). Must match Products.PRODUCT_CATEGORY_CHOICES / classifier.
+PRODUCT_CATEGORY_LABELS = {
+    "beauty_and_skincare": "Beauty & Skincare",
+    "electronics_and_gadgets": "Electronics & Gadgets",
+    "fragrances": "Fragrances",
+    "fashion_and_apparel": "Fashion & Apparel",
+    "health_and_supplements": "Health & Supplements",
+    "home_and_kitchen": "Home & Kitchen",
+    "general_retail": "General",
+    "beauty": "Beauty",
+    "electronics": "Electronics",
+    "general": "General",
+}
+ALLOWED_PRODUCT_CATEGORIES = frozenset(PRODUCT_CATEGORY_LABELS.keys())
+
+
+@login_required
+@csrf_exempt
+@require_http_methods(["POST"])
+def api_products_classify(request):
+    """
+    Classify product category via AI when description has 200+ characters.
+    POST JSON: {"title": "...", "description": "..."}.
+    Returns {"category": "beauty|electronics|fragrances|general", "label": "Beauty|..."}.
+    If description length < 200, returns category "general" without calling the API.
+    """
+    user = getattr(request, "user", None)
+    if not user or not user.is_authenticated:
+        return JsonResponse({"error": "Authentication required"}, status=401)
+    try:
+        body = json.loads(request.body) if request.body else {}
+    except (ValueError, TypeError):
+        return JsonResponse({"error": "Invalid JSON"}, status=400)
+    title = (body.get("title") or "").strip() or "Product"
+    description = (body.get("description") or "").strip()
+    if len(description) < 200:
+        return JsonResponse({
+            "category": "general_retail",
+            "label": PRODUCT_CATEGORY_LABELS.get("general_retail", "General"),
+        })
+    try:
+        from ai_assistant.product_classifier import classify_product
+        category = classify_product(title, description)
+    except Exception as e:
+        logger.warning("api_products_classify: %s", e)
+        category = "general_retail"
+    label = PRODUCT_CATEGORY_LABELS.get(category, "General")
+    return JsonResponse({"category": category, "label": label})
 
 
 @login_required
@@ -2446,7 +2498,7 @@ def api_products_list(request):
 def api_products_create(request):
     """
     Create product. Required: name, price, description, at least one image.
-    Optional: how_to_use, offer, testimonial (file).
+    Optional: how_to_use, offer, testimonial (file), category (from AI or manual).
     POST multipart: channel_id, name, price, description, how_to_use, offer, testimonial, images (multiple files).
     """
     from decimal import Decimal, InvalidOperation
@@ -2510,6 +2562,14 @@ def api_products_create(request):
     while Products.objects.filter(sku=sku).exists():
         sku = f"PROD-{uuid.uuid4().hex[:10].upper()}"
 
+    seller_custom_persona = (request.POST.get("seller_custom_persona") or "").strip() or None
+    if seller_custom_persona and len(seller_custom_persona) > 2000:
+        seller_custom_persona = seller_custom_persona[:2000]
+
+    category_param = (request.POST.get("category") or "").strip().lower()
+    if category_param not in ALLOWED_PRODUCT_CATEGORIES:
+        category_param = None
+
     product = Products.objects.create(
         admin_id=channel.owner_id,
         name=name,
@@ -2520,8 +2580,20 @@ def api_products_create(request):
         how_to_use=how_to_use or None,
         offer=offer or None,
         delivery_options=delivery_options,
+        seller_custom_persona=seller_custom_persona,
         stock=0,
+        category=category_param or "general_retail",
     )
+
+    # AI product classification: only when not provided by form and description is long enough
+    if not category_param and len(description) >= 200:
+        try:
+            from ai_assistant.product_classifier import classify_product
+            category = classify_product(product.name, product.description)
+            product.category = category
+            product.save(update_fields=["category"])
+        except Exception as e:
+            logger.warning("Product classification failed for product_id=%s: %s", product.id, e)
 
     testimonial_file = request.FILES.get("testimonial")
     if testimonial_file:
@@ -2588,6 +2660,8 @@ def api_products_detail(request, product_id):
         "how_to_use": product.how_to_use or "",
         "offer": product.offer or "",
         "delivery_options": (product.delivery_options or "").strip() or "",
+        "category": (getattr(product, "category", None) or "general_retail").strip() or "general_retail",
+        "seller_custom_persona": (getattr(product, "seller_custom_persona", None) or "").strip() or "",
         "testimonial_url": product.testimonial.url if product.testimonial else None,
         "images": image_urls,
         "videos": video_urls,
@@ -2617,6 +2691,12 @@ def api_products_update(request, product_id):
     delivery_options = (request.POST.get("delivery_options") or "").strip() or None
     if delivery_options and len(delivery_options) > 500:
         delivery_options = delivery_options[:500]
+    seller_custom_persona = (request.POST.get("seller_custom_persona") or "").strip() or None
+    if seller_custom_persona and len(seller_custom_persona) > 2000:
+        seller_custom_persona = seller_custom_persona[:2000]
+    category_raw = (request.POST.get("category") or "").strip().lower()
+    if category_raw not in ALLOWED_PRODUCT_CATEGORIES:
+        category_raw = getattr(product, "category", None) or "general_retail"
     errors = []
     if not name:
         errors.append("Product name is required.")
@@ -2648,7 +2728,9 @@ def api_products_update(request, product_id):
     product.how_to_use = how_to_use or None
     product.offer = offer or None
     product.delivery_options = delivery_options
-    product.save(update_fields=["name", "price", "currency", "description", "how_to_use", "offer", "delivery_options"])
+    product.category = category_raw or "general_retail"
+    product.seller_custom_persona = seller_custom_persona
+    product.save(update_fields=["name", "price", "currency", "description", "how_to_use", "offer", "delivery_options", "category", "seller_custom_persona"])
     testimonial_file = request.FILES.get("testimonial")
     if testimonial_file:
         product.testimonial = testimonial_file

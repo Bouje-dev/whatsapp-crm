@@ -5779,6 +5779,12 @@ $('#cls3741_attach_btn').on('click', function() {
                   <label>Description <span class="req">*</span></label>
                   <textarea name="description" id="product_description" required rows="4" placeholder="Describe the product, features, and benefits..."></textarea>
                 </div>
+                <div class="form-row">
+                  <label>Product category</label>
+                  <input type="text" id="product_category_display" readonly placeholder="Detected when description has 200+ characters" style="background:rgba(0,0,0,0.2);color:var(--text-secondary, #94a3b8);cursor:not-allowed;">
+                  <input type="hidden" name="category" id="product_category" value="">
+                  <div class="form-hint">AI-detected when description has more than 200 characters. Shown for sales persona (Beauty, Electronics, Fragrances, General).</div>
+                </div>
               </div>
 
               <div class="product-card">
@@ -5964,6 +5970,60 @@ $('#cls3741_attach_btn').on('click', function() {
         form.addEventListener('change', function() { updateProductPreview(); });
         form.addEventListener('keyup', function() { updateProductPreview(); });
       }
+
+      var productCategoryDebounce = null;
+      function scheduleProductCategoryCheck() {
+        if (productCategoryDebounce) clearTimeout(productCategoryDebounce);
+        productCategoryDebounce = setTimeout(function() {
+          productCategoryDebounce = null;
+          var descEl = document.getElementById('product_description');
+          var nameEl = document.getElementById('product_name');
+          var displayEl = document.getElementById('product_category_display');
+          var hiddenEl = document.getElementById('product_category');
+          if (!descEl || !displayEl || !hiddenEl) return;
+          var desc = (descEl.value || '').trim();
+          if (desc.length < 200) {
+            displayEl.value = '';
+            displayEl.placeholder = 'Detected when description has 200+ characters';
+            hiddenEl.value = '';
+            return;
+          }
+          displayEl.placeholder = 'Detecting…';
+          var title = (nameEl && nameEl.value) ? nameEl.value.trim() : 'Product';
+          var csrf = (document.querySelector('input[name="csrfmiddlewaretoken"]') || {}).value || '';
+          fetch('/discount/whatssapAPI/api_products/classify/', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrf },
+            credentials: 'same-origin',
+            body: JSON.stringify({ title: title, description: desc })
+          })
+            .then(function(r) { return r.json(); })
+            .then(function(data) {
+              if (data.category && data.label) {
+                displayEl.value = data.label;
+                displayEl.placeholder = '';
+                hiddenEl.value = data.category;
+              } else {
+                displayEl.placeholder = 'Detected when description has 200+ characters';
+                hiddenEl.value = '';
+              }
+            })
+            .catch(function() {
+              displayEl.placeholder = 'Detected when description has 200+ characters';
+              hiddenEl.value = '';
+            });
+        }, 800);
+      }
+      var descInput = document.getElementById('product_description');
+      var nameInput = document.getElementById('product_name');
+      if (descInput) {
+        descInput.addEventListener('input', scheduleProductCategoryCheck);
+        descInput.addEventListener('change', scheduleProductCategoryCheck);
+      }
+      if (nameInput) {
+        nameInput.addEventListener('input', scheduleProductCategoryCheck);
+      }
+
       var imagesInput = document.getElementById('product_images');
       var imagesBtn = document.getElementById('product_images_btn');
       if (imagesBtn && imagesInput) {
@@ -6110,6 +6170,7 @@ $('#cls3741_attach_btn').on('click', function() {
           .catch(function() { wrap.innerHTML = '<p style="color:#64748b">Failed to load products.</p>'; });
       }
 
+      var PRODUCT_CATEGORY_LABELS = { beauty: 'Beauty', electronics: 'Electronics', fragrances: 'Fragrances', general: 'General' };
       function openFormForEdit(p) {
         document.getElementById('product_edit_id').value = p.id;
         document.getElementById('product_name').value = p.name || '';
@@ -6119,6 +6180,11 @@ $('#cls3741_attach_btn').on('click', function() {
         document.getElementById('product_description').value = p.description || '';
         var deliveryEl = document.getElementById('product_delivery_options');
         if (deliveryEl) deliveryEl.value = (p.delivery_options || '').trim() || '';
+        var cat = (p.category || 'general').trim().toLowerCase();
+        var catDisplay = document.getElementById('product_category_display');
+        var catHidden = document.getElementById('product_category');
+        if (catDisplay) catDisplay.value = PRODUCT_CATEGORY_LABELS[cat] || cat || '';
+        if (catHidden) catHidden.value = cat || 'general';
         document.getElementById('product_how_to_use').value = p.how_to_use || '';
         var container = document.getElementById('offer_tiers_container');
         container.innerHTML = '';
@@ -6194,6 +6260,10 @@ $('#cls3741_attach_btn').on('click', function() {
         document.getElementById('product_edit_id').value = '';
         document.getElementById('product_image_urls').value = '';
         document.getElementById('product_create_form').reset();
+        var catDisplay = document.getElementById('product_category_display');
+        var catHidden = document.getElementById('product_category');
+        if (catDisplay) { catDisplay.value = ''; catDisplay.placeholder = 'Detected when description has 200+ characters'; }
+        if (catHidden) catHidden.value = '';
         document.getElementById('offer_tiers_container').innerHTML = '';
         productMediaFiles = [];
         updatePreviewImagesFromList();

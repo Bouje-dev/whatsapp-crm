@@ -30,7 +30,7 @@ import re
 
 from datetime import timedelta
 
-from discount.models import CustomUser, Flow, Message, Contact, WhatsAppChannel, NodeMedia, ChatSession, SimpleOrder, Products, ProductImage
+from discount.models import CustomUser, Flow, Message, Contact, WhatsAppChannel, Node, NodeMedia, ChatSession, SimpleOrder, Products, ProductImage
 from django.utils import timezone
 from ..channel.socket_utils import send_socket
 
@@ -816,6 +816,170 @@ def get_flow_first_ai_agent_node(flow):
     return None
 
 
+# Catalog: when customer asks for available products, we list them; when they choose one, we activate that product's node
+CATALOG_CACHE_PREFIX = "catalog_pending:"
+CATALOG_CACHE_TTL = 3600  # 1 hour
+
+# Keywords/phrases that indicate "asking for available products" (EN/AR/FR)
+_CATALOG_INTENT_PATTERNS = re.compile(
+    r"\b(what\s*(do\s*you\s*)?(have|sell|offer)|available\s*products?|product\s*list|show\s*(me\s*)?(your\s*)?products?|"
+    r"catalog|list\s*(of\s*)?products?|what\s*can\s*i\s*buy|do\s*you\s*have\s*products?|"
+    r"عرض\s*المنتجات|المنتجات\s*المتوفرة|ماذا\s*تبيع|وش\s*عندك|واش\s*عندك|شنو\s*عندك|"
+    r"quels?\s*produits|liste\s*des\s*produits|produits\s*disponibles|qu['\u2019]est-ce\s*que\s*vous\s*avez)\b",
+    re.IGNORECASE,
+)
+
+
+def get_channel_products_with_nodes(channel):
+    """
+    Return list of products for this channel that have an AI-agent node in some flow.
+    Each item: {"product_id": int, "name": str, "node_id": int, "node": Node}.
+    """
+    if not channel:
+        return []
+    owner_id = getattr(channel, "owner_id", None) or (getattr(channel, "owner", None) and getattr(channel.owner, "id", None))
+    if not owner_id:
+        return []
+    seen_product_ids = set()
+    result = []
+    try:
+        nodes = Node.objects.filter(
+            flow__channel=channel,
+            flow__active=True,
+            node_type="ai-agent",
+        ).select_related("flow")
+        for node in nodes:
+            ac = getattr(node, "ai_model_config", None) or {}
+            pid = ac.get("product_id") if isinstance(ac, dict) else None
+            if pid is None:
+                continue
+            try:
+                pid = int(pid)
+            except (TypeError, ValueError):
+                continue
+            if pid in seen_product_ids:
+                continue
+            seen_product_ids.add(pid)
+            product = Products.objects.filter(id=pid, admin_id=owner_id).first()
+            if not product:
+                continue
+            name = (getattr(product, "name", None) or "").strip() or f"Product {pid}"
+            result.append({
+                "product_id": pid,
+                "name": name,
+                "node_id": node.id,
+                "node": node,
+            })
+    except Exception as e:
+        logger.warning("get_channel_products_with_nodes: %s", e)
+    return result
+
+
+def _is_catalog_intent(message_text):
+    """True if the message is asking for available products / catalog."""
+    if not message_text or not isinstance(message_text, str):
+        return False
+    text = message_text.strip()
+    if len(text) < 2:
+        return False
+    return bool(_CATALOG_INTENT_PATTERNS.search(text))
+
+
+def _get_catalog_pending(channel, sender):
+    """Return catalog pending data for (channel, sender) or None."""
+    if not channel or not sender:
+        return None
+    try:
+        from django.core.cache import cache
+        key = f"{CATALOG_CACHE_PREFIX}{channel.id}:{sender}"
+        return cache.get(key)
+    except Exception:
+        return None
+
+
+def _set_catalog_pending(channel, sender, products_list):
+    """Store catalog state so next message can resolve product choice. products_list: list of {product_id, name, node_id}."""
+    if not channel or not sender:
+        return
+    try:
+        from django.core.cache import cache
+        key = f"{CATALOG_CACHE_PREFIX}{channel.id}:{sender}"
+        cache.set(key, {"products": products_list}, timeout=CATALOG_CACHE_TTL)
+    except Exception as e:
+        logger.warning("_set_catalog_pending: %s", e)
+
+
+def _clear_catalog_pending(channel, sender):
+    if not channel or not sender:
+        return
+    try:
+        from django.core.cache import cache
+        key = f"{CATALOG_CACHE_PREFIX}{channel.id}:{sender}"
+        cache.delete(key)
+    except Exception:
+        pass
+
+
+def _resolve_product_choice(message_text, catalog_products):
+    """
+    If message_text indicates a choice from catalog_products, return (node_id, product_name).
+    catalog_products: list of {product_id, name, node_id, node?}. node is optional (e.g. from cache we only have node_id).
+    Matching: by number (1, first, 2, second), or by product name (substring).
+    """
+    if not message_text or not catalog_products:
+        return None
+    text = (message_text or "").strip().lower()
+    if not text:
+        return None
+    node_id = None
+    product_name = None
+    # By index: "1", "first", "2", "second", "number 3", "الاول", "الثاني", etc.
+    index_phrases = [
+        (r"^(1|first|1st|one|numero\s*1|رقم\s*1|الاول|الأول|اول)$", 0),
+        (r"^(2|second|2nd|two|numero\s*2|رقم\s*2|الثاني|الثانية|ثاني)$", 1),
+        (r"^(3|third|3rd|three|numero\s*3|رقم\s*3|الثالث|ثالث)$", 2),
+        (r"^(4|fourth|4th|رقم\s*4|الرابع)$", 3),
+        (r"^(5|fifth|5th|رقم\s*5|الخامس)$", 4),
+    ]
+    for pattern, idx in index_phrases:
+        if re.match(pattern, text, re.IGNORECASE) and idx < len(catalog_products):
+            item = catalog_products[idx]
+            node_id = item.get("node_id")
+            if node_id is not None:
+                product_name = item.get("name") or f"Product {item.get('product_id')}"
+                return (node_id, product_name)
+    # By product name (substring match)
+    for item in catalog_products:
+        name = (item.get("name") or "").strip().lower()
+        if not name:
+            continue
+        if name in text or text in name:
+            node_id = item.get("node_id")
+            if node_id is not None:
+                product_name = item.get("name") or f"Product {item.get('product_id')}"
+                return (node_id, product_name)
+        if re.search(r"(want|need|give\s*me|the)\s+.+", text) or "one" in text:
+            if name in text or any(word in text for word in name.split() if len(word) > 2):
+                node_id = item.get("node_id")
+                if node_id is not None:
+                    product_name = item.get("name") or f"Product {item.get('product_id')}"
+                    return (node_id, product_name)
+    return None
+
+
+def _send_catalog_reply(sender, catalog_products, channel):
+    """Build and send the list of product names to the customer."""
+    if not catalog_products:
+        return
+    lines = []
+    for i, item in enumerate(catalog_products, 1):
+        name = item.get("name") or f"Product {item.get('product_id')}"
+        lines.append(f"{i}. {name}")
+    intro = "Here are our available products. Reply with the number or name of the product you're interested in:\n\n"
+    body = intro + "\n".join(lines)
+    send_automated_response(sender, [{"type": "text", "content": body, "delay": 0}], channel=channel)
+
+
 def update_chat_session_on_trigger(channel, customer_phone, active_node):
     """On new trigger match: set or update ChatSession to this product (active_node)."""
     if not channel or not customer_phone or not active_node:
@@ -949,6 +1113,47 @@ def _conversation_already_has_order_confirmation(conversation_messages):
     return False
 
 
+# Phrases that mean "asking the customer to place/confirm order" — we allow only once per session
+_ORDER_ASK_PATTERN = re.compile(
+    r"(نبدأو\s*ف?ي?\s*إجراءات\s*الطلب|واش\s*نبدأو|نأكد\s*ليك\s*الطلب|"
+    r"نخلي\s*ليك\s*حبة\s*محجوزة|واش\s*نبغاو\s*نحجزو|"
+    r"shall\s*we\s*start\s*the\s*order|do\s*you\s*want\s*to\s*order|"
+    r"place\s*your\s*order|confirm\s*your\s*order|prepare\s*your\s*(shipment|order)|"
+    r"ready\s*to\s*order|start\s*the\s*order)",
+    re.IGNORECASE,
+)
+
+
+def _reply_is_order_ask(text):
+    """True if the reply is asking the customer to place/confirm the order (we enforce at most one such ask per session)."""
+    if not text or not isinstance(text, str):
+        return False
+    return bool(_ORDER_ASK_PATTERN.search(text))
+
+
+def _strip_order_ask_from_reply(reply_text):
+    """Remove sentences that are an order ask; return cleaned text or a short fallback."""
+    if not reply_text or not _reply_is_order_ask(reply_text):
+        return reply_text
+    # Split on sentence boundaries and drop segments that look like an order ask
+    parts = re.split(r"([.!؟?]\s*)", reply_text)
+    kept = []
+    buf = ""
+    for i, p in enumerate(parts):
+        buf += p
+        if re.search(r"[.!؟?]\s*$", buf) or (i == len(parts) - 1 and buf.strip()):
+            if buf.strip() and not _reply_is_order_ask(buf):
+                kept.append(buf)
+            buf = ""
+    cleaned = ("".join(kept) or "").strip()
+    if not cleaned:
+        cleaned = (
+            "إذا عندك أي سؤال آخر على المنتج أو الجودة أو التوصيل، سُولني براحتك. "
+            "(If you have any other questions about the product, quality, or delivery, ask anytime.)"
+        )
+    return cleaned
+
+
 def _build_state_header_from_product_context(product_context, sales_stage=None, sentiment=None):
     """Build 'CURRENT STATE' line for GPT from product_context (product name, price), optional sales_stage and sentiment."""
     parts = []
@@ -1061,6 +1266,129 @@ def _execute_apply_discount(channel, coupon_code):
     return f"Coupon '{code}' is not valid or expired. Suggest they contact support for a valid code, or emphasize product value instead."
 
 
+def get_channel_catalog_context(channel, max_products=100, description_chars=200):
+    """
+    Build a single text block listing all products the channel owner has (for AI when no product is selected).
+    Format: Product name, Price, Category, short Description — so the AI can answer "what do you have?" and suggest matches.
+    """
+    if not channel:
+        return ""
+    owner = getattr(channel, "owner", None)
+    if not owner:
+        return ""
+    try:
+        qs = Products.objects.filter(admin=owner).order_by("name")[: max(1, int(max_products))]
+        lines = ["# STORE CATALOG (all products the store has)\n"]
+        for p in qs:
+            name = (getattr(p, "name", None) or "").strip() or "Unnamed"
+            price = getattr(p, "price", None)
+            currency = (getattr(p, "currency", None) or "MAD").strip() or "MAD"
+            price_str = f"{price} {currency}" if price is not None else "—"
+            category = (getattr(p, "category", None) or "").strip() or "general"
+            desc = (getattr(p, "description", None) or "").strip()
+            if desc and len(desc) > description_chars:
+                desc = desc[: description_chars].rstrip() + "…"
+            sku = (getattr(p, "sku", None) or "").strip()
+            lines.append(f"- **{name}** | Price: {price_str} | Category: {category}" + (f" | SKU: {sku}" if sku else ""))
+            if desc:
+                lines.append(f"  Description: {desc}")
+        return "\n".join(lines) if len(lines) > 1 else ""
+    except Exception as e:
+        logger.warning("get_channel_catalog_context: %s", e)
+        return ""
+
+
+def search_channel_products(channel, query, top_n=5):
+    """
+    Search the channel's products by query. Returns the closest matching products (by name, description, category).
+    Used when the customer asks "do you have X?" — if we don't have X exactly, return the closest products we have.
+    Returns a string for the AI (list of product names, prices, and why they're relevant).
+    """
+    if not channel or not query or not str(query).strip():
+        return "No search query provided."
+    owner = getattr(channel, "owner", None)
+    if not owner:
+        return "Store not configured."
+    q = str(query).strip().lower()
+    words = [w for w in re.split(r"\s+", q) if len(w) >= 2]
+    if not words:
+        return "Query too short. Use 2+ characters or words."
+    try:
+        products = list(Products.objects.filter(admin=owner).order_by("name")[:200])
+        if not products:
+            return "The store has no products in the catalog."
+        scored = []
+        for p in products:
+            name = (getattr(p, "name", None) or "").strip().lower() or ""
+            desc = (getattr(p, "description", None) or "").strip().lower() or ""
+            category = (getattr(p, "category", None) or "").strip().lower() or ""
+            sku = (getattr(p, "sku", None) or "").strip().lower() or ""
+            text = f"{name} {desc} {category} {sku}"
+            score = 0
+            for w in words:
+                if w in name:
+                    score += 10
+                if w in category:
+                    score += 5
+                if w in desc:
+                    score += 2
+                if w in sku:
+                    score += 3
+            scored.append((score, p))
+        scored.sort(key=lambda x: -x[0])
+        top = [p for _, p in scored[: top_n] if scored[0][0] > 0 or _ == scored[0][0]]
+        if not top and scored:
+            top = [p for _, p in scored[: top_n]]
+        if not top:
+            return "No matching products. Use the full catalog below to suggest alternatives."
+        lines = ["Closest products matching the customer's request:\n"]
+        for p in top:
+            name = (getattr(p, "name", None) or "").strip() or "Unnamed"
+            price = getattr(p, "price", None)
+            currency = (getattr(p, "currency", None) or "MAD").strip() or "MAD"
+            price_str = f"{price} {currency}" if price is not None else "—"
+            category = (getattr(p, "category", None) or "").strip() or "general"
+            lines.append(f"- {name} | Price: {price_str} | Category: {category}")
+        return "\n".join(lines)
+    except Exception as e:
+        logger.warning("search_channel_products: %s", e)
+        return "Search failed. Use the store catalog to suggest products."
+
+
+def _execute_search_products(channel, query):
+    """Execute search_products tool: return closest products for the channel matching the query."""
+    return search_channel_products(channel, query or "", top_n=5)
+
+
+def _execute_submit_customer_order(channel, sender, arguments, current_node):
+    """
+    Execute submit_customer_order tool. Product comes from session (current_node), not from AI.
+    Returns a JSON string for the tool result (success or error message for AI to self-correct).
+    """
+    if not channel or not current_node:
+        return json.dumps({"success": False, "message": "SYSTEM ERROR: Channel or product context missing."}, ensure_ascii=False)
+    ai_cfg = getattr(current_node, "ai_model_config", None) or {}
+    session_product_id = ai_cfg.get("product_id") if isinstance(ai_cfg, dict) else None
+    try:
+        session_product_id = int(session_product_id) if session_product_id is not None else None
+    except (TypeError, ValueError):
+        session_product_id = None
+    session_seller_id = getattr(channel, "owner_id", None) or (getattr(channel, "owner", None) and getattr(channel.owner, "id", None))
+    try:
+        from discount.orders_ai import handle_submit_order_tool
+        outcome = handle_submit_order_tool(
+            arguments,
+            session_product_id=session_product_id,
+            session_seller_id=session_seller_id,
+            channel=channel,
+            customer_phone_from_chat=sender,
+        )
+        return json.dumps(outcome, ensure_ascii=False)
+    except Exception as e:
+        logger.exception("_execute_submit_customer_order: %s", e)
+        return json.dumps({"success": False, "message": "SYSTEM ERROR: Order could not be processed. Please try again."}, ensure_ascii=False)
+
+
 def run_ai_agent_node(current_node, sender, channel, state_header=None):
     """
     Run the AI agent for one node (product context, GPT, media, voice). Returns list of message dicts.
@@ -1078,6 +1406,7 @@ def run_ai_agent_node(current_node, sender, channel, state_header=None):
             generate_reply_with_tools,
             continue_after_tool_calls,
             get_agent_name_for_node,
+            get_order_confirmation_fallback,
             should_handover,
             get_handover_message,
             _is_price_or_quality_objection,
@@ -1105,6 +1434,7 @@ def run_ai_agent_node(current_node, sender, channel, state_header=None):
         ctx = getattr(session, "context_data", None) or {} if session else {}
         sales_stage = ctx.get("sales_stage")
         sentiment = ctx.get("sentiment")
+        already_asked_for_sale = bool(ctx.get("has_asked_for_sale"))
         if not sentiment and channel and sender:
             conversation_for_sentiment = get_conversation_history(sender, channel)
             inferred = _infer_sentiment_from_conversation(conversation_for_sentiment)
@@ -1190,7 +1520,7 @@ def run_ai_agent_node(current_node, sender, channel, state_header=None):
                     media_context = "You have the following media assets to show the customer:\n" + "\n".join(lines)
             except Exception:
                 pass
-        # Product photo from catalog: when AI node has a selected product with image, AI can send it via [SEND_PRODUCT_IMAGE]
+        # Product photo from catalog + dynamic persona (category + seller instructions)
         try:
             ai_cfg = getattr(current_node, "ai_model_config", None) or {}
             product_id = ai_cfg.get("product_id") if isinstance(ai_cfg, dict) else None
@@ -1202,6 +1532,14 @@ def run_ai_agent_node(current_node, sender, channel, state_header=None):
                         "include [SEND_PRODUCT_IMAGE] in your reply to send it. You may add a short caption."
                     )
                     media_context = (media_context + "\n\n" + product_photo_line) if media_context else product_photo_line
+                # Inject category-based persona and seller_custom_persona into the sales prompt
+                try:
+                    from discount.product_sales_prompt import get_dynamic_persona_instruction
+                    persona_instruction = get_dynamic_persona_instruction(product_id)
+                    if persona_instruction:
+                        custom_instruction = (custom_instruction or "") + "\n\n" + persona_instruction
+                except Exception as persona_err:
+                    logger.debug("Dynamic persona for product_id=%s: %s", product_id, persona_err)
         except (TypeError, ValueError, AttributeError):
             pass
 
@@ -1233,8 +1571,10 @@ def run_ai_agent_node(current_node, sender, channel, state_header=None):
                 market=market,
                 agent_name=agent_name,
             )
-        tool_calls_for_info = [tc for tc in (result.get("tool_calls") or []) if tc.get("name") in ("check_stock", "apply_discount", "track_order")]
+        tool_calls_for_info = [tc for tc in (result.get("tool_calls") or []) if tc.get("name") in ("check_stock", "apply_discount", "track_order", "search_products", "submit_customer_order", "save_order", "record_order")]
         first_result_order_tools = [tc for tc in (result.get("tool_calls") or []) if tc.get("name") in ("save_order", "record_order")]
+        submit_order_success_outcome = None
+        save_order_result_order = None  # order from save_order/record_order when executed in loop
         if tool_calls_for_info and channel:
             raw_msg = result.get("raw_message") or {}
             tool_calls_from_api = raw_msg.get("tool_calls") or []
@@ -1260,6 +1600,37 @@ def run_ai_agent_node(current_node, sender, channel, state_header=None):
                 elif name == "track_order":
                     content = _execute_track_order(channel, args.get("customer_phone") or sender)
                     tool_results.append({"tool_call_id": tcid, "content": content})
+                elif name == "search_products":
+                    content = _execute_search_products(channel, args.get("query") or "")
+                    tool_results.append({"tool_call_id": tcid, "content": content})
+                elif name == "submit_customer_order":
+                    content = _execute_submit_customer_order(channel, sender, args, current_node)
+                    tool_results.append({"tool_call_id": tcid, "content": content})
+                    try:
+                        outcome = json.loads(content)
+                        if outcome.get("success"):
+                            submit_order_success_outcome = outcome
+                    except Exception:
+                        pass
+                elif name in ("save_order", "record_order") and getattr(channel, "ai_order_capture", True):
+                    args["customer_phone"] = normalize_customer_phone_for_order(args.get("customer_phone"), sender)
+                    if "address" in args and not args.get("customer_city"):
+                        args["customer_city"] = args.get("address")
+                    args.setdefault("agent_name", agent_name)
+                    args.setdefault("bot_session_id", f"{getattr(channel, 'id', '')}:{sender}"[:100])
+                    if should_accept_order_data(conversation, args, current_stage=current_stage, trust_score=trust_score):
+                        with db_transaction.atomic():
+                            save_res = save_order_from_ai(channel, **args)
+                        if isinstance(save_res, dict):
+                            content = json.dumps(save_res)
+                        elif save_res is not None:
+                            content = json.dumps({"saved": True, "order_id": getattr(save_res, "order_id", None)})
+                            save_order_result_order = save_res  # so we set order_was_saved and saved_order below
+                        else:
+                            content = json.dumps({"saved": False, "message": "Order could not be saved."})
+                    else:
+                        content = json.dumps({"saved": False, "message": "Order not accepted (trust/stage)."})
+                    tool_results.append({"tool_call_id": tcid, "content": content})
             if tool_results:
                 try:
                     result = continue_after_tool_calls(
@@ -1276,14 +1647,39 @@ def run_ai_agent_node(current_node, sender, channel, state_header=None):
                         market=market,
                         agent_name=agent_name,
                     )
-                    # Preserve save_order/record_order from first response so they are still executed
-                    if first_result_order_tools:
-                        result["tool_calls"] = list(result.get("tool_calls") or []) + first_result_order_tools
+                    # save_order/record_order were already executed in the loop above and tool result sent to AI
                 except Exception as cont_err:
                     logger.warning("continue_after_tool_calls failed: %s", cont_err)
 
+        # If submit_customer_order succeeded, mark order as saved and fetch for session expiry / confirmation
+        if submit_order_success_outcome and channel:
+            order_was_saved = True
+            oid = submit_order_success_outcome.get("order_id")
+            if oid:
+                saved_order = SimpleOrder.objects.filter(order_id=oid).first()
+        # If save_order/record_order succeeded in the tool loop, use that order
+        if save_order_result_order and channel:
+            order_was_saved = True
+            saved_order = save_order_result_order
+
         reply_text = (result.get("reply") or "").strip()
         current_stage = result.get("stage")
+
+        # Enforce "ask to order at most once" per session (code-level; AI may ignore prompt rules)
+        is_order_ask = _reply_is_order_ask(reply_text)
+        if is_order_ask and already_asked_for_sale:
+            reply_text = _strip_order_ask_from_reply(reply_text)
+            result = dict(result)
+            result["tool_calls"] = [
+                tc for tc in (result.get("tool_calls") or [])
+                if tc.get("name") not in ("save_order", "record_order")
+            ]
+        if is_order_ask and not already_asked_for_sale and session:
+            ctx = getattr(session, "context_data", None) or {}
+            ctx["has_asked_for_sale"] = True
+            session.context_data = ctx
+            session.save(update_fields=["context_data"])
+
         # Do not hand over when last message is price/quality objection or "you don't understand" (sales agent handles: value + ask to rephrase)
         if result.get("handover") and conversation:
             last_user_msg = None
@@ -1358,8 +1754,9 @@ def run_ai_agent_node(current_node, sender, channel, state_header=None):
                         with db_transaction.atomic():
                             args.setdefault("agent_name", agent_name)
                             args.setdefault("bot_session_id", f"{getattr(channel, 'id', '')}:{sender}"[:100])
-                            saved_order = save_order_from_ai(channel, **args)
-                        if saved_order:
+                            save_res = save_order_from_ai(channel, **args)
+                        if save_res is not None and not isinstance(save_res, dict):
+                            saved_order = save_res
                             order_was_saved = True
                     else:
                         logger.warning(
@@ -1374,17 +1771,19 @@ def run_ai_agent_node(current_node, sender, channel, state_header=None):
             reply_text, order_data = extract_order_data_from_reply(reply_text)
             if order_data and should_accept_order_data(conversation, order_data, current_stage=current_stage, trust_score=trust_score):
                 with db_transaction.atomic():
-                    saved_order = save_order_from_ai(
+                    save_res = save_order_from_ai(
                         channel,
                         customer_phone=sender,
                         customer_name=order_data.get("name"),
                         customer_city=order_data.get("city") or order_data.get("address"),
                         sku=order_data.get("sku") or None,
                         product_name=order_data.get("product_name") or None,
+                        price=order_data.get("price"),
                         agent_name=agent_name,
                         bot_session_id=f"{getattr(channel, 'id', '')}:{sender}"[:100],
                     )
-                if saved_order:
+                if save_res is not None and not isinstance(save_res, dict):
+                    saved_order = save_res
                     order_was_saved = True
             elif order_data:
                 logger.warning(
@@ -1437,7 +1836,11 @@ def run_ai_agent_node(current_node, sender, channel, state_header=None):
         if order_was_saved and saved_order:
             reply_text = format_order_confirmation(saved_order)
         if not reply_text:
-            reply_text = "تم تسجيل طلبك. سنتواصل معك قريباً."
+            # Only use order confirmation fallback when we actually saved an order (avoid false "order registered")
+            if order_was_saved and saved_order:
+                reply_text = get_order_confirmation_fallback(market)
+            else:
+                reply_text = "كيف يمكنني مساعدتك؟"  # neutral fallback when AI returned empty and no order
 
         reply_text, send_media_ids = parse_and_strip_send_media(reply_text)
         reply_text, send_product_image = parse_and_strip_send_product_image(reply_text)
@@ -1799,7 +2202,16 @@ def try_ai_voice_reply(sender, body, channel):
     if market not in ("MA", "SA", "GCC"):
         market = "MA"
 
-    custom_instruction = None
+    # No product selected: give the AI the full catalog so it can answer "what do you have?" and suggest closest matches.
+    catalog_context = get_channel_catalog_context(channel) if channel else ""
+    product_context_for_reply = catalog_context or None
+    custom_instruction = (
+        "You have the STORE CATALOG below (all products this store has). Use it to answer what we have. "
+        "If the customer asks for a product we don't have exactly (e.g. moringa and we only have gastro-balance supplement), "
+        "call search_products with their request and suggest the closest products we do have (same category or similar use). "
+        "CRITICAL: Do NOT call save_order or record_order in this chat. Do NOT output [ORDER_DATA: ...]. "
+        "If they want to order, tell them to choose a product from the catalog first."
+    )
     if is_order_cap_reached(channel):
         custom_instruction = (
             "The store's monthly order limit has been reached. Do not call save_order and do not add [ORDER_DATA: ...]. "
@@ -1817,7 +2229,7 @@ def try_ai_voice_reply(sender, body, channel):
         result = generate_reply_with_tools(
             conversation,
             custom_instruction=custom_instruction,
-            product_context=None,
+            product_context=product_context_for_reply,
             trust_score=trust_score,
             market=market,
         )
@@ -1825,9 +2237,9 @@ def try_ai_voice_reply(sender, body, channel):
         logger.exception("generate_reply_with_tools failed: %s", e)
         return
 
-    # Execute info tools (track_order, check_stock, apply_discount) and get final reply
+    # Execute info tools (track_order, check_stock, apply_discount, search_products) and get final reply
     tool_calls = result.get("tool_calls") or []
-    info_tools = [tc for tc in tool_calls if tc.get("name") in ("track_order", "check_stock", "apply_discount")]
+    info_tools = [tc for tc in tool_calls if tc.get("name") in ("track_order", "check_stock", "apply_discount", "search_products")]
     if info_tools and channel:
         raw_msg = result.get("raw_message") or {}
         tool_calls_from_api = raw_msg.get("tool_calls") or []
@@ -1849,6 +2261,9 @@ def try_ai_voice_reply(sender, body, channel):
             elif name == "apply_discount":
                 content = _execute_apply_discount(channel, args.get("coupon_code"))
                 tool_results.append({"tool_call_id": tcid, "content": content})
+            elif name == "search_products":
+                content = _execute_search_products(channel, args.get("query") or "")
+                tool_results.append({"tool_call_id": tcid, "content": content})
         if tool_results:
             try:
                 from ai_assistant.services import continue_after_tool_calls, get_agent_name_for_node
@@ -1857,7 +2272,7 @@ def try_ai_voice_reply(sender, body, channel):
                     first_assistant_message=raw_msg,
                     tool_results=tool_results,
                     custom_instruction=custom_instruction,
-                    product_context=None,
+                    product_context=product_context_for_reply,
                     trust_score=trust_score,
                     market=market,
                     agent_name=get_agent_name_for_node(False, None, market=market),
@@ -1872,32 +2287,27 @@ def try_ai_voice_reply(sender, body, channel):
     current_stage = result.get("stage")
     order_was_saved = False
     saved_order = None
-    for tc in result.get("tool_calls") or []:
-        if tc.get("name") == "save_order" and getattr(channel, "ai_order_capture", True):
-            args = tc.get("arguments") or {}
-            args["customer_phone"] = normalize_customer_phone_for_order(args.get("customer_phone"), sender)
-            args.setdefault("agent_name", "AI Agent")
-            args.setdefault("bot_session_id", f"{getattr(channel, 'id', '')}:{sender}"[:100])
-            if should_accept_order_data(conversation, args, current_stage=current_stage, trust_score=trust_score):
-                saved_order = save_order_from_ai(channel, **args)
-                if saved_order:
-                    order_was_saved = True
+
+    # CRITICAL: This path has NO product context (no flow/product selected). Do NOT save orders —
+    # the AI could hallucinate product/price. Orders are only allowed when the customer is in a
+    # product flow (run_ai_agent_node with product_context).
+    if False:  # disabled: never save order in voice/fallback path (no product context)
+        for tc in result.get("tool_calls") or []:
+            if tc.get("name") == "save_order" and getattr(channel, "ai_order_capture", True):
+                args = tc.get("arguments") or {}
+                args["customer_phone"] = normalize_customer_phone_for_order(args.get("customer_phone"), sender)
+                args.setdefault("agent_name", "AI Agent")
+                args.setdefault("bot_session_id", f"{getattr(channel, 'id', '')}:{sender}"[:100])
+                if should_accept_order_data(conversation, args, current_stage=current_stage, trust_score=trust_score):
+                    save_res = save_order_from_ai(channel, **args)
+                    if save_res is not None and not isinstance(save_res, dict):
+                        saved_order = save_res
+                        order_was_saved = True
 
     reply_text, order_data = extract_order_data_from_reply(reply_text)
-    if order_data and getattr(channel, "ai_order_capture", True) and should_accept_order_data(conversation, order_data, current_stage=current_stage, trust_score=trust_score):
-        saved_order = save_order_from_ai(
-            channel,
-            customer_phone=sender,
-            customer_name=order_data.get("name"),
-            customer_city=order_data.get("city") or order_data.get("address"),
-            sku=order_data.get("sku") or None,
-            product_name=order_data.get("product_name") or None,
-            agent_name="AI Agent",
-            bot_session_id=f"{getattr(channel, 'id', '')}:{sender}"[:100],
-        )
-        if saved_order:
-            order_was_saved = True
-    elif looks_like_order_confirmation_without_data(reply_text):
+    # Do NOT save from [ORDER_DATA] when out of context (no product selected) — would be wrong product / 0 price.
+    # Orders are only saved when customer is in a product flow (run_ai_agent_node with product_context).
+    if looks_like_order_confirmation_without_data(reply_text):
         reply_text = (
             "عذراً، لم نستلم تفاصيل التوصيل كاملة. من فضلك أرسل الاسم الكامل، المدينة، والعنوان مرة أخرى."
             " (Sorry, we didn't get full delivery details. Please send full name, city, and address again.)"
@@ -1923,8 +2333,16 @@ def try_ai_voice_reply(sender, body, channel):
 
     if order_was_saved and saved_order:
         reply_text = format_order_confirmation(saved_order)
-    if not reply_text and (result.get("tool_calls") or order_data):
-        reply_text = "تم تسجيل طلبك. سنتواصل معك قريباً."
+    if not reply_text:
+        # Only show order confirmation when we actually saved; use market/tone_desc for dynamic fallback
+        if order_was_saved and saved_order:
+            try:
+                from ai_assistant.services import get_order_confirmation_fallback
+                reply_text = get_order_confirmation_fallback(market)
+            except Exception:
+                reply_text = "تم تسجيل طلبك. سنتواصل معك قريباً."
+        else:
+            reply_text = "كيف يمكنني مساعدتك؟"
 
     if not reply_text:
         return
@@ -2407,8 +2825,47 @@ def process_messages(messages , channel = None , name = None):
                     if channel:
                         _touch_session_last_interaction(channel, sender)
             else:
-                # Step B: No trigger matched — try active session recovery (continue same product)
+                # Step B: No trigger matched — catalog choice, active session, or fallback voice
                 session = get_active_session(channel, sender) if channel else None
+
+                # B1: If we previously sent the catalog, try to resolve product choice
+                catalog_pending = _get_catalog_pending(channel, sender) if channel else None
+                if catalog_pending and body:
+                    products_list = catalog_pending.get("products") or []
+                    resolved = _resolve_product_choice(body, products_list)
+                    if resolved:
+                        node_id, product_name = resolved
+                        chosen_node = Node.objects.filter(id=node_id).first() if node_id else None
+                        _clear_catalog_pending(channel, sender)
+                        if chosen_node:
+                            update_chat_session_on_trigger(channel, sender, chosen_node)
+                            state_header = _build_state_header_from_product_context(
+                                getattr(chosen_node, "product_context", None),
+                                sales_stage=None,
+                                sentiment=None,
+                            )
+                            output_messages = run_ai_agent_node(chosen_node, sender, channel, state_header=state_header)
+                            if output_messages:
+                                send_automated_response(sender, output_messages, channel=channel)
+                            else:
+                                try_ai_voice_reply(sender, body, channel)
+                        else:
+                            try_ai_voice_reply(sender, body, channel)
+                        continue
+                    # Not a clear choice — clear catalog pending and fall through
+                    _clear_catalog_pending(channel, sender)
+
+                # B2: No session and user is asking for available products — send catalog and store state
+                if not (session and getattr(session, "active_node", None)) and body and _is_catalog_intent(body):
+                    catalog_products = get_channel_products_with_nodes(channel) if channel else []
+                    if catalog_products:
+                        payload = [{"product_id": p["product_id"], "name": p["name"], "node_id": p["node_id"]} for p in catalog_products]
+                        _set_catalog_pending(channel, sender, payload)
+                        _send_catalog_reply(sender, catalog_products, channel)
+                        continue
+                    # No products with nodes — fall through to voice reply
+
+                # B3: Active session — continue same product
                 if session and getattr(session, "active_node", None):
                     try:
                         session.last_interaction = timezone.now()
