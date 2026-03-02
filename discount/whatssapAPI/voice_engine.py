@@ -338,7 +338,7 @@ def get_preview_audio(store_settings, text=None):
     Generate a short preview audio with current store settings. No plan guard (preview only).
     Returns path to temporary MP3 file; caller must delete after serving.
     """
-    default_preview = "مرحباً، أنا مساعدك الذكي، كيف يمكنني مساعدتك اليوم؟"
+    default_preview ="مرحبا كيف اساعدك "
     text = (text or default_preview).strip()[:500]
     return generate_audio_file(text or default_preview, store_settings)
 
@@ -348,7 +348,7 @@ def generate_voice_sample(voice_id, text, api_key=None, model_id=None, stability
     Generate a short sample for the Voice Gallery (specific voice_id + multilingual_v2).
     Returns (path, None) on success or (None, error_message) on failure (caller must delete temp file).
     """
-    text = (text or "مرحباً، أنا مساعدك الذكي.").strip()[:500]
+    text = (text or "مرحبا كيف اساعدك ").strip()[:500]
     model_id = (model_id or "").strip() or ELEVENLABS_MODEL_MULTILINGUAL_V2
     fd, path = tempfile.mkstemp(suffix=".mp3")
     os.close(fd)

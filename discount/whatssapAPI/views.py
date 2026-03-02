@@ -2354,7 +2354,10 @@ def api_orders(request):
         agent = o.agent
         created_by_username = agent.username if agent else "—"
         created_by_is_bot = getattr(agent, "is_bot", False) if agent else False
-        created_by_display = (getattr(agent, "agent_role", None) or created_by_username) if agent else "—"
+        if created_by_is_bot:
+            created_by_display = "AI Agent"
+        else:
+            created_by_display = (getattr(agent, "agent_role", None) or created_by_username) if agent else "—"
 
         data.append({
             "id": o.id,

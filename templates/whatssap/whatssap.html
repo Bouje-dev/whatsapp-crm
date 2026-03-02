@@ -5044,6 +5044,9 @@ document.addEventListener("DOMContentLoaded", function() {
             border-bottom: 1px solid var(--qs-border);
             background: rgba(255,255,255,0.02);
         }
+        @media (min-width: 769px) {
+            .sidebar-back-bar { display: none !important; }
+        }
         .sidebar-back-btn {
             display: inline-flex;
             align-items: center;
@@ -5065,6 +5068,39 @@ document.addEventListener("DOMContentLoaded", function() {
         .sidebar-back-btn svg {
             flex-shrink: 0;
         }
+
+        /* --- Message links (XSS-safe, clickable) and link preview --- */
+        .cls3741_msg_link {
+            color: var(--wa-link, #53bdeb);
+            text-decoration: underline;
+            word-break: break-all;
+        }
+        .cls3741_msg_link:hover {
+            text-decoration: underline;
+            opacity: 0.9;
+        }
+        .cls3741_link_preview {
+            margin-top: 8px;
+            padding: 8px 10px;
+            background: rgba(0,0,0,0.08);
+            border-radius: 8px;
+            border: 1px solid rgba(0,0,0,0.06);
+        }
+        .cls3741_msg_bubble.me .cls3741_link_preview {
+            background: rgba(255,255,255,0.12);
+            border-color: rgba(255,255,255,0.1);
+        }
+        .cls3741_link_preview_a {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            color: var(--wa-link, #53bdeb);
+            text-decoration: none;
+            font-size: 13px;
+        }
+        .cls3741_link_preview_a:hover { text-decoration: underline; }
+        .cls3741_link_preview_icon { font-size: 14px; }
+        .cls3741_link_preview_domain { font-weight: 500; word-break: break-all; }
 
         /* --- HITL: AI Status & Needs Human badge --- */
         .hitl-badge-wrap { display: inline-flex; align-items: center; gap: 6px; margin-right: 4px; }
@@ -8884,6 +8920,42 @@ document.addEventListener("DOMContentLoaded", function() {
         .replace(/'/g,'&#039;');
     }
 
+    /** XSS-safe linkify: only http/https, clickable links + optional preview. Returns { html, firstUrl }. */
+    function safeLinkify(text) {
+      if (!text || typeof text !== 'string') return { html: '', firstUrl: null };
+      var escaped = escapeHtml(text);
+      var firstUrl = null;
+      var allowedProtocol = /^(https?):\/\//i;
+      var dangerousProtocol = /^\s*(javascript|data|vbscript|file|about|blob|content|ms-):/i;
+      function isValidUrl(urlStr) {
+        urlStr = (urlStr || '').trim();
+        if (dangerousProtocol.test(urlStr)) return false;
+        if (/^www\./i.test(urlStr)) urlStr = 'https://' + urlStr;
+        if (!allowedProtocol.test(urlStr)) return false;
+        try {
+          var u = new URL(urlStr);
+          return u.protocol === 'http:' || u.protocol === 'https:';
+        } catch (e) { return false; }
+      }
+      function safeHref(urlStr) {
+        urlStr = urlStr.trim();
+        if (/^www\./i.test(urlStr)) urlStr = 'https://' + urlStr;
+        return escapeHtml(urlStr);
+      }
+      var urlRegex = /(https?:\/\/[^\s<>"'\]]+)|(www\.[a-zA-Z0-9][^\s<>"'\]]*)/gi;
+      var html = escaped.replace(urlRegex, function(match) {
+        var url = match.replace(/[.,;:!?)]+$/, '');
+        if (!isValidUrl(url)) return escapeHtml(match);
+        if (!firstUrl) firstUrl = url.trim();
+        if (/^www\./i.test(url)) url = 'https://' + url;
+        var href = safeHref(url);
+        var display = escapeHtml(url.length > 50 ? url.slice(0, 47) + '…' : url);
+        return '<a href="' + href + '" target="_blank" rel="noopener noreferrer nofollow" class="cls3741_msg_link">' + display + '</a>';
+      });
+      if (firstUrl && /^www\./i.test(firstUrl)) firstUrl = 'https://' + firstUrl;
+      return { html: html, firstUrl: firstUrl };
+    }
+
     function scrollToBottom(force=false){
       if(!messagesArea) return;
       const nearBottom = messagesArea.scrollTop + messagesArea.clientHeight >= messagesArea.scrollHeight - 80;
@@ -9327,14 +9399,22 @@ wrapper.innerHTML = `
          
 
     // ============================================================
-    // 6. الافتراضي: رسائل نصية (Text)
+    // 6. الافتراضي: رسائل نصية (Text) — روابط آمنة + معاينة
     // ============================================================
     } else {
-       
-      
-      
+      var body = m.body || '';
+      var linkified = safeLinkify(body);
+      var previewHtml = '';
+      if (linkified.firstUrl) {
+        try {
+          var host = new URL(linkified.firstUrl).host.replace(/^www\./i, '');
+          var safeUrlAttr = linkified.firstUrl.replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/'/g,'&#039;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+          previewHtml = '<div class="cls3741_link_preview"><a href="' + safeUrlAttr + '" target="_blank" rel="noopener noreferrer nofollow" class="cls3741_link_preview_a"><span class="cls3741_link_preview_icon">🔗</span><span class="cls3741_link_preview_domain">' + escapeHtml(host) + '</span></a></div>';
+        } catch (e) { previewHtml = ''; }
+      }
       wrapper.innerHTML = `
-          <div class="cls3741_text">${escapeHtml(m.body || '')}</div>
+          <div class="cls3741_text">${linkified.html}</div>
+          ${previewHtml}
           <div class="cls3741_msg_footer" style="display:flex; justify-content: flex-end; gap: 5px;">
             ${timeHtml}
             ${msg_status}
@@ -10229,7 +10309,7 @@ console.log('assigned_agent_id', AssignedA)
       const nameEl = document.getElementById('cls3741_active_name');
       const last_seen_ = document.getElementById('last_seen_')
       console.log(el)
-      if (last_seen_) last_seen_.textContent = 'last seen today at '+las_seen__
+      if (last_seen_) last_seen_.textContent = 'Last interaction: ' + (las_seen__ || '—')
       if (nameEl){nameEl.textContent = name || phone;
 
         document.querySelector('.crm-name').textContent  = name || phone;
@@ -10661,8 +10741,8 @@ async function loadSidebarContacts(reset = false) {
         if (sidebarState.filter_tags) {
             url.searchParams.append('tags', sidebarState.filter_tags);
         }
-        
-        if (sidebarState.filter_unread) {
+        // Unread filter: from the filter buttons (all/unread/read) or the dropdown checkbox
+        if (sidebarState.filter === 'unread' || sidebarState.filter_unread) {
             url.searchParams.append('unread_only', 'true');
         }
 

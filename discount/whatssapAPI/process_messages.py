@@ -1113,6 +1113,24 @@ def _conversation_already_has_order_confirmation(conversation_messages):
     return False
 
 
+def _add_ai_action_note(channel, sender, body):
+    """Add an internal note to the conversation for an AI agent action (visible to team only)."""
+    if not channel or not sender or not body:
+        return
+    try:
+        Message.objects.create(
+            channel=channel,
+            sender=sender,
+            body=(str(body).strip())[:500],
+            type="note",
+            is_internal=True,
+            is_from_me=True,
+            status="read",
+        )
+    except Exception as e:
+        logger.warning("AI action note failed: %s", e)
+
+
 # Phrases that mean "asking the customer to place/confirm order" — we allow only once per session
 _ORDER_ASK_PATTERN = re.compile(
     r"(نبدأو\s*ف?ي?\s*إجراءات\s*الطلب|واش\s*نبدأو|نأكد\s*ليك\s*الطلب|"
@@ -1570,6 +1588,7 @@ def run_ai_agent_node(current_node, sender, channel, state_header=None):
                 sentiment=sentiment,
                 market=market,
                 agent_name=agent_name,
+                customer_phone=sender,
             )
         tool_calls_for_info = [tc for tc in (result.get("tool_calls") or []) if tc.get("name") in ("check_stock", "apply_discount", "track_order", "search_products", "submit_customer_order", "save_order", "record_order")]
         first_result_order_tools = [tc for tc in (result.get("tool_calls") or []) if tc.get("name") in ("save_order", "record_order")]
@@ -1594,15 +1613,31 @@ def run_ai_agent_node(current_node, sender, channel, state_header=None):
                         sku=args.get("sku"),
                     )
                     tool_results.append({"tool_call_id": tcid, "content": content})
+                    _add_ai_action_note(
+                        channel, sender,
+                        f"AI agent checked stock (product_id={args.get('product_id') or '—'}, sku={args.get('sku') or '—'}).",
+                    )
                 elif name == "apply_discount":
                     content = _execute_apply_discount(channel, args.get("coupon_code"))
                     tool_results.append({"tool_call_id": tcid, "content": content})
+                    _add_ai_action_note(
+                        channel, sender,
+                        f"AI agent applied discount: {args.get('coupon_code') or '—'}.",
+                    )
                 elif name == "track_order":
                     content = _execute_track_order(channel, args.get("customer_phone") or sender)
                     tool_results.append({"tool_call_id": tcid, "content": content})
+                    _add_ai_action_note(
+                        channel, sender,
+                        f"AI agent tracked order for customer {args.get('customer_phone') or sender}.",
+                    )
                 elif name == "search_products":
                     content = _execute_search_products(channel, args.get("query") or "")
                     tool_results.append({"tool_call_id": tcid, "content": content})
+                    _add_ai_action_note(
+                        channel, sender,
+                        f"AI agent searched products: \"{args.get('query') or ''}\".",
+                    )
                 elif name == "submit_customer_order":
                     content = _execute_submit_customer_order(channel, sender, args, current_node)
                     tool_results.append({"tool_call_id": tcid, "content": content})
@@ -1646,6 +1681,7 @@ def run_ai_agent_node(current_node, sender, channel, state_header=None):
                         sentiment=sentiment,
                         market=market,
                         agent_name=agent_name,
+                        customer_phone=sender,
                     )
                     # save_order/record_order were already executed in the loop above and tool result sent to AI
                 except Exception as cont_err:
@@ -1657,10 +1693,15 @@ def run_ai_agent_node(current_node, sender, channel, state_header=None):
             oid = submit_order_success_outcome.get("order_id")
             if oid:
                 saved_order = SimpleOrder.objects.filter(order_id=oid).first()
+                _add_ai_action_note(channel, sender, f"AI agent created order: {oid} (submit_customer_order) for customer {sender}.")
         # If save_order/record_order succeeded in the tool loop, use that order
         if save_order_result_order and channel:
             order_was_saved = True
             saved_order = save_order_result_order
+            _add_ai_action_note(
+                channel, sender,
+                f"AI agent created order: {getattr(save_order_result_order, 'order_id', '—')} (save_order/record_order) for customer {sender}.",
+            )
 
         reply_text = (result.get("reply") or "").strip()
         current_stage = result.get("stage")
@@ -1758,6 +1799,10 @@ def run_ai_agent_node(current_node, sender, channel, state_header=None):
                         if save_res is not None and not isinstance(save_res, dict):
                             saved_order = save_res
                             order_was_saved = True
+                            _add_ai_action_note(
+                                channel, sender,
+                                f"AI agent created order: {getattr(save_res, 'order_id', '—')} (save_order/record_order from follow-up) for customer {sender}.",
+                            )
                     else:
                         logger.warning(
                             "Order not saved (tool_calls save_order/record_order rejected): channel=%s sender=%s trust_score=%s stage=%r; should_accept_order_data returned False.",
@@ -1785,6 +1830,10 @@ def run_ai_agent_node(current_node, sender, channel, state_header=None):
                 if save_res is not None and not isinstance(save_res, dict):
                     saved_order = save_res
                     order_was_saved = True
+                    _add_ai_action_note(
+                        channel, sender,
+                        f"AI agent created order: {getattr(save_res, 'order_id', '—')} (ORDER_DATA) for customer {sender}.",
+                    )
             elif order_data:
                 logger.warning(
                     "Order not saved (ORDER_DATA rejected): channel=%s sender=%s trust_score=%s stage=%r; should_accept_order_data returned False.",
@@ -1835,12 +1884,9 @@ def run_ai_agent_node(current_node, sender, channel, state_header=None):
                 increment_trust_score(channel.id, sender)
         if order_was_saved and saved_order:
             reply_text = format_order_confirmation(saved_order)
-        if not reply_text:
-            # Only use order confirmation fallback when we actually saved an order (avoid false "order registered")
-            if order_was_saved and saved_order:
-                reply_text = get_order_confirmation_fallback(market)
-            else:
-                reply_text = "كيف يمكنني مساعدتك؟"  # neutral fallback when AI returned empty and no order
+        if not reply_text and order_was_saved and saved_order:
+            reply_text = get_order_confirmation_fallback(market)
+        # No fallback when AI returns empty: do not send a generic reply; next turn the AI should ask or clarify.
 
         reply_text, send_media_ids = parse_and_strip_send_media(reply_text)
         reply_text, send_product_image = parse_and_strip_send_product_image(reply_text)
@@ -1917,6 +1963,30 @@ def run_ai_agent_node(current_node, sender, channel, state_header=None):
                 output_messages.append({"type": "text", "content": reply_text, "delay": current_node.delay or 0})
     except Exception as e:
         logger.exception("run_ai_agent_node failed: %s", e)
+
+    # Once per session: internal note that AI agent (persona) took over as seller
+    try:
+        is_handover = bool((result or {}).get("handover"))
+    except NameError:
+        is_handover = True
+    if output_messages and channel and sender and not is_handover:
+        try:
+            session_for_note = get_active_session(channel, sender) if channel and sender else None
+            if session_for_note and not (getattr(session_for_note, "context_data", None) or {}).get("ai_takeover_note_created"):
+                from discount.product_sales_prompt import get_persona_category_label
+                ai_cfg = getattr(current_node, "ai_model_config", None) or {}
+                product_id = ai_cfg.get("product_id") if isinstance(ai_cfg, dict) else None
+                persona_category = get_persona_category_label(product_id)
+                name_for_note = (agent_name or "AI Agent").strip() or "AI Agent"
+                takeover_note_body = f"AI agent {name_for_note} took over as {persona_category} (persona-category)."
+                _add_ai_action_note(channel, sender, takeover_note_body)
+                ctx = getattr(session_for_note, "context_data", None) or {}
+                ctx["ai_takeover_note_created"] = True
+                session_for_note.context_data = ctx
+                session_for_note.save(update_fields=["context_data"])
+        except Exception as note_err:
+            logger.warning("AI takeover note failed: %s", note_err)
+
     return output_messages
 
 
@@ -2232,6 +2302,7 @@ def try_ai_voice_reply(sender, body, channel):
             product_context=product_context_for_reply,
             trust_score=trust_score,
             market=market,
+            customer_phone=sender,
         )
     except Exception as e:
         logger.exception("generate_reply_with_tools failed: %s", e)
@@ -2255,15 +2326,19 @@ def try_ai_voice_reply(sender, body, channel):
             if name == "track_order":
                 content = _execute_track_order(channel, args.get("customer_phone") or sender)
                 tool_results.append({"tool_call_id": tcid, "content": content})
+                _add_ai_action_note(channel, sender, f"AI agent tracked order for customer {args.get('customer_phone') or sender}.")
             elif name == "check_stock":
                 content = _execute_check_stock(channel, product_id=args.get("product_id"), sku=args.get("sku"))
                 tool_results.append({"tool_call_id": tcid, "content": content})
+                _add_ai_action_note(channel, sender, f"AI agent checked stock (product_id={args.get('product_id') or '—'}, sku={args.get('sku') or '—'}).")
             elif name == "apply_discount":
                 content = _execute_apply_discount(channel, args.get("coupon_code"))
                 tool_results.append({"tool_call_id": tcid, "content": content})
+                _add_ai_action_note(channel, sender, f"AI agent applied discount: {args.get('coupon_code') or '—'}.")
             elif name == "search_products":
                 content = _execute_search_products(channel, args.get("query") or "")
                 tool_results.append({"tool_call_id": tcid, "content": content})
+                _add_ai_action_note(channel, sender, f"AI agent searched products: \"{args.get('query') or ''}\".")
         if tool_results:
             try:
                 from ai_assistant.services import continue_after_tool_calls, get_agent_name_for_node
@@ -2276,6 +2351,7 @@ def try_ai_voice_reply(sender, body, channel):
                     trust_score=trust_score,
                     market=market,
                     agent_name=get_agent_name_for_node(False, None, market=market),
+                    customer_phone=sender,
                 )
                 order_tools = [t for t in tool_calls if t.get("name") in ("save_order", "record_order")]
                 if order_tools:
@@ -2333,16 +2409,13 @@ def try_ai_voice_reply(sender, body, channel):
 
     if order_was_saved and saved_order:
         reply_text = format_order_confirmation(saved_order)
-    if not reply_text:
-        # Only show order confirmation when we actually saved; use market/tone_desc for dynamic fallback
-        if order_was_saved and saved_order:
-            try:
-                from ai_assistant.services import get_order_confirmation_fallback
-                reply_text = get_order_confirmation_fallback(market)
-            except Exception:
-                reply_text = "تم تسجيل طلبك. سنتواصل معك قريباً."
-        else:
-            reply_text = "كيف يمكنني مساعدتك؟"
+    if not reply_text and order_was_saved and saved_order:
+        try:
+            from ai_assistant.services import get_order_confirmation_fallback
+            reply_text = get_order_confirmation_fallback(market)
+        except Exception:
+            reply_text = "تم تسجيل طلبك. سنتواصل معك قريباً."
+    # No fallback when AI returns empty: do not send; next turn the AI should respond or ask to clarify.
 
     if not reply_text:
         return

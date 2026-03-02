@@ -8,8 +8,10 @@ Builds the final system message for the AI Sales Agent by concatenating:
 import logging
 
 from discount.product_prompt_config import (
+    CATEGORY_ALIASES,
     CATEGORY_PERSONAS,
     DEFAULT_PERSONA,
+    PERSONA_CATEGORY_LABELS,
     SALES_BASE_RULES,
     VALID_CATEGORIES,
 )
@@ -81,15 +83,43 @@ def get_dynamic_persona_instruction(product_id):
 
     parts = []
     category = (getattr(product, "category", None) or "").strip().lower()
+    if category in CATEGORY_ALIASES:
+        category = CATEGORY_ALIASES[category]
     if category not in VALID_CATEGORIES:
         category = "general_retail"
     if category == "general":
         category = "general_retail"
     persona_text = CATEGORY_PERSONAS.get(category) or DEFAULT_PERSONA
-    parts.append(f"## Persona\n{persona_text}")
+    parts.append(
+        "## Persona\n"
+        "CRITICAL: This category persona MUST take over the conversation. Use it for every message; do not fall back to a generic sales tone.\n\n"
+        f"{persona_text}"
+    )
 
     custom = (getattr(product, "seller_custom_persona", None) or "").strip()
     if custom:
         parts.append(f"## Seller instructions\n{custom}")
 
     return "\n\n".join(parts) if parts else ""
+
+
+def get_persona_category_label(product_id):
+    """
+    Return a short label for the persona category (e.g. "Beauty Consultant") for the given product.
+    Used for internal notes like "AI agent {name} took over as {category}".
+    """
+    if not product_id:
+        return "Sales Agent"
+    try:
+        from discount.models import Products
+        product = Products.objects.filter(pk=int(product_id)).first()
+    except Exception:
+        return "Sales Agent"
+    if not product:
+        return "Sales Agent"
+    category = (getattr(product, "category", None) or "").strip().lower()
+    if category in CATEGORY_ALIASES:
+        category = CATEGORY_ALIASES[category]
+    if category not in VALID_CATEGORIES or category == "general":
+        category = "general_retail"
+    return PERSONA_CATEGORY_LABELS.get(category, "Store Manager")

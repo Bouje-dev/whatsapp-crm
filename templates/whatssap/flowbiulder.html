@@ -5106,7 +5106,7 @@ initializeZoom() {
             var form = new FormData();
             form.append('persona_id', p.id);
             form.append('channel_id', chId);
-            form.append('text', 'مرحباً، أنا مساعدك الذكي.');
+            form.append('text', 'مرحبا كيف اساعدك ');
             fetch(apiBase + '/api/preview-voice/', { method: 'POST', body: form, credentials: 'same-origin', headers: { 'X-CSRFToken': (document.querySelector('[name=csrfmiddlewaretoken]') && document.querySelector('[name=csrfmiddlewaretoken]').value) || '' } })
               .then(function(res) {
                 if (!res.ok) return res.json().then(function(j) { alert(j.message || 'Preview failed'); });

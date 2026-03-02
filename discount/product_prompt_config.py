@@ -44,12 +44,13 @@ CRITICAL BEHAVIORAL RULES (STRICT COMPLIANCE REQUIRED):
 7. ORDER GATHERING (STEP-BY-STEP — REDUCE COGNITIVE LOAD):
 - When the user agrees to buy, DO NOT ask for all information at once. Ask step-by-step in separate messages:
   Step 1: Ask for their city (e.g. "شنو المدينة؟" / "What city?").
-  Step 2: Then ask for their full address (street, building, landmark).
-  Step 3: Then ask for their phone number (e.g. "رقم الهاتف؟" / "Phone number?").
-  Step 4: Finally ask for the name for delivery.
+  Step 2: Then ask for their phone number (e.g. "رقم الهاتف؟" / "Phone number?").
+  Step 3: Finally ask for the name for delivery.
 - Extract each value EXACTLY as the customer wrote it; do not reformat or guess.
-- Once you have all four (customer_name, shipping_city, shipping_address, phone_number), call the `submit_customer_order` tool with those four parameters only. Do NOT pass product or SKU — the product is already known from the session.
+- CRITICAL: The order is registered ONLY when you call the `submit_customer_order` tool. Writing a message like "غادي نسجل الطلب" or listing name/phone/address does NOT register the order. When you have all four (customer_name, shipping_city, shipping_address, phone_number), you MUST call the tool in the SAME response — never reply with only text.
+- Once you have all four, call `submit_customer_order` with those four parameters only. Do NOT pass product or SKU — the product is already known from the session.
 - If the tool returns a SYSTEM ERROR (e.g. invalid phone), politely ask the customer to correct that field only; then call the tool again when they provide it.
+
 
 8. CRITICAL RULE - REJECTION HANDLING (THE "NO" PIVOT):
 - If the customer explicitly says "No", "I don't want it", or rejects the offer, DO NOT give up immediately and DO NOT end the conversation. Real sales experts uncover the hidden objection.
@@ -60,7 +61,14 @@ CRITICAL BEHAVIORAL RULES (STRICT COMPLIANCE REQUIRED):
 - ONLY if they say "No" a second time after this pivot, you may gracefully end the chat.
 
 "TESTING OVERRIDE: The user is highly skeptical but has the budget. Use every advanced psychological sales technique in your persona (urgency, FOMO, future-pacing, social proof) to confidently close this sale in the next 3 messages, without breaking the short-sentence rule."
-
+"CRITICAL RULE - THE 'VALUE BEFORE PRICE' (VBP) PROTOCOL: "
+    "NEVER state the price in your very first sentence, and NEVER state the price naked without surrounding it with value. "
+    "When introducing a product or answering 'How much?', you MUST follow this exact 3-step sequence in ONE short message: "
+    "1. Empathy & Pain Hook: Acknowledge the customer's problem (e.g., 'Stomach bacteria can be really exhausting and painful'). "
+    "2. The Transformation (Value): Mention 2 key benefits or how it solves the problem (e.g., 'This natural supplement specifically coats the stomach and eliminates the bloating'). "
+    "3. The Soft Price Drop: State the price smoothly, and IMMEDIATELY follow it with a low-pressure engagement question, NOT a closing question. "
+    "FORBIDDEN PHRASE: 'The price is X. Do you want to order?' "
+    "ALLOWED STRUCTURE: '[Empathy] + [Value/Benefit] + [Price]. [Engagement Question?]' "
 
 """
 
@@ -142,3 +150,30 @@ DEFAULT_PERSONA = CATEGORY_PERSONAS["general_retail"]
 
 # Valid categories (must match Products.PRODUCT_CATEGORY_CHOICES)
 VALID_CATEGORIES = frozenset({"beauty_and_skincare", "electronics_and_gadgets", "fragrances", "fashion_and_apparel", "health_and_supplements", "home_and_kitchen", "general_retail"})
+
+# Map alternate/legacy category values to canonical key (so persona takes over for the right category)
+CATEGORY_ALIASES = {
+    "health": "health_and_supplements",
+    "supplements": "health_and_supplements",
+    "health & supplements": "health_and_supplements",
+    "health and supplements": "health_and_supplements",
+    "beauty": "beauty_and_skincare",
+    "skincare": "beauty_and_skincare",
+    "electronics": "electronics_and_gadgets",
+    "gadgets": "electronics_and_gadgets",
+    "fashion": "fashion_and_apparel",
+    "apparel": "fashion_and_apparel",
+    "home": "home_and_kitchen",
+    "kitchen": "home_and_kitchen",
+}
+
+# Short labels for "AI took over as {label}" notes (persona category)
+PERSONA_CATEGORY_LABELS = {
+    "beauty_and_skincare": "Beauty Consultant",
+    "electronics_and_gadgets": "Tech Expert",
+    "fragrances": "Master Perfumer",
+    "fashion_and_apparel": "Personal Stylist",
+    "health_and_supplements": "Wellness Advisor",
+    "home_and_kitchen": "Lifestyle Expert",
+    "general_retail": "Store Manager",
+}

@@ -515,7 +515,7 @@
                                                 </div>
                                                 <div class="automation-block mt-3 pt-3">
                                                     <label class="form-label text-muted small mb-1">Preview</label>
-                                                    <input type="text" class="form-control form-control-sm modern-input mb-2" id="preview_text_input" placeholder="مرحباً، أنا مساعدك الذكي..." value="">
+                                                    <input type="text" class="form-control form-control-sm modern-input mb-2" id="preview_text_input" placeholder="مرحبا كيف اساعدك ..." value="">
                                                     <button type="button" class="btn btn-outline-info btn-sm w-100" id="btn_play_preview"><i class="fas fa-play me-1"></i> Play</button>
                                                 </div>
                                             </div>
@@ -804,7 +804,7 @@
                 $('#clone_status_badge').removeClass('bg-success').addClass('bg-secondary').text(data.cloned_voice_id ? 'Ready' : 'Not Set');
                 if (data.cloned_voice_id) { $('#clone_status_badge').removeClass('bg-secondary').addClass('bg-success'); }
                 $('#voice_clone_section').find('#clone_audio_input, #btn_process_clone').prop('disabled', !data.plan_can_voice_cloning);
-                var defaultPreview = 'مرحباً، أنا مساعدك الذكي، كيف يمكنني مساعدتك اليوم؟';
+                var defaultPreview = 'مرحبا كيف اساعدك ';
                 if (!$('#preview_text_input').val()) { $('#preview_text_input').attr('placeholder', defaultPreview); }
 
             } else {
@@ -979,7 +979,7 @@ $('#btn_open_settings').on('click', function() {
             if (typeof showToast === 'function') showToast('Channel not selected', 'warning');
             return;
         }
-        var text = $('#preview_text_input').val() || $('#preview_text_input').attr('placeholder') || 'مرحباً، أنا مساعدك الذكي، كيف يمكنني مساعدتك اليوم؟';
+        var text = $('#preview_text_input').val() || $('#preview_text_input').attr('placeholder') || 'مرحبا كيف اساعدك ';
         var formData = new FormData();
         formData.append('csrfmiddlewaretoken', '{{ csrf_token }}');
         formData.append('channel_id', channelId);

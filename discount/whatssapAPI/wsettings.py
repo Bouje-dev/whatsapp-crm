@@ -653,7 +653,7 @@ def voice_gallery_preview(request):
     voice_id = (request.POST.get('voice_id') or '').strip()
     if not voice_id:
         return JsonResponse({'status': 'error', 'message': 'voice_id required'}, status=400)
-    text = (request.POST.get('text') or 'مرحباً، أنا مساعدك الذكي.').strip()[:500]
+    text = (request.POST.get('text') or 'مرحبا كيف اساعدك ').strip()[:500]
     try:
         from discount.whatssapAPI.voice_engine import generate_voice_sample
         api_key = (getattr(channel, 'elevenlabs_api_key', None) or '').strip() or os.environ.get('ELEVENLABS_API_KEY', '').strip()

@@ -382,6 +382,7 @@ def process_flow_for_message(flow, message_text, phone, media_type=None):
                         custom_instruction=None,
                         product_context=product_context,
                         trust_score=trust_score,
+                        customer_phone=phone,
                     )
                     reply_text = (result.get("reply") or "").strip()
                     current_stage = result.get("stage")
@@ -2178,7 +2179,7 @@ def api_preview_voice(request):
 
     persona_id = request.POST.get("persona_id")
     channel_id = request.POST.get("channel_id")
-    text = (request.POST.get("text") or "مرحباً، أنا مساعدك الذكي.").strip()[:500]
+    text = (request.POST.get("text") or "مرحبا كيف اساعدك ").strip()[:500]
     if not persona_id:
         return JsonResponse({"status": "error", "message": "persona_id required"}, status=400)
     channel = _get_channel_for_user(request, channel_id)

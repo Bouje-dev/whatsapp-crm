@@ -200,7 +200,7 @@ def handle_submit_order_tool(arguments, session_product_id, session_seller_id, c
     customer_city_display = f"{shipping_city} | {shipping_address}".strip() if shipping_address else shipping_city
 
     try:
-        order_agent = get_or_create_ai_agent_user(store, agent_name="AI Order Agent")
+        order_agent = get_or_create_ai_agent_user(store, agent_name="AI Agent")
         order_agent = order_agent or store
         order_id = str(uuid.uuid4())[:8]
         while SimpleOrder.objects.filter(order_id=order_id).exists():
@@ -592,7 +592,7 @@ def save_order_from_ai(channel, customer_phone, customer_name=None, customer_cit
             }
 
     store = getattr(channel, "owner", None)
-    ai_agent_user = get_or_create_ai_agent_user(store, agent_name=agent_name)
+    ai_agent_user = get_or_create_ai_agent_user(store, agent_name="AI Agent")
     order_agent = ai_agent_user if ai_agent_user else store
 
     # Plan: max_monthly_orders cap (stop auto-order when reached)
