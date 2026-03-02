@@ -5429,50 +5429,82 @@ $('#cls3741_attach_btn').on('click', function() {
 
 
 
-  <section class="cls3741_panel cls3741_panel_orders" style="display: none;  padding:12px;   height: 100%;">
-    <h2>Orders</h2>
-    <p>Manage Orders</p>
-  </br>
- <div style="display:flex;gap:18px;align-items:flex-start;flex-wrap:wrap;">
-        <!-- LEFT: contacts list -->
-         
-        <div style="flex:1;min-width:260px;max-width:520px;">
-            <div style="margin-bottom:10px">
-                <input id="contacts_panel_search" placeholder="Search by name or number..." style="width:100%;padding:10px;border-radius:10px;border:1px solid rgba(255,255,255,0.04);background:rgba(2,6,23,0.35);color:#eafcff">
-            </div>
-
-          
+  <section class="cls3741_panel cls3741_panel_orders cls3741_orders_panel" style="display: none; padding: 0; height: 100%; overflow: auto;">
+    <header class="cls3741_orders_header">
+      <div class="cls3741_orders_header_inner">
+        <div class="cls3741_orders_title_wrap">
+          <span class="cls3741_orders_icon"><i class="fas fa-shopping-cart"></i></span>
+          <div>
+            <h2 class="cls3741_orders_title">Orders</h2>
+            <p class="cls3741_orders_subtitle">View and manage channel orders. Sync to Google Sheets from the table.</p>
+          </div>
         </div>
+      </div>
+    </header>
+    <div class="cls3741_orders_content">
+      <div class="cls3741_orders_toolbar">
+        <input type="text" id="contacts_panel_search" class="cls3741_orders_search" placeholder="Search by customer name or phone…" aria-label="Search orders">
+      </div>
+      <div id="templates_table_wrap" class="cls3741_orders_table_wrap table-responsive">
+        <table id="templates_table" class="cls3741_orders_table">
+          <thead>
+            <tr>
+              <th>Agent</th>
+              <th>Customer</th>
+              <th>Address</th>
+              <th>Qty</th>
+              <th>Product</th>
+              <th>Price</th>
+              <th>Created</th>
+              <th>Sync</th>
+            </tr>
+          </thead>
+          <tbody id="orders_tbody">
+            <tr>
+              <td colspan="8" class="cls3741_orders_empty">No orders yet. Orders from this channel will appear here.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <div id="orders_pagination_wrap" class="cls3741_orders_pagination_wrap" style="display: none;"></div>
     </div>
-            <div id="templates_table_wrap" class="table-responsive" style="background:linear-gradient(180deg, rgba(255,255,255,0.01), rgba(255,255,255,0.005));padding:8px;border-radius:10px;border:1px solid rgba(255,255,255,0.03);overflow:auto">
-            <table id="templates_table" style="width:100%;border-collapse:collapse">
-                <thead>
-                    <tr style="text-align:left;
-                    border-bottom: 2px solid #202020;
-                   
-                ;">
-                        <th style="padding:10px;font-weight:700;color:#eafcff">Agent</th>
-                        <th style="padding:10px;font-weight:700;color:#eafcff">Customer</th>
-                        <th style="padding:10px;font-weight:700;color:#eafcff">Address</th> 
-                        <th style="padding:10px;font-weight:700;color:#eafcff">quantity</th>  
-                        <th style="padding:10px;font-weight:700;color:#eafcff">product</th>
-                        <th style="padding:10px;font-weight:700;color:#eafcff">Prices</th>
-                        <th style="padding:10px;font-weight:700;color:#eafcff">Created at</th>
-                        <th style="padding:10px;font-weight:700;color:#eafcff">Sync Status</th>
-                    </tr>
-                </thead>
-                <tbody id="orders_tbody" style="    border-color: inherit;
-                border-style: solid;
-                border-width: 0;
-            ">
-                    <!-- sample empty state -->
-                    <tr> 
-                        <td colspan="8" style="padding:18px;color:var(--muted);text-align:center">No order found</td>
-                    </tr>
-                </tbody>
-            </table>
-        </div>
 
+    <style>
+      .cls3741_orders_panel { background: linear-gradient(180deg, #0d0f14 0%, #13161d 100%); }
+      .cls3741_orders_header { padding: 1.25rem 1.5rem; background: rgba(255,255,255,0.03); border-bottom: 1px solid rgba(255,255,255,0.06); }
+      .cls3741_orders_header_inner { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 1rem; }
+      .cls3741_orders_title_wrap { display: flex; align-items: center; gap: 0.9rem; }
+      .cls3741_orders_icon { width: 42px; height: 42px; display: inline-flex; align-items: center; justify-content: center; background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: #fff; border-radius: 10px; font-size: 1.05rem; }
+      .cls3741_orders_title { margin: 0; font-size: 1.25rem; font-weight: 700; color: #f1f5f9; letter-spacing: -0.02em; }
+      .cls3741_orders_subtitle { margin: 0.25rem 0 0; font-size: 0.8rem; color: #94a3b8; }
+      .cls3741_orders_content { padding: 1.25rem 1.5rem; }
+      .cls3741_orders_toolbar { margin-bottom: 1rem; }
+      .cls3741_orders_search { width: 100%; max-width: 320px; padding: 0.6rem 1rem; font-size: 0.9rem; color: #f1f5f9; background: rgba(0,0,0,0.25); border: 1px solid rgba(255,255,255,0.08); border-radius: 10px; outline: none; }
+      .cls3741_orders_search::placeholder { color: #64748b; }
+      .cls3741_orders_search:focus { border-color: rgba(16, 185, 129, 0.4); box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.15); }
+      .cls3741_orders_table_wrap { border-radius: 12px; border: 1px solid rgba(255,255,255,0.06); background: rgba(255,255,255,0.02); overflow: auto; }
+      .cls3741_orders_table { width: 100%; border-collapse: collapse; color: #e2e8f0; }
+      .cls3741_orders_table thead th { padding: 0.8rem 1rem; font-size: 0.7rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: #94a3b8; background: rgba(0,0,0,0.2); border-bottom: 1px solid rgba(255,255,255,0.06); text-align: left; }
+      .cls3741_orders_table thead th:last-child { text-align: center; }
+      .cls3741_orders_table tbody tr { border-bottom: 1px solid rgba(255,255,255,0.04); transition: background 0.15s ease; }
+      .cls3741_orders_table tbody tr:last-child { border-bottom: none; }
+      .cls3741_orders_table tbody tr:hover { background: rgba(255,255,255,0.03); }
+      .cls3741_orders_table tbody td { padding: 0.85rem 1rem; font-size: 0.875rem; vertical-align: middle; }
+      .cls3741_orders_table tbody td:first-child { font-weight: 600; color: #e2e8f0; }
+      .cls3741_orders_table .cls3741_orders_cell_agent { font-weight: 600; color: #e2e8f0; }
+      .cls3741_orders_table .cls3741_orders_cell_muted { color: #94a3b8; max-width: 220px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+      .cls3741_orders_table .cls3741_orders_empty { padding: 2.5rem 1rem; color: #64748b; text-align: center; font-size: 0.9rem; }
+      .cls3741_orders_table .cls3741_btn_sync_order { margin-left: 0.5rem; padding: 0.3rem 0.6rem; font-size: 0.75rem; font-weight: 600; border-radius: 6px; background: rgba(34, 197, 94, 0.15); color: #22c55e; border: 1px solid rgba(34, 197, 94, 0.4); cursor: pointer; transition: background 0.15s, color 0.15s; }
+      .cls3741_orders_table .cls3741_btn_sync_order:hover:not(:disabled) { background: rgba(34, 197, 94, 0.25); color: #4ade80; }
+      .cls3741_orders_table .cls3741_btn_sync_order:disabled { opacity: 0.7; cursor: not-allowed; }
+      .cls3741_orders_pagination_wrap { margin-top: 1rem; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 0.75rem; }
+      .cls3741_orders_pagination_info { font-size: 0.8rem; color: #94a3b8; }
+      .cls3741_orders_pagination_controls { display: flex; align-items: center; gap: 0.25rem; }
+      .cls3741_orders_pagination_btn { min-width: 34px; height: 34px; padding: 0 0.5rem; font-size: 0.85rem; font-weight: 500; color: #e2e8f0; background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.08); border-radius: 8px; cursor: pointer; transition: background 0.15s, border-color 0.15s; }
+      .cls3741_orders_pagination_btn:hover:not(:disabled) { background: rgba(255,255,255,0.1); border-color: rgba(255,255,255,0.12); color: #f1f5f9; }
+      .cls3741_orders_pagination_btn:disabled { opacity: 0.4; cursor: not-allowed; }
+      .cls3741_orders_pagination_btn.active { background: rgba(16, 185, 129, 0.25); border-color: rgba(16, 185, 129, 0.4); color: #34d399; }
+    </style>
 
      <script>
   // 🔒 دالة لتحصين النصوص ضد إدخال HTML خبيث (XSS)
@@ -5487,24 +5519,27 @@ $('#cls3741_attach_btn').on('click', function() {
   }
 
   const tbody = document.getElementById('orders_tbody');
+  const ordersPaginationWrap = document.getElementById('orders_pagination_wrap');
+  let ordersCurrentPage = 1;
 
-
-  async function loadTemplates(channel_id_arg=null){
+  async function loadTemplates(channel_id_arg=null, page_arg=1){
    
     // 1. تنظيف المدخلات: إذا كان المعامل هو حدث (Event) نجعله null
     let activeChannelId = channel_id_arg;
-    
     if (activeChannelId && (typeof activeChannelId === 'object' || activeChannelId instanceof Event)) {
         activeChannelId = null;
     }
+    const page = typeof page_arg === 'number' && page_arg >= 1 ? page_arg : (ordersCurrentPage || 1);
 
     // 2. استخدام القيمة الممررة أو القيمة العامة
     const channel_id = activeChannelId || window.currentChannelId || '{{ initial_channel_id }}';
 
     if(!tbody) return;
-    tbody.innerHTML = `<tr><td colspan="8" style="padding:18px;color:var(--muted);text-align:center">Loading orders...</td></tr>`;
+    ordersCurrentPage = page;
+    tbody.innerHTML = `<tr><td colspan="8" class="cls3741_orders_empty">Loading orders…</td></tr>`;
+    if (ordersPaginationWrap) ordersPaginationWrap.style.display = 'none';
     try{
-      const url = `/discount/whatssapAPI/api_orders/?channel_id=${channel_id}`;
+      const url = `/discount/whatssapAPI/api_orders/?channel_id=${channel_id}&page=${page}&page_size=20`;
       const res = await fetch(url, {
         cache: 'no-store',
         headers: { 'Accept': 'application/json' }
@@ -5512,11 +5547,13 @@ $('#cls3741_attach_btn').on('click', function() {
 
       if(!res.ok) throw new Error('network');
       const data = await res.json();
-      const list = data.orders || data || [];
+      const list = data.orders || [];
+      const pagination = data.pagination || null;
       console.log('Orders loaded', list);
 
       if(!Array.isArray(list) || list.length === 0){
-        tbody.innerHTML = `<tr><td colspan="8" style="padding:18px;color:var(--muted);text-align:center">There are no orders yet</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="8" class="cls3741_orders_empty">No orders yet. Orders from this channel will appear here.</td></tr>`;
+        if (ordersPaginationWrap) ordersPaginationWrap.style.display = 'none';
         return;
       }
 
@@ -5540,19 +5577,17 @@ $('#cls3741_attach_btn').on('click', function() {
 
         const tr = document.createElement('tr');
         tr.setAttribute('data-order-id', item.id);
-        tr.innerHTML = `  
-         <td style="padding:10px;background: #0f1017; font-weight:bolder;" title="${createdByIsBot ? 'Created by AI Agent' : ''}">${useremail}</td>
-          <td style="padding:10px">${name}</td>
-       
-          <td style="padding:10px;color:var(--muted);max-width:320px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${customer_city}</td>
-          <td style="padding:10px">${quantity}</td>
-           <td style="padding:10px;color:var(--muted);max-width:320px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${product}</td>
-          
-          <td style="padding:10px">${Tamount}</td>
-          <td style="padding:10px">${updated}</td>
-          <td style="padding:10px">
+        tr.innerHTML = `
+          <td class="cls3741_orders_cell_agent" title="${createdByIsBot ? 'Created by AI Agent' : ''}">${useremail}</td>
+          <td>${name}</td>
+          <td class="cls3741_orders_cell_muted">${customer_city}</td>
+          <td>${quantity}</td>
+          <td class="cls3741_orders_cell_muted">${product}</td>
+          <td>${Tamount}</td>
+          <td>${updated}</td>
+          <td>
             <span style="color:${statusColor};font-weight:600">${statusLabel}</span>
-            ${showSyncBtn ? `<button type="button" class="cls3741_btn_sync_order" data-order-id="${item.id}" title="${syncError}" style="margin-left:6px;padding:4px 8px;font-size:0.75rem;border-radius:6px;background:rgba(34,197,94,0.2);color:#22c55e;border:1px solid #22c55e;cursor:pointer">&#8635; Sync Now</button>` : ''}
+            ${showSyncBtn ? `<button type="button" class="cls3741_btn_sync_order" data-order-id="${item.id}" title="${syncError}">&#8635; Sync Now</button>` : ''}
           </td>
         `;
         tbody.appendChild(tr);
@@ -5582,7 +5617,7 @@ $('#cls3741_attach_btn').on('click', function() {
                 done.style.fontWeight = '600';
                 done.style.marginLeft = '6px';
                 btn.parentNode.appendChild(done);
-                loadTemplates();
+                loadTemplates(null, ordersCurrentPage);
               } else {
                 if (typeof showToast === 'function') showToast('Error: ' + (res.json.message || 'Sync failed'), 'error');
                 else alert('Error: ' + (res.json.message || 'Sync failed'));
@@ -5595,9 +5630,42 @@ $('#cls3741_attach_btn').on('click', function() {
             .finally(function() { btn.disabled = false; btn.textContent = '\u8635 Sync Now'; });
         });
       });
+
+      if (ordersPaginationWrap && pagination && pagination.total_pages > 1) {
+        const p = pagination;
+        const start = Math.max(1, p.page - 2);
+        const end = Math.min(p.total_pages, p.page + 2);
+        let info = 'Showing ' + ((p.page - 1) * p.page_size + 1) + '–' + Math.min(p.page * p.page_size, p.total_count) + ' of ' + p.total_count;
+        let ctrls = '';
+        ctrls += '<button type="button" class="cls3741_orders_pagination_btn" data-page="prev"' + (p.has_previous ? '' : ' disabled') + ' aria-label="Previous">‹</button>';
+        for (let i = start; i <= end; i++) {
+          ctrls += '<button type="button" class="cls3741_orders_pagination_btn' + (i === p.page ? ' active' : '') + '" data-page="' + i + '">' + i + '</button>';
+        }
+        ctrls += '<button type="button" class="cls3741_orders_pagination_btn" data-page="next"' + (p.has_next ? '' : ' disabled') + ' aria-label="Next">›</button>';
+        ordersPaginationWrap.innerHTML = '<span class="cls3741_orders_pagination_info">' + info + '</span><div class="cls3741_orders_pagination_controls">' + ctrls + '</div>';
+        ordersPaginationWrap.style.display = 'flex';
+        ordersPaginationWrap.querySelectorAll('.cls3741_orders_pagination_btn').forEach(function(btn) {
+          btn.addEventListener('click', function() {
+            if (this.disabled) return;
+            const d = this.getAttribute('data-page');
+            let next = p.page;
+            if (d === 'prev') next = p.page - 1;
+            else if (d === 'next') next = p.page + 1;
+            else next = parseInt(d, 10);
+            if (next >= 1 && next <= p.total_pages) loadTemplates(null, next);
+          });
+        });
+      } else if (ordersPaginationWrap && pagination && pagination.total_count > 0) {
+        const p = pagination;
+        ordersPaginationWrap.innerHTML = '<span class="cls3741_orders_pagination_info">' + p.total_count + ' order' + (p.total_count !== 1 ? 's' : '') + '</span>';
+        ordersPaginationWrap.style.display = 'flex';
+      } else if (ordersPaginationWrap) {
+        ordersPaginationWrap.style.display = 'none';
+      }
     } catch(err) {
       console.error('loadOrders error', err);
-      tbody.innerHTML = `<tr><td colspan="8" style="padding:18px;color:var(--muted);text-align:center">Failed to load orders</td></tr>`;
+      tbody.innerHTML = `<tr><td colspan="8" class="cls3741_orders_empty">Failed to load orders. Try again later.</td></tr>`;
+      if (ordersPaginationWrap) ordersPaginationWrap.style.display = 'none';
     }
   }
 
@@ -6458,455 +6526,50 @@ $('#cls3741_attach_btn').on('click', function() {
   </section>
 
 
- <!-- -------------------contcat --------------  -->
- 
-<section class="cls3741_panel cls3741_panel_contacts" style="display: none;     height: 100%;">
-  <style>
-    /* --- Design Tokens & Variables --- */
-.cls3741_contacts_panel {
-    /* --primary-color: #05ab53; */
-    /* --primary-hover: #1d4ed8; */
-    /* --bg-canvas: #f3f4f6; */
-    /* --bg-surface: #ffffff; */
-    --bg-surface-hover: #000000;
-    /* --text-primary: #111827; */
-    --text-secondary: #6b7280;
-    /* --text-muted: #9ca3af; */
-    --border-color: #343436;
-    --vip-color: #f59e0b;
-    --danger-color: #ef4444;
-    --radius-lg: 16px;
-    --radius-md :12px;
-    --radius-sm: 8px;
-    --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
-    --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
-    font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-    padding: 24px;
-    /* min-height: 100vh; */
-    background-color: var(--bg-canvas);
-    box-sizing: border-box;
-}
-
-    /* --- Layout Grid --- */
-    .cls3741_contacts_layout {
-      display: grid;
-      grid-template-columns: 380px 1fr; /* Fixed list width, fluid details */
-      gap: 24px;
-      max-width: 1400px;
-      margin: 0 auto;
-      height: calc(100vh - 278px);
-    }
-
-    /* --- Header --- */
-    .cls3741_contacts_header {
-    margin-bottom: 20px;
-    display: flex;
-    align-items: center;
-    flex-direction: column;
-}
-
-    .cls3741_contacts_title {
-      font-size: 24px;
-      font-weight: 700;
-      color: var(--text-primary);
-      letter-spacing: -0.5px;
-      margin: 0;
-    }
-
-    /* --- Left Column: Search & List --- */
-    .cls3741_list_container {
-      background: var(--bg-surface);
-      border-radius: var(--radius-lg);
-      box-shadow: var(--shadow-md);
-      display: flex;
-      flex-direction: column;
-      overflow: hidden;
-      border: 1px solid var(--border-color);
-    }
-
-    .cls3741_search_wrapper {
-      padding: 16px;
-      border-bottom: 1px solid var(--border-color);
-    }
-
-    .cls3741_search_input_group {
-      position: relative;
-    }
-
-    .cls3741_search_icon {
-      position: absolute;
-      left: 12px;
-      top: 50%;
-      transform: translateY(-50%);
-      color: var(--text-muted);
-      pointer-events: none;
-    }
-
-    .cls3741_contacts_search {
-      width: 100%;
-      padding: 12px 12px 12px 40px;
-      border-radius: var(--radius-md);
-      border: 1px solid var(--border-color);
-      background: var(--bg-surface-hover);
-      color: var(--text-primary);
-      font-size: 14px;
-      outline: none;
-      transition: all 0.2s ease;
-    }
-
-    .cls3741_contacts_search:focus {
-      border-color: var(--primary-color);
-      background: #fff;
-      box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
-    }
-
-    /* --- Tabs (Filters) --- */
-    .cls3741_tabs {
-      display: flex;
-      padding: 0 16px 12px 16px;
-      gap: 8px;
-      border-bottom: 1px solid var(--border-color);
-    }
-
-    .cls3741_tab_btn {
-      border: none;
-      background: transparent;
-      padding: 8px 16px;
-      font-size: 13px;
-      font-weight: 600;
-      color: var(--text-secondary);
-      border-radius: 20px;
-      cursor: pointer;
-      transition: all 0.2s;
-    }
-
-    .cls3741_tab_btn:hover {
-      background: var(--bg-canvas);
-      color: var(--text-primary);
-    }
-
-    .cls3741_tab_btn.active {
-      background: var(--primary-color);
-      color: white;
-    }
-    
-    .cls3741_tab_btn.vip-tab.active {
-        background: var(--vip-color);
-        color: white;
-    }
-
-    /* --- Contact List Items --- */
-    .cls3741_contacts_list {
-      /* flex: 1; */
-      overflow-y: auto;
-      padding: 8px;
-    }
-    
-    /* Custom Scrollbar */
-    .cls3741_contacts_list::-webkit-scrollbar { width: 6px; }
-    .cls3741_contacts_list::-webkit-scrollbar-thumb { background-color: #d1d5db; border-radius: 3px; }
-
-    .cls3741_contact_card {
-      display: flex;
-      align-items: center;
-      padding: 12px;
-      margin-bottom: 4px;
-      border-radius: var(--radius-md);
-      cursor: pointer;
-      transition: all 0.2s ease;
-      border: 1px solid transparent;
-    }
-
-    .cls3741_contact_card:hover {
-      background-color: var(--bg-surface-hover);
-    }
-
-.cls3741_contact_card.active {
-    background-color: #2d2b2b;
-    border-color: #343436;
-}
-
-    /* VIP Styling */
-    .cls3741_contact_card.is_vip {
-      border-left: 3px solid var(--vip-color);
-    }
-    
-    .cls3741_contact_card.is_vip .cls3741_avatar {
-        background: linear-gradient(135deg, var(--vip-color), #b45309);
-    }
-
-    .cls3741_avatar {
-      width: 44px;
-      height: 44px;
-      border-radius: 12px;
-      background: linear-gradient(135deg, #4b5563, #1f2937);
-      color: white;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 16px;
-      font-weight: 700;
-      flex-shrink: 0;
-      margin-right: 12px;
-      position: relative;
-    }
-
-    .cls3741_vip_icon {
-      position: absolute;
-      top: -4px;
-      right: -4px;
-      background: #fff;
-      border-radius: 50%;
-      color: var(--vip-color);
-      font-size: 12px;
-      padding: 1px;
-    }
-
-    .cls3741_card_info {
-      flex: 1;
-      min-width: 0;
-    }
-
-    .cls3741_card_name {
-      font-size: 15px;
-      font-weight: 600;
-      color: var(--text-primary);
-      margin-bottom: 2px;
-      display: flex;
-      align-items: center;
-      gap: 6px;
-    }
-
-    .cls3741_card_meta {
-      font-size: 12px;
-      color: var(--text-secondary);
-      display: flex;
-      justify-content: space-between;
-    }
-
-    .cls3741_badge {
-      background: var(--danger-color);
-      color: white;
-      padding: 2px 8px;
-      border-radius: 10px;
-      font-size: 11px;
-      font-weight: 700;
-      margin-left: 8px;
-    }
-
-    /* --- Right Column: Details --- */
-    .cls3741_details_panel {
-      background: var(--bg-surface);
-      border-radius: var(--radius-lg);
-      box-shadow: var(--shadow-md);
-      border: 1px solid var(--border-color);
-      padding: 32px;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      text-align: center;
-      overflow-y: auto;
-    }
-
-    .cls3741_profile_header {
-      margin-bottom: 32px;
-      width: 100%;
-      position: relative;
-    }
-    
-    .cls3741_vip_badge_large {
-        display: none;
-        background: #fffbeb;
-        color: #b45309;
-        padding: 6px 12px;
-        border-radius: 20px;
-        font-size: 12px;
-        font-weight: 700;
-        margin: 0 auto 16px;
-        width: fit-content;
-        border: 1px solid #fcd34d;
-    }
-
-    .cls3741_profile_avatar {
-      width: 100px;
-      height: 100px;
-      border-radius: 24px;
-      background: #e5e7eb;
-      margin: 0 auto 16px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 36px;
-      font-weight: 800;
-      color: var(--text-secondary);
-    }
-
-    .cls3741_profile_name {
-      font-size: 24px;
-      font-weight: 800;
-      color: var(--text-primary);
-      margin-bottom: 4px;
-    }
-
-    .cls3741_profile_phone {
-      font-size: 16px;
-      color: var(--text-secondary);
-      font-family: monospace;
-    }
-
-    .cls3741_stats_container {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 16px;
-      width: 100%;
-      margin-bottom: 32px;
-    }
-
-    .cls3741_stat_box {
-      background: var(--bg-canvas);
-      padding: 16px;
-      border-radius: var(--radius-md);
-      text-align: center;
-    }
-
-    .cls3741_stat_value {
-      font-size: 20px;
-      font-weight: 700;
-      color: var(--text-primary);
-      margin-bottom: 4px;
-    }
-
-    .cls3741_stat_label {
-      font-size: 12px;
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
-      color: var(--text-secondary);
-    }
-
-    .cls3741_info_grid {
-      width: 100%;
-      display: grid;
-      grid-template-columns: 1fr;
-      gap: 16px;
-      margin-bottom: 32px;
-      text-align: left;
-    }
-
-    .cls3741_info_item {
-      display: flex;
-      justify-content: space-between;
-      padding-bottom: 12px;
-      border-bottom: 1px solid var(--border-color);
-    }
-
-    .cls3741_info_label { color: var(--text-secondary); font-size: 14px; }
-    .cls3741_info_text { color: var(--text-primary); font-weight: 500; font-size: 14px; }
-
-    .cls3741_actions {
-      width: 100%;
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 12px;
-    }
-
-     .cls3741_btn1 {
-      padding: 14px;
-      border-radius: var(--radius-md);
-      font-weight: 600;
-      cursor: pointer;
-      border: none;
-      transition: transform 0.1s;
-      font-size: 14px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 8px;
-    }
-    
-    .cls3741_btn1:active { transform: scale(0.98); }
-
-    .cls3741_btn_primary { background: var(--primary-color); color: white; }
-    .cls3741_btn_primary:hover { background: var(--primary-hover); }
-
-    .cls3741_btn_secondary { background: rgb(0, 0, 0); border: 1px solid var(--border-color); color: var(--text-primary); }
-    .cls3741_btn_secondary:hover { background: var(--bg-canvas); }
-
-    /* --- Utilities --- */
-    .cls3741_hidden { display: none !important; }
-    
-    .cls3741_loader {
-        border: 3px solid #f3f3f3;
-        border-top: 3px solid var(--primary-color);
-        border-radius: 50%;
-        width: 24px;
-        height: 24px;
-        animation: spin 1s linear infinite;
-        margin: 40px auto;
-    }
-
-    @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
-
-    @media (max-width: 900px) {
-      .cls3741_contacts_layout { grid-template-columns: 1fr; }
-      .cls3741_details_panel { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 50; }
-      .cls3741_details_panel.mobile-active { display: flex; }
-    }
-  </style> 
-
-<div class="cls3741_contacts_panel">
- 
-
-  <div class="cls3741_contacts_layout">
-    
-    <div class="cls3741_list_container">
-      
-      <div class="cls3741_search_wrapper">
-        <div class="cls3741_search_input_group">
-          <span class="cls3741_search_icon">
-             <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
-          </span>
-          <input type="text" class="cls3741_contacts_search" placeholder="Search name, phone..." id="cls3741_search_input">
+ <!-- ------------------- Contacts panel (redesigned) ------------------- -->
+<section class="cls3741_panel cls3741_panel_contacts" style="display: none; height: 100%; overflow: hidden;">
+  <header class="cls3741_contacts_page_header">
+    <div class="cls3741_contacts_page_header_inner">
+      <div class="cls3741_contacts_page_title_wrap">
+        <span class="cls3741_contacts_page_icon"><i class="fas fa-address-book"></i></span>
+        <div>
+          <h2 class="cls3741_contacts_page_title">Contacts</h2>
+          <p class="cls3741_contacts_page_subtitle">Search and manage your channel contacts. Select one to view details.</p>
         </div>
       </div>
+    </div>
+  </header>
 
-      <div class="cls3741_tabs" id="cls3741_tabs_container">
-          <button class="cls3741_tab_btn active" data-filter="all">All</button>
-          <button class="cls3741_tab_btn vip-tab" data-filter="important">⭐ VIP</button>
-          <button class="cls3741_tab_btn" data-filter="unread">💬 Unread</button>
+  <div class="cls3741_contacts_panel">
+    <div class="cls3741_contacts_layout">
+      <div class="cls3741_list_container">
+        <div class="cls3741_search_wrapper">
+          <div class="cls3741_search_input_group">
+            <span class="cls3741_search_icon"><i class="fas fa-search"></i></span>
+            <input type="text" class="cls3741_contacts_search" placeholder="Search by name or phone…" id="cls3741_search_input" aria-label="Search contacts">
+          </div>
+        </div>
 
+        <div class="cls3741_tabs" id="cls3741_tabs_container">
+          <button type="button" class="cls3741_tab_btn active" data-filter="all">All</button>
+          <button type="button" class="cls3741_tab_btn vip-tab" data-filter="important">⭐ VIP</button>
+          <button type="button" class="cls3741_tab_btn" data-filter="unread">💬 Unread</button>
           <div class="cls3741_custom_dropdown" id="stage_filter_dropdown">
-            <button class="cls3741_dropdown_trigger" onclick="toggleStageDropdown()">
-                <span id="selected_stage_label">
-                    <i class="fas fa-filter me-2"></i> All Stages
-                </span>
-                <i class="fas fa-chevron-down ms-2" style="font-size: 10px; opacity: 0.7;"></i>
+            <button type="button" class="cls3741_dropdown_trigger" onclick="toggleStageDropdown()">
+              <span id="selected_stage_label"><i class="fas fa-filter me-2"></i> All Stages</span>
+              <i class="fas fa-chevron-down ms-2 cls3741_dropdown_chevron"></i>
             </button>
-    
             <div class="cls3741_dropdown_menu">
-                <div class="cls3741_dropdown_item" onclick="selectStageFilter('all', 'All Stages', '')">
-                    <span>⚪ All Stages</span>
-                </div>
-                
-                <div class="cls3741_dropdown_item" onclick="selectStageFilter('new', 'New Chat', '🆕')">
-                    <span>🆕 New Chat</span>
-                </div>
-                <div class="cls3741_dropdown_item" onclick="selectStageFilter('interested', 'Interested', '🔥')">
-                    <span>🔥 Interested</span>
-                </div>
-                <div class="cls3741_dropdown_item" onclick="selectStageFilter('follow_up', 'Follow Up', '🤩')">
-                    <span>🤩 Follow Up</span>
-                </div>
-                <div class="cls3741_dropdown_item" onclick="selectStageFilter('closed', 'Close Won', '💵')">
-                    <span>💵 Close Won</span>
-                </div>
-                <div class="cls3741_dropdown_item" onclick="selectStageFilter('rejected', 'No Answer', '👀')">
-                    <span>👀 No Answer</span>
-                </div>
+              <div class="cls3741_dropdown_item" onclick="selectStageFilter('all', 'All Stages', '')"><span>⚪ All Stages</span></div>
+              <div class="cls3741_dropdown_item" onclick="selectStageFilter('new', 'New Chat', '🆕')"><span>🆕 New Chat</span></div>
+              <div class="cls3741_dropdown_item" onclick="selectStageFilter('interested', 'Interested', '🔥')"><span>🔥 Interested</span></div>
+              <div class="cls3741_dropdown_item" onclick="selectStageFilter('follow_up', 'Follow Up', '🤩')"><span>🤩 Follow Up</span></div>
+              <div class="cls3741_dropdown_item" onclick="selectStageFilter('closed', 'Close Won', '💵')"><span>💵 Close Won</span></div>
+              <div class="cls3741_dropdown_item" onclick="selectStageFilter('rejected', 'No Answer', '👀')"><span>👀 No Answer</span></div>
             </div>
+          </div>
         </div>
 
-        
-      </div>
 <script>
   // متغير لتخزين الفلتر الحالي
 let currentStageFilter = null;
@@ -6977,79 +6640,152 @@ $(document).ready(function() {
     }
 });
 </script>
-      <div class="cls3741_contacts_list" id="cls3741_contacts_list_el">
+        <div class="cls3741_contacts_list" id="cls3741_contacts_list_el">
           <div class="cls3741_loader_new"><div class="cls3741_spinner"></div></div>
+        </div>
+        <div class="cls3741_pagination_container" id="main_pagination_controls"></div>
       </div>
 
-      <div class="cls3741_pagination_container" id="main_pagination_controls" style="border-top:1px solid var(--border-color); padding:12px; display:flex; justify-content:center; gap:8px;">
-          </div>
-    </div>
-
-    <div class="cls3741_details_panel" id="cls3741_details_panel">
-      
-      <div class="cls3741_empty_state" id="cls3741_empty_details" style="margin-top: 100px;">
-        <div style="font-size: 48px; margin-bottom: 16px; opacity: 0.3;">👆</div>
-        <div class="cls3741_contacts_header">
-          <h2 class="cls3741_contacts_title">Contacts Directory</h2>
-          <div class="cls3741_header_actions" style="display:flex; gap:10px;">
-              <button class="cls3741_btn1 cls3741_btn_secondary" onclick="window.openImportModal()">
-                  📤 Import CSV
-              </button>
-              <button class="cls3741_btn1 cls3741_btn_primary" onclick="window.openAddContactModal()">
-                  + Add Contact
-              </button>
+      <div class="cls3741_details_panel" id="cls3741_details_panel">
+        <div class="cls3741_empty_state" id="cls3741_empty_details">
+          <div class="cls3741_empty_icon">👆</div>
+          <h3 class="cls3741_empty_title">Contacts Directory</h3>
+          <p class="cls3741_empty_text">Select a contact from the list to view details, or add a new one.</p>
+          <div class="cls3741_empty_actions">
+            <button type="button" class="cls3741_btn1 cls3741_btn_secondary" onclick="window.openImportModal()">📤 Import CSV</button>
+            <button type="button" class="cls3741_btn1 cls3741_btn_primary" onclick="window.openAddContactModal()">+ Add Contact</button>
           </div>
         </div>
-      </div>
 
-      <div id="cls3741_active_contact_content" class="cls3741_hidden" style="width: 100%;">
-          
+        <div id="cls3741_active_contact_content" class="cls3741_hidden cls3741_contact_detail_content">
           <div class="cls3741_profile_header">
-              <div class="cls3741_vip_badge_large" id="cls3741_vip_badge">⭐ High Value Client</div>
-              <div class="cls3741_profile_avatar" id="cls3741_detail_avatar"></div>
-              <div class="cls3741_profile_name" id="cls3741_detail_name"></div>
-              <div class="cls3741_profile_phone" id="cls3741_detail_phone"></div>
+            <div class="cls3741_vip_badge_large" id="cls3741_vip_badge">⭐ High Value Client</div>
+            <div class="cls3741_profile_avatar" id="cls3741_detail_avatar"></div>
+            <div class="cls3741_profile_name" id="cls3741_detail_name"></div>
+            <div class="cls3741_profile_phone" id="cls3741_detail_phone"></div>
           </div>
-
           <div class="cls3741_stats_container">
-              <div class="cls3741_stat_box">
-                  <div class="cls3741_stat_value" id="cls3741_stat_orders">0</div>
-                  <div class="cls3741_stat_label">Total Orders</div>
-              </div>
-              <div class="cls3741_stat_box">
-                  <div class="cls3741_stat_value" id="cls3741_stat_spent">$0.00</div>
-                  <div class="cls3741_stat_label">Lifetime Value</div>
-              </div>
+            <div class="cls3741_stat_box">
+              <div class="cls3741_stat_value" id="cls3741_stat_orders">0</div>
+              <div class="cls3741_stat_label">Total Orders</div>
+            </div>
+            <div class="cls3741_stat_box">
+              <div class="cls3741_stat_value" id="cls3741_stat_spent">$0.00</div>
+              <div class="cls3741_stat_label">Lifetime Value</div>
+            </div>
           </div>
-
           <div class="cls3741_info_grid">
-              <div class="cls3741_info_item">
-                  <span class="cls3741_info_label">Last Active</span>
-                  <span class="cls3741_info_text" id="cls3741_detail_seen">-</span>
-              </div>
-              <div class="cls3741_info_item">
-                  <span class="cls3741_info_label">Joined</span>
-                  <span class="cls3741_info_text" id="cls3741_detail_contacted">-</span>
-              </div>
+            <div class="cls3741_info_item">
+              <span class="cls3741_info_label">Last Active</span>
+              <span class="cls3741_info_text" id="cls3741_detail_seen">-</span>
+            </div>
+            <div class="cls3741_info_item">
+              <span class="cls3741_info_label">Joined</span>
+              <span class="cls3741_info_text" id="cls3741_detail_contacted">-</span>
+            </div>
           </div>
-
           <div class="cls3741_actions">
-              <button class="cls3741_btn1 cls3741_btn_secondary" id="cls3741_btn_msg">
-                  <span>💬 Message</span>
-              </button>
-              <button class="cls3741_btn1 cls3741_btn_primary" id="cls3741_btn_call">
-                  <span>📞 Call Now</span>
-              </button>
+            <button type="button" class="cls3741_btn1 cls3741_btn_secondary" id="cls3741_btn_msg"><span>💬 Message</span></button>
+            <button type="button" class="cls3741_btn1 cls3741_btn_primary" id="cls3741_btn_call"><span>📞 Call Now</span></button>
           </div>
-          
-          <button class="cls3741_btn1 cls3741_btn_secondary" style="width:100%; margin-top: 12px; display:none;" id="cls3741_close_mobile" onclick="closeDetailsPanel()">
-              Close Details
-          </button>
+          <button type="button" class="cls3741_btn1 cls3741_btn_secondary cls3741_close_mobile_btn" id="cls3741_close_mobile" onclick="closeDetailsPanel()">Close Details</button>
+        </div>
       </div>
     </div>
   </div>
-</div>
-  
+
+  <style>
+    .cls3741_panel_contacts { background: linear-gradient(180deg, #0d0f14 0%, #13161d 100%); }
+    .cls3741_contacts_page_header { padding: 1.25rem 1.5rem; background: rgba(255,255,255,0.03); border-bottom: 1px solid rgba(255,255,255,0.06); }
+    .cls3741_contacts_page_header_inner { display: flex; align-items: center; justify-content: space-between; }
+    .cls3741_contacts_page_title_wrap { display: flex; align-items: center; gap: 0.9rem; }
+    .cls3741_contacts_page_icon { width: 42px; height: 42px; display: inline-flex; align-items: center; justify-content: center; background: linear-gradient(135deg, #8b5cf6 0%, #6d28d9 100%); color: #fff; border-radius: 10px; font-size: 1.05rem; }
+    .cls3741_contacts_page_title { margin: 0; font-size: 1.25rem; font-weight: 700; color: #f1f5f9; letter-spacing: -0.02em; }
+    .cls3741_contacts_page_subtitle { margin: 0.25rem 0 0; font-size: 0.8rem; color: #94a3b8; }
+    .cls3741_contacts_panel { padding: 1.25rem 1.5rem; height: calc(100% - 80px); box-sizing: border-box; }
+    .cls3741_contacts_layout { display: grid; grid-template-columns: 360px 1fr; gap: 1.5rem; max-width: 1200px; margin: 0 auto; height: 100%; min-height: 0; }
+    .cls3741_list_container { background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.06); border-radius: 12px; display: flex; flex-direction: column; overflow: hidden; min-height: 0; }
+    .cls3741_search_wrapper { padding: 0.85rem 1rem; border-bottom: 1px solid rgba(255,255,255,0.06); }
+    .cls3741_search_input_group { position: relative; }
+    .cls3741_search_icon { position: absolute; left: 0.85rem; top: 50%; transform: translateY(-50%); color: #64748b; font-size: 0.8rem; pointer-events: none; }
+    .cls3741_contacts_search { width: 100%; padding: 0.55rem 0.85rem 0.55rem 2.25rem; border-radius: 8px; border: 1px solid rgba(255,255,255,0.08); background: rgba(0,0,0,0.25); color: #f1f5f9; font-size: 0.9rem; outline: none; transition: border-color 0.15s, box-shadow 0.15s; }
+    .cls3741_contacts_search::placeholder { color: #64748b; }
+    .cls3741_contacts_search:focus { border-color: rgba(139, 92, 246, 0.5); box-shadow: 0 0 0 2px rgba(139, 92, 246, 0.15); }
+    .cls3741_tabs { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem; padding: 0.65rem 1rem; border-bottom: 1px solid rgba(255,255,255,0.06); }
+    .cls3741_tab_btn { border: none; background: transparent; padding: 0.45rem 0.85rem; font-size: 0.8rem; font-weight: 600; color: #94a3b8; border-radius: 8px; cursor: pointer; transition: background 0.15s, color 0.15s; }
+    .cls3741_tab_btn:hover { background: rgba(255,255,255,0.06); color: #e2e8f0; }
+    .cls3741_tab_btn.active { background: rgba(59, 130, 246, 0.25); color: #60a5fa; }
+    .cls3741_tab_btn.vip-tab.active { background: rgba(245, 158, 11, 0.25); color: #fbbf24; }
+    .cls3741_custom_dropdown { position: relative; }
+    .cls3741_dropdown_trigger { display: inline-flex; align-items: center; padding: 0.45rem 0.85rem; font-size: 0.8rem; font-weight: 600; color: #94a3b8; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.08); border-radius: 8px; cursor: pointer; }
+    .cls3741_dropdown_trigger:hover { background: rgba(255,255,255,0.08); color: #e2e8f0; }
+    .cls3741_dropdown_chevron { font-size: 0.65rem; opacity: 0.8; margin-left: 0.35rem; }
+    .cls3741_dropdown_menu { display: none; position: absolute; top: 100%; left: 0; margin-top: 4px; min-width: 160px; background: #1e293b; border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; box-shadow: 0 10px 25px rgba(0,0,0,0.3); z-index: 100; overflow: hidden; }
+    .cls3741_dropdown_menu.show { display: block; }
+    .cls3741_dropdown_item { padding: 0.5rem 0.85rem; font-size: 0.8rem; color: #e2e8f0; cursor: pointer; transition: background 0.15s; }
+    .cls3741_dropdown_item:hover { background: rgba(255,255,255,0.08); }
+    .cls3741_contacts_list { flex: 1; overflow-y: auto; padding: 0.5rem; min-height: 0; }
+    .cls3741_contacts_list::-webkit-scrollbar { width: 6px; }
+    .cls3741_contacts_list::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.15); border-radius: 3px; }
+    .cls3741_contact_card { display: flex; align-items: center; padding: 0.75rem 0.85rem; margin-bottom: 2px; border-radius: 10px; cursor: pointer; transition: background 0.15s; border: 1px solid transparent; }
+    .cls3741_contact_card:hover { background: rgba(255,255,255,0.05); }
+    .cls3741_contact_card.active { background: rgba(139, 92, 246, 0.15); border-color: rgba(139, 92, 246, 0.3); }
+    .cls3741_contact_card.is_vip { border-left: 3px solid #f59e0b; }
+    .cls3741_contact_card.is_vip .cls3741_avatar { background: linear-gradient(135deg, #f59e0b, #b45309); }
+    .cls3741_avatar { width: 42px; height: 42px; border-radius: 10px; background: linear-gradient(135deg, #475569, #334155); color: #fff; display: flex; align-items: center; justify-content: center; font-size: 1rem; font-weight: 700; flex-shrink: 0; margin-right: 0.75rem; position: relative; overflow: hidden; }
+    .cls3741_avatar img { width: 100%; height: 100%; object-fit: cover; }
+    .cls3741_vip_icon { position: absolute; top: -2px; right: -2px; background: #1e293b; border-radius: 50%; color: #f59e0b; font-size: 0.65rem; padding: 1px; }
+    .cls3741_card_info { flex: 1; min-width: 0; }
+    .cls3741_card_name { font-size: 0.9rem; font-weight: 600; color: #f1f5f9; margin-bottom: 2px; display: flex; align-items: center; gap: 0.35rem; flex-wrap: wrap; }
+    .cls3741_card_meta { font-size: 0.75rem; color: #94a3b8; display: flex; justify-content: space-between; gap: 0.5rem; }
+    .cls3741_badge { background: #ef4444; color: #fff; padding: 0.15rem 0.45rem; border-radius: 10px; font-size: 0.7rem; font-weight: 700; }
+    .cls3741_pagination_container { padding: 0.75rem 1rem; border-top: 1px solid rgba(255,255,255,0.06); display: flex; align-items: center; justify-content: center; gap: 0.5rem; flex-wrap: wrap; }
+    .cls3741_page_btn { min-width: 32px; height: 32px; padding: 0 0.5rem; font-size: 0.9rem; font-weight: 500; color: #e2e8f0; background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.08); border-radius: 8px; cursor: pointer; transition: background 0.15s; }
+    .cls3741_page_btn:hover:not(:disabled) { background: rgba(255,255,255,0.1); }
+    .cls3741_page_btn:disabled { opacity: 0.4; cursor: not-allowed; }
+    .cls3741_details_panel { background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.06); border-radius: 12px; padding: 1.5rem; display: flex; flex-direction: column; align-items: center; text-align: center; overflow-y: auto; min-height: 0; }
+    .cls3741_empty_state { text-align: center; padding: 2rem 1rem; }
+    .cls3741_empty_icon { font-size: 2.5rem; margin-bottom: 1rem; opacity: 0.4; }
+    .cls3741_empty_title { margin: 0 0 0.35rem; font-size: 1.1rem; font-weight: 600; color: #e2e8f0; }
+    .cls3741_empty_text { margin: 0 0 1.25rem; font-size: 0.85rem; color: #94a3b8; }
+    .cls3741_empty_actions { display: flex; flex-wrap: wrap; gap: 0.5rem; justify-content: center; }
+    .cls3741_contact_detail_content { width: 100%; max-width: 400px; }
+    .cls3741_profile_header { margin-bottom: 1.5rem; width: 100%; }
+    .cls3741_vip_badge_large { display: none; background: rgba(245, 158, 11, 0.2); color: #fbbf24; padding: 0.35rem 0.75rem; border-radius: 20px; font-size: 0.75rem; font-weight: 700; margin: 0 auto 0.75rem; width: fit-content; border: 1px solid rgba(245, 158, 11, 0.4); }
+    .cls3741_profile_avatar { width: 80px; height: 80px; border-radius: 16px; background: linear-gradient(135deg, #475569, #334155); margin: 0 auto 0.75rem; display: flex; align-items: center; justify-content: center; font-size: 1.75rem; font-weight: 700; color: #94a3b8; overflow: hidden; }
+    .cls3741_profile_avatar img { width: 100%; height: 100%; object-fit: cover; }
+    .cls3741_profile_name { font-size: 1.2rem; font-weight: 700; color: #f1f5f9; margin-bottom: 0.25rem; }
+    .cls3741_profile_phone { font-size: 0.9rem; color: #94a3b8; font-family: ui-monospace, monospace; }
+    .cls3741_stats_container { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; width: 100%; margin-bottom: 1.5rem; }
+    .cls3741_stat_box { background: rgba(0,0,0,0.2); padding: 0.85rem; border-radius: 10px; text-align: center; border: 1px solid rgba(255,255,255,0.04); }
+    .cls3741_stat_value { font-size: 1.15rem; font-weight: 700; color: #f1f5f9; margin-bottom: 0.2rem; }
+    .cls3741_stat_label { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.05em; color: #94a3b8; }
+    .cls3741_info_grid { width: 100%; display: grid; gap: 0.75rem; margin-bottom: 1.5rem; text-align: left; }
+    .cls3741_info_item { display: flex; justify-content: space-between; padding-bottom: 0.6rem; border-bottom: 1px solid rgba(255,255,255,0.06); }
+    .cls3741_info_label { color: #94a3b8; font-size: 0.8rem; }
+    .cls3741_info_text { color: #e2e8f0; font-weight: 500; font-size: 0.85rem; }
+    .cls3741_actions { width: 100%; display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; }
+    .cls3741_btn1 { padding: 0.65rem 1rem; border-radius: 8px; font-weight: 600; cursor: pointer; border: none; transition: transform 0.1s, background 0.15s; font-size: 0.85rem; display: flex; align-items: center; justify-content: center; gap: 0.35rem; }
+    .cls3741_btn1:active { transform: scale(0.98); }
+    .cls3741_btn_primary { background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); color: #fff; }
+    .cls3741_btn_primary:hover { background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%); }
+    .cls3741_btn_secondary { background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.1); color: #e2e8f0; }
+    .cls3741_btn_secondary:hover { background: rgba(255,255,255,0.1); }
+    .cls3741_close_mobile_btn { width: 100%; margin-top: 0.75rem; display: none !important; }
+    .cls3741_contacts_empty_msg { padding: 2rem 1rem; text-align: center; color: #94a3b8; font-size: 0.9rem; }
+    .cls3741_contacts_error_msg { padding: 2rem 1rem; text-align: center; color: #f87171; font-size: 0.9rem; }
+    .cls3741_hidden { display: none !important; }
+    .cls3741_loader_new { display: flex; align-items: center; justify-content: center; padding: 2rem; }
+    .cls3741_spinner { width: 28px; height: 28px; border: 2px solid rgba(255,255,255,0.1); border-top-color: #8b5cf6; border-radius: 50%; animation: cls3741_spin 0.7s linear infinite; }
+    @keyframes cls3741_spin { to { transform: rotate(360deg); } }
+    @media (max-width: 900px) {
+      .cls3741_contacts_layout { grid-template-columns: 1fr; }
+      .cls3741_details_panel { display: none; position: fixed; inset: 0; z-index: 50; background: #0d0f14; padding: 1.5rem; }
+      .cls3741_details_panel.mobile-active { display: flex; }
+      .cls3741_close_mobile_btn { display: block !important; }
+    }
+  </style>
+
 <script>
   document.addEventListener("DOMContentLoaded", function() {
       
@@ -7125,13 +6861,13 @@ $(document).ready(function() {
                   renderMainList(data.contacts);
                   renderPaginationControls(data.has_next, data.current_page);
               } else {
-                  listContainer.innerHTML = '<div style="padding:40px;text-align:center;color:var(--text-secondary);">No contacts found</div>';
-                  paginationContainer.innerHTML = ''; // إخفاء الأزرار
+                  listContainer.innerHTML = '<div class="cls3741_contacts_empty_msg">No contacts found. Try changing the filter or search.</div>';
+                  paginationContainer.innerHTML = '';
               }
   
           } catch (error) {
               console.error("Error:", error);
-              listContainer.innerHTML = '<div style="color:red;text-align:center;padding:20px;">Failed to load data</div>';
+              listContainer.innerHTML = '<div class="cls3741_contacts_error_msg">Failed to load contacts. Try again later.</div>';
           } finally {
               STATE.isLoading = false;
           }
@@ -7301,15 +7037,30 @@ $(document).ready(function() {
     <p>ادارة الحملات.</p>
   </section>
 
- <section class="cls3741_panel cls3741_panel_templates" style="display: none;     height: 100%;">
-    <div style="display:flex;flex-direction:column;gap:12px;padding: 20px;">
-        <div style="display: flex; direction: ltr; gap: 8px; align-items: center; justify-content: space-between; flex-wrap: wrap;">
-            <div style="display: flex; gap: 8px;">
-                <button id="templates_create_btn" class="cls3741_action_btn" style="width:100%;height:100%;padding:8px 16px; background-color: #10B981; color:white; border:none; border-radius:6px; cursor:pointer;">Create Template</button>
-                <button id="templates_refresh_btn" class="cls3741_send_btn" style="padding:8px 16px; background-color: transparent; border:1px solid #10B981; color:#10B981; border-radius:6px; cursor:pointer; width:auto;">Sync Templates</button>
+ <section class="cls3741_panel cls3741_panel_templates" style="display:none;height:100%;overflow:auto;">
+   <div style="display:flex;flex-direction:column;gap:16px;padding:20px 20px 24px;">
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;padding:14px 18px;border-radius:16px;border:1px solid rgba(15,23,42,0.9);background:
+          radial-gradient(circle at top left, rgba(79,70,229,0.22), transparent 55%),
+          radial-gradient(circle at bottom right, rgba(16,185,129,0.18), transparent 55%),
+          rgba(15,23,42,0.96);box-shadow:0 18px 45px -22px rgba(15,23,42,0.9);">
+            <div style="display:flex;align-items:center;gap:12px;">
+                <div style="width:40px;height:40px;border-radius:12px;display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,#10b981,#059669);color:#ecfdf5;font-size:1rem;flex-shrink:0;">
+                    <i class="fas fa-file-alt"></i>
+                </div>
+                <div>
+                    <div style="font-size:1.15rem;font-weight:700;color:#e2e8f0;letter-spacing:-0.02em;margin-bottom:2px;">Message templates</div>
+                    <div style="font-size:0.85rem;color:#94a3b8;">Create, preview, and sync WhatsApp templates used by your AI agent.</div>
+                </div>
             </div>
-            <div>
-                <div style="color:var(--muted);font-size:16px;font-weight:600"> Manage Templates </div>
+            <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+                <button type="button" id="templates_refresh_btn" class="cls3741_send_btn" style="padding:8px 14px;border-radius:999px;background:rgba(15,23,42,0.9);border:1px solid rgba(16,185,129,0.45);color:#6ee7b7;cursor:pointer;display:inline-flex;align-items:center;gap:6px;font-size:0.85rem;font-weight:600; width:auto;">
+                    <i class="fas fa-sync-alt"></i>
+                    <span>Sync templates</span>
+                </button>
+                <button type="button" id="templates_create_btn" class="cls3741_action_btn" style="width:100%;height:100%;padding:8px 18px;border-radius:999px;background:linear-gradient(135deg,#10B981,#059669);color:white;border:none;cursor:pointer;display:inline-flex;align-items:center;gap:6px;font-size:0.88rem;font-weight:600;">
+                    <i class="fas fa-plus"></i>
+                    <span>Create template</span>
+                </button>
             </div>
         </div>
     

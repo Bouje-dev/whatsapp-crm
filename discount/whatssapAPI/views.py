@@ -15,6 +15,7 @@ from django.utils import timezone
 from django.core.files.base import ContentFile
 from django.conf import settings
 from django.db.models import Max, Q
+from django.core.paginator import Paginator
 from discount.models import Message, SimpleOrder, Template, Order , Contact, WhatsAppChannel, CustomUser
 from django.contrib.auth.decorators import login_required
 from discount.activites import log_activity
@@ -1565,7 +1566,7 @@ def api_contacts2(request):
             conversations = conversations.filter(unread_count__gt=0)
 
         # 7. الترقيم (Pagination)
-        paginator = Paginator(conversations, 20) 
+        paginator = Paginator(conversations, 10) 
         page_number = request.GET.get('page', 1)
         page_obj = paginator.get_page(page_number)
 
@@ -2341,10 +2342,14 @@ def api_orders(request):
         qs = SimpleOrder.objects.filter(channel=target_channel).order_by("-created_at")
     else:
         qs = SimpleOrder.objects.filter(channel=target_channel, agent=user).order_by("-created_at")
-    # qs = SimpleOrder.objects.filter(channel=target_channel).order_by("-created_at")
-     
+
+    page_size = max(1, min(50, int(request.GET.get("page_size", 20))))
+    paginator = Paginator(qs, page_size)
+    page_number = max(1, int(request.GET.get("page", 1)))
+    page_obj = paginator.get_page(page_number)
+
     data = []
-    for o in qs:
+    for o in page_obj:
         # استخراج اسم المنتج بأمان
         if o.product:
             product_name = o.product.name 
@@ -2376,9 +2381,18 @@ def api_orders(request):
             "sheets_export_status": getattr(o, "sheets_export_status", None) or "",
             "sheets_export_error": (getattr(o, "sheets_export_error", None) or "")[:200],
         })
-        
-   
-    return JsonResponse({"orders": data})
+
+    return JsonResponse({
+        "orders": data,
+        "pagination": {
+            "page": page_obj.number,
+            "page_size": page_size,
+            "total_count": paginator.count,
+            "total_pages": paginator.num_pages,
+            "has_previous": page_obj.has_previous(),
+            "has_next": page_obj.has_next(),
+        },
+    })
 
 
 @login_required

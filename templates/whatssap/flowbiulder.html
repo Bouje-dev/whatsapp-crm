@@ -35,37 +35,34 @@
 
 /* 2. الحل الجذري: كانفاس عملاق جداً */
 #flow-canvas {
-    width: 5000px; /* عرض ضخم */
-    height: 5000px; /* ارتفاع ضخم */
+    width: 5000px;
+    height: 5000px;
     position: absolute;
     top: 0;
     left: 0;
-    transform-origin: 0 0; /* نقطة الارتكاز في الزاوية */
-    
-    /* تصميم الشبكة (Grid) الاحترافي */
+    transform-origin: 0 0;
     background-image: 
-        linear-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1px),
-        linear-gradient(90deg, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
-    background-size: 40px 40px; /* حجم المربعات */
-    background-color: #09090b;
+        linear-gradient(rgba(148, 163, 184, 0.15) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(148, 163, 184, 0.12) 1px, transparent 1px);
+    background-size: 40px 40px;
+    background-color: #020617;
 }
 
 /* 3. تصميم أزرار التحكم الاحترافي (Floating Dock) */
 .canvas-controls {
     position: absolute;
-    bottom: 25px;
-    right: 25px; /* تم النقل لليمين */
+    bottom: 24px;
+    right: 24px;
     z-index: 100;
-    
     display: flex;
-    flex-direction: column; /* عمودي */
-    gap: 6px;
-    
-    background: #ffffff;
+    flex-direction: column;
+    gap: 8px;
     padding: 6px;
-    border-radius: 12px;
-    box-shadow: 0 10px 30px -5px rgba(0, 0, 0, 0.3);
-    border: 1px solid rgba(0,0,0,0.1);
+    border-radius: 999px;
+    background: rgba(15, 23, 42, 0.92);
+    border: 1px solid rgba(148, 163, 184, 0.35);
+    box-shadow: 0 18px 45px -12px rgba(15, 23, 42, 0.9);
+    backdrop-filter: blur(14px);
 }
 
 .control-btn {
@@ -73,8 +70,8 @@
     height: 36px;
     border: none;
     background: transparent;
-    color: #18181b;
-    border-radius: 8px;
+    color: #e5e7eb;
+    border-radius: 999px;
     cursor: pointer;
     display: flex;
     align-items: center;
@@ -84,13 +81,13 @@
 }
 
 .control-btn:hover {
-    background: #f4f4f5;
-    color: #22c55e; /* أخضر عند التحويم */
-    transform: scale(1.05);
+    background: rgba(148, 163, 184, 0.18);
+    color: #22c55e;
+    transform: translateY(-1px) scale(1.02);
 }
 
 .control-btn:active {
-    transform: scale(0.95);
+    transform: translateY(0) scale(0.96);
 }
 
 /* خط فاصل أنيق */
@@ -120,30 +117,34 @@
 
         /* Container for automations list */
         .containerNew_auto {
-            max-width: 100%;
+            /* max-width: 1200px; */
             margin: 0 auto;
-            padding: 2rem;
+            padding: 2rem 2.5rem 2.5rem;
         }
 
         .containerNew_auto .header {
             display: flex;
             justify-content: space-between;
-            align-items: flex-start;
-            margin-bottom: 2rem;
-            background-color: transparent;
-            height: auto;
-            padding: 0;
+            align-items: center;
+            margin-bottom: 1.75rem;
+            padding: 3rem 1.5rem;
+            background: radial-gradient(circle at top left, rgba(124, 58, 237, 0.18), transparent 55%),
+                        radial-gradient(circle at bottom right, rgba(16, 185, 129, 0.16), transparent 55%);
+            border-radius: 1rem;
+            border: 1px solid rgba(15, 23, 42, 0.9);
+            box-shadow: 0 18px 45px -18px rgba(15, 23, 42, 0.9);
         }
 
         .containerNew_auto .title-section h1 {
-            font-size: 2rem;
+            font-size: 1.5rem;
             font-weight: 700;
-            margin-bottom: 0.5rem;
+            letter-spacing: -0.02em;
+            margin-bottom: 0.25rem;
         }
 
         .containerNew_auto .title-section p {
             color: var(--text-secondary);
-            font-size: 1rem;
+            font-size: 0.9rem;
         }
 
         /* Buttons */
@@ -227,32 +228,36 @@
 
         /* Table */
         .automations-table {
-     
-    border-radius: 12px;
-    border: 1px solid #202020;
-    overflow: hidden;
-    
-}
+            border-radius: 14px;
+            border: 1px solid rgba(15, 23, 42, 0.9);
+            overflow: hidden;
+            background: radial-gradient(circle at top, rgba(22, 163, 74, 0.06), transparent 60%),
+                        var(--surface);
+            box-shadow: 0 18px 45px -20px rgba(15, 23, 42, 0.9);
+        }
 
         .table-header {
-          
-    display: grid;
-    grid-template-columns: 2fr 1fr 1fr 2fr 1fr;
-    gap: 1rem;
-    padding: 1rem 1.5rem;
-    
-    border-bottom: 1px solid #202020;
-    font-weight: 600;
-    color: var(--text-secondary);
-}
+            display: grid;
+            grid-template-columns: 2fr 1fr 1fr 2fr 1fr;
+            gap: 1rem;
+            padding: 0.85rem 1.5rem;
+            border-bottom: 1px solid #202020;
+            font-weight: 600;
+            color: #94a3b8;
+            font-size: 0.78rem;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            background: linear-gradient(90deg, rgba(15, 23, 42, 0.9), rgba(15, 23, 42, 0.7));
+        }
 
         .table-row {
             display: grid;
             grid-template-columns: 2fr 1fr 1fr 2fr 1fr;
             gap: 1rem;
-            padding: 1rem 1.5rem;
-            border-bottom: 1px solid var(--border);
+            padding: 0.9rem 1.5rem;
+            border-bottom: 1px solid rgba(15, 23, 42, 0.9);
             align-items: center;
+            font-size: 0.875rem;
         }
 
         .table-row:last-child {
@@ -260,7 +265,7 @@
         }
 
         .table-row:hover {
-            background: var(--surface-light);
+            background: rgba(15, 23, 42, 0.9);
         }
 
         /* Status Badges */
@@ -330,14 +335,14 @@
         /* Empty State */
         .empty-state {
             text-align: center;
-            padding: 3rem;
+            padding: 3rem 2rem;
             color: var(--text-secondary);
         }
 
         .empty-state .icon {
-            font-size: 4rem;
+            font-size: 3.5rem;
             margin-bottom: 1rem;
-            opacity: 0.5;
+            opacity: 0.6;
         }
 
         /* Utility Classes */
@@ -1271,6 +1276,50 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jsPlumb/2.15.6/js/jsplumb.min.js"></script>
   
   
+<!-- AI Product Edit & Confirm Modal -->
+<div id="aiProductConfirmModal" class="apm-overlay" style="display: none;" aria-modal="true" role="dialog" aria-labelledby="apm-title">
+    <div class="apm-backdrop" data-dismiss="modal"></div>
+    <div class="apm-card">
+        <header class="apm-header">
+            <div class="apm-header-icon" aria-hidden="true">📦</div>
+            <h2 id="apm-title" class="apm-title">Edit product data</h2>
+            <p class="apm-subtitle">Review and edit the extracted data. Fields marked with <span class="apm-asterisk">*</span> are required.</p>
+        </header>
+        <div class="apm-body">
+            <section class="apm-section">
+                <label class="apm-label apm-label-required" for="ai-product-edit-name">Product name <span class="apm-asterisk">*</span></label>
+                <input type="text" id="ai-product-edit-name" class="apm-input ai-product-field" placeholder="e.g. Wireless Headphones Pro" maxlength="500" autocomplete="off">
+                <span class="apm-error" id="ai-product-err-name" aria-live="polite"></span>
+            </section>
+            <section class="apm-section">
+                <label class="apm-label apm-label-required" for="ai-product-edit-prices">Prices <span class="apm-asterisk">*</span></label>
+                <textarea id="ai-product-edit-prices" class="apm-textarea ai-product-field" rows="2" placeholder="e.g. 299 MAD, 29.99 USD" maxlength="1500"></textarea>
+                <span class="apm-error" id="ai-product-err-prices" aria-live="polite"></span>
+            </section>
+            <section class="apm-section">
+                <label class="apm-label apm-label-required" for="ai-product-edit-shipping">Shipping method <span class="apm-asterisk">*</span></label>
+                <select id="ai-product-edit-shipping" class="apm-select ai-product-field" aria-describedby="ai-product-err-shipping">
+                    <option value="">Select...</option>
+                    <option value="Free">Free</option>
+                    <option value="Paid">Paid</option>
+                </select>
+                <span class="apm-error" id="ai-product-err-shipping" aria-live="polite"></span>
+            </section>
+            <section class="apm-section">
+                <label class="apm-label" for="ai-product-edit-market">Market</label>
+                <input type="text" id="ai-product-edit-market" class="apm-input ai-product-field" placeholder="e.g. Morocco" value="Morocco" maxlength="500">
+            </section>
+            <section class="apm-section">
+                <label class="apm-label" for="ai-product-edit-additional">Additional details</label>
+                <textarea id="ai-product-edit-additional"  style="min-height: 186px;" class="apm-textarea ai-product-field" rows="3" placeholder="Specs, features, delivery info..."></textarea>
+            </section>
+        </div>
+        <footer class="apm-footer">
+            <button type="button" id="ai-product-confirm-cancel" class="apm-btn apm-btn-secondary">Cancel</button>
+            <button type="button" id="ai-product-confirm-ok" class="apm-btn apm-btn-primary">Confirm &amp; save</button>
+        </footer>
+    </div>
+</div>
   
   <script>
     // دالة عالمية للحصول على قيمة الكوكي
@@ -4472,50 +4521,6 @@ initializeZoom() {
 
 
 
-<!-- AI Product Edit & Confirm Modal -->
-<div id="aiProductConfirmModal" class="apm-overlay" style="display: none;" aria-modal="true" role="dialog" aria-labelledby="apm-title">
-    <div class="apm-backdrop" data-dismiss="modal"></div>
-    <div class="apm-card">
-        <header class="apm-header">
-            <div class="apm-header-icon" aria-hidden="true">📦</div>
-            <h2 id="apm-title" class="apm-title">Edit product data</h2>
-            <p class="apm-subtitle">Review and edit the extracted data. Fields marked with <span class="apm-asterisk">*</span> are required.</p>
-        </header>
-        <div class="apm-body">
-            <section class="apm-section">
-                <label class="apm-label apm-label-required" for="ai-product-edit-name">Product name <span class="apm-asterisk">*</span></label>
-                <input type="text" id="ai-product-edit-name" class="apm-input ai-product-field" placeholder="e.g. Wireless Headphones Pro" maxlength="500" autocomplete="off">
-                <span class="apm-error" id="ai-product-err-name" aria-live="polite"></span>
-            </section>
-            <section class="apm-section">
-                <label class="apm-label apm-label-required" for="ai-product-edit-prices">Prices <span class="apm-asterisk">*</span></label>
-                <textarea id="ai-product-edit-prices" class="apm-textarea ai-product-field" rows="2" placeholder="e.g. 299 MAD, 29.99 USD" maxlength="1500"></textarea>
-                <span class="apm-error" id="ai-product-err-prices" aria-live="polite"></span>
-            </section>
-            <section class="apm-section">
-                <label class="apm-label apm-label-required" for="ai-product-edit-shipping">Shipping method <span class="apm-asterisk">*</span></label>
-                <select id="ai-product-edit-shipping" class="apm-select ai-product-field" aria-describedby="ai-product-err-shipping">
-                    <option value="">Select...</option>
-                    <option value="Free">Free</option>
-                    <option value="Paid">Paid</option>
-                </select>
-                <span class="apm-error" id="ai-product-err-shipping" aria-live="polite"></span>
-            </section>
-            <section class="apm-section">
-                <label class="apm-label" for="ai-product-edit-market">Market</label>
-                <input type="text" id="ai-product-edit-market" class="apm-input ai-product-field" placeholder="e.g. Morocco" value="Morocco" maxlength="500">
-            </section>
-            <section class="apm-section">
-                <label class="apm-label" for="ai-product-edit-additional">Additional details</label>
-                <textarea id="ai-product-edit-additional"  style="min-height: 186px;" class="apm-textarea ai-product-field" rows="3" placeholder="Specs, features, delivery info..."></textarea>
-            </section>
-        </div>
-        <footer class="apm-footer">
-            <button type="button" id="ai-product-confirm-cancel" class="apm-btn apm-btn-secondary">Cancel</button>
-            <button type="button" id="ai-product-confirm-ok" class="apm-btn apm-btn-primary">Confirm &amp; save</button>
-        </footer>
-    </div>
-</div>
 
 <!-- Create Flow Modal -->
 <div id="createFlowModal" class="cf-modal">
