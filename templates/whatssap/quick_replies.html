@@ -1,122 +1,120 @@
-<div class="container-fluid p-4">
-    <div class="d-flex justify-content-between align-items-center mb-4">
-        <h4 class="fw-bold text-white"><i class="fas fa-bolt me-2 text-warning"></i> Quick Replies</h4>
-        <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addReplyModal">
-            <i class="fas fa-plus"></i> New Reply
-        </button>
-    </div>
-
-    <!-- <div id="quick_replies_section" style="display: none;"> <h5 class="text-white mb-3 border-bottom border-secondary pb-2">My Replies</h5>
-        <div class="row g-3 mb-4" id="my_replies_grid">
-            </div>
-    
-        <h5 class="text-white mb-3 border-bottom border-secondary pb-2">Team Replies</h5> -->
-        <!-- <div class="row g-3" id="team_replies_grid">
-            </div> -->
-
-            <div class="mb-4">
-                <h5 class="text-white mb-3 border-bottom pb-2 border-secondary"><i class="fas fa-user-edit me-2"></i> My Quick Replies</h5>
-                <div class="table-responsive">
-                    <table class="table table-hover align-middle reply-table">
-                        <thead class="text-muted small text-uppercase">
-                            <tr>
-                                <th width="20%">Shortcut</th>
-                                <th width="30%">Message Preview</th>
-                                <th width="10%" class="text-center">Usage</th>
-                                <th width="20%">Created By</th>
-                                <th width="20%">Created At</th>
-                                <th width="5%" class="text-end">Action</th>
-                            </tr>
-                        </thead>
-                        <tbody id="my_replies_grid">
-                            </tbody>
-                    </table>
+<div class="quick-replies-page">
+    <header class="quick-replies-header">
+        <div class="quick-replies-header-inner">
+            <div class="quick-replies-title-wrap">
+                <span class="quick-replies-icon"><i class="fas fa-bolt"></i></span>
+                <div>
+                    <h1 class="quick-replies-title">Quick Replies</h1>
+                    <p class="quick-replies-subtitle">Type <kbd>/shortcut</kbd> in chat to insert saved replies</p>
                 </div>
             </div>
-            
-            <div class="mb-4">
-                <h5 class="text-white mb-3 border-bottom pb-2 border-secondary"><i class="fas fa-users me-2"></i> Team Replies</h5>
-                <div class="table-responsive">
-                    <table class="table table-hover align-middle reply-table">
-                        <thead class="text-muted small text-uppercase">
-                            <tr>
-                                <th width="20%">Shortcut</th>
-                                <th width="30%">Message Preview</th>
-                                <th width="10%" class="text-center">Usage</th>
-                                <th width="20%">Created By</th>
-                                <th width="20%">Created At</th>
-                                <th width="5%" class="text-end">Action</th>
-                            </tr>
-                        </thead>
-                        <tbody id="team_replies_grid">
-                            </tbody>
-                    </table>
-                </div>
-            </div>
-            
-            <div id="replies_loader" class="text-center py-5" style="display:none;">
-                <div class="spinner-border text-primary" role="status"></div>
-            </div>
+            <button type="button" class="quick-replies-btn-new" data-bs-toggle="modal" data-bs-target="#addReplyModal">
+                <i class="fas fa-plus"></i>
+                <span>New Reply</span>
+            </button>
+        </div>
+    </header>
 
+    <div class="quick-replies-content">
+        <section class="quick-replies-section">
+            <div class="quick-replies-section-header">
+                <span class="quick-replies-section-icon"><i class="fas fa-user"></i></span>
+                <h2 class="quick-replies-section-title">My Quick Replies</h2>
+            </div>
+            <div class="quick-replies-table-wrap">
+                <table class="quick-replies-table">
+                    <thead>
+                        <tr>
+                            <th>Shortcut</th>
+                            <th>Message</th>
+                            <th class="quick-replies-th-usage">Usage</th>
+                            <th>Created By</th>
+                            <th>Created</th>
+                            <th class="quick-replies-th-actions"></th>
+                        </tr>
+                    </thead>
+                    <tbody id="my_replies_grid"></tbody>
+                </table>
+            </div>
+        </section>
 
-    
-        <div id="replies_loader" class="text-center py-5" style="display: none;">
-            <div class="spinner-border text-primary" role="status"></div>
-            <p class="text-muted mt-2">Loading templates...</p>
+        <section class="quick-replies-section">
+            <div class="quick-replies-section-header">
+                <span class="quick-replies-section-icon team"><i class="fas fa-users"></i></span>
+                <h2 class="quick-replies-section-title">Team Replies</h2>
+            </div>
+            <div class="quick-replies-table-wrap">
+                <table class="quick-replies-table">
+                    <thead>
+                        <tr>
+                            <th>Shortcut</th>
+                            <th>Message</th>
+                            <th class="quick-replies-th-usage">Usage</th>
+                            <th>Created By</th>
+                            <th>Created</th>
+                            <th class="quick-replies-th-actions"></th>
+                        </tr>
+                    </thead>
+                    <tbody id="team_replies_grid"></tbody>
+                </table>
+            </div>
+        </section>
+
+        <div id="replies_loader" class="quick-replies-loader" style="display: none;">
+            <div class="quick-replies-spinner"></div>
+            <p class="quick-replies-loader-text">Loading replies…</p>
         </div>
     </div>
-
-
 </div>
 
 <div class="modal fade" id="addReplyModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog">
-        <div class="modal-content bg-dark text-white border-secondary">
-            <div class="modal-header border-secondary">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content quick-replies-modal-content">
+            <div class="modal-header quick-replies-modal-header">
                 <h5 class="modal-title">Create Quick Reply</h5>
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
-            <div class="modal-body">
+            <div class="modal-body quick-replies-modal-body">
                 <form id="createReplyForm" enctype="multipart/form-data">
                     {% csrf_token %}
-                    
-                    <div class="mb-3">
-                        <label class="form-label text-muted small">Shortcut (Trigger)</label>
-                        <div class="input-group">
-                            <span class="input-group-text bg-secondary border-secondary text-white">/</span>
-                            <input type="text" name="shortcut" class="form-control bg-dark border-secondary text-white" placeholder="e.g. welcome" required>
+                    <div class="quick-replies-form-group">
+                        <label class="quick-replies-label">Shortcut</label>
+                        <div class="quick-replies-input-prefix">
+                            <span class="quick-replies-prefix">/</span>
+                            <input type="text" name="shortcut" class="quick-replies-input" placeholder="e.g. welcome" required>
                         </div>
+                        <span class="quick-replies-hint">Type this in chat to insert the reply</span>
                     </div>
-
-                    <div class="mb-3">
-                        <label class="form-label text-muted small">Message Text</label>
-                        <textarea name="message" class="form-control bg-dark border-secondary text-white" rows="4" placeholder="Hello! Here is a video explaining..."></textarea>
+                    <div class="quick-replies-form-group">
+                        <label class="quick-replies-label">Message</label>
+                        <textarea name="message" class="quick-replies-textarea" rows="4" placeholder="Enter the message text…"></textarea>
                     </div>
-
-                    <div class="mb-3">
-                        <label class="form-label text-muted small">Attachment (Optional)</label>
-                        <input type="file" name="attachment" class="form-control bg-dark border-secondary text-white">
-                        <small class="text-muted">Supports: Video (mp4), Image (png, jpg), PDF</small>
+                    <div class="quick-replies-form-group">
+                        <label class="quick-replies-label">Attachment <span class="quick-replies-optional">(optional)</span></label>
+                        <input type="file" name="attachment" class="quick-replies-file-input" accept="video/mp4,image/png,image/jpeg,image/jpg,application/pdf">
+                        <span class="quick-replies-hint">Video (mp4), image (png, jpg), or PDF</span>
                     </div>
                 </form>
             </div>
-            <div class="modal-footer border-secondary">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                <button type="button" class="btn btn-primary" onclick="submitReplyForm()">Save Reply</button>
+            <div class="modal-footer quick-replies-modal-footer">
+                <button type="button" class="quick-replies-btn quick-replies-btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="quick-replies-btn quick-replies-btn-primary" onclick="submitReplyForm()">
+                    <i class="fas fa-check me-2"></i>Save Reply
+                </button>
             </div>
         </div>
     </div>
 </div>
-<div class="modal fade" id="mediaPreviewModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered modal-lg"> <div class="modal-content bg-dark border-secondary text-white">
-            <div class="modal-header border-0 pb-0">
-                <h6 class="modal-title text-muted" id="previewTitle">Media Preview</h6>
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
-            </div>
-            <div class="modal-body text-center p-0 d-flex align-items-center justify-content-center" style="min-height: 300px; background: #000;">
-                
-                <div id="mediaPreviewContainer" class="w-100 h-100"></div>
 
+<div class="modal fade" id="mediaPreviewModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content quick-replies-preview-modal">
+            <div class="modal-header quick-replies-preview-header">
+                <h6 class="modal-title" id="previewTitle">Preview</h6>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body quick-replies-preview-body">
+                <div id="mediaPreviewContainer" class="w-100 h-100"></div>
             </div>
         </div>
     </div>
@@ -253,7 +251,7 @@ $(document).ready(function() {
             loader.hide();
             
             if (!response.data || response.data.length === 0) {
-                myGrid.html('<tr><td colspan="5" class="text-center text-muted py-4">No replies found.</td></tr>');
+                myGrid.html('<tr><td colspan="6" class="text-center text-muted py-5">No quick replies yet. Create one with the button above.</td></tr>');
                 return;
             }
 
@@ -358,66 +356,424 @@ $(document).ready(function() {
 
 
 <style>
-    /* تصميم الجدول الأساسي */
-.reply-table {
-    color: #e0e0e0; /* لون نص فاتح للخلفية الداكنة */
-    border-collapse: separate;
-    border-spacing: 0 8px; /* مسافة بين الصفوف */
+/* ----- Page layout ----- */
+.quick-replies-page {
+    min-height: 100%;
+    padding: 0;
+    background: linear-gradient(180deg, #0d0f14 0%, #13161d 100%);
 }
 
-/* تصميم الصفوف */
-.reply-table tbody tr {
-    background-color: #1e1e2d; /* لون خلفية الصف - عدله حسب ثيم موقعك */
-    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
-    transition: all 0.2s ease;
-    border-radius: 8px;
+.quick-replies-header {
+    padding: 1.5rem 1.75rem;
+    background: rgba(255,255,255,0.03);
+    border-bottom: 1px solid rgba(255,255,255,0.06);
 }
 
-.reply-table tbody tr td:first-child { border-top-left-radius: 8px; border-bottom-left-radius: 8px; }
-.reply-table tbody tr td:last-child { border-top-right-radius: 8px; border-bottom-right-radius: 8px; }
-
-.reply-table tbody tr:hover {
-    transform: translateY(-2px);
-    background-color: #2b2b40; /* لون عند التحويم */
-    box-shadow: 0 5px 15px rgba(0,0,0,0.3);
-    cursor: pointer;
+.quick-replies-header-inner {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 1rem;
 }
 
-/* تصميم الاختصار (Shortcut Badge) */
-.shortcut-badge {
-    background: rgba(54, 153, 255, 0.1);
-    color: #3699ff;
-    padding: 6px 12px;
+.quick-replies-title-wrap {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
+.quick-replies-icon {
+    width: 44px;
+    height: 44px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+    color: #fff;
+    border-radius: 12px;
+    font-size: 1.15rem;
+}
+
+.quick-replies-title {
+    margin: 0;
+    font-size: 1.35rem;
+    font-weight: 700;
+    color: #f1f5f9;
+    letter-spacing: -0.02em;
+}
+
+.quick-replies-subtitle {
+    margin: 0.25rem 0 0;
+    font-size: 0.8rem;
+    color: #94a3b8;
+}
+
+.quick-replies-subtitle kbd {
+    padding: 0.15rem 0.4rem;
+    font-size: 0.75rem;
+    background: rgba(255,255,255,0.08);
+    border: 1px solid rgba(255,255,255,0.12);
     border-radius: 6px;
-    font-family: 'Courier New', monospace;
-    font-weight: bold;
-    font-size: 0.9rem;
-    border: 1px solid rgba(54, 153, 255, 0.2);
+    color: #cbd5e1;
 }
 
-/* تصميم نوع الوسائط (Media Icon) */
-.media-icon {
+.quick-replies-btn-new {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.6rem 1.1rem;
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: #fff;
+    background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+    border: none;
+    border-radius: 10px;
+    cursor: pointer;
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.quick-replies-btn-new:hover {
+    color: #fff;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 14px rgba(59, 130, 246, 0.4);
+}
+
+.quick-replies-content {
+    padding: 1.5rem 1.75rem;
+}
+
+.quick-replies-section {
+    margin-bottom: 2rem;
+}
+
+.quick-replies-section:last-of-type {
+    margin-bottom: 0;
+}
+
+.quick-replies-section-header {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    margin-bottom: 1rem;
+}
+
+.quick-replies-section-icon {
     width: 32px;
     height: 32px;
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    border-radius: 50%;
-    margin-right: 10px;
-    font-size: 12px;
+    background: rgba(59, 130, 246, 0.15);
+    color: #60a5fa;
+    border-radius: 8px;
+    font-size: 0.9rem;
 }
-.media-icon.image { background: rgba(255, 193, 7, 0.1); color: #ffc107; }
-.media-icon.video { background: rgba(244, 67, 54, 0.1); color: #f44336; }
-.media-icon.audio { background: rgba(0, 188, 212, 0.1); color: #00bcd4; }
-.media-icon.text { background: rgba(158, 158, 158, 0.1); color: #9e9e9e; }
 
-/* تصميم عداد الاستخدام */
-.usage-count {
+.quick-replies-section-icon.team {
+    background: rgba(139, 92, 246, 0.15);
+    color: #a78bfa;
+}
+
+.quick-replies-section-title {
+    margin: 0;
+    font-size: 1rem;
     font-weight: 600;
-    color: #28a745;
-    background: rgba(40, 167, 69, 0.1);
-    padding: 2px 8px;
-    border-radius: 4px;
+    color: #e2e8f0;
+}
+
+.quick-replies-table-wrap {
+    overflow-x: auto;
+    border-radius: 12px;
+    border: 1px solid rgba(255,255,255,0.06);
+    background: rgba(255,255,255,0.02);
+}
+
+.quick-replies-table {
+    width: 100%;
+    border-collapse: collapse;
+    color: #e2e8f0;
+}
+
+.quick-replies-table thead th {
+    padding: 0.85rem 1rem;
+    font-size: 0.7rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: #94a3b8;
+    background: rgba(0,0,0,0.2);
+    border-bottom: 1px solid rgba(255,255,255,0.06);
+    text-align: left;
+}
+
+.quick-replies-table thead th.quick-replies-th-usage,
+.quick-replies-table thead th.quick-replies-th-actions {
+    text-align: center;
+}
+
+.quick-replies-table thead th.quick-replies-th-actions {
+    width: 100px;
+}
+
+.quick-replies-table tbody tr.reply-item {
+    transition: background 0.15s ease;
+    border-bottom: 1px solid rgba(255,255,255,0.04);
+    cursor: pointer;
+}
+
+.quick-replies-table tbody tr.reply-item:last-child {
+    border-bottom: none;
+}
+
+.quick-replies-table tbody tr.reply-item:hover {
+    background: rgba(255,255,255,0.04);
+}
+
+.quick-replies-table tbody td {
+    padding: 0.9rem 1rem;
+    font-size: 0.875rem;
+    vertical-align: middle;
+}
+
+.quick-replies-table tbody td:last-child {
+    text-align: right;
+}
+
+.quick-replies-table tbody tr td.text-center.text-muted {
+    color: #64748b !important;
+    font-size: 0.875rem;
+    padding: 2rem 1rem;
+}
+
+.shortcut-badge {
+    display: inline-block;
+    padding: 0.35rem 0.65rem;
+    font-family: ui-monospace, monospace;
     font-size: 0.8rem;
+    font-weight: 600;
+    color: #60a5fa;
+    background: rgba(59, 130, 246, 0.12);
+    border: 1px solid rgba(59, 130, 246, 0.2);
+    border-radius: 8px;
+}
+
+.media-icon {
+    width: 34px;
+    height: 34px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 10px;
+    margin-right: 0.75rem;
+    font-size: 0.8rem;
+    flex-shrink: 0;
+}
+
+.media-icon.image { background: rgba(251, 191, 36, 0.15); color: #fbbf24; }
+.media-icon.video { background: rgba(239, 68, 68, 0.15); color: #ef4444; }
+.media-icon.audio { background: rgba(34, 211, 238, 0.15); color: #22d3ee; }
+.media-icon.text { background: rgba(148, 163, 184, 0.15); color: #94a3b8; }
+
+.usage-count {
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: #34d399;
+    background: rgba(52, 211, 153, 0.12);
+    padding: 0.25rem 0.5rem;
+    border-radius: 6px;
+}
+
+.quick-replies-loader {
+    text-align: center;
+    padding: 3rem;
+}
+
+.quick-replies-spinner {
+    width: 40px;
+    height: 40px;
+    margin: 0 auto 1rem;
+    border: 3px solid rgba(255,255,255,0.1);
+    border-top-color: #3b82f6;
+    border-radius: 50%;
+    animation: quick-replies-spin 0.8s linear infinite;
+}
+
+@keyframes quick-replies-spin {
+    to { transform: rotate(360deg); }
+}
+
+.quick-replies-loader-text {
+    margin: 0;
+    font-size: 0.875rem;
+    color: #94a3b8;
+}
+
+/* ----- Create Reply Modal ----- */
+.quick-replies-modal-content {
+    background: #1a1d26;
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 14px;
+    color: #e2e8f0;
+}
+
+.quick-replies-modal-header {
+    padding: 1.15rem 1.35rem;
+    border-bottom: 1px solid rgba(255,255,255,0.06);
+}
+
+.quick-replies-modal-header .modal-title {
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: #f1f5f9;
+}
+
+.quick-replies-modal-body {
+    padding: 1.35rem 1.35rem;
+}
+
+.quick-replies-form-group {
+    margin-bottom: 1.25rem;
+}
+
+.quick-replies-form-group:last-of-type {
+    margin-bottom: 0;
+}
+
+.quick-replies-label {
+    display: block;
+    margin-bottom: 0.4rem;
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: #cbd5e1;
+}
+
+.quick-replies-optional {
+    font-weight: 400;
+    color: #94a3b8;
+}
+
+.quick-replies-input-prefix {
+    display: flex;
+    align-items: center;
+    background: rgba(0,0,0,0.25);
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 10px;
+    overflow: hidden;
+}
+
+.quick-replies-prefix {
+    padding: 0.6rem 0.85rem;
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: #94a3b8;
+    background: rgba(255,255,255,0.04);
+}
+
+.quick-replies-input,
+.quick-replies-textarea {
+    width: 100%;
+    padding: 0.6rem 0.85rem;
+    font-size: 0.9rem;
+    color: #f1f5f9;
+    background: transparent;
+    border: none;
+    outline: none;
+}
+
+.quick-replies-input::placeholder,
+.quick-replies-textarea::placeholder {
+    color: #64748b;
+}
+
+.quick-replies-textarea {
+    resize: vertical;
+    min-height: 100px;
+    background: rgba(0,0,0,0.25);
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 10px;
+    margin-top: 0;
+}
+
+.quick-replies-file-input {
+    display: block;
+    width: 100%;
+    padding: 0.5rem 0;
+    font-size: 0.85rem;
+    color: #94a3b8;
+    background: transparent;
+    border: none;
+    outline: none;
+}
+
+.quick-replies-hint {
+    display: block;
+    margin-top: 0.35rem;
+    font-size: 0.75rem;
+    color: #64748b;
+}
+
+.quick-replies-modal-footer {
+    padding: 1rem 1.35rem;
+    border-top: 1px solid rgba(255,255,255,0.06);
+    gap: 0.5rem;
+}
+
+.quick-replies-btn {
+    padding: 0.5rem 1rem;
+    font-size: 0.875rem;
+    font-weight: 600;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: background 0.15s ease, transform 0.15s ease;
+}
+
+.quick-replies-btn-secondary {
+    color: #94a3b8;
+    background: rgba(255,255,255,0.06);
+}
+
+.quick-replies-btn-secondary:hover {
+    background: rgba(255,255,255,0.1);
+    color: #cbd5e1;
+}
+
+.quick-replies-btn-primary {
+    color: #fff;
+    background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+}
+
+.quick-replies-btn-primary:hover {
+    background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+    color: #fff;
+}
+
+/* ----- Media Preview Modal ----- */
+.quick-replies-preview-modal {
+    background: #111318;
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 14px;
+    color: #e2e8f0;
+}
+
+.quick-replies-preview-header {
+    padding: 0.9rem 1.25rem;
+    border-bottom: 1px solid rgba(255,255,255,0.06);
+}
+
+.quick-replies-preview-header .modal-title {
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: #94a3b8;
+}
+
+.quick-replies-preview-body {
+    padding: 0;
+    min-height: 300px;
+    background: #000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
 }
 </style>
