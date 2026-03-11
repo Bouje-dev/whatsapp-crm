@@ -188,6 +188,210 @@
     box-shadow: 0 6px 20px rgba(168, 85, 247, 0.6);
     color: white;
 }
+
+/* ----- Modern Settings Layout: Left Sidebar + Content ----- */
+.settings-wrap { display: flex; min-height: 400px; }
+.settings-sidebar {
+    width: 220px;
+    flex-shrink: 0;
+    border-right: 1px solid #30363d;
+    background: rgba(13, 17, 23, 0.5);
+    padding: 1rem 0.5rem;
+}
+.settings-sidebar .nav-item { margin-bottom: 2px; }
+.settings-sidebar .nav-link {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 14px;
+    border-radius: 8px;
+    color: #8b949e;
+    border: none !important;
+    border-bottom: none !important;
+    background: transparent !important;
+    font-weight: 500;
+    transition: background 0.2s, color 0.2s;
+}
+.settings-sidebar .nav-link:hover { color: #e6edf3; background: rgba(255,255,255,0.06) !important; }
+.settings-sidebar .nav-link.active {
+    color: #6366f1;
+    background: rgba(99, 102, 241, 0.15) !important;
+}
+.settings-sidebar .nav-link i { width: 20px; text-align: center; }
+.settings-content { flex: 1; min-width: 0; padding: 1.5rem 1.75rem; }
+.settings-content .tab-pane { display: none; }
+.settings-content .tab-pane.active { display: block; }
+
+/* ----- Team & Routing: Toggles ----- */
+.routing-toggle-wrap {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: 0.75rem 0;
+}
+.routing-toggle-label { display: flex; align-items: center; gap: 8px; font-weight: 500; color: #e6edf3; }
+.routing-toggle-switch {
+    position: relative;
+    width: 44px;
+    height: 24px;
+    flex-shrink: 0;
+    border-radius: 12px;
+    background: #30363d;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+.routing-toggle-switch.on { background: #6366f1; }
+.routing-toggle-switch::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 2px;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background: #fff;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+    transition: transform 0.2s;
+}
+.routing-toggle-switch.on::after { transform: translateX(20px); }
+.routing-tooltip-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    color: #8b949e;
+    background: transparent;
+    border: none;
+    cursor: help;
+    padding: 0;
+    transition: color 0.2s;
+}
+.routing-tooltip-btn:hover { color: #58a6ff; }
+.routing-tooltip-box {
+    position: absolute;
+    left: 100%;
+    top: 50%;
+    transform: translateY(-50%);
+    margin-left: 10px;
+    width: 260px;
+    padding: 10px 12px;
+    font-size: 12px;
+    line-height: 1.45;
+    color: #e6edf3;
+    background: #161b22;
+    border: 1px solid #30363d;
+    border-radius: 8px;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+    z-index: 100;
+    pointer-events: none;
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.15s, visibility 0.15s;
+}
+.routing-tooltip-wrap:hover .routing-tooltip-box,
+.routing-tooltip-btn:focus + .routing-tooltip-box { opacity: 1; visibility: visible; }
+.routing-tooltip-wrap { position: relative; display: inline-flex; }
+
+/* ----- Team & Routing: Member cards ----- */
+.routing-member-card {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding: 1rem 1.25rem;
+    background: rgba(255,255,255,0.03);
+    border: 1px solid #30363d;
+    border-radius: 12px;
+    margin-bottom: 10px;
+    transition: border-color 0.2s, opacity 0.2s;
+}
+.routing-member-card.disabled { opacity: 0.65; pointer-events: none; }
+.routing-member-avatar {
+    width: 40px;
+    height: 40px;
+    flex-shrink: 0;
+    border-radius: 50%;
+    background: rgba(99, 102, 241, 0.2);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #6366f1;
+}
+.routing-member-card:not([data-ai]) .routing-member-avatar { background: rgba(255,255,255,0.08); color: #8b949e; }
+.routing-member-info { flex: 1; min-width: 0; }
+.routing-member-name { font-weight: 500; color: #e6edf3; }
+.routing-member-status {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
+    margin-left: 8px;
+}
+.routing-member-status.online { background: #22c55e; }
+.routing-member-status.offline { background: #6b7280; }
+.routing-member-controls { display: flex; align-items: center; gap: 12px; }
+.routing-slider {
+    width: 140px;
+    height: 6px;
+    -webkit-appearance: none;
+    appearance: none;
+    background: #30363d;
+    border-radius: 3px;
+}
+.routing-slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    background: #6366f1;
+    cursor: pointer;
+    transition: transform 0.15s;
+}
+.routing-slider::-webkit-slider-thumb:hover { transform: scale(1.1); }
+.routing-slider::-moz-range-thumb {
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    background: #6366f1;
+    cursor: pointer;
+    border: none;
+}
+.routing-pct-input {
+    width: 56px;
+    padding: 6px 8px;
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+    background: #0d1117;
+    border: 1px solid #30363d;
+    color: #e6edf3;
+    border-radius: 6px;
+    font-size: 14px;
+}
+.routing-pct-input:focus { outline: none; border-color: #6366f1; box-shadow: 0 0 0 2px rgba(99,102,241,0.2); }
+
+/* ----- Sticky total bar ----- */
+.routing-total-bar {
+    position: sticky;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: 1rem 1.25rem;
+    background: #161b22;
+    border: 1px solid #30363d;
+    border-radius: 12px;
+    margin-top: 1.5rem;
+    box-shadow: 0 -4px 20px rgba(0,0,0,0.2);
+}
+.routing-total-bar .total-valid { color: #22c55e; font-weight: 600; }
+.routing-total-bar .total-invalid { color: #ef4444; font-weight: 600; }
+.routing-save-btn { transition: opacity 0.2s; }
+.routing-save-btn:disabled { opacity: 0.5; cursor: not-allowed !important; }
 </style>
 <div class="container-fluid p-4">
     <div class="mb-4">
@@ -207,8 +411,8 @@
             </div>
         
           
-        <div class="card-header border-bottom border-secondary p-0 bg-transparent">
-            <ul class="nav nav-tabs settings-tabs nav-fill" id="settingsTabs" role="tablist">
+        <!-- Old horizontal tabs replaced by settings-sidebar -->
+            <ul class="nav nav-tabs settings-tabs nav-fill d-none" id="settingsTabs" role="tablist">
                 
                 {% if user.is_team_admin or user.is_superuser %}
                 
@@ -224,6 +428,11 @@
                         <i class="fas fa-robot me-2"></i> Automation
                     </button>
                 </li>
+                <li class="nav-item">
+                    <button class="nav-link" data-bs-toggle="tab" data-bs-target="#content-routing">
+                        <i class="fas fa-random me-2"></i> Routing
+                    </button>
+                </li>
                 {% endif %}
 
                 <li class="nav-item">
@@ -237,9 +446,34 @@
                     </button>
                 </li>
             </ul>
-        </div>
-
-        <div class="card-body p-4" id="whatsapp-settings-card-body" data-google-sheets-api-base="{% url 'api_google_sheets_config' %}">
+        <div class="card-body p-0" id="whatsapp-settings-card-body" data-google-sheets-api-base="{% url 'api_google_sheets_config' %}">
+            <div class="settings-wrap">
+                <aside class="settings-sidebar">
+                    <ul class="nav flex-column" id="settingsSidebarNav" role="tablist">
+                        <li class="nav-item">
+                            <button type="button" class="nav-link active" data-bs-toggle="tab" data-bs-target="#content-profile" role="tab"><i class="fas fa-store"></i> General</button>
+                        </li>
+                        {% if user.is_team_admin or user.is_superuser %}
+                        <li class="nav-item">
+                            <button type="button" class="nav-link" data-bs-toggle="tab" data-bs-target="#content-automation" role="tab"><i class="fas fa-robot"></i> AI Assistant</button>
+                        </li>
+                        <li class="nav-item">
+                            <button type="button" class="nav-link" data-bs-toggle="tab" data-bs-target="#content-routing" role="tab"><i class="fas fa-random"></i> Team &amp; Routing</button>
+                        </li>
+                        <li class="nav-item">
+                            <button type="button" class="nav-link" data-bs-toggle="tab" data-bs-target="#content-integrations" role="tab"><i class="fas fa-plug"></i> Integrations</button>
+                        </li>
+                        {% else %}
+                        <li class="nav-item">
+                            <button type="button" class="nav-link" data-bs-toggle="tab" data-bs-target="#content-integrations" role="tab"><i class="fas fa-plug"></i> Integrations</button>
+                        </li>
+                        {% endif %}
+                        <li class="nav-item">
+                            <button type="button" class="nav-link {% if not user.is_team_admin %}active{% endif %}" data-bs-toggle="tab" data-bs-target="#content-personal" role="tab"><i class="fas fa-user-cog"></i> Preferences</button>
+                        </li>
+                    </ul>
+                </aside>
+                <div class="settings-content">
             <form id="whatsappSettingsForm">
                 <div class="tab-content">
                     
@@ -426,7 +660,7 @@
                                     <p class="automation-ai-subtitle mb-0">Autopilot, voice identity, and order capture</p>
                                 </div>
                                 <div class="row g-4">
-                                    <div class="col-lg-4" id="ai_autopilot_card" title="">
+                                    <div class="col-lg-4" style="width: 50%;" id="ai_autopilot_card" title="">
                                         <div class="automation-card h-100">
                                             <div class="automation-card-head">
                                                 <span class="automation-card-icon bg-primary bg-opacity-25 text-primary"><i class="fas fa-rocket"></i></span>
@@ -443,10 +677,39 @@
                                                 </label>
                                                 <input type="range" class="form-range" name="voice_delay_seconds" id="voice_delay_slider" min="10" max="30" value="{{ channel.voice_delay_seconds|default:20 }}">
                                             </div>
+                                        
+                                        <div class="automation-card h-100">
+                                            <div class="automation-card-head">
+                                                <span class="automation-card-icon bg-warning bg-opacity-25 text-warning"><i class="fas fa-shopping-cart"></i></span>
+                                                <h6 class="automation-card-title mb-0">Sales Intelligence</h6>
+                                            </div>
+                                            <div class="automation-card-body">
+                                                <div class="form-check form-switch mb-2">
+                                                    <input class="form-check-input" type="checkbox" name="ai_order_capture" id="switch_ai_order_capture" {% if channel.ai_order_capture %}checked{% endif %}>
+                                                    <label class="form-check-label text-muted" for="switch_ai_order_capture">Automatic Order Extraction</label>
+                                                </div>
+                                                <p class="text-muted small mb-0">Extract name, city &amp; address from chat and create orders.</p>
+                                                <div class="automation-block mt-3 pt-3 {% if not channel.ai_order_capture %}d-none{% endif %}" id="order_notify_wrap">
+                                                    <label class="form-label text-muted small mb-2">Notify when AI creates an order</label>
+                                                    <select name="order_notify_method" id="order_notify_method" class="form-select form-select-sm modern-input mb-2">
+                                                        <option value="" {% if not channel.order_notify_method %}selected{% endif %}>Off</option>
+                                                        <option value="EMAIL" {% if channel.order_notify_method == 'EMAIL' %}selected{% endif %}>Email</option>
+                                                        <option value="WHATSAPP" {% if channel.order_notify_method == 'WHATSAPP' %}selected{% endif %}>WhatsApp</option>
+                                                    </select>
+                                                    <div id="order_notify_email_row" class="mb-2 {% if channel.order_notify_method != 'EMAIL' %}d-none{% endif %}">
+                                                        <input type="email" name="order_notify_email" id="order_notify_email" class="form-control form-control-sm modern-input" placeholder="your@email.com" value="{{ channel.order_notify_email|default:'' }}">
+                                                    </div>
+                                                    <div id="order_notify_whatsapp_row" class="mb-2 {% if channel.order_notify_method != 'WHATSAPP' %}d-none{% endif %}">
+                                                        <input type="text" name="order_notify_whatsapp_phone" id="order_notify_whatsapp_phone" class="form-control form-control-sm modern-input" placeholder="+1234567890" value="{{ channel.order_notify_whatsapp_phone|default:'' }}">
+                                                        <small class="text-muted" style="font-size: 0.7rem;">With country code (e.g. +212...)</small>
+                                                    </div>
+                                                </div>
+                                            </div>
                                         </div>
                                     </div>
+                                    </div>
 
-                                    <div class="col-lg-4" id="ai_voice_identity_card" title="">
+                                    <div class="col-lg-4" style="width: 50%;" id="ai_voice_identity_card" title="">
                                         <div class="automation-card automation-card-voice h-100">
                                             <div class="automation-card-head">
                                                 <span class="automation-card-icon bg-success bg-opacity-25 text-success"><i class="fas fa-microphone-alt"></i></span>
@@ -522,7 +785,7 @@
                                         </div>
                                     </div>
 
-                                    <div class="col-lg-4">
+                                    <!-- <div class="col-lg-4">
                                         <div class="automation-card h-100">
                                             <div class="automation-card-head">
                                                 <span class="automation-card-icon bg-warning bg-opacity-25 text-warning"><i class="fas fa-shopping-cart"></i></span>
@@ -551,7 +814,7 @@
                                                 </div>
                                             </div>
                                         </div>
-                                    </div>
+                                    </div> -->
                                 </div>
                             </div>
                         </div>
@@ -573,6 +836,72 @@
                         .automation-voice-switches { padding: 8px 0; }
                         @media (max-width: 991px) { .automation-ai-section { padding: 1rem; } .automation-card-body { padding: 1rem; } }
                         </style>
+                    </div>
+
+                    <!-- Team & Routing: modern card UI with toggles, sliders, total bar -->
+                    <div class="tab-pane fade" id="content-routing">
+                        <div id="routing_settings_section">
+                            <h4 class="text-white fw-semibold mb-1">Team &amp; Routing</h4>
+                            <p class="text-muted small mb-4">Control who receives new chats and how allocation is distributed.</p>
+
+                            <div class="rounded-3 border border-secondary p-4 mb-4" style="background: rgba(255,255,255,0.02);">
+                                <h6 class="text-white mb-3">Behavior</h6>
+                                <div class="routing-toggle-wrap">
+                                    <div class="routing-toggle-label">
+                                        Full AI Autopilot
+                                        <span class="routing-tooltip-wrap">
+                                            <button type="button" class="routing-tooltip-btn" aria-label="Help"><i class="fas fa-question-circle"></i></button>
+                                            <span class="routing-tooltip-box">When enabled, the AI Sales Agent can receive new incoming chats. When disabled, AI share is 0% and 100% is split among team members only.</span>
+                                        </span>
+                                    </div>
+                                    <button type="button" class="routing-toggle-switch on" id="routing_toggle_autopilot" aria-pressed="true"></button>
+                                </div>
+                                <div class="routing-toggle-wrap">
+                                    <div class="routing-toggle-label">
+                                        Dynamic Offline Redistribution
+                                        <span class="routing-tooltip-wrap">
+                                            <button type="button" class="routing-tooltip-btn" aria-label="Help"><i class="fas fa-question-circle"></i></button>
+                                            <span class="routing-tooltip-box">When enabled, offline agents are excluded and their share is redistributed among online agents (and the AI if Autopilot is on).</span>
+                                        </span>
+                                    </div>
+                                    <button type="button" class="routing-toggle-switch" id="routing_toggle_dynamic" aria-pressed="false"></button>
+                                </div>
+                            </div>
+
+                            <div class="rounded-3 border border-secondary p-4 mb-4" style="background: rgba(255,255,255,0.02);">
+                                <h6 class="text-white mb-1">Weighted distribution</h6>
+                                <p class="text-muted small mb-4">Set each member’s share of new chats (0–100%). Total must equal 100%.</p>
+                                <div id="routing_member_list">
+                                    <!-- AI row (always first) -->
+                                    <div class="routing-member-card" id="routing_row_ai" data-id="ai">
+                                        <div class="routing-member-avatar"><i class="fas fa-robot"></i></div>
+                                        <div class="routing-member-info d-flex align-items-center">
+                                            <span class="routing-member-name">AI Sales Agent</span>
+                                        </div>
+                                        <div class="routing-member-controls">
+                                            <input type="range" class="routing-slider" id="routing_slider_ai" min="0" max="100" value="20">
+                                            <input type="number" class="routing-pct-input" id="routing_input_ai" min="0" max="100" value="20">
+                                            <span class="text-muted">%</span>
+                                        </div>
+                                    </div>
+                                    <!-- Team rows filled by JS from data.routing -->
+                                    <div id="routing_team_rows"></div>
+                                </div>
+                            </div>
+
+                            <div class="routing-total-bar" id="routing_total_bar">
+                                <div class="d-flex align-items-center gap-2">
+                                    <span class="text-muted me-1">Total allocation:</span>                                    <span id="routing_total_display" class="total-invalid">0</span><span class="text-muted">%</span>
+
+                                    <span class="routing-tooltip-wrap">
+                                        <span class="routing-tooltip-btn" style="cursor: help;" aria-label="Help"><i class="fas fa-question-circle text-muted"></i></span>
+                                        <span class="routing-tooltip-box">The sum of all routing percentages must equal 100% to save. When Full AI Autopilot is on, the AI share is included; when off, only team members' percentages count.</span>
+                                    </span>
+                                </div>
+                                <button type="button" class="btn btn-save-glow routing-save-btn" id="btn_save_routing" disabled><i class="fas fa-save me-1"></i> Save changes</button>
+                            </div>
+                            <span id="routing_save_status" class="d-block mt-2 small text-muted"></span>
+                        </div>
                     </div>
 
                     <!-- Integrations: Google Sheets (Global Service Account) -->
@@ -684,19 +1013,125 @@
                 {% endif %}
 
             </form>
+                </div>
+            </div>
         </div>
     </div>
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
 <script>
-    window.loadSetting = function (channel_id){      
-     
-    const loader = $('#settings_loader');
-    loader.removeClass('d-none'); 
-    
-    // إظهار لودينج بسيط إن أردت
-    $('#settings_modal').modal('show'); 
+    // ----- Sidebar: keep active state in sync with visible tab -----
+    $(document).on('shown.bs.tab', '[data-bs-toggle="tab"]', function (e) {
+        var target = e.target.getAttribute('data-bs-target');
+        if (!target) return;
+        $('#settingsSidebarNav .nav-link').removeClass('active');
+        $('#settingsSidebarNav .nav-link[data-bs-target="' + target + '"]').addClass('active');
+    });
+
+    // ----- Team & Routing: toggles (Full AI Autopilot, Dynamic Offline) -----
+    function routingToggleState(btn) {
+        return $(btn).hasClass('on');
+    }
+    function routingToggleSet(btn, on) {
+        $(btn).toggleClass('on', !!on).attr('aria-pressed', !!on);
+    }
+    /** Apply Full AI Autopilot state to the AI row (toggle + inputs + disabled class). Call whenever autopilot state may have changed. */
+    function applyRoutingAutopilotUI(on) {
+        var toggleEl = document.getElementById('routing_toggle_autopilot');
+        var rowEl = document.getElementById('routing_row_ai');
+        if (!toggleEl || !rowEl) return;
+        routingToggleSet(toggleEl, !!on);
+        if (!on) {
+            $('#routing_slider_ai, #routing_input_ai').val(0).prop('disabled', true);
+            $(rowEl).addClass('disabled');
+        } else {
+            $(rowEl).removeClass('disabled');
+            $('#routing_slider_ai, #routing_input_ai').prop('disabled', false);
+            var pct = parseInt($('#routing_input_ai').data('last'), 10);
+            if (isNaN(pct)) pct = parseInt(window._aiRoutingPct, 10) || 20;
+            pct = Math.min(100, Math.max(0, pct));
+            $('#routing_slider_ai').val(pct);
+            $('#routing_input_ai').val(pct).data('last', pct);
+        }
+    }
+    $('#routing_toggle_autopilot').on('click', function () {
+        var on = !routingToggleState(this);
+        applyRoutingAutopilotUI(on);
+        if ($('#switch_ai_autopilot').length) $('#switch_ai_autopilot').prop('checked', on);
+        _updateRoutingTotal();
+    });
+    // AI row slider + input: bind once via delegation so they work even before _renderRoutingTable runs
+    $(document).on('input change', '#routing_slider_ai, #routing_input_ai', function () {
+        var $sl = $('#routing_slider_ai'), $inp = $('#routing_input_ai');
+        if ($inp.prop('disabled')) return;
+        var v = $(this).is('#routing_slider_ai') ? parseInt($sl.val(), 10) : parseInt($inp.val(), 10);
+        if (isNaN(v)) v = 0;
+        v = Math.min(100, Math.max(0, v));
+        $sl.val(v);
+        $inp.val(v).data('last', v);
+        if (typeof _updateRoutingTotal === 'function') _updateRoutingTotal();
+    });
+    $('#routing_toggle_dynamic').on('click', function () {
+        routingToggleSet(this, !routingToggleState(this));
+    });
+
+    // ----- Routing: render team rows from _routingData -----
+    window._renderRoutingTable = function () {
+        var list = window._routingData || [];
+        // Derive autopilot from both toggles so AI row stays in sync (backend / Automation tab / Routing tab)
+        var fullAutopilot = $('#routing_toggle_autopilot').hasClass('on') || ($('#switch_ai_autopilot').length && $('#switch_ai_autopilot').is(':checked'));
+        var aiPct = Math.min(100, Math.max(0, parseInt(window._aiRoutingPct, 10) || 0));
+        $('#routing_input_ai').data('last', aiPct);
+        applyRoutingAutopilotUI(fullAutopilot);
+        var dynamicOn = !!window._dynamicOfflineRedistribution;
+        routingToggleSet(document.getElementById('routing_toggle_dynamic'), dynamicOn);
+        var container = $('#routing_team_rows');
+        container.empty();
+        list.forEach(function (row) {
+            var card = $('<div class="routing-member-card" data-agent-id="' + row.agent_id + '" data-accepting="' + (row.is_accepting_chats !== false ? '1' : '0') + '">');
+            card.append('<div class="routing-member-avatar"><i class="fas fa-user"></i></div>');
+            var statusClass = row.is_online ? 'online' : 'offline';
+            card.append('<div class="routing-member-info d-flex align-items-center"><span class="routing-member-name">' + (row.agent_name || ('Agent ' + row.agent_id)) + '</span><span class="routing-member-status ' + statusClass + '" title="' + (row.is_online ? 'Online' : 'Offline') + '"></span></div>');
+            var pct = Math.min(100, Math.max(0, parseInt(row.routing_percentage, 10) || 0));
+            card.append('<div class="routing-member-controls"><input type="range" class="routing-slider" min="0" max="100" value="' + pct + '"><input type="number" class="routing-pct-input" min="0" max="100" value="' + pct + '"><span class="text-muted">%</span></div>');
+            container.append(card);
+        });
+        // Team member rows only (AI row has its own delegated handler)
+        $('#routing_team_rows .routing-slider, #routing_team_rows .routing-pct-input').off('input change').on('input change', function () {
+            var card = $(this).closest('.routing-member-card');
+            var inp = card.find('.routing-pct-input')[0];
+            var sl = card.find('.routing-slider')[0];
+            if (this === sl) { var v = parseInt(sl.value, 10); inp.value = isNaN(v) ? 0 : Math.min(100, Math.max(0, v)); }
+            else { var v = parseInt(inp.value, 10); sl.value = isNaN(v) ? 0 : Math.min(100, Math.max(0, v)); }
+            _updateRoutingTotal();
+        });
+        // Re-apply AI row state so it stays correct after DOM/event setup
+        applyRoutingAutopilotUI($('#routing_toggle_autopilot').hasClass('on') || ($('#switch_ai_autopilot').length && $('#switch_ai_autopilot').is(':checked')));
+        _updateRoutingTotal();
+    };
+    function _updateRoutingTotal() {
+        var total = 0;
+        var autopilotOn = $('#routing_toggle_autopilot').hasClass('on') || ($('#switch_ai_autopilot').length && $('#switch_ai_autopilot').is(':checked'));
+        if (autopilotOn) {
+            var ai = parseInt($('#routing_input_ai').val(), 10);
+            if (!isNaN(ai)) total += ai;
+        }
+        $('#routing_team_rows .routing-member-card').each(function () {
+            var v = parseInt($(this).find('.routing-pct-input').val(), 10);
+            if (!isNaN(v)) total += v;
+        });
+        var el = document.getElementById('routing_total_display');
+        if (el) {
+            el.textContent = total;
+            el.classList.toggle('total-valid', total === 100);
+            el.classList.toggle('total-invalid', total !== 100);
+        }
+        var btn = document.getElementById('btn_save_routing');
+        if (btn) { btn.disabled = total !== 100; }
+    }
+    window._updateRoutingTotal = _updateRoutingTotal;
+
     function toggleOrderNotifyWrap() {
         if ($('#switch_ai_order_capture').is(':checked')) {
             $('#order_notify_wrap').removeClass('d-none');
@@ -709,6 +1144,14 @@
         $('#order_notify_email_row').toggleClass('d-none', m !== 'EMAIL');
         $('#order_notify_whatsapp_row').toggleClass('d-none', m !== 'WHATSAPP');
     }
+
+    window.loadSetting = function (channel_id){      
+     
+    const loader = $('#settings_loader');
+    loader.removeClass('d-none'); 
+    
+    // إظهار لودينج بسيط إن أردت
+    $('#settings_modal').modal('show'); 
     $.ajax({
         url: '{% url "get_channel_settings" %}',  
         type: 'POST',
@@ -806,6 +1249,19 @@
                 $('#voice_clone_section').find('#clone_audio_input, #btn_process_clone').prop('disabled', !data.plan_can_voice_cloning);
                 var defaultPreview = 'مرحبا كيف اساعدك ';
                 if (!$('#preview_text_input').val()) { $('#preview_text_input').attr('placeholder', defaultPreview); }
+
+                // Routing Settings: sync from backend (team + AI row, Full AI Autopilot, dynamic redistribution)
+                window._routingData = data.routing || [];
+                window._aiRoutingPct = typeof data.ai_routing_percentage !== 'undefined' ? data.ai_routing_percentage : 0;
+                window._dynamicOfflineRedistribution = !!data.dynamic_offline_redistribution;
+                if (document.getElementById('routing_dynamic_offline')) $('#routing_dynamic_offline').prop('checked', !!data.dynamic_offline_redistribution);
+                // Full AI Autopilot in Team & Routing: keep in sync with backend (data.ai_auto_reply)
+                if (typeof applyRoutingAutopilotUI === 'function') {
+                    $('#routing_input_ai').data('last', window._aiRoutingPct || 0);
+                    applyRoutingAutopilotUI(!!data.ai_auto_reply);
+                }
+                window._renderRoutingTable();
+                window._updateRoutingTotal();
 
             } else {
                 console.error('Server returned error:', response.message);
@@ -921,6 +1377,84 @@ $('#btn_open_settings').on('click', function() {
   
     $('#switch_ai_order_capture').on('change', toggleOrderNotifyWrap);
     $('#order_notify_method').on('change', toggleOrderNotifyInputs);
+
+    // Full Autopilot: when OFF, disable AI routing % and set to 0; when ON, enable. Update routing total.
+    $('#switch_ai_autopilot').on('change', function () {
+        var on = $(this).is(':checked');
+        if (typeof applyRoutingAutopilotUI === 'function') applyRoutingAutopilotUI(on);
+        if (typeof window._updateRoutingTotal === 'function') window._updateRoutingTotal();
+    });
+
+    // Save Routing: use delegation so click works when button is in modal/dynamic content
+    $(document).on('click', '#btn_save_routing', function () {
+        var btn = $('#btn_save_routing');
+        var statusEl = $('#routing_save_status');
+        if (btn.prop('disabled')) {
+            statusEl.removeClass('text-success').addClass('text-danger').text('Total must equal 100% to save.');
+            if (typeof showToast === 'function') showToast('Total must equal 100%', 'warning');
+            return;
+        }
+        var channelId = window.currentChannelId;
+        if (!channelId) {
+            statusEl.removeClass('text-success').addClass('text-danger').text('Please select a channel first.');
+            if (typeof showToast === 'function') showToast('Channel not selected', 'warning');
+            return;
+        }
+        var routing = [];
+        $('#routing_team_rows .routing-member-card[data-agent-id]').each(function () {
+            var agentId = parseInt($(this).attr('data-agent-id'), 10);
+            if (isNaN(agentId)) return;
+            var pct = parseInt($(this).find('.routing-pct-input').val(), 10);
+            if (isNaN(pct)) pct = 0;
+            routing.push({
+                agent_id: agentId,
+                routing_percentage: Math.max(0, Math.min(100, pct)),
+                is_accepting_chats: $(this).attr('data-accepting') === '1'
+            });
+        });
+        var aiPct = 0;
+        if ($('#routing_toggle_autopilot').hasClass('on') || ($('#switch_ai_autopilot').length && $('#switch_ai_autopilot').is(':checked'))) {
+            aiPct = parseInt($('#routing_input_ai').val(), 10);
+            if (isNaN(aiPct)) aiPct = 0;
+            aiPct = Math.max(0, Math.min(100, aiPct));
+        }
+        var payload = {
+            channel_id: channelId,
+            routing: routing,
+            ai_routing_percentage: aiPct,
+            dynamic_offline_redistribution: $('#routing_toggle_dynamic').hasClass('on') || ($('#routing_dynamic_offline').length && $('#routing_dynamic_offline').is(':checked'))
+        };
+        var csrfToken = ($('input[name="csrfmiddlewaretoken"]').val() || '{{ csrf_token }}').toString();
+        btn.prop('disabled', true);
+        statusEl.text('Saving…').removeClass('text-success text-danger').addClass('text-muted');
+        $.ajax({
+            url: '{% url "api_update_routing_settings" %}',
+            type: 'POST',
+            contentType: 'application/json',
+            headers: { 'X-CSRFToken': csrfToken, 'Content-Type': 'application/json' },
+            data: JSON.stringify(payload),
+            dataType: 'json',
+            success: function (res) {
+                if (res.status === 'success') {
+                    statusEl.removeClass('text-muted').addClass('text-success').text('Saved.');
+                    if (typeof showToast === 'function') showToast('Routing saved', 'success');
+                } else {
+                    statusEl.removeClass('text-muted').addClass('text-danger').text(res.message || 'Error');
+                    if (typeof showToast === 'function') showToast(res.message || 'Save failed', 'error');
+                }
+            },
+            error: function (xhr) {
+                var msg = 'Request failed';
+                try { var j = JSON.parse(xhr.responseText); if (j.message) msg = j.message; } catch (e) {}
+                if (xhr.status === 403) msg = 'Session expired or forbidden. Please refresh and try again.';
+                statusEl.removeClass('text-muted').addClass('text-danger').text(msg);
+                if (typeof showToast === 'function') showToast(msg, 'error');
+            },
+            complete: function () {
+                if (typeof window._updateRoutingTotal === 'function') window._updateRoutingTotal();
+            }
+        });
+    });
 
     // Process & Clone: upload file and call clone API
     $('#btn_process_clone').on('click', function() {
@@ -1064,6 +1598,12 @@ function submitChannelSettings() {
                 if (response.config) {
                     window.collisionEnabled = response.config.enable_collision_detection;
                     console.log("System config updated:", response.config);
+                }
+
+                // Team & Routing: keep Full AI Autopilot toggle in sync after main settings save
+                if (typeof applyRoutingAutopilotUI === 'function') {
+                    applyRoutingAutopilotUI($('#switch_ai_autopilot').is(':checked'));
+                    if (typeof window._updateRoutingTotal === 'function') window._updateRoutingTotal();
                 }
 
             } else {

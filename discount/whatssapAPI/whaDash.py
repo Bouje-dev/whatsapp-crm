@@ -1,10 +1,15 @@
+import json
+import logging
 from discount.user_dash import change_password
 from django.db.models import Count, Avg, F, ExpressionWrapper, DurationField, Q
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
+from django.views.decorators.http import require_http_methods
+from django.views.decorators.csrf import csrf_exempt
+from django.views.decorators.csrf import csrf_protect
 from datetime import timedelta
-from discount.models import Contact, WhatsAppChannel, CannedResponse, CustomUser, Message, Activity
+from discount.models import Contact, WhatsAppChannel, CannedResponse, CustomUser, Message, Activity, CoachConversationMessage
 
 def api_lifecycle_stats(request):
     user = request.user
@@ -193,16 +198,66 @@ def get_canned_responses(request):
         data.append({
             'id': r.id,
             'shortcut': r.shortcut,
-            'message': r.message,
+            'message': r.message or '',
             'file_url': r.attachment.url if r.attachment else None,
-            'media_type': r.type,
-            'author': author_label, # لنعرض للمستخدم من كتب هذا الرد
-            'is_mine': r.user.id == user.id, # لتمييز ردودي بلون مختلف
-            'created_at':formatted_date,
-            'usage' : r.usage
+            'media_type': r.type or 'text',
+            'author': author_label,
+            'creator_name': r.user.first_name or r.user.username,
+            'creator_avatar': '',
+            'is_mine': r.user.id == user.id,
+            'created_at': formatted_date,
+            'usage': r.usage,
+            'usage_count': r.usage,
         })
     from django.core.serializers.json import DjangoJSONEncoder
     return JsonResponse({'status': 'success', 'data': data}, encoder=DjangoJSONEncoder)
+
+
+@require_POST
+def update_canned_response(request):
+    if not request.user.is_authenticated:
+        return JsonResponse({'error': 'Unauthorized'}, status=401)
+    reply_id = request.POST.get('id')
+    if not reply_id:
+        return JsonResponse({'error': 'Missing id'}, status=400)
+    reply = get_object_or_404(CannedResponse, id=reply_id)
+    if reply.user_id != request.user.id:
+        return JsonResponse({'error': 'Not allowed to edit this reply'}, status=403)
+    shortcut = request.POST.get('shortcut')
+    message = request.POST.get('message')
+    attachment = request.FILES.get('attachment')
+    if shortcut is not None:
+        reply.shortcut = shortcut
+    if message is not None:
+        reply.message = message
+    if attachment:
+        mime_type, _ = mimetypes.guess_type(attachment.name)
+        media_type = 'text'
+        if mime_type:
+            if mime_type.startswith('video'):
+                media_type = 'video'
+            elif mime_type.startswith('image'):
+                media_type = 'image'
+            else:
+                media_type = 'document'
+        reply.attachment = attachment
+        reply.type = media_type
+    reply.save()
+    return JsonResponse({'status': 'success'})
+
+
+@require_POST
+def delete_canned_response(request):
+    if not request.user.is_authenticated:
+        return JsonResponse({'error': 'Unauthorized'}, status=401)
+    reply_id = request.POST.get('id')
+    if not reply_id:
+        return JsonResponse({'error': 'Missing id'}, status=400)
+    reply = get_object_or_404(CannedResponse, id=reply_id)
+    if reply.user_id != request.user.id:
+        return JsonResponse({'error': 'Not allowed to delete this reply'}, status=403)
+    reply.delete()
+    return JsonResponse({'status': 'success'})
 
 
 def api_agent_stats(request):
@@ -219,9 +274,13 @@ def api_agent_stats(request):
     if not (getattr(request.user, 'is_team_admin', False) or request.user.is_superuser):
         return JsonResponse({"error": "Forbidden"}, status=403)
 
-    agent_id = request.GET.get('agent_id')
-    if not agent_id:
+    raw_agent_id = request.GET.get('agent_id')
+    if not raw_agent_id:
         return JsonResponse({"error": "agent_id required"}, status=400)
+    try:
+        agent_id = int(raw_agent_id)
+    except (TypeError, ValueError):
+        return JsonResponse({"error": "Invalid agent_id"}, status=400)
 
     try:
         agent = CustomUser.objects.get(pk=agent_id)
@@ -276,20 +335,18 @@ def api_agent_stats(request):
     # --- 2. Average response time ---
     # For each agent reply (is_from_me=True), find the last customer message
     # in the same conversation thread and compute the time delta.
-    # Message.user is often NULL (WebSocket sends don't always set it),
-    # so we also match by channel ownership to identify agent messages.
+    # Only count messages where user=agent so each agent's stats are separate
+    # (messages with user=NULL cannot be attributed to a specific agent).
     agent_channels = WhatsAppChannel.objects.filter(
         Q(owner=agent) | Q(assigned_agents=agent)
     ).distinct()
 
-    # Strategy: find agent replies by user=agent OR by channel ownership
     agent_replies = Message.objects.filter(
         is_from_me=True,
         is_internal=False,
         channel__in=agent_channels,
+        user=agent,
         timestamp__gte=week_start,
-    ).filter(
-        Q(user=agent) | Q(user__isnull=True)
     ).order_by('timestamp').select_related('channel')
 
     response_deltas = []
@@ -335,11 +392,13 @@ def api_agent_stats(request):
             last_seen_str = agent.last_seen.strftime("%b %d, %I:%M %p")
 
     # --- 4. Messages sent ---
-    # Match by user=agent OR by channel ownership when user is NULL
+    # Only count messages where user=agent (exclude user=NULL so admin and agents don't share counts)
     agent_msg_base = Message.objects.filter(
-        is_from_me=True, is_internal=False,
+        is_from_me=True,
+        is_internal=False,
         channel__in=agent_channels,
-    ).filter(Q(user=agent) | Q(user__isnull=True))
+        user=agent,
+    )
 
     msgs_today = agent_msg_base.filter(timestamp__gte=today_start).count()
     msgs_week = agent_msg_base.filter(timestamp__gte=week_start).count()
@@ -397,3 +456,206 @@ def api_agent_stats(request):
             "conversations_total": convos_total,
         },
     })
+
+
+def handle_update_override_rules(channel_id, custom_rules):
+    """
+    Update ai_override_rules for the given channel (workspace).
+    Called when the coaching AI uses the update_override_rules tool.
+    """
+    try:
+        pk = int(channel_id)
+    except (TypeError, ValueError):
+        return {"success": False, "error": "Invalid channel_id"}
+    try:
+        channel = WhatsAppChannel.objects.get(pk=pk)
+    except WhatsAppChannel.DoesNotExist:
+        return {"success": False, "error": "Channel not found"}
+    rules = (custom_rules or "").strip()
+    if len(rules) > 8000:
+        rules = rules[:8000]
+    channel.ai_override_rules = rules
+    channel.save(update_fields=["ai_override_rules"])
+    return {"success": True, "message": "Rules updated."}
+
+
+@require_http_methods(["GET"])
+def api_coach_ai_rules(request):
+    """Return current ai_override_rules for the channel. GET ?channel_id=."""
+    if not request.user.is_authenticated:
+        return JsonResponse({"error": "Unauthorized"}, status=401)
+    if not (getattr(request.user, "is_team_admin", False) or request.user.is_superuser):
+        return JsonResponse({"error": "Forbidden"}, status=403)
+    try:
+        channel_id = int(request.GET.get("channel_id", 0))
+    except (TypeError, ValueError):
+        return JsonResponse({"error": "channel_id required"}, status=400)
+    try:
+        channel = WhatsAppChannel.objects.get(pk=channel_id)
+    except WhatsAppChannel.DoesNotExist:
+        return JsonResponse({"error": "Channel not found"}, status=404)
+    if not channel.has_user_permission(request.user):
+        return JsonResponse({"error": "Forbidden"}, status=403)
+    rules = (getattr(channel, "ai_override_rules", None) or "").strip()
+    return JsonResponse({"success": True, "rules": rules})
+
+
+@require_http_methods(["POST"])
+def api_coach_ai_clear_rules(request):
+    """Clear ai_override_rules for the channel. POST body: { "channel_id": int }."""
+    if not request.user.is_authenticated:
+        return JsonResponse({"error": "Unauthorized"}, status=401)
+    if not (getattr(request.user, "is_team_admin", False) or request.user.is_superuser):
+        return JsonResponse({"error": "Forbidden"}, status=403)
+    try:
+        body = json.loads(request.body) if request.body else {}
+    except Exception:
+        return JsonResponse({"error": "Invalid JSON"}, status=400)
+    try:
+        channel_id = int(body.get("channel_id", 0))
+    except (TypeError, ValueError):
+        return JsonResponse({"error": "channel_id required"}, status=400)
+    try:
+        channel = WhatsAppChannel.objects.get(pk=channel_id)
+    except WhatsAppChannel.DoesNotExist:
+        return JsonResponse({"error": "Channel not found"}, status=404)
+    if not channel.has_user_permission(request.user):
+        return JsonResponse({"error": "Forbidden"}, status=403)
+    channel.ai_override_rules = ""
+    channel.save(update_fields=["ai_override_rules"])
+    return JsonResponse({"success": True, "message": "Rules cleared."})
+
+
+@require_http_methods(["POST"])
+def api_coach_ai_set_rules(request):
+    """Set ai_override_rules for the channel. POST body: { "channel_id": int, "rules": str }."""
+    if not request.user.is_authenticated:
+        return JsonResponse({"error": "Unauthorized"}, status=401)
+    if not (getattr(request.user, "is_team_admin", False) or request.user.is_superuser):
+        return JsonResponse({"error": "Forbidden"}, status=403)
+    try:
+        body = json.loads(request.body) if request.body else {}
+    except Exception:
+        return JsonResponse({"error": "Invalid JSON"}, status=400)
+    try:
+        channel_id = int(body.get("channel_id", 0))
+    except (TypeError, ValueError):
+        return JsonResponse({"error": "channel_id required"}, status=400)
+    try:
+        channel = WhatsAppChannel.objects.get(pk=channel_id)
+    except WhatsAppChannel.DoesNotExist:
+        return JsonResponse({"error": "Channel not found"}, status=404)
+    if not channel.has_user_permission(request.user):
+        return JsonResponse({"error": "Forbidden"}, status=403)
+    rules = (body.get("rules") or "").strip()
+    if len(rules) > 8000:
+        rules = rules[:8000]
+    channel.ai_override_rules = rules
+    channel.save(update_fields=["ai_override_rules"])
+    return JsonResponse({"success": True, "message": "Rules updated."})
+
+
+@require_http_methods(["GET"])
+def api_coach_ai_history(request):
+    """
+    Get saved coach conversation history for the current user and channel.
+    GET ?channel_id=<id>. Returns { "messages": [ {"role": "user"|"assistant", "content": "...", "created_at": "..."} ] }
+    """
+    if not request.user.is_authenticated:
+        return JsonResponse({"error": "Unauthorized"}, status=401)
+    if not (getattr(request.user, "is_team_admin", False) or request.user.is_superuser):
+        return JsonResponse({"error": "Forbidden"}, status=403)
+    channel_id = request.GET.get("channel_id")
+    if not channel_id:
+        return JsonResponse({"error": "channel_id required"}, status=400)
+    try:
+        channel = WhatsAppChannel.objects.get(pk=channel_id)
+    except WhatsAppChannel.DoesNotExist:
+        return JsonResponse({"error": "Channel not found"}, status=404)
+    if not channel.has_user_permission(request.user):
+        return JsonResponse({"error": "Forbidden"}, status=403)
+    qs = CoachConversationMessage.objects.filter(channel=channel, user=request.user).order_by("created_at")
+    messages = [
+        {"role": m.role, "content": m.content, "created_at": timezone.localtime(m.created_at).isoformat()}
+        for m in qs
+    ]
+    return JsonResponse({"messages": messages})
+
+
+@require_http_methods(["POST"])
+def api_coach_ai(request):
+    """
+    Admin-to-AI coaching chat. Uses a different system prompt and only the
+    update_override_rules tool. POST body: { "channel_id": int, "messages": [{"role":"user"|"assistant","content":"..."}] }
+    """
+    if not request.user.is_authenticated:
+        return JsonResponse({"error": "Unauthorized"}, status=401)
+    if not (getattr(request.user, "is_team_admin", False) or request.user.is_superuser):
+        return JsonResponse({"error": "Forbidden"}, status=403)
+    try:
+        body = json.loads(request.body) if request.body else {}
+    except Exception:
+        return JsonResponse({"error": "Invalid JSON"}, status=400)
+    channel_id = body.get("channel_id")
+    if channel_id is None:
+        return JsonResponse({"error": "channel_id required"}, status=400)
+    try:
+        channel = WhatsAppChannel.objects.get(pk=channel_id)
+    except WhatsAppChannel.DoesNotExist:
+        return JsonResponse({"error": "Channel not found"}, status=404)
+    if not channel.has_user_permission(request.user):
+        return JsonResponse({"error": "Forbidden"}, status=403)
+    messages = body.get("messages") or []
+    if not isinstance(messages, list):
+        return JsonResponse({"error": "messages must be a list"}, status=400)
+    from ai_assistant.services import generate_reply_coaching
+    # Build OpenAI-format messages (no system; we add it in generate_reply_coaching)
+    openai_messages = []
+    for m in messages:
+        role = m.get("role")
+        content = m.get("content", "")
+        if role in ("user", "assistant") and content is not None:
+            openai_messages.append({"role": role, "content": str(content)[:8000]})
+    try:
+        reply = generate_reply_coaching(openai_messages)
+    except Exception as e:
+        return JsonResponse({"error": str(e), "reply": None}, status=500)
+    # Handle tool calls: update_override_rules
+    _coach_log = logging.getLogger(__name__)
+    final_content = reply.get("content") or ""
+    tool_calls = reply.get("tool_calls") or []
+    rules_saved = False
+    for tc in tool_calls:
+        if tc.get("name") == "update_override_rules":
+            try:
+                args = json.loads(tc.get("arguments") or "{}")
+                custom_rules = args.get("custom_rules", "")
+                result = handle_update_override_rules(channel_id, custom_rules)
+                if result.get("success"):
+                    rules_saved = True
+                else:
+                    _coach_log.warning("coach-ai: handle_update_override_rules failed: %s", result.get("error"))
+            except Exception as e:
+                _coach_log.exception("coach-ai: update_override_rules failed: %s", e)
+    # Do NOT save the raw user message as rules—only the model's tool call (extracted/validated rule) is saved.
+    if tool_calls and not final_content:
+        final_content = "Rules updated. Anything else you want to change?"
+    # Persist this exchange for conversation history
+    last_user_msg = next((m for m in reversed(openai_messages) if m.get("role") == "user"), None)
+    if last_user_msg and (last_user_msg.get("content") or "").strip():
+        try:
+            CoachConversationMessage.objects.create(
+                channel=channel,
+                user=request.user,
+                role="user",
+                content=(last_user_msg.get("content") or "").strip()[:10000],
+            )
+            CoachConversationMessage.objects.create(
+                channel=channel,
+                user=request.user,
+                role="assistant",
+                content=(final_content or "").strip()[:10000],
+            )
+        except Exception as e:
+            _coach_log.warning("coach-ai: save conversation failed: %s", e)
+    return JsonResponse({"success": True, "reply": final_content})

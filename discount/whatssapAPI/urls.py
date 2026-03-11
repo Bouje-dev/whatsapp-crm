@@ -86,14 +86,22 @@ path('api/update-crm/', views.update_contact_crm, name='update_contact_crm'),
 
 path('api/analytics/lifecycle/' , whaDash.api_lifecycle_stats , name='api_lifecycle_stats'),
 path('api/agent-stats/', whaDash.api_agent_stats, name='api_agent_stats'),
+path('api/admin/coach-ai-history/', whaDash.api_coach_ai_history, name='api_coach_ai_history'),
+path('api/admin/coach-ai/', whaDash.api_coach_ai, name='api_coach_ai'),
+path('api/admin/coach-ai-rules/', whaDash.api_coach_ai_rules, name='api_coach_ai_rules'),
+path('api/admin/coach-ai-clear-rules/', whaDash.api_coach_ai_clear_rules, name='api_coach_ai_clear_rules'),
+path('api/admin/coach-ai-set-rules/', whaDash.api_coach_ai_set_rules, name='api_coach_ai_set_rules'),
 path('api/create-canned-response/' , whaDash.create_canned_response , name='api_create_canned_response'),
 path('api/get-canned-responses/', whaDash.get_canned_responses , name='api_get_canned_responses'),
+path('api/update-canned-response/', whaDash.update_canned_response , name='api_update_canned_response'),
+path('api/delete-canned-response/', whaDash.delete_canned_response , name='api_delete_canned_response'),
 
 path('api/confirm-delete-channel/' , wsettings.confirm_delete_channel , name='confirm_delete_channel'),
 path('api/trigger-delete-otp/' , wsettings.trigger_delete_otp , name='trigger_delete_otp'),
 path('api/update-channel-settings/' , wsettings.update_channel_settings , name='update_channel_settings'),
 
 path('api/get-channel-settings/' , wsettings.get_channel_settings , name='get_channel_settings'),
+path('api/settings/routing/', wsettings.update_routing_settings, name='api_update_routing_settings'),
 
     # Voice Studio
     path('api/voice-preview/', wsettings.voice_preview, name='voice_preview'),

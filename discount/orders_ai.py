@@ -12,7 +12,7 @@ from decimal import Decimal
 from django.db.models import Q
 from django.utils import timezone
 
-from discount.models import SimpleOrder, Products, WhatsAppChannel, CustomUser
+from discount.models import SimpleOrder, Products, WhatsAppChannel, CustomUser, Contact
 
 logger = logging.getLogger(__name__)
 
@@ -64,42 +64,73 @@ def get_or_create_ai_agent_user(owner, agent_name=None):
         return owner
 
 # -----------------------------------------------------------------------------
-# Moroccan phone validation (Order Extraction Tool guardrail)
-# Accept: 06XXXXXXXX, 07XXXXXXXX, +2126XXXXXXXX, +212 6XX..., 2126XXXXXXXX
-# Normalize to 10 digits starting with 6 or 7.
+# International phone validation (Order Extraction Tool guardrail)
+# Accepts any country: digits only, 8–15 digits (E.164 allows up to 15).
+# Examples: 0612345678 (MA), +966501234567 (SA), +33 6 12 34 56 78 (FR), 201234567890 (EG).
+# Returns normalized digits (no + or spaces) for storage; no country-specific rules.
 # -----------------------------------------------------------------------------
-_MOROCCAN_PHONE_RE = re.compile(
-    r"^(?:\+?212|00212)?\s*[67]\s*(\d{8})$|^0?[67]\s*(\d{8})$",
-    re.IGNORECASE,
-)
+
+# Minimum and maximum length for a valid international number (digits only)
+_PHONE_DIGITS_MIN = 8
+_PHONE_DIGITS_MAX = 15
+
+
+def validate_phone_international(phone):
+    """
+    Validate and normalize a phone number from any country.
+    Accepts with or without country code, and with spaces/dashes/dots/plus.
+    Returns (normalized_digits, None) if valid, or (None, error_message) if invalid.
+    normalized_digits: digits only, no + (e.g. 212612345678, 966501234567, 0612345678).
+    """
+    if not phone or not isinstance(phone, str):
+        return (None, "No phone number provided.")
+    digits = re.sub(r"\D", "", phone.strip())
+    if not digits:
+        return (None, "Phone number is empty.")
+    if len(digits) < _PHONE_DIGITS_MIN:
+        return (
+            None,
+            "SYSTEM ERROR: The phone number is too short. "
+            "Politely ask the customer to provide a valid phone number (with country code if possible, e.g. +XXX...).",
+        )
+    if len(digits) > _PHONE_DIGITS_MAX:
+        digits = digits[:_PHONE_DIGITS_MAX]
+    return (digits, None)
 
 
 def validate_moroccan_phone(phone):
     """
-    Validate and normalize a Moroccan mobile number.
-    Returns (normalized_10_digits, None) if valid, or (None, error_message) if invalid.
+    Validate and normalize a Moroccan mobile number (legacy / Morocco-only flows).
+    Accepts with or without country code (+212). Returns (normalized_10_digits, None) or (None, error_message).
     """
-    if not phone or not isinstance(phone, str):
-        return (None, "No phone number provided.")
-    raw = re.sub(r"[\s\-\.]+", "", phone.strip())
-    if not raw:
-        return (None, "Phone number is empty after trimming.")
-    m = _MOROCCAN_PHONE_RE.match(raw)
-    if not m:
+    normalized, err = validate_phone_international(phone)
+    if err:
+        return (None, err)
+    digits = normalized
+    # With country code: 212 + 6/7 + 8 digits = 12 digits
+    if digits.startswith("212") and len(digits) >= 12:
+        digits = digits[3:12]
+    if len(digits) == 10 and digits.startswith(("06", "07")):
+        pass
+    elif len(digits) == 10 and digits[0] in ("6", "7"):
+        digits = "0" + digits[0] + digits[1:9]
+    elif len(digits) == 9 and digits[0] in ("6", "7"):
+        digits = "0" + digits
+    elif len(digits) > 10 and not digits.startswith("212"):
+        tail = digits[-9:] if len(digits) >= 9 else digits
+        if tail and tail[0] in ("6", "7") and len(tail) == 9:
+            digits = "0" + tail
+        else:
+            digits = digits[:10]
+    else:
+        digits = digits[:10] if len(digits) > 10 else digits
+    if len(digits) != 10 or digits[0] != "0" or digits[1] not in ("6", "7") or not digits[2:].isdigit() or len(digits[2:]) != 8:
         return (
             None,
-            "SYSTEM ERROR: The phone number provided is invalid. "
-            "Politely ask the customer to provide a correct, 10-digit Moroccan mobile number (e.g. 06XXXXXXXX or 07XXXXXXXX).",
+            "SYSTEM ERROR: The phone number is not a valid Moroccan mobile. "
+            "Politely ask for 06XXXXXXXX, 07XXXXXXXX, or +212 6XX...",
         )
-    eight = m.group(1) or m.group(2)
-    if not eight or len(eight) != 8:
-        return (None, "SYSTEM ERROR: The phone number provided is invalid. Politely ask the customer to provide a correct, 10-digit phone number.")
-    prefix = "6" if ("6" in raw[:3] or raw.lstrip("+0212").lstrip("0").startswith("6")) else "7"
-    # 10-digit format: 06XXXXXXXX or 07XXXXXXXX
-    normalized = ("06" if prefix == "6" else "07") + eight
-    if len(normalized) != 10:
-        return (None, "SYSTEM ERROR: The phone number provided is invalid. Politely ask the customer to provide a correct, 10-digit phone number.")
-    return (normalized, None)
+    return (digits, None)
 
 
 def _same_number_phrase(phone_input):
@@ -114,7 +145,7 @@ def handle_submit_order_tool(arguments, session_product_id, session_seller_id, c
     """
     Process the submit_customer_order tool output. Product is bound from session — no AI guessing.
 
-    - Validates phone with Moroccan regex; on failure returns a message for the AI to self-correct.
+    - Validates phone with international rules (8–15 digits, any country); on failure returns a message for the AI.
     - On success, saves the order with session_product_id and session_seller_id.
 
     Returns:
@@ -135,9 +166,9 @@ def handle_submit_order_tool(arguments, session_product_id, session_seller_id, c
     if not shipping_address:
         return {"success": False, "message": "SYSTEM ERROR: Shipping address is missing. Politely ask the customer to provide the full delivery address."}
     if not phone_number:
-        return {"success": False, "message": "SYSTEM ERROR: The phone number provided is invalid. Politely ask the customer to provide a correct, 10-digit phone number."}
+        return {"success": False, "message": "SYSTEM ERROR: The phone number is missing. Politely ask the customer to provide their phone number (with country code if possible, e.g. +XXX...)."}
 
-    normalized_phone, phone_error = validate_moroccan_phone(phone_number)
+    normalized_phone, phone_error = validate_phone_international(phone_number)
     if phone_error:
         return {"success": False, "message": phone_error}
 
@@ -160,15 +191,12 @@ def handle_submit_order_tool(arguments, session_product_id, session_seller_id, c
         return {"success": False, "message": "SYSTEM ERROR: Store mismatch. Please try again."}
 
     if customer_phone_from_chat and _same_number_phrase(phone_number):
-        chat_digits = re.sub(r"\D", "", customer_phone_from_chat)
-        if len(chat_digits) >= 10:
-            normalized_phone = chat_digits[-10:]
-        else:
-            normalized_phone = (chat_digits or "")[:10]
-        if len(normalized_phone) != 10 or normalized_phone[0] not in ("6", "7"):
-            normalized_phone, phone_error = validate_moroccan_phone(phone_number)
-            if phone_error:
-                return {"success": False, "message": phone_error}
+        # Use chat number (any country, with or without country code)
+        normalized_phone, phone_error = validate_phone_international(customer_phone_from_chat)
+        if phone_error:
+            normalized_phone, phone_error = validate_phone_international(phone_number)
+        if phone_error:
+            return {"success": False, "message": phone_error}
 
     # Duplicate order prevention (COD): same phone + same product, placed in last 24h or still pending/active
     cutoff = timezone.now() - timedelta(hours=24)
@@ -234,10 +262,54 @@ def handle_submit_order_tool(arguments, session_product_id, session_seller_id, c
         order_obj = SimpleOrder.objects.filter(order_id=order_id).first()
         if order_obj:
             _notify_owner_order_created(channel, order_obj)
+        # Automatically set lead status to 'closed' when order is successfully saved
+        try:
+            contact = Contact.objects.filter(channel=channel).filter(phone=normalized_phone).first()
+            if not contact and len(normalized_phone) >= 8:
+                contact = Contact.objects.filter(channel=channel).filter(phone__endswith=normalized_phone[-8:]).first()
+            if contact:
+                contact.pipeline_stage = Contact.PipelineStage.CLOSED
+                contact.save(update_fields=["pipeline_stage"])
+        except Exception as e:
+            logger.warning("handle_submit_order_tool: set contact to closed failed: %s", e)
         return {"success": True, "order_id": order_id, "message": f"Order {order_id} registered successfully. Confirm to the customer in a short, friendly message (e.g. تم تسجيل طلبك، سنتواصل معك قريباً)."}
     except Exception as e:
         logger.exception("handle_submit_order_tool: save failed: %s", e)
         return {"success": False, "message": "SYSTEM ERROR: Order could not be saved. Ask the customer to try again in a moment."}
+
+
+def handle_update_lead_status(channel, customer_phone, new_status):
+    """
+    Update the Contact (lead) pipeline_stage in the database.
+    Used by the update_lead_status AI tool.
+
+    - If the current status is already 'closed', do NOT downgrade to interested/follow_up
+      (protect completed sales).
+    - Valid new_status: 'interested', 'follow_up', 'rejected'.
+
+    Returns:
+        dict: {"success": True} or {"success": False, "message": "..."}
+    """
+    if not channel or not customer_phone:
+        return {"success": False, "message": "Channel or customer phone missing."}
+    valid = ("interested", "follow_up", "rejected")
+    if new_status not in valid:
+        return {"success": False, "message": f"Invalid status. Use one of: {valid}."}
+    try:
+        contact = Contact.objects.filter(channel=channel, phone=customer_phone).first()
+        if not contact and len(customer_phone) >= 8:
+            contact = Contact.objects.filter(channel=channel).filter(phone__endswith=customer_phone[-8:]).first()
+        if not contact:
+            return {"success": False, "message": "Contact not found."}
+        current = (contact.pipeline_stage or "").strip().lower()
+        if current == Contact.PipelineStage.CLOSED:
+            return {"success": True, "message": "Lead already closed; no change."}
+        contact.pipeline_stage = new_status
+        contact.save(update_fields=["pipeline_stage"])
+        return {"success": True}
+    except Exception as e:
+        logger.exception("handle_update_lead_status: %s", e)
+        return {"success": False, "message": str(e)}
 
 
 # Robust match for [ORDER_DATA: {...}] — extract JSON by brace-matching so commas/quotes inside values are safe

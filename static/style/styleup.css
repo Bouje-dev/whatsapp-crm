@@ -403,6 +403,7 @@
   background-color: #7c3aed; /* لون البراند البنفسجي */
   color: white;
   box-shadow: 0 4px 12px rgba(124, 58, 237, 0.3);
+  
 }
 
 .cls3741_icon {
@@ -871,7 +872,7 @@
 
   .cls3741_panel{
     flex:1;
-    background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));
+    background:linear-gradient(180deg, #0d0f14 0%, #13161d 100%);
     border-radius:var(--radius);
     padding:0px;
     box-shadow:var(--soft-shadow);
@@ -881,7 +882,7 @@
     min-height: 0;
   }
 
-  .cls3741_panel h2{margin:0 0 8px 0;font-size:20px;color:#000000}
+  .cls3741_panel h2{margin:0 0 8px 0;font-size:20px;color:#cbd5e1}
   .cls3741_panel p{margin:0;line-height:1.45}
 
   /* البطاقة الجانبية للشات */

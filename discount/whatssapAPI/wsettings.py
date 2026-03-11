@@ -7,8 +7,9 @@ from django.http import JsonResponse
 from django.shortcuts import render
 from django.views.decorators.http import require_POST
 from django.contrib.auth.decorators import login_required
-from discount.models import WhatsAppChannel
+from discount.models import WhatsAppChannel, ChannelAgentRouting
 from discount.activites import log_activity
+from django.views.decorators.http import require_http_methods
 
 @login_required
 @require_POST
@@ -508,6 +509,10 @@ def get_channel_settings(request):
             'elevenlabs_model_id': getattr(channel, 'elevenlabs_model_id', 'eleven_multilingual_v2'),
             'selected_voice_id': getattr(channel, 'selected_voice_id', '') or '',
             'voice_preview_url': getattr(channel, 'voice_preview_url', '') or '',
+            # Weighted Chat Routing (for settings UI): all assigned agents + defaults for missing config
+            'routing': _routing_list_for_channel(channel),
+            'ai_routing_percentage': getattr(channel, 'ai_routing_percentage', 0),
+            'dynamic_offline_redistribution': getattr(channel, 'dynamic_offline_redistribution', False),
         }
            
         return JsonResponse({'status': 'success', 'data': data})
@@ -516,6 +521,27 @@ def get_channel_settings(request):
         return JsonResponse({'status': 'error', 'message': 'Not found'}, status=404)
     except Exception as e:
         return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
+
+
+def _routing_list_for_channel(channel):
+    """Return routing list for all assigned_agents with is_online; missing configs get 0% and is_accepting_chats True."""
+    if not channel:
+        return []
+    config_by_agent = {
+        c.agent_id: c
+        for c in ChannelAgentRouting.objects.filter(channel=channel).select_related("agent")
+    }
+    out = []
+    for agent in channel.assigned_agents.all():
+        c = config_by_agent.get(agent.id)
+        out.append({
+            "agent_id": agent.id,
+            "agent_name": getattr(agent, "username", None) or getattr(agent, "first_name", "") or str(agent.id),
+            "routing_percentage": c.routing_percentage if c else 0,
+            "is_accepting_chats": c.is_accepting_chats if c else True,
+            "is_online": getattr(agent, "is_online", True),
+        })
+    return out
 
 
 def _get_channel_for_user(request, channel_id):
@@ -532,6 +558,131 @@ def _get_channel_for_user(request, channel_id):
     if channel.assigned_agents.filter(pk=user.pk).exists():
         return channel
     return None
+
+
+# ---------------------------------------------------------------------------
+# Weighted Chat Routing: PUT /api/settings/routing
+# ---------------------------------------------------------------------------
+
+@login_required
+@require_http_methods(["PUT", "POST"])
+def update_routing_settings(request):
+    """
+    Update routing_percentage and is_accepting_chats for channel agents; optional ai_routing_percentage and dynamic_offline_redistribution.
+    Body (JSON): { "channel_id": <id>, "routing": [ { "agent_id": <id>, "routing_percentage": 80, "is_accepting_chats": true }, ... ], "ai_routing_percentage": 0, "dynamic_offline_redistribution": false }
+    When Full Autopilot is ON: human total + ai_routing_percentage must equal 100. When OFF: human total must equal 100 (AI share forced to 0).
+    """
+    try:
+        if request.content_type and "application/json" in request.content_type:
+            body = json.loads(request.body or "{}")
+        else:
+            body = getattr(request, "json", None) or {}
+            if not body and request.POST:
+                channel_id = request.POST.get("channel_id")
+                routing_raw = request.POST.get("routing")
+                if routing_raw:
+                    try:
+                        routing = json.loads(routing_raw)
+                    except json.JSONDecodeError:
+                        return JsonResponse({
+                            "status": "error",
+                            "message": "Invalid JSON in 'routing'.",
+                        }, status=400)
+                else:
+                    routing = []
+                body = {"channel_id": channel_id, "routing": routing}
+        channel_id = body.get("channel_id")
+        routing_list = body.get("routing")
+        if channel_id is None:
+            return JsonResponse({
+                "status": "error",
+                "message": "Missing channel_id.",
+            }, status=400)
+        if not isinstance(routing_list, list):
+            return JsonResponse({
+                "status": "error",
+                "message": "Missing or invalid 'routing' array.",
+            }, status=400)
+
+        channel = _get_channel_for_user(request, channel_id)
+        if not channel:
+            return JsonResponse({"status": "error", "message": "Channel not found or access denied."}, status=404)
+
+        allowed_agent_ids = set(channel.assigned_agents.values_list("id", flat=True))
+        total = 0
+        for item in routing_list:
+            if not isinstance(item, dict):
+                return JsonResponse({
+                    "status": "error",
+                    "message": "Each routing entry must be an object with agent_id, routing_percentage, is_accepting_chats.",
+                }, status=400)
+            agent_id = item.get("agent_id")
+            pct = item.get("routing_percentage", 0)
+            accepting = item.get("is_accepting_chats", True)
+            if agent_id is None:
+                return JsonResponse({"status": "error", "message": "Each entry must have agent_id (AI is configured via ai_routing_percentage)."}, status=400)
+            if agent_id not in allowed_agent_ids:
+                return JsonResponse({
+                    "status": "error",
+                    "message": f"Agent id {agent_id} is not assigned to this channel.",
+                }, status=400)
+            try:
+                pct = int(pct)
+            except (TypeError, ValueError):
+                pct = 0
+            pct = max(0, min(100, pct))
+            total += pct
+            item["_agent_id"] = agent_id
+            item["_routing_percentage"] = pct
+            item["_is_accepting_chats"] = bool(accepting)
+
+        ai_auto_reply = getattr(channel, "ai_auto_reply", False)
+        ai_pct = body.get("ai_routing_percentage")
+        if ai_pct is not None:
+            try:
+                ai_pct = max(0, min(100, int(ai_pct)))
+            except (TypeError, ValueError):
+                ai_pct = getattr(channel, "ai_routing_percentage", 0)
+        else:
+            ai_pct = getattr(channel, "ai_routing_percentage", 0)
+        if not ai_auto_reply:
+            ai_pct = 0
+        human_total = total
+        if ai_auto_reply:
+            if human_total + ai_pct != 100:
+                return JsonResponse({
+                    "status": "error",
+                    "message": f"When Full Autopilot is ON, human total + AI percentage must equal 100 (human={human_total}, AI={ai_pct}).",
+                }, status=400)
+        else:
+            if human_total != 100:
+                return JsonResponse({
+                    "status": "error",
+                    "message": f"Sum of routing_percentage must equal exactly 100 (got {total}).",
+                }, status=400)
+
+        for item in routing_list:
+            agent_id = item["_agent_id"]
+            ChannelAgentRouting.objects.update_or_create(
+                channel=channel,
+                agent_id=agent_id,
+                defaults={
+                    "routing_percentage": item["_routing_percentage"],
+                    "is_accepting_chats": item["_is_accepting_chats"],
+                },
+            )
+
+        channel.ai_routing_percentage = ai_pct
+        channel.dynamic_offline_redistribution = bool(body.get("dynamic_offline_redistribution", getattr(channel, "dynamic_offline_redistribution", False)))
+        channel.save(update_fields=["ai_routing_percentage", "dynamic_offline_redistribution"])
+
+        return JsonResponse({"status": "success", "message": "Routing updated."})
+    except json.JSONDecodeError as e:
+        return JsonResponse({"status": "error", "message": f"Invalid JSON: {e}"}, status=400)
+    except Exception as e:
+        import logging
+        logging.getLogger(__name__).exception("update_routing_settings: %s", e)
+        return JsonResponse({"status": "error", "message": str(e)}, status=500)
 
 
 @login_required

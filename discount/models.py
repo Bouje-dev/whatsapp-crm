@@ -1007,6 +1007,13 @@ class WhatsAppChannel(models.Model):
     is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
+    # AI Coaching: rules set by Admin via Coach chat; appended at end of sales agent system prompt
+    ai_override_rules = models.TextField(
+        blank=True,
+        default="",
+        help_text="Custom sales rules from Admin coaching; overrides default AI behavior for this channel.",
+    )
+
     def __str__(self):
         return f"{self.name} ({self.phone_number})"
 
@@ -1075,10 +1082,10 @@ class WhatsAppChannel(models.Model):
     def remove_agent(self, user):
         """
         إزالة وكيل من القناة
-        
+
         Args:
             user: المستخدم المراد إزالته
-        
+
         Returns:
             bool: True إذا تمت الإزالة بنجاح
         """
@@ -1086,7 +1093,12 @@ class WhatsAppChannel(models.Model):
             self.assigned_agents.remove(user)
             return True
         return False
-    
+
+    # -------------------------------------------------------------------------
+    # Weighted Chat Routing: use ChannelAgentRouting for per-agent routing_percentage
+    # and is_accepting_chats. Contact.assigned_agent is the sticky assignment.
+    # -------------------------------------------------------------------------
+
     def is_owner(self, user):
         """
         التحقق من أن المستخدم هو مالك هذه القناة
@@ -1224,6 +1236,77 @@ class WhatsAppChannel(models.Model):
         blank=True,
         help_text="Phone (with country code) for WhatsApp order notifications.",
     )
+    # Weighted Chat Routing: AI share and dynamic redistribution
+    ai_routing_percentage = models.PositiveSmallIntegerField(
+        default=0,
+        help_text="AI share of new leads when Full Autopilot is ON (0-100). Human percentages + this must equal 100.",
+    )
+    dynamic_offline_redistribution = models.BooleanField(
+        default=False,
+        help_text="When ON, exclude offline agents and redistribute their percentages among online agents only.",
+    )
+
+
+class CoachConversationMessage(models.Model):
+    """
+    Persisted messages between an admin (user) and the AI coach for a channel.
+    Used to show conversation history when the user opens the Coach again.
+    """
+    channel = models.ForeignKey(
+        WhatsAppChannel,
+        on_delete=models.CASCADE,
+        related_name="coach_conversation_messages",
+    )
+    user = models.ForeignKey(
+        CustomUser,
+        on_delete=models.CASCADE,
+        related_name="coach_conversation_messages",
+    )
+    role = models.CharField(max_length=20, choices=[("user", "user"), ("assistant", "assistant")])
+    content = models.TextField()
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["created_at"]
+
+    def __str__(self):
+        return f"{self.channel_id}/{self.user_id} {self.role} @ {self.created_at}"
+
+
+class ChannelAgentRouting(models.Model):
+    """
+    Per-channel, per-agent routing config for Weighted Chat Routing.
+    Agents are CustomUser; channel is WhatsAppChannel. Sum of routing_percentage
+    for all agents in a channel must equal 100 when routing is enabled.
+    """
+    channel = models.ForeignKey(
+        WhatsAppChannel,
+        on_delete=models.CASCADE,
+        related_name="agent_routing_configs",
+    )
+    agent = models.ForeignKey(
+        CustomUser,
+        on_delete=models.CASCADE,
+        related_name="channel_routing_configs",
+    )
+    routing_percentage = models.PositiveSmallIntegerField(
+        default=0,
+        help_text="Weight for new lead distribution (0-100). Sum for channel must be 100.",
+    )
+    is_accepting_chats = models.BooleanField(
+        default=True,
+        help_text="If False, agent is excluded from new assignments; existing sticky assignments remain.",
+    )
+
+    class Meta:
+        db_table = "discount_channelagentrouting"
+        unique_together = [("channel", "agent")]
+        verbose_name = "Channel Agent Routing"
+        verbose_name_plural = "Channel Agent Routings"
+
+    def __str__(self):
+        return f"{self.channel.name} / {getattr(self.agent, 'username', self.agent_id)} ({self.routing_percentage}%)"
+
 
 class Message(models.Model):
     user = models.ForeignKey(

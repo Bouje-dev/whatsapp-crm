@@ -823,10 +823,12 @@ While your conversation is dynamic, your data extraction must be mathematically 
 - **Required for Order:** 1. Product Name/SKU (From Context), 2. Full Name, 3. Phone (numeric only), 4. Address (city OR address text is enough).
 - **PHONE — "SAME NUMBER" RULE (MANDATORY):** When you ask for the phone number, if the customer says "Yes", "Same number", "نفس الرقم", "هذا الرقم", "اه", "رقم الواتساب", or anything meaning "use my WhatsApp number", you MUST use the [SYSTEM NOTE: The customer's active WhatsApp number is: ...] that appears in this context. Call `submit_customer_order` with that number. Do NOT say you don't have it, do NOT ask again, do NOT get confused. You have their number from the chat — use it.
 - **Phone rule (when they type a number):** If they did not give a number yet, tell them their number (from the chat) and ask them to confirm. Once they confirm (same number / اه / yes), use the number from [SYSTEM NOTE]. Do NOT save the order until you have a phone number that is real numeric digits (no letters, no spaces that break the number).
-- **Phone error:** If the tool returns an error (e.g. invalid phone), say: "عافاك كتب ليا الرقم ديالك مقاد باش نسجل الطلب" and ask them to correct it only; then call the tool again.
+- **Phone error:** If the tool returns an error (e.g. invalid phone), politely ask them to send their phone number again (with country code if possible, e.g. +XXX...). Any country is accepted (e.g. +212, +966, +33). Then call the tool again.
 - **Address rule:** Use exactly what the customer wrote for address. City only, or address only, or both — any of these is acceptable. Do not require full street + city + zip.
 - **No duplicate:** Do NOT save the same order more than once in this conversation. If you already confirmed the order (تم تسجيل طلبك / Order Registered), do NOT output [ORDER_DATA] or call save_order/record_order again for the same order.
 - **ORDER REGISTRATION — TOOL ONLY (MANDATORY):** The order is saved ONLY when you call the `submit_customer_order` tool. Writing "غادي نسجل الطلب" or "لحظة واحدة" or listing the details in a message does NOT register the order. When you have name + city + address + phone, you MUST call `submit_customer_order` in that same response. Never send only a text confirmation without calling the tool.
+- **PARSE COMPOSITE MESSAGES (CRITICAL):** If the customer sends name, address, and phone in ONE message (e.g. "الاسم أيوب العنوان الدار البيضاء الرقم هو نفسه اللي في المحادثة" or "اسمي X عنواني Y الرقم نفس الواتساب"), you MUST extract: name (e.g. أيوب), shipping_city/shipping_address (e.g. الدار البيضاء), and for phone if they say "نفس الرقم" / "هذا الرقم" / "الرقم هو نفسه" / "اللي في المحادثة" / "رقم الواتساب" use the [SYSTEM NOTE] chat number. Then call `submit_customer_order` in the SAME turn. Do NOT reply asking for details again — you already have them.
+- **CONFIRMATION "اه" / "نعم" (CRITICAL):** When you have already asked to complete the order (e.g. "واش نكمّل الطلب؟") and the customer replies "اه" or "نعم" or "yes" or "أكيد", if you already have name + address + (phone from chat or "same number"), you MUST call `submit_customer_order` immediately with those values. Do NOT reply with only text; you MUST call the tool. If you do not call the tool, the order is never saved and the customer is left with no confirmation.
 - **The Atomic Rule (legacy):** If using [ORDER_DATA] tag: once you have product + name + phone + address, output the tag in the SAME response. Prefer calling `submit_customer_order` when in product flow.
 - **Rule:** Use `[HANDOVER]` ONLY if the user is extremely angry, uses profanity, or explicitly demands a human manager 3 times.
 
@@ -860,10 +862,9 @@ While your conversation is dynamic, your data extraction must be mathematically 
 - If the customer asks a very specific technical question that is not in the product description, do not guess. Say: "Let me double-check that detail with our warehouse, but I can assure you that [pivot back to a known core benefit]."
 
 7. ORDER GATHERING (STEP-BY-STEP — REDUCE COGNITIVE LOAD):
-- When the user agrees to buy, DO NOT ask for all information at once. Ask step-by-step in separate messages:
-  Step 1: Ask for their city (e.g. "شنو المدينة؟" / "What city?").
-  Step 2: Then ask for their phone number (e.g. "رقم الهاتف؟" / "Phone number?").
-  Step 3: Finally ask for the name for delivery.
+- When the user agrees to buy, you may ask step-by-step OR accept when they send everything in one message.
+- **ONE-MESSAGE RULE:** If the customer sends name + address + phone (or "same number") in a single message (e.g. "الاسم أيوب العنوان الدار البيضاء الرقم هو نفسه اللي في المحادثة"), extract each part and call `submit_customer_order` in the SAME response. Do NOT ask again for "full details" — you already have them. Use [SYSTEM NOTE] for phone when they say نفس الرقم / الرقم هو نفسه / اللي في المحادثة.
+- Step-by-step: Ask for city, then phone, then name if they did not send all at once.
 - Extract each value EXACTLY as the customer wrote it; do not reformat or guess.
 - **ORDER IS REGISTERED ONLY VIA THE TOOL:** When you have all four (customer_name, shipping_city, shipping_address, phone_number), you MUST call the `submit_customer_order` tool in the SAME turn. Do NOT just write a message like "غادي نسجل الطلب" or list the details — that does NOT register the order. You MUST call the tool. No exception.
 - Do NOT pass product or SKU in the tool — the product is already known from the session.
@@ -1051,10 +1052,11 @@ SUBMIT_CUSTOMER_ORDER_TOOL = {
         "name": "submit_customer_order",
         "description": (
             "Submit the customer's order with the exact shipping details they provided. "
-            "CRITICAL: The order is registered ONLY when you call this tool. Writing a message that says 'I will register' or 'غادي نسجل الطلب' or listing the details does NOT register the order. "
+            "CRITICAL: The order is registered ONLY when you call this tool. Writing a message or listing details does NOT register the order. "
             "When you have all four (customer name, city, full address, phone number) you MUST call this tool in the SAME response — do not reply with only text. "
-            "The product is already known from the session — do NOT pass product/SKU. "
-            "Extract each value exactly as the customer wrote it; do not guess or format."
+            "If the customer sent everything in one message (e.g. الاسم أيوب العنوان الدار البيضاء الرقم هو نفسه), extract name, city/address, and for phone use the chat number from [SYSTEM NOTE] when they say نفس الرقم / الرقم هو نفسه / اه. "
+            "When they confirm with 'اه' or 'نعم' after you asked to complete the order, call this tool immediately with the details you already have. "
+            "The product is already known from the session — do NOT pass product/SKU."
         ),
         "parameters": {
             "type": "object",
@@ -1074,8 +1076,8 @@ SUBMIT_CUSTOMER_ORDER_TOOL = {
                 "phone_number": {
                     "type": "string",
                     "description": (
-                        "The exact phone number provided by the user. Do not format it; extract it exactly as written. "
-                        "Accept formats like 06XXXXXXXX, 07XXXXXXXX, +2126XXXXXXXX, 2126XXXXXXXX. Must be a valid Moroccan mobile (10 digits)."
+                        "Phone number. If the customer said 'نفس الرقم' / 'هذا الرقم' / 'الرقم هو نفسه' / 'اه' (same number), use the number from [SYSTEM NOTE — PHONE FOR ORDER] in this context. "
+                        "Otherwise the exact number they typed (any country, with or without country code). 8–15 digits is valid."
                     ),
                 },
             },
@@ -1083,6 +1085,121 @@ SUBMIT_CUSTOMER_ORDER_TOOL = {
         },
     },
 }
+
+# -----------------------------------------------------------------------------
+# Lead Status (CRM pipeline stage) – call when user intent clearly matches a stage.
+# Do NOT use for 'new' (default at chat start) or 'closed' (set automatically on order).
+# -----------------------------------------------------------------------------
+UPDATE_LEAD_STATUS_TOOL = {
+    "type": "function",
+    "function": {
+        "name": "update_lead_status",
+        "description": (
+            "Update the lead/contact status in the CRM based on the customer's current intent. "
+            "Call this tool SILENTLY when you detect a clear change in intent — do not announce it to the customer. "
+            "Use ONLY when the following conditions are met:\n"
+            "- Call with status 'interested' when: The customer asks about price, features, delivery, availability, or shows clear buying signals (e.g. 'how much?', 'do you have it?', 'I want it', 'what are the benefits?', 'when can I get it?').\n"
+            "- Call with status 'follow_up' when: The customer delays the decision (e.g. 'let me think', 'I will reply tomorrow', 'I'll check and get back to you', 'ديرلي وقت', 'غادي نفكر'). They are not saying no but need time.\n"
+            "- Call with status 'rejected' when: The customer explicitly declines the offer AFTER you have already followed the objection-handling protocol (validate, curiosity pivot, one final attempt). They say 'No' a second time or clearly refuse (e.g. 'I'm not interested', 'لا بغيت', 'لا شكراً'). Do NOT call 'rejected' on the first 'no' — only after objection handling and a final refusal."
+        ),
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "status": {
+                    "type": "string",
+                    "enum": ["interested", "follow_up", "rejected"],
+                    "description": "New pipeline stage: 'interested' (buying signals), 'follow_up' (delaying decision), 'rejected' (final refusal after objection handling).",
+                },
+            },
+            "required": ["status"],
+        },
+    },
+}
+
+# -----------------------------------------------------------------------------
+# AI Coaching: Admin talks to AI to set custom sales rules (stored per channel).
+# Used only in coach-ai API; NOT in WhatsApp sales agent.
+# -----------------------------------------------------------------------------
+COACHING_SYSTEM_PROMPT = (
+    "You are the configuration brain of an AI Sales Agent. You are talking to your Boss (the Admin/Store Owner). "
+    "Your job is to understand their messages and decide whether they are giving you a RULE or INSTRUCTION for the sales agent. "
+    "IMPORTANT: Only call the `update_override_rules` tool when the Boss has clearly stated a rule or instruction "
+    "for how the AI Sales Agent should behave, sell, or handle customers. Replying with text alone does NOT save anything. "
+    "DO NOT call the tool for: greetings (hi, hello), thanks, questions, small talk, unclear messages, or when the Boss "
+    "is just asking something without giving a rule. If the message is ambiguous or not clearly a rule, reply politely "
+    "and ask the Boss to clarify what rule they want to set (e.g. 'What specific rule would you like the sales agent to follow?'). "
+    "When the Boss clearly gives a rule or instruction: extract and summarize that rule concisely, call update_override_rules "
+    "with that summary in custom_rules, then confirm in your reply. If they give multiple rules at once, summarize all into "
+    "one clear custom_rules string and call the tool once. When in doubt, do NOT call the tool—ask instead."
+)
+
+UPDATE_OVERRIDE_RULES_TOOL = {
+    "type": "function",
+    "function": {
+        "name": "update_override_rules",
+        "description": (
+            "Save new sales rules ONLY when the Boss has clearly stated a rule or instruction for the AI Sales Agent. "
+            "Call this only after you have validated that the message is an actual rule (how to sell, handle customers, tone, etc.). "
+            "Do NOT call for greetings, questions, thanks, or unclear messages."
+        ),
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "custom_rules": {
+                    "type": "string",
+                    "description": "The extracted rule(s) only—a clear, concise summary of what the Boss asked the sales agent to do.",
+                },
+            },
+            "required": ["custom_rules"],
+        },
+    },
+}
+
+COACHING_TOOLS = [UPDATE_OVERRIDE_RULES_TOOL]
+
+
+def generate_reply_coaching(messages, model=None):
+    """
+    Call OpenAI with the coaching system prompt and update_override_rules tool only.
+    messages: list of {"role": "user"|"assistant"|"system", "content": "..."}
+    Returns: dict with "content" (str or None), "tool_calls" (list of {id, name, arguments}).
+    """
+    api_key = get_api_key()
+    if not api_key:
+        raise ValueError("OPENAI_API_KEY is not set.")
+    model = model or DEFAULT_MODEL
+    full_messages = [{"role": "system", "content": COACHING_SYSTEM_PROMPT}]
+    for m in messages:
+        role = m.get("role")
+        content = m.get("content", "")
+        if role in ("user", "assistant", "system") and content is not None:
+            full_messages.append({"role": role, "content": content or ""})
+    payload = {
+        "model": model,
+        "messages": full_messages,
+        "max_tokens": 500,
+        "temperature": 0.4,
+        "tools": COACHING_TOOLS,
+        "tool_choice": "auto",
+    }
+    response = requests.post(OPENAI_API_URL, headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"}, json=payload, timeout=45)
+    if response.status_code != 200:
+        logger.error("OpenAI coaching API error %s: %s", response.status_code, response.text[:500])
+        raise RuntimeError(f"OpenAI API returned status {response.status_code}.")
+    data = response.json()
+    choice = data.get("choices", [{}])[0]
+    msg = choice.get("message", {})
+    content = (msg.get("content") or "").strip() or None
+    tool_calls = []
+    for tc in msg.get("tool_calls") or []:
+        fn = tc.get("function", {})
+        tool_calls.append({
+            "id": tc.get("id"),
+            "name": fn.get("name"),
+            "arguments": fn.get("arguments") or "{}",
+        })
+    return {"content": content, "tool_calls": tool_calls, "raw_message": msg}
+
 
 SALES_AGENT_TOOLS = [
     SAVE_ORDER_TOOL,
@@ -1092,13 +1209,29 @@ SALES_AGENT_TOOLS = [
     TRACK_ORDER_TOOL,
     SEARCH_PRODUCTS_TOOL,
     SUBMIT_CUSTOMER_ORDER_TOOL,
+    UPDATE_LEAD_STATUS_TOOL,
 ]
 
 
-def build_messages_payload_sales(conversation_messages, custom_instruction=None, product_context=None, trust_score=0, media_context=None, state_header=None, sales_stage=None, sentiment=None, market=None, agent_name=None, customer_phone=None):
+def build_messages_payload_sales(conversation_messages, custom_instruction=None, product_context=None, trust_score=0, media_context=None, state_header=None, sales_stage=None, sentiment=None, market=None, agent_name=None, customer_phone=None, override_rules=None):
     """Build messages for the sales agent. Uses Elite Sales Consultant prompt when product_context is set (with trust_score, sales_stage, sentiment, market, agent_name).
     state_header: optional for session continuity. market: 'MA' or 'SA'. agent_name: e.g. Chuck or persona name so the AI thinks as that human.
-    customer_phone: active WhatsApp number of the customer; injected as system note so the AI can use it when they say 'same number' / نفس الرقم."""
+    customer_phone: active WhatsApp number of the customer; injected as system note so the AI can use it when they say 'same number' / نفس الرقم.
+    override_rules: optional channel-level admin rules; injected at the very start of the system prompt so the model MUST follow them."""
+    admin_rules_prefix = ""
+    if override_rules and (override_rules or "").strip():
+        rules_text = (override_rules or "").strip()
+        admin_rules_prefix = (
+            "## CRITICAL — Admin override rules (you MUST follow these in every reply)\n\n"
+            + rules_text
+            + "\n\n---\n\n"
+        )
+        print('override_rules', override_rules ,'rules_text', rules_text )
+        logger.info(
+            "Admin override rules applied to sales prompt (length=%d, preview=%s)",
+            len(rules_text),
+            (rules_text[:100] + "…") if len(rules_text) > 100 else rules_text,
+        )
     if product_context and (product_context or "").strip():
         system = _master_sales_closer_prompt(
             (product_context or "").strip(),
@@ -1116,6 +1249,7 @@ def build_messages_payload_sales(conversation_messages, custom_instruction=None,
                 f"You are {name}, a human sales rep. Think and respond as a real person, not a bot. "
                 "Never say you are an AI or assistant. Write like a human on WhatsApp.\n\n"
             ) + system
+    system = admin_rules_prefix + system
     if state_header and (state_header or "").strip():
         system = (state_header.strip() + "\n\n") + system
     # Customer's active WhatsApp number — so the AI uses it when they say "same number" / نفس الرقم
@@ -1205,11 +1339,12 @@ def parse_and_strip_stage(reply_text):
     return (cleaned, stage)
 
 
-def generate_reply_with_tools(conversation_messages, custom_instruction=None, product_context=None, trust_score=0, media_context=None, state_header=None, sales_stage=None, sentiment=None, market=None, agent_name=None, model=None, customer_phone=None):
+def generate_reply_with_tools(conversation_messages, custom_instruction=None, product_context=None, trust_score=0, media_context=None, state_header=None, sales_stage=None, sentiment=None, market=None, agent_name=None, model=None, customer_phone=None, override_rules=None):
     """
     Call OpenAI with sales tools. When product_context is set, uses Elite Sales Consultant prompt with trust_score, sales_stage, sentiment, market, agent_name.
     market: 'MA' or 'SA'. agent_name: e.g. Chuck or persona name — AI responds as this human, not as a bot.
     customer_phone: customer's WhatsApp number; injected into system prompt so the AI can use it when they say "same number".
+    override_rules: optional admin rules; injected at the start of the system prompt so the model MUST follow them.
     """
     api_key = get_api_key()
     if not api_key:
@@ -1228,6 +1363,7 @@ def generate_reply_with_tools(conversation_messages, custom_instruction=None, pr
         market=market,
         agent_name=agent_name,
         customer_phone=customer_phone,
+        override_rules=override_rules,
     )
     headers = {"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"}
     payload = {
@@ -1264,7 +1400,7 @@ def generate_reply_with_tools(conversation_messages, custom_instruction=None, pr
         except Exception as e:
             logger.warning("parse tool %s arguments: %s", name, e)
             continue
-        if name in ("save_order", "check_stock", "apply_discount", "record_order", "track_order", "search_products", "submit_customer_order"):
+        if name in ("save_order", "check_stock", "apply_discount", "record_order", "track_order", "search_products", "submit_customer_order", "update_lead_status"):
             tool_calls.append({"name": name, "arguments": args})
     usage = data.get("usage", {})
     # Strip [STAGE: ...] from reply and expose for funnel state tracking
@@ -1300,6 +1436,7 @@ def continue_after_tool_calls(
     agent_name=None,
     model=None,
     customer_phone=None,
+    override_rules=None,
 ):
     """
     After the model returned tool_calls (e.g. check_stock, apply_discount), send tool results and get the final reply.
@@ -1322,6 +1459,7 @@ def continue_after_tool_calls(
         market=market,
         agent_name=agent_name,
         customer_phone=customer_phone,
+        override_rules=override_rules,
     )
     assistant_msg = {
         "role": "assistant",
@@ -1365,7 +1503,7 @@ def continue_after_tool_calls(
         except Exception as e:
             logger.warning("parse tool %s arguments: %s", name, e)
             continue
-        if name in ("save_order", "check_stock", "apply_discount", "record_order", "track_order", "search_products", "submit_customer_order"):
+        if name in ("save_order", "check_stock", "apply_discount", "record_order", "track_order", "search_products", "submit_customer_order", "update_lead_status"):
             tool_calls.append({"name": name, "arguments": args})
     usage = data.get("usage", {})
     reply_clean, stage = parse_and_strip_stage(reply_text)

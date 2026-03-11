@@ -160,6 +160,7 @@ def serialize_flow(obj):
         "trigger_keywords": getattr(obj, "trigger_keywords", ""),
         "trigger_on_start": getattr(obj, "trigger_on_start", False), # مفيد للدييباغ
         "active": getattr(obj, "active", False),
+        "count": getattr(obj, "usage_count", 0),
         "created_at": obj.created_at.isoformat() if obj.created_at else None,
         "updated_at": obj.updated_at.isoformat() if obj.updated_at else None,
     }
@@ -214,9 +215,8 @@ def find_automated_response(phone, message_text, media_type=None):
             if responses:
                 print(f"🎉 Found {len(responses)} responses in flow: {flow.name}")
                 # زيادة عداد التشغيل
-                if hasattr(flow, 'count'):
-                    flow.count += 1
-                    flow.save()
+                flow.usage_count = (getattr(flow, 'usage_count', 0) or 0) + 1
+                flow.save(update_fields=['usage_count'])
                 return responses
             else:
                 print(f"❌ No responses found in flow: {flow.name}")
@@ -377,12 +377,20 @@ def process_flow_for_message(flow, message_text, phone, media_type=None):
                     from django.db import transaction as db_transaction
                     conversation = [{"role": "customer", "body": message_text or ""}]
                     trust_score = get_trust_score(flow.channel_id, phone) if flow.channel_id else 0
+                    override_rules_flow = ""
+                    if getattr(flow, "channel", None):
+                        try:
+                            flow.channel.refresh_from_db(fields=["ai_override_rules"])
+                        except Exception:
+                            pass
+                        override_rules_flow = (getattr(flow.channel, "ai_override_rules", None) or "").strip()
                     result = generate_reply_with_tools(
                         conversation,
                         custom_instruction=None,
                         product_context=product_context,
                         trust_score=trust_score,
                         customer_phone=phone,
+                        override_rules=override_rules_flow or None,
                     )
                     reply_text = (result.get("reply") or "").strip()
                     current_stage = result.get("stage")

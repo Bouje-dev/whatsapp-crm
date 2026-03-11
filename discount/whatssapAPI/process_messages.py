@@ -1561,6 +1561,15 @@ def run_ai_agent_node(current_node, sender, channel, state_header=None):
         except (TypeError, ValueError, AttributeError):
             pass
 
+        # Channel-level Admin coaching overrides: load fresh from DB and pass so they're injected at start of system prompt
+        override_rules = ""
+        if channel:
+            try:
+                channel.refresh_from_db(fields=["ai_override_rules"])
+            except Exception:
+                pass
+            override_rules = (getattr(channel, "ai_override_rules", None) or "").strip()
+
         # Intelligent Handover (Supervisor Agent): analyze intent & bot performance before calling GPT
         handover, handover_reason = should_handover(conversation, market=market, use_llm_intent=True)
         if handover:
@@ -1589,8 +1598,9 @@ def run_ai_agent_node(current_node, sender, channel, state_header=None):
                 market=market,
                 agent_name=agent_name,
                 customer_phone=sender,
+                override_rules=override_rules or None,
             )
-        tool_calls_for_info = [tc for tc in (result.get("tool_calls") or []) if tc.get("name") in ("check_stock", "apply_discount", "track_order", "search_products", "submit_customer_order", "save_order", "record_order")]
+        tool_calls_for_info = [tc for tc in (result.get("tool_calls") or []) if tc.get("name") in ("check_stock", "apply_discount", "track_order", "search_products", "submit_customer_order", "save_order", "record_order", "update_lead_status")]
         first_result_order_tools = [tc for tc in (result.get("tool_calls") or []) if tc.get("name") in ("save_order", "record_order")]
         submit_order_success_outcome = None
         save_order_result_order = None  # order from save_order/record_order when executed in loop
@@ -1647,6 +1657,15 @@ def run_ai_agent_node(current_node, sender, channel, state_header=None):
                             submit_order_success_outcome = outcome
                     except Exception:
                         pass
+                elif name == "update_lead_status":
+                    try:
+                        from discount.orders_ai import handle_update_lead_status
+                        outcome = handle_update_lead_status(channel, sender, args.get("status") or "")
+                        content = json.dumps(outcome, ensure_ascii=False)
+                    except Exception as e:
+                        logger.exception("update_lead_status: %s", e)
+                        content = json.dumps({"success": False, "message": str(e)}, ensure_ascii=False)
+                    tool_results.append({"tool_call_id": tcid, "content": content})
                 elif name in ("save_order", "record_order") and getattr(channel, "ai_order_capture", True):
                     args["customer_phone"] = normalize_customer_phone_for_order(args.get("customer_phone"), sender)
                     if "address" in args and not args.get("customer_city"):
@@ -1682,6 +1701,7 @@ def run_ai_agent_node(current_node, sender, channel, state_header=None):
                         market=market,
                         agent_name=agent_name,
                         customer_phone=sender,
+                        override_rules=override_rules or None,
                     )
                     # save_order/record_order were already executed in the loop above and tool result sent to AI
                 except Exception as cont_err:
@@ -1886,7 +1906,16 @@ def run_ai_agent_node(current_node, sender, channel, state_header=None):
             reply_text = format_order_confirmation(saved_order)
         if not reply_text and order_was_saved and saved_order:
             reply_text = get_order_confirmation_fallback(market)
-        # No fallback when AI returns empty: do not send a generic reply; next turn the AI should ask or clarify.
+        # When AI returns empty (e.g. API glitch, timeout), send a short fallback so the customer is not left with no reply
+        if not (reply_text or "").strip():
+            reply_text = (
+                "عذراً، وقع شي خلل تقني. مرني نكمّل؟ (Sorry, a small glitch happened. Can we continue?)"
+            )
+            logger.warning(
+                "AI agent returned empty reply (channel=%s, sender=%s); sending fallback.",
+                channel.id if channel else None,
+                sender,
+            )
 
         reply_text, send_media_ids = parse_and_strip_send_media(reply_text)
         reply_text, send_product_image = parse_and_strip_send_product_image(reply_text)
@@ -2294,6 +2323,13 @@ def try_ai_voice_reply(sender, body, channel):
         )
         custom_instruction = (custom_instruction + " " + post_order_note) if custom_instruction else post_order_note
 
+    override_rules_voice = ""
+    try:
+        channel.refresh_from_db(fields=["ai_override_rules"])
+    except Exception:
+        pass
+    override_rules_voice = (getattr(channel, "ai_override_rules", None) or "").strip()
+
     trust_score = get_trust_score(channel.id, sender)
     try:
         result = generate_reply_with_tools(
@@ -2303,6 +2339,7 @@ def try_ai_voice_reply(sender, body, channel):
             trust_score=trust_score,
             market=market,
             customer_phone=sender,
+            override_rules=override_rules_voice or None,
         )
     except Exception as e:
         logger.exception("generate_reply_with_tools failed: %s", e)
@@ -2352,6 +2389,7 @@ def try_ai_voice_reply(sender, body, channel):
                     market=market,
                     agent_name=get_agent_name_for_node(False, None, market=market),
                     customer_phone=sender,
+                    override_rules=override_rules_voice or None,
                 )
                 order_tools = [t for t in tool_calls if t.get("name") in ("save_order", "record_order")]
                 if order_tools:
@@ -2415,7 +2453,9 @@ def try_ai_voice_reply(sender, body, channel):
             reply_text = get_order_confirmation_fallback(market)
         except Exception:
             reply_text = "تم تسجيل طلبك. سنتواصل معك قريباً."
-    # No fallback when AI returns empty: do not send; next turn the AI should respond or ask to clarify.
+    if not (reply_text or "").strip():
+        reply_text = "عذراً، وقع شي خلل تقني. مرني نكمّل؟ (Sorry, a small glitch happened. Can we continue?)"
+        logger.warning("AI voice/fallback returned empty reply (channel=%s, sender=%s); sending fallback.", channel.id if channel else None, sender)
 
     if not reply_text:
         return
@@ -2618,16 +2658,30 @@ def whatsapp_webhook(request):
                                 print(f"❌ Error: Channel not found for ID {phone_number_id}")
                                 return HttpResponse("Channel not found", status=200) 
                             channel_owner = active_channel.owner
-                            
+                            # --- Strict Sticky Routing: existing contacts keep their assigned_agent ---
+                            # New contact: Full Autopilot ON → AI (None); OFF → Weighted distribution
+                            ai_auto = getattr(active_channel, "ai_auto_reply", False)
                             contact, created = Contact.objects.get_or_create(
-                            phone=phone,
-                            channel=active_channel,
-                            defaults={
-                                'user': channel_owner,       
-                                'name': safe_name,
-                                'assigned_agent': active_channel.assigned_agents.first()
-                            }
-                        )
+                                phone=phone,
+                                channel=active_channel,
+                                defaults={
+                                    'user': channel_owner,
+                                    'name': safe_name,
+                                    'assigned_agent': None,  # set below: AI (if autopilot) or weighted routing (else)
+                                }
+                            )
+                            # Weighted Chat Routing: new contact only, when not Full Autopilot
+                            if created and not ai_auto:
+                                try:
+                                    from discount.whatssapAPI.chat_routing import run_weighted_routing_for_new_contact
+                                    run_weighted_routing_for_new_contact(contact, active_channel)
+                                except Exception as e:
+                                    import logging
+                                    logging.getLogger(__name__).exception("chat_routing: %s", e)
+                                    # Keep default (channel_owner) if routing fails
+                                    if not contact.assigned_agent_id:
+                                        contact.assigned_agent = channel_owner
+                                        contact.save(update_fields=["assigned_agent"])
 
                        
                         if not created and not contact.channel:
@@ -3496,8 +3550,9 @@ def send_message_socket(sreciver,  user ,channel_id ,  message, msg_type,
     if status_code in (200, 201):
         try:
             msg_kwargs = {"sender": to, "is_from_me": True}
-            
-          
+            if user is not None:
+                msg_kwargs["user"] = user
+
             try:
                 # 1. تحويل الرد إلى JSON
                 response_data = r.json() 

@@ -230,10 +230,13 @@
         .automations-table {
             border-radius: 14px;
             border: 1px solid rgba(15, 23, 42, 0.9);
-            overflow: hidden;
-            background: radial-gradient(circle at top, rgba(22, 163, 74, 0.06), transparent 60%),
-                        var(--surface);
-            box-shadow: 0 18px 45px -20px rgba(15, 23, 42, 0.9);
+            overflow: visible;
+            background: #15171e;
+        }
+
+        /* List body grows with content; parent panel scrolls (no inner scroll) */
+        .automations-list-body {
+            overflow: visible;
         }
 
         .table-header {
@@ -255,9 +258,11 @@
             grid-template-columns: 2fr 1fr 1fr 2fr 1fr;
             gap: 1rem;
             padding: 0.9rem 1.5rem;
-            border-bottom: 1px solid rgba(15, 23, 42, 0.9);
+            background:transparent;
+            border-bottom: 1px solid rgba(255,255,255,0.04);
             align-items: center;
             font-size: 0.875rem;
+
         }
 
         .table-row:last-child {
@@ -265,7 +270,7 @@
         }
 
         .table-row:hover {
-            background: rgba(15, 23, 42, 0.9);
+            background: rgba(255, 255, 255, 0.03);
         }
 
         /* Status Badges */
@@ -957,20 +962,25 @@
             margin-top: 0.25rem;
         }
     </style>
- 
+ <!-- Header -->
+ <div class="header" style="padding:1.25rem 1.5rem;border-bottom:1px solid rgba(255,255,255,0.06); height:auto; background:rgba(255,255,255,0.03);">
+    <div class="title-section" style="display: flex;align-items: center;gap: 12px;">
+        <div style="width:44px;height:44px;border-radius:12px;display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,#10b981,#059669);color:#ecfdf5;font-size:1rem;flex-shrink:0;">
+            <i class="fas fa-robot"></i>
+        </div>
+        <div style="display:flex;flex-direction:column;"> 
+        <h1 style="font-size:1.25rem;font-weight:700;letter-spacing:-0.02em;margin-bottom:0.25rem;">My Automations</h1>
+        <p style="color:var(--text-secondary);font-size:0.9rem;">Respond automatically to messages based on your own criteria</p>
+    </div>
+    </div>
+    <button class="btn btn-primary" id="new-automation-btn" style="padding:0.75rem 1.5rem;border-radius:999px;background:linear-gradient(135deg,var(--primary),var(--primary-dark));color:white;border:none;cursor:pointer;display:inline-flex;align-items:center;gap:0.5rem;font-size:0.88rem;font-weight:600;">
+        <span style="display:inline-block;width:24px;height:24px;border-radius:50%;background:white;color:var(--primary);display:flex;align-items:center;justify-content:center;">+</span>
+        <span>New Automation</span>
+    </button>
+</div>
     <!-- Automations List -->
     <div class="containerNew_auto" id="automations-container">
-        <!-- Header -->
-        <div class="header">
-            <div class="title-section">
-                <h1>My Automations</h1>
-                <p>Respond automatically to messages based on your own criteria</p>
-            </div>
-            <button class="btn btn-primary" id="new-automation-btn">
-                <span>+</span>
-                New Automation
-            </button>
-        </div>
+         
 
         <!-- Search -->
         <div class="search-box">
@@ -986,7 +996,7 @@
                 <div>Last Updated</div>
                 <div class="text-center">Actions</div>
             </div>
-            <div id="automations-list" style="overflow: auto; max-height: 60vh;">
+            <div id="automations-list" class="automations-list-body">
                 <!-- سيتم ملؤها بالبيانات -->
             </div>
         </div>

@@ -565,625 +565,221 @@
   
 <main class="cls3741_main">
     
+  <!-- ========== DASHBOARD PANEL ========== -->
   <section class="cls3741_panel cls3741_panel_dashboard" style="position: relative; width: 100%; max-width: 100%; min-width: 0; overflow-x: hidden;">
+
+    <!-- Dashboard loader -->
     <div id="settings_loaderD" class="loading-overlay d-none">
-        <div class="text-center">
-            <div class="spinner-border text-primary mb-3" style="width: 3rem; height: 3rem;" role="status"></div>
-            <h6 class="text-white mt-2">Loading Dashboard...</h6>
-        </div>
+      <div class="text-center">
+        <div class="spinner-border text-primary mb-3" style="width: 3rem; height: 3rem;" role="status"></div>
+        <h6 class="text-white mt-2">Loading Dashboard...</h6>
+      </div>
     </div>
+
+    <!-- Dashboard header -->
     <div class="cls3741_dash_header">
-        <h2>Dashboard</h2>
-        <div class="cls3741_dash_actions">
-            {% if channel.is_active %}
-            <span class="status_badge connected">
-                <span class="dot"></span> connected
-            </span>
-            {% else %}
-            <span class="status_badge disconnected">
-                <span class="dot"></span> disconnected
-            </span>
-            {% endif %}
-            <button class="cls3741_btn_refresh" onclick="window.location.reload()">
-             Refresh 
-            </button>
-        </div>
+      <h2>Dashboard</h2>
+      <div class="cls3741_dash_actions">
+        {% if channel.is_active %}
+        <span class="status_badge connected">
+          <span class="dot"></span> connected
+        </span>
+        {% else %}
+        <span class="status_badge disconnected">
+          <span class="dot"></span> disconnected
+        </span>
+        {% endif %}
+        <button class="cls3741_btn_refresh" onclick="window.location.reload()">Refresh</button>
+      </div>
     </div>
-<div class="main1" style="overflow: auto; overflow-anchor: inherit; scrollbar-width: none; width: 100%; max-width: 100%; min-width: 0;">
 
- 
-<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
-<script>
-  // دالة لتوليد QR Code
-function generateWhatsAppQR(phoneNumber) {
-    const container = document.getElementById('qrcode_container');
-    if (!container) return;
-    
-    // تنظيف الكود القديم (في حال تغيير القناة)
-    container.innerHTML = '';
-    
-    // تنظيف الرقم (إزالة المسافات والرموز)
-    const cleanPhone = phoneNumber.replace(/\D/g, '');
-    const waLink = `https://wa.me/${cleanPhone}`;
-    
-    // إنشاء QR جديد
-    new QRCode(container, {
-        text: waLink,
-        width: 100,
-        height: 100,
-        colorDark : "#000000",
-        colorLight : "#ffffff",
-        correctLevel : QRCode.CorrectLevel.H
-    });
-}
+    <!-- Dashboard main scroll area -->
+    <div class="main1" style="overflow: auto; overflow-anchor: inherit; scrollbar-width: none; width: 100%; max-width: 100%; min-width: 0;">
 
-// ---------------------------------------------------
-// تحديث دالة loadDashboardData لاستخدامها
-// ---------------------------------------------------
- 
-</script> 
-        
-    <div class="cls3741_account_card">
+      <!-- QR Code script (used by loadDashboardData) -->
+      <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+      <script>
+      function generateWhatsAppQR(phoneNumber) {
+        const container = document.getElementById('qrcode_container');
+        if (!container) return;
+        container.innerHTML = '';
+        const cleanPhone = phoneNumber.replace(/\D/g, '');
+        const waLink = 'https://wa.me/' + cleanPhone;
+        new QRCode(container, {
+          text: waLink,
+          width: 100,
+          height: 100,
+          colorDark: '#000000',
+          colorLight: '#ffffff',
+          correctLevel: QRCode.CorrectLevel.H
+        });
+      }
+      </script>
+
+      <!-- Account card (QR + channel info) -->
+      <div class="cls3741_account_card">
         <div class="account_qr_section">
-          <div id="qrcode_container" class="qr_img_wrapper" style="
-            width: 120px;
-            height: 120px;
-            background: white; /* الـ QR يحتاج خلفية بيضاء ليعمل */
-            padding: 8px;
-            border-radius: 12px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-        "></div>
-            <div class="scan_hint">Scan to conntact</div>
+          <div id="qrcode_container" class="qr_img_wrapper" style="width: 120px; height: 120px; background: white; padding: 8px; border-radius: 12px; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 12px rgba(0,0,0,0.1);"></div>
+          <div class="scan_hint">Scan to conntact</div>
         </div>
-        
         <div class="account_info_grid">
-            <div class="info_item">
-                <label>Display Name</label>
-                <div class="val" id="dash_display_name"> </div>
-            </div>
-            <div class="info_item">
-                <label>Connected Number</label>
-                <div class="val highlight" id="dash_phone_number">+{{ active_channel.phone_number }}</div>
-            </div>
-            <div class="info_item">
-                <label>WABA ID</label>
-                <div class="val mono" id="dash_waba_id">{{ active_channel.business_account_id }}</div>
-            </div>
-            <div class="info_item">
-                <label>Messaging Limit</label>
-                <div class="val" id="dash_messaging_limit">TIER_250</div>
-            </div>
-            <div class="info_item">
-                <label>Quality Rating</label>
-                <div class="val text-green" id="dash_quality_rating">GREEN ●</div>
-            </div>
-            <div class="info_item">
-                <label>Account Status</label>
-                <div class="val status_tag" id="dash_account_status">APPROVED</div>
-            </div>
+          <div class="info_item">
+            <label>Display Name</label>
+            <div class="val" id="dash_display_name"> </div>
+          </div>
+          <div class="info_item">
+            <label>Connected Number</label>
+            <div class="val highlight" id="dash_phone_number">+{{ active_channel.phone_number }}</div>
+          </div>
+          <div class="info_item">
+            <label>WABA ID</label>
+            <div class="val mono" id="dash_waba_id">{{ active_channel.business_account_id }}</div>
+          </div>
+          <div class="info_item">
+            <label>Messaging Limit</label>
+            <div class="val" id="dash_messaging_limit">TIER_250</div>
+          </div>
+          <div class="info_item">
+            <label>Quality Rating</label>
+            <div class="val text-green" id="dash_quality_rating">GREEN ●</div>
+          </div>
+          <div class="info_item">
+            <label>Account Status</label>
+            <div class="val status_tag" id="dash_account_status">APPROVED</div>
+          </div>
         </div>
-    </div>
-   
-{% if not user.is_team_admin or not user.is_superuser %}
-  {% include 'teams.html' %}
-  <div style="padding-bottom: 24px;"></div>
-{% endif %}
+      </div>
 
-  
+      {% if not user.is_team_admin or not user.is_superuser %}
+      {% include 'teams.html' %}
+      <div style="padding-bottom: 24px;"></div>
+      {% endif %}
 
-    <div class="cls3741_stats_grid">
+      <!-- KPI stats grid -->
+      <div class="cls3741_stats_grid">
         <div class="stat_card">
-            <div class="stat_icon purple">👥</div>
-            <div class="stat_content">
-                <div class="stat_label">Total Contacts</div>
-                <div class="stat_number" id="dash_contacts_count">0</div>
-                <div style="font-size: 13px; color: var(--text-secondary); margin-top: -4px;">
-                  <span style="color: #4f46e5;"> Today <strong><span id="dash_today_count"> 0</span></strong></span>
-                  <span style="margin: 0 4px;">|</span>
-                  <span style="color: #22c55e;"> Yesterday <strong><span id="dash_yest_count">0</span></strong></span>
-              </div>
-                <!-- <a href="#" class="stat_link">View Contacts &rarr;</a> -->
+          <div class="stat_icon purple">👥</div>
+          <div class="stat_content">
+            <div class="stat_label">Total Contacts</div>
+            <div class="stat_number" id="dash_contacts_count">0</div>
+            <div style="font-size: 13px; color: var(--text-secondary); margin-top: -4px;">
+              <span style="color: #4f46e5;"> Today <strong><span id="dash_today_count"> 0</span></strong></span>
+              <span style="margin: 0 4px;">|</span>
+              <span style="color: #22c55e;"> Yesterday <strong><span id="dash_yest_count">0</span></strong></span>
             </div>
+          </div>
         </div>
-
         <div class="stat_card">
-            <div class="stat_icon blue">📊</div>
-            <div class="stat_content">
-                <div class="stat_label">Total orders</div>
-                <div class="stat_number" id="dash_orders_count">0</div>
-                <!-- <a href="#" class="stat_link">Manage Campaigns &rarr;</a> -->
-                <div style="font-size: 13px; color: var(--text-secondary); margin-top: -4px;">
-                  <span style="color: #4f46e5;"> Today <strong><span id="dash_today_order"> 0</span></strong></span>
-                  <span style="margin: 0 4px;">|</span>
-                  <span style="color: #22c55e;"> Yesterday <strong><span id="dash_yest_order">0</span></strong></span>
-              </div>
+          <div class="stat_icon blue">📊</div>
+          <div class="stat_content">
+            <div class="stat_label">Total orders</div>
+            <div class="stat_number" id="dash_orders_count">0</div>
+            <div style="font-size: 13px; color: var(--text-secondary); margin-top: -4px;">
+              <span style="color: #4f46e5;"> Today <strong><span id="dash_today_order"> 0</span></strong></span>
+              <span style="margin: 0 4px;">|</span>
+              <span style="color: #22c55e;"> Yesterday <strong><span id="dash_yest_order">0</span></strong></span>
             </div>
+          </div>
         </div>
-
         <div class="stat_card">
           <div class="stat_icon green">💬</div>
           <div class="stat_content">
-              <div class="stat_label">Total Messages</div>
-              
-              <div class="stat_number" id="dash_messages_count">0</div>
-              
-              <div style="font-size: 11px; color: var(--text-secondary); margin-top: -4px;">
-                  <span style="color: #4f46e5;">⬆ <span id="dash_sent_count">0</span></span>
-                  <span style="margin: 0 4px;">|</span>
-                  <span style="color: #22c55e;">⬇ <span id="dash_received_count">0</span></span>
+            <div class="stat_label">Total Messages</div>
+            <div class="stat_number" id="dash_messages_count">0</div>
+            <div style="font-size: 11px; color: var(--text-secondary); margin-top: -4px;">
+              <span style="color: #4f46e5;">⬆ <span id="dash_sent_count">0</span></span>
+              <span style="margin: 0 4px;">|</span>
+              <span style="color: #22c55e;">⬇ <span id="dash_received_count">0</span></span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+       
+
+      <!-- AI Sales Agent Analytics -->
+      <div class="cls3741_section_title" style="margin-top: 8px;">
+        <h3><i class="fas fa-chart-line me-2"></i>AI Sales Agent Analytics</h3>
+        <div class="d-flex flex-wrap gap-2 align-items-center">
+          <div class="dropdown">
+            <button class="btn btn-outline-primary btn-sm dropdown-toggle" type="button" id="aiRangeDropdown" data-bs-toggle="dropdown" aria-expanded="false">
+              <i class="fas fa-calendar-alt me-1"></i> <span id="aiRangeLabel">This Month</span>
+            </button>
+            <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="aiRangeDropdown">
+              <li><a class="dropdown-item ai-range-option" href="#" data-range="today">Today</a></li>
+              <li><a class="dropdown-item ai-range-option" href="#" data-range="7d">Last 7 Days</a></li>
+              <li><a class="dropdown-item ai-range-option" href="#" data-range="month">This Month</a></li>
+            </ul>
+          </div>
+          <a id="aiExportCsvBtn" class="btn btn-outline-success btn-sm" href="#" download><i class="fas fa-file-csv me-1"></i> Export CSV</a>
+        </div>
+      </div>
+      <div id="aiAnalyticsNoChannel" class="cls3741_lifecycle_card" style="display: none; border-left: 3px solid var(--accent);">
+        <div class="cls3741_lc_header"><span>⚠️</span> Select a channel to view AI analytics.</div>
+      </div>
+      <div id="aiAnalyticsLoader" class="text-center py-4 d-none" style="color: var(--text-secondary);">
+        <div class="spinner-border text-primary" role="status"></div>
+        <p class="mt-2 mb-0">Loading AI analytics...</p>
+      </div>
+      <div id="aiAnalyticsContent" style="display: none;">
+        <div class="cls3741_stats_grid" style="margin-bottom: 20px;">
+          <div class="stat_card">
+            <div class="stat_icon green">🤖</div>
+            <div class="stat_content">
+              <div class="stat_label">Orders Closed by AI</div>
+              <div class="stat_number" id="aiStatOrders">0</div>
+              <small class="text-muted">[ORDER_DATA] triggered</small>
+            </div>
+          </div>
+          <div class="stat_card">
+            <div class="stat_icon blue">⏱</div>
+            <div class="stat_content">
+              <div class="stat_label">Time Saved</div>
+              <div class="stat_number" id="aiStatTimeSaved">0h</div>
+              <small class="text-muted" id="aiStatTimeSavedSub">—</small>
+            </div>
+          </div>
+          <div class="stat_card">
+            <div class="stat_icon purple">📈</div>
+            <div class="stat_content">
+              <div class="stat_label">AI Success Rate</div>
+              <div class="stat_number" id="aiStatRate">0%</div>
+              <small class="text-muted">Conversions / Chats</small>
+            </div>
+          </div>
+        </div>
+        <div class="row g-3 mb-4" style="max-width: 100%; margin-left: 0; margin-right: 0;">
+          <div class="col-12 col-lg-8" style="padding: 0 9px;">
+            <div class="cls3741_chart_section" style="margin-bottom: 0;">
+              <div class="chart_header"><h3>AI vs Manual Sales (Last 30 days)</h3></div>
+              <div class="chart_container" style="height: 220px;">
+                <canvas id="aiChartAiVsManual"></canvas>
               </div>
-          </div>
-      </div>
-
-            {% if user.is_team_admin or user.is_superuser %}
-        <div class="cycle_card">
-          <div class="cls3741_card cls3741_team_card">
-            <div class="cls3741_card_header">
-                <h4 class="cls3741_card_title">
-                    <i class="fas fa-users me-2"></i> Team Status
-                </h4>
-                <span class="cls3741_badge_gray">{{ team_members|length }} Members</span>
             </div>
-        
-            <div class="cls3741_team_list">
-                {% for member in team_members %}
-                <div class="cls3741_team_item _agentRow" id="agent_row_{{ member.id }}"
-                     data-agent-id="{{ member.id }}" style="cursor:pointer;">
-                    
-                    <div class="d-flex align-items-center gap-3">
-                        <div class="cls3741_avatar_wrapper">
-                            {% if member.profile_picture %}
-                                <img src="{{ member.profile_picture.url }}" alt="{{ member.first_name }}" class="cls3741_avatar_img">
-                            {% else %}
-                                <div class="cls3741_avatar_placeholder">{{ member.first_name|slice:":1" }}</div>
-                            {% endif %}
-                            
-                            <span id="status_dot_{{ member.id }}" 
-                                  class="cls3741_status_indicator {% if member.is_online %}online{% else %}offline{% endif %}">
-                            </span>
-                        </div>
-                        
-                        <div class="d-flex flex-column">
-                            <span class="cls3741_member_name">
-                                {{ member.user_name }} {{ member.last_name }}
-                                {% if member.id == user.id %} <span class="text-muted small">(You)</span> {% endif %}
-                            </span>
-                            <span class="cls3741_member_role">{{ member.role|default:"Agent" }}</span>
-                        </div>
-                    </div>
-        
-                    <div class="cls3741_last_seen" id="seen_text_{{ member.id }}">
-                        {% if member.is_online %}
-                            <span class="text-success">Active Now</span>
-                        {% else %}
-                            {{ member.last_seen|timesince }} ago
-                        {% endif %}
-                    </div>
-                </div>
-                {% empty %}
-                <div class="text-center p-3 text-muted">No team members found.</div>
-                {% endfor %}
-            </div>
-        </div>
-
-<!-- ── Agent Stats Popup (overlay) ── -->
-<div class="agentPopup-overlay" id="agentPopupOverlay">
-  <div class="agentPopup-card" id="agentPopupCard">
-    <button class="agentPopup-close" id="agentPopupClose">&times;</button>
-
-    <!-- header -->
-    <div class="agentPopup-header">
-      <div class="agentPopup-avatar" id="apAvatar"></div>
-      <div class="agentPopup-identity">
-        <span class="agentPopup-name" id="apName"></span>
-        <span class="agentPopup-role" id="apRole"></span>
-      </div>
-      <span class="agentPopup-statusPill" id="apStatusPill"></span>
-    </div>
-
-    <!-- last seen row (hidden when online) -->
-    <div class="agentPopup-lastSeen" id="apLastSeenRow">
-      <i class="fas fa-clock"></i>
-      <span id="apLastSeen"></span>
-    </div>
-
-    <!-- stat grid -->
-    <div class="agentPopup-grid">
-      <div class="agentPopup-stat">
-        <div class="agentPopup-statIcon" style="background:rgba(79,70,229,.12);color:#4f46e5">
-          <i class="fas fa-wifi"></i>
-        </div>
-        <div class="agentPopup-statBody">
-          <span class="agentPopup-statLabel">Online Today</span>
-          <span class="agentPopup-statVal" id="apOnlineToday">--</span>
-        </div>
-      </div>
-
-      <div class="agentPopup-stat">
-        <div class="agentPopup-statIcon" style="background:rgba(34,197,94,.12);color:#22c55e">
-          <i class="fas fa-calendar-week"></i>
-        </div>
-        <div class="agentPopup-statBody">
-          <span class="agentPopup-statLabel">Online This Week</span>
-          <span class="agentPopup-statVal" id="apOnlineWeek">--</span>
-        </div>
-      </div>
-
-      <div class="agentPopup-stat">
-        <div class="agentPopup-statIcon" style="background:rgba(234,179,8,.12);color:#eab308">
-          <i class="fas fa-paper-plane"></i>
-        </div>
-        <div class="agentPopup-statBody">
-          <span class="agentPopup-statLabel" id="apMsgsLabel">Messages Today</span>
-          <span class="agentPopup-statVal" id="apMsgsToday">--</span>
-        </div>
-      </div>
-
-      <div class="agentPopup-stat">
-        <div class="agentPopup-statIcon" style="background:rgba(168,85,247,.12);color:#a855f7">
-          <i class="fas fa-comments"></i>
-        </div>
-        <div class="agentPopup-statBody">
-          <span class="agentPopup-statLabel" id="apConvosLabel">Conversations Today</span>
-          <span class="agentPopup-statVal" id="apConvosToday">--</span>
-        </div>
-      </div>
-    </div>
-
-    <!-- response time highlight -->
-    <div class="agentPopup-responseBox" id="apResponseBox">
-      <div class="agentPopup-responseHeader">
-        <i class="fas fa-bolt"></i> Avg Response Time
-      </div>
-      <div class="agentPopup-responseBody">
-        <span class="agentPopup-responseVal" id="apAvgResponse">--</span>
-        <span class="agentPopup-responseBadge" id="apSpeedBadge">--</span>
-      </div>
-    </div>
-
-    <!-- loading skeleton (shown while fetch in progress) -->
-    <div class="agentPopup-loading" id="apLoading">
-      <div class="agentPopup-spinner"></div>
-      <span>Loading agent stats...</span>
-    </div>
-  </div>
-</div>
-
-<style>
-/* ── Agent Stats Popup ── */
-.agentPopup-overlay{
-  position:fixed;inset:0;z-index:9999;
-  background:rgba(0,0,0,.45);backdrop-filter:blur(4px);
-  display:none;align-items:center;justify-content:center;
-  animation:apFadeIn .2s ease;
-}
-.agentPopup-overlay.active{display:flex}
-@keyframes apFadeIn{from{opacity:0}to{opacity:1}}
-@keyframes apSlideUp{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:translateY(0)}}
-
-.agentPopup-card{
-  position:relative;width:380px;max-width:92vw;
-  background:var(--bg-primary,#1a1a2e);
-  border:1px solid var(--border-color,#2a2a4a);
-  border-radius:20px;padding:28px 24px 24px;
-  box-shadow:0 24px 48px rgba(0,0,0,.35);
-  animation:apSlideUp .25s ease;
-  color:var(--text-primary,#e2e8f0);
-}
-.agentPopup-close{
-  position:absolute;top:12px;right:14px;
-  background:none;border:none;font-size:22px;
-  color:var(--text-secondary,#94a3b8);cursor:pointer;
-  width:32px;height:32px;border-radius:8px;
-  display:flex;align-items:center;justify-content:center;
-  transition:all .15s;
-}
-.agentPopup-close:hover{background:rgba(255,255,255,.08);color:#fff}
-
-/* header */
-.agentPopup-header{display:flex;align-items:center;gap:12px;margin-bottom:16px}
-.agentPopup-avatar{
-  width:48px;height:48px;border-radius:14px;
-  background:linear-gradient(135deg,#4f46e5,#7c3aed);
-  display:flex;align-items:center;justify-content:center;
-  font-weight:700;font-size:18px;color:#fff;flex-shrink:0;
-}
-.agentPopup-identity{display:flex;flex-direction:column;flex:1;min-width:0}
-.agentPopup-name{font-size:15px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.agentPopup-role{font-size:11px;color:var(--text-secondary,#94a3b8);margin-top:1px}
-.agentPopup-statusPill{
-  font-size:11px;font-weight:600;padding:4px 10px;border-radius:20px;
-  white-space:nowrap;flex-shrink:0;
-}
-.agentPopup-statusPill.online{background:rgba(34,197,94,.15);color:#22c55e}
-.agentPopup-statusPill.offline{background:rgba(239,68,68,.12);color:#ef4444}
-
-/* last seen */
-.agentPopup-lastSeen{
-  display:flex;align-items:center;gap:8px;
-  font-size:12px;color:var(--text-secondary,#94a3b8);
-  background:rgba(255,255,255,.04);border-radius:10px;
-  padding:8px 12px;margin-bottom:16px;
-}
-.agentPopup-lastSeen i{font-size:11px;opacity:.7}
-
-/* stat grid */
-.agentPopup-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px}
-.agentPopup-stat{
-  display:flex;align-items:center;gap:10px;
-  background:rgba(255,255,255,.04);border-radius:12px;padding:12px;
-  transition:background .15s;
-}
-.agentPopup-stat:hover{background:rgba(255,255,255,.07)}
-.agentPopup-statIcon{
-  width:36px;height:36px;border-radius:10px;
-  display:flex;align-items:center;justify-content:center;
-  font-size:14px;flex-shrink:0;
-}
-.agentPopup-statBody{display:flex;flex-direction:column;min-width:0}
-.agentPopup-statLabel{font-size:10px;color:var(--text-secondary,#94a3b8);text-transform:uppercase;letter-spacing:.4px}
-.agentPopup-statVal{font-size:15px;font-weight:700;margin-top:2px}
-
-/* response time box */
-.agentPopup-responseBox{
-  background:rgba(255,255,255,.04);border-radius:14px;
-  padding:14px 16px;border:1px solid rgba(255,255,255,.06);
-}
-.agentPopup-responseHeader{
-  font-size:11px;text-transform:uppercase;letter-spacing:.5px;
-  color:var(--text-secondary,#94a3b8);margin-bottom:8px;
-  display:flex;align-items:center;gap:6px;
-}
-.agentPopup-responseHeader i{color:#eab308;font-size:12px}
-.agentPopup-responseBody{display:flex;align-items:center;justify-content:space-between}
-.agentPopup-responseVal{font-size:22px;font-weight:800}
-.agentPopup-responseBadge{
-  font-size:11px;font-weight:600;padding:4px 10px;border-radius:20px;
-}
-.agentPopup-responseBadge.green{background:rgba(34,197,94,.15);color:#22c55e}
-.agentPopup-responseBadge.blue{background:rgba(59,130,246,.15);color:#3b82f6}
-.agentPopup-responseBadge.yellow{background:rgba(234,179,8,.15);color:#eab308}
-.agentPopup-responseBadge.red{background:rgba(239,68,68,.15);color:#ef4444}
-.agentPopup-responseBadge.gray{background:rgba(148,163,184,.12);color:#94a3b8}
-
-/* loading */
-.agentPopup-loading{
-  position:absolute;inset:0;border-radius:20px;
-  background:var(--bg-primary,#1a1a2e);
-  display:flex;flex-direction:column;
-  align-items:center;justify-content:center;gap:12px;
-  z-index:2;
-}
-.agentPopup-loading.hidden{display:none}
-.agentPopup-spinner{
-  width:28px;height:28px;border:3px solid rgba(255,255,255,.1);
-  border-top-color:#4f46e5;border-radius:50%;
-  animation:apSpin .7s linear infinite;
-}
-@keyframes apSpin{to{transform:rotate(360deg)}}
-.agentPopup-loading span{font-size:12px;color:var(--text-secondary,#94a3b8)}
-
-/* mobile */
-@media(max-width:440px){
-  .agentPopup-card{padding:20px 16px 18px}
-  .agentPopup-grid{grid-template-columns:1fr}
-}
-</style>
-
-<script>
-(function(){
-  var overlay  = document.getElementById('agentPopupOverlay');
-  var card     = document.getElementById('agentPopupCard');
-  var closeBtn = document.getElementById('agentPopupClose');
-  var loading  = document.getElementById('apLoading');
-  var cache    = {};
-
-  function close(){
-    overlay.classList.remove('active');
-  }
-
-  closeBtn.addEventListener('click', close);
-  overlay.addEventListener('click', function(e){
-    if(e.target === overlay) close();
-  });
-  document.addEventListener('keydown', function(e){
-    if(e.key === 'Escape') close();
-  });
-
-  function show(agentId){
-    loading.classList.remove('hidden');
-    overlay.classList.add('active');
-
-    if(cache[agentId] && (Date.now() - cache[agentId]._ts < 30000)){
-      render(cache[agentId]);
-      return;
-    }
-
-    fetch('/discount/whatssapAPI/api/agent-stats/?agent_id=' + agentId)
-      .then(function(r){ return r.json(); })
-      .then(function(data){
-        if(!data.success){ loading.innerHTML = '<span style="color:#ef4444">Failed to load</span>'; return; }
-        data._ts = Date.now();
-        cache[agentId] = data;
-        render(data);
-      })
-      .catch(function(){
-        loading.innerHTML = '<span style="color:#ef4444">Network error</span>';
-      });
-  }
-
-  function render(data){
-    var a = data.agent;
-    var s = data.stats;
-
-    // avatar
-    var initials = (a.name || '?').split(' ').map(function(w){return w[0]||''}).join('').toUpperCase().slice(0,2);
-    document.getElementById('apAvatar').textContent = initials;
-
-    // identity
-    document.getElementById('apName').textContent = a.name;
-    document.getElementById('apRole').textContent = a.role;
-
-    // status pill
-    var pill = document.getElementById('apStatusPill');
-    pill.textContent = a.is_online ? 'Online' : 'Offline';
-    pill.className = 'agentPopup-statusPill ' + (a.is_online ? 'online' : 'offline');
-
-    // last seen
-    var lsRow = document.getElementById('apLastSeenRow');
-    if(a.is_online || !s.last_seen){
-      lsRow.style.display = 'none';
-    } else {
-      lsRow.style.display = 'flex';
-      document.getElementById('apLastSeen').textContent = 'Last seen ' + s.last_seen;
-    }
-
-    // stats - show best available data (today > week > total)
-    document.getElementById('apOnlineToday').textContent  = s.online_today;
-    document.getElementById('apOnlineWeek').textContent   = s.online_week;
-
-    var msgsVal = s.messages_today;
-    var msgsLbl = 'Messages Today';
-    if(msgsVal === 0 && s.messages_week > 0){ msgsVal = s.messages_week; msgsLbl = 'Messages This Week'; }
-    else if(msgsVal === 0 && s.messages_total > 0){ msgsVal = s.messages_total; msgsLbl = 'Total Messages'; }
-    document.getElementById('apMsgsToday').textContent = msgsVal;
-    document.getElementById('apMsgsLabel').textContent = msgsLbl;
-
-    var convVal = s.conversations_today;
-    var convLbl = 'Conversations Today';
-    if(convVal === 0 && s.conversations_week > 0){ convVal = s.conversations_week; convLbl = 'Conversations This Week'; }
-    else if(convVal === 0 && s.conversations_total > 0){ convVal = s.conversations_total; convLbl = 'Total Conversations'; }
-    document.getElementById('apConvosToday').textContent = convVal;
-    document.getElementById('apConvosLabel').textContent = convLbl;
-
-    // response time
-    document.getElementById('apAvgResponse').textContent = s.avg_response_time;
-    var badge = document.getElementById('apSpeedBadge');
-    badge.textContent = s.speed_label;
-    badge.className = 'agentPopup-responseBadge ' + s.speed_color;
-
-    loading.classList.add('hidden');
-  }
-
-  // attach click listeners to agent rows
-  document.querySelectorAll('._agentRow').forEach(function(row){
-    row.addEventListener('click', function(){
-      var id = this.getAttribute('data-agent-id');
-      if(id) show(id);
-    });
-  });
-
-  // expose for websocket status updates
-  window.updateUserStatusUI = function(userId, status){
-    var dot = document.getElementById('status_dot_' + userId);
-    var txt = document.getElementById('seen_text_' + userId);
-
-    if(dot){
-      dot.classList.remove('online','offline');
-      dot.classList.add(status === 'online' ? 'online' : 'offline');
-    }
-    if(txt){
-      txt.innerHTML = status === 'online'
-        ? '<span class="text-success">Active Now</span>'
-        : 'Offline';
-    }
-    delete cache[userId];
-  };
-})();
-</script>
-
-            </div>
-
-            {% endif %} 
-        </div>
-    </div>
-
-    <!-- AI Sales Agent Analytics (embedded) -->
-    <div class="cls3741_section_title" style="margin-top: 8px;">
-      <h3><i class="fas fa-chart-line me-2"></i>AI Sales Agent Analytics</h3>
-      <div class="d-flex flex-wrap gap-2 align-items-center">
-        <div class="dropdown">
-          <button class="btn btn-outline-primary btn-sm dropdown-toggle" type="button" id="aiRangeDropdown" data-bs-toggle="dropdown" aria-expanded="false">
-            <i class="fas fa-calendar-alt me-1"></i> <span id="aiRangeLabel">This Month</span>
-          </button>
-          <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="aiRangeDropdown">
-            <li><a class="dropdown-item ai-range-option" href="#" data-range="today">Today</a></li>
-            <li><a class="dropdown-item ai-range-option" href="#" data-range="7d">Last 7 Days</a></li>
-            <li><a class="dropdown-item ai-range-option" href="#" data-range="month">This Month</a></li>
-          </ul>
-        </div>
-        <a id="aiExportCsvBtn" class="btn btn-outline-success btn-sm" href="#" download><i class="fas fa-file-csv me-1"></i> Export CSV</a>
-      </div>
-    </div>
-    <div id="aiAnalyticsNoChannel" class="cls3741_lifecycle_card" style="display: none; border-left: 3px solid var(--accent);">
-      <div class="cls3741_lc_header"><span>⚠️</span> Select a channel to view AI analytics.</div>
-    </div>
-    <div id="aiAnalyticsLoader" class="text-center py-4 d-none" style="color: var(--text-secondary);">
-      <div class="spinner-border text-primary" role="status"></div>
-      <p class="mt-2 mb-0">Loading AI analytics...</p>
-    </div>
-    <div id="aiAnalyticsContent" style="display: none;">
-      <div class="cls3741_stats_grid" style="margin-bottom: 20px;">
-        <div class="stat_card">
-          <div class="stat_icon green">🤖</div>
-          <div class="stat_content">
-            <div class="stat_label">Orders Closed by AI</div>
-            <div class="stat_number" id="aiStatOrders">0</div>
-            <small class="text-muted">[ORDER_DATA] triggered</small>
           </div>
-        </div>
-        <div class="stat_card">
-          <div class="stat_icon blue">⏱</div>
-          <div class="stat_content">
-            <div class="stat_label">Time Saved</div>
-            <div class="stat_number" id="aiStatTimeSaved">0h</div>
-            <small class="text-muted" id="aiStatTimeSavedSub">—</small>
-          </div>
-        </div>
-        <div class="stat_card">
-          <div class="stat_icon purple">📈</div>
-          <div class="stat_content">
-            <div class="stat_label">AI Success Rate</div>
-            <div class="stat_number" id="aiStatRate">0%</div>
-            <small class="text-muted">Conversions / Chats</small>
-          </div>
-        </div>
-      </div>
-      <div class="row g-3 mb-4" style="max-width: 100%; margin-left: 0; margin-right: 0;">
-        <div class="col-12 col-lg-8" style="padding: 0 9px;">
-          <div class="cls3741_chart_section" style="margin-bottom: 0;">
-            <div class="chart_header"><h3>AI vs Manual Sales (Last 30 days)</h3></div>
-            <div class="chart_container" style="height: 220px;">
-              <canvas id="aiChartAiVsManual"></canvas>
+          <div class="col-12 col-lg-4" style="padding: 0 9px;">
+            <div class="cls3741_chart_section" style="margin-bottom: 0;">
+              <div class="chart_header"><h3>Top Products (AI)</h3></div>
+              <div class="chart_container" style="height: 220px;">
+                <canvas id="aiChartTopProducts"></canvas>
+              </div>
             </div>
           </div>
         </div>
-        <div class="col-12 col-lg-4" style="padding: 0 9px;">
-          <div class="cls3741_chart_section" style="margin-bottom: 0;">
-            <div class="chart_header"><h3>Top Products (AI)</h3></div>
-            <div class="chart_container" style="height: 220px;">
-              <canvas id="aiChartTopProducts"></canvas>
-            </div>
+        <div class="cls3741_chart_section" style="margin-top: 0;">
+          <div class="chart_header"><h3>API Usage (Characters)</h3></div>
+          <p class="text-muted small mb-2">ElevenLabs &amp; Whisper in selected period</p>
+          <div class="progress" style="height: 24px; background: var(--bg-tertiary);">
+            <div class="progress-bar bg-secondary" id="aiApiProgressBar" role="progressbar" style="width: 0%;" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100">0</div>
+          </div>
+          <div class="d-flex justify-content-between mt-2 small text-muted">
+            <span id="aiApiUsedLabel">0 characters used</span>
+            <span id="aiApiRemainingLabel">—</span>
           </div>
         </div>
       </div>
-      <div class="cls3741_chart_section" style="margin-top: 0;">
-        <div class="chart_header"><h3>API Usage (Characters)</h3></div>
-        <p class="text-muted small mb-2">ElevenLabs &amp; Whisper in selected period</p>
-        <div class="progress" style="height: 24px; background: var(--bg-tertiary);">
-          <div class="progress-bar bg-secondary" id="aiApiProgressBar" role="progressbar" style="width: 0%;" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100">0</div>
-        </div>
-        <div class="d-flex justify-content-between mt-2 small text-muted">
-          <span id="aiApiUsedLabel">0 characters used</span>
-          <span id="aiApiRemainingLabel">—</span>
-        </div>
-      </div>
-    </div>
 
-<script>
+      <script>
 (function() {
     var aiChartAiVsManual = null;
     var aiChartTopProducts = null;
@@ -1340,13 +936,14 @@ function generateWhatsAppQR(phoneNumber) {
     var initialCid = window.currentChannelId || (document.querySelector('.workspace-item.active') && document.querySelector('.workspace-item.active').getAttribute('data-channel-id'));
     if (initialCid && initialCid !== 'null') loadAiAnalytics(initialCid);
 })();
-</script>
+      </script>
 
-    <div class="cls3741_section_title">
-      <h3><i class="fas fa-route me-2"></i>Contact Lifecycle</h3>
-      <span class="cls3741_badge_gray">Pipeline View</span>
-    </div>
-    <script>
+      <!-- Contact Lifecycle -->
+      <div class="cls3741_section_title">
+        <h3><i class="fas fa-route me-2"></i>Contact Lifecycle</h3>
+        <span class="cls3741_badge_gray">Pipeline View</span>
+      </div>
+      <script>
     /**
     * دالة لجلب إحصائيات دورة حياة العميل
     * @param {string|null} channelId - معرف القناة المختارة (اختياري)
@@ -1457,37 +1054,709 @@ function filterContactsByStage(stageKey) {
     window.loadContactsListForChannel(channelId = activeChannelId, resetPage = true , stage = stageKey);
 }
 
-    </script>
-    <div class="cls3741_lifecycle_container" id="lifecycle_container">
-      <div class="cls3741_lifecycle_card loading_skeleton"></div>
-      <div class="cls3741_lifecycle_card loading_skeleton"></div>
-      <div class="cls3741_lifecycle_card loading_skeleton"></div>
-    </div>
+      </script>
+      <div class="cls3741_lifecycle_container" id="lifecycle_container">
+        <div class="cls3741_lifecycle_card loading_skeleton"></div>
+        <div class="cls3741_lifecycle_card loading_skeleton"></div>
+        <div class="cls3741_lifecycle_card loading_skeleton"></div>
+      </div>
 
-    <div class="cls3741_chart_section">
+      <!-- Messages chart (last 7 days) -->
+      <div class="row cls3741_charts_row mb-4">
+      <!-- first card  -->
+      <div class="cls3741_chart_section col-12 col-lg-8" style="padding: 17px 18px;">
         <div class="chart_header">
-            <h3>Messages Analysis for last 7 days</h3>
-            <div class="chart_legend">
-                <span class="legend_item"><span class="dot sent"></span>Sent</span>
-                <span class="legend_item"><span class="dot received"></span> Received <span>
-            </div>
+          <h3>Messages Analysis for last 7 days</h3>
+          <div class="chart_legend">
+            <span class="legend_item"><span class="dot sent"></span> Sent</span>
+            <span class="legend_item"><span class="dot received"></span> Received</span>
+          </div>
         </div>
         <div class="chart_container">
-            <canvas id="messagesChart"></canvas>
+          <canvas id="messagesChart"></canvas>
         </div>
+        
+      </div>
+      <!-- second card  -->
+      <div class="cls3741_chart_section col-12 col-lg-4 cls3741_team_status_wrapper"  style="padding: 15px 13px" id="teamStatusSection">
+        <div class="chart_header cls3741_team_status_header" id="teamStatusHeader">
+          <h3>Team Status</h3>
+          <span class="cls3741_team_status_badge">
+            {% if user.is_team_admin or user.is_superuser %}
+            {{ team_members|length|default:0 }} members </span>
+        </div>
+        <div class="cls3741_team_status_list_wrap" id="teamStatusListWrap">
+          
+          <ul class="cls3741_team_status_list">
+            {% if user.is_team_admin or user.is_superuser %}
+            <!-- AI Sales Agent row (Coach only; no stats popup) -->
+            <li class="cls3741_team_status_item cls3741_ai_agent_row" data-role="ai-agent" id="agent_row_ai">
+              <div class="cls3741_team_status_avatar cls3741_ai_avatar">
+                <span class="cls3741_team_status_avatar_initials"><i class="fas fa-robot"></i></span>
+                <span class="cls3741_team_status_dot online"></span>
+              </div>
+              <div class="cls3741_team_status_info">
+                <span class="cls3741_team_status_name">AI Sales Agent</span>
+                <span class="cls3741_team_status_role">AI</span>
+              </div>
+              <div class="cls3741_team_status_actions">
+                <button type="button" class="cls3741_btn_coach" id="btn_coach_ai" title="Coach AI">Coach</button>
+              </div>
+            </li>
+            {% endif %}
+            {% for member in team_members %}
+            <li class="cls3741_team_status_item _agentRow" id="agent_row_{{ member.id }}" data-agent-id="{{ member.id }}">
+              <div class="cls3741_team_status_avatar">
+                {% if member.profile_picture %}
+                <img src="{{ member.profile_picture.url }}" alt="{{ member.first_name }}" class="cls3741_team_status_avatar_img">
+                {% else %}
+                <span class="cls3741_team_status_avatar_initials">{{ member.email|slice:":1" }}{{ member.last_name|slice:":1" }}</span>
+                {% endif %}
+                <span id="status_dot_{{ member.id }}" class="cls3741_team_status_dot {% if member.is_online %}online{% else %}offline{% endif %}"></span>
+              </div>
+              <div class="cls3741_team_status_info">
+                <span class="cls3741_team_status_name">
+                  {{ member.user_name|default:member.first_name }}
+                  {% if member.id == user.id %}<em class="cls3741_team_status_you">You</em>{% endif %}
+                </span>
+                <span class="cls3741_team_status_role"> {% if member.is_team_admin or member.is_superuser %} Admin {% else %} {{ member.role|default:"Agent" }} {% endif %}</span>
+              </div>
+              <div class="cls3741_team_status_activity" id="seen_text_{{ member.id }}">
+                {% if member.is_online %}
+                <span class="cls3741_team_status_online">Active now</span>
+                {% else %}
+                <span class="cls3741_team_status_ago">{{ member.last_seen|timesince }} ago</span>
+                {% endif %}
+              </div>
+            </li>
+            {% empty %}
+            <li class="cls3741_team_status_empty">No team members found.</li>
+            {% endfor %}
+          </ul>
+          {% else %}
+          <p class="cls3741_team_status_empty">Team view is available for admins.</p>
+          {% endif %}
+        </div>
+        <!-- Floating Coach Chat Card (in place, same section) -->
+        <div class="cls3741_team_coach_card" id="teamCoachCard" style="display: none;">
+          <div class="cls3741_team_coach_card_header">
+            <h4 class="cls3741_team_coach_card_title"><i class="fas fa-robot me-2"></i>Coach AI</h4>
+            <div class="cls3741_team_coach_card_header_actions">
+              <button type="button" class="cls3741_team_coach_btn_rules" id="aiCoachingShowRules" title="Show current rules"><i class="fas fa-list-alt"></i> Rules</button>
+              <button type="button" class="cls3741_team_coach_btn_clear" id="aiCoachingClearRules" title="Remove all rules"><i class="fas fa-times"></i> Clear</button>
+              <button type="button" class="cls3741_team_coach_card_close" id="aiCoachingClose" aria-label="Back to team">&times;</button>
+            </div>
+          </div>
+          <div class="cls3741_team_coach_card_messages" id="aiCoachingMessages"></div>
+          <div class="cls3741_team_coach_card_input_wrap">
+            <textarea class="cls3741_team_coach_card_input" id="aiCoachingInput" rows="2" placeholder="Tell the AI how to sell or handle customers…"></textarea>
+            <button type="button" class="cls3741_team_coach_card_send" id="aiCoachingSend"><i class="fas fa-paper-plane"></i> Send</button>
+          </div>
+          <div class="cls3741_team_coach_card_loading" id="aiCoachingLoading" style="display:none;">Thinking…</div>
+        </div>
+      </div>
+
+      <!-- Agent Stats Popup (overlay) -->
+      <div class="agentPopup-overlay" id="agentPopupOverlay">
+        <div class="agentPopup-card" id="agentPopupCard">
+          <button class="agentPopup-close" id="agentPopupClose">&times;</button>
+          <div class="agentPopup-header">
+            <div class="agentPopup-avatar" id="apAvatar"></div>
+            <div class="agentPopup-identity">
+              <span class="agentPopup-name" id="apName"></span>
+              <span class="agentPopup-role" id="apRole"></span>
+            </div>
+            <span class="agentPopup-statusPill" id="apStatusPill"></span>
+          </div>
+          <div class="agentPopup-lastSeen" id="apLastSeenRow">
+            <i class="fas fa-clock"></i>
+            <span id="apLastSeen"></span>
+          </div>
+          <div class="agentPopup-grid">
+            <div class="agentPopup-stat">
+              <div class="agentPopup-statIcon" style="background:rgba(79,70,229,.12);color:#4f46e5">
+                <i class="fas fa-wifi"></i>
+              </div>
+              <div class="agentPopup-statBody">
+                <span class="agentPopup-statLabel">Online Today</span>
+                <span class="agentPopup-statVal" id="apOnlineToday">--</span>
+              </div>
+            </div>
+            <div class="agentPopup-stat">
+              <div class="agentPopup-statIcon" style="background:rgba(34,197,94,.12);color:#22c55e">
+                <i class="fas fa-calendar-week"></i>
+              </div>
+              <div class="agentPopup-statBody">
+                <span class="agentPopup-statLabel">Online This Week</span>
+                <span class="agentPopup-statVal" id="apOnlineWeek">--</span>
+              </div>
+            </div>
+            <div class="agentPopup-stat">
+              <div class="agentPopup-statIcon" style="background:rgba(234,179,8,.12);color:#eab308">
+                <i class="fas fa-paper-plane"></i>
+              </div>
+              <div class="agentPopup-statBody">
+                <span class="agentPopup-statLabel" id="apMsgsLabel">Messages Today</span>
+                <span class="agentPopup-statVal" id="apMsgsToday">--</span>
+              </div>
+            </div>
+            <div class="agentPopup-stat">
+              <div class="agentPopup-statIcon" style="background:rgba(168,85,247,.12);color:#a855f7">
+                <i class="fas fa-comments"></i>
+              </div>
+              <div class="agentPopup-statBody">
+                <span class="agentPopup-statLabel" id="apConvosLabel">Conversations Today</span>
+                <span class="agentPopup-statVal" id="apConvosToday">--</span>
+              </div>
+            </div>
+          </div>
+          <div class="agentPopup-responseBox" id="apResponseBox">
+            <div class="agentPopup-responseHeader">
+              <i class="fas fa-bolt"></i> Avg Response Time
+            </div>
+            <div class="agentPopup-responseBody">
+              <span class="agentPopup-responseVal" id="apAvgResponse">--</span>
+              <span class="agentPopup-responseBadge" id="apSpeedBadge">--</span>
+            </div>
+          </div>
+          <div class="agentPopup-loading" id="apLoading">
+            <div class="agentPopup-spinner"></div>
+            <span>Loading agent stats...</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Agent Stats Popup styles -->
+      <style>
+/* Agent Stats Popup */
+.agentPopup-overlay{
+  position:fixed;inset:0;z-index:9999;
+  background:rgba(0,0,0,.45);backdrop-filter:blur(4px);
+  display:none;align-items:center;justify-content:center;
+  animation:apFadeIn .2s ease;
+}
+.agentPopup-overlay.active{display:flex}
+@keyframes apFadeIn{from{opacity:0}to{opacity:1}}
+@keyframes apSlideUp{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:translateY(0)}}
+
+.agentPopup-card{
+  position:relative;width:380px;max-width:92vw;
+  background:var(--bg-primary,#1a1a2e);
+  border:1px solid var(--border-color,#2a2a4a);
+  border-radius:20px;padding:28px 24px 24px;
+  box-shadow:0 24px 48px rgba(0,0,0,.35);
+  animation:apSlideUp .25s ease;
+  color:var(--text-primary,#e2e8f0);
+}
+.agentPopup-close{
+  position:absolute;top:12px;right:14px;
+  background:none;border:none;font-size:22px;
+  color:var(--text-secondary,#94a3b8);cursor:pointer;
+  width:32px;height:32px;border-radius:8px;
+  display:flex;align-items:center;justify-content:center;
+  transition:all .15s;
+}
+.agentPopup-close:hover{background:rgba(255,255,255,.08);color:#fff}
+
+/* header */
+.agentPopup-header{display:flex;align-items:center;gap:12px;margin-bottom:16px}
+.agentPopup-avatar{
+  width:48px;height:48px;border-radius:14px;
+  background:linear-gradient(135deg,#4f46e5,#7c3aed);
+  display:flex;align-items:center;justify-content:center;
+  font-weight:700;font-size:18px;color:#fff;flex-shrink:0;
+}
+.agentPopup-identity{display:flex;flex-direction:column;flex:1;min-width:0}
+.agentPopup-name{font-size:15px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.agentPopup-role{font-size:11px;color:var(--text-secondary,#94a3b8);margin-top:1px}
+.agentPopup-statusPill{
+  font-size:11px;font-weight:600;padding:4px 10px;border-radius:20px;
+  white-space:nowrap;flex-shrink:0;
+}
+.agentPopup-statusPill.online{background:rgba(34,197,94,.15);color:#22c55e}
+.agentPopup-statusPill.offline{background:rgba(239,68,68,.12);color:#ef4444}
+
+/* last seen */
+.agentPopup-lastSeen{
+  display:flex;align-items:center;gap:8px;
+  font-size:12px;color:var(--text-secondary,#94a3b8);
+  background:rgba(255,255,255,.04);border-radius:10px;
+  padding:8px 12px;margin-bottom:16px;
+}
+.agentPopup-lastSeen i{font-size:11px;opacity:.7}
+
+/* stat grid */
+.agentPopup-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px}
+.agentPopup-stat{
+  display:flex;align-items:center;gap:10px;
+  background:rgba(255,255,255,.04);border-radius:12px;padding:12px;
+  transition:background .15s;
+}
+.agentPopup-stat:hover{background:rgba(255,255,255,.07)}
+.agentPopup-statIcon{
+  width:36px;height:36px;border-radius:10px;
+  display:flex;align-items:center;justify-content:center;
+  font-size:14px;flex-shrink:0;
+}
+.agentPopup-statBody{display:flex;flex-direction:column;min-width:0}
+.agentPopup-statLabel{font-size:10px;color:var(--text-secondary,#94a3b8);text-transform:uppercase;letter-spacing:.4px}
+.agentPopup-statVal{font-size:15px;font-weight:700;margin-top:2px}
+
+/* response time box */
+.agentPopup-responseBox{
+  background:rgba(255,255,255,.04);border-radius:14px;
+  padding:14px 16px;border:1px solid rgba(255,255,255,.06);
+}
+.agentPopup-responseHeader{
+  font-size:11px;text-transform:uppercase;letter-spacing:.5px;
+  color:var(--text-secondary,#94a3b8);margin-bottom:8px;
+  display:flex;align-items:center;gap:6px;
+}
+.agentPopup-responseHeader i{color:#eab308;font-size:12px}
+.agentPopup-responseBody{display:flex;align-items:center;justify-content:space-between}
+.agentPopup-responseVal{font-size:22px;font-weight:800}
+.agentPopup-responseBadge{
+  font-size:11px;font-weight:600;padding:4px 10px;border-radius:20px;
+}
+.agentPopup-responseBadge.green{background:rgba(34,197,94,.15);color:#22c55e}
+.agentPopup-responseBadge.blue{background:rgba(59,130,246,.15);color:#3b82f6}
+.agentPopup-responseBadge.yellow{background:rgba(234,179,8,.15);color:#eab308}
+.agentPopup-responseBadge.red{background:rgba(239,68,68,.15);color:#ef4444}
+.agentPopup-responseBadge.gray{background:rgba(148,163,184,.12);color:#94a3b8}
+
+/* loading */
+.agentPopup-loading{
+  position:absolute;inset:0;border-radius:20px;
+  background:var(--bg-primary,#1a1a2e);
+  display:flex;flex-direction:column;
+  align-items:center;justify-content:center;gap:12px;
+  z-index:2;
+}
+.agentPopup-loading.hidden{display:none}
+.agentPopup-spinner{
+  width:28px;height:28px;border:3px solid rgba(255,255,255,.1);
+  border-top-color:#4f46e5;border-radius:50%;
+  animation:apSpin .7s linear infinite;
+}
+@keyframes apSpin{to{transform:rotate(360deg)}}
+.agentPopup-loading span{font-size:12px;color:var(--text-secondary,#94a3b8)}
+
+/* mobile */
+@media(max-width:440px){
+  .agentPopup-card{padding:20px 16px 18px}
+  .agentPopup-grid{grid-template-columns:1fr}
+}
+      </style>
+
+      <script>
+(function(){
+  var overlay  = document.getElementById('agentPopupOverlay');
+  var card     = document.getElementById('agentPopupCard');
+  var closeBtn = document.getElementById('agentPopupClose');
+  var loading  = document.getElementById('apLoading');
+  var cache    = {};
+  var currentAgentId = null;
+
+  function close(){
+    overlay.classList.remove('active');
+  }
+
+  closeBtn.addEventListener('click', close);
+  overlay.addEventListener('click', function(e){
+    if(e.target === overlay) close();
+  });
+  document.addEventListener('keydown', function(e){
+    if(e.key === 'Escape') close();
+  });
+
+  function show(agentId){
+    if(!agentId) return;
+    agentId = String(agentId);
+    currentAgentId = agentId;
+    // Clear previous content so we never show wrong agent
+    document.getElementById('apName').textContent = 'Loading…';
+    document.getElementById('apRole').textContent = '';
+    document.getElementById('apAvatar').textContent = '…';
+    var pill = document.getElementById('apStatusPill');
+    pill.textContent = '…';
+    pill.className = 'agentPopup-statusPill';
+    loading.classList.remove('hidden');
+    overlay.classList.add('active');
+    var loadingContent = loading.innerHTML;
+
+    if(cache[agentId] && (Date.now() - cache[agentId]._ts < 15000)){
+      var cached = cache[agentId];
+      if(cached.agent && String(cached.agent.id) === agentId){
+        render(cached);
+        return;
+      }
+      delete cache[agentId];
+    }
+
+    fetch('/discount/whatssapAPI/api/agent-stats/?agent_id=' + encodeURIComponent(agentId))
+      .then(function(r){ return r.json(); })
+      .then(function(data){
+        if(currentAgentId !== agentId) return;
+        if(!data.success){ loading.innerHTML = '<span style="color:#ef4444">Failed to load</span>'; loading.classList.add('hidden'); return; }
+        if(!data.agent || String(data.agent.id) !== agentId){
+          loading.innerHTML = '<span style="color:#ef4444">Wrong agent data</span>';
+          loading.classList.add('hidden');
+          return;
+        }
+        data._ts = Date.now();
+        cache[agentId] = data;
+        render(data);
+      })
+      .catch(function(){
+        if(currentAgentId !== agentId) return;
+        loading.innerHTML = '<span style="color:#ef4444">Network error</span>';
+        loading.classList.add('hidden');
+      });
+  }
+
+  function render(data){
+    var a = data.agent;
+    var s = data.stats;
+    if(!a || !s) return;
+
+    // avatar
+    var initials = (a.name || '?').split(' ').map(function(w){return w[0]||''}).join('').toUpperCase().slice(0,2);
+    document.getElementById('apAvatar').textContent = initials;
+
+    // identity
+    document.getElementById('apName').textContent = a.name;
+    document.getElementById('apRole').textContent = a.role;
+
+    // status pill
+    var pill = document.getElementById('apStatusPill');
+    pill.textContent = a.is_online ? 'Online' : 'Offline';
+    pill.className = 'agentPopup-statusPill ' + (a.is_online ? 'online' : 'offline');
+
+    // last seen
+    var lsRow = document.getElementById('apLastSeenRow');
+    if(a.is_online || !s.last_seen){
+      lsRow.style.display = 'none';
+    } else {
+      lsRow.style.display = 'flex';
+      document.getElementById('apLastSeen').textContent = 'Last seen ' + s.last_seen;
+    }
+
+    // stats - show best available data (today > week > total)
+    document.getElementById('apOnlineToday').textContent  = s.online_today;
+    document.getElementById('apOnlineWeek').textContent   = s.online_week;
+
+    var msgsVal = s.messages_today;
+    var msgsLbl = 'Messages Today';
+    if(msgsVal === 0 && s.messages_week > 0){ msgsVal = s.messages_week; msgsLbl = 'Messages This Week'; }
+    else if(msgsVal === 0 && s.messages_total > 0){ msgsVal = s.messages_total; msgsLbl = 'Total Messages'; }
+    document.getElementById('apMsgsToday').textContent = msgsVal;
+    document.getElementById('apMsgsLabel').textContent = msgsLbl;
+
+    var convVal = s.conversations_today;
+    var convLbl = 'Conversations Today';
+    if(convVal === 0 && s.conversations_week > 0){ convVal = s.conversations_week; convLbl = 'Conversations This Week'; }
+    else if(convVal === 0 && s.conversations_total > 0){ convVal = s.conversations_total; convLbl = 'Total Conversations'; }
+    document.getElementById('apConvosToday').textContent = convVal;
+    document.getElementById('apConvosLabel').textContent = convLbl;
+
+    // response time
+    document.getElementById('apAvgResponse').textContent = s.avg_response_time;
+    var badge = document.getElementById('apSpeedBadge');
+    badge.textContent = s.speed_label;
+    badge.className = 'agentPopup-responseBadge ' + s.speed_color;
+
+    loading.classList.add('hidden');
+  }
+
+  // Event delegation: handle clicks on any agent row (works when list is rendered later)
+  document.addEventListener('click', function(e){
+    var row = e.target && e.target.closest && e.target.closest('._agentRow');
+    if(!row) return;
+    var id = row.getAttribute('data-agent-id');
+    if(id) show(id);
+  });
+
+  // expose for websocket status updates
+  window.updateUserStatusUI = function(userId, status){
+    var dot = document.getElementById('status_dot_' + userId);
+    var txt = document.getElementById('seen_text_' + userId);
+
+    if(dot){
+      dot.classList.remove('online','offline');
+      dot.classList.add(status === 'online' ? 'online' : 'offline');
+    }
+    if(txt){
+      txt.innerHTML = status === 'online'
+        ? '<span class="text-success">Active Now</span>'
+        : 'Offline';
+    }
+    delete cache[userId];
+  };
+})();
+</script>
+      <!-- AI Coaching Chat (floating card in place) -->
+      <script>
+(function(){
+  var listWrap = document.getElementById('teamStatusListWrap');
+  var coachCard = document.getElementById('teamCoachCard');
+  var closeBtn = document.getElementById('aiCoachingClose');
+  var messagesEl = document.getElementById('aiCoachingMessages');
+  var inputEl = document.getElementById('aiCoachingInput');
+  var sendBtn = document.getElementById('aiCoachingSend');
+  var loadingEl = document.getElementById('aiCoachingLoading');
+  var coachingMessages = [];
+  var coachRulesBlockEl = null;
+  var showRulesBtn = document.getElementById('aiCoachingShowRules');
+
+  function getChannelId(){
+    var el = document.getElementById('current_channel_id');
+    if(el && el.value) return el.value;
+    if(typeof window.currentChannelId !== 'undefined' && window.currentChannelId) return window.currentChannelId;
+    if(typeof window.TEMPLATE_CONFIG !== 'undefined' && window.TEMPLATE_CONFIG.initialChannelId && window.TEMPLATE_CONFIG.initialChannelId !== 'null') return window.TEMPLATE_CONFIG.initialChannelId;
+    return null;
+  }
+
+  function openCoaching(){
+    var cid = getChannelId();
+    if(listWrap) listWrap.style.display = 'none';
+    if(coachCard) coachCard.style.display = 'flex';
+    if(inputEl) inputEl.focus();
+    coachRulesBlockEl = null;
+    if(showRulesBtn) showRulesBtn.classList.remove('cls3741_team_coach_btn_rules_active');
+    if(showRulesBtn) showRulesBtn.title = 'Show current rules';
+    if(!cid){
+      if(messagesEl) messagesEl.innerHTML = '<div class="ai-coaching-msg assistant">Select a channel first.</div>';
+      coachingMessages = [];
+      return;
+    }
+    if(!messagesEl) return;
+    messagesEl.innerHTML = '';
+    coachingMessages = [];
+    fetch('/discount/whatssapAPI/api/admin/coach-ai-history/?channel_id=' + encodeURIComponent(cid))
+      .then(function(r){ return r.json(); })
+      .then(function(data){
+        var list = (data.messages || []);
+        list.forEach(function(m){
+          if(m.role && m.content != null){
+            coachingMessages.push({ role: m.role, content: m.content });
+            appendMessage(m.role, m.content);
+          }
+        });
+        if(list.length === 0){
+          messagesEl.innerHTML = '';
+        }
+        messagesEl.scrollTop = messagesEl.scrollHeight;
+      })
+      .catch(function(){
+        if(messagesEl) messagesEl.innerHTML = '<div class="ai-coaching-msg assistant">Could not load conversation history.</div>';
+      });
+  }
+
+  function closeCoaching(){
+    if(coachCard) coachCard.style.display = 'none';
+    if(listWrap) listWrap.style.display = 'block';
+  }
+
+  function appendMessage(role, content){
+    if(!messagesEl) return;
+    var div = document.createElement('div');
+    div.className = 'ai-coaching-msg ' + role;
+    div.textContent = content;
+    messagesEl.appendChild(div);
+    messagesEl.scrollTop = messagesEl.scrollHeight;
+  }
+
+  function setLoading(on){
+    if(loadingEl) loadingEl.style.display = on ? 'block' : 'none';
+    if(sendBtn) sendBtn.disabled = on;
+  }
+
+  function sendMessage(){
+    var text = (inputEl && inputEl.value || '').trim();
+    if(!text) return;
+    var cid = getChannelId();
+    if(!cid){
+      appendMessage('assistant', 'Please select a channel first.');
+      return;
+    }
+    coachingMessages.push({ role: 'user', content: text });
+    appendMessage('user', text);
+    inputEl.value = '';
+    setLoading(true);
+    var csrf = (document.querySelector('[name=csrfmiddlewaretoken]') || {}).value;
+    var url = '/discount/whatssapAPI/api/admin/coach-ai/';
+    fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrf },
+      body: JSON.stringify({ channel_id: parseInt(cid, 10) || cid, messages: coachingMessages }),
+    })
+    .then(function(r){ return r.json(); })
+    .then(function(data){
+      setLoading(false);
+      var reply = (data.reply || '').trim() || 'Done. What else would you like to change?';
+      coachingMessages.push({ role: 'assistant', content: reply });
+      appendMessage('assistant', reply);
+    })
+    .catch(function(err){
+      setLoading(false);
+      appendMessage('assistant', 'Sorry, something went wrong. Try again.');
+    });
+  }
+
+  var currentRulesList = [];
+
+  function rulesSeparator(){
+    return '\n\n';
+  }
+  function parseRulesText(rules){
+    var s = (rules || '').trim();
+    if(!s) return [];
+    var parts = s.split(/\n\n+/).map(function(x){ return x.trim(); }).filter(Boolean);
+    if(parts.length <= 1 && s.indexOf('\n') !== -1)
+      parts = s.split('\n').map(function(x){ return x.trim(); }).filter(Boolean);
+    return parts;
+  }
+
+  function saveRulesAndUpdate(cid, newList, rulesBlock){
+    var newText = newList.join(rulesSeparator());
+    var csrf = (document.querySelector('[name=csrfmiddlewaretoken]') || {}).value;
+    fetch('/discount/whatssapAPI/api/admin/coach-ai-set-rules/', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrf },
+      body: JSON.stringify({ channel_id: parseInt(cid, 10) || cid, rules: newText }),
+    })
+      .then(function(r){ return r.json(); })
+      .then(function(data){
+        if(data.success){
+          currentRulesList = newList;
+          if(newList.length === 0 && rulesBlock) rulesBlock.remove();
+        }
+      })
+      .catch(function(){});
+  }
+
+  function hideRules(){
+    if(coachRulesBlockEl && messagesEl && coachRulesBlockEl.parentNode === messagesEl){
+      coachRulesBlockEl.remove();
+      coachRulesBlockEl = null;
+      messagesEl.scrollTop = messagesEl.scrollHeight;
+    }
+    if(showRulesBtn){
+      showRulesBtn.classList.remove('cls3741_team_coach_btn_rules_active');
+      showRulesBtn.title = 'Show current rules';
+    }
+  }
+
+  function showRules(){
+    if(coachRulesBlockEl && messagesEl && coachRulesBlockEl.parentNode === messagesEl){
+      hideRules();
+      return;
+    }
+    var cid = getChannelId();
+    if(!cid){
+      appendMessage('assistant', 'Select a channel first.');
+      return;
+    }
+    fetch('/discount/whatssapAPI/api/admin/coach-ai-rules/?channel_id=' + encodeURIComponent(cid))
+      .then(function(r){ return r.json(); })
+      .then(function(data){
+        var rulesText = (data.rules || '').trim();
+        currentRulesList = parseRulesText(rulesText);
+        if(!messagesEl) return;
+        var wrap = document.createElement('div');
+        wrap.className = 'ai-coaching-msg assistant cls3741_team_coach_rules_block';
+        var title = document.createElement('div');
+        title.className = 'cls3741_team_coach_rules_title';
+        title.textContent = currentRulesList.length ? 'Current rules (click × to remove one):' : 'No rules set for this channel.';
+        wrap.appendChild(title);
+        if(currentRulesList.length){
+          currentRulesList.forEach(function(ruleText){
+            var row = document.createElement('div');
+            row.className = 'cls3741_team_coach_rule_item';
+            var btn = document.createElement('button');
+            btn.type = 'button';
+            btn.className = 'cls3741_team_coach_rule_item_remove';
+            btn.setAttribute('aria-label', 'Remove this rule');
+            btn.innerHTML = '&times;';
+            var text = document.createElement('div');
+            text.className = 'cls3741_team_coach_rule_item_text';
+            text.textContent = ruleText;
+            row.appendChild(btn);
+            row.appendChild(text);
+            wrap.appendChild(row);
+            btn.addEventListener('click', function(){
+              if(!confirm('Remove this rule?')) return;
+              var rows = wrap.querySelectorAll('.cls3741_team_coach_rule_item');
+              var idx = Array.prototype.indexOf.call(rows, row);
+              var newList = currentRulesList.slice();
+              if(idx >= 0 && idx < newList.length) newList.splice(idx, 1);
+              currentRulesList = newList;
+              saveRulesAndUpdate(cid, newList, wrap);
+              row.remove();
+              if(newList.length === 0) title.textContent = 'No rules set for this channel.';
+            });
+          });
+        }
+        coachRulesBlockEl = wrap;
+        messagesEl.appendChild(wrap);
+        messagesEl.scrollTop = messagesEl.scrollHeight;
+        if(showRulesBtn){
+          showRulesBtn.classList.add('cls3741_team_coach_btn_rules_active');
+          showRulesBtn.title = 'Hide rules';
+        }
+      })
+      .catch(function(){ appendMessage('assistant', 'Could not load rules.'); });
+  }
+
+  function clearRules(){
+    var cid = getChannelId();
+    if(!cid){
+      appendMessage('assistant', 'Select a channel first.');
+      return;
+    }
+    if(!confirm('Remove all rules for this channel?')) return;
+    var csrf = (document.querySelector('[name=csrfmiddlewaretoken]') || {}).value;
+    fetch('/discount/whatssapAPI/api/admin/coach-ai-clear-rules/', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrf },
+      body: JSON.stringify({ channel_id: parseInt(cid, 10) || cid }),
+    })
+      .then(function(r){ return r.json(); })
+      .then(function(data){
+        if(data.success) appendMessage('assistant', 'Rules cleared for this channel.');
+        else appendMessage('assistant', data.error || 'Failed to clear rules.');
+      })
+      .catch(function(){ appendMessage('assistant', 'Could not clear rules.'); });
+  }
+
+  if(document.getElementById('btn_coach_ai')){
+    document.getElementById('btn_coach_ai').addEventListener('click', function(e){ e.stopPropagation(); openCoaching(); });
+  }
+  if(closeBtn) closeBtn.addEventListener('click', closeCoaching);
+  if(sendBtn) sendBtn.addEventListener('click', sendMessage);
+  if(inputEl) inputEl.addEventListener('keydown', function(e){ if(e.key === 'Enter' && !e.shiftKey){ e.preventDefault(); sendMessage(); } });
+  var clearRulesBtn = document.getElementById('aiCoachingClearRules');
+  if(showRulesBtn) showRulesBtn.addEventListener('click', showRules);
+  if(clearRulesBtn) clearRulesBtn.addEventListener('click', clearRules);
+})();
+      </script>
+
+          
+        <!-- </div> -->
+      </div>
+      <!-- </div> -->
+
+      {% if user.is_team_admin or user.is_superuser %}
+      <div style="margin-top: 24px;"></div>
+      {% include 'teams.html' %}
+      {% endif %}
+
     </div>
+    <!-- end .main1 -->
 
-
- {% if user.is_team_admin or user.is_superuser %}
-<div style="margin-top: 24px;"></div>
-{% include 'teams.html' %}
-
-{% endif %}
-
- 
-  <!-- </div> -->
-<style>
-  /* --- Dashboard Layout --- */
+    <!-- Dashboard panel styles -->
+    <style>
+/* Dashboard layout & components */
 .cls3741_panel_dashboard {
     padding: 24px;
     margin: 0 auto;
@@ -1674,6 +1943,30 @@ function filterContactsByStage(stageKey) {
 .support_icon { font-size: 32px; opacity: 0.8; }
 
 /* --- 3. Chart Section --- */
+.cls3741_charts_row {
+    max-width: 100%;
+    margin-left: 0;
+    margin-right: 0;
+}
+.cls3741_charts_row > [class*="col-"] {
+    padding-left: 0;
+    padding-right: 0;
+}
+@media (min-width: 992px) {
+    .cls3741_charts_row {
+        display: flex;
+        flex-wrap: nowrap;
+        gap: 24px;
+    }
+    .cls3741_charts_row > .col-lg-8 {
+        flex: 0 0 calc((100% - 24px) * 8 / 12);
+        max-width: calc((100% - 24px) * 8 / 12);
+    }
+    .cls3741_charts_row > .col-lg-4 {
+        flex: 0 0 calc((100% - 24px) * 4 / 12);
+        max-width: calc((100% - 24px) * 4 / 12);
+    }
+}
 .cls3741_chart_section {
     background: var(--bg-primary);
     border: 1px solid var(--border-color);
@@ -1691,6 +1984,361 @@ function filterContactsByStage(stageKey) {
 .chart_container {
     height: 300px;
     width: 100%;
+}
+
+/* Team Status card (redesigned) */
+.cls3741_team_status_wrapper {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    position: relative;
+    min-height: 320px;
+}
+.cls3741_team_status_wrapper .chart_header {
+    margin-bottom: 14px;
+}
+.cls3741_team_status_header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+.cls3741_team_status_header h3 {
+    margin: 0;
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+.cls3741_team_status_badge {
+    font-size: 12px;
+    color: var(--text-secondary);
+    background: var(--bg-secondary, rgba(255,255,255,.06));
+    padding: 4px 10px;
+    border-radius: 20px;
+    font-weight: 500;
+}
+.cls3741_team_status_list_wrap {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    overflow-x: hidden;
+}
+.cls3741_team_status_list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+.cls3741_team_status_actions {
+    flex-shrink: 0;
+    margin-left: auto;
+}
+.cls3741_btn_coach {
+    font-size: 12px;
+    padding: 5px 10px;
+    border-radius: 8px;
+    border: 1px solid var(--accent, #4f46e5);
+    background: transparent;
+    color: var(--accent, #4f46e5);
+    cursor: pointer;
+    font-weight: 500;
+    transition: background .15s, color .15s;
+}
+.cls3741_btn_coach:hover {
+    background: var(--accent, #4f46e5);
+    color: #fff;
+}
+.cls3741_ai_agent_row {
+    cursor: default;
+}
+.cls3741_ai_agent_row .cls3741_team_status_activity {
+    display: none;
+}
+.cls3741_ai_avatar .cls3741_team_status_avatar_initials {
+    font-size: 18px;
+}
+.cls3741_team_status_item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 12px;
+    background: var(--bg-secondary, rgba(255,255,255,.04));
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    cursor: pointer;
+    transition: background .15s, border-color .15s;
+}
+.cls3741_team_status_item:hover {
+    background: var(--bg-hover, rgba(255,255,255,.08));
+    border-color: var(--accent);
+}
+.cls3741_team_status_avatar {
+    position: relative;
+    flex-shrink: 0;
+    width: 40px;
+    height: 40px;
+    border-radius: 12px;
+    overflow: hidden;
+    background: linear-gradient(135deg, #475569, #334155);
+    color: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+    font-weight: 700;
+}
+.cls3741_team_status_avatar_img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+.cls3741_team_status_avatar_initials {
+    text-transform: uppercase;
+    line-height: 1;
+}
+.cls3741_team_status_dot {
+    position: absolute;
+    bottom: 2px;
+    right: 2px;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    border: 2px solid var(--bg-primary);
+    box-sizing: border-box;
+}
+.cls3741_team_status_dot.online {
+    background: #22c55e;
+}
+.cls3741_team_status_dot.offline {
+    background: #64748b;
+}
+.cls3741_team_status_info {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+.cls3741_team_status_name {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text-primary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.cls3741_team_status_you {
+    font-weight: 500;
+    color: var(--text-secondary);
+    font-style: normal;
+    margin-left: 4px;
+}
+.cls3741_team_status_role {
+    font-size: 12px;
+    color: var(--text-secondary);
+}
+.cls3741_team_status_activity {
+    flex-shrink: 0;
+    font-size: 11px;
+    color: var(--text-secondary);
+}
+.cls3741_team_status_activity .text-success,
+.cls3741_team_status_online {
+    color: #22c55e;
+    font-weight: 500;
+}
+.cls3741_team_status_ago {
+    color: var(--text-secondary);
+}
+.cls3741_team_status_empty {
+    text-align: center;
+    padding: 20px 12px;
+    margin: 0;
+    font-size: 13px;
+    color: var(--text-secondary);
+}
+
+/* Team Coach Chat Card (floating in place, same section) */
+.cls3741_team_coach_card {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 10;
+    background: var(--bg-primary, #1a1a2e);
+    border-radius: 16px;
+    border: 1px solid var(--border-color);
+    box-shadow: 0 12px 40px rgba(0,0,0,.25);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+.cls3741_team_coach_card_header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 14px;
+    border-bottom: 1px solid var(--border-color);
+    flex-shrink: 0;
+}
+.cls3741_team_coach_card_title { margin: 0; font-size: 15px; font-weight: 600; color: var(--text-primary); }
+.cls3741_team_coach_card_header_actions {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+.cls3741_team_coach_btn_rules,
+.cls3741_team_coach_btn_clear {
+    font-size: 11px;
+    padding: 5px 8px;
+    border-radius: 8px;
+    border: 1px solid var(--border-color);
+    background: var(--bg-secondary, rgba(255,255,255,.06));
+    color: var(--text-primary);
+    cursor: pointer;
+    font-weight: 500;
+    transition: background .15s, border-color .15s;
+}
+.cls3741_team_coach_btn_rules:hover { border-color: var(--accent); background: rgba(79,70,229,.15); }
+.cls3741_team_coach_btn_rules.cls3741_team_coach_btn_rules_active { border-color: var(--accent); background: rgba(79,70,229,.25); color: var(--accent); }
+.cls3741_team_coach_btn_clear:hover { border-color: #ef4444; background: rgba(239,68,68,.12); color: #f87171; }
+.cls3741_team_coach_card_close {
+    background: none;
+    border: none;
+    font-size: 20px;
+    color: var(--text-secondary);
+    cursor: pointer;
+    padding: 4px 8px;
+    line-height: 1;
+    border-radius: 8px;
+}
+.cls3741_team_coach_card_close:hover { background: rgba(255,255,255,.08); color: #fff; }
+.cls3741_team_coach_card_messages {
+    flex: 1;
+    min-height: 160px;
+    max-height: 280px;
+    overflow-y: auto;
+    padding: 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+.cls3741_team_coach_card_messages .ai-coaching-msg {
+    max-width: 90%;
+    padding: 8px 12px;
+    border-radius: 12px;
+    font-size: 13px;
+    line-height: 1.4;
+    word-wrap: break-word;
+}
+.cls3741_team_coach_card_messages .ai-coaching-msg.user {
+    align-self: flex-end;
+    background: var(--accent, #4f46e5);
+    color: #fff;
+}
+.cls3741_team_coach_card_messages .ai-coaching-msg.assistant {
+    align-self: flex-start;
+    background: var(--bg-secondary, rgba(255,255,255,.08));
+    border: 1px solid var(--border-color);
+    color: var(--text-primary);
+    white-space: pre-wrap;
+}
+.cls3741_team_coach_rules_block {
+    align-self: flex-start;
+    width: 100%;
+    max-width: 100%;
+    background: var(--bg-secondary, rgba(255,255,255,.08));
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    padding: 10px 12px;
+    color: var(--text-primary);
+}
+.cls3741_team_coach_rules_title {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-secondary);
+    margin-bottom: 8px;
+}
+.cls3741_team_coach_rule_item {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    padding: 6px 0;
+    border-bottom: 1px solid rgba(255,255,255,.06);
+    font-size: 13px;
+    line-height: 1.4;
+}
+.cls3741_team_coach_rule_item:last-child { border-bottom: none; }
+.cls3741_team_coach_rule_item_remove {
+    flex-shrink: 0;
+    width: 22px;
+    height: 22px;
+    border: none;
+    border-radius: 6px;
+    background: rgba(239,68,68,.2);
+    color: #f87171;
+    cursor: pointer;
+    font-size: 14px;
+    line-height: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    transition: background .15s;
+}
+.cls3741_team_coach_rule_item_remove:hover {
+    background: rgba(239,68,68,.35);
+}
+.cls3741_team_coach_rule_item_text {
+    flex: 1;
+    min-width: 0;
+    white-space: pre-wrap;
+    word-break: break-word;
+}
+.cls3741_team_coach_card_input_wrap {
+    padding: 10px 12px;
+    border-top: 1px solid var(--border-color);
+    display: flex;
+    gap: 8px;
+    align-items: flex-end;
+    flex-shrink: 0;
+}
+.cls3741_team_coach_card_input {
+    flex: 1;
+    resize: none;
+    padding: 8px 12px;
+    border-radius: 10px;
+    border: 1px solid var(--border-color);
+    background: var(--bg-secondary);
+    color: var(--text-primary);
+    font-size: 13px;
+    font-family: inherit;
+    min-height: 40px;
+    max-height: 100px;
+}
+.cls3741_team_coach_card_input:focus { outline: none; border-color: var(--accent); }
+.cls3741_team_coach_card_send {
+    padding: 8px 14px;
+    border-radius: 10px;
+    border: none;
+    background: var(--accent, #4f46e5);
+    color: #fff;
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    flex-shrink: 0;
+}
+.cls3741_team_coach_card_send:hover { opacity: .9; }
+.cls3741_team_coach_card_send:disabled { opacity: .5; cursor: not-allowed; }
+.cls3741_team_coach_card_loading {
+    padding: 6px 12px;
+    font-size: 12px;
+    color: var(--text-secondary);
+    text-align: center;
 }
 
 /* Mobile Responsive - Dashboard */
@@ -1784,15 +2432,16 @@ function filterContactsByStage(stageKey) {
         padding: 16px;
         gap: 12px;
     }
-    .cls3741_team_card .cls3741_card_header {
-        flex-wrap: wrap;
-        gap: 8px;
+    .cls3741_team_status_item {
+        padding: 8px 10px;
+        gap: 10px;
     }
-    .cls3741_team_card .cls3741_card_title { font-size: 14px; }
-    .cls3741_team_item {
-        flex-wrap: wrap;
-        padding: 10px 12px;
+    .cls3741_team_status_avatar {
+        width: 36px;
+        height: 36px;
+        font-size: 12px;
     }
+    .cls3741_team_status_name { font-size: 13px; }
     .cls3741_section_title {
         flex-wrap: wrap;
         gap: 8px;
@@ -1842,10 +2491,10 @@ function filterContactsByStage(stageKey) {
     }
     .chart_container { height: 200px; }
 }
-</style>
+    </style>
 
-
-</section>
+  </section>
+  <!-- end Dashboard panel -->
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
@@ -5682,110 +6331,118 @@ $('#cls3741_attach_btn').on('click', function() {
 
 
   <!-- ------------------- Product (create product) — Professional layout + Live preview ------------------- -->
-  <section class="cls3741_panel cls3741_panel_products" style="display: none; padding: 24px; height: 100%; overflow: auto;">
+  <section class="cls3741_panel cls3741_panel_products" style="display: none; padding: 0; height: 100%; overflow: auto; background: linear-gradient(180deg, #0d0f14 0%, #13161d 100%);">
     <style>
-      .product-panel { max-width: 1280px; margin: 0 auto; }
-      .product-panel .product-header { margin-bottom: 28px; }
-      .product-panel .product-header h2 { font-size: 1.5rem; font-weight: 700; color: #f1f5f9; letter-spacing: -0.02em; margin: 0 0 6px 0; }
-      .product-panel .product-header p { font-size: 0.9rem; color: #94a3b8; margin: 0; }
-      .product-panel-layout { display: grid; grid-template-columns: 1fr 380px; gap: 24px; align-items: start; }
-      @media (max-width: 1024px) { .product-panel-layout { grid-template-columns: 1fr; } }
-      .product-panel .product-form-col { min-width: 0; }
-      .product-panel .product-card { background: rgba(15, 23, 42, 0.6); border: 1px solid rgba(255,255,255,0.08); border-radius: 14px; padding: 22px; margin-bottom: 20px; }
-      .product-panel .product-card-title { font-size: 0.8rem; font-weight: 600; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 16px; padding-bottom: 10px; border-bottom: 1px solid rgba(255,255,255,0.06); }
-      .product-panel .form-row { margin-bottom: 18px; }
-      .product-panel .form-row:last-child { margin-bottom: 0; }
-      .product-panel label { display: block; font-size: 0.875rem; font-weight: 600; color: #e2e8f0; margin-bottom: 8px; }
-      .product-panel label .req { color: #f87171; }
-      .product-panel input[type="text"], .product-panel input[type="number"], .product-panel textarea, .product-panel input[type="file"] { width: 100%; padding: 11px 14px; border-radius: 10px; border: 1px solid rgba(255,255,255,0.1); background: rgba(2, 6, 23, 0.5); color: #f1f5f9; font-size: 0.9rem; transition: border-color 0.2s, box-shadow 0.2s; }
-      .product-panel input:focus, .product-panel textarea:focus { outline: none; border-color: #6366f1; box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.2); }
-      .product-panel input::placeholder, .product-panel textarea::placeholder { color: #64748b; }
-      .product-panel textarea { resize: vertical; min-height: 88px; }
-      .product-panel .form-hint { font-size: 0.8rem; color: #64748b; margin-top: 6px; }
-      .product-panel .offer-tiers { margin-top: 12px; }
-      .product-panel .offer-tier-row { display: flex; gap: 12px; align-items: center; margin-bottom: 10px; }
-      .product-panel .offer-tier-row input { flex: 0 0 100px; }
-      .product-panel .offer-tier-row input.price-inp { flex: 1 1 120px; }
-      .product-panel .offer-tier-row .tier-remove { flex: 0 0 auto; padding: 8px 12px; border-radius: 8px; background: rgba(239, 68, 68, 0.15); color: #fca5a5; border: 1px solid rgba(239, 68, 68, 0.3); cursor: pointer; font-size: 0.85rem; }
-      .product-panel .offer-tier-row .tier-remove:hover { background: rgba(239, 68, 68, 0.25); }
-      .product-panel .btn-add-tier { display: inline-flex; align-items: center; gap: 8px; padding: 10px 16px; border-radius: 10px; background: rgba(99, 102, 241, 0.2); color: #a5b4fc; border: 1px dashed rgba(99, 102, 241, 0.5); cursor: pointer; font-size: 0.9rem; font-weight: 500; margin-top: 8px; }
-      .product-panel .btn-add-tier:hover { background: rgba(99, 102, 241, 0.3); color: #c7d2fe; }
-      .product-panel .product-alert { padding: 14px 18px; border-radius: 12px; margin-bottom: 20px; font-size: 0.9rem; }
-      .product-panel .product-alert.error { background: rgba(239, 68, 68, 0.12); border: 1px solid rgba(239, 68, 68, 0.3); color: #fca5a5; }
-      .product-panel .product-alert.success { background: rgba(34, 197, 94, 0.12); border: 1px solid rgba(34, 197, 94, 0.3); color: #86efac; }
-      .product-panel .btn-submit { padding: 14px 28px; border-radius: 12px; background: linear-gradient(135deg, #4f46e5 0%, #6366f1 100%); color: white; font-weight: 600; font-size: 0.95rem; border: none; cursor: pointer; box-shadow: 0 4px 14px rgba(79, 70, 229, 0.4); transition: transform 0.15s, box-shadow 0.15s; }
-      .product-panel .btn-submit:hover { transform: translateY(-1px); box-shadow: 0 6px 20px rgba(79, 70, 229, 0.45); }
-      .product-panel .btn-submit:disabled { opacity: 0.7; cursor: not-allowed; transform: none; }
-      .product-panel .product-list-view { min-width: 0; }
-      .product-panel .product-list-header { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; margin-bottom: 16px; }
-      .product-panel .product-list-title { font-size: 1.1rem; font-weight: 600; color: #e2e8f0; margin: 0; }
-      .product-panel .product-btn-add { padding: 10px 18px; font-size: 0.9rem; }
-      .product-panel .product-form-wrap { min-width: 0; }
-      .product-panel .product-form-header { display: flex; align-items: center; gap: 12px; margin-bottom: 20px; flex-wrap: wrap; }
-      .product-panel .product-btn-back { padding: 8px 14px; border-radius: 10px; border: 1px solid rgba(255,255,255,0.15); background: rgba(255,255,255,0.06); color: #94a3b8; font-size: 0.875rem; cursor: pointer; display: inline-flex; align-items: center; gap: 8px; transition: background 0.2s, color 0.2s; }
-      .product-panel .product-btn-back:hover { background: rgba(255,255,255,0.1); color: #e2e8f0; }
-      .product-panel .product-form-heading { font-size: 1rem; font-weight: 600; color: #e2e8f0; }
-      .product-panel .product-list-grid { display: flex; flex-wrap: wrap; gap: 14px; }
-      .product-panel .product-list-card { position: relative; padding: 14px; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.06); border-radius: 12px; min-width: 160px; transition: border-color 0.2s, background 0.2s; cursor: pointer; }
-      .product-panel .product-list-card:hover { background: rgba(255,255,255,0.06); border-color: rgba(255,255,255,0.1); }
-      .product-panel .product-list-card.product-selected { border-color: #6366f1; background: rgba(99, 102, 241, 0.08); box-shadow: 0 0 0 1px #6366f1; }
-      .product-panel .product-list-card img { width: 100%; height: 100px; object-fit: cover; border-radius: 8px; display: block; pointer-events: none; }
-      .product-panel .product-list-card .no-img { width: 100%; height: 100px; background: rgba(255,255,255,0.06); border-radius: 8px; display: flex; align-items: center; justify-content: center; color: #64748b; font-size: 0.85rem; }
-      .product-panel .product-list-card .name { margin-top: 10px; font-weight: 600; color: #e2e8f0; font-size: 0.95rem; }
-      .product-panel .product-list-card .price { margin-top: 4px; color: #94a3b8; font-size: 0.875rem; }
-      .product-panel .product-list-card .product-card-edit { position: absolute; top: 8px; right: 8px; width: 28px; height: 28px; border-radius: 8px; border: none; background: rgba(99, 102, 241, 0.9); color: #fff; display: flex; align-items: center; justify-content: center; cursor: pointer; z-index: 1; opacity: 0.85; transition: opacity 0.2s; font-size: 0.75rem; }
-      .product-panel .product-list-card .product-card-edit:hover { opacity: 1; background: #6366f1; }
-      .product-panel .product-list-card .product-card-edit i { pointer-events: none; }
-      /* Add product modal */
-      .product-add-modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.6); z-index: 10000; display: flex; align-items: center; justify-content: center; padding: 20px; opacity: 0; visibility: hidden; transition: opacity 0.2s, visibility 0.2s; }
+      .cls3741_panel_products .product-panel {  margin: 0 auto; padding: 0 1.5rem 2rem; }
+      .cls3741_panel_products .product-header { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 1rem; margin-bottom: 1.5rem; padding: 1.25rem 1.5rem;border-bottom:1px solid rgba(255,255,255,0.06);  background: rgba(255,255,255,0.03); }
+      .cls3741_panel_products .product-header-inner { display: flex; align-items: center; gap: 1rem; }
+      .cls3741_panel_products .product-header-icon { width: 44px; height: 44px; border-radius: 12px; display: flex; align-items: center; justify-content: center; background: linear-gradient(135deg, #4f46e5, #6366f1); color: #e0e7ff; font-size: 1.1rem; flex-shrink: 0; }
+      .cls3741_panel_products .product-header h2 { font-size: 1.25rem; font-weight: 700; color: #f1f5f9; letter-spacing: -0.02em; margin: 0 0 4px 0; }
+      .cls3741_panel_products .product-header p { font-size: 0.875rem; color: #94a3b8; margin: 0; }
+      .cls3741_panel_products .product-panel-layout { display: grid; grid-template-columns: 1fr 380px; gap: 1.5rem; align-items: start; }
+      @media (max-width: 1024px) { .cls3741_panel_products .product-panel-layout { grid-template-columns: 1fr; } }
+      .cls3741_panel_products .product-form-col { min-width: 0; }
+      .cls3741_panel_products .product-card { background: rgba(15,23,42,0.7); border: 1px solid rgba(148,163,184,0.12); border-radius: 14px; padding: 1.35rem 1.4rem; margin-bottom: 1.25rem; box-shadow: 0 4px 20px -8px rgba(0,0,0,0.25); }
+      .cls3741_panel_products .product-card-title { font-size: 0.7rem; font-weight: 600; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 1rem; padding-bottom: 0.6rem; border-bottom: 1px solid rgba(255,255,255,0.06); }
+      .cls3741_panel_products .form-row { margin-bottom: 1rem; }
+      .cls3741_panel_products .form-row:last-child { margin-bottom: 0; }
+      .cls3741_panel_products label { display: block; font-size: 0.875rem; font-weight: 600; color: #e2e8f0; margin-bottom: 0.5rem; }
+      .cls3741_panel_products label .req { color: #f87171; }
+      .cls3741_panel_products input[type="text"], .cls3741_panel_products input[type="number"], .cls3741_panel_products textarea, .cls3741_panel_products input[type="file"] { width: 100%; padding: 0.6rem 0.85rem; border-radius: 10px; border: 1px solid rgba(255,255,255,0.1); background: rgba(2,6,23,0.5); color: #f1f5f9; font-size: 0.9rem; transition: border-color 0.2s, box-shadow 0.2s; }
+      .cls3741_panel_products input:focus, .cls3741_panel_products textarea:focus { outline: none; border-color: #6366f1; box-shadow: 0 0 0 3px rgba(99,102,241,0.2); }
+      .cls3741_panel_products input::placeholder, .cls3741_panel_products textarea::placeholder { color: #64748b; }
+      .cls3741_panel_products textarea { resize: vertical; min-height: 88px; }
+      .cls3741_panel_products .form-hint { font-size: 0.78rem; color: #64748b; margin-top: 0.35rem; }
+      .cls3741_panel_products .offer-tiers { margin-top: 0.75rem; }
+      .cls3741_panel_products .offer-tier-row { display: flex; gap: 0.75rem; align-items: center; margin-bottom: 0.6rem; }
+      .cls3741_panel_products .offer-tier-row input { flex: 0 0 100px; }
+      .cls3741_panel_products .offer-tier-row input.price-inp { flex: 1 1 120px; }
+      .cls3741_panel_products .offer-tier-row .tier-remove { flex: 0 0 auto; padding: 0.5rem 0.75rem; border-radius: 8px; background: rgba(239,68,68,0.15); color: #fca5a5; border: 1px solid rgba(239,68,68,0.3); cursor: pointer; font-size: 0.8rem; }
+      .cls3741_panel_products .offer-tier-row .tier-remove:hover { background: rgba(239,68,68,0.25); }
+      .cls3741_panel_products .btn-add-tier { display: inline-flex; align-items: center; gap: 0.5rem; padding: 0.55rem 1rem; border-radius: 10px; background: rgba(99,102,241,0.2); color: #a5b4fc; border: 1px dashed rgba(99,102,241,0.5); cursor: pointer; font-size: 0.875rem; font-weight: 500; margin-top: 0.5rem; }
+      .cls3741_panel_products .btn-add-tier:hover { background: rgba(99,102,241,0.3); color: #c7d2fe; }
+      .cls3741_panel_products .product-alert { padding: 0.85rem 1.1rem; border-radius: 12px; margin-bottom: 1rem; font-size: 0.875rem; }
+      .cls3741_panel_products .product-alert.error { background: rgba(239,68,68,0.12); border: 1px solid rgba(239,68,68,0.35); color: #fecaca; }
+      .cls3741_panel_products .product-alert.success { background: rgba(22,163,74,0.12); border: 1px solid rgba(22,163,74,0.35); color: #bbf7d0; }
+      .cls3741_panel_products .btn-submit { padding: 0.75rem 1.5rem; border-radius: 10px; background: linear-gradient(135deg, #4f46e5 0%, #6366f1 100%); color: white; font-weight: 600; font-size: 0.9rem; border: none; cursor: pointer; box-shadow: 0 4px 14px rgba(79,70,229,0.4); transition: transform 0.15s, box-shadow 0.15s; }
+      .cls3741_panel_products .btn-submit:hover { transform: translateY(-1px); box-shadow: 0 6px 20px rgba(79,70,229,0.45); }
+      .cls3741_panel_products .btn-submit:disabled { opacity: 0.7; cursor: not-allowed; transform: none; }
+      .cls3741_panel_products .product-list-view { min-width: 0; }
+      .cls3741_panel_products .product-list-header { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 0.75rem; margin-bottom: 1rem; padding: 0.5rem 0; }
+      .cls3741_panel_products .product-list-title { font-size: 1.05rem; font-weight: 600; color: #e2e8f0; margin: 0; letter-spacing: -0.01em; }
+      .cls3741_panel_products .product-btn-add { padding: 0.5rem 1rem; font-size: 0.875rem; border-radius: 999px; display: inline-flex; align-items: center; gap: 0.5rem; }
+      .cls3741_panel_products .product-form-wrap { min-width: 0; }
+      .cls3741_panel_products .product-form-header { display: flex; align-items: center; gap: 0.75rem; margin-bottom: 1.25rem; flex-wrap: wrap; }
+      .cls3741_panel_products .product-btn-back { padding: 0.5rem 0.85rem; border-radius: 10px; border: 1px solid rgba(255,255,255,0.12); background: rgba(255,255,255,0.05); color: #94a3b8; font-size: 0.85rem; cursor: pointer; display: inline-flex; align-items: center; gap: 0.5rem; transition: background 0.2s, color 0.2s; }
+      .cls3741_panel_products .product-btn-back:hover { background: rgba(255,255,255,0.1); color: #e2e8f0; }
+      .cls3741_panel_products .product-form-heading { font-size: 0.95rem; font-weight: 600; color: #e2e8f0; }
+      .cls3741_panel_products .product-list-grid { display: flex; flex-wrap: wrap; gap: 0.9rem; }
+      .cls3741_panel_products .product-list-card { position: relative; padding: 0.9rem; background: rgba(15,23,42,0.8); border: 1px solid rgba(148,163,184,0.15); border-radius: 12px; min-width: 165px; transition: border-color 0.2s, background 0.2s, transform 0.2s, box-shadow 0.2s; cursor: pointer; }
+      .cls3741_panel_products .product-list-card:hover { background: rgba(15,23,42,0.95); border-color: rgba(129,140,248,0.4); transform: translateY(-2px); box-shadow: 0 12px 28px -12px rgba(0,0,0,0.35); }
+      .cls3741_panel_products .product-list-card.product-selected { border-color: #6366f1; background: rgba(99,102,241,0.1); box-shadow: 0 0 0 1px #6366f1; }
+      .cls3741_panel_products .product-list-card img { width: 100%; height: 100px; object-fit: cover; border-radius: 8px; display: block; pointer-events: none; }
+      .cls3741_panel_products .product-list-card .no-img { width: 100%; height: 100px; background: rgba(255,255,255,0.06); border-radius: 8px; display: flex; align-items: center; justify-content: center; color: #64748b; font-size: 0.85rem; }
+      .cls3741_panel_products .product-list-card .name { margin-top: 0.6rem; font-weight: 600; color: #e2e8f0; font-size: 0.9rem; }
+      .cls3741_panel_products .product-list-card .price { margin-top: 0.25rem; color: #94a3b8; font-size: 0.85rem; }
+      .cls3741_panel_products .product-list-card .product-card-edit { position: absolute; top: 6px; right: 6px; width: 28px; height: 28px; border-radius: 8px; border: none; background: rgba(99,102,241,0.95); color: #fff; display: flex; align-items: center; justify-content: center; cursor: pointer; z-index: 1; opacity: 0.9; transition: opacity 0.2s; font-size: 0.75rem; }
+      .cls3741_panel_products .product-list-card .product-card-edit:hover { opacity: 1; background: #6366f1; }
+      .cls3741_panel_products .product-list-card .product-card-edit i { pointer-events: none; }
+      .product-add-modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.65); z-index: 10000; display: flex; align-items: center; justify-content: center; padding: 20px; opacity: 0; visibility: hidden; transition: opacity 0.2s, visibility 0.2s; backdrop-filter: blur(4px); }
       .product-add-modal-overlay.product-add-modal-open { opacity: 1; visibility: visible; }
-      .product-add-modal { background: linear-gradient(180deg, #1e293b 0%, #0f172a 100%); border: 1px solid rgba(255,255,255,0.1); border-radius: 16px; max-width: 420px; width: 100%; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.5); overflow: hidden; }
-      .product-add-modal .product-add-modal-header { padding: 20px 24px; border-bottom: 1px solid rgba(255,255,255,0.08); font-size: 1.15rem; font-weight: 600; color: #f1f5f9; }
-      .product-add-modal .product-add-modal-body { padding: 24px; }
-      .product-add-modal .product-add-options { display: flex; flex-direction: column; gap: 12px; }
-      .product-add-modal .product-add-option { display: flex; align-items: center; gap: 16px; padding: 16px 18px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.1); background: rgba(255,255,255,0.03); cursor: pointer; transition: background 0.2s, border-color 0.2s; }
-      .product-add-modal .product-add-option:hover { background: rgba(255,255,255,0.06); border-color: rgba(99, 102, 241, 0.4); }
-      .product-add-modal .product-add-option-icon { width: 44px; height: 44px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 1.2rem; color: #a5b4fc; background: rgba(99, 102, 241, 0.2); }
+      .product-add-modal { background: linear-gradient(180deg, #1e293b 0%, #0f172a 100%); border: 1px solid rgba(148,163,184,0.2); border-radius: 16px; max-width: 420px; width: 100%; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.5); overflow: hidden; }
+      .product-add-modal .product-add-modal-header { padding: 1.25rem 1.5rem; border-bottom: 1px solid rgba(255,255,255,0.08); font-size: 1.1rem; font-weight: 600; color: #f1f5f9; }
+      .product-add-modal .product-add-modal-body { padding: 1.5rem; }
+      .product-add-modal .product-add-options { display: flex; flex-direction: column; gap: 0.75rem; }
+      .product-add-modal .product-add-option { display: flex; align-items: center; gap: 1rem; padding: 1rem 1.1rem; border-radius: 12px; border: 1px solid rgba(255,255,255,0.1); background: rgba(255,255,255,0.03); cursor: pointer; transition: background 0.2s, border-color 0.2s; }
+      .product-add-modal .product-add-option:hover { background: rgba(255,255,255,0.06); border-color: rgba(99,102,241,0.4); }
+      .product-add-modal .product-add-option-icon { width: 42px; height: 42px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 1.1rem; color: #a5b4fc; background: rgba(99,102,241,0.2); }
       .product-add-modal .product-add-option-text { flex: 1; }
       .product-add-modal .product-add-option-title { font-weight: 600; color: #e2e8f0; margin-bottom: 2px; }
       .product-add-modal .product-add-option-desc { font-size: 0.8rem; color: #94a3b8; }
       .product-add-modal .product-add-ai-step { display: none; }
       .product-add-modal .product-add-ai-step.visible { display: block; }
       .product-add-modal .product-add-ai-step label { display: block; font-size: 0.875rem; font-weight: 600; color: #e2e8f0; margin-bottom: 8px; }
-      .product-add-modal .product-add-ai-step input[type="url"] { width: 100%; padding: 12px 14px; border-radius: 10px; border: 1px solid rgba(255,255,255,0.1); background: rgba(2,6,23,0.5); color: #f1f5f9; font-size: 0.9rem; margin-bottom: 12px; }
-      .product-add-modal .product-add-ai-step .product-add-ai-actions { display: flex; gap: 10px; align-items: center; }
-      .product-add-modal .product-add-ai-step .product-add-ai-loading { display: none; align-items: center; gap: 8px; color: #94a3b8; font-size: 0.875rem; }
+      .product-add-modal .product-add-ai-step input[type="url"] { width: 100%; padding: 0.75rem 0.85rem; border-radius: 10px; border: 1px solid rgba(255,255,255,0.1); background: rgba(2,6,23,0.5); color: #f1f5f9; font-size: 0.9rem; margin-bottom: 0.75rem; }
+      .product-add-modal .product-add-ai-step .product-add-ai-actions { display: flex; gap: 0.6rem; align-items: center; }
+      .product-add-modal .product-add-ai-step .product-add-ai-loading { display: none; align-items: center; gap: 0.5rem; color: #94a3b8; font-size: 0.875rem; }
       .product-add-modal .product-add-ai-step .product-add-ai-loading.visible { display: flex; }
-      .product-add-modal .product-add-ai-error { margin-top: 12px; padding: 12px; border-radius: 10px; background: rgba(239,68,68,0.12); border: 1px solid rgba(239,68,68,0.3); color: #fca5a5; font-size: 0.875rem; display: none; }
+      .product-add-modal .product-add-ai-error { margin-top: 0.75rem; padding: 0.75rem; border-radius: 10px; background: rgba(239,68,68,0.12); border: 1px solid rgba(239,68,68,0.3); color: #fca5a5; font-size: 0.85rem; display: none; }
       .product-add-modal .product-add-ai-error.visible { display: block; }
-      .product-add-modal .product-add-back { margin-top: 16px; padding: 8px 0; color: #94a3b8; font-size: 0.875rem; cursor: pointer; background: none; border: none; }
+      .product-add-modal .product-add-back { margin-top: 1rem; padding: 0.5rem 0; color: #94a3b8; font-size: 0.875rem; cursor: pointer; background: none; border: none; }
       .product-add-modal .product-add-back:hover { color: #e2e8f0; }
       @keyframes product-spin { to { transform: rotate(360deg); } }
-      /* Product preview card */
-      .product-preview-card { position: sticky; top: 24px; background: rgba(15, 23, 42, 0.85); border: 1px solid rgba(255,255,255,0.1); border-radius: 16px; padding: 0; overflow: hidden; box-shadow: 0 10px 40px rgba(0,0,0,0.2); }
-      .product-preview-card .preview-label { font-size: 0.75rem; font-weight: 600; color: #64748b; text-transform: uppercase; letter-spacing: 0.08em; padding: 14px 20px; border-bottom: 1px solid rgba(255,255,255,0.06); }
-      .product-preview-card .preview-body { padding: 20px; }
-      .product-preview-card .preview-image-wrap { width: 100%; aspect-ratio: 1; background: rgba(0,0,0,0.2); border-radius: 12px; overflow: hidden; margin-bottom: 18px; display: flex; align-items: center; justify-content: center; }
-      .product-preview-card .preview-image-wrap img { width: 100%; height: 100%; object-fit: cover; display: block; }
-      .product-preview-card .preview-image-wrap .preview-placeholder { color: #475569; font-size: 0.85rem; text-align: center; padding: 24px; }
-      .product-preview-card .preview-thumbs { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 16px; }
-      .product-preview-card .preview-thumbs { align-items: center; }
-      .product-preview-card .preview-thumbs .preview-thumb-wrap { position: relative; display: inline-block; }
-      .product-preview-card .preview-thumbs .preview-thumb-wrap img,
-      .product-preview-card .preview-thumbs .preview-thumb-wrap .preview-thumb-video { width: 56px; height: 56px; object-fit: cover; border-radius: 8px; border: 2px solid rgba(255,255,255,0.1); cursor: pointer; display: block; }
-      .product-preview-card .preview-thumbs .preview-thumb-video { display: flex; align-items: center; justify-content: center; background: #1e293b; color: #94a3b8; font-size: 1.2rem; }
-      .product-preview-card .preview-thumbs .preview-thumb-remove { position: absolute; top: 2px; right: 2px; width: 20px; height: 20px; border-radius: 50%; border: none; background: rgba(239,68,68,0.95); color: #fff; font-size: 14px; line-height: 1; cursor: pointer; display: flex; align-items: center; justify-content: center; padding: 0; z-index: 2; box-shadow: 0 1px 3px rgba(0,0,0,0.3); }
-      .product-preview-card .preview-thumbs .preview-thumb-remove:hover { background: #ef4444; }
-      .product-preview-card .preview-image-wrap video { width: 100%; height: 100%; object-fit: cover; }
-      .product-preview-card .preview-title { font-size: 1.15rem; font-weight: 700; color: #f1f5f9; margin: 0 0 8px 0; line-height: 1.3; }
-      .product-preview-card .preview-price { font-size: 1.25rem; font-weight: 700; color: #6366f1; margin-bottom: 14px; }
-      .product-preview-card .preview-desc { font-size: 0.875rem; color: #94a3b8; line-height: 1.55; margin-bottom: 14px; white-space: pre-wrap; word-break: break-word; }
-      .product-preview-card .preview-tiers { margin-bottom: 14px; }
-      .product-preview-card .preview-tiers .tier-item { font-size: 0.85rem; color: #cbd5e1; padding: 6px 0; border-bottom: 1px solid rgba(255,255,255,0.05); }
-      .product-preview-card .preview-how { font-size: 0.8rem; color: #64748b; line-height: 1.5; padding-top: 12px; border-top: 1px solid rgba(255,255,255,0.06); white-space: pre-wrap; word-break: break-word; }
+      .cls3741_panel_products .product-preview-card { position: sticky; top: 1.5rem; background: rgba(15,23,42,0.9); border: 1px solid rgba(148,163,184,0.2); border-radius: 16px; padding: 0; overflow: hidden; box-shadow: 0 18px 45px -20px rgba(0,0,0,0.35); }
+      .cls3741_panel_products .product-preview-card .preview-label { font-size: 0.7rem; font-weight: 600; color: #64748b; text-transform: uppercase; letter-spacing: 0.1em; padding: 0.85rem 1.25rem; border-bottom: 1px solid rgba(255,255,255,0.06); }
+      .cls3741_panel_products .product-preview-card .preview-body { padding: 1.25rem; }
+      .cls3741_panel_products .product-preview-card .preview-image-wrap { width: 100%; aspect-ratio: 1; background: rgba(0,0,0,0.2); border-radius: 12px; overflow: hidden; margin-bottom: 1rem; display: flex; align-items: center; justify-content: center; }
+      .cls3741_panel_products .product-preview-card .preview-image-wrap img { width: 100%; height: 100%; object-fit: cover; display: block; }
+      .cls3741_panel_products .product-preview-card .preview-image-wrap .preview-placeholder { color: #475569; font-size: 0.85rem; text-align: center; padding: 1.5rem; }
+      .cls3741_panel_products .product-preview-card .preview-thumbs { display: flex; gap: 0.5rem; flex-wrap: wrap; margin-bottom: 1rem; align-items: center; }
+      .cls3741_panel_products .product-preview-card .preview-thumbs .preview-thumb-wrap { position: relative; display: inline-block; }
+      .cls3741_panel_products .product-preview-card .preview-thumbs .preview-thumb-wrap img,
+      .cls3741_panel_products .product-preview-card .preview-thumbs .preview-thumb-wrap .preview-thumb-video { width: 52px; height: 52px; object-fit: cover; border-radius: 8px; border: 2px solid rgba(255,255,255,0.1); cursor: pointer; display: block; }
+      .cls3741_panel_products .product-preview-card .preview-thumbs .preview-thumb-video { display: flex; align-items: center; justify-content: center; background: #1e293b; color: #94a3b8; font-size: 1.1rem; }
+      .cls3741_panel_products .product-preview-card .preview-thumbs .preview-thumb-remove { position: absolute; top: 2px; right: 2px; width: 20px; height: 20px; border-radius: 50%; border: none; background: rgba(239,68,68,0.95); color: #fff; font-size: 14px; line-height: 1; cursor: pointer; display: flex; align-items: center; justify-content: center; padding: 0; z-index: 2; box-shadow: 0 1px 3px rgba(0,0,0,0.3); }
+      .cls3741_panel_products .product-preview-card .preview-thumbs .preview-thumb-remove:hover { background: #ef4444; }
+      .cls3741_panel_products .product-preview-card .preview-image-wrap video { width: 100%; height: 100%; object-fit: cover; }
+      .cls3741_panel_products .product-preview-card .preview-title { font-size: 1.1rem; font-weight: 700; color: #f1f5f9; margin: 0 0 0.5rem 0; line-height: 1.3; }
+      .cls3741_panel_products .product-preview-card .preview-price { font-size: 1.2rem; font-weight: 700; color: #6366f1; margin-bottom: 0.85rem; }
+      .cls3741_panel_products .product-preview-card .preview-desc { font-size: 0.85rem; color: #94a3b8; line-height: 1.5; margin-bottom: 0.85rem; white-space: pre-wrap; word-break: break-word; }
+      .cls3741_panel_products .product-preview-card .preview-tiers { margin-bottom: 0.85rem; }
+      .cls3741_panel_products .product-preview-card .preview-tiers .tier-item { font-size: 0.8rem; color: #cbd5e1; padding: 0.35rem 0; border-bottom: 1px solid rgba(255,255,255,0.05); }
+      .cls3741_panel_products .product-preview-card .preview-how { font-size: 0.78rem; color: #64748b; line-height: 1.5; padding-top: 0.75rem; border-top: 1px solid rgba(255,255,255,0.06); white-space: pre-wrap; word-break: break-word; }
     </style>
-
+<header class="product-header">
+        <div class="product-header-inner">
+          <div class="product-header-icon"><i class="fas fa-box-open"></i></div>
+          <div>
+            <h2>Products catalog</h2>
+            <p>Manage products for your AI agent and WhatsApp flows. Add manually or generate from a product link.</p>
+          </div>
+        </div>
+      </header>
     <div class="product-panel">
+      
       <div id="product_form_errors" class="product-alert error" style="display:none;"></div>
       <div id="product_form_success" class="product-alert success" style="display:none;"></div>
 
@@ -7038,11 +7695,7 @@ $(document).ready(function() {
   </section>
 
  <section class="cls3741_panel cls3741_panel_templates" style="display:none;height:100%;overflow:auto;">
-   <div style="display:flex;flex-direction:column;gap:16px;padding:20px 20px 24px;">
-        <div style="display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;padding:14px 18px;border-radius:16px;border:1px solid rgba(15,23,42,0.9);background:
-          radial-gradient(circle at top left, rgba(79,70,229,0.22), transparent 55%),
-          radial-gradient(circle at bottom right, rgba(16,185,129,0.18), transparent 55%),
-          rgba(15,23,42,0.96);box-shadow:0 18px 45px -22px rgba(15,23,42,0.9);">
+  <div style="display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid rgba(255,255,255,0.06);gap:16px;flex-wrap:wrap;padding:1.25rem 1.5rem;border-radius:0px;background:rgba(255,255,255,0.03);">
             <div style="display:flex;align-items:center;gap:12px;">
                 <div style="width:40px;height:40px;border-radius:12px;display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,#10b981,#059669);color:#ecfdf5;font-size:1rem;flex-shrink:0;">
                     <i class="fas fa-file-alt"></i>
@@ -7063,6 +7716,8 @@ $(document).ready(function() {
                 </button>
             </div>
         </div>
+   <div style="display:flex;flex-direction:column;gap:16px;padding:20px 20px 24px;">
+         
     
         <div id="template_create_section" style="display:none;background:var(--surface);padding:20px;border-radius:12px;border:1px solid var(--border);margin-bottom:20px;">
             <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;padding-bottom:12px;border-bottom:1px solid var(--border);">
@@ -7446,7 +8101,7 @@ $(document).ready(function() {
 
 </section>
 
-  <section class="cls3741_panel cls3741_panel_automation" style="display: none; padding: 0px;     height: 100%;">
+  <section class="cls3741_panel cls3741_panel_automation" style="display: none; padding: 0px; background:linear-gradient(180deg, #0d0f14 0%, #13161d 100%);    height: 100%;">
      
 
     {% include 'whatssap/flowbiulder.html' %}

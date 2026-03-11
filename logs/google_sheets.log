@@ -60,3 +60,9 @@
 2026-02-28 18:56:56,618 [WARNING] Order 23 not found
 2026-02-28 18:56:57,280 [INFO] sync_order_to_google_sheets attempt order_id=23
 2026-02-28 18:56:59,659 [INFO] order_id=23 sync success
+2026-03-02 20:44:24,917 [INFO] sync_order_to_google_sheets attempt order_id=6
+2026-03-02 20:44:26,973 [INFO] order_id=6 sync success
+2026-03-08 00:26:58,254 [INFO] sync_order_to_google_sheets attempt order_id=24
+2026-03-08 00:27:00,927 [INFO] order_id=24 sync success
+2026-03-08 00:29:28,174 [INFO] sync_order_to_google_sheets attempt order_id=25
+2026-03-08 00:29:30,287 [INFO] order_id=25 sync success

@@ -122,36 +122,85 @@
 
 <script>
     function submitReplyForm() {
-    // 1. جمع البيانات (بما في ذلك الملفات)
-    const form = document.getElementById('createReplyForm');
-    const formData = new FormData(form);
-    formData.append('channel' , currentChannelId)
-
-    // 2. إرسال الطلب
+    var form = document.getElementById('createReplyForm');
+    var formData = new FormData(form);
+    var isEdit = window.editingReplyId;
+    if (isEdit) {
+        formData.append('id', window.editingReplyId);
+    } else {
+        formData.append('channel', currentChannelId || window.currentChannelId || 0);
+    }
+    var url = isEdit ? "{% url 'api_update_canned_response' %}" : "{% url 'api_create_canned_response' %}";
     $.ajax({
-        url: "{% url 'api_create_canned_response' %}", // تأكد من إنشاء هذا المسار
+        url: url,
         type: "POST",
         data: formData,
-        processData: false, // مهم جداً للملفات
-        contentType: false, // مهم جداً للملفات
+        processData: false,
+        contentType: false,
         headers: {
             "X-CSRFToken": document.querySelector('[name=csrfmiddlewaretoken]').value
         },
-        success: function(response) {
-            // إغلاق المودال وتحديث الصفحة (أو إضافة البطاقة يدوياً)
+        success: function() {
             $('#addReplyModal').modal('hide');
-            location.reload(); // أو تحديث القائمة ديناميكياً
+            window.editingReplyId = undefined;
+            var modal = document.getElementById('addReplyModal');
+            if (modal) {
+                var t = modal.querySelector('.modal-title');
+                if (t) t.textContent = 'Create Quick Reply';
+            }
+            form.reset();
+            if (typeof window.loadQuickRepliesGrid === 'function') {
+                window.loadQuickRepliesGrid(currentChannelId || window.currentChannelId || 0);
+            } else {
+                location.reload();
+            }
         },
         error: function(xhr) {
-            alert("Error saving reply: " + xhr.responseText);
+            alert("Error saving reply: " + (xhr.responseJSON && xhr.responseJSON.error ? xhr.responseJSON.error : xhr.responseText));
         }
     });
 }
 
 function deleteReply(id) {
-    if(confirm("Are you sure?")) {
-        // كود الحذف ...
+    if (!confirm("Are you sure you want to delete this quick reply?")) return;
+    var fd = new FormData();
+    fd.append('id', id);
+    fd.append('csrfmiddlewaretoken', document.querySelector('[name=csrfmiddlewaretoken]').value);
+    $.ajax({
+        url: "{% url 'api_delete_canned_response' %}",
+        type: "POST",
+        data: fd,
+        processData: false,
+        contentType: false,
+        success: function() {
+            if (typeof window.loadQuickRepliesGrid === 'function') {
+                window.loadQuickRepliesGrid(currentChannelId || window.currentChannelId || 0);
+            }
+        },
+        error: function(xhr) {
+            alert("Failed to delete: " + (xhr.responseJSON && xhr.responseJSON.error ? xhr.responseJSON.error : xhr.responseText));
+        }
+    });
+}
+
+function editReply(id) {
+    window.editingReplyId = undefined;
+    var reply = window.quickRepliesData && window.quickRepliesData[id];
+    if (!reply) {
+        alert("Reply data not found. Try refreshing the list.");
+        return;
     }
+    window.editingReplyId = id;
+    var modal = document.getElementById('addReplyModal');
+    var titleEl = modal ? modal.querySelector('.modal-title') : null;
+    if (titleEl) titleEl.textContent = "Edit Quick Reply";
+    var form = document.getElementById('createReplyForm');
+    if (form) {
+        form.querySelector('[name="shortcut"]').value = reply.shortcut || '';
+        form.querySelector('[name="message"]').value = reply.message || '';
+        form.querySelector('[name="attachment"]').value = '';
+    }
+    $('#addReplyModal').modal('show');
 }
 
 
@@ -210,10 +259,22 @@ function openMediaPreview(type, url, title) {
     $('#mediaPreviewModal').modal('show');
 }
 
-// 🔥 نقطة مهمة جداً: إيقاف التشغيل عند إغلاق المودال 🔥
-// وإلا سيستمر صوت الفيديو/الأوديو يعمل في الخلفية!
+// Reset add/edit modal when closed or when opened for "New"
+$('#addReplyModal').on('show.bs.modal', function () {
+    if (!window.editingReplyId) {
+        $(this).find('.modal-title').text('Create Quick Reply');
+        document.getElementById('createReplyForm').reset();
+    }
+});
+$('#addReplyModal').on('hidden.bs.modal', function () {
+    window.editingReplyId = undefined;
+    $(this).find('.modal-title').text('Create Quick Reply');
+    document.getElementById('createReplyForm').reset();
+});
+
+// Stop media when preview modal closes
 $('#mediaPreviewModal').on('hidden.bs.modal', function () {
-    $('#mediaPreviewContainer').empty(); // حذف المحتوى يوقف التشغيل فوراً
+    $('#mediaPreviewContainer').empty();
 });
 
 
@@ -249,16 +310,15 @@ $(document).ready(function() {
         method: 'GET',
         success: function(response) {
             loader.hide();
-            
+            window.quickRepliesData = {};
             if (!response.data || response.data.length === 0) {
                 myGrid.html('<tr><td colspan="6" class="text-center text-muted py-5">No quick replies yet. Create one with the button above.</td></tr>');
                 return;
             }
 
-            response.data.forEach(reply => {
-                // استخدام دالة إنشاء الصف الجديدة
+            response.data.forEach(function(reply) {
+                window.quickRepliesData[reply.id] = reply;
                 const rowHTML = createReplyRowHTML(reply);
-
                 if (reply.is_mine) {
                     myGrid.append(rowHTML);
                 } else {
