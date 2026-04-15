@@ -50,8 +50,11 @@
             var saved = localStorage.getItem('theme');
             var useDark = saved ? saved === 'dark' : true;
             root.classList.toggle('dark', useDark);
+            root.setAttribute('data-bs-theme', useDark ? 'dark' : 'light');
+            if (!saved) localStorage.setItem('theme', 'dark');
         } catch (e) {
             root.classList.add('dark');
+            root.setAttribute('data-bs-theme', 'dark');
         }
     })();
 </script>
@@ -1025,8 +1028,10 @@ color:#ede9e9 !important;
                     }
 
                     function persistTheme() {
+                        var isDark = root.classList.contains('dark');
+                        root.setAttribute('data-bs-theme', isDark ? 'dark' : 'light');
                         try {
-                            localStorage.setItem(STORAGE_KEY, root.classList.contains('dark') ? 'dark' : 'light');
+                            localStorage.setItem(STORAGE_KEY, isDark ? 'dark' : 'light');
                         } catch (e) {}
                     }
 
