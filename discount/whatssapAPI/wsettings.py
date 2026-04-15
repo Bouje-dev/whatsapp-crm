@@ -1,4 +1,5 @@
 import json
+import logging
 import os
 import re
 import requests
@@ -7,7 +8,7 @@ from django.http import JsonResponse
 from django.shortcuts import render
 from django.views.decorators.http import require_POST
 from django.contrib.auth.decorators import login_required
-from discount.models import WhatsAppChannel, ChannelAgentRouting
+from discount.models import WhatsAppChannel, ChannelAgentRouting, VoiceCloneRequest
 from discount.activites import log_activity
 from django.views.decorators.http import require_http_methods
 
@@ -41,18 +42,18 @@ def update_channel_settings(request):
         new_address = request.POST.get('business_address', '').strip()
         new_email = request.POST.get('business_email', '').strip()
         new_website = request.POST.get('business_website', '').strip()
-        new_about = request.POST.get('business_about', '').strip(),
+        new_about = request.POST.get('business_about', '').strip()
 
         channel_name = request.POST.get('channel_name', '').strip()
-        print('reuqest, ', request.POST)
-        
+
         # هل تغير شيء يستدعي الاتصال بـ Meta؟
         profile_changed = (
-            channel.business_description != new_desc or
-            channel.business_address != new_address or
-            channel.business_email != new_email or
-            channel.business_website != new_website or
-            channel.business_about != new_about
+            (channel.business_description or '') != new_desc or
+            (channel.business_address or '') != new_address or
+            (channel.business_email or '') != new_email or
+            (channel.business_website or '') != new_website or
+            (channel.business_about or '') != new_about or
+            ('profile_image' in request.FILES)
         )
 
         # ---------------------------------------------------------
@@ -102,10 +103,7 @@ def update_channel_settings(request):
             channel.order_notify_email = (request.POST.get('order_notify_email') or '').strip() or None
         if hasattr(channel, 'order_notify_whatsapp_phone'):
             channel.order_notify_whatsapp_phone = (request.POST.get('order_notify_whatsapp_phone') or '').strip() or None
-        # Only update API key when user provided a non-empty value (never wipe with empty on save)
-        _new_key = (request.POST.get('elevenlabs_api_key') or '').strip()
-        if _new_key:
-            channel.elevenlabs_api_key = _new_key
+        # ElevenLabs API key is managed from environment only (ELEVENLABS_API_KEY).
         channel.voice_cloning_enabled = request.POST.get('voice_cloning_enabled') == 'on'
         if not _channel_is_premium(channel):
             channel.voice_cloning_enabled = False
@@ -144,7 +142,14 @@ def update_channel_settings(request):
         if profile_changed:
             try:
                 # استدعاء دالة المزامنة الخارجية
-                sync_success, error_msg = sync_profile_with_meta(channel)
+                profile_payload = {
+                    "description": new_desc,
+                    "address": new_address,
+                    "email": new_email,
+                    "website": new_website,
+                    "about": new_about,
+                }
+                sync_success, error_msg = sync_profile_with_meta(channel, profile_payload=profile_payload)
                 
                 if sync_success:
                     meta_sync_status = "success"
@@ -204,7 +209,7 @@ import requests
 import mimetypes
 from django.conf import settings
 
-def sync_profile_with_meta(channel):
+def sync_profile_with_meta(channel, profile_payload=None):
     if not channel.phone_number_id or not channel.access_token:
         return False, "Missing Phone Number ID or Access Token"
 
@@ -217,16 +222,28 @@ def sync_profile_with_meta(channel):
 
     # 1. تحديث البيانات النصية (باستخدام توكن العميل - سليم)
     url_text = f"{base_url}/{channel.phone_number_id}/whatsapp_business_profile"
+    profile_payload = profile_payload or {}
+    description = (profile_payload.get("description", channel.business_description) or "").strip()
+    address = (profile_payload.get("address", channel.business_address) or "").strip()
+    email = (profile_payload.get("email", channel.business_email) or "").strip()
+    website = (profile_payload.get("website", channel.business_website) or "").strip()
+    about = (profile_payload.get("about", channel.business_about) or "").strip()
+
+    # IMPORTANT: Meta sync must contain ONLY General-card profile fields.
     payload_text = {
         "messaging_product": "whatsapp",
-        "description": channel.business_description,
-        "address": channel.business_address,
-        "email": channel.business_email,
-        "websites": [channel.business_website] if channel.business_website else [],
+        "description": description,
+        "address": address,
+        "email": email,
+        "websites": [website] if website else [],
     }
+    if about:
+        payload_text["about"] = about
 
     try:
-        requests.post(url_text, headers=user_headers, json=payload_text, timeout=10)
+        text_resp = requests.post(url_text, headers=user_headers, json=payload_text, timeout=10)
+        if text_resp.status_code >= 400:
+            return False, f"Text Sync Error: HTTP {text_resp.status_code} - {text_resp.text[:300]}"
     except Exception as e:
         return False, f"Text Sync Error: {str(e)}"
 
@@ -424,6 +441,106 @@ def fetch_and_update_meta_profile(channel):
 
 
 
+def fetch_meta_display_name(channel):
+    """
+    Fetch Meta display name (verified_name) from Cloud API.
+    """
+    if not channel or not channel.phone_number_id or not channel.access_token:
+        return None
+    url = f"https://graph.facebook.com/v18.0/{channel.phone_number_id}"
+    params = {'fields': 'verified_name,display_phone_number'}
+    headers = {"Authorization": f"Bearer {channel.access_token}"}
+    try:
+        response = requests.get(url, headers=headers, params=params, timeout=5)
+        if response.status_code != 200:
+            return None
+        payload = response.json() or {}
+        verified_name = (payload.get('verified_name') or '').strip()
+        if verified_name:
+            return verified_name
+        display_phone = (payload.get('display_phone_number') or '').strip()
+        return display_phone or None
+    except Exception:
+        return None
+
+
+def fetch_meta_quality_rating(channel):
+    """
+    Fetch phone quality rating from Meta Cloud API.
+    Typical values: GREEN, YELLOW, RED.
+    """
+    if not channel or not channel.phone_number_id or not channel.access_token:
+        return None
+    url = f"https://graph.facebook.com/v18.0/{channel.phone_number_id}"
+    params = {'fields': 'quality_rating'}
+    headers = {"Authorization": f"Bearer {channel.access_token}"}
+    try:
+        response = requests.get(url, headers=headers, params=params, timeout=5)
+        if response.status_code != 200:
+            return None
+        payload = response.json() or {}
+        quality = payload.get('quality_rating')
+        if quality is None:
+            return None
+        quality_str = str(quality).strip().upper()
+        return quality_str or None
+    except Exception:
+        return None
+
+
+def fetch_meta_account_details(channel):
+    """
+    Fetch account details from Meta Cloud API for settings card.
+    Returns normalized dict with safe fallbacks.
+    """
+    details = {
+        'display_name': None,
+        'connected_number': None,
+        'waba_id': getattr(channel, 'business_account_id', None) if channel else None,
+        'messaging_limit': None,
+        'quality_rating': None,
+        'account_status': None,
+    }
+    if not channel or not channel.phone_number_id or not channel.access_token:
+        return details
+
+    headers = {"Authorization": f"Bearer {channel.access_token}"}
+
+    # Phone number node details
+    try:
+        phone_url = f"https://graph.facebook.com/v18.0/{channel.phone_number_id}"
+        phone_params = {'fields': 'verified_name,display_phone_number,quality_rating,name_status,code_verification_status'}
+        phone_res = requests.get(phone_url, headers=headers, params=phone_params, timeout=5)
+        if phone_res.status_code == 200:
+            payload = phone_res.json() or {}
+            details['display_name'] = (payload.get('verified_name') or '').strip() or None
+            details['connected_number'] = (payload.get('display_phone_number') or '').strip() or None
+            qr = (payload.get('quality_rating') or '')
+            details['quality_rating'] = str(qr).strip().upper() or None
+            status = (payload.get('name_status') or payload.get('code_verification_status') or '')
+            details['account_status'] = str(status).strip().upper() or None
+    except Exception:
+        pass
+
+    # WABA node details (messaging tier and review status if available)
+    if details['waba_id']:
+        try:
+            waba_url = f"https://graph.facebook.com/v18.0/{details['waba_id']}"
+            waba_params = {'fields': 'messaging_limit_tier,account_review_status'}
+            waba_res = requests.get(waba_url, headers=headers, params=waba_params, timeout=5)
+            if waba_res.status_code == 200:
+                waba_payload = waba_res.json() or {}
+                limit_tier = (waba_payload.get('messaging_limit_tier') or '')
+                details['messaging_limit'] = str(limit_tier).strip().upper() or None
+                if not details['account_status']:
+                    acc_status = (waba_payload.get('account_review_status') or '')
+                    details['account_status'] = str(acc_status).strip().upper() or None
+        except Exception:
+            pass
+
+    return details
+
+
 def _channel_is_premium(channel):
     """True if store (channel owner) plan allows voice cloning. Uses Plan model."""
     return _store_can_feature(channel, 'voice_cloning')
@@ -469,8 +586,20 @@ def get_channel_settings(request):
         img_url = channel.profile_image.url if channel.profile_image else '/static/img/default-wa.png'
 
         # 3. تجهيز البيانات (الآن هي محدثة من ميتا)
+        latest_clone_req = VoiceCloneRequest.objects.filter(
+            merchant=getattr(channel, "owner", None)
+        ).order_by("-created_at").first()
+        meta_account = fetch_meta_account_details(channel)
+        meta_display_name = meta_account.get('display_name') or fetch_meta_display_name(channel)
+        meta_quality_rating = meta_account.get('quality_rating') or fetch_meta_quality_rating(channel)
         data = {
             'channel_name': channel.name,
+            'meta_display_name': meta_display_name,
+            'meta_quality_rating': meta_quality_rating,
+            'meta_connected_number': meta_account.get('connected_number'),
+            'meta_waba_id': meta_account.get('waba_id'),
+            'meta_messaging_limit': meta_account.get('messaging_limit'),
+            'meta_account_status': meta_account.get('account_status'),
             'phone_number': channel.phone_number,
             'status': channel.is_active,
             
@@ -493,7 +622,6 @@ def get_channel_settings(request):
             'order_notify_method': getattr(channel, 'order_notify_method', '') or '',
             'order_notify_email': getattr(channel, 'order_notify_email', '') or '',
             'order_notify_whatsapp_phone': getattr(channel, 'order_notify_whatsapp_phone', '') or '',
-            'elevenlabs_api_key': getattr(channel, 'elevenlabs_api_key', '') or '',
             'voice_cloning_enabled': getattr(channel, 'voice_cloning_enabled', False),
             'is_premium': _channel_is_premium(channel),
             # Plan-based feature flags for UI paywall (backend re-verifies on use)
@@ -505,9 +633,11 @@ def get_channel_settings(request):
             'voice_stability': getattr(channel, 'voice_stability', 0.5),
             'voice_similarity': getattr(channel, 'voice_similarity', 0.75),
             'cloned_voice_id': getattr(channel, 'cloned_voice_id', '') or '',
+            'clone_request_status': getattr(latest_clone_req, "status", "") if latest_clone_req else "",
             'ai_voice_provider': getattr(channel, 'ai_voice_provider', 'OPENAI'),
             'elevenlabs_model_id': getattr(channel, 'elevenlabs_model_id', 'eleven_multilingual_v2'),
             'selected_voice_id': getattr(channel, 'selected_voice_id', '') or '',
+            'voice_dialect': getattr(channel, 'voice_dialect', '') or '',
             'voice_preview_url': getattr(channel, 'voice_preview_url', '') or '',
             # Weighted Chat Routing (for settings UI): all assigned agents + defaults for missing config
             'routing': _routing_list_for_channel(channel),
@@ -718,45 +848,73 @@ def voice_preview(request):
 @login_required
 @require_POST
 def voice_clone(request):
-    """POST channel_id, file (audio sample). Clone voice via ElevenLabs, save to channel, and create a VoicePersona for My Voices with a unique name."""
-    channel_id = request.POST.get('channel_id')
+    """
+    Backward-compatible alias.
+    Old UI calls /api/voice-clone/; now this endpoint creates a *pending* manual-review request.
+    """
+    return voice_request_clone(request)
+
+
+@login_required
+@require_POST
+def voice_request_clone(request):
+    """
+    POST channel_id, file, consent_agreed.
+    Store request in pending state only (manual review workflow); do NOT call ElevenLabs here.
+    """
+    channel_id = request.POST.get("channel_id")
     channel = _get_channel_for_user(request, channel_id)
     if not channel:
-        return JsonResponse({'status': 'error', 'message': 'Channel not found'}, status=404)
-    if not request.FILES.get('file'):
-        return JsonResponse({'status': 'error', 'message': 'No audio file provided'}, status=400)
-    try:
-        from discount.whatssapAPI.voice_engine import clone_voice
-        from discount.models import VoicePersona
-        from django.core.cache import cache
-        voice_id, err = clone_voice(channel, request.FILES['file'])
-        if err:
-            return JsonResponse({'status': 'error', 'message': err}, status=400)
-        user = getattr(channel, 'owner', None) or request.user
-        # Create a VoicePersona so it appears in Flow Builder "My Voices" with a unique name
-        existing_names = set(
-            VoicePersona.objects.filter(owner=user, is_system=False).values_list('name', flat=True)
+        return JsonResponse({"status": "error", "message": "Channel not found"}, status=404)
+    if not _store_can_feature(channel, "voice_cloning"):
+        return JsonResponse({"status": "error", "message": "Your current plan does not include voice cloning."}, status=403)
+
+    uploaded = request.FILES.get("file")
+    if not uploaded:
+        return JsonResponse({"status": "error", "message": "No audio file provided"}, status=400)
+
+    consent_raw = (request.POST.get("consent_agreed") or "").strip().lower()
+    consent_agreed = consent_raw in ("1", "true", "yes", "on")
+    if not consent_agreed:
+        return JsonResponse(
+            {"status": "error", "message": "You must confirm legal ownership/authorization for this voice sample."},
+            status=400,
         )
-        num = 1
-        while f"My Voice {num}" in existing_names:
-            num += 1
-        name = f"My Voice {num}"
-        VoicePersona.objects.create(
-            name=name,
-            description="Cloned voice",
-            voice_id=voice_id,
-            is_system=False,
-            owner=user,
-            behavioral_instructions="",
-            language_code="AR_MA",
-            tier=VoicePersona.TIER_STANDARD,
+
+    # Lightweight server validation for file type and size (15 MB max)
+    name = (getattr(uploaded, "name", "") or "").lower()
+    allowed_ext = (".mp3", ".wav", ".m4a", ".ogg", ".webm")
+    if not any(name.endswith(ext) for ext in allowed_ext):
+        return JsonResponse({"status": "error", "message": "Unsupported audio format. Use mp3/wav/m4a/ogg/webm."}, status=400)
+    size = getattr(uploaded, "size", 0) or 0
+    if size > 15 * 1024 * 1024:
+        return JsonResponse({"status": "error", "message": "Audio file is too large. Max size is 15MB."}, status=400)
+
+    dialect_raw = (request.POST.get("dialect") or "").strip().upper()
+    from discount.models import VOICE_DIALECT_CHOICES
+
+    valid_dialects = {k for k, _ in VOICE_DIALECT_CHOICES}
+    if dialect_raw not in valid_dialects:
+        return JsonResponse(
+            {"status": "error", "message": "Please select what dialect this voice is speaking."},
+            status=400,
         )
-        cache.delete(f"personas_my_{user.id}")
-        return JsonResponse({'status': 'success', 'voice_id': voice_id})
-    except Exception as e:
-        import logging
-        logging.getLogger(__name__).exception("voice_clone: %s", e)
-        return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
+
+    merchant = getattr(channel, "owner", None) or request.user
+    req = VoiceCloneRequest.objects.create(
+        merchant=merchant,
+        audio_file=uploaded,
+        consent_agreed=True,
+        dialect=dialect_raw,
+        status=VoiceCloneRequest.STATUS_PENDING,
+    )
+    return JsonResponse(
+        {
+            "status": "success",
+            "request_id": req.id,
+            "message": "Your voice is under review by our team for security purposes. It will be activated within 24 hours.",
+        }
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -777,17 +935,30 @@ def voice_gallery_page(request):
 @login_required
 @require_POST
 def voice_gallery_list(request):
-    """Return VOICE_GALLERY + current selected_voice_id and voice_preview_url for channel."""
+    """Return VoiceGalleryEntry rows + current selected_voice_id and voice_preview_url for channel."""
     channel_id = request.POST.get('channel_id')
     channel = _get_channel_for_user(request, channel_id)
     if not channel:
         return JsonResponse({'status': 'error', 'message': 'Channel not found'}, status=404)
-    from discount.whatssapAPI.voice_engine import VOICE_GALLERY
-    api_key = (getattr(channel, 'elevenlabs_api_key', None) or '').strip() or os.environ.get('ELEVENLABS_API_KEY', '').strip()
+    from discount.services.voice_catalog import serialize_voices_for_api
+
+    form_prov = (request.POST.get("voice_provider") or "").strip().upper()
+    if form_prov in ("OPENAI", "ELEVENLABS"):
+        tts_provider = form_prov
+    else:
+        tts_provider = (
+            getattr(channel, "ai_voice_provider", None)
+            or getattr(channel, "voice_provider", None)
+            or "OPENAI"
+        )
+        tts_provider = str(tts_provider).strip().upper() or "OPENAI"
+    api_key = os.environ.get('ELEVENLABS_API_KEY', '').strip()
     return JsonResponse({
         'status': 'success',
-        'voices': VOICE_GALLERY,
+        'tts_provider': tts_provider,
+        'voices': serialize_voices_for_api(request, provider=tts_provider),
         'selected_voice_id': getattr(channel, 'selected_voice_id', None) or '',
+        'voice_dialect': getattr(channel, 'voice_dialect', None) or '',
         'voice_preview_url': getattr(channel, 'voice_preview_url', None) or '',
         'has_api_key': bool(api_key),
     })
@@ -796,7 +967,13 @@ def voice_gallery_list(request):
 @login_required
 @require_POST
 def voice_gallery_preview(request):
-    """POST channel_id, voice_id, optional text. Returns MP3 for that voice (multilingual_v2). Temp file deleted after send."""
+    """
+    POST channel_id, voice_id. Returns local MP3 only — **never** calls ElevenLabs.
+
+    Resolution order:
+    1) `VoiceGalleryEntry.preview_audio_file` (uploaded in Admin)
+    2) Static file from `preview_file` under static/audio/voice-previews/
+    """
     channel_id = request.POST.get('channel_id')
     channel = _get_channel_for_user(request, channel_id)
     if not channel:
@@ -804,34 +981,51 @@ def voice_gallery_preview(request):
     voice_id = (request.POST.get('voice_id') or '').strip()
     if not voice_id:
         return JsonResponse({'status': 'error', 'message': 'voice_id required'}, status=400)
-    text = (request.POST.get('text') or 'مرحبا كيف اساعدك ').strip()[:500]
-    try:
-        from discount.whatssapAPI.voice_engine import generate_voice_sample
-        api_key = (getattr(channel, 'elevenlabs_api_key', None) or '').strip() or os.environ.get('ELEVENLABS_API_KEY', '').strip()
-        if not api_key:
-            return JsonResponse({
-                'status': 'error',
-                'message': 'ElevenLabs API key not set. Save your API key in Channel Settings → Voice Identity → ElevenLabs API Key, then try again.',
-            }, status=400)
-        path, err = generate_voice_sample(voice_id, text, api_key=api_key)
-        if err:
-            return JsonResponse({'status': 'error', 'message': err}, status=400)
-        if not path or not os.path.exists(path):
-            return JsonResponse({'status': 'error', 'message': 'Could not generate sample'}, status=502)
-        with open(path, 'rb') as f:
-            content = f.read()
+
+    from django.contrib.staticfiles import finders
+    from django.http import FileResponse
+    from discount.models import VoiceGalleryEntry
+
+    log = logging.getLogger(__name__)
+
+    entry = VoiceGalleryEntry.objects.filter(elevenlabs_voice_id=voice_id, is_active=True).first()
+    if not entry:
+        return JsonResponse({'status': 'error', 'message': 'Voice not found in gallery'}, status=404)
+
+    # 1) Uploaded MP3 (Admin → preview audio file)
+    if getattr(entry, "preview_audio_file", None) and entry.preview_audio_file.name:
         try:
-            os.remove(path)
-        except OSError:
-            pass
-        from django.http import HttpResponse
-        r = HttpResponse(content, content_type='audio/mpeg')
-        r['Content-Disposition'] = 'inline; filename="voice_sample.mp3"'
-        return r
-    except Exception as e:
-        import logging
-        logging.getLogger(__name__).exception("voice_gallery_preview: %s", e)
-        return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
+            fh = entry.preview_audio_file.open("rb")
+            resp = FileResponse(fh, content_type="audio/mpeg", as_attachment=False)
+            resp["Content-Disposition"] = 'inline; filename="voice_sample.mp3"'
+            return resp
+        except Exception as e:
+            log.warning("voice_gallery_preview: could not open uploaded preview: %s", e)
+
+    # 2) Static preview under staticfiles (audio/voice-previews/<preview_file>)
+    static_name = (entry.preview_file or "").strip()
+    if static_name:
+        found = finders.find(f"audio/voice-previews/{static_name}")
+        if found and os.path.isfile(found):
+            try:
+                fh = open(found, "rb")
+                resp = FileResponse(fh, content_type="audio/mpeg", as_attachment=False)
+                resp["Content-Disposition"] = 'inline; filename="voice_sample.mp3"'
+                return resp
+            except Exception as e:
+                log.warning("voice_gallery_preview: could not open static preview: %s", e)
+
+    return JsonResponse(
+        {
+            "status": "error",
+            "message": (
+                "No local preview audio for this voice. In Django Admin → Voice Gallery entries, "
+                "upload an MP3 in “Preview audio file”, or set “Preview file” to a filename that exists "
+                "under static/audio/voice-previews/."
+            ),
+        },
+        status=400,
+    )
 
 
 @login_required
@@ -848,8 +1042,41 @@ def voice_gallery_select(request):
     voice_preview_url = (request.POST.get('voice_preview_url') or '').strip() or None
     if not hasattr(channel, 'selected_voice_id'):
         return JsonResponse({'status': 'error', 'message': 'Model not supported'}, status=400)
+
+    from discount.models import VoiceGalleryEntry
+
+    entry = VoiceGalleryEntry.objects.filter(elevenlabs_voice_id=voice_id, is_active=True).first()
+    if not entry:
+        return JsonResponse({'status': 'error', 'message': 'Voice not found in gallery'}, status=404)
+    form_prov = (request.POST.get("voice_provider") or "").strip().upper()
+    if form_prov in ("OPENAI", "ELEVENLABS"):
+        tts_provider = form_prov
+    else:
+        tts_provider = (
+            getattr(channel, "ai_voice_provider", None)
+            or getattr(channel, "voice_provider", None)
+            or "OPENAI"
+        )
+        tts_provider = str(tts_provider).strip().upper() or "OPENAI"
+    row_provider = str(getattr(entry, "provider", "ELEVENLABS") or "ELEVENLABS").strip().upper()
+    if row_provider != tts_provider:
+        return JsonResponse(
+            {
+                'status': 'error',
+                'message': f'This voice is for {row_provider}; switch Provider to match or pick another voice.',
+            },
+            status=400,
+        )
+
     channel.selected_voice_id = voice_id
     if hasattr(channel, 'voice_preview_url'):
         channel.voice_preview_url = voice_preview_url or ''
-    channel.save(update_fields=['selected_voice_id', 'voice_preview_url'] if hasattr(channel, 'voice_preview_url') else ['selected_voice_id'])
+    update_fields = ['selected_voice_id', 'voice_preview_url'] if hasattr(channel, 'voice_preview_url') else ['selected_voice_id']
+    try:
+        if hasattr(channel, "voice_dialect"):
+            channel.voice_dialect = getattr(entry, "dialect", None) or channel.voice_dialect
+            update_fields.append("voice_dialect")
+    except Exception:
+        pass
+    channel.save(update_fields=update_fields)
     return JsonResponse({'status': 'success', 'selected_voice_id': voice_id})

@@ -1498,7 +1498,6 @@ const state = {
 
   // ---------- Extract orders robustly from backend payload ----------
   function extractOrdersFromPayload(payload){
-    // console.log('[debug] extractOrdersFromPayload payload keys:', payload && typeof payload === 'object' ? Object.keys(payload) : typeof payload, payload);
     if (!payload || typeof payload !== 'object') return [];
     if (Array.isArray(payload.orders)) {  return payload.orders; }
     for (const key of ['orders_data','items','rows','results','leads','data']){
@@ -2357,9 +2356,7 @@ function renderGranularRecommendationsPro(recs) {
 
     try {
       const res = await fetch(url, { credentials: 'same-origin' });
-      console.log('HTTP status:', res.status);
       const txt = await res.text();
-      console.log('RAW response text (first 2000 chars):', txt.slice(0,2000));
       let payload;
       try {
         payload = JSON.parse(txt);

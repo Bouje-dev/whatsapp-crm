@@ -1,0 +1,78 @@
+{% extends "core_admin/base.html" %}
+
+{% block content %}
+  <div class="flex items-center justify-between gap-3">
+    <div>
+      <h1 class="text-2xl font-bold">AI Chat Logs</h1>
+      <p class="text-sm text-slate-300 mt-1">Recent conversation snippets for founder audit (User vs AI).</p>
+    </div>
+    <div class="text-xs text-slate-400">
+      Showing sessions updated since: <span class="font-medium">{{ cutoff }}</span>
+    </div>
+  </div>
+
+  <div class="mt-5 space-y-4">
+    {% for s in sessions %}
+      <section class="rounded-xl border border-slate-800 bg-slate-900/40 p-4">
+        <div class="flex items-start justify-between gap-4">
+          <div>
+            <div class="text-sm text-slate-400">
+              Merchant: <span class="text-slate-100 font-semibold">{{ s.merchant_label|default:"—" }}</span>
+            </div>
+            <div class="text-sm text-slate-400 mt-1">
+              Customer: <span class="text-slate-100 font-semibold">{{ s.customer_phone }}</span>
+            </div>
+            <div class="text-sm text-slate-400 mt-1">
+              Channel: <span class="text-slate-100 font-semibold">{{ s.channel_name|default:"—" }}</span>
+            </div>
+            <div class="text-sm text-slate-400 mt-1">
+              Product: <span class="text-slate-100 font-semibold">{{ s.product_name|default:"—" }}</span>
+              {% if s.product_price %}
+                <span class="text-slate-400">({{ s.product_price }})</span>
+              {% endif %}
+            </div>
+            <div class="text-sm text-slate-400 mt-1">
+              Active node: <span class="text-slate-100 font-semibold">{{ s.active_node_type|default:"—" }}</span>
+              {% if s.active_node_id %}
+                <span class="text-slate-400">(#{{ s.active_node_id }})</span>
+              {% endif %}
+            </div>
+            <div class="text-sm text-slate-400 mt-1">
+              AI enabled: <span class="text-slate-100 font-semibold">{{ s.ai_enabled }}</span>
+            </div>
+          </div>
+          <div class="text-right">
+            <div class="text-xs text-slate-400">Last interaction</div>
+            <div class="text-sm font-semibold">{{ s.last_interaction }}</div>
+          </div>
+        </div>
+
+        <div class="mt-4 rounded-lg border border-slate-800 bg-slate-950/30 p-3">
+          <div class="flex flex-col gap-2 max-h-72 overflow-auto pr-1">
+            {% for m in s.messages %}
+              <div class="{% if m.role == 'AI' %}flex justify-end{% else %}flex justify-start{% endif %}">
+                <div class="{% if m.role == 'AI' %}bg-blue-600/25 border border-blue-500/30{% else %}bg-slate-800/40 border border-slate-700{% endif %} rounded-2xl px-3 py-2 max-w-[84%]">
+                  <div class="text-[11px] text-slate-400 mb-1">
+                    {{ m.role }} • {{ m.timestamp|date:"Y-m-d H:i" }}
+                  </div>
+                  {% if m.text %}
+                    <div class="text-sm whitespace-pre-wrap break-words">{{ m.text }}</div>
+                  {% else %}
+                    <div class="text-sm text-slate-300">[{{ m.media_type|default:"media" }}]</div>
+                  {% endif %}
+                </div>
+              </div>
+            {% empty %}
+              <div class="text-sm text-slate-400">No messages found for this session.</div>
+            {% endfor %}
+          </div>
+        </div>
+      </section>
+    {% empty %}
+      <div class="rounded-xl border border-slate-800 bg-slate-900/40 p-6 text-slate-300">
+        No recent AI chat sessions found.
+      </div>
+    {% endfor %}
+  </div>
+{% endblock %}
+

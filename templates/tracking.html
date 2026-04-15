@@ -1,6 +1,6 @@
 {% load static %}
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" class="dark" data-setup-success="{% if setup_success %}1{% else %}0{% endif %}">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
@@ -43,22 +43,55 @@
 <script src="{% static 'js/ajax.js' %}" ></script>
  
 
+<script>
+    (function() {
+        var root = document.documentElement;
+        try {
+            var saved = localStorage.getItem('theme');
+            var useDark = saved ? saved === 'dark' : true;
+            root.classList.toggle('dark', useDark);
+        } catch (e) {
+            root.classList.add('dark');
+        }
+    })();
+</script>
+
   <style>
 
-        /* CSS Variables - Monochrome with minimal accent */
+        /* Theme tokens (light by default, dark via html.dark) */
         :root {
-            --bs-secondary-color: rgba(133, 133, 133, 0.75)!important ;
-            --background-primary: #121212; /* Very dark background - unified for body and cards */
-            --text-light: #E0E0E0; /* Light text color for main content/titles */
-            --text-muted: #A0A0A0; /* Muted text color for secondary info/placeholders */
-            --accent-color: #00E676; /* Neon Green (minimal use) */
-            --accent-color-transparent: rgba(0, 230, 118, 0.15); /* Transparent accent for focus/active states */
+            --bs-secondary-color: rgba(71, 85, 105, 0.75)!important;
+            --background-primary: #f8fafc;
+            --text-light: #0b1020;
+            --text-muted: #334155;
+            --accent-color: #00E676;
+            --accent-color-transparent: rgba(0, 230, 118, 0.15);
 
-            /* Border as main separator */
-            --border-card: rgba(241, 241, 255, 0.151); /* Primary border color (light grey transparent) */
-            --border-hover: hsla(0, 0%, 100%, 0.98); /* Hover/active border color (near-white) */
-            --border-width: 1px; /* Standard border width */
-            --border-width-focus: 0.5px; /* Thinner border for focus-ring */
+            /* Theme-aware surfaces */
+            --surface-soft: rgba(15, 23, 42, 0.04);
+            --surface-soft-hover: rgba(15, 23, 42, 0.08);
+            --surface-card: #ffffff;
+            --input-bg: #ffffff;
+            --input-text: #0f172a;
+            --shadow-elev: 0 2px 10px rgba(15, 23, 42, 0.08);
+            --panel-gradient: linear-gradient(180deg, #f8fafc 0%, #eef2f7 100%);
+
+            /* Bridge tokens used by whatssap.html */
+            --bg-primary: #ffffff;
+            --bg-secondary: #f8fafc;
+            --bg-tertiary: #f1f5f9;
+            --bg-hover: #e2e8f0;
+            --text-primary: #0b1020;
+            --text-secondary: #1e3a5f;
+            --border-color: rgba(15, 23, 42, 0.14);
+            --border-light: rgba(15, 23, 42, 0.24);
+            --accent: var(--accent-color);
+
+            /* Borders */
+            --border-card: rgba(15, 23, 42, 0.14);
+            --border-hover: rgba(15, 23, 42, 0.26);
+            --border-width: 1px;
+            --border-width-focus: 0.5px;
 
             --border-radius-sm: 0.25rem; /* 4px */
             --border-radius-md: 0.5rem; /* 8px */
@@ -79,7 +112,97 @@
             --status-delivered-bg: #28a745; /* Success green */
             --status-returned-bg: #dc3545; /* Danger red */
             --status-pending-bg: #ffc107; /* Warning yellow */
-            --status-text-dark: var(--background-primary); /* Dark text on badges */
+            --status-text-dark: var(--background-primary);
+        }
+
+        html.dark {
+            --bs-secondary-color: rgba(133, 133, 133, 0.75)!important;
+            --background-primary: #121212;
+            --text-light: #E0E0E0;
+            --text-muted: #A0A0A0;
+            --surface-soft: rgba(255, 255, 255, 0.03);
+            --surface-soft-hover: rgba(255, 255, 255, 0.08);
+            --surface-card: #1b2230;
+            --input-bg: #101828;
+            --input-text: #e2e8f0;
+            --shadow-elev: 0 2px 10px rgba(0, 0, 0, 0.25);
+            --panel-gradient: linear-gradient(180deg, #0d0f14 0%, #13161d 100%);
+
+            /* Bridge tokens used by whatssap.html */
+            --bg-primary: #1a1a2e;
+            --bg-secondary: rgba(255, 255, 255, 0.04);
+            --bg-tertiary: rgba(255, 255, 255, 0.06);
+            --bg-hover: rgba(255, 255, 255, 0.08);
+            --text-primary: #e2e8f0;
+            --text-secondary: #94a3b8;
+            --border-color: rgba(241, 241, 255, 0.151);
+            --border-light: rgba(255, 255, 255, 0.28);
+            --accent: #4f46e5;
+            --border-card: rgba(241, 241, 255, 0.151);
+            --border-hover: hsla(0, 0%, 100%, 0.98);
+        }
+
+        /* Nuclear light-mode overrides for legacy hardcoded dark classes */
+        html:not(.dark) body,
+        html.light body {
+            background-color: #f8fafc !important;
+            color: #0f172a !important;
+        }
+
+        html:not(.dark) h1, html:not(.dark) h2, html:not(.dark) h3, html:not(.dark) h4, html:not(.dark) h5, html:not(.dark) h6, html:not(.dark) p, html:not(.dark) label, html:not(.dark) span, html:not(.dark) li,
+        html.light h1, html.light h2, html.light h3, html.light h4, html.light h5, html.light h6, html.light p, html.light label, html.light span, html.light li {
+            color: #0f172a !important;
+        }
+
+        html:not(.dark) .card,
+        html:not(.dark) .modal-content,
+        html:not(.dark) section > div,
+        html:not(.dark) .cls3741_dashboard > div,
+        html:not(.dark) .cls3741_panel_dashboard,
+        html:not(.dark) .cls3741_panel_orders,
+        html:not(.dark) .cls3741_panel_templates,
+        html:not(.dark) .cls3741_panel_clients,
+        html:not(.dark) .cls3741_panel_campaigns,
+        html.light .card,
+        html.light .modal-content,
+        html.light section > div,
+        html.light .cls3741_dashboard > div,
+        html.light .cls3741_panel_dashboard,
+        html.light .cls3741_panel_orders,
+        html.light .cls3741_panel_templates,
+        html.light .cls3741_panel_clients,
+        html.light .cls3741_panel_campaigns {
+            background: #ffffff !important;
+            border-color: #e2e8f0 !important;
+            color: #1e293b !important;
+        }
+
+        html:not(.dark) input,
+        html:not(.dark) textarea,
+        html:not(.dark) select,
+        html.light input,
+        html.light textarea,
+        html.light select {
+            background-color: #ffffff !important;
+            color: #0f172a !important;
+            border-color: #cbd5e1 !important;
+        }
+
+        html:not(.dark) [class*="bg-[#0f172a]"],
+        html:not(.dark) [class*="bg-[#111827]"],
+        html:not(.dark) [class*="bg-[#1e293b]"],
+        html:not(.dark) [class*="bg-slate-900"],
+        html:not(.dark) [class*="bg-slate-800"],
+        html:not(.dark) [class*="text-white"],
+        html.light [class*="bg-[#0f172a]"],
+        html.light [class*="bg-[#111827]"],
+        html.light [class*="bg-[#1e293b]"],
+        html.light [class*="bg-slate-900"],
+        html.light [class*="bg-slate-800"],
+        html.light [class*="text-white"] {
+            background-color: #ffffff !important;
+            color: #0f172a !important;
+            border-color: #e2e8f0 !important;
         }
 
         body {
@@ -97,6 +220,7 @@
 
         /* Top Navigation Bar - Standard Bootstrap-like */
         .top-navbar {
+            margin-bottom: 12px;
             background-color: var(--background-primary);
             padding: 1rem 2.5rem; /* Adjusted padding to be more compact */
             border-bottom: var(--border-width) solid var(--border-card);
@@ -127,7 +251,7 @@
         }
 
         .top-navbar .nav-links .btn:hover {
-            background-color: rgba(255, 255, 255, 0.05); /* Subtle hover */
+            background-color: var(--surface-soft-hover);
             color: var(--text-light);
         }
 
@@ -192,13 +316,13 @@
 
         .page-tabs-nav .nav-link:hover {
             color: var(--text-light);
-            background-color: rgba(255, 255, 255, 0.03); /* Very subtle hover */
+            background-color: var(--surface-soft);
         }
 
         .page-tabs-nav .nav-link.active {
             color: var(--text-light); /* Active text is light */
             border-bottom-color: var(--accent-color); /* Accent underline */
-            background-color: rgba(255, 255, 255, 0.05); /* Slightly darker background for active tab */
+            background-color: var(--surface-soft-hover);
         }
 
         /* Main Page Title */
@@ -260,7 +384,7 @@
         }
         .custom-search-input .form-control:focus {
             border-color: var(--text-light); /* focus-visible:border-foreground */
-            box-shadow: 0 0 0 var(--border-width-focus) rgba(255, 255, 255, 0.5); /* focus-ring + focus-visible:ring-[0.5px] */
+            box-shadow: 0 0 0 var(--border-width-focus) var(--border-hover);
             outline: none;
         }
         .custom-search-input .form-control:disabled {
@@ -273,13 +397,13 @@
             height: 36px; /* Match input height */
             border-radius: var(--border-radius-input);
             font-size: var(--font-size-sm);
-            background-color: rgba(255, 255, 255, 0.05);
+            background-color: var(--surface-soft);
             border: var(--border-width) solid var(--border-card);
             color: var(--text-light);
             margin-left: 0.5rem; /* Spacing between input and button */
         }
         .custom-search-input .btn:hover {
-            background-color: rgba(255, 255, 255, 0.08);
+            background-color: var(--surface-soft-hover);
             border-color: var(--border-hover);
             color: var(--text-light);
         }
@@ -682,7 +806,7 @@
             justify-content: space-between;
             padding: 0.75rem 1rem;
             margin-bottom: 0.5rem;
-            background-color: rgba(255, 255, 255, 0.02); /* Very subtle lighter background */
+            background-color: var(--surface-soft);
             border-radius: var(--border-radius-sm);
             font-size: var(--font-size-sm);
             color: var(--text-light);
@@ -696,7 +820,7 @@
             color: var(--text-muted);
             margin-top: 1rem;
             padding: 0.5rem 1rem;
-            background-color: rgba(255, 255, 255, 0.05);
+            background-color: var(--surface-soft-hover);
             border-radius: var(--border-radius-sm);
             display: inline-block;
             border: 1px solid var(--border-card);
@@ -883,44 +1007,52 @@ color:#ede9e9 !important;
         <div class="nav-links">
            <a href="/tracking/" class="btn nav_link active" id="track1">Tracking</a>
             <a href="{% url 'user' %}" class="btn nav_link">Account</a>
+            {% if request.user.is_superuser %}
+            <a href="/admin/" class="btn nav_link">Admin</a>
             <a href="{% url 'analytics' %}" class="btn nav-link2">Analytics</a>
+            {% endif %}
             <script>
                 (function() {
-                    var STORAGE_KEY = 'tracking-theme';
+                    var STORAGE_KEY = 'theme';
                     var root = document.documentElement;
-                    function getTheme() {
-                        try { return localStorage.getItem(STORAGE_KEY) || 'dark'; } catch (e) { return 'dark'; }
-                    }
-                    function setTheme(theme) {
-                        theme = theme === 'light' ? 'light' : 'dark';
-                        root.setAttribute('data-theme', theme);
-                        try { localStorage.setItem(STORAGE_KEY, theme); } catch (e) {}
+
+                    function syncIcons(isDark) {
                         var darkIcon = document.querySelector('.theme-icon-dark');
                         var lightIcon = document.querySelector('.theme-icon-light');
-                        if (darkIcon && lightIcon) {
-                            darkIcon.style.display = theme === 'dark' ? 'inline-block' : 'none';
-                            lightIcon.style.display = theme === 'light' ? 'inline-block' : 'none';
-                        }
+                        if (!darkIcon || !lightIcon) return;
+                        darkIcon.style.display = isDark ? 'none' : 'inline-block';
+                        lightIcon.style.display = isDark ? 'inline-block' : 'none';
                     }
-                    function toggleTheme() {
-                        setTheme(getTheme() === 'dark' ? 'light' : 'dark');
+
+                    function persistTheme() {
+                        try {
+                            localStorage.setItem(STORAGE_KEY, root.classList.contains('dark') ? 'dark' : 'light');
+                        } catch (e) {}
                     }
-                    setTheme(getTheme());
+
                     document.addEventListener('DOMContentLoaded', function() {
+                        syncIcons(root.classList.contains('dark'));
                         var btn = document.getElementById('theme-toggle');
-                        if (btn) btn.addEventListener('click', toggleTheme);
+                        if (btn) {
+                            btn.addEventListener('click', function() {
+                                root.classList.toggle('dark');
+                                persistTheme();
+                                syncIcons(root.classList.contains('dark'));
+                            });
+                        }
                     });
                 })();
-                </script>
-                <button type="button" id="theme-toggle" class="btn theme-toggle-btn" title="Toggle dark/light theme" aria-label="Toggle theme">
+            </script>
+                <!-- <button type="button" id="theme-toggle" class="btn theme-toggle-btn" title="Toggle dark/light theme" aria-label="Toggle theme">
                     <i class="fas fa-moon theme-icon-dark" aria-hidden="true"></i>
                     <i class="fas fa-sun theme-icon-light" aria-hidden="true" style="display: none;"></i>
-                </button>
+                </button> -->
         </div>
     </nav>
  
 
 <div class="main-content-area">
+    {% if request.user.is_superuser %}
         <nav class="page-tabs-nav">
             <a class="nav-link active" href="#" id="whatssap_API_cloud" class="btn nav-link2" data-section="future-whatssap_API">Whatssapp</a>
             <a class="nav-link" href="#" data-section="order-tracking-section">Order tracking</a>
@@ -935,7 +1067,7 @@ color:#ede9e9 !important;
            {% endif %}
 
         </nav>
-
+        {% endif %}
         
         <div class="section-content active" id="future-whatssap_API">
              
@@ -1006,7 +1138,6 @@ color:#ede9e9 !important;
         
           // ---------- Extract orders robustly from backend payload ----------
           function extractOrdersFromPayload(payload){
-            // console.log('[debug] extractOrdersFromPayload payload keys:', payload && typeof payload === 'object' ? Object.keys(payload) : typeof payload, payload);
             if (!payload || typeof payload !== 'object') return [];
             if (Array.isArray(payload.orders)) {  return payload.orders; }
             for (const key of ['orders_data','items','rows','results','leads','data']){
@@ -1827,9 +1958,7 @@ color:#ede9e9 !important;
         
             try {
               const res = await fetch(url, { credentials: 'same-origin' });
-              console.log('HTTP status:', res.status);
               const txt = await res.text();
-              console.log('RAW response text (first 2000 chars):', txt.slice(0,2000));
               let payload;
               try {
                 payload = JSON.parse(txt);
@@ -1893,7 +2022,7 @@ color:#ede9e9 !important;
 
                     <div class="search-box mb-4 custom-search-input">
 
-                     <div class="filters-container p-3" style="background: rgba(255,255,255,0.05); border-radius: 10px;">
+                     <div class="filters-container p-3" style="background: var(--surface-soft); border-radius: 10px; border: 1px solid var(--border-card);">
 
     <!-- Search bar -->
     <div class="d-flex mb-3 gap-2 flex-wrap">
@@ -2129,7 +2258,6 @@ data-customer-name="{{ order.customer_name }}"
                                                     <td class="font-monospace"  data-label="Phone">
                                                         {{ order.customer_phone }}
                                                        <script>
-                                                        console.log(' new testtttting {{ unread_phones }}')
                                                        </script>
                                                         <span class="order-msg-badge"></span>
 
@@ -2407,7 +2535,6 @@ comp_btn.forEach(function(btn) {
 
 
     function trackCompanyData(period , product  , country) {
-    console.log('Selected Period:', period , 'Product:', product, 'Country:', country);
 
     var table;
     let startDate = '';
@@ -2589,7 +2716,7 @@ const country = document.getElementById('country-filter').value || 'all';
 
 
                                 <div class="card-body d-flex flex-column comp-card analytics_sesty" style="padding: 2px !important;"> 
-                                    <div class="customer-info-display mb-4 p-3 rounded d-none" style="border: var(--border-width) solid var(--border-card); background-color: rgba(255, 255, 255, 0.03);">
+                                    <div class="customer-info-display mb-4 p-3 rounded d-none" style="border: var(--border-width) solid var(--border-card); background-color: var(--surface-soft);">
                                         <h6 class="mb-2 text-light" style="font-size: var(--font-size-sm);"><i class="fas fa-user me-2"></i>Customer: <span id="customer-name-display" class="fw-bold">Not Selected</span></h6>
                                         <h6 class="mb-2 text-light" style="font-size: var(--font-size-sm);"><i class="fas fa-phone me-2"></i>Phone: <span id="customer-phone-display" class="font-monospace">Not Selected</span>
                                             <a id="whatsapp-link" href="#" target="_blank" class="btn btn-sm ms-2" style="background-color: var(--accent-color); color: var(--background-primary); border-radius: var(--border-radius-sm); font-size: 0.75rem; padding: 0.2rem 0.6rem; line-height: 1;">
@@ -2875,7 +3002,7 @@ const country = document.getElementById('country-filter').value || 'all';
 
        <div class="search-box mb-4 custom-search-input">
 
-                     <div class="filters-container p-3" style="background: rgba(255,255,255,0.05); border-radius: 10px;">
+                     <div class="filters-container p-3" style="background: var(--surface-soft); border-radius: 10px; border: 1px solid var(--border-card);">
 
     <!-- Search bar -->
     <div class="d-flex mb-3 gap-2 flex-wrap">
@@ -2969,7 +3096,7 @@ const country = document.getElementById('country-filter').value || 'all';
     
 (function(){
   const debug = false;
-  const log = (...args) => { if (debug) console.log(...args); };
+  const log = () => {};
 
   // تحقق إن المودال مفتوح
   function isModalOpen(modal) {
@@ -3381,11 +3508,11 @@ document.addEventListener("DOMContentLoaded", inistail_popup);
     .search-box-container {
         display: flex;
         align-items: center;
-        background: #fff;
+        background: var(--surface-card);
         border-radius: 10px;
         overflow: hidden;
-        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-        border: 1px solid #e0e0e0;
+        box-shadow: var(--shadow-elev);
+        border: 1px solid var(--border-card);
         transition: all 0.3s ease;
     }
 
@@ -3398,7 +3525,7 @@ document.addEventListener("DOMContentLoaded", inistail_popup);
         padding: 0.5rem 1rem;
         color: var(--accent-color);
         background: transparent;
-        border-right: 1px solid #e0e0e0;
+        border-right: 1px solid var(--border-card);
     }
 
     .search-input {
@@ -3406,8 +3533,8 @@ document.addEventListener("DOMContentLoaded", inistail_popup);
         border: none;
         padding: 0.75rem;
         font-size: 0.95rem;
-        color: #333;
-        background: transparent;
+        color: var(--input-text);
+        background: var(--input-bg);
         min-width: 200px;
     }
 
@@ -3445,10 +3572,10 @@ document.addEventListener("DOMContentLoaded", inistail_popup);
         align-items: center;
         justify-content: space-between;
         padding: 0.75rem 1rem;
-        background: white;
-        border: 1px solid #e0e0e0;
+        background: var(--surface-card);
+        border: 1px solid var(--border-card);
         border-radius: 8px;
-        color: #555;
+        color: var(--text-light);
         font-size: 0.9rem;
         transition: all 0.3s;
     }
@@ -3472,9 +3599,9 @@ document.addEventListener("DOMContentLoaded", inistail_popup);
 
     .view-btn {
         padding: 0.65rem 1rem;
-        background: white;
-        border: 1px solid #e0e0e0;
-        color: #555;
+        background: var(--surface-card);
+        border: 1px solid var(--border-card);
+        color: var(--text-light);
         transition: all 0.3s;
     }
 
@@ -3533,8 +3660,8 @@ document.addEventListener("DOMContentLoaded", inistail_popup);
     }
 
     .last-update {
-        background: #f5f5f5;
-        color: #555;
+        background: var(--surface-soft);
+        color: var(--text-muted);
         padding: 0.25rem 0.5rem;
         border-radius: 4px;
         font-size: 0.8rem;
@@ -3628,7 +3755,6 @@ document.addEventListener("DOMContentLoaded", inistail_popup);
     const html = await response.text();
 
     setproductlisther.innerHTML = html; // إدخال partial في الصفحة
-    console.log('don!' , html)
   } catch (err) {
     console.error(err);
   }
@@ -3707,6 +3833,307 @@ fetch("{% url 'leadstracking' %}" , {
 
 
  
+
+<div id="wa-connection-success-modal" class="wa-success-modal-overlay" aria-hidden="true">
+  <div class="wa-success-modal-card" role="dialog" aria-modal="true" aria-labelledby="wa-success-title">
+    <button type="button" class="wa-success-close-icon" id="wa-success-close-icon" aria-label="Close">×</button>
+
+    <canvas id="wa-success-confetti" class="wa-success-confetti" aria-hidden="true"></canvas>
+
+    <div class="wa-success-check">✓</div>
+    <h2 id="wa-success-title" class="wa-success-title">🎉 Congratulations! Your store is now connected to WhatsApp.</h2>
+    <p class="wa-success-subtitle">Your AI agent is ready to receive the first message and save hundreds of negotiation hours.</p>
+
+    <div class="wa-success-meta">
+      <div id="wa-success-qr" class="wa-success-qr"></div>
+      <div class="wa-success-phone-wrap">
+        <div class="wa-success-phone-label">Connected WhatsApp Number</div>
+        <div id="wa-success-phone" class="wa-success-phone">-</div>
+      </div>
+    </div>
+
+    <a id="wa-success-cta" class="wa-success-cta" href="#" target="_blank" rel="noopener noreferrer">
+      <i class="fab fa-whatsapp"></i>
+      <span>💬 Try the bot now</span>
+    </a>
+
+    <button type="button" id="wa-success-close-btn" class="wa-success-close-btn">Close</button>
+  </div>
+</div>
+
+<style>
+  .wa-success-modal-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 200000;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    background: rgba(2, 6, 23, 0.58);
+    backdrop-filter: blur(8px);
+  }
+  .wa-success-modal-overlay.is-open {
+    display: flex;
+    animation: waFadeIn 0.24s ease;
+  }
+  .wa-success-modal-card {
+    width: min(680px, 96vw);
+    background: linear-gradient(180deg, #0f172a 0%, #111827 100%);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 20px;
+    padding: 28px 24px 20px;
+    position: relative;
+    box-shadow: 0 30px 80px rgba(0, 0, 0, 0.45);
+    color: #e5e7eb;
+    text-align: center;
+    overflow: hidden;
+    animation: waModalUp 0.28s ease;
+  }
+  .wa-success-close-icon {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    border: none;
+    width: 34px;
+    height: 34px;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.08);
+    color: #e5e7eb;
+    cursor: pointer;
+    font-size: 20px;
+    line-height: 1;
+  }
+  .wa-success-confetti {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+  }
+  .wa-success-check {
+    width: 78px;
+    height: 78px;
+    margin: 6px auto 14px;
+    border-radius: 999px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 40px;
+    font-weight: 800;
+    color: #16a34a;
+    background: radial-gradient(circle at 30% 20%, #ecfdf5 0%, #d1fae5 35%, #bbf7d0 100%);
+    box-shadow: 0 8px 28px rgba(16, 185, 129, 0.3);
+  }
+  .wa-success-title {
+    margin: 0 0 10px;
+    font-size: clamp(20px, 2.2vw, 30px);
+    color: #f8fafc;
+    letter-spacing: -0.02em;
+    font-weight: 800;
+  }
+  .wa-success-subtitle {
+    margin: 0 auto 18px;
+    max-width: 560px;
+    color: #cbd5e1;
+    font-size: 15px;
+    line-height: 1.7;
+  }
+  .wa-success-meta {
+    display: flex;
+    gap: 14px;
+    align-items: center;
+    justify-content: center;
+    flex-wrap: wrap;
+    margin-bottom: 18px;
+  }
+  .wa-success-qr {
+    width: 126px;
+    height: 126px;
+    background: #fff;
+    border-radius: 14px;
+    padding: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 12px 24px rgba(0, 0, 0, 0.25);
+  }
+  .wa-success-phone-wrap {
+    min-width: 220px;
+    text-align: right;
+  }
+  .wa-success-phone-label {
+    color: #94a3b8;
+    font-size: 12px;
+    margin-bottom: 6px;
+  }
+  .wa-success-phone {
+    color: #f8fafc;
+    font-size: 20px;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+  }
+  .wa-success-cta {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    width: min(92%, 420px);
+    padding: 14px 18px;
+    border-radius: 14px;
+    background: linear-gradient(135deg, #16a34a 0%, #15803d 100%);
+    color: #fff;
+    font-weight: 700;
+    font-size: 17px;
+    text-decoration: none;
+    box-shadow: 0 10px 28px rgba(22, 163, 74, 0.35);
+    transition: transform 0.15s ease;
+  }
+  .wa-success-cta:hover { transform: translateY(-1px); color: #fff; }
+  .wa-success-close-btn {
+    margin-top: 12px;
+    background: transparent;
+    color: #9ca3af;
+    border: 1px solid rgba(148, 163, 184, 0.3);
+    border-radius: 10px;
+    padding: 8px 14px;
+    font-size: 13px;
+    cursor: pointer;
+  }
+  .wa-success-close-btn:hover { color: #e2e8f0; border-color: rgba(226, 232, 240, 0.5); }
+  @keyframes waFadeIn { from { opacity: 0; } to { opacity: 1; } }
+  @keyframes waModalUp { from { transform: translateY(12px); opacity: 0.8; } to { transform: translateY(0); opacity: 1; } }
+</style>
+
+<script>
+  (function () {
+    function cleanupSetupParam() {
+      const url = new URL(window.location.href);
+      if (!url.searchParams.has('setup')) return;
+      url.searchParams.delete('setup');
+      const cleanUrl = url.pathname + (url.search ? url.search : '') + url.hash;
+      window.history.replaceState({}, '', cleanUrl);
+    }
+
+    function normalizePhone(raw) {
+      return (raw || '').toString().replace(/\D/g, '');
+    }
+
+    function runConfettiBurst(canvas) {
+      if (!canvas) return;
+      const rect = canvas.getBoundingClientRect();
+      canvas.width = Math.max(1, Math.floor(rect.width));
+      canvas.height = Math.max(1, Math.floor(rect.height));
+      const ctx = canvas.getContext('2d');
+      if (!ctx) return;
+
+      const colors = ['#22c55e', '#60a5fa', '#f59e0b', '#a78bfa', '#f43f5e'];
+      const pieces = Array.from({ length: 120 }).map(() => ({
+        x: Math.random() * canvas.width,
+        y: -10 - Math.random() * 80,
+        size: 4 + Math.random() * 5,
+        vx: -2 + Math.random() * 4,
+        vy: 1 + Math.random() * 3,
+        g: 0.08 + Math.random() * 0.08,
+        rot: Math.random() * Math.PI,
+        vr: -0.15 + Math.random() * 0.3,
+        color: colors[Math.floor(Math.random() * colors.length)]
+      }));
+
+      const start = performance.now();
+      function frame(t) {
+        const elapsed = t - start;
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        pieces.forEach((p) => {
+          p.vy += p.g;
+          p.x += p.vx;
+          p.y += p.vy;
+          p.rot += p.vr;
+          ctx.save();
+          ctx.translate(p.x, p.y);
+          ctx.rotate(p.rot);
+          ctx.fillStyle = p.color;
+          ctx.fillRect(-p.size / 2, -p.size / 2, p.size, p.size * 0.6);
+          ctx.restore();
+        });
+        if (elapsed < 1000) {
+          requestAnimationFrame(frame);
+        } else {
+          ctx.clearRect(0, 0, canvas.width, canvas.height);
+        }
+      }
+      requestAnimationFrame(frame);
+    }
+
+    function renderQr(targetEl, waLink) {
+      if (!targetEl) return;
+      targetEl.innerHTML = '';
+      if (window.QRCode) {
+        new QRCode(targetEl, {
+          text: waLink,
+          width: 110,
+          height: 110,
+          colorDark: '#000000',
+          colorLight: '#ffffff',
+          correctLevel: QRCode.CorrectLevel.H
+        });
+        return;
+      }
+      const img = document.createElement('img');
+      img.alt = 'WhatsApp QR';
+      img.width = 110;
+      img.height = 110;
+      img.src = 'https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=' + encodeURIComponent(waLink);
+      targetEl.appendChild(img);
+    }
+
+    document.addEventListener('DOMContentLoaded', function () {
+      const fromUrl = new URL(window.location.href).searchParams.get('setup') === 'success';
+      const fromContext = document.documentElement.dataset.setupSuccess === '1';
+      if (!fromUrl && !fromContext) return;
+
+      const modal = document.getElementById('wa-connection-success-modal');
+      const closeIcon = document.getElementById('wa-success-close-icon');
+      const closeBtn = document.getElementById('wa-success-close-btn');
+      const phoneEl = document.getElementById('wa-success-phone');
+      const qrEl = document.getElementById('wa-success-qr');
+      const cta = document.getElementById('wa-success-cta');
+      const confetti = document.getElementById('wa-success-confetti');
+      if (!modal || !cta || !phoneEl || !qrEl) return;
+
+      const rawPhone = "{{ active_channel.phone_number|default:''|escapejs }}";
+      const normalizedPhone = normalizePhone(rawPhone);
+      if (!normalizedPhone) {
+        cleanupSetupParam();
+        return;
+      }
+
+      const waLink = 'https://wa.me/' + normalizedPhone;
+      const testLink = waLink + '?text=' + encodeURIComponent('سلام');
+
+      phoneEl.textContent = rawPhone || ('+' + normalizedPhone);
+      cta.href = testLink;
+      renderQr(qrEl, waLink);
+      modal.classList.add('is-open');
+      modal.setAttribute('aria-hidden', 'false');
+      runConfettiBurst(confetti);
+      cleanupSetupParam();
+
+      function closeModal() {
+        modal.classList.remove('is-open');
+        modal.setAttribute('aria-hidden', 'true');
+      }
+      closeIcon && closeIcon.addEventListener('click', closeModal);
+      closeBtn && closeBtn.addEventListener('click', closeModal);
+      modal.addEventListener('click', function (e) {
+        if (e.target === modal) closeModal();
+      });
+      document.addEventListener('keydown', function (e) {
+        if (e.key === 'Escape') closeModal();
+      });
+    });
+  })();
+</script>
 
 </body>
 </html>

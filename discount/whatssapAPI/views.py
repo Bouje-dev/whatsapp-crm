@@ -9,16 +9,19 @@ from typing import Type
 import requests
 from django.shortcuts import render, get_object_or_404
 from django.http import JsonResponse, HttpResponse
+from django.urls import reverse
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_http_methods, require_GET, require_POST
 from django.utils import timezone
 from django.core.files.base import ContentFile
 from django.conf import settings
+from django.db import IntegrityError
 from django.db.models import Max, Q
 from django.core.paginator import Paginator
-from discount.models import Message, SimpleOrder, Template, Order , Contact, WhatsAppChannel, CustomUser
+from discount.models import Message, SimpleOrder, Template, Order , Contact, WhatsAppChannel, CustomUser, ChatSession
 from django.contrib.auth.decorators import login_required
 from discount.activites import log_activity
+from discount.services.plan_limits import check_plan_limit
 import logging
 
 logger = logging.getLogger(__name__)
@@ -572,6 +575,25 @@ def whatsapp_webhook(request):
             for entry in data.get("entry", []):
                 for change in entry.get("changes", []):
                     value = change.get("value", {})
+
+                    # Risk management kill-switch:
+                    # If this webhook targets a suspended merchant/channel, abort immediately
+                    # and never trigger AI replies to end-customers.
+                    phone_number_id = (
+                        (value.get("metadata") or {}).get("phone_number_id")
+                        or value.get("phone_number_id")
+                        or ""
+                    )
+                    if phone_number_id:
+                        channel = WhatsAppChannel.objects.filter(phone_number_id=phone_number_id).first()
+                        merchant_owner = getattr(channel, "owner", None) if channel else None
+                        if merchant_owner and getattr(merchant_owner, "is_suspended", False):
+                            logger.warning(
+                                "WhatsApp webhook kill-switch: merchant suspended (owner=%s, phone_number_id=%s). Skipping.",
+                                merchant_owner.id,
+                                phone_number_id,
+                            )
+                            return HttpResponse("EVENT_RECEIVED", status=200)
                     
                     # معالجة الرسائل
                     if 'messages' in value:
@@ -611,8 +633,41 @@ def process_message_statuses(statuses):
             status_value = status.get('status')
             recipient_id = status.get('recipient_id')
             timestamp = status.get('timestamp')
-            
-             
+            errors = status.get('errors') or status.get('error')
+
+            # Meta accepts the send with HTTP 200; delivery is async. This webhook tells you
+            # if the message actually reached the user (delivered/read) or failed on-device/network.
+            try:
+                _blob = json.dumps(status, default=str)[:8000]
+            except Exception:
+                _blob = str(status)[:8000]
+            print(
+                "[Meta WhatsApp] status webhook",
+                f"message_id={message_id!r}",
+                f"status={status_value!r}",
+                f"recipient_id={recipient_id!r}",
+                f"errors={errors!r}",
+                f"raw={_blob}",
+            )
+            logger.info(
+                "[Meta WhatsApp] status webhook id=%s status=%s recipient_id=%s errors=%s",
+                message_id,
+                status_value,
+                recipient_id,
+                errors,
+            )
+            if status_value == "failed":
+                logger.warning(
+                    "[Meta WhatsApp] DELIVERY FAILED for wamid=%s errors=%s full=%s",
+                    message_id,
+                    errors,
+                    _blob,
+                )
+                print(
+                    "[Meta WhatsApp] DELIVERY FAILED — check errors above (user may block you, "
+                    "invalid number, or client could not download media).",
+                )
+
             # تحديث حالة الرسالة في قاعدة البيانات إذا لزم الأمر
             if message_id:
                 try:
@@ -1359,107 +1414,410 @@ def send_message(request):
         return JsonResponse({"error": str(e)}, status=500)
 
 
+@csrf_exempt
+@require_POST
+def live_chat_audio_upload(request):
+    """
+    Live Chat voice note: multipart form `audio` → write to a real temp file on disk,
+    FFmpeg to local Opus OGG, save to Message.media_file (S3 via django-storages),
+    then upload the same local file to Meta /media and /messages.
+    Always cleans up temp paths in `finally`.
+    """
+    from django.core.files import File
+    from discount.whatssapAPI.process_messages import (
+        _temp_suffix_from_filename_and_mime,
+        ffmpeg_live_chat_to_explicit_output,
+    )
+    from discount.channel.socket_utils import send_socket
+
+    if not request.user.is_authenticated:
+        return JsonResponse({"ok": False, "error": "authentication_required"}, status=401)
+
+    channel_id = request.POST.get("channel_id")
+    to_raw = request.POST.get("to") or request.POST.get("phone")
+    audio = request.FILES.get("audio")
+    body_text = (request.POST.get("body") or "").strip()
+
+    temp_input_path = None
+    temp_output_path = None
+    saved_message = None
+
+    try:
+        if not audio:
+            return JsonResponse({"ok": False, "error": "missing_audio", "details": "Expected request.FILES['audio']"}, status=400)
+        if not to_raw:
+            return JsonResponse({"ok": False, "error": "missing_recipient", "details": "POST field `to` is required"}, status=400)
+
+        channel = get_target_channel(request.user, channel_id)
+        if not channel:
+            return JsonResponse({"ok": False, "error": "channel_denied"}, status=403)
+
+        access_token = channel.access_token
+        phone_id = channel.phone_number_id
+        if not access_token or not phone_id:
+            return JsonResponse({"ok": False, "error": "invalid_channel_config"}, status=500)
+
+        to_number = str(to_raw).replace("+", "").strip()
+        suffix = _temp_suffix_from_filename_and_mime(
+            getattr(audio, "name", None) or "recording.webm",
+            getattr(audio, "content_type", None) or "",
+        ) or ".webm"
+
+        in_fd, temp_input_path = tempfile.mkstemp(suffix=suffix)
+        os.close(in_fd)
+        with open(temp_input_path, "wb") as out_f:
+            for chunk in audio.chunks():
+                out_f.write(chunk)
+
+        if not os.path.isfile(temp_input_path) or os.path.getsize(temp_input_path) <= 0:
+            return JsonResponse({"ok": False, "error": "empty_incoming_audio"}, status=400)
+
+        out_fd, temp_output_path = tempfile.mkstemp(suffix=".ogg")
+        os.close(out_fd)
+
+        if not ffmpeg_live_chat_to_explicit_output(temp_input_path, temp_output_path):
+            return JsonResponse(
+                {"ok": False, "error": "ffmpeg_failed", "details": "Could not convert audio to Opus OGG"},
+                status=500,
+            )
+
+        if not os.path.isfile(temp_output_path) or os.path.getsize(temp_output_path) <= 0:
+            return JsonResponse({"ok": False, "error": "empty_converted_audio"}, status=500)
+
+        saved_message = Message.objects.create(
+            channel=channel,
+            sender=to_number,
+            is_from_me=True,
+            body=body_text or "",
+            user=request.user,
+            media_type="audio",
+            status="sent",
+        )
+        storage_name = f"live_chat_{uuid.uuid4().hex}.ogg"
+        with open(temp_output_path, "rb") as local_f:
+            saved_message.media_file.save(storage_name, File(local_f), save=True)
+
+        api_ver = (channel.api_version or "v22.0").strip()
+        fb_upload_url = f"https://graph.facebook.com/{api_ver}/{phone_id}/media"
+        with open(temp_output_path, "rb") as fh:
+            fh.seek(0)
+            files = {"file": ("voice_message.ogg", fh, "audio/ogg")}
+            fb_res = requests.post(
+                fb_upload_url,
+                params={"messaging_product": "whatsapp", "access_token": access_token},
+                files=files,
+                timeout=80,
+            )
+
+        if fb_res.status_code not in (200, 201):
+            try:
+                saved_message.media_file.delete(save=False)
+            except Exception:
+                pass
+            saved_message.delete()
+            return JsonResponse(
+                {"ok": False, "error": "meta_media_upload_failed", "details": fb_res.text},
+                status=502,
+            )
+
+        try:
+            fb_json = fb_res.json()
+        except Exception:
+            fb_json = {}
+        media_id = fb_json.get("id")
+        if not media_id:
+            try:
+                saved_message.media_file.delete(save=False)
+            except Exception:
+                pass
+            saved_message.delete()
+            return JsonResponse(
+                {"ok": False, "error": "meta_media_missing_id", "details": fb_res.text},
+                status=502,
+            )
+
+        saved_message.media_id = media_id
+        saved_message.save(update_fields=["media_id"])
+
+        msg_url = f"https://graph.facebook.com/{api_ver}/{phone_id}/messages"
+        headers = {"Authorization": f"Bearer {access_token}", "Content-Type": "application/json"}
+        send_payload = {
+            "messaging_product": "whatsapp",
+            "recipient_type": "individual",
+            "to": to_number,
+            "type": "audio",
+            "audio": {"id": media_id, "voice": True},
+        }
+        r = requests.post(msg_url, headers=headers, json=send_payload, timeout=30)
+
+        if r.status_code not in (200, 201):
+            try:
+                saved_message.media_file.delete(save=False)
+            except Exception:
+                pass
+            saved_message.delete()
+            return JsonResponse(
+                {"ok": False, "error": "whatsapp_messages_api_failed", "details": r.text, "status": r.status_code},
+                status=502,
+            )
+
+        try:
+            response_data = r.json()
+            wa_message_id = None
+            if response_data.get("messages"):
+                wa_message_id = response_data["messages"][0].get("id")
+            if wa_message_id:
+                saved_message.message_id = wa_message_id
+                saved_message.save(update_fields=["message_id"])
+        except Exception:
+            pass
+
+        try:
+            session = ChatSession.objects.filter(
+                channel=channel, customer_phone=str(to_number).strip()
+            ).order_by("-last_interaction").first()
+            if session:
+                session.last_manual_message_at = timezone.now()
+                session.save(update_fields=["last_manual_message_at"])
+        except Exception:
+            pass
+
+        media_url = ""
+        try:
+            if saved_message.media_file:
+                media_url = saved_message.media_file.url
+        except Exception:
+            media_url = ""
+
+        owner_id = channel.owner_id
+        group_name = f"team_updates_{owner_id}" if owner_id else "webhook_events"
+
+        final_payload = {
+            "status": r.status_code,
+            "whatsapp_response": r.text,
+            "saved_message_id": saved_message.id,
+            "media_id": media_id,
+            "body": body_text,
+            "to": to_number,
+            "captions": body_text,
+            "media_type": "audio",
+            "url": media_url,
+            "media_url": media_url,
+        }
+        sidebar_payload = {
+            "phone": to_number,
+            "name": to_number,
+            "snippet": "audio",
+            "timestamp": timezone.now().strftime("%H:%M"),
+            "unread": 0,
+            "last_status": "sent",
+            "fromMe": True,
+            "channel_id": channel.id,
+        }
+        send_socket("finished", final_payload, group_name=group_name)
+        send_socket("update_sidebar_contact", sidebar_payload, group_name=group_name)
+
+        log_activity(
+            "wa_message_sent",
+            f"Live Chat audio (local-first) to {to_number} via {channel.name}",
+            request=request,
+        )
+
+        return JsonResponse(
+            {
+                "ok": True,
+                "saved_message_id": saved_message.id,
+                "wamid": getattr(saved_message, "message_id", None),
+                "media_id": media_id,
+                "media_url": media_url,
+            }
+        )
+
+    except Exception as e:
+        logger.exception("live_chat_audio_upload: %s", e)
+        if saved_message is not None:
+            try:
+                saved_message.media_file.delete(save=False)
+            except Exception:
+                pass
+            try:
+                saved_message.delete()
+            except Exception:
+                pass
+        return JsonResponse({"ok": False, "error": "server_error", "details": str(e)}, status=500)
+    finally:
+        for p in (temp_input_path, temp_output_path):
+            if not p:
+                continue
+            try:
+                if os.path.isfile(p):
+                    os.remove(p)
+            except OSError:
+                pass
+
+
+def _message_to_chat_dict(m, request):
+    """Serialize a Message row for the live chat JSON API."""
+    msg_type = ''
+    Type = getattr(m, 'type', None)
+    if Type:
+        msg_type = Type
+    else:
+        msg_type = getattr(m, 'media_type', 'text')
+    media_file = getattr(m, 'media_file', None)
+    media_url = None
+    status = getattr(m, 'status', None)
+    if media_file:
+        try:
+            url_attr = getattr(media_file, 'url', None)
+            if url_attr:
+                media_url = request.build_absolute_uri(url_attr)
+            else:
+                media_name = str(media_file).strip()
+                if not media_name:
+                    media_url = None
+                elif media_name.startswith('http://') or media_name.startswith('https://'):
+                    media_url = media_name
+                else:
+                    media_path = media_name.lstrip('/')
+                    base = settings.MEDIA_URL or '/media/'
+                    if not base.endswith('/'):
+                        base = base + '/'
+                    if media_path.startswith(base.lstrip('/')):
+                        media_url = request.build_absolute_uri('/' + media_path)
+                    else:
+                        media_url = request.build_absolute_uri(base + media_path)
+        except Exception:
+            media_url = None
+    else:
+        media_url = getattr(m, 'media_url', None)
+
+    return {
+        "id": m.id,
+        "body": m.body,
+        "fromMe": bool(m.is_from_me),
+        "time": m.created_at.strftime("%H:%M"),
+        "type": msg_type,
+        "url": media_url,
+        "status": status,
+        "user": m.user.username if m.user else None,
+        "timestamp": m.created_at.strftime('%Y-%m-%d %H:%M'),
+        "captions": m.captions,
+    }
 
 
 @require_GET
 def get_messages1(request):
     """
-    GET /api/get_messages/?phone=<phone>&since_id=<id>
-    Returns JSON: { messages: [{ id, body, fromMe, time }] }
+    GET /api/get_messages/?phone=<phone>&channel_id=<id>
+
+    History (newest page first, then scroll up for older):
+      - limit=10 (default, max 50)
+      - before_id=<id>  optional cursor for the next *older* page (messages with id < before_id)
+
+    Incremental sync (polling / modal): since_id>0 returns messages with id > since_id (ascending, capped).
+
+    Response: messages oldest→newest within the chunk, has_older_messages, optional oldest_id/newest_id.
     """
     channel_id = request.GET.get('channel_id')
     tracking = request.GET.get('tracking')
-
     phone = request.GET.get('phone')
-    since_id = request.GET.get('since_id')
+    since_id_raw = request.GET.get('since_id')
+    before_id_raw = request.GET.get('before_id')
+    limit_raw = request.GET.get('limit', '10')
+
+    empty = {"messages": [], "has_older_messages": False, "crm_data": {}}
+
     if not phone:
-        return JsonResponse({"messages": []})
-    
-    qs = Message.objects.filter(sender=phone , channel = WhatsAppChannel.objects.get(id = channel_id)).order_by('id')
+        return JsonResponse(empty)
 
-    if since_id:
+    try:
+        limit = int(limit_raw)
+        limit = max(1, min(limit, 50))
+    except ValueError:
+        limit = 10
+
+    if not channel_id:
+        return JsonResponse(empty)
+
+    try:
+        channel = WhatsAppChannel.objects.get(id=channel_id)
+    except (WhatsAppChannel.DoesNotExist, ValueError, TypeError):
+        return JsonResponse(empty)
+
+    qs_base = Message.objects.filter(sender=phone, channel=channel)
+
+    # --- Incremental: only new messages after since_id (skip pagination) ---
+    since_val = None
+    if since_id_raw not in (None, ''):
         try:
-            since_id = int(since_id)
-            qs = qs.filter(id__gt=since_id)
+            since_val = int(since_id_raw)
         except ValueError:
-            pass
-    
-    messages = []
-    contact_crm_data=[]
-    if not tracking :
-        contact = Contact.objects.filter(channel=WhatsAppChannel.objects.get(id=channel_id), phone=phone).first()
-        pipeline_stage = contact.pipeline_stage
-        
-        contact_crm_data = {
-            'pipeline_stage': pipeline_stage if pipeline_stage else None,          
-            'assigned_agent_id': contact.assigned_agent_id,  
-            'tags': [                                         
-                {'name': tag.name, 'color': tag.color} 
-                for tag in contact.tags.all()
-            ]
-        }
-     
-
-    for m in qs:
-        msg_type = ''
-        Type = getattr(m, 'type' , None)
-        if Type :
-            msg_type = Type
-        else : 
-            msg_type = getattr(m, 'media_type', 'text')
-        
-        # msg_type = getattr(m, 'media_type', 'text')
-        media_file = getattr(m, 'media_file', None)  
-        media_url = None
-        m.is_read=True
-        m.save()
-        status = getattr(m,'status' , None)
-        if media_file:
-            try:
-                # Prefer FileField/FieldFile .url when available
-                url_attr = getattr(media_file, 'url', None)
-                if url_attr:
-                    media_url = request.build_absolute_uri(url_attr)
-                     
-                else:
-                    media_name = str(media_file).strip()
-                    if not media_name:
-                        media_url = None
-                    elif media_name.startswith('http://') or media_name.startswith('https://'):
-                        # Already a full URL stored in the database
-                        media_url = media_name
-                    else:
-                        # Treat as relative path under MEDIA_URL
-                        media_path = media_name.lstrip('/')
-                        base = settings.MEDIA_URL or '/media/'
-                        if not base.endswith('/'):
-                            base = base + '/'
-                        # If media_path already contains the base, avoid duplicating
-                        if media_path.startswith(base.lstrip('/')):
-                            media_url = request.build_absolute_uri('/' + media_path)
-                        else:
-                            media_url = request.build_absolute_uri(base + media_path)
-            except Exception:
-                media_url = None
-        else:
-            media_url = getattr(m, 'media_url', None)
-    
-        messages.append({
-            "id": m.id,
-            "body": m.body,
-            "fromMe": bool(m.is_from_me),
-            "time": m.created_at.strftime("%H:%M"),
-            "type": msg_type,
-            "url": media_url,
-            "status":status , 
-            "user": m.user.username if m.user else None,
-            "timestamp" : m.created_at.strftime('%Y-%m-%d %H:%M'),
-            "captions": m.captions
-
+            since_val = None
+    if since_val is not None and since_val > 0:
+        qs = qs_base.filter(id__gt=since_val).order_by('id')[:200]
+        messages = []
+        for m in qs:
+            m.is_read = True
+            m.save(update_fields=['is_read'])
+            messages.append(_message_to_chat_dict(m, request))
+        return JsonResponse({
+            "messages": messages,
+            "has_older_messages": False,
+            "oldest_id": messages[0]["id"] if messages else None,
+            "newest_id": messages[-1]["id"] if messages else None,
+            "crm_data": None,
         })
-         
 
-    return JsonResponse({"messages": messages , "crm_data": contact_crm_data})
+    # --- Paginated history ---
+    before_val = None
+    if before_id_raw not in (None, ''):
+        try:
+            before_val = int(before_id_raw)
+        except ValueError:
+            before_val = None
+
+    if before_val is not None:
+        page_qs = qs_base.filter(id__lt=before_val).order_by('-id')[:limit]
+    else:
+        page_qs = qs_base.order_by('-id')[:limit]
+
+    batch = list(page_qs)
+    batch.reverse()
+
+    min_id = batch[0].id if batch else None
+    has_older = False
+    if min_id is not None:
+        has_older = qs_base.filter(id__lt=min_id).exists()
+
+    contact_crm_data = {}
+    if not tracking and before_val is None:
+        contact = Contact.objects.filter(channel=channel, phone=phone).first()
+        if contact:
+            contact_crm_data = {
+                'pipeline_stage': contact.pipeline_stage if contact.pipeline_stage else None,
+                'assigned_agent_id': contact.assigned_agent_id,
+                'tags': [
+                    {'name': tag.name, 'color': tag.color}
+                    for tag in contact.tags.all()
+                ],
+            }
+
+    messages = []
+    load_older = before_val is not None
+    for m in batch:
+        if not load_older:
+            m.is_read = True
+            m.save(update_fields=['is_read'])
+        messages.append(_message_to_chat_dict(m, request))
+
+    return JsonResponse({
+        "messages": messages,
+        "has_older_messages": has_older,
+        "oldest_id": min_id,
+        "newest_id": batch[-1].id if batch else None,
+        "crm_data": contact_crm_data,
+    })
 
 
 from django.db.models import Max, OuterRef, Subquery, Count, Q
@@ -1588,7 +1946,6 @@ def api_contacts2(request):
         }
 
         # HITL: which senders have AI disabled (Needs Human Action)
-        from discount.models import ChatSession
         needs_human_phones = set(
             ChatSession.objects.filter(
                 channel=target_channel,
@@ -1947,6 +2304,16 @@ def create_template(request):
 
         if header_type not in ALLOWED_HEADER_TYPES: errors.append('invalid header_type')
 
+        header_text_val = (request.POST.get('header_text') or '').strip()
+        if header_type == 'text' and len(header_text_val) > 60:
+            return JsonResponse({'success': False, 'error': 'Header text must be 60 characters or fewer (WhatsApp limit).'}, status=400)
+        if header_type == 'image' and not header_image:
+            return JsonResponse({'success': False, 'error': 'Image header requires an image file.'}, status=400)
+        if header_type == 'video' and not header_video:
+            return JsonResponse({'success': False, 'error': 'Video header requires a video file.'}, status=400)
+        if header_type == 'document' and not header_document:
+            return JsonResponse({'success': False, 'error': 'Document header requires a file (PDF or Word).'}, status=400)
+
         # Parse JSON fields
         body_samples_raw, err = parse_json_field(request.POST, 'body_samples')
         if err: errors.append(err)
@@ -2026,26 +2393,25 @@ def create_template(request):
                     body=body_normalized,
                     footer=footer,
                     header_type=header_type,
-                    header_text=(request.POST.get('header_text') or '').strip(),
+                    header_text=header_text_val,
                 )
 
                 # Save Files
-                if header_image: template.header_image = header_image
-                if header_video: template.header_video = header_video
-                if header_document: template.header_document = header_document
+                if header_image:
+                    template.header_image = header_image
+                if header_video:
+                    template.header_video = header_video
+                if header_document:
+                    template.header_document = header_document
 
-                # Save JSON fields
-                # Use JSONField if available, else text fallback
-                if hasattr(template, 'body_samples'):
-                    template.body_samples = samples
-                else:
-                    template.meta_body_samples = json.dumps(samples, ensure_ascii=False)
+                sv_map = {}
+                for i, item in enumerate(samples, 1):
+                    sv_map[str(i)] = str(item.get('text', '') or '')
+                template.sample_values = sv_map
+                template.buttons = clean_buttons
 
-                if hasattr(template, 'buttons'):
-                    template.buttons = clean_buttons
-                else:
-                    template.meta_buttons = json.dumps(clean_buttons, ensure_ascii=False)
-                
+                template.save()
+
                 # B. Submit to Meta
                 # IMPORTANT: We pass the created object to the function
                 meta_result = submit_template_to_meta(template, channel, user)
@@ -2148,6 +2514,7 @@ def update_template(request, pk):
         # الملفات
         header_image = request.FILES.get('header_image')
         header_video = request.FILES.get('header_video')
+        header_document = request.FILES.get('header_document')
         header_audio = request.FILES.get('header_audio')
 
         # تحديث القيم النصية
@@ -2167,6 +2534,9 @@ def update_template(request, pk):
 
         if header_video:
             template.header_video = header_video
+
+        if header_document:
+            template.header_document = header_document
 
         if header_audio:
             template.header_audio = header_audio
@@ -2289,6 +2659,7 @@ def api_templates(request):
                 'status': template.status,
                 'updated': template.updated_at.isoformat() if template.updated_at else None,
                 'body': template.body,
+                'components': template.components,
                 'footer': template.footer,
                 'header_type': template.header_type,
                 'header_text': template.header_text,
@@ -2306,6 +2677,7 @@ def api_templates(request):
                     'status': template.status,
                     'updated': template.updated_at.isoformat() if template.updated_at else None,
                     'body': template.body,
+                    'components': template.components,
                     'footer': template.footer,
                     'header_type': template.header_type,
                     'header_text': template.header_text,
@@ -2445,6 +2817,8 @@ def api_products_list(request):
             "name": p.name or "",
             "sku": p.sku or "",
             "price": str(p.price) if p.price is not None else "",
+            "backup_price": str(getattr(p, "backup_price", "") or ""),
+            "coupon_code": (getattr(p, "coupon_code", None) or "").strip(),
             "currency": (p.currency or "MAD").strip() or "MAD",
             "description": (p.description or "")[:200],
             "how_to_use": (p.how_to_use or "")[:200] if p.how_to_use else "",
@@ -2534,6 +2908,8 @@ def api_products_create(request):
     description = (request.POST.get("description") or "").strip()
     how_to_use = (request.POST.get("how_to_use") or "").strip() or None
     offer = (request.POST.get("offer") or "").strip() or None
+    backup_price_raw = (request.POST.get("backup_price") or "").strip()
+    coupon_code = (request.POST.get("coupon_code") or "").strip() or None
     delivery_options = (request.POST.get("delivery_options") or "").strip() or None
     if delivery_options and len(delivery_options) > 500:
         delivery_options = delivery_options[:500]
@@ -2552,6 +2928,16 @@ def api_products_create(request):
             errors.append("Price must be a valid number.")
     if not description:
         errors.append("Description is required.")
+    backup_price_val = None
+    if backup_price_raw:
+        try:
+            backup_price_val = Decimal(backup_price_raw)
+            if backup_price_val < 0:
+                errors.append("Backup price must be a positive number.")
+        except (InvalidOperation, ValueError):
+            errors.append("Backup price must be a valid number.")
+    if coupon_code and len(coupon_code) > 64:
+        coupon_code = coupon_code[:64]
 
     media_files = request.FILES.getlist("images") or request.FILES.getlist("image") or []
     image_urls_raw = request.POST.get("image_urls", "").strip()
@@ -2587,6 +2973,10 @@ def api_products_create(request):
     if category_param not in ALLOWED_PRODUCT_CATEGORIES:
         category_param = None
 
+    checkout_mode_param = (request.POST.get("checkout_mode") or "").strip() or "standard_cod"
+    if checkout_mode_param not in ("quick_lead", "standard_cod", "strict_cod"):
+        checkout_mode_param = "standard_cod"
+
     product = Products.objects.create(
         admin_id=channel.owner_id,
         name=name,
@@ -2596,10 +2986,13 @@ def api_products_create(request):
         description=description,
         how_to_use=how_to_use or None,
         offer=offer or None,
+        backup_price=backup_price_val,
+        coupon_code=(coupon_code.upper() if coupon_code else None),
         delivery_options=delivery_options,
         seller_custom_persona=seller_custom_persona,
         stock=0,
         category=category_param or "general_retail",
+        checkout_mode=checkout_mode_param,
     )
 
     # AI product classification: only when not provided by form and description is long enough
@@ -2672,6 +3065,8 @@ def api_products_detail(request, product_id):
         "name": product.name or "",
         "sku": product.sku or "",
         "price": str(product.price) if product.price is not None else "",
+        "backup_price": str(getattr(product, "backup_price", "") or ""),
+        "coupon_code": (getattr(product, "coupon_code", None) or "").strip(),
         "currency": (product.currency or "MAD").strip() or "MAD",
         "description": product.description or "",
         "how_to_use": product.how_to_use or "",
@@ -2679,6 +3074,7 @@ def api_products_detail(request, product_id):
         "delivery_options": (product.delivery_options or "").strip() or "",
         "category": (getattr(product, "category", None) or "general_retail").strip() or "general_retail",
         "seller_custom_persona": (getattr(product, "seller_custom_persona", None) or "").strip() or "",
+        "checkout_mode": (getattr(product, "checkout_mode", None) or "standard_cod").strip() or "standard_cod",
         "testimonial_url": product.testimonial.url if product.testimonial else None,
         "images": image_urls,
         "videos": video_urls,
@@ -2705,6 +3101,8 @@ def api_products_update(request, product_id):
     description = (request.POST.get("description") or "").strip()
     how_to_use = (request.POST.get("how_to_use") or "").strip() or None
     offer = (request.POST.get("offer") or "").strip() or None
+    backup_price_raw = (request.POST.get("backup_price") or "").strip()
+    coupon_code = (request.POST.get("coupon_code") or "").strip() or None
     delivery_options = (request.POST.get("delivery_options") or "").strip() or None
     if delivery_options and len(delivery_options) > 500:
         delivery_options = delivery_options[:500]
@@ -2714,6 +3112,9 @@ def api_products_update(request, product_id):
     category_raw = (request.POST.get("category") or "").strip().lower()
     if category_raw not in ALLOWED_PRODUCT_CATEGORIES:
         category_raw = getattr(product, "category", None) or "general_retail"
+    checkout_mode_raw = (request.POST.get("checkout_mode") or "").strip() or "standard_cod"
+    if checkout_mode_raw not in ("quick_lead", "standard_cod", "strict_cod"):
+        checkout_mode_raw = getattr(product, "checkout_mode", None) or "standard_cod"
     errors = []
     if not name:
         errors.append("Product name is required.")
@@ -2728,6 +3129,16 @@ def api_products_update(request, product_id):
             errors.append("Price must be a valid number.")
     if not description:
         errors.append("Description is required.")
+    backup_price_val = None
+    if backup_price_raw:
+        try:
+            backup_price_val = Decimal(backup_price_raw)
+            if backup_price_val < 0:
+                errors.append("Backup price must be a positive number.")
+        except (InvalidOperation, ValueError):
+            errors.append("Backup price must be a valid number.")
+    if coupon_code and len(coupon_code) > 64:
+        coupon_code = coupon_code[:64]
     if errors:
         return JsonResponse({"success": False, "error": " ".join(errors), "errors": errors}, status=400)
     try:
@@ -2744,10 +3155,13 @@ def api_products_update(request, product_id):
     product.description = description
     product.how_to_use = how_to_use or None
     product.offer = offer or None
+    product.backup_price = backup_price_val
+    product.coupon_code = (coupon_code.upper() if coupon_code else None)
     product.delivery_options = delivery_options
     product.category = category_raw or "general_retail"
     product.seller_custom_persona = seller_custom_persona
-    product.save(update_fields=["name", "price", "currency", "description", "how_to_use", "offer", "delivery_options", "category", "seller_custom_persona"])
+    product.checkout_mode = checkout_mode_raw or "standard_cod"
+    product.save(update_fields=["name", "price", "currency", "description", "how_to_use", "offer", "backup_price", "coupon_code", "delivery_options", "category", "seller_custom_persona", "checkout_mode"])
     testimonial_file = request.FILES.get("testimonial")
     if testimonial_file:
         product.testimonial = testimonial_file
@@ -3179,6 +3593,7 @@ from django.views.decorators.http import require_POST
  
 
 @require_POST
+@check_plan_limit("max_channels")
 def create_channel_api(request):
     
     try:
@@ -3199,9 +3614,26 @@ def create_channel_api(request):
         new_channel.assigned_agents.add(user)
         log_activity('wa_channel_created', f"Channel created: {new_channel.name} ({new_channel.phone_number})", request=request, related_object=new_channel)
         return JsonResponse({'success': True, 'id': new_channel.id})
-        
+
+    except IntegrityError as e:
+        err_lower = str(e).lower()
+        if "phone_number" in err_lower or "whatsappchannel" in err_lower:
+            return JsonResponse(
+                {
+                    "success": False,
+                    "error": "This WhatsApp number is already connected. Remove the existing channel or use a different number.",
+                    "error_code": "duplicate_phone",
+                },
+                status=409,
+            )
+        logger.exception("create_channel_api integrity error")
+        return JsonResponse(
+            {"success": False, "error": "Could not save this channel.", "error_code": "integrity"},
+            status=409,
+        )
     except Exception as e:
-        return JsonResponse({'success': False, 'error': str(e)}, status=400)
+        logger.exception("create_channel_api failed")
+        return JsonResponse({"success": False, "error": "Could not create channel.", "error_code": "unknown"}, status=400)
 
 
 
@@ -3268,6 +3700,7 @@ def register_phone_number_with_retry(phone_id, access_token, pin_code, max_retri
 
 @csrf_exempt
 @require_POST
+@check_plan_limit("max_channels")
 def exchange_token_and_create_channel(request):
     try:
         data = json.loads(request.body)
@@ -3365,14 +3798,49 @@ def exchange_token_and_create_channel(request):
             
         channel.assigned_agents.add(request.user)
 
+        dashboard_url = reverse('tracking')
+        success_redirect_url = f"{dashboard_url}?setup=success&channel_id={channel.id}"
+
         return JsonResponse({
             'success': True, 
             'channel_id': channel.id,
-            'phone_number': phone_number
+            'phone_number': phone_number,
+            'redirect_url': success_redirect_url
         })
 
+    except IntegrityError as e:
+        err_lower = str(e).lower()
+        if "phone_number" in err_lower or "whatsappchannel" in err_lower:
+            return JsonResponse(
+                {
+                    "success": False,
+                    "error": (
+                        "This WhatsApp number is already connected to Waselytics. "
+                        "Remove or delete the existing channel first, then try again—or use a different WhatsApp Business number."
+                    ),
+                    "error_code": "duplicate_phone",
+                },
+                status=409,
+            )
+        logger.exception("exchange_token_and_create_channel integrity error")
+        return JsonResponse(
+            {
+                "success": False,
+                "error": "This channel could not be saved. Please try again.",
+                "error_code": "integrity",
+            },
+            status=409,
+        )
     except Exception as e:
-        return JsonResponse({'success': False, 'error': str(e)}, status=500)
+        logger.exception("exchange_token_and_create_channel failed")
+        return JsonResponse(
+            {
+                "success": False,
+                "error": "We couldn’t finish connecting WhatsApp. Please try again.",
+                "error_code": "unknown",
+            },
+            status=500,
+        )
 
 
 
@@ -3395,84 +3863,67 @@ def api_dashboard_stats(request):
         if not channel:
             return JsonResponse({'error': 'Channel not found'}, status=404)
 
-        # 1. إحصائيات عامة (Cards)
-        total_contacts = Contact.objects.filter(channel=channel).count()
-        total_messages = Message.objects.filter(channel=channel).count()
-   
         now = timezone.now()
         today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
         yesterday_start = today_start - timedelta(days=1)
 
+        # Date range filter: today | 7d | month (default)
+        range_param = request.GET.get('range', 'month')
+        if range_param == 'today':
+            range_start = today_start
+            chart_days = 1
+        elif range_param == '7d':
+            range_start = today_start - timedelta(days=6)
+            chart_days = 7
+        else:
+            first_of_month = today_start.replace(day=1)
+            range_start = first_of_month
+            chart_days = (now.date() - first_of_month.date()).days + 1
+
+        # Contacts
+        total_contacts = Contact.objects.filter(channel=channel, created_at__gte=range_start).count()
+        today_contacts = Contact.objects.filter(channel=channel, created_at__gte=today_start).count()
         yesterday_contacts = Contact.objects.filter(
-            channel=channel,
-            created_at__gte=yesterday_start,
-            created_at__lt=today_start
+            channel=channel, created_at__gte=yesterday_start, created_at__lt=today_start
         ).count()
 
-        today_contacts = Contact.objects.filter(
-            channel=channel,
-            created_at__gte=today_start
+        # Messages
+        msgs_in_range = Message.objects.filter(channel=channel, created_at__gte=range_start)
+        total_messages = msgs_in_range.count()
+        sent_count = msgs_in_range.filter(is_from_me=True).count()
+        received_count = msgs_in_range.filter(is_from_me=False).count()
+
+        # Orders
+        orders_base = SimpleOrder.objects.filter(channel=channel)
+        if not (user.is_superuser or user.is_team_admin):
+            orders_base = orders_base.filter(agent=user)
+        total_order = orders_base.filter(created_at__gte=range_start).count()
+        orders_today = orders_base.filter(created_at__gte=today_start).count()
+        orders_yesterday = orders_base.filter(
+            created_at__gte=yesterday_start, created_at__lt=today_start
         ).count()
-        
 
-        orders_today = SimpleOrder.objects.filter(
-            channel=channel,
-            created_at__gte=today_start
-        )
-
-        orders_yesterday = SimpleOrder.objects.filter(
-            channel=channel,
-            created_at__gte=yesterday_start,
-            created_at__lt=today_start
-        )
-
-        # 2. بيانات الحساب (من مودل القناة)
+        # Account info
         account_info = {
             'display_name': channel.name,
             'phone_number': channel.phone_number,
             'waba_id': channel.business_account_id,
-            'status': 'CONNECTED', # يمكن تحديثها لاحقاً بفحص حقيقي
-            'quality': 'GREEN',    # قيمة افتراضية حالياً
-            'limit': 'TIER_250'    # قيمة افتراضية
+            'status': 'CONNECTED',
+            'quality': 'GREEN',
+            'limit': 'TIER_250'
         }
 
-        # 3. بيانات الرسم البياني (آخر 7 أيام)
-        # نحتاج مصفوفتين: واحدة للأيام، وواحدة للأرقام
-        today = timezone.now().date()
+        # Chart data (one point per day in the selected range)
+        today_date = now.date()
         labels = []
         sent_data = []
         received_data = []
-
-        total_order  = '0'
-        if user.is_superuser or user.is_team_admin:
-            total_order = SimpleOrder.objects.filter(channel=channel).count()
-        else:
-                total_order = SimpleOrder.objects.filter(agent=user,channel=channel).count()
-        
-
-        for i in range(6, -1, -1): # لوب لآخر 7 أيام
-            day = today - timedelta(days=i)
-            day_label = day.strftime("%a") # Mon, Tue...
-            
-            # حساب رسائل هذا اليوم
-            # ملاحظة: استخدم created_at__date للتصفية بالتاريخ فقط
-
+        for i in range(chart_days - 1, -1, -1):
+            day = today_date - timedelta(days=i)
+            labels.append(day.strftime("%a %d") if chart_days > 1 else day.strftime("%H:00"))
             daily_msgs = Message.objects.filter(channel=channel, created_at__date=day)
-            # الرسائل (إجمالي + تفصيل)
-            all_msgs = Message.objects.filter(channel=channel)
-            total_messages = all_msgs.count() # العدد الكلي (62)
-            
-            sent_count = all_msgs.filter(is_from_me=True).count()      # رسائلنا
-            received_count = all_msgs.filter(is_from_me=False).count() # رسائل العملاء
-                
-
-
-            sent_count = daily_msgs.filter(is_from_me=True).count()
-            received_count = daily_msgs.filter(is_from_me=False).count()
-            
-            labels.append(day_label)
-            sent_data.append(sent_count)
-            received_data.append(received_count)
+            sent_data.append(daily_msgs.filter(is_from_me=True).count())
+            received_data.append(daily_msgs.filter(is_from_me=False).count())
 
         return JsonResponse({
             'success': True,
@@ -3480,14 +3931,13 @@ def api_dashboard_stats(request):
                 'contacts': total_contacts,
                 'messages': total_messages,
                 'campaigns': 0,
-                'sent': sent_count,         # تفصيل
-                'received': received_count, 
+                'sent': sent_count,
+                'received': received_count,
                 'yesterday_contacts': yesterday_contacts,
                 'today_contacts': today_contacts,
-
-                'orders_today': orders_today.count(),
-                'orders_yesterday': orders_yesterday.count(),
-                'total_orders':total_order
+                'orders_today': orders_today,
+                'orders_yesterday': orders_yesterday,
+                'total_orders': total_order,
             },
             'account': account_info,
             'chart': {
@@ -3775,8 +4225,8 @@ def assign_agent_to_contact(request):
         try:
             agent = CustomUser.objects.get(id=agent_id)
             contact.assigned_agent = agent
-            assigned_name = agent.user_name
-            create_activity_log(contact.channel, phone, f"Conversation assigned to {agent.user_name}", user=request.user)
+            assigned_name = agent.user_name or getattr(agent, 'agent_role', None) or "Agent"
+            create_activity_log(contact.channel, phone, f"Conversation assigned to {assigned_name}", user=request.user)
                 
         except CustomUser.DoesNotExist:
 
@@ -3817,7 +4267,8 @@ def update_contact_crm(request):
             # contact.assigned_agent_id = value
             agent = CustomUser.objects.get(id=value)
             contact.assigned_agent = agent
-            create_activity_log(contact.channel, phone, f"Conversation assigned to {agent.user_name}", user=request.user)
+            _name = agent.user_name or getattr(agent, 'agent_role', None) or "Agent"
+            create_activity_log(contact.channel, phone, f"Conversation assigned to {_name}", user=request.user)
             log_msg = f"تم تعيين المحادثة للموظف ID: {value}"
         else:
             contact.assigned_agent = None
@@ -3876,3 +4327,241 @@ def update_contact_crm(request):
 
     log_activity('wa_contact_crm_updated', f"Contact {phone}: {action} → {value}", request=request)
     return JsonResponse({'success': True, 'message': log_msg})
+
+
+# TODO: REMOVE BEFORE PRODUCTION — dev-only plan switcher for testing checkPlanLimit
+@csrf_exempt
+@require_POST
+def dev_switch_plan(request):
+    """Temporary endpoint to switch a user's plan for local testing of plan limits."""
+    from django.conf import settings as _settings
+    if not getattr(_settings, "DEBUG", False):
+        return JsonResponse({"error": "Not available in production"}, status=404)
+
+    try:
+        data = json.loads(request.body)
+    except (json.JSONDecodeError, ValueError):
+        return JsonResponse({"error": "Invalid JSON body"}, status=400)
+
+    user_id = data.get("userId")
+    new_plan_name = (data.get("newPlan") or "").strip().lower()
+    if not user_id or not new_plan_name:
+        return JsonResponse({"error": "userId and newPlan are required"}, status=400)
+
+    from discount.models import Plan, CustomUser as User
+    user = User.objects.filter(pk=user_id).first()
+    if not user:
+        return JsonResponse({"error": f"User {user_id} not found"}, status=404)
+
+    plan = Plan.objects.filter(name__iexact=new_plan_name).first()
+    if not plan:
+        available = list(Plan.objects.values_list("name", flat=True))
+        return JsonResponse(
+            {"error": f"Plan '{new_plan_name}' not found", "available_plans": available},
+            status=404,
+        )
+
+    user.plan = plan
+    user.save(update_fields=["plan"])
+
+    from discount.services.plan_limits import PLAN_LIMITS, is_limit_reached
+    limits_snapshot = {}
+    for resource in ("max_channels", "max_team_members", "max_monthly_orders"):
+        reached, limit, current = is_limit_reached(user, resource)
+        limits_snapshot[resource] = {"limit": limit, "current": current, "reached": reached}
+
+    return JsonResponse({
+        "success": True,
+        "user_id": user.pk,
+        "new_plan": plan.name,
+        "limits": limits_snapshot,
+    })
+
+
+# ── Stripe Billing ──────────────────────────────────────────────────────
+
+@csrf_exempt
+@require_POST
+def create_checkout_session(request):
+    """Create a Stripe Checkout Session for $1 upfront + 7-day subscription trial."""
+    if not request.user.is_authenticated:
+        return JsonResponse({"error": "Authentication required"}, status=401)
+
+    try:
+        data = json.loads(request.body)
+    except (json.JSONDecodeError, ValueError):
+        return JsonResponse({"error": "Invalid JSON body"}, status=400)
+
+    user_id = str(data.get("userId") or request.user.pk).strip()
+    price_id = str(data.get("priceId") or "").strip()
+    plan_name = str(data.get("planId") or data.get("plan") or "").strip().lower()
+    if not user_id:
+        return JsonResponse({"error": "userId is required"}, status=400)
+    if not price_id and not plan_name:
+        return JsonResponse({"error": "priceId or planId is required"}, status=400)
+    if user_id != str(request.user.pk):
+        return JsonResponse({"error": "userId does not match authenticated user"}, status=403)
+
+    from discount.services.stripe_billing import create_trial_checkout_session
+    url = create_trial_checkout_session(
+        user=request.user,
+        user_id=user_id,
+        price_id=price_id or None,
+        plan_name=plan_name or None,
+    )
+    if not url:
+        return JsonResponse({"error": "Failed to create checkout session"}, status=500)
+
+    return JsonResponse({"success": True, "url": url})
+
+
+@csrf_exempt
+@require_POST
+def create_portal_session(request):
+    """Create a Stripe Billing Portal session for current user."""
+    if not request.user.is_authenticated:
+        return JsonResponse({"error": "Authentication required"}, status=401)
+
+    from discount.services.stripe_billing import create_billing_portal_session
+
+    url = create_billing_portal_session(request.user)
+    if not url:
+        return JsonResponse({"error": "Failed to create billing portal session"}, status=500)
+    return JsonResponse({"success": True, "url": url})
+
+
+@require_GET
+def wallet_summary(request):
+    """Return wallet summary for current authenticated user."""
+    if not request.user.is_authenticated:
+        return JsonResponse({"error": "Authentication required"}, status=401)
+
+    owner = getattr(request.user, "team_admin", None) or request.user
+    return JsonResponse(
+        {
+            "success": True,
+            "walletBalance": str(getattr(owner, "wallet_balance", 0) or 0),
+            "totalTokensUsed": int(getattr(owner, "total_tokens_used", 0) or 0),
+            "lowBalanceAlertEnabled": bool(getattr(owner, "low_balance_alert_enabled", True)),
+        }
+    )
+
+
+@csrf_exempt
+@require_POST
+def wallet_settings(request):
+    """Update wallet settings for current authenticated user."""
+    if not request.user.is_authenticated:
+        return JsonResponse({"error": "Authentication required"}, status=401)
+
+    try:
+        data = json.loads(request.body or "{}")
+    except (json.JSONDecodeError, ValueError):
+        return JsonResponse({"error": "Invalid JSON body"}, status=400)
+
+    if "lowBalanceAlertEnabled" not in data:
+        return JsonResponse({"error": "lowBalanceAlertEnabled is required"}, status=400)
+
+    owner = getattr(request.user, "team_admin", None) or request.user
+    owner.low_balance_alert_enabled = bool(data.get("lowBalanceAlertEnabled"))
+    owner.save(update_fields=["low_balance_alert_enabled"])
+    return JsonResponse({"success": True, "lowBalanceAlertEnabled": owner.low_balance_alert_enabled})
+
+
+@csrf_exempt
+@require_POST
+def wallet_topup(request):
+    """Create Stripe Checkout session for wallet top-up."""
+    if not request.user.is_authenticated:
+        return JsonResponse({"error": "Authentication required"}, status=401)
+    try:
+        data = json.loads(request.body or "{}")
+    except (json.JSONDecodeError, ValueError):
+        return JsonResponse({"error": "Invalid JSON body"}, status=400)
+
+    user_id = str(data.get("userId") or "").strip()
+    amount = data.get("amount")
+    if not user_id or amount is None:
+        return JsonResponse({"error": "userId and amount are required"}, status=400)
+    if user_id != str(request.user.pk):
+        return JsonResponse({"error": "userId does not match authenticated user"}, status=403)
+
+    from discount.services.stripe_billing import create_wallet_topup_checkout_session
+
+    url = create_wallet_topup_checkout_session(request.user, user_id=user_id, amount=amount)
+    if not url:
+        return JsonResponse({"error": "Failed to create wallet top-up session"}, status=500)
+    return JsonResponse({"success": True, "url": url})
+
+
+@require_GET
+def api_channel_limit_status(request):
+    if not request.user.is_authenticated:
+        return JsonResponse({"error": "Authentication required"}, status=401)
+    from discount.services.plan_limits import get_max_channels_status
+
+    return JsonResponse(get_max_channels_status(request.user))
+
+
+@csrf_exempt
+@require_POST
+def api_create_extra_channel_checkout(request):
+    if not request.user.is_authenticated:
+        return JsonResponse({"error": "Authentication required"}, status=401)
+    from discount.services.plan_limits import _resolve_admin_user, get_max_channels_status
+    from discount.services.stripe_billing import create_extra_channel_checkout_session
+
+    snap = get_max_channels_status(request.user)
+    if not snap.get("can_purchase_extra"):
+        return JsonResponse(
+            {
+                "success": False,
+                "error": "Cannot purchase extra channel slot",
+                "limits": snap,
+            },
+            status=403,
+        )
+    owner = _resolve_admin_user(request.user)
+    url = create_extra_channel_checkout_session(owner)
+    if not url:
+        return JsonResponse({"success": False, "error": "Failed to create checkout session"}, status=500)
+    return JsonResponse({"success": True, "url": url})
+
+
+@require_GET
+def api_verify_extra_channel_checkout(request):
+    if not request.user.is_authenticated:
+        return JsonResponse({"error": "Authentication required"}, status=401)
+    session_id = (request.GET.get("session_id") or "").strip()
+    if not session_id:
+        return JsonResponse({"error": "session_id required"}, status=400)
+
+    from discount.services.plan_limits import _resolve_admin_user, get_max_channels_status
+    from discount.services.stripe_billing import confirm_extra_channel_checkout_session
+
+    owner = _resolve_admin_user(request.user)
+    if request.user.pk != owner.pk:
+        return JsonResponse({"error": "Only the workspace owner can confirm this payment"}, status=403)
+
+    ok, err = confirm_extra_channel_checkout_session(session_id, owner)
+    if not ok:
+        return JsonResponse({"success": False, "error": err or "verification_failed"}, status=400)
+    return JsonResponse({"success": True, "limits": get_max_channels_status(request.user)})
+
+
+@csrf_exempt
+@require_POST
+def stripe_webhook(request):
+    """
+    Handle Stripe webhook events using raw request.body for signature verification.
+    Returns 200 for non-critical processing errors to avoid retry storms.
+    """
+    payload = request.body
+    sig_header = request.META.get("HTTP_STRIPE_SIGNATURE", "")
+
+    from discount.services.stripe_billing import handle_checkout_webhook
+    ok = handle_checkout_webhook(payload, sig_header)
+    if ok:
+        return JsonResponse({"received": True})
+    # Signature/config errors are critical; return 400 so Stripe flags invalid delivery.
+    return JsonResponse({"received": False}, status=400)

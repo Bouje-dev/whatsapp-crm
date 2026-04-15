@@ -1,874 +1,80 @@
 {% extends 'userBase.html' %}
 
+{% block extra_head %}
+{% endblock %}
+
 {% block content %}
 {% load static %}
-<style>
-    /* Import Google Fonts - Inter for general use */
-    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
-    
-    /* Attempt to load SF Pro Display locally or use system fallback */
-    @font-face {
-        font-family: 'SF Pro Display';
-        src: local('SF Pro Display Regular'), local('SF-Pro-Display-Regular');
-        font-weight: 400;
-        font-style: normal;
-    }
-    @font-face {
-        font-family: 'SF Pro Display';
-        src: local('SF Pro Display Medium'), local('SF-Pro-Display-Medium');
-        font-weight: 500;
-        font-style: normal;
-    }
-    @font-face {
-        font-family: 'SF Pro Display';
-        src: local('SF Pro Display Semibold'), local('SF-Pro-Display-Semibold');
-        font-weight: 600;
-        font-style: normal;
-    }
-    @font-face {
-        font-family: 'SF Pro Display';
-        src: local('SF Pro Display Bold'), local('SF-Pro-Display-Bold');
-        font-weight: 700;
-        font-style: normal;
-    }
-    .mb-0 ,.text-muted{
-    color:color(srgb 0.6029 0.6306 0.6806) !important;
-    font-size: 0.875rem; /* 14px */
-     
-    }
-    .me-3{
-            margin-right: 9.5px;
-
-    }
-
-    :root {
-        /* ElevenLabs inspired Dark Palette */
-        --background-primary: #1A1A1A; /* Deepest black for overall body background */
-        --background-secondary: #2B2B2B; /* Dark grey for sidebar, main content panels, and default buttons */
-        --background-tertiary: #3A3A3A; /* Slightly lighter dark grey for nested cards and input backgrounds */
-        
-        --text-light: hsl(0, 0%, 100%); /* Pure white for main headings and text */
-        --text-muted: rgba(255, 255, 255, 0.5) !important; /* White with transparency for secondary/muted text */
-        
-        --accent-color: #00E676; /* Neon Green (vibrant) */
-        --accent-color-hover: rgb(140, 200, 0); /* Slightly darker accent on hover */
-        --accent-color-transparent: rgba(182, 255, 0, 0.15); /* Accent with transparency for active states */
-        
-        --border-color: rgba(255, 255, 255, 0.1); /* Subtle white-transparent border */
-        --border-color-light: rgba(255, 255, 255, 0.05); /* Even lighter border for some elements */
-        
-        /* Specific status colors, adjusted for dark theme readability */
-        --status-success: #34C759; /* Green */
-        --status-warning: #FF9500; /* Orange */
-        --status-danger: #FF3B30; /* Red */
-        --status-info: #5AC8FA; /* Light Blue */
-
-        /* Border Radii */
-        --border-radius-lg: 12px; /* For main panels */
-        --border-radius-md: 8px; /* For cards */
-        --border-radius-sm: 4px; /* For buttons, inputs, badges */
-
-        /* Shadows */
-        --shadow-dark: 0 4px 15px rgba(0, 0, 0, 0.4); /* Deeper, subtle shadows */
-    }
-
-    body {
-        font-family: 'SF Pro Display', 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
-        background-color: var(--background-primary);
-        color: var(--text-light);
-        line-height: 1.6;
-        min-height: 100vh;
-        display: flex;
-        flex-direction: column;
-        margin: 0;
-        direction: ltr;
-        padding: 0;
-        overflow-x: hidden; /* Prevent horizontal scroll */
-    }
-
-    /* Dashboard Layout */
-    .dashboard-layout {
-        display: flex;
-        flex-grow: 1;
-        padding: 2rem;
-        gap: 2rem;
-        max-width: 1400px; /* Slightly wider max-width for content */
-        margin: 0 auto; /* Center the layout */
-        width: 100%;
-    }
-
-    /* Sidebar Styling */
-    .sidebar {
-        flex: 0 0 280px; /* Fixed width sidebar */
-        background-color: var(--background-secondary);
-        border-radius: var(--border-radius-lg);
-        box-shadow: var(--shadow-dark);
-        padding: 1.5rem 1rem; /* Adjusted padding */
-        display: flex;
-        flex-direction: column;
-        height: 100%; /* Take full height of parent flex container */
-        position: sticky;
-        top: 2rem;
-        align-self: flex-start; /* Align to top */
-    }
-
-    .sidebar .logo {
-        display: flex;
-        align-items: center;
-        gap: 0.5rem;
-        font-size: 1.5rem;
-        font-weight: 700;
-        color: var(--text-light);
-        margin-bottom: 2rem;
-        padding: 0 0.5rem;
-    }
-    .sidebar .logo img {
-        height: 32px;
-        filter: invert(1); /* To make an example logo white on dark background */
-    }
-
-    .sidebar .nav-group-title {
-        font-size: .875rem; /* User specified font size */
-        color: var(--text-muted);
-        text-transform: uppercase;
-        letter-spacing: 0.05em;
-        margin-top: 1.5rem;
-        margin-bottom: 0.75rem;
-        padding: 0 0.5rem;
-    }
-
-    .sidebar .nav-menu {
-        list-style: none;
-        padding: 0;
-        margin: 0;
-        flex-grow: 1; /* Allow menu to take available space */
-    }
-
-    .sidebar .nav-item {
-        margin-bottom: 0.25rem;
-    }
-
-    .sidebar .nav-link {
-        display: flex;
-        align-items: center;
-        padding: 0.8rem 1rem;
-        color: var(--text-light);
-        text-decoration: none;
-        border-radius: var(--border-radius-sm); /* Smaller radius for links */
-        transition: background-color 0.15s ease, color 0.15s ease;
-        font-weight: 500;
-        font-size: .875rem; /* User specified font size */
-    }
-
-    .sidebar .nav-link i {
-        margin-right: 0.75rem;
-        font-size: 1rem;
-        color: var(--text-muted); /* Default icon color */
-    }
-    .sidebar .nav-link span {
-        flex-grow: 1; /* Allow text to grow */
-    }
-    .sidebar .nav-link .status-indicator {
-        margin-left: auto; /* Push to right */
-        font-size: 0.75rem;
-        color: var(--text-muted);
-    }
-    .sidebar .nav-link .status-indicator i {
-        margin-right: 0;
-        color: var(--accent-color); /* For active indicators */
-    }
-
-    .sidebar .nav-link:hover {
-        background-color: rgba(255, 255, 255, 0.08); /* Subtle white hover */
-        color: var(--text-light);
-    }
-    .sidebar .nav-link:hover i {
-        color: var(--text-light); /* Icons become white on hover */
-    }
-
-    .sidebar .nav-link.active {
-        background-color: var(--accent-color-transparent); /* Accent with transparency for active */
-        color: var(--accent-color);
-        font-weight: 600;
-    }
-    .sidebar .nav-link.active i {
-        color: var(--accent-color); /* Active icon color */
-    }
-
-    .sidebar .nav-link.logout {
-        color: var(--status-danger);
-        margin-top: 1rem;
-        border-top: 1px solid var(--border-color);
-        padding-top: 1rem;
-    }
-    .sidebar .nav-link.logout:hover {
-        background-color: rgba(255, 59, 48, 0.1);
-        color: var(--status-danger);
-    }
-    .sidebar .nav-link.logout i {
-        color: var(--status-danger);
-    }
-
-
-    /* Profile Section at bottom of sidebar */
-    .sidebar .profile-footer {
-        margin-top: auto; /* Pushes it to the bottom */
-        padding-top: 1rem;
-        border-top: 1px solid var(--border-color);
-        text-align: center;
-    }
-    .sidebar .profile-footer .avatar-sm {
-        width: 40px;
-        height: 40px;
-        border-radius: 50%;
-        overflow: hidden;
-        display: inline-block;
-        vertical-align: middle;
-        margin-right: 0.75rem;
-        border: 1px solid var(--accent-color); /* Thin accent border */
-        box-shadow: 0 0 5px rgba(182, 255, 0, 0.3);
-    }
-    .sidebar .profile-footer .profile-info {
-        display: inline-block;
-        vertical-align: middle;
-        text-align: left;
-    }
-    .sidebar .profile-footer .profile-name {
-        font-size: .875rem; /* User specified font size */
-        font-weight: 600;
-        color: var(--text-light);
-        margin-bottom: 0.1rem;
-    }
-    .sidebar .profile-footer .profile-workspace {
-        font-size: 0.75rem;
-        color: var(--text-muted);
-    }
-    .sidebar .profile-footer .progress-indicator {
-        width: 100%;
-        height: 4px;
-        background-color: var(--border-color);
-        border-radius: 2px;
-        margin-top: 0.5rem;
-    }
-    .sidebar .profile-footer .progress-fill {
-        height: 100%;
-        
-        width:10%;/* Assuming 0 if no subscription */
-        background-color: var(--accent-color);
-        border-radius: 2px;
-    }
-
-    /* Main Content Area */
-    .main-content {
-        flex-grow: 1;
-        min-width: 0; /* Ensures content doesn't overflow */
-        display: flex;
-        flex-direction: column;
-        background-color: var(--background-secondary); /* Main content panel background */
-        border-radius: var(--border-radius-lg);
-        box-shadow: var(--shadow-dark);
-        padding: 2.5rem; /* Generous padding */
-    }
-
-    /* Section Headers */
-    .section-header-container {
-        border-bottom: 1px solid var(--border-color);
-        padding-bottom: 1.5rem;
-        margin-bottom: 2rem;
-    }
-    .section-header {
-        font-size: 1.25rem; /* User specified font size */
-        font-weight: 600;
-        color: var(--text-light);
-        margin-bottom: 0.5rem;
-    }
-    .section-description {
-        font-size: .875rem; /* User specified font size */
-        color: var(--text-muted);
-    }
-
-    /* Tabs Navigation (ElevenLabs style) */
-    .nav-tabs-custom {
-        display: flex;
-        border-bottom: 1px solid var(--border-color);
-        margin-bottom: 2rem; /* Space below tabs */
-    }
-    .nav-tabs-custom .nav-item {
-        margin-bottom: -1px; /* Overlap border */
-    }
-    .nav-tabs-custom .nav-link {
-        color: var(--text-muted);
-        border: none;
-        border-bottom: 2px solid transparent;
-        padding: 0.75rem 1.25rem;
-        font-size: .875rem; /* User specified font size */
-        font-weight: 500;
-        background-color: transparent;
-        transition: color 0.15s ease, border-color 0.15s ease;
-    }
-    .nav-tabs-custom .nav-link:hover {
-        color: var(--text-light);
-        border-color: var(--border-color); /* Light border on hover */
-    }
-    .nav-tabs-custom .nav-link.active {
-        color: var(--accent-color);
-        border-color: var(--accent-color); /* Accent color for active tab */
-        font-weight: 600;
-    }
-
-    /* Content Sections (controlled by JS) */
-    .content-area-pane {
-        display: none;
-        flex-grow: 1; /* Allow content to fill space */
-        flex-direction: column; /* For internal flex layout if needed */
-    }
-    .content-area-pane.active {
-        display: flex; /* Use flex for content within the pane */
-    }
-
-    /* Cards within content sections */
-    .card {
-        border: 1px solid var(--border-color-light); /* Very light border */
-        background-color: var(--background-tertiary); /* Lighter dark for cards */
-        border-radius: var(--border-radius-md);
-        box-shadow: none; /* No strong shadows as per ElevenLabs */
-        margin-bottom: 1.5rem; /* Space between cards */
-        color: var(--text-light);
-    }
-
-    .card-header {
-        background-color: transparent; /* No distinct background */
-        border-bottom: 1px solid var(--border-color); /* Subtle divider */
-        padding: 1rem 1.5rem;
-        font-weight: 600;
-        font-size: .875rem; /* User specified font size */
-        color: var(--text-light);
-        border-radius: var(--border-radius-md) var(--border-radius-md) 0 0;
-        display: flex;
-        align-items: center;
-        gap: 0.75rem;
-    }
-    .card-header i {
-        color: var(--text-muted); /* Muted icons in header */
-    }
-
-    .card-body {
-        padding: 1.5rem;
-    }
-
-    /* Buttons - Shopify/ElevenLabs style */
-    .btn {
-        border-radius: var(--border-radius-sm); /* Small radius for buttons */
-        padding: 0.75rem 1.25rem;
-        font-weight: 500;
-        font-size: .875rem; /* User specified font size */
-        transition: all 0.15s ease-in-out;
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        gap: 0.5rem;
-        text-decoration: none;
-        cursor: pointer;
-        line-height: 1; /* Ensure consistent height */
-    }
-
-    .btn-primary {
-        background-color: var(--text-light); /* White background for primary CTAs */
-        border: 1px solid var(--text-light);
-        color: var(--background-primary); /* Dark text on white */
-        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3); /* Subtle shadow */
-    }
-    .btn-primary:hover {
-        background-color: var(--background-secondary); /* Dark background on hover */
-        border-color: var(--text-light);
-        color: var(--text-light); /* White text on hover */
-        transform: translateY(-1px);
-        box-shadow: 0 4px 10px rgba(0, 0, 0, 0.4);
-    }
-
-    /* Secondary/Outline Buttons */
-    .btn-secondary,
-    .btn-outline-dark { /* Used for generic secondary actions like cancel */
-        background-color: transparent;
-        border: 1px solid var(--border-color);
-        color: var(--text-light);
-    }
-    .btn-secondary:hover,
-    .btn-outline-dark:hover {
-        background-color: rgba(255, 255, 255, 0.1); /* Subtle dark hover */
-        border-color: rgba(255, 255, 255, 0.2);
-        color: var(--text-light);
-        transform: translateY(-1px);
-    }
-
-    .btn-danger {
-        background-color: var(--status-danger);
-        border: 1px solid var(--status-danger);
-        color: var(--text-light);
-    }
-    .btn-danger:hover {
-        background-color: #DC2626;
-        border-color: #DC2626;
-        transform: translateY(-1px);
-    }
-    
-    /* Specific styling for the delete account button */
-    .btn-delete-account {
-        background-color: transparent;
-        border: 1px solid var(--status-danger);
-        color: var(--status-danger);
-        font-size: .875rem; /* User specified font size */
-        padding: 0.5rem 1rem;
-    }
-    .btn-delete-account:hover {
-        background-color: var(--status-danger);
-        color: var(--text-light);
-        transform: translateY(-1px);
-    }
-
-    /* Specific styling for info/accent buttons (e.g., manage subscription) */
-    .btn-info-accent {
-        background-color: transparent;
-        border: 1px solid var(--text-muted); /* Muted border */
-        color: var(--text-muted); /* Muted text */
-        font-size: .875rem; /* User specified font size */
-        padding: 0.5rem 1rem;
-    }
-    .btn-info-accent:hover {
-        background-color: rgba(255, 255, 255, 0.1);
-        border-color: var(--text-light);
-        color: var(--text-light);
-        transform: translateY(-1px);
-    }
-
-    .btn-sm {
-        padding: 0.4rem 0.8rem;
-        font-size: 0.8rem;
-    }
-    
-    /* Form Elements */
-    .form-control, .form-select {
-        background-color: var(--background-tertiary); /* Lighter dark for inputs */
-        border: 1px solid var(--border-color);
-        color: var(--text-light);
-        border-radius: var(--border-radius-sm); /* Small radius */
-        padding: 0.75rem 1rem;
-        transition: border-color 0.15s ease, box-shadow 0.15s ease;
-        line-height: 1.2; /* Better vertical alignment */
-    }
-    
-    .form-control:focus, .form-select:focus {
-        background-color: var(--background-tertiary); /* Keep background dark on focus */
-        border-color: var(--accent-color);
-        box-shadow: 0 0 0 1px var(--accent-color); /* Thin accent glow */
-        color: var(--text-light);
-        outline: none;
-    }
-
-    .form-control::placeholder {
-        color: var(--text-muted);
-        opacity: 1; /* Ensure placeholder is visible */
-    }
-
-    label.form-label {
-        color: var(--text-light);
-        font-weight: 500;
-        margin-bottom: 0.5rem;
-        font-size: .875rem; /* User specified font size */
-    }
-    
-    /* Select multiple specific styling */
-    select[multiple] {
-        min-height: 120px; /* Reduced height for compactness */
-    }
-
-    select[multiple] option {
-        padding: 8px 12px;
-        background-color: var(--background-tertiary);
-        color: var(--text-light);
-        border-bottom: 1px solid var(--border-color-light);
-    }
-
-    select[multiple] option:hover {
-        background-color: rgba(255, 255, 255, 0.08); /* Subtle dark hover */
-    }
-
-    select[multiple] option:checked {
-        background-color: var(--accent-color-transparent);
-        color: var(--accent-color);
-    }
-
-    /* Table Styling */
-    .table {
-        background-color: var(--background-tertiary); /* Dark background for table body */
-        border-radius: var(--border-radius-md);
-        overflow: hidden; /* For rounded corners on table */
-        border: 1px solid var(--border-color-light); /* Subtle table border */
-    }
-
-    .table th {
-        background-color: var(--background-tertiary); /* Same as card body for headers to blend */
-        color: var(--text-muted); /* Muted header text */
-        border-bottom: 1px solid var(--border-color);
-        font-weight: 500; /* Lighter weight for headers */
-        padding: 0.8rem 1.2rem;
-        font-size: .875rem; /* User specified font size */
-        text-transform: uppercase;
-        letter-spacing: 0.02em;
-    }
-
-    .table td {
-        border-top: 1px solid var(--border-color-light); /* Lighter border for rows */
-        color: var(--text-light);
-        padding: 0.8rem 1.2rem;
-        vertical-align: middle;
-        font-size: .875rem; /* User specified font size */
-    }
-    .table td .badge {
-        font-size: 0.75rem; /* Smaller badges in table */
-        padding: 0.25em 0.5em;
-    }
-
-    .table-hover tbody tr:hover {
-        background-color: rgba(255, 255, 255, 0.05); /* Very subtle hover effect */
-    }
-
-    /* Badges */
-    .badge {
-        font-weight: 500;
-        padding: 0.3em 0.7em;
-        border-radius: var(--border-radius-sm);
-        letter-spacing: 0.02em;
-        font-size: 0.8rem;
-        opacity: 0.9;
-        display: inline-flex;
-        align-items: center;
-        gap: 0.25rem;
-    }
-
-    .badge-success { background-color: var(--status-success); color: white; }
-    .badge-warning { background-color: var(--status-warning); color: white; }
-    .badge-danger { background-color: var(--status-danger); color: white; }
-    .badge-info { background-color: var(--status-info); color: white; } /* For platform e.g. */
-    .badge-primary { background-color: var(--accent-color); color: var(--background-primary); } /* Accent for primary badge */
-    .badge-secondary { background-color: rgba(255, 255, 255, 0.1); color: var(--text-light); } /* Muted dark badge */
-    
-    /* Progress Bar (for plan) */
-    .progress-compact {
-        height: 6px;
-        border-radius: 3px;
-        background-color: var(--border-color); /* Dark track */
-        margin-top: 0.5rem;
-    }
-    
-    .progress-bar-fill {
-        background-color: var(--accent-color); /* Accent color for bar */
-        border-radius: 3px;
-    }
-
-    /* List Group (for profile details) */
-    .list-group-item {
-        background-color: transparent;
-        border-color: var(--border-color-light);
-        color: var(--text-light);
-        padding: 0.8rem 1.2rem;
-        font-size: .875rem; /* User specified font size */
-    }
-    .list-group-item span:first-child {
-        color: var(--text-muted); /* Label text muted */
-    }
-    .list-group-item span:last-child {
-        color: var(--text-light); /* Value text light */
-        font-weight: 500;
-    }
-    .list-group-item:hover {
-        background-color: rgba(255, 255, 255, 0.03); /* Very subtle hover */
-    }
-    
-    /* Empty State */
-    .empty-state {
-        padding: 2rem;
-        text-align: center;
-        background-color: var(--background-tertiary);
-        border-radius: var(--border-radius-md);
-        box-shadow: none;
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        justify-content: center;
-        min-height: 250px;
-        color: var(--text-muted);
-        border: 1px solid var(--border-color-light);
-    }
-    
-    .empty-state-icon {
-        font-size: 3rem;
-        color: var(--text-muted);
-        margin-bottom: 1rem;
-    }
-
-    .empty-state h5 {
-        font-weight: 600;
-        color: var(--text-light);
-        margin-bottom: 0.5rem;
-        font-size: 1rem; /* Smaller heading in empty state */
-    }
-
-    .empty-state p {
-        color: var(--text-muted);
-        max-width: 400px;
-        margin-bottom: 1.5rem;
-        font-size: .875rem; /* User specified font size */
-    }
-
-    /* Modal Styling */
-    .modal-content {
-        background-color: var(--background-secondary);
-        border-radius: var(--border-radius-md);
-        box-shadow: var(--shadow-dark);
-        color: var(--text-light);
-        border: none;
-    }
-
-    .modal-header {
-        border-bottom: 1px solid var(--border-color);
-        padding: 1rem 1.5rem;
-    }
-
-    .modal-title {
-        font-weight: 600;
-        color: var(--text-light);
-        font-size: 1rem; /* Smaller modal title */
-    }
-
-    .modal-body {
-        padding: 1.5rem;
-    }
-
-    .modal-footer {
-        border-top: 1px solid var(--border-color);
-        padding: 1rem 1.5rem;
-    }
-
-    .modal .btn-close {
-        filter: invert(1);
-        opacity: 0.7;
-    }
-    .modal .btn-close:hover {
-        opacity: 1;
-    }
-
-    /* Toast Message */
-    .toast {
-        border-radius: var(--border-radius-md);
-        box-shadow: var(--shadow-dark);
-        background-color: rgba(52, 199, 89, 0.9); /* Green with transparency */
-        color: white;
-        border: none;
-    }
-    .toast .btn-close {
-        filter: invert(1);
-    }
-
-    /* Responsive adjustments */
-    @media (max-width: 991.98px) { /* Tablets and smaller */
-        .dashboard-layout {
-            flex-direction: column;
-            padding: 1rem;
-            gap: 1rem;
-        }
-        .sidebar {
-            width: 100%;
-            flex: none;
-            position: relative;
-            top: auto;
-            padding: 1rem;
-            height: auto; /* Allow sidebar to adjust height */
-        }
-        .sidebar .logo {
-            margin-bottom: 1.5rem;
-        }
-        .sidebar .nav-group-title {
-            margin-top: 1rem;
-            margin-bottom: 0.5rem;
-        }
-        .sidebar .nav-menu {
-            flex-grow: 0; /* Don't grow on small screens */
-        }
-        .main-content {
-            padding: 1.5rem;
-        }
-        .section-header-container {
-            padding-bottom: 1rem;
-            margin-bottom: 1.5rem;
-        }
-        .section-header {
-            font-size: 1.1rem;
-        }
-        .section-description {
-            font-size: 0.8rem;
-        }
-        .nav-tabs-custom {
-            margin-bottom: 0rem;
-        }
-        .card-body {
-            padding: 1rem;
-        }
-        .btn {
-            padding: 0.6rem 1rem;
-            font-size: 0.8rem;
-        }
-    }
-    .table-responsive {
-            max-height: 247px !important;
-
-    }
-
-    @media (max-width: 575.98px) { /* Mobile phones */
-        .dashboard-layout {
-            padding: 0.5rem;
-            gap: 0.5rem;
-        }
-        .sidebar {
-            padding: 0.75rem;
-            border-radius: var(--border-radius-md);
-        }
-        .sidebar .logo {
-            font-size: 1.3rem;
-            margin-bottom: 1rem;
-        }
-        .sidebar .nav-link {
-            padding: 0.6rem 0.75rem;
-            font-size: 0.8rem;
-        }
-        .main-content {
-            padding: 1rem;
-            border-radius: var(--border-radius-md);
-        }
-        .section-header {
-            font-size: 1rem;
-        }
-        .nav-tabs-custom .nav-link {
-            padding: 0.6rem 0.8rem;
-            font-size: 0.75rem;
-        }
-        .card-header {
-            padding: 0.8rem 1rem;
-        }
-        .card-body {
-            padding: 0.8rem;
-        }
-        .empty-state {
-            padding: 1.5rem;
-            min-height: 200px;
-        }
-        .empty-state-icon {
-            font-size: 2.5rem;
-        }
-    }
-    .btn-primary i{
-        color: color(srgb 0.2274 0.2275 0.2274) !important;
-    }
-    .btn-group {
-direction: rtl;
-}
-</style>
+<link rel="stylesheet" href="{% static 'style/user-dashboard.css' %}">
 <!-- JavaScript (at the end of body for performance) -->
 <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 
- <div class="dashboard-layout">
-    <!-- Sidebar -->
-    <aside class="sidebar">
-        <div class="logo">
-            <!-- Replace with your actual logo if available, or keep text -->
-            <img src="https://placehold.co/32x32/1A1A1A/FFFFFF?text=L" alt="Logo">
-            <span>Follow UP</span>
+<div class="account-app user-dashboard-page" id="accountApp">
+    <header class="account-shell" role="banner">
+        <div class="account-shell__lead">
+            <a href="/tracking/" class="account-shell__logo-link" title="Back to app">
+                <img src="{% static 'img/logo.png' %}" alt="" class="account-shell__logo" width="44" height="44">
+            </a>
+            <div class="account-shell__titles">
+                <h1 class="account-shell__title">Account</h1>
+                <p class="account-shell__subtitle">Profile, security, plan, team, and API keys</p>
+            </div>
         </div>
+        <div class="account-shell__toolbar">
+            <button type="button" class="account-theme-btn" id="accountThemeToggle" aria-label="Toggle light and dark theme">
+                <i class="fas fa-moon account-theme-icon account-theme-icon--dark" aria-hidden="true"></i>
+                <i class="fas fa-sun account-theme-icon account-theme-icon--light" aria-hidden="true" style="display:none"></i>
+            </button>
+            <div class="account-shell__userchip">
+                <span class="account-shell__avatar"><img src="{{ user.profile.image.url }}" alt=""></span>
+                <span class="account-shell__username">{{ user.user_name }}</span>
+            </div>
+        </div>
+    </header>
 
-        <ul class="nav-menu">
-            <li class="nav-item">
-                <a href="#home-dashboard" class="nav-link active" data-section="home-dashboard">
-                    <i class="fas fa-home"></i>
-                    <span>Home</span>
+    <nav class="account-rail" aria-label="Account sections">
+        <ul class="account-rail__list">
+            <li>
+                <a href="#home-dashboard" class="account-rail__link active" data-section="home-dashboard">
+                    <i class="fas fa-home" aria-hidden="true"></i><span>Home</span>
                 </a>
             </li>
-            <li class="nav-item">
-                <a href="#profile-settings" class="nav-link" data-section="profile-settings">
-                    <i class="fas fa-user-cog"></i>
-                    <span>Profile Settings</span>
+            <li>
+                <a href="#profile-settings" class="account-rail__link" data-section="profile-settings">
+                    <i class="fas fa-user-cog" aria-hidden="true"></i><span>Profile</span>
                 </a>
             </li>
             {% if request.user.is_team_admin %}
-            <li class="nav-item">
-                <a href="#current-plan" class="nav-link" data-section="current-plan">
-                    <i class="fas fa-crown"></i>
-                    <span>Current Plan</span>
+            <li>
+                <a href="#current-plan" class="account-rail__link" data-section="current-plan">
+                    <i class="fas fa-crown" aria-hidden="true"></i><span>Plan</span>
                 </a>
             </li>
-            <li class="nav-item">
-                <a href="#team-management" class="nav-link" data-section="team-management">
-                    <i class="fas fa-users"></i>
-                    <span>Team Management</span>
+            <li>
+                <a href="#team-management" class="account-rail__link" data-section="team-management">
+                    <i class="fas fa-users" aria-hidden="true"></i><span>Team</span>
                 </a>
             </li>
-            <li class="nav-item" id="ApiToken">
-                <a href="#api-tokens"  class="nav-link" data-section="api-tokens">
-                    <i class="fas fa-key"></i>
-                    <span>API Tokens</span>
+            <li id="ApiToken">
+                <a href="#api-tokens" class="account-rail__link" data-section="api-tokens">
+                    <i class="fas fa-key" aria-hidden="true"></i><span>API tokens</span>
                 </a>
             </li>
-<script>
-$(document).ready(function() {
-   if (window.location.hash === "#Token") {
-    $("#ApiToken").trigger('click');
-}
+            {% endif %}
+        </ul>
+    </nav>
 
+<script>
+$(document).ready(function () {
+    if (window.location.hash === '#Token') {
+        $('#ApiToken .account-rail__link').trigger('click');
+    }
 });
 </script>
-            {% endif %}
-            <!-- This part of the sidebar would typically be populated dynamically based on your product categories -->
-            <li class="nav-group-title">Products</li>
-            <li class="nav-item">
-                <a href="#" class="nav-link">
-                    <i class="fas fa-microchip"></i>
-                    <span>Product A</span>
-                </a>
-            </li>
-            <li class="nav-item">
-                <a href="#" class="nav-link">
-                    <i class="fas fa-robot"></i>
-                    <span>Product B</span>
-                </a>
-            </li>
-            <li class="nav-item">
-                <a href="#" class="nav-link">
-                    <i class="fas fa-code-branch"></i>
-                    <span>Product C</span>
-                </a>
-            </li>
-        </ul>
 
-        <!-- Profile Section at the very bottom of the sidebar -->
-        <div class="profile-footer">
-            <div class="d-flex align-items-center justify-content-center mb-2">
-                <div class="avatar-sm">
-                    <img src="{{ user.profile.image.url }}" alt="Profile Image" class="img-fluid rounded-circle" style="width: 100%; height: 100%; object-fit: cover;">
-                </div>
-                <div class="profile-info">
-                    <div class="profile-name">{{ user.user_name }}</div>
-                    <div class="profile-workspace">My Workspace</div>
-                </div>
-            </div>
-            <div class="progress-indicator">
-                <div class="progress-fill"></div>
-            </div>
-        </div>
-    </aside>
-
-    <!-- Main Content Area -->
-    <main class="main-content">
+    <main class="account-main" id="accountMain">
         <!-- Home Dashboard Section (Example) -->
         <div id="home-dashboard" class="content-area-pane active">
             <div class="section-header-container">
@@ -1244,13 +450,13 @@ $(document).ready(function() {
                             </div>
                         </div>
                     </div>
-                    <div class="card">
+                    <div class="card d-none" id="delete-account-card" aria-hidden="true">
                         <div class="card-header">
                             <i class="fas fa-trash-alt"></i> Delete Account
                         </div>
                         <div class="card-body">
                             <p class="text-muted mb-4">Deleting your account is permanent. You will no longer be able to create an account with this email.</p>
-                            <button class="btn btn-delete-account">
+                            <button type="button" class="btn btn-delete-account" disabled>
                                 Delete Account
                             </button>
                             <a href="{% url 'logout' %}" class="btn btn-info-accent">
@@ -1342,65 +548,350 @@ $(document).ready(function() {
         {% if request.user.is_team_admin %}
         <!-- Plans Section: Free, Basic, Premium -->
         <div id="current-plan" class="content-area-pane">
-            <div class="section-header-container">
-                <h1 class="section-header">Plans</h1>
-                <p class="section-description">Choose your plan. Upgrade to unlock AI voice, voice cloning, and auto-reply.</p>
-            </div>
-            <div class="row g-4">
-                {% for plan in plans %}
-                <div class="col-md-4">
-                    <div class="card h-100 {% if current_plan and current_plan.id == plan.id %}border-primary border-2{% endif %}">
-                        <div class="card-header d-flex justify-content-between align-items-center">
-                            <i class="fas fa-{% if plan.name == 'Premium' %}crown{% elif plan.name == 'Basic' %}bolt{% else %}leaf{% endif %}"></i>
-                            <span class="fw-bold" style="color: var(--text-light);">{{ plan.name }}</span>
-                            {% if current_plan and current_plan.id == plan.id %}
-                            <span class="badge bg-success">Current</span>
-                            {% endif %}
+            <style>
+                #current-plan .plans-shell { background: linear-gradient(180deg, rgba(124,58,237,0.08), rgba(15,23,42,0.35)); border: 1px solid rgba(148,163,184,0.18); border-radius: 18px; padding: 18px; }
+                #current-plan .plans-headline { display: flex; justify-content: space-between; gap: 16px; align-items: flex-start; margin-bottom: 18px; }
+                #current-plan .plans-headline h1 { margin-bottom: 6px; }
+                #current-plan .current-pill { border: 1px solid rgba(34,197,94,0.35); background: rgba(34,197,94,0.14); color: #86efac; border-radius: 999px; padding: 6px 12px; font-size: 12px; font-weight: 700; white-space: nowrap; }
+                #current-plan .plan-pro-card { background: radial-gradient(circle at top right, rgba(99,102,241,0.24), rgba(15,23,42,0.96)); border: 1px solid rgba(148,163,184,0.24); border-radius: 16px; overflow: hidden; transition: transform .2s ease, border-color .2s ease; }
+                #current-plan .plan-pro-card:hover { transform: translateY(-2px); border-color: rgba(129,140,248,0.55); }
+                #current-plan .plan-pro-card.is-current { border: 1px solid rgba(34,197,94,0.55); box-shadow: 0 0 0 1px rgba(34,197,94,0.2); }
+                #current-plan .plan-pro-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; }
+                #current-plan .plan-pro-icon { width: 34px; height: 34px; border-radius: 10px; display: grid; place-items: center; background: rgba(148,163,184,0.14); color: #c4b5fd; }
+                #current-plan .plan-pro-name { font-size: 18px; font-weight: 700; color: #f8fafc; }
+                #current-plan .plan-pro-price { color: #f8fafc; font-size: 28px; font-weight: 800; line-height: 1; }
+                #current-plan .plan-pro-price-note { color: #94a3b8; font-size: 12px; }
+                #current-plan .plan-feature-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+                #current-plan .plan-feature-list li { color: #cbd5e1; font-size: 14px; }
+                #current-plan .plan-feature-list i { width: 18px; text-align: center; }
+                #current-plan .plan-feature-list .fa-check { color: #22c55e; }
+                #current-plan .plan-feature-list .fa-times { color: #64748b; }
+                #current-plan .plan-meta-line { margin-top: 14px; display: flex; gap: 8px; flex-wrap: wrap; }
+                #current-plan .plan-meta-chip { background: rgba(148,163,184,0.14); color: #cbd5e1; border: 1px solid rgba(148,163,184,0.22); border-radius: 999px; padding: 4px 10px; font-size: 12px; }
+                #current-plan .plan-cancel-wrap { margin-top: 22px; background: rgba(15,23,42,0.65); border: 1px solid rgba(148,163,184,0.18); border-radius: 14px; padding: 16px; }
+                #current-plan .plan-cancel-wrap h5 { margin: 0 0 6px; color: #f8fafc; }
+                #current-plan .plan-cancel-wrap p { margin: 0 0 12px; color: #94a3b8; font-size: 14px; }
+                #current-plan .wallet-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; margin-bottom: 18px; }
+                #current-plan .wallet-card { border: 1px solid rgba(148,163,184,0.2); border-radius: 14px; padding: 16px; background: rgba(15,23,42,0.75); }
+                #current-plan .wallet-balance-card { grid-column: 1 / -1; background: linear-gradient(180deg, rgba(37,99,235,0.18), rgba(15,23,42,0.95)); }
+                #current-plan .wallet-label { margin: 0; color: #94a3b8; font-size: 13px; }
+                #current-plan .wallet-value { margin: 8px 0 12px; color: #f8fafc; font-size: 34px; line-height: 1; font-weight: 800; }
+                #current-plan .wallet-progress-track { width: 100%; height: 10px; border-radius: 999px; background: rgba(148,163,184,0.2); overflow: hidden; margin-top: 8px; }
+                #current-plan .wallet-progress-fill { width: 0%; height: 100%; border-radius: 999px; background: linear-gradient(90deg, #22c55e, #16a34a); transition: width .25s ease; }
+                #current-plan .wallet-progress-text { margin: 8px 0 0; color: #cbd5e1; font-size: 12px; }
+                #current-plan .wallet-toggle { width: 52px; height: 30px; border-radius: 999px; border: 1px solid rgba(148,163,184,0.5); position: relative; cursor: pointer; background: #475569; transition: background .2s ease; }
+                #current-plan .wallet-toggle.on { background: #2563eb; }
+                #current-plan .wallet-toggle-knob { position: absolute; top: 2px; left: 2px; width: 24px; height: 24px; border-radius: 50%; background: #fff; transition: transform .2s ease; }
+                #current-plan .wallet-toggle.on .wallet-toggle-knob { transform: translateX(22px); }
+                #current-plan .wallet-error { color: #fca5a5; font-size: 12px; margin-top: 10px; display: none; }
+                @media (max-width: 900px) { #current-plan .wallet-grid { grid-template-columns: 1fr; } }
+            </style>
+
+            <div class="plans-shell">
+                <div class="plans-headline">
+                    <div>
+                        <h1 class="section-header">Plan & Billing</h1>
+                        <p class="section-description">Manage your subscription with clear upgrade and downgrade actions based on your current plan.</p>
+                    </div>
+                    <div class="current-pill">
+                        Current:
+                        {% if current_plan %}
+                            {% if current_plan.name|lower == 'premium' or current_plan.name|lower == 'pro' %}Pro
+                            {% elif current_plan.name|lower == 'basic' or current_plan.name|lower == 'starter' or current_plan.name|lower == 'free' %}Starter
+                            {% elif current_plan.name|lower == 'elite' %}Elite
+                            {% else %}{{ current_plan.name }}{% endif %}
+                        {% else %}No active plan{% endif %}
+                    </div>
+                </div>
+
+                <div class="wallet-grid" id="walletDashboard">
+                    <article class="wallet-card wallet-balance-card">
+                        <p class="wallet-label">Wallet Balance</p>
+                        <h3 class="wallet-value" id="walletBalanceValue">$0.00 Available</h3>
+                        <button type="button" class="btn btn-info-accent" id="walletTopupBtn">
+                            <i class="fas fa-wallet me-1"></i> Top Up Wallet
+                        </button>
+                    </article>
+                    <article class="wallet-card">
+                        <p class="wallet-label">Total Tokens Used</p>
+                        <h4 class="wallet-value" id="walletTokensUsed" style="font-size:30px; margin:8px 0 0">0</h4>
+                    </article>
+                    <article class="wallet-card">
+                        <p class="wallet-label">Usage Progress</p>
+                        <div class="wallet-progress-track">
+                            <div class="wallet-progress-fill" id="walletUsageProgress"></div>
                         </div>
-                        <div class="card-body">
-                            <div class="mb-3">
-                                <span class="fs-4 fw-bold" style="color: var(--text-light);">
-                                    {% if plan.price == 0 or plan.price == None %}Free{% else %}{{ plan.price }} SAR{% endif %}
-                                </span>
-                                {% if plan.price and plan.price > 0 %}<span class="text-muted small">/ month</span>{% endif %}
+                        <p class="wallet-progress-text" id="walletUsageText">0% of initial $1.00 consumed</p>
+                    </article>
+                    <article class="wallet-card" style="grid-column: 1 / -1;">
+                        <div style="display:flex; justify-content:space-between; gap:12px; align-items:center;">
+                            <div>
+                                <p class="wallet-label" style="margin-bottom:4px;">Low Balance Alert</p>
+                                <p style="margin:0; color:#cbd5e1; font-size:13px;">Send email alert when the balance is less than 0.50$</p>   
                             </div>
-                            <ul class="list-unstyled mb-4">
-                                <li class="mb-2">
-                                    {% if plan.can_use_ai_voice %}<i class="fas fa-check text-success me-2"></i>{% else %}<i class="fas fa-times text-muted me-2"></i>{% endif %}
-                                    <span style="color: var(--text-light);">AI Voice</span>
-                                </li>
-                                <li class="mb-2">
-                                    {% if plan.can_use_voice_cloning %}<i class="fas fa-check text-success me-2"></i>{% else %}<i class="fas fa-times text-muted me-2"></i>{% endif %}
-                                    <span style="color: var(--text-light);">Voice Cloning</span>
-                                </li>
-                                <li class="mb-2">
-                                    {% if plan.can_use_auto_reply %}<i class="fas fa-check text-success me-2"></i>{% else %}<i class="fas fa-times text-muted me-2"></i>{% endif %}
-                                    <span style="color: var(--text-light);">AI Auto Reply</span>
-                                </li>
-                            </ul>
-                            {% if current_plan and current_plan.id == plan.id %}
-                            <button type="button" class="btn btn-outline-secondary w-100" disabled>
-                                <i class="fas fa-check me-1"></i> Current Plan
+                            <button type="button" class="wallet-toggle" id="walletLowAlertToggle" aria-pressed="true">
+                                <span class="wallet-toggle-knob"></span>
                             </button>
-                            {% else %}
-                            <a href="{% url 'upgrade_plan' %}?plan={{ plan.name }}" class="btn btn-info-accent w-100">
-                                <i class="fas fa-arrow-up me-1"></i> Upgrade
-                            </a>
-                            {% endif %}
+                        </div>
+                        <p class="wallet-error" id="walletErrorText"></p>
+                    </article>
+                </div>
+
+                <div class="row g-4">
+                    {% for plan in plans %}
+                    <div class="col-md-4">
+                        <div class="plan-pro-card h-100 {% if current_plan and current_plan.id == plan.id %}is-current{% endif %}">
+                            <div class="card-body p-4">
+                                <div class="plan-pro-header">
+                                    <div class="d-flex align-items-center gap-2">
+                                        <span class="plan-pro-icon">
+                                            <i class="fas fa-{% if plan.name|lower == 'premium' or plan.name|lower == 'pro' %}crown{% elif plan.name|lower == 'basic' or plan.name|lower == 'starter' or plan.name|lower == 'free' %}bolt{% elif plan.name|lower == 'elite' %}gem{% else %}leaf{% endif %}"></i>
+                                        </span>
+                                        <span class="plan-pro-name">
+                                            {% if plan.name|lower == 'premium' or plan.name|lower == 'pro' %}Pro{% elif plan.name|lower == 'basic' or plan.name|lower == 'starter' or plan.name|lower == 'free' %}Starter{% elif plan.name|lower == 'elite' %}Elite{% else %}{{ plan.name }}{% endif %}
+                                        </span>
+                                    </div>
+                                    {% if current_plan and current_plan.id == plan.id %}
+                                    <span class="badge bg-success">
+                                        Current
+                                        {% if plan.name|lower == 'premium' or plan.name|lower == 'pro' %}Pro{% elif plan.name|lower == 'basic' or plan.name|lower == 'starter' or plan.name|lower == 'free' %}Starter{% elif plan.name|lower == 'elite' %}Elite{% else %}Plan{% endif %}
+                                    </span>
+                                    {% endif %}
+                                </div>
+
+                                <div class="mb-3">
+                                    <div class="plan-pro-price">
+                                        {% if plan.price == 0 or plan.price == None %}Free{% else %}{{ plan.price }} ${% endif %}
+                                    </div>
+                                    <div class="plan-pro-price-note">{% if plan.price and plan.price > 0 %}per month{% else %}always available{% endif %}</div>
+                                </div>
+
+                                <ul class="plan-feature-list mb-3">
+                                    {% if plan.name|lower == 'basic' or plan.name|lower == 'starter' or plan.name|lower == 'free' %}
+                                    <li><i class="fas fa-check me-2"></i>1 WhatsApp channel  </li>
+                                    <li><i class="fas fa-check me-2"></i>2 team members</li>
+                                    <li><i class="fas fa-check me-2"></i>500 orders / month </li>
+
+
+                                    {% elif plan.name|lower == 'premium' or plan.name|lower == 'pro' %}
+                                    <li><i class="fas fa-check me-2"></i>Everything in Starter</li>
+                                    <li><i class="fas fa-check me-2"></i>5 team members</li>
+                                    <li><i class="fas fa-check me-2"></i>Unlimited orders </li>
+
+                                    {% elif plan.name|lower == 'elite' %}
+                                    <li><i class="fas fa-check me-2"></i>Everything in Pro</li>
+                                    <li><i class="fas fa-check me-2"></i>Unlimited team members</li>
+                                    <li><i class="fas fa-check me-2"></i>Profit Tracker (Beta)</li>
+
+                                    {% endif %}
+                                </ul>
+
+                                <div class="plan-meta-line">
+                                    <span class="plan-meta-chip">{% if plan.max_channels == None %}Unlimited channels{% else %}{{ plan.max_channels }} channels{% endif %}</span>
+                                    <span class="plan-meta-chip">{% if plan.max_team_members == None %}Unlimited team{% else %}{{ plan.max_team_members }} team seats{% endif %}</span>
+                                </div>
+
+                                <div class="mt-3">
+                                    {% if current_plan and current_plan.id == plan.id %}
+                                    <button type="button" class="btn btn-outline-secondary w-100" disabled>
+                                        <i class="fas fa-check me-1"></i> Current Plan
+                                    </button>
+                                    {% else %}
+                                    <button type="button" class="btn btn-outline-secondary w-100" disabled>
+                                        <i class="fas fa-external-link-alt me-1"></i> Managed in Stripe Portal
+                                    </button>
+                                    {% endif %}
+                                </div>
+                            </div>
                         </div>
                     </div>
-                </div>
-                {% empty %}
-                <div class="col-12">
-                    <div class="card">
-                        <div class="card-body text-center text-muted">
-                            <p class="mb-0">No plans available. Run <code>python manage.py init_plans</code> to create Free, Basic, and Premium plans.</p>
+                    {% empty %}
+                    <div class="col-12">
+                        <div class="card">
+                            <div class="card-body text-center text-muted">
+                                <p class="mb-0">No plans available. Run <code>python manage.py init_plans</code> to create Starter, Pro, and Elite plans.</p>
+                            </div>
                         </div>
                     </div>
+                    {% endfor %}
                 </div>
-                {% endfor %}
+
+                <div class="plan-cancel-wrap">
+                    <h5>Manage Subscription and Billing</h5>
+                    <p>
+                        All upgrade, downgrade, cancellation, card update, and billing are securely handled through the Stripe Billing Portal.
+                    </p>
+                    <button type="button" id="manageBillingPortalBtn" class="btn btn-info-accent">
+                        <i class="fas fa-credit-card me-1"></i> Manage Subscription and Billing
+                    </button>
+                </div>
             </div>
         </div>
+        <script>
+            (function () {
+                function getCookie(name) {
+                    var value = "; " + document.cookie;
+                    var parts = value.split("; " + name + "=");
+                    if (parts.length === 2) return parts.pop().split(";").shift();
+                    return "";
+                }
+                var balEl = document.getElementById("walletBalanceValue");
+                var tokEl = document.getElementById("walletTokensUsed");
+                var barEl = document.getElementById("walletUsageProgress");
+                var txtEl = document.getElementById("walletUsageText");
+                var toggleEl = document.getElementById("walletLowAlertToggle");
+                var errEl = document.getElementById("walletErrorText");
+                var topupEl = document.getElementById("walletTopupBtn");
+
+                function setError(message) {
+                    if (!errEl) return;
+                    if (!message) {
+                        errEl.style.display = "none";
+                        errEl.textContent = "";
+                        return;
+                    }
+                    errEl.textContent = message;
+                    errEl.style.display = "block";
+                }
+
+                function setToggle(enabled) {
+                    if (!toggleEl) return;
+                    toggleEl.classList.toggle("on", !!enabled);
+                    toggleEl.setAttribute("aria-pressed", enabled ? "true" : "false");
+                }
+
+                async function loadWalletSummary() {
+                    try {
+                        var res = await fetch("/discount/whatssapAPI/api/billing/wallet-summary/", {
+                            credentials: "same-origin",
+                            cache: "no-store"
+                        });
+                        var data = await res.json();
+                        if (!res.ok || !data.success) {
+                            throw new Error(data.error || "Failed to load wallet");
+                        }
+                        var balance = Math.max(0, Number(data.walletBalance || 0));
+                        var referenceTopup = 10;
+                        var remainingPct = Math.max(0, Math.min(100, Math.round((balance / referenceTopup) * 100)));
+                        if (balEl) balEl.textContent = "$" + balance.toFixed(2) + " Available";
+                        if (tokEl) tokEl.textContent = Number(data.totalTokensUsed || 0).toLocaleString();
+                        if (barEl) barEl.style.width = remainingPct + "%";
+                        if (txtEl) txtEl.textContent = remainingPct + "% remaining (reference: $10.00 top-up)";
+                        setToggle(Boolean(data.lowBalanceAlertEnabled));
+                        setError("");
+                    } catch (e) {
+                        setError(e.message || "Failed to load wallet data");
+                    }
+                }
+
+                if (topupEl) {
+                    topupEl.addEventListener("click", async function () {
+                        var amountInput = window.prompt("Enter top-up amount in USD (minimum $10):", "10");
+                        if (amountInput === null) return;
+                        var amount = Number(amountInput);
+                        if (!Number.isFinite(amount) || amount < 10) {
+                            setError("Minimum top-up amount is $10.");
+                            return;
+                        }
+
+                        var original = topupEl.innerHTML;
+                        topupEl.disabled = true;
+                        topupEl.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i> Redirecting...';
+                        try {
+                            var res = await fetch("/discount/whatssapAPI/api/wallet/topup/", {
+                                method: "POST",
+                                credentials: "same-origin",
+                                headers: {
+                                    "Content-Type": "application/json",
+                                    "X-CSRFToken": getCookie("csrftoken")
+                                },
+                                body: JSON.stringify({
+                                    userId: "{{ request.user.id }}",
+                                    amount: amount
+                                })
+                            });
+                            var data = await res.json();
+                            if (!res.ok || !data.url) {
+                                throw new Error(data.error || "Unable to start top-up checkout");
+                            }
+                            window.location.href = data.url;
+                        } catch (e) {
+                            setError(e.message || "Unable to start top-up checkout");
+                            topupEl.disabled = false;
+                            topupEl.innerHTML = original;
+                        }
+                    });
+                }
+
+                if (toggleEl) {
+                    toggleEl.addEventListener("click", async function () {
+                        var nextEnabled = !toggleEl.classList.contains("on");
+                        setToggle(nextEnabled);
+                        try {
+                            var res = await fetch("/discount/whatssapAPI/api/billing/wallet-settings/", {
+                                method: "POST",
+                                credentials: "same-origin",
+                                headers: {
+                                    "Content-Type": "application/json",
+                                    "X-CSRFToken": getCookie("csrftoken")
+                                },
+                                body: JSON.stringify({ lowBalanceAlertEnabled: nextEnabled })
+                            });
+                            var data = await res.json();
+                            if (!res.ok || !data.success) {
+                                throw new Error(data.error || "Failed to update alert settings");
+                            }
+                            setToggle(Boolean(data.lowBalanceAlertEnabled));
+                            setError("");
+                        } catch (e) {
+                            setToggle(!nextEnabled);
+                            setError(e.message || "Failed to update alert settings");
+                        }
+                    });
+                }
+
+                loadWalletSummary();
+            })();
+        </script>
+        <script>
+            (function () {
+                var btn = document.getElementById("manageBillingPortalBtn");
+                if (!btn) return;
+
+                function getCookie(name) {
+                    var value = "; " + document.cookie;
+                    var parts = value.split("; " + name + "=");
+                    if (parts.length === 2) return parts.pop().split(";").shift();
+                    return "";
+                }
+
+                btn.addEventListener("click", async function () {
+                    var original = btn.innerHTML;
+                    btn.disabled = true;
+                    btn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i> Redirecting...';
+                    try {
+                        var res = await fetch("/discount/whatssapAPI/api/billing/create-portal-session/", {
+                            method: "POST",
+                            headers: {
+                                "Content-Type": "application/json",
+                                "X-CSRFToken": getCookie("csrftoken")
+                            },
+                            credentials: "same-origin",
+                            body: "{}"
+                        });
+                        var data = await res.json();
+                        if (!res.ok || !data.url) {
+                            throw new Error(data.error || "Unable to open billing portal");
+                        }
+                        window.location.href = data.url;
+                    } catch (err) {
+                        alert(err.message || "Unable to open billing portal");
+                        btn.disabled = false;
+                        btn.innerHTML = original;
+                    }
+                });
+            })();
+        </script>
 
         <!-- Team Management Section -->
         <div id="team-management" class="content-area-pane">
@@ -2193,6 +1684,14 @@ function filterDropdown(input) {
                             <input type="checkbox" id="perm_can_view_analytics">
                             <span class="checkbox-label">View Analytics</span>
                         </label>
+                        <label class="checkbox-wrapper">
+                            <input type="checkbox" id="perm_can_create_templates">
+                            <span class="checkbox-label">Create Templates</span>
+                        </label>
+                        <label class="checkbox-wrapper">
+                            <input type="checkbox" id="perm_can_create_channels">
+                            <span class="checkbox-label">Create Channels</span>
+                        </label>
                         <div id="perm_extra_flags"></div>
                     </div>
                 </div>
@@ -2603,6 +2102,8 @@ function setupMultiSelect(idPrefix) {
   const loadingEl = document.getElementById('permBulkLoading');
   const canCreateOrdersCheckbox = document.getElementById('perm_can_create_orders');
   const canViewAnalyticsCheckbox = document.getElementById('perm_can_view_analytics');
+  const canCreateTemplatesCheckbox = document.getElementById('perm_can_create_templates');
+  const canCreateChannelsCheckbox = document.getElementById('perm_can_create_channels');
   // extra flags container if you want to add later
   const extraFlags = document.getElementById('perm_extra_flags');
 
@@ -2613,7 +2114,7 @@ function setupMultiSelect(idPrefix) {
     assignedMap: {},        // keyed by product_id -> { product_id, role, daily_order_limit }
     availableMap: {},       // keyed by product_id -> {id, name}
     removed: new Set(),     // product_ids removed in this session
-    globalPermissions: {}   // e.g. {can_create_orders: true, can_view_analytics: false}
+    globalPermissions: {}   // e.g. {can_create_orders, can_view_analytics, can_create_templates, can_create_channels}
   };
 
   // ========== tiny helpers ==========
@@ -2926,6 +2427,8 @@ async function openForUser(user_id){
       state.globalPermissions = g;
       canCreateOrdersCheckbox.checked = !!g.can_create_orders;
       canViewAnalyticsCheckbox.checked = !!g.can_view_analytics;
+      canCreateTemplatesCheckbox.checked = !!g.can_create_templates;
+      canCreateChannelsCheckbox.checked = !!g.can_create_channels;
 
       // إعادة رسم القوائم (المنتجات + القنوات)
       rebuildLists();           // للمنتجات
@@ -3035,7 +2538,9 @@ window.removeChannel = function(id) {
       // 3. Global Flags (Existing)
       const globalPermissions = {
         can_create_orders: !!canCreateOrdersCheckbox.checked,
-        can_view_analytics: !!canViewAnalyticsCheckbox.checked
+        can_view_analytics: !!canViewAnalyticsCheckbox.checked,
+        can_create_templates: !!canCreateTemplatesCheckbox.checked,
+        can_create_channels: !!canCreateChannelsCheckbox.checked
       };
 
       // 4. Payload
@@ -3082,7 +2587,6 @@ function collectAssignedChannelsFromDOM() {
     items.forEach(item => {
         ids.push(item.getAttribute('data-id'));
     });
-    console.log("Channels collected from DOM:", ids);
     return ids;
 }
 
@@ -3260,28 +2764,53 @@ $(document).ready(function(){
         window.history.replaceState({}, document.title, newUrl);
     }
 
-    // Sidebar navigation logic: Show/Hide content sections
-    $('.sidebar .nav-link').on('click', function(e) {
+    // Section navigation (horizontal rail)
+    $('.account-app').on('click', '.account-rail__link[data-section]', function (e) {
         e.preventDefault();
-        // Remove active class from all sidebar links
-        $('.sidebar .nav-link').removeClass('active');
-        // Add active class to the clicked link
+        $('.account-rail__link[data-section]').removeClass('active');
         $(this).addClass('active');
 
-        // Get the target content section ID from data-section attribute
-        const targetSectionId = $(this).data('section');
-        
-        // Hide all content panes
+        var targetSectionId = $(this).data('section');
         $('.content-area-pane').removeClass('active');
-        // Show the target content pane
         $('#' + targetSectionId).addClass('active');
 
-        // For small screens, scroll to the top of the content section
         if ($(window).width() < 992) {
             $('html, body').animate({
-                scrollTop: $('.main-content').offset().top - 20 // Scroll to main content start
+                scrollTop: $('#accountMain').offset().top - 12
             }, 300);
         }
+    });
+
+    // Default to dark theme when no explicit user preference is stored.
+    (function ensureDefaultDarkTheme() {
+        var root = document.documentElement;
+        try {
+            var savedTheme = localStorage.getItem('theme');
+            var useDark = savedTheme ? savedTheme === 'dark' : true;
+            root.classList.toggle('dark', useDark);
+            root.setAttribute('data-bs-theme', useDark ? 'dark' : 'light');
+            if (!savedTheme) localStorage.setItem('theme', 'dark');
+        } catch (err) {
+            root.classList.add('dark');
+            root.setAttribute('data-bs-theme', 'dark');
+        }
+    })();
+
+    function syncAccountThemeIcons() {
+        var dark = document.documentElement.classList.contains('dark');
+        $('.account-theme-icon--dark').toggle(!dark);
+        $('.account-theme-icon--light').toggle(dark);
+    }
+    syncAccountThemeIcons();
+    $('#accountThemeToggle').on('click', function () {
+        var root = document.documentElement;
+        var next = !root.classList.contains('dark');
+        root.classList.toggle('dark', next);
+        root.setAttribute('data-bs-theme', next ? 'dark' : 'light');
+        try {
+            localStorage.setItem('theme', next ? 'dark' : 'light');
+        } catch (err) {}
+        syncAccountThemeIcons();
     });
 
     // Toggle token visibility in input fields

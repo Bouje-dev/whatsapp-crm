@@ -19,7 +19,19 @@ from discount.product_prompt_config import (
 logger = logging.getLogger(__name__)
 
 
-def build_sales_system_prompt(product_id):
+def _get_tenant_scoped_product(product_id, merchant=None):
+    """Return product only when it belongs to the provided merchant."""
+    from discount.models import Products
+
+    if not product_id or not merchant:
+        return None
+    try:
+        return Products.objects.filter(pk=int(product_id), admin=merchant).first()
+    except Exception:
+        return None
+
+
+def build_sales_system_prompt(product_id, merchant=None):
     """
     Generate the final system message for the AI Sales Agent when talking to a buyer.
     Layers: rules (SALES_BASE_RULES) + product context + persona_instruction (category persona + seller instructions).
@@ -27,12 +39,10 @@ def build_sales_system_prompt(product_id):
     :param product_id: Primary key of the product (discount.models.Products).
     :return: Assembled prompt string. Returns rules only if product not found.
     """
-    from discount.models import Products
-
     parts = [SALES_BASE_RULES]
 
     try:
-        product = Products.objects.filter(pk=product_id).first()
+        product = _get_tenant_scoped_product(product_id, merchant=merchant)
     except Exception as e:
         logger.warning("build_sales_system_prompt: could not load product_id=%s: %s", product_id, e)
         return "\n\n".join(parts)
@@ -44,6 +54,8 @@ def build_sales_system_prompt(product_id):
     title = (getattr(product, "name", None) or "").strip() or "Product"
     description = (getattr(product, "description", None) or "").strip() or ""
     price = getattr(product, "price", None)
+    backup_price = getattr(product, "backup_price", None)
+    coupon_code = (getattr(product, "coupon_code", None) or "").strip().upper()
     currency = (getattr(product, "currency", None) or "MAD").strip() or "MAD"
     price_str = f"{price} {currency}" if price is not None else "—"
     product_context = (
@@ -51,18 +63,30 @@ def build_sales_system_prompt(product_id):
         f"Title: {title}\n"
         f"Description: {description}\n"
         f"Price: {price_str}"
-    ) 
+    )
+    if backup_price is not None:
+        product_context += f"\nBackup price: {backup_price} {currency}"
+    if coupon_code:
+        product_context += f"\nPreferred coupon: {coupon_code}"
+    try:
+        from ai_assistant.services import format_product_offer_tiers_block
+
+        offer_txt = format_product_offer_tiers_block(product)
+        if offer_txt:
+            product_context += "\n\n" + offer_txt
+    except Exception as e:
+        logger.warning("build_sales_system_prompt: offer tiers: %s", e)
     parts.append(product_context)
 
     # Layer c + d: Persona and seller instructions (from get_dynamic_persona_instruction)
-    persona_instruction = get_dynamic_persona_instruction(product_id)
+    persona_instruction = get_dynamic_persona_instruction(product_id, merchant=merchant)
     if persona_instruction:
         parts.append(persona_instruction)
 
     return "\n\n".join(parts)
 
 
-def get_dynamic_persona_instruction(product_id):
+def get_dynamic_persona_instruction(product_id, merchant=None):
     """
     Return only the category-based persona and seller instructions for a product.
     Use this when the main prompt already has product context (e.g. from flow node)
@@ -70,10 +94,8 @@ def get_dynamic_persona_instruction(product_id):
     :param product_id: Primary key of the product (discount.models.Products).
     :return: Persona + seller instructions text, or empty string if product not found.
     """
-    from discount.models import Products
-
     try:
-        product = Products.objects.filter(pk=product_id).first()
+        product = _get_tenant_scoped_product(product_id, merchant=merchant)
     except Exception as e:
         logger.warning("get_dynamic_persona_instruction: could not load product_id=%s: %s", product_id, e)
         return ""
@@ -103,7 +125,7 @@ def get_dynamic_persona_instruction(product_id):
     return "\n\n".join(parts) if parts else ""
 
 
-def get_persona_category_label(product_id):
+def get_persona_category_label(product_id, merchant=None):
     """
     Return a short label for the persona category (e.g. "Beauty Consultant") for the given product.
     Used for internal notes like "AI agent {name} took over as {category}".
@@ -111,8 +133,7 @@ def get_persona_category_label(product_id):
     if not product_id:
         return "Sales Agent"
     try:
-        from discount.models import Products
-        product = Products.objects.filter(pk=int(product_id)).first()
+        product = _get_tenant_scoped_product(product_id, merchant=merchant)
     except Exception:
         return "Sales Agent"
     if not product:

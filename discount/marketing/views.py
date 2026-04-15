@@ -1500,10 +1500,18 @@ def get_permissions_for_user(request):
         global_permissions = {
             'can_create_orders': bool(ups.can_create_orders),
             'can_view_analytics': bool(ups.can_view_analytics),
+            'can_create_templates': bool(ups.can_create_templates),
+            'can_create_channels': bool(ups.can_create_channels),
             'extra': ups.extra or {}
         }
     except UserPermissionSetting.DoesNotExist:
-        global_permissions = {'can_create_orders': False, 'can_view_analytics': False, 'extra': {}}
+        global_permissions = {
+            'can_create_orders': False,
+            'can_view_analytics': False,
+            'can_create_templates': False,
+            'can_create_channels': False,
+            'extra': {},
+        }
 
     return JsonResponse({'status':'ok', 'user_id': str(target_user.id), 'permissions': perms, 'global_permissions': global_permissions , 'channel_permissions': assigned_channels_data,})
 
@@ -1625,6 +1633,8 @@ def bulk_update_permissions(request):
             ups, created_ups = UserPermissionSetting.objects.get_or_create(user=target_user)
             ups.can_create_orders = bool(global_permissions.get('can_create_orders', ups.can_create_orders))
             ups.can_view_analytics = bool(global_permissions.get('can_view_analytics', ups.can_view_analytics))
+            ups.can_create_templates = bool(global_permissions.get('can_create_templates', ups.can_create_templates))
+            ups.can_create_channels = bool(global_permissions.get('can_create_channels', ups.can_create_channels))
             # keep or merge extra
             extra = ups.extra or {}
             extra.update(global_permissions.get('extra', {}))

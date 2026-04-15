@@ -142,6 +142,10 @@
     .btn-submit:hover { transform: translateY(-2px); box-shadow: 0 8px 30px rgba(124, 58, 237, 0.5); }
 
     /* Footer Links */
+    .forgot-row { text-align: right; margin: -6px 0 8px; }
+    .link-forgot { font-size: 13px; color: var(--primary); text-decoration: none; font-weight: 600; }
+    .link-forgot:hover { color: #a78bfa; text-decoration: underline; }
+
     .form-footer { margin-top: 24px; text-align: center; font-size: 14px; color: var(--text-muted); }
     .link-primary { color: var(--primary); text-decoration: none; font-weight: 600; }
     .link-primary:hover { color: #a78bfa; text-decoration: underline; }
@@ -249,6 +253,10 @@
               <i class="fa fa-eye"></i>
             </button>
           </div>
+        </div>
+
+        <div class="forgot-row">
+          <a href="{% url 'password_reset' %}" class="link-forgot">Forgot password?</a>
         </div>
 
         <button type="submit" class="btn-submit">Sign In</button>

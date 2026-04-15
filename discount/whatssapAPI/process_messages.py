@@ -2,6 +2,7 @@
 import json
 import os
 import logging
+from typing import Optional
 from decimal import Decimal
 import random
 import threading
@@ -30,41 +31,142 @@ import re
 
 from datetime import timedelta
 
-from discount.models import CustomUser, Flow, Message, Contact, WhatsAppChannel, Node, NodeMedia, ChatSession, SimpleOrder, Products, ProductImage
+from discount.models import CustomUser, Flow, Message, Contact, WhatsAppChannel, Node, NodeMedia, ChatSession, SimpleOrder, Products, ProductImage, Template
 from django.utils import timezone
+from django.db.models import Q
 from ..channel.socket_utils import send_socket
 
 SESSION_TIMEOUT_HOURS = 24
+# Number of past messages to load for AI context (persistent context / context resumption)
+PERSISTENT_CONTEXT_MESSAGE_LIMIT = 15
 
 # Parse [SEND_MEDIA: <id>] from AI reply; return (cleaned_text, list of media ids)
 SEND_MEDIA_RE = re.compile(r"\[SEND_MEDIA:\s*(\d+)\]")
 # Parse [SEND_PRODUCT_IMAGE] from AI reply; return (cleaned_text, True if tag present)
 SEND_PRODUCT_IMAGE_RE = re.compile(r"\[SEND_PRODUCT_IMAGE\]", re.IGNORECASE)
 
-# Phrases that mean "use the phone number from this chat"
-_SAME_NUMBER_PATTERN = re.compile(
-    r"^(same\s*number|this\s*number|the\s*chat\s*number|نفس\s*الرقم|هذا\s*الرقم|رقم\s*الواتساب|رقم\s*الشات|chat\s*number|same\s*as\s*chat|as\s*above)$",
-    re.IGNORECASE,
-)
+# Safety-net patterns: strip markdown images and bare image URLs the LLM may hallucinate
+_RE_MARKDOWN_IMAGE = re.compile(r'!\[[^\]]*\]\([^)]+\)')
+_RE_BARE_IMAGE_URL = re.compile(r'https?://\S+\.(?:jpg|jpeg|png|gif|webp|svg)\S*', re.IGNORECASE)
 
+
+def remove_arabic_diacritics(text: str) -> str:
+    if text is None:
+        return ""
+    return re.sub(r'[\u064B-\u065F\u0670]', '', text)
+
+
+#
+# ---------------- Webhook Debounce (Human Typing Aggregation) ----------------
+#
+# We debounce ONLY incoming WhatsApp text messages per (channel, sender) for a short
+# time window. While the user is still "typing" (sending multiple short messages),
+# we buffer them and only trigger the LLM workflow when the timer expires.
+#
+DEBOUNCE_WINDOW_SECONDS = 10.0
+_DEBOUNCE_LOCK = threading.Lock()
+_DEBOUNCE_STATE = {}  # key -> {messages: [str], timer: threading.Timer, channel_id, sender, name}
+
+
+def _debounce_key(channel, sender):
+    channel_id = getattr(channel, "id", None)
+    return f"{channel_id}:{sender}" if channel_id else str(sender)
+
+
+def _debounce_store_text(channel, sender, name, body):
+    """
+    Buffer a text message and reset the debounce timer.
+    Returns True to indicate the caller should skip immediate LLM processing.
+    """
+    if not channel or not sender:
+        return False
+    if body is None:
+        return False
+    text = str(body).strip()
+    if not text:
+        return False
+
+    key = _debounce_key(channel, sender)
+    with _DEBOUNCE_LOCK:
+        state = _DEBOUNCE_STATE.get(key)
+        if state:
+            state["messages"].append(text)
+            # Reset the timer: cancel previous and schedule a new one
+            try:
+                state["timer"].cancel()
+            except Exception:
+                pass
+            state["timer"] = threading.Timer(DEBOUNCE_WINDOW_SECONDS, _debounce_flush_key, args=(key,))
+        else:
+            state = {
+                "messages": [text],
+                "timer": None,
+                "channel_id": getattr(channel, "id", None),
+                "sender": sender,
+                "name": name,
+            }
+            _DEBOUNCE_STATE[key] = state
+            state["timer"] = threading.Timer(DEBOUNCE_WINDOW_SECONDS, _debounce_flush_key, args=(key,))
+
+        # Start (or restart) the timer
+        try:
+            state["timer"].daemon = True
+            state["timer"].start()
+        except Exception:
+            # If timer fails, don't block the chat: allow immediate processing on this request.
+            _DEBOUNCE_STATE.pop(key, None)
+            return False
+
+    logger.info("Debounce buffer updated for key=%s: now %d msg(s)", key, len(_DEBOUNCE_STATE[key]["messages"]))
+    return True
+
+
+def _debounce_flush_key(key):
+    """
+    Called when debounce timer expires.
+    Flush buffered messages and re-enter the process_messages pipeline
+    with a combined text payload.
+    """
+    with _DEBOUNCE_LOCK:
+        state = _DEBOUNCE_STATE.pop(key, None)
+
+    if not state:
+        return
+
+    try:
+        channel = WhatsAppChannel.objects.filter(id=state.get("channel_id")).first() if state.get("channel_id") else None
+        if not channel:
+            return
+
+        sender = state.get("sender")
+        name = state.get("name")
+        msgs = state.get("messages") or []
+        combined = "\n".join([f"Msg {i + 1}:\n{m}" for i, m in enumerate(msgs) if str(m).strip()])
+        if not combined.strip():
+            return
+
+        logger.info("Debounce flush for key=%s (sender=%s). Combined length=%d", key, sender, len(combined))
+
+        pseudo_msg = {
+            "from": sender,
+            "type": "text",
+            "text": {"body": combined},
+        }
+        # Re-enter pipeline, bypassing debounce and bypassing incoming-save to avoid duplicates.
+        process_messages([pseudo_msg], channel=channel, name=name, _skip_debounce=True, _skip_incoming_save=True)
+    except Exception as e:
+        logger.exception("Debounce flush failed for key=%s: %s", key, e)
 
 def normalize_customer_phone_for_order(phone_value, chat_sender):
     """
-    When the customer said the phone is 'the same as in the chat', use the chat sender.
-    Returns chat_sender if phone_value is empty or indicates 'same number'; otherwise returns stripped phone_value.
+    Return the phone value to use for order tools. If the LLM did not pass a value (empty),
+    fall back to chat_sender. Intent (e.g. "use chat number") is resolved by the LLM via
+    tool descriptions and injected system context; this layer does not interpret phrases.
     """
     if not chat_sender:
         return (phone_value or "").strip() or None
     raw = (phone_value or "").strip()
     if not raw:
-        return chat_sender
-    if _SAME_NUMBER_PATTERN.match(raw):
-        return chat_sender
-    # Allow numeric-only (with optional +) as valid phone
-    if re.match(r"^[\d\s\+\-]+$", raw) and len(re.sub(r"\D", "", raw)) >= 8:
-        return raw
-    # If it looks like a phrase rather than a number, treat as "same number"
-    if len(raw) < 6 or not re.search(r"\d{5,}", raw):
         return chat_sender
     return raw
 
@@ -253,6 +355,27 @@ def send_automated_response(recipient, responses, channel=None, user=None):
                 if not isinstance(responses, list):
                     responses = [responses]
 
+                # LLM human typing behavior: split by [SPLIT] and send as separate messages.
+                # We expand the response list into multiple text items and insert realistic delays.
+                expanded_responses = []
+                for item in responses:
+                    if isinstance(item, dict) and item.get("type") == "text":
+                        raw_text = item.get("content", "") or ""
+                        if isinstance(raw_text, str) and "[SPLIT]" in raw_text:
+                            chunks = [c.strip() for c in raw_text.split("[SPLIT]") if c.strip()]
+                            if chunks:
+                                for idx, chunk in enumerate(chunks):
+                                    expanded_responses.append({
+                                        "type": "text",
+                                        "content": chunk,
+                                        # Delay between chunks to mimic human typing
+                                        "delay": item.get("delay", 0) if idx == 0 else random.uniform(1.5, 2.0),
+                                        "__split_chunk": idx > 0,
+                                    })
+                                continue
+                    expanded_responses.append(item)
+                responses = expanded_responses
+
                 # تحديد access_token و phone_number_id
                 access_token = ACCESS_TOKEN
                 phone_number_id = PHONE_NUMBER_ID
@@ -298,6 +421,11 @@ def send_automated_response(recipient, responses, channel=None, user=None):
                     # ------------------------
                     if msg_type == "text":
                         text = item.get("content", "")
+                        # Safety net: strip markdown images and bare image URLs the LLM may have hallucinated
+                        if text and isinstance(text, str):
+                            text = _RE_MARKDOWN_IMAGE.sub('', text)
+                            text = _RE_BARE_IMAGE_URL.sub('', text)
+                            text = text.strip()
                         if not text:
                             print("❌ نص فارغ")
                             continue
@@ -332,6 +460,50 @@ def send_automated_response(recipient, responses, channel=None, user=None):
                         caption = item.get("content", "").strip()
                         if caption:
                             data[msg_type]["caption"] = caption
+
+                    # ------------------------
+                    # Interactive buttons (WhatsApp Cloud API)
+                    # ------------------------
+                    elif msg_type == "interactive":
+                        interactive = item.get("interactive") or {}
+                        if not isinstance(interactive, dict):
+                            print("❌ interactive payload is invalid")
+                            continue
+                        if interactive.get("type") != "button":
+                            print(f"❌ unsupported interactive type: {interactive.get('type')}")
+                            continue
+                        action = interactive.get("action") or {}
+                        buttons = action.get("buttons") or []
+                        if not buttons:
+                            print("❌ interactive buttons missing")
+                            continue
+
+                        data = {
+                            "messaging_product": "whatsapp",
+                            "to": recipient,
+                            "type": "interactive",
+                            "interactive": interactive,
+                        }
+                    elif msg_type == "template":
+                        template_payload = item.get("template") or {}
+                        template_name = (template_payload.get("name") or "").strip()
+                        lang_obj = template_payload.get("language") or {}
+                        lang_code = (lang_obj.get("code") or "ar").strip() or "ar"
+                        components = template_payload.get("components") or []
+                        if not template_name:
+                            print("❌ template name is required")
+                            continue
+                        data = {
+                            "messaging_product": "whatsapp",
+                            "to": recipient,
+                            "type": "template",
+                            "template": {
+                                "name": template_name,
+                                "language": {"code": lang_code},
+                            },
+                        }
+                        if isinstance(components, list) and components:
+                            data["template"]["components"] = components
 
                     else:
                         print(f"❌ نوع غير معروف: {msg_type}")
@@ -391,6 +563,9 @@ def send_automated_response(recipient, responses, channel=None, user=None):
                             if msg_type == 'image': snippet = 'image'
                             elif msg_type == 'video': snippet = 'vedio'
                             elif msg_type == 'audio': snippet = 'audio'
+                            elif msg_type == 'template':
+                                tpl_name = (item.get("template") or {}).get("name") or "Template"
+                                snippet = f"📄 {tpl_name}"
                         #     payload ={
                         #         'sender':recipient,
                         #         'body': body,
@@ -447,7 +622,8 @@ def send_automated_response(recipient, responses, channel=None, user=None):
                         
                         print(f"✅ Sent message {i+1}")
 
-                    time.sleep(1)  # pause
+                    # Pause between messages (slightly shorter when we are sending split chunks)
+                    time.sleep(0.2 if item.get("__split_chunk") else 1)  # pause
 
                 return True
 
@@ -819,6 +995,8 @@ def get_flow_first_ai_agent_node(flow):
 # Catalog: when customer asks for available products, we list them; when they choose one, we activate that product's node
 CATALOG_CACHE_PREFIX = "catalog_pending:"
 CATALOG_CACHE_TTL = 3600  # 1 hour
+BUTTON_ROUTING_CACHE_PREFIX = "button_routing_pending:"
+BUTTON_ROUTING_CACHE_TTL = 7200  # 2 hours
 
 # Keywords/phrases that indicate "asking for available products" (EN/AR/FR)
 _CATALOG_INTENT_PATTERNS = re.compile(
@@ -915,6 +1093,51 @@ def _clear_catalog_pending(channel, sender):
     try:
         from django.core.cache import cache
         key = f"{CATALOG_CACHE_PREFIX}{channel.id}:{sender}"
+        cache.delete(key)
+    except Exception:
+        pass
+
+
+def _get_button_routing_pending(channel, sender):
+    """Return pending interactive-button routing state for (channel, sender) or None."""
+    if not channel or not sender:
+        return None
+    try:
+        from django.core.cache import cache
+        key = f"{BUTTON_ROUTING_CACHE_PREFIX}{channel.id}:{sender}"
+        return cache.get(key)
+    except Exception:
+        return None
+
+
+def _set_button_routing_pending(channel, sender, flow_id, from_node_id, routes):
+    """
+    routes: list of {"index": int, "title": str, "title_norm": str, "target_node_id": int}
+    """
+    if not channel or not sender or not flow_id or not from_node_id or not routes:
+        return
+    try:
+        from django.core.cache import cache
+        key = f"{BUTTON_ROUTING_CACHE_PREFIX}{channel.id}:{sender}"
+        cache.set(
+            key,
+            {
+                "flow_id": int(flow_id),
+                "from_node_id": int(from_node_id),
+                "routes": routes,
+            },
+            timeout=BUTTON_ROUTING_CACHE_TTL,
+        )
+    except Exception as e:
+        logger.warning("_set_button_routing_pending: %s", e)
+
+
+def _clear_button_routing_pending(channel, sender):
+    if not channel or not sender:
+        return
+    try:
+        from django.core.cache import cache
+        key = f"{BUTTON_ROUTING_CACHE_PREFIX}{channel.id}:{sender}"
         cache.delete(key)
     except Exception:
         pass
@@ -1039,6 +1262,235 @@ def _touch_session_last_interaction(channel, customer_phone):
         logger.warning("_touch_session_last_interaction: %s", e)
 
 
+# ---------------------------------------------------------------------------
+# AI Sentinel — cheap intent checkpoint after N consecutive user messages
+# ---------------------------------------------------------------------------
+SENTINEL_USER_MESSAGE_THRESHOLD = 5
+SENTINEL_SPAM_FALLBACK_TEXT = (
+    "يبدو أن استفساراتك تحتاج لمتابعة خاصة. لقد قمت بتحويل محادثتك لفريق العمل للرد عليك في أقرب وقت."
+)
+
+
+def _get_last_agent_message_bodies(sender, channel, limit=2):
+    """Last `limit` outbound (assistant) message bodies, oldest first — for Whisper context."""
+    if not sender or not channel:
+        return []
+    try:
+        qs = Message.objects.filter(sender=sender, channel=channel, is_from_me=True).order_by("-timestamp")[
+            : max(1, int(limit))
+        ]
+        rows = list(qs)
+        rows.reverse()
+        out = []
+        for m in rows:
+            b = (m.body or "").strip()
+            if b and b != "[media]":
+                out.append(b)
+        return out
+    except Exception as e:
+        logger.warning("_get_last_agent_message_bodies: %s", e)
+        return []
+
+
+def _get_last_n_customer_message_bodies(sender, channel, n=5):
+    """Last n inbound customer messages (exclude agent replies), oldest first."""
+    if not sender or not channel:
+        return []
+    try:
+        qs = Message.objects.filter(sender=sender, channel=channel, is_from_me=False).order_by("-timestamp")[
+            : max(1, int(n))
+        ]
+        rows = list(qs)
+        rows.reverse()
+        out = []
+        for m in rows:
+            b = (m.body or "").strip()
+            if b and b != "[media]":
+                out.append(b)
+        return out
+    except Exception as e:
+        logger.warning("_get_last_n_customer_message_bodies: %s", e)
+        return []
+
+
+def _maybe_build_memory_summary(channel, sender, conversation_messages, recent_limit=6):
+    """
+    Build/cached summarized memory from older conversation history.
+    - recent_limit messages remain raw in the main prompt.
+    - older messages are summarized and cached in ChatSession.context_data.
+    """
+    if not channel or not sender or not conversation_messages:
+        return ""
+    msgs = list(conversation_messages or [])
+    if len(msgs) <= recent_limit:
+        return ""
+
+    older = msgs[:-int(recent_limit)]
+    older = [m for m in older if (m.get("body") or "").strip() and (m.get("body") or "").strip() != "[media]"]
+    if not older:
+        return ""
+
+    chars = sum(len((m.get("body") or "").strip()) for m in older)
+    min_chars_for_summary = 900
+    if chars < min_chars_for_summary:
+        return ""
+
+    session = get_active_session(channel, sender)
+    if not session:
+        return ""
+    ctx = getattr(session, "context_data", None) or {}
+    cached = (ctx.get("memory_summary") or "").strip()
+    cached_count = int(ctx.get("memory_summary_source_count") or 0)
+
+    # Refresh only periodically to avoid re-summarizing each turn.
+    refresh_every_messages = 2
+    older_count = len(older)
+    should_refresh = (not cached) or (older_count >= (cached_count + refresh_every_messages))
+    if not should_refresh:
+        return cached
+
+    try:
+        from ai_assistant.services import summarize_customer_memory_from_messages
+
+        summary = (summarize_customer_memory_from_messages(older) or "").strip()
+    except Exception as e:
+        logger.warning("memory summarizer import/call failed: %s", e)
+        summary = ""
+
+    if summary:
+        ctx["memory_summary"] = summary
+        ctx["memory_summary_source_count"] = older_count
+        ctx["memory_summary_recent_limit"] = int(recent_limit)
+        session.context_data = ctx
+        try:
+            session.save(update_fields=["context_data"])
+        except Exception as e:
+            logger.warning("memory summary cache save failed: %s", e)
+        return summary
+
+    return cached
+
+
+def _voice_transcription_retry_text(channel):
+    """Localized retry text when voice transcription fails."""
+    lang = None
+    try:
+        from discount.services.bot_language import effective_bot_language
+
+        lang = effective_bot_language(channel)
+    except Exception:
+        lang = None
+    if lang == "fr":
+        return "Desole, je n'ai pas bien entendu le message vocal. Pouvez-vous le renvoyer ou ecrire votre demande ?"
+    if lang == "en":
+        return "Sorry, I could not hear the voice message clearly. Could you resend it or type your request?"
+    return "عذراً، لم أسمع المقطع الصوتي جيداً، هل يمكنك إعادة إرساله أو كتابة طلبك؟"
+
+
+def _sentinel_checkpoint(channel, sender, skip=False):
+    """
+    Increment consecutive_user_messages; at threshold run gpt-4o-mini intent evaluator.
+    Returns 'proceed' (run main Sales Agent) or 'spam' (block main LLM; caller sends fallback).
+    """
+    if skip or not channel or not sender:
+        return "proceed"
+    try:
+        from django.db import transaction as db_transaction
+        from django.db import IntegrityError
+        from ai_assistant.services import evaluate_sentinel_intent
+        from discount.models import HandoverLog
+
+        with db_transaction.atomic():
+            try:
+                session = ChatSession.objects.select_for_update().get(
+                    channel=channel, customer_phone=sender
+                )
+            except ChatSession.DoesNotExist:
+                try:
+                    ChatSession.objects.create(
+                        channel=channel,
+                        customer_phone=sender,
+                        is_expired=False,
+                        ai_enabled=True,
+                        consecutive_user_messages=0,
+                        requires_human=False,
+                    )
+                except IntegrityError:
+                    pass
+                session = ChatSession.objects.select_for_update().get(
+                    channel=channel, customer_phone=sender
+                )
+
+            session.consecutive_user_messages = (session.consecutive_user_messages or 0) + 1
+            cnt = session.consecutive_user_messages
+
+            if cnt < SENTINEL_USER_MESSAGE_THRESHOLD:
+                session.save(update_fields=["consecutive_user_messages"])
+                return "proceed"
+
+            texts = _get_last_n_customer_message_bodies(sender, channel, SENTINEL_USER_MESSAGE_THRESHOLD)
+            verdict = evaluate_sentinel_intent(texts)
+
+            if verdict == "SERIOUS":
+                session.consecutive_user_messages = 0
+                session.save(update_fields=["consecutive_user_messages"])
+                return "proceed"
+
+            session.ai_enabled = False
+            session.requires_human = True
+            session.handover_reason = "sentinel_spam"
+            session.save(
+                update_fields=[
+                    "consecutive_user_messages",
+                    "ai_enabled",
+                    "requires_human",
+                    "handover_reason",
+                ]
+            )
+
+        try:
+            HandoverLog.objects.create(
+                channel=channel,
+                customer_phone=sender,
+                reason="sentinel_spam",
+            )
+        except Exception as e:
+            logger.warning("HandoverLog sentinel: %s", e)
+
+        _add_ai_action_note(
+            channel,
+            sender,
+            "[AI → Human] AI Sentinel: last messages were classified as spam or not serious buyer intent. "
+            "Auto-reply was disabled; the customer received the standard handover message (transferred to the team). "
+            "السبب: تصنيف الحماية — محتوى غير جاد أو spam.",
+        )
+
+        team_id = getattr(channel, "owner_id", None) or (
+            getattr(channel.owner, "id", None) if getattr(channel, "owner", None) else None
+        )
+        if team_id:
+            try:
+                send_socket(
+                    "handover_new_message",
+                    {
+                        "channel_id": channel.id,
+                        "customer_phone": sender,
+                        "reason": "sentinel_spam",
+                        "requires_human": True,
+                    },
+                    group_name=f"team_updates_{team_id}",
+                )
+            except Exception as e:
+                logger.warning("sentinel socket: %s", e)
+
+        logger.info("AI Sentinel: SPAM verdict for channel=%s sender=%s", channel.id, sender)
+        return "spam"
+
+    except Exception as e:
+        logger.exception("_sentinel_checkpoint: %s", e)
+        return "proceed"
+
+
 def _voice_settings_for_node(channel, node):
     """
     Return a wrapper so generate_voice uses node's persona (voice_id) or node_voice_id,
@@ -1059,15 +1511,15 @@ def _voice_settings_for_node(channel, node):
                     if v and (v or "").strip():
                         return (v or "").strip().upper()
                 if name == "selected_voice_id":
+                    v = getattr(self._node, "node_voice_id", None)
+                    if v and (v or "").strip():
+                        return (v or "").strip()
                     try:
                         persona = getattr(self._node, "persona", None)
                         if persona and getattr(persona, "voice_id", None):
                             return (persona.voice_id or "").strip()
                     except Exception:
                         pass
-                    v = getattr(self._node, "node_voice_id", None)
-                    if v and (v or "").strip():
-                        return (v or "").strip()
                 if name == "voice_stability":
                     v = getattr(self._node, "voice_stability", None)
                     if v is not None:
@@ -1081,6 +1533,14 @@ def _voice_settings_for_node(channel, node):
                     if v is not None:
                         return float(v)
                 if name in ("voice_provider", "ai_voice_provider"):
+                    try:
+                        ac = getattr(self._node, "ai_model_config", None) or {}
+                        if isinstance(ac, dict):
+                            vp = (ac.get("voice_provider") or "").strip().upper()
+                            if vp in ("OPENAI", "ELEVENLABS"):
+                                return vp
+                    except Exception:
+                        pass
                     try:
                         persona = getattr(self._node, "persona", None)
                         if persona and getattr(persona, "provider", None):
@@ -1129,6 +1589,72 @@ def _add_ai_action_note(channel, sender, body):
         )
     except Exception as e:
         logger.warning("AI action note failed: %s", e)
+
+
+def _pause_ai_for_wallet_depleted(channel, sender, active_node=None):
+    """
+    Wallet guardrail:
+    - Pause AI for this chat (HITL handover).
+    - Write an internal-only dashboard note (never sent to WhatsApp customer).
+    """
+    if not channel or not sender:
+        return
+    try:
+        from discount.models import HandoverLog
+
+        note_body = "⚠️ تم إيقاف الرد الآلي: رصيد التوكنز غير كافٍ. يرجى شحن المحفظة للرد على هذا العميل."
+        session, _ = ChatSession.objects.get_or_create(
+            channel=channel,
+            customer_phone=sender,
+            defaults={
+                "active_node": active_node,
+                "is_expired": False,
+                "ai_enabled": True,
+            },
+        )
+
+        update_fields = []
+        if session.active_node_id is None and active_node is not None:
+            session.active_node = active_node
+            update_fields.append("active_node")
+        if session.ai_enabled:
+            session.ai_enabled = False
+            update_fields.append("ai_enabled")
+        if not session.requires_human:
+            session.requires_human = True
+            update_fields.append("requires_human")
+        if (session.handover_reason or "") != "wallet_depleted":
+            session.handover_reason = "wallet_depleted"
+            update_fields.append("handover_reason")
+
+        ctx = getattr(session, "context_data", None) or {}
+        if not ctx.get("wallet_depleted_note_created"):
+            Message.objects.create(
+                channel=channel,
+                sender=sender,
+                body=note_body,
+                type="note",
+                is_internal=True,
+                is_from_me=True,
+                status="read",
+            )
+            ctx["wallet_depleted_note_created"] = True
+            session.context_data = ctx
+            update_fields.append("context_data")
+
+        if update_fields:
+            session.save(update_fields=update_fields)
+
+        try:
+            HandoverLog.objects.create(
+                channel=channel,
+                customer_phone=sender,
+                reason="wallet_depleted",
+            )
+        except Exception as e:
+            logger.warning("HandoverLog wallet_depleted: %s", e)
+    except Exception as e:
+        logger.warning("Wallet depleted handover update failed: %s", e)
 
 
 # Phrases that mean "asking the customer to place/confirm order" — we allow only once per session
@@ -1272,11 +1798,66 @@ def _execute_track_order(channel, customer_phone):
         return '{"found": false, "status": null, "shipping_company": null, "expected_delivery_date": null, "days_until_delivery": null, "customer_name": null}'
 
 
-def _execute_apply_discount(channel, coupon_code):
-    """Validate coupon and return a message for the agent (e.g. limited-time discount)."""
+def _resolve_node_product(current_node, channel):
+    """Resolve Products row linked to current AI node (via ai_model_config.product_id)."""
+    if not current_node or not channel:
+        return None
+    try:
+        ai_cfg = getattr(current_node, "ai_model_config", None) or {}
+        product_id = ai_cfg.get("product_id") if isinstance(ai_cfg, dict) else None
+        if product_id is None:
+            return None
+        owner = getattr(channel, "owner", None)
+        if not owner:
+            return None
+        return Products.objects.filter(id=int(product_id), admin=owner).first()
+    except Exception:
+        return None
+
+
+def _execute_apply_discount(channel, coupon_code, current_node=None):
+    """Validate coupon using product config (coupon/backup price) and return negotiation guidance for the AI."""
+    product = _resolve_node_product(current_node, channel) if current_node else None
+    configured_coupon = ((getattr(product, "coupon_code", None) or "").strip().upper() if product else "")
+    backup_price = getattr(product, "backup_price", None) if product else None
+    currency = (getattr(product, "currency", None) or "MAD").strip() if product else "MAD"
+    product_name = (getattr(product, "name", None) or "the product").strip() if product else "the product"
+
     if not coupon_code or not str(coupon_code).strip():
+        if configured_coupon:
+            if backup_price is not None:
+                return (
+                    f"No coupon code provided. Use configured coupon '{configured_coupon}' for {product_name}. "
+                    f"If needed, your fallback negotiation price is {backup_price} {currency}. "
+                    "Never go below this fallback price."
+                )
+            return (
+                f"No coupon code provided. Use configured coupon '{configured_coupon}' for {product_name}. "
+                "Offer a small discount only if needed and keep margin healthy."
+            )
+        if backup_price is not None:
+            return (
+                f"No coupon code provided. For {product_name}, fallback negotiation price is {backup_price} {currency}. "
+                "Use it as the last acceptable offer and do not go below it."
+            )
         return "No coupon code provided."
     code = str(coupon_code).strip().upper()
+    if configured_coupon:
+        if code != configured_coupon:
+            if backup_price is not None:
+                return (
+                    f"Coupon '{code}' is not valid for {product_name}. "
+                    f"Only '{configured_coupon}' is allowed. "
+                    f"You may still negotiate down to backup price {backup_price} {currency}, but not below it."
+                )
+            return f"Coupon '{code}' is not valid for {product_name}. Only '{configured_coupon}' is allowed."
+        if backup_price is not None:
+            return (
+                f"Coupon '{code}' is valid for {product_name}. "
+                f"Use discount messaging and keep final negotiated price at or above {backup_price} {currency}."
+            )
+        return f"Coupon '{code}' is valid for {product_name}. Offer the configured discount professionally."
+
     # Optional: load from channel.context_data or Node config; for now use a small allowlist
     allowed = getattr(settings, "AI_SALES_COUPON_CODES", None) or ["WELCOME10", "RAMADAN15", "FIRST10", "COD10"]
     if code in [c.upper() for c in allowed]:
@@ -1295,9 +1876,17 @@ def get_channel_catalog_context(channel, max_products=100, description_chars=200
     if not owner:
         return ""
     try:
-        qs = Products.objects.filter(admin=owner).order_by("name")[: max(1, int(max_products))]
+        products = list(Products.objects.filter(admin=owner).order_by("name")[: max(1, int(max_products))])
+        if any(getattr(p, "admin_id", None) != owner.id for p in products):
+            logger.error(
+                "Tenant isolation violation blocked in get_channel_catalog_context: channel_id=%s owner_id=%s",
+                getattr(channel, "id", None),
+                owner.id,
+            )
+            return ""
         lines = ["# STORE CATALOG (all products the store has)\n"]
-        for p in qs:
+        base_url = (getattr(settings, "SITE_URL", "") or "").rstrip("/")
+        for p in products:
             name = (getattr(p, "name", None) or "").strip() or "Unnamed"
             price = getattr(p, "price", None)
             currency = (getattr(p, "currency", None) or "MAD").strip() or "MAD"
@@ -1307,9 +1896,28 @@ def get_channel_catalog_context(channel, max_products=100, description_chars=200
             if desc and len(desc) > description_chars:
                 desc = desc[: description_chars].rstrip() + "…"
             sku = (getattr(p, "sku", None) or "").strip()
-            lines.append(f"- **{name}** | Price: {price_str} | Category: {category}" + (f" | SKU: {sku}" if sku else ""))
+            has_image = ProductImage.objects.filter(product=p).exists()
+            try:
+                from ai_assistant.services import format_product_offer_tiers_one_line
+
+                bundle_hint = format_product_offer_tiers_one_line(p)
+            except Exception:
+                bundle_hint = ""
+            lines.append(
+                f"- {name} (ID: {p.id}) | Price: {price_str} | Category: {category}"
+                + (f" | SKU: {sku}" if sku else "")
+                + (" | 📷 has image" if has_image else "")
+                + bundle_hint
+            )
             if desc:
                 lines.append(f"  Description: {desc}")
+        lines.append(
+            "\n⚠️ CATALOG DISPLAY RULE: When showing products to the customer, "
+            "call send_product_media(product_id) for EACH product that has an image. "
+            "Send each product as a separate WhatsApp image with the product name and price as caption. "
+            "NEVER include image URLs or markdown images in your text. "
+            "List the products by name and price in your text, then call send_product_media for each."
+        )
         return "\n".join(lines) if len(lines) > 1 else ""
     except Exception as e:
         logger.warning("get_channel_catalog_context: %s", e)
@@ -1378,13 +1986,72 @@ def _execute_search_products(channel, query):
     return search_channel_products(channel, query or "", top_n=5)
 
 
+def _execute_send_product_media(channel, sender, product_id, caption=""):
+    """
+    Execute send_product_media tool.
+    Sends a dedicated WhatsApp media image message directly from backend.
+    Returns JSON string for LLM context.
+    """
+    try:
+        if not channel:
+            return json.dumps({"status": "error", "message": "Channel missing."}, ensure_ascii=False)
+        owner = getattr(channel, "owner", None)
+        if not owner:
+            return json.dumps({"status": "error", "message": "Channel owner missing."}, ensure_ascii=False)
+        pid = int(str(product_id).strip())
+        product = Products.objects.filter(id=pid, admin=owner).first()
+        if not product:
+            return json.dumps({"status": "error", "message": "Product not found in this store."}, ensure_ascii=False)
+        first_img = ProductImage.objects.filter(product=product).order_by("order", "id").first()
+        if not first_img or not getattr(first_img, "image", None):
+            return json.dumps({"status": "error", "message": "No image found for this product."}, ensure_ascii=False)
+        base_url = (getattr(settings, "SITE_URL", "") or "").rstrip("/")
+        raw_url = first_img.image.url
+        image_url = (base_url + raw_url) if (base_url and raw_url.startswith("/")) else raw_url
+        if not image_url:
+            return json.dumps({"status": "error", "message": "Image URL is empty for this product."}, ensure_ascii=False)
+
+        # Build caption: use provided caption, or fall back to product name + price
+        if not caption or not str(caption).strip():
+            product_name = (getattr(product, "name", None) or "").strip()
+            price = getattr(product, "price", None)
+            currency = (getattr(product, "currency", None) or "MAD").strip() or "MAD"
+            caption = product_name
+            if price is not None:
+                caption = f"{product_name} - {price} {currency}"
+
+        send_automated_response(
+            sender,
+            [{"type": "image", "media_url": image_url, "content": str(caption).strip()}],
+            channel=channel,
+        )
+        return json.dumps({"status": "success", "message": "Image sent via WhatsApp media message."}, ensure_ascii=False)
+    except Exception as e:
+        logger.exception("_execute_send_product_media failed: %s", e)
+        return json.dumps({"status": "error", "message": "Failed to send product image media."}, ensure_ascii=False)
+
+
+# Transitional message sent to customer before submit_customer_order DB work (UX: no awkward silence)
+SUBMIT_ORDER_TRANSITIONAL_MESSAGE = "غادي نسجل الطلب ديالك دابا. لحظة واحدة..."
+
+
 def _execute_submit_customer_order(channel, sender, arguments, current_node):
     """
     Execute submit_customer_order tool. Product comes from session (current_node), not from AI.
-    Returns a JSON string for the tool result (success or error message for AI to self-correct).
+    Caller must send the transitional message (SUBMIT_ORDER_TRANSITIONAL_MESSAGE) to the customer
+    BEFORE calling this, so the customer sees an instant reply while DB/validation runs.
+    Returns a JSON string with descriptive feedback for the AI's tool result:
+    - Success: {"status": "success", "order_id": "...", "instruction": "..."}
+    - Error: {"status": "error", "reason": "...", "instruction": "..."}
     """
     if not channel or not current_node:
-        return json.dumps({"success": False, "message": "SYSTEM ERROR: Channel or product context missing."}, ensure_ascii=False)
+        return json.dumps({
+            "status": "error",
+            "reason": "Channel or product context missing.",
+            "instruction": "Explain that a technical issue occurred and ask the customer to try again in a moment.",
+            "success": False,
+            "message": "SYSTEM ERROR: Channel or product context missing.",
+        }, ensure_ascii=False)
     ai_cfg = getattr(current_node, "ai_model_config", None) or {}
     session_product_id = ai_cfg.get("product_id") if isinstance(ai_cfg, dict) else None
     try:
@@ -1392,26 +2059,178 @@ def _execute_submit_customer_order(channel, sender, arguments, current_node):
     except (TypeError, ValueError):
         session_product_id = None
     session_seller_id = getattr(channel, "owner_id", None) or (getattr(channel, "owner", None) and getattr(channel.owner, "id", None))
+    if not session_seller_id:
+        logger.warning("_execute_submit_customer_order: channel has no owner (channel_id=%s)", getattr(channel, "id", None))
+        return json.dumps({
+            "status": "error",
+            "reason": "Channel has no owner configured.",
+            "instruction": "Apologize for a technical issue and say an agent will assist shortly.",
+            "success": False,
+            "message": "SYSTEM ERROR: Channel not configured.",
+        }, ensure_ascii=False)
     try:
         from discount.orders_ai import handle_submit_order_tool
-        outcome = handle_submit_order_tool(
+        # The handler itself returns a JSON string for the LLM context (never raises to the caller)
+        content = handle_submit_order_tool(
             arguments,
             session_product_id=session_product_id,
             session_seller_id=session_seller_id,
             channel=channel,
             customer_phone_from_chat=sender,
         )
-        return json.dumps(outcome, ensure_ascii=False)
+        if isinstance(content, str):
+            return content
+        # Backwards safety: if a dict is ever returned, stringify it.
+        return json.dumps(content or {
+            "status": "error",
+            "message": "Unknown tool result shape. Tell the user there was a technical glitch and that a human agent will assist shortly.",
+        }, ensure_ascii=False)
     except Exception as e:
         logger.exception("_execute_submit_customer_order: %s", e)
-        return json.dumps({"success": False, "message": "SYSTEM ERROR: Order could not be processed. Please try again."}, ensure_ascii=False)
+        err_msg = str(e)[:200] if e else "unknown"
+        return json.dumps({
+            "status": "error",
+            "reason": "Order could not be processed.",
+            "instruction": (
+                "SYSTEM ERROR: Tool execution failed in the backend. Log: " + err_msg + ". "
+                "Apologize to the customer naturally (e.g. عندي مشكل تقني بسيط)، tell them a human agent will assist them shortly, and STOP attempting to call the tool."
+            ),
+            "success": False,
+            "message": "SYSTEM ERROR: Order could not be processed. Please try again.",
+        }, ensure_ascii=False)
 
 
-def run_ai_agent_node(current_node, sender, channel, state_header=None):
+def _node_has_upsell_connection(ai_agent_node):
+    """Check if the AI Agent node has an on_order_success connection to an upsell node."""
+    try:
+        flow = getattr(ai_agent_node, "flow", None)
+        if not flow:
+            return False
+        from discount.models import Connection as FlowConnection
+        for conn in FlowConnection.objects.filter(flow=flow, from_node=ai_agent_node).select_related("to_node"):
+            data = conn.data if isinstance(conn.data, dict) else {}
+            if data.get("source_port") == "on_order_success" and conn.to_node.node_type == "upsell":
+                return True
+    except Exception:
+        pass
+    return False
+
+
+def _trigger_upsell_after_order(ai_agent_node, channel, sender, saved_order):
+    """
+    After a successful order on an AI Agent node, check for an on_order_success
+    connection to an Upsell node. If found, schedule the upsell pitch after the
+    configured delay. The pitch is sent as a WhatsApp message; the customer's reply
+    is handled by the AI agent with the add_upsell_to_existing_order tool available.
+    The session is kept alive (not expired) so the AI can reference last_order_id.
+    """
+    import threading
+    flow = getattr(ai_agent_node, "flow", None)
+    if not flow:
+        return
+    from discount.models import Connection as FlowConnection, Products
+    upsell_conn = FlowConnection.objects.filter(
+        flow=flow,
+        from_node=ai_agent_node,
+    ).select_related("to_node").all()
+    upsell_node = None
+    for conn in upsell_conn:
+        data = conn.data if isinstance(conn.data, dict) else {}
+        if data.get("source_port") == "on_order_success" and conn.to_node.node_type == "upsell":
+            upsell_node = conn.to_node
+            break
+    if not upsell_node:
+        return
+    cfg = getattr(upsell_node, "ai_model_config", None) or {}
+    upsell_product_id = cfg.get("upsell_product_id")
+    upsell_price = cfg.get("upsell_price")
+    pitch_prompt = (cfg.get("pitch_prompt") or "").strip()
+    delay_seconds = cfg.get("delay_seconds", 10) or 10
+    try:
+        delay_seconds = int(delay_seconds)
+    except (TypeError, ValueError):
+        delay_seconds = 10
+    if not upsell_product_id:
+        logger.warning("Upsell node %s has no upsell_product_id", upsell_node.node_id)
+        return
+    store = getattr(channel, "owner", None) if channel else None
+    product = Products.objects.filter(id=int(upsell_product_id), admin=store).first() if store else None
+    if not product:
+        logger.warning("Upsell product_id=%s not found for store", upsell_product_id)
+        return
+    product_name = (product.name or "").strip() or "المنتج"
+    order_id = getattr(saved_order, "order_id", None) or ""
+
+    if not pitch_prompt:
+        price_str = f"{upsell_price} MAD" if upsell_price else ""
+        pitch_prompt = (
+            f"بما أنك خديتي الطلب ديالك، عندنا عرض خاص ليك على {product_name}"
+            + (f" غير ب {price_str}" if price_str else "")
+            + "! واش تبغي تزيد هاد المنتج للطلب ديالك؟"
+        )
+
+    # Store upsell context in session so the AI agent can use it when the customer replies
+    try:
+        _session = get_active_session(channel, sender)
+        if _session:
+            _ctx = getattr(_session, "context_data", None) or {}
+            _ctx["upsell_pending"] = {
+                "upsell_product_id": upsell_product_id,
+                "upsell_product_name": product_name,
+                "upsell_price": str(upsell_price) if upsell_price else "",
+                "order_id": order_id,
+                "pitch_prompt": pitch_prompt,
+            }
+            _session.context_data = _ctx
+            _session.save(update_fields=["context_data"])
+    except Exception as ctx_err:
+        logger.warning("Upsell session context save: %s", ctx_err)
+
+    def _send_upsell():
+        try:
+            logger.info(
+                "UPSELL TRIGGER: sending pitch to %s for product_id=%s after %ds delay",
+                sender, upsell_product_id, delay_seconds,
+            )
+            send_automated_response(
+                sender,
+                [{"type": "text", "content": pitch_prompt, "delay": 0}],
+                channel=channel,
+            )
+            first_img = None
+            try:
+                from discount.models import ProductImage
+                first_img = ProductImage.objects.filter(product_id=int(upsell_product_id)).order_by("order", "id").first()
+            except Exception:
+                pass
+            if first_img and first_img.image:
+                from django.conf import settings as django_settings
+                base_url = (getattr(django_settings, "SITE_URL", "") or "").rstrip("/")
+                image_url = (base_url + first_img.image.url) if base_url else first_img.image.url
+                send_automated_response(
+                    sender,
+                    [{"type": "image", "media_url": image_url, "content": ""}],
+                    channel=channel,
+                )
+        except Exception as e:
+            logger.exception("UPSELL SEND failed: %s", e)
+
+    timer = threading.Timer(delay_seconds, _send_upsell)
+    timer.daemon = True
+    timer.start()
+    logger.info(
+        "UPSELL SCHEDULED: product_id=%s order_id=%s for sender=%s in %ds",
+        upsell_product_id, order_id, sender, delay_seconds,
+    )
+
+
+def run_ai_agent_node(current_node, sender, channel, state_header=None, skip_sentinel=False, incoming_body=None):
     """
     Run the AI agent for one node (product context, GPT, media, voice). Returns list of message dicts.
     Goal-oriented: uses ChatSession.context_data for sales_stage and sentiment; runs check_stock, apply_discount, record_order.
     On successful order save, expires ChatSession for (channel, sender).
+    skip_sentinel: when True, skip AI Sentinel counter/evaluator (e.g. after sentinel already ran in same turn).
+    incoming_body: current user text (after debounce); passed to LLM context and Franco→Darija preprocessing.
     """
     from django.conf import settings
 
@@ -1429,6 +2248,7 @@ def run_ai_agent_node(current_node, sender, channel, state_header=None):
             get_handover_message,
             _is_price_or_quality_objection,
             _is_misunderstand_message,
+            apply_franco_translation_to_conversation,
         )
         from discount.orders_ai import (
             extract_order_data_from_reply,
@@ -1441,6 +2261,7 @@ def run_ai_agent_node(current_node, sender, channel, state_header=None):
         )
         from django.db import transaction as db_transaction
         from django.core.cache import cache
+        from discount.services.wallet import chargeUserForAiUsage
 
         session = get_active_session(channel, sender)
         if not session and channel and sender:
@@ -1449,6 +2270,13 @@ def run_ai_agent_node(current_node, sender, channel, state_header=None):
                 customer_phone=sender,
                 defaults={"active_node": current_node, "is_expired": False, "ai_enabled": True},
             )
+
+        # Cheap intent checkpoint before expensive Sales Agent (uses same channel+phone session row)
+        if channel and sender and not skip_sentinel:
+            sc = _sentinel_checkpoint(channel, sender, skip=False)
+            if sc == "spam":
+                return [{"type": "text", "content": SENTINEL_SPAM_FALLBACK_TEXT, "delay": 0}]
+
         ctx = getattr(session, "context_data", None) or {} if session else {}
         sales_stage = ctx.get("sales_stage")
         sentiment = ctx.get("sentiment")
@@ -1464,7 +2292,12 @@ def run_ai_agent_node(current_node, sender, channel, state_header=None):
                     session.save(update_fields=["context_data"])
 
         product_context = (getattr(current_node, "product_context", None) or "").strip()
-        conversation = get_conversation_history(sender, channel)
+        store_owner = getattr(channel, "owner", None) if channel else None
+        if store_owner and Decimal(getattr(store_owner, "wallet_balance", 0) or 0) <= Decimal("0"):
+            _pause_ai_for_wallet_depleted(channel, sender, active_node=current_node)
+            return []
+        conversation = get_conversation_for_llm(sender, channel, incoming_body=incoming_body)
+        conversation = apply_franco_translation_to_conversation(conversation)
         # Market/tone: do NOT use a global tone. 3 options:
         # (1) If there were chats before with this user → infer tone from that conversation (AR_MA → MA, AR_SA → SA).
         # (2) If first time and we have product context → use node market (from ai_model_config or node_language).
@@ -1493,6 +2326,24 @@ def run_ai_agent_node(current_node, sender, channel, state_header=None):
             else:
                 inferred = infer_market_from_phone(sender)
                 market = inferred if inferred else node_market
+        from discount.services.voice_dialect import (
+            merchant_voice_mode_enabled,
+            resolve_dialect_for_llm_hierarchy,
+            should_inject_tts_dialect_prompt,
+        )
+        from discount.services.bot_language import effective_bot_language
+
+        output_language = effective_bot_language(channel)
+        voice_notes_mode = should_inject_tts_dialect_prompt(channel, current_node)
+        voice_dialect_label = resolve_dialect_for_llm_hierarchy(channel, current_node, sender)
+        # AUDIO SCRIPT vs TEXT: merchant toggle (ai_voice_enabled), or flow/node TTS without toggle (AUDIO_ONLY, etc.)
+        voice_script_style = bool(merchant_voice_mode_enabled(channel) or voice_notes_mode)
+        if voice_notes_mode and output_language not in ("fr", "en"):
+            from ai_assistant.services import market_from_resolved_dialect
+
+            _market_voice = market_from_resolved_dialect(voice_dialect_label)
+            if _market_voice:
+                market = _market_voice
         if not conversation or conversation[-1].get("role") != "customer":
             conversation = conversation or []
             conversation.append({"role": "customer", "body": ""})
@@ -1513,6 +2364,27 @@ def run_ai_agent_node(current_node, sender, channel, state_header=None):
                 "Answer their current question (e.g. delivery, another product, timing) normally."
             )
             custom_instruction = (custom_instruction + " " + post_order_note) if custom_instruction else post_order_note
+        # Inject upsell context if a pending upsell exists in the session
+        if session:
+            _upsell_ctx = (getattr(session, "context_data", None) or {}).get("upsell_pending")
+            if _upsell_ctx and isinstance(_upsell_ctx, dict):
+                _u_order_id = _upsell_ctx.get("order_id", "")
+                _u_product = _upsell_ctx.get("upsell_product_name", "")
+                _u_price = _upsell_ctx.get("upsell_price", "")
+                upsell_instruction = (
+                    f"\n\n[UPSELL MODE ACTIVE]\n"
+                    f"You just completed order '{_u_order_id}'. You are now offering an upsell: "
+                    f"'{_u_product}' at a special price of {_u_price} MAD. "
+                    f"The order_id for the existing order is: {_u_order_id}\n"
+                    "RULES:\n"
+                    "- If the customer agrees (e.g. 'yes', 'add it', 'ok', 'واه', 'زيدها'), "
+                    "call add_upsell_to_existing_order with order_id='" + _u_order_id + "', "
+                    f"new_item_name='{_u_product}', new_item_price={_u_price}.\n"
+                    "- DO NOT ask for shipping details again — the order already has them.\n"
+                    "- DO NOT create a new order. UPDATE the existing one.\n"
+                    "- If the customer declines, thank them politely and confirm their original order."
+                )
+                custom_instruction = (custom_instruction or "") + upsell_instruction
         # Agent name: when voice reply is on use persona name or Chuck; when off use a random name (AI thinks as human)
         response_mode = getattr(current_node, "response_mode", None) or ""
         voice_enabled_legacy = getattr(current_node, "voice_enabled", False)
@@ -1542,8 +2414,11 @@ def run_ai_agent_node(current_node, sender, channel, state_header=None):
         try:
             ai_cfg = getattr(current_node, "ai_model_config", None) or {}
             product_id = ai_cfg.get("product_id") if isinstance(ai_cfg, dict) else None
-            if product_id is not None:
-                first_img = ProductImage.objects.filter(product_id=int(product_id)).order_by("order", "id").first()
+            if product_id is not None and store:
+                first_img = ProductImage.objects.filter(
+                    product_id=int(product_id),
+                    product__admin=store,
+                ).order_by("order", "id").first()
                 if first_img and first_img.image:
                     product_photo_line = (
                         "Product photo (from catalog): When the customer asks for a photo/image/picture of the product, "
@@ -1553,13 +2428,89 @@ def run_ai_agent_node(current_node, sender, channel, state_header=None):
                 # Inject category-based persona and seller_custom_persona into the sales prompt
                 try:
                     from discount.product_sales_prompt import get_dynamic_persona_instruction
-                    persona_instruction = get_dynamic_persona_instruction(product_id)
+                    persona_instruction = get_dynamic_persona_instruction(product_id, merchant=store)
                     if persona_instruction:
                         custom_instruction = (custom_instruction or "") + "\n\n" + persona_instruction
                 except Exception as persona_err:
                     logger.debug("Dynamic persona for product_id=%s: %s", product_id, persona_err)
         except (TypeError, ValueError, AttributeError):
             pass
+
+        # Dynamic Product Selection: inject either a fixed product ID or the full catalog
+        try:
+            store = getattr(channel, "owner", None) if channel else None
+            from discount.models import Products
+            if product_id is not None and store:
+                prod = Products.objects.filter(id=int(product_id), admin=store).first()
+                if prod:
+                    line = (
+                        f"You are selling '{(prod.name or '').strip()}' (ID: {prod.id}). "
+                        "When you call submit_customer_order, you MUST pass this exact product_id."
+                    )
+                    custom_instruction = (custom_instruction or "") + "\n\n" + line
+                    backup_price = getattr(prod, "backup_price", None)
+                    coupon_code = (getattr(prod, "coupon_code", None) or "").strip().upper()
+                    tier_floor_parts = []
+                    try:
+                        offer_arr = json.loads(getattr(prod, "offer", "") or "[]")
+                        if isinstance(offer_arr, list):
+                            for t in offer_arr:
+                                if not isinstance(t, dict):
+                                    continue
+                                qty = str(t.get("qty") or "").strip()
+                                t_price = str(t.get("price") or "").strip()
+                                t_backup = str(t.get("backup_price") or "").strip()
+                                if qty and t_price:
+                                    part = f"{qty} pcs => {t_price}"
+                                    if t_backup:
+                                        part += f" (backup floor {t_backup})"
+                                    tier_floor_parts.append(part)
+                    except Exception:
+                        tier_floor_parts = []
+                    if backup_price is not None or coupon_code or tier_floor_parts:
+                        negotiation_line = (
+                            "NEGOTIATION PRICING POLICY: "
+                            + (f"Primary price is {getattr(prod, 'price', '—')} {(getattr(prod, 'currency', 'MAD') or 'MAD').strip()}. " if getattr(prod, "price", None) is not None else "")
+                            + (f"Backup/floor price is {backup_price} {(getattr(prod, 'currency', 'MAD') or 'MAD').strip()}. Never go below this floor. " if backup_price is not None else "")
+                            + (f"Use coupon code '{coupon_code}' when discount is needed. " if coupon_code else "")
+                            + (f"Quantity offer tiers configured: {'; '.join(tier_floor_parts)}. " if tier_floor_parts else "")
+                            + "When the customer asks for offers, wants 2+ pieces, or after they commit to one unit, suggest matching bundle tiers and show savings vs single-unit (professional tone). "
+                            + "Keep negotiation confident, protect margin, and stay consistent with these numbers."
+                        )
+                        custom_instruction = (custom_instruction or "") + "\n\n" + negotiation_line
+            elif store:
+                # Keep context lean: do NOT inject the full catalog into the prompt.
+                # Use tools to discover products on demand to reduce token usage.
+                line = (
+                    "You are a general store assistant. Do NOT assume a specific product unless the customer names one. "
+                    "When product is unclear, call search_products(query) with the customer wording, then suggest the closest matches. "
+                    "For images, use send_product_media(product_id) only after selecting the relevant product."
+                )
+                custom_instruction = (custom_instruction or "") + "\n\n" + line
+        except Exception as catalog_err:
+            logger.debug("Dynamic Product Selection catalog injection failed: %s", catalog_err)
+
+        required_order_fields = None
+        checkout_mode_label = None
+        try:
+            if product_id is not None:
+                from discount.models import Products
+                from discount.orders_ai import get_required_order_fields_for_product, CHECKOUT_MODE_LABELS
+                prod = Products.objects.filter(id=int(product_id), admin=store).first() if store else None
+                if prod:
+                    if getattr(prod, "admin_id", None) != getattr(store, "id", None):
+                        logger.error(
+                            "Tenant isolation violation blocked in dynamic schema load: channel_id=%s store_id=%s product_id=%s",
+                            getattr(channel, "id", None),
+                            getattr(store, "id", None),
+                            product_id,
+                        )
+                        prod = None
+                if prod:
+                    required_order_fields = get_required_order_fields_for_product(prod)
+                    checkout_mode_label = CHECKOUT_MODE_LABELS.get((getattr(prod, "checkout_mode", None) or "").strip()) or ""
+        except Exception as _dyn_schema_err:
+            logger.debug("Dynamic submit_customer_order schema: %s", _dyn_schema_err)
 
         # Channel-level Admin coaching overrides: load fresh from DB and pass so they're injected at start of system prompt
         override_rules = ""
@@ -1571,6 +2522,7 @@ def run_ai_agent_node(current_node, sender, channel, state_header=None):
             override_rules = (getattr(channel, "ai_override_rules", None) or "").strip()
 
         # Intelligent Handover (Supervisor Agent): analyze intent & bot performance before calling GPT
+        memory_summary = _maybe_build_memory_summary(channel, sender, conversation, recent_limit=6)
         handover, handover_reason = should_handover(conversation, market=market, use_llm_intent=True)
         if handover:
             handover_text = get_handover_message(market)
@@ -1599,8 +2551,23 @@ def run_ai_agent_node(current_node, sender, channel, state_header=None):
                 agent_name=agent_name,
                 customer_phone=sender,
                 override_rules=override_rules or None,
+                required_order_fields=required_order_fields,
+                checkout_mode_label=checkout_mode_label or None,
+                product_id=product_id,
+                merchant_id=getattr(store_owner, "id", None),
+                voice_dialect=voice_dialect_label,
+                voice_notes_mode=voice_notes_mode,
+                voice_script_style=voice_script_style,
+                output_language=output_language,
+                memory_summary=memory_summary,
             )
-        tool_calls_for_info = [tc for tc in (result.get("tool_calls") or []) if tc.get("name") in ("check_stock", "apply_discount", "track_order", "search_products", "submit_customer_order", "save_order", "record_order", "update_lead_status")]
+            if store_owner:
+                chargeUserForAiUsage(
+                    store_owner.id,
+                    result.get("prompt_tokens", 0),
+                    result.get("completion_tokens", 0),
+                )
+        tool_calls_for_info = [tc for tc in (result.get("tool_calls") or []) if tc.get("name") in ("check_stock", "apply_discount", "track_order", "search_products", "send_product_media", "submit_customer_order", "save_order", "record_order", "update_lead_status", "add_upsell_to_existing_order")]
         first_result_order_tools = [tc for tc in (result.get("tool_calls") or []) if tc.get("name") in ("save_order", "record_order")]
         submit_order_success_outcome = None
         save_order_result_order = None  # order from save_order/record_order when executed in loop
@@ -1628,7 +2595,7 @@ def run_ai_agent_node(current_node, sender, channel, state_header=None):
                         f"AI agent checked stock (product_id={args.get('product_id') or '—'}, sku={args.get('sku') or '—'}).",
                     )
                 elif name == "apply_discount":
-                    content = _execute_apply_discount(channel, args.get("coupon_code"))
+                    content = _execute_apply_discount(channel, args.get("coupon_code"), current_node=current_node)
                     tool_results.append({"tool_call_id": tcid, "content": content})
                     _add_ai_action_note(
                         channel, sender,
@@ -1648,13 +2615,33 @@ def run_ai_agent_node(current_node, sender, channel, state_header=None):
                         channel, sender,
                         f"AI agent searched products: \"{args.get('query') or ''}\".",
                     )
+                elif name == "send_product_media":
+                    content = _execute_send_product_media(channel, sender, args.get("product_id"), caption=args.get("caption", ""))
+                    tool_results.append({"tool_call_id": tcid, "content": content})
+                    _add_ai_action_note(
+                        channel, sender,
+                        f"AI agent sent product media for product_id={args.get('product_id') or '—'}.",
+                    )
                 elif name == "submit_customer_order":
+                    # Step 1: Transitional message (instant reply) before DB work — no awkward silence
+                    send_automated_response(
+                        sender,
+                        [{"type": "text", "content": SUBMIT_ORDER_TRANSITIONAL_MESSAGE, "delay": 0}],
+                        channel=channel,
+                    )
+                    # Step 2 & 3: Execute tool and return descriptive feedback for the AI
                     content = _execute_submit_customer_order(channel, sender, args, current_node)
                     tool_results.append({"tool_call_id": tcid, "content": content})
                     try:
                         outcome = json.loads(content)
                         if outcome.get("success"):
                             submit_order_success_outcome = outcome
+                        else:
+                            logger.info(
+                                "submit_customer_order failed (channel=%s, sender=%s): %s",
+                                getattr(channel, "id", None), sender,
+                                outcome.get("message") or outcome.get("reason") or content[:200],
+                            )
                     except Exception:
                         pass
                 elif name == "update_lead_status":
@@ -1666,6 +2653,34 @@ def run_ai_agent_node(current_node, sender, channel, state_header=None):
                         logger.exception("update_lead_status: %s", e)
                         content = json.dumps({"success": False, "message": str(e)}, ensure_ascii=False)
                     tool_results.append({"tool_call_id": tcid, "content": content})
+                elif name == "add_upsell_to_existing_order":
+                    try:
+                        from discount.orders_ai import handle_add_upsell_tool
+                        content = handle_add_upsell_tool(args, channel)
+                    except Exception as e:
+                        logger.exception("add_upsell_to_existing_order: %s", e)
+                        content = json.dumps({"success": False, "message": str(e)}, ensure_ascii=False)
+                    tool_results.append({"tool_call_id": tcid, "content": content})
+                    try:
+                        upsell_outcome = json.loads(content)
+                        if upsell_outcome.get("success"):
+                            _add_ai_action_note(
+                                channel, sender,
+                                f"AI agent added upsell to order {args.get('order_id')}: {args.get('new_item_name')} (+{args.get('new_item_price')}).",
+                            )
+                            # Clear upsell_pending from session and expire now
+                            try:
+                                _upsell_session = get_active_session(channel, sender)
+                                if _upsell_session:
+                                    _uctx = getattr(_upsell_session, "context_data", None) or {}
+                                    _uctx.pop("upsell_pending", None)
+                                    _upsell_session.context_data = _uctx
+                                    _upsell_session.save(update_fields=["context_data"])
+                                expire_chat_session(channel, sender)
+                            except Exception:
+                                pass
+                    except Exception:
+                        pass
                 elif name in ("save_order", "record_order") and getattr(channel, "ai_order_capture", True):
                     args["customer_phone"] = normalize_customer_phone_for_order(args.get("customer_phone"), sender)
                     if "address" in args and not args.get("customer_city"):
@@ -1702,7 +2717,20 @@ def run_ai_agent_node(current_node, sender, channel, state_header=None):
                         agent_name=agent_name,
                         customer_phone=sender,
                         override_rules=override_rules or None,
+                        product_id=product_id,
+                        merchant_id=getattr(store_owner, "id", None),
+                        voice_dialect=voice_dialect_label,
+                        voice_notes_mode=voice_notes_mode,
+                        voice_script_style=voice_script_style,
+                        output_language=output_language,
+                        memory_summary=memory_summary,
                     )
+                    if store_owner:
+                        chargeUserForAiUsage(
+                            store_owner.id,
+                            result.get("prompt_tokens", 0),
+                            result.get("completion_tokens", 0),
+                        )
                     # save_order/record_order were already executed in the loop above and tool result sent to AI
                 except Exception as cont_err:
                     logger.warning("continue_after_tool_calls failed: %s", cont_err)
@@ -1714,6 +2742,16 @@ def run_ai_agent_node(current_node, sender, channel, state_header=None):
             if oid:
                 saved_order = SimpleOrder.objects.filter(order_id=oid).first()
                 _add_ai_action_note(channel, sender, f"AI agent created order: {oid} (submit_customer_order) for customer {sender}.")
+                # Persist order_id in session state so upsell nodes can reference it
+                try:
+                    _session = get_active_session(channel, sender)
+                    if _session:
+                        _ctx = getattr(_session, "context_data", None) or {}
+                        _ctx["last_order_id"] = oid
+                        _session.context_data = _ctx
+                        _session.save(update_fields=["context_data"])
+                except Exception as _sess_err:
+                    logger.warning("Save order_id to session: %s", _sess_err)
         # If save_order/record_order succeeded in the tool loop, use that order
         if save_order_result_order and channel:
             order_was_saved = True
@@ -1724,6 +2762,14 @@ def run_ai_agent_node(current_node, sender, channel, state_header=None):
             )
 
         reply_text = (result.get("reply") or "").strip()
+        if not reply_text:
+            logger.warning(
+                "AI agent node produced empty reply (channel=%s, sender=%s). "
+                "Reason candidates: LLM returned empty/whitespace, reply only contained hidden tags/tool calls, "
+                "or continue_after_tool_calls failed silently.",
+                channel.id if channel else None,
+                sender,
+            )
         current_stage = result.get("stage")
 
         # Enforce "ask to order at most once" per session (code-level; AI may ignore prompt rules)
@@ -1775,16 +2821,11 @@ def run_ai_agent_node(current_node, sender, channel, state_header=None):
                 session.save(update_fields=["ai_enabled", "handover_reason"])
                 from discount.models import HandoverLog
                 HandoverLog.objects.create(channel=channel, customer_phone=sender, reason=session.handover_reason)
-                # Private note in chat: why the AI handed over (visible to team only, not to customer)
-                handover_note_body = f"AI handed over to human: {session.handover_reason}"
-                Message.objects.create(
-                    channel=channel,
-                    sender=sender,
-                    body=handover_note_body,
-                    type="note",
-                    is_internal=True,
-                    is_from_me=True,
-                    status="read",
+                _add_ai_action_note(
+                    channel,
+                    sender,
+                    f"[AI → Human] Handover to team. Reason: {session.handover_reason}. "
+                    "Auto-reply disabled; customer received the transfer message.",
                 )
                 team_id = getattr(channel, "owner_id", None) or (getattr(channel, "owner", None) and getattr(channel.owner, "id", None))
                 if team_id:
@@ -1877,7 +2918,10 @@ def run_ai_agent_node(current_node, sender, channel, state_header=None):
         if channel:
             if order_was_saved:
                 reset_trust_score(channel.id, sender)
-                expire_chat_session(channel, sender)
+                # Check if an upsell node is connected; if so, defer session expiry
+                _has_upsell = _node_has_upsell_connection(current_node)
+                if not _has_upsell:
+                    expire_chat_session(channel, sender)
                 # Trigger Google Sheets sync when order was saved via AI (uses channel.owner config; idempotent)
                 if saved_order and getattr(saved_order, "pk", None):
                     try:
@@ -1900,19 +2944,22 @@ def run_ai_agent_node(current_node, sender, channel, state_header=None):
                         _run_google_sheets_export(current_node, flow, sender, channel, user)
                 except Exception as sheet_err:
                     logger.warning("Google Sheets export (flow) after AI order: %s", sheet_err)
+                # Post-purchase upsell: find on_order_success connection → upsell node → schedule pitch
+                try:
+                    _trigger_upsell_after_order(current_node, channel, sender, saved_order)
+                except Exception as upsell_err:
+                    logger.warning("Upsell trigger after order: %s", upsell_err)
             else:
                 increment_trust_score(channel.id, sender)
         if order_was_saved and saved_order:
             reply_text = format_order_confirmation(saved_order)
         if not reply_text and order_was_saved and saved_order:
             reply_text = get_order_confirmation_fallback(market)
-        # When AI returns empty (e.g. API glitch, timeout), send a short fallback so the customer is not left with no reply
+        # When AI returns empty (e.g. API glitch, timeout), do NOT send a hardcoded fallback — it ruins UX.
+        # Log only; caller may send nothing or handoff is triggered by the except block on real errors.
         if not (reply_text or "").strip():
-            reply_text = (
-                "عذراً، وقع شي خلل تقني. مرني نكمّل؟ (Sorry, a small glitch happened. Can we continue?)"
-            )
             logger.warning(
-                "AI agent returned empty reply (channel=%s, sender=%s); sending fallback.",
+                "AI agent returned empty reply (channel=%s, sender=%s); no fallback message sent.",
                 channel.id if channel else None,
                 sender,
             )
@@ -1945,8 +2992,11 @@ def run_ai_agent_node(current_node, sender, channel, state_header=None):
             try:
                 ai_cfg = getattr(current_node, "ai_model_config", None) or {}
                 product_id = ai_cfg.get("product_id") if isinstance(ai_cfg, dict) else None
-                if product_id is not None:
-                    first_img = ProductImage.objects.filter(product_id=int(product_id)).order_by("order", "id").first()
+                if product_id is not None and getattr(channel, "owner", None):
+                    first_img = ProductImage.objects.filter(
+                        product_id=int(product_id),
+                        product__admin=getattr(channel, "owner", None),
+                    ).order_by("order", "id").first()
                     if first_img and first_img.image:
                         media_url = base_url + first_img.image.url if base_url else first_img.image.url
                         output_messages.append({
@@ -1968,11 +3018,11 @@ def run_ai_agent_node(current_node, sender, channel, state_header=None):
         if reply_text:
             if use_voice and channel:
                 try:
-                    from discount.whatssapAPI.voice_engine import generate_voice
+                    from discount.whatssapAPI.voice_engine import generate_audio_file_with_text_fallback
                     from django.core.files.storage import default_storage
                     import uuid
                     voice_settings = _voice_settings_for_node(channel, current_node)
-                    audio_path = generate_voice(reply_text, voice_settings)
+                    audio_path, tts_text_fallback = generate_audio_file_with_text_fallback(reply_text, voice_settings)
                     if audio_path and os.path.exists(audio_path):
                         name = f"flow_audio/{uuid.uuid4().hex}.mp3"
                         with open(audio_path, "rb") as f:
@@ -1983,15 +3033,40 @@ def run_ai_agent_node(current_node, sender, channel, state_header=None):
                             pass
                         media_url = (base_url + default_storage.url(name).lstrip("/")) if base_url else default_storage.url(name)
                         output_messages.append({"type": "audio", "media_url": media_url, "content": "", "delay": current_node.delay or 0})
+                    elif tts_text_fallback:
+                        output_messages.append({
+                            "type": "text",
+                            "content": remove_arabic_diacritics(tts_text_fallback),
+                            "delay": current_node.delay or 0,
+                        })
                     else:
                         output_messages.append({"type": "text", "content": reply_text, "delay": current_node.delay or 0})
                 except Exception as ve:
-                    logger.exception("AI_AGENT voice fallback: %s", ve)
+                    print("AI_AGENT voice fallback: %s", ve)
                     output_messages.append({"type": "text", "content": reply_text, "delay": current_node.delay or 0})
             else:
                 output_messages.append({"type": "text", "content": reply_text, "delay": current_node.delay or 0})
     except Exception as e:
-        logger.exception("run_ai_agent_node failed: %s", e)
+        print("run_ai_agent_node failed: %s", e)
+        # Invisible error handling: do not send hardcoded "انقطع الرد". Send a natural handoff and disable AI.
+        output_messages = [{"type": "text", "content": "عندي مشكل تقني بسيط، فريقنا غادي يتواصل معاك قريباً."}]
+        if channel and sender:
+            try:
+                session = get_active_session(channel, sender)
+                if session:
+                    session.ai_enabled = False
+                    session.handover_reason = "Backend error (tool or LLM)"
+                    session.save(update_fields=["ai_enabled", "handover_reason"])
+                    from discount.models import HandoverLog
+                    HandoverLog.objects.create(channel=channel, customer_phone=sender, reason=session.handover_reason)
+                    _add_ai_action_note(
+                        channel,
+                        sender,
+                        "[AI → Human] Technical error (tool or LLM). Auto-reply disabled; "
+                        "customer received the support handover message.",
+                    )
+            except Exception as handoff_err:
+                logger.warning("Handoff on AI error failed: %s", handoff_err)
 
     # Once per session: internal note that AI agent (persona) took over as seller
     try:
@@ -2005,7 +3080,7 @@ def run_ai_agent_node(current_node, sender, channel, state_header=None):
                 from discount.product_sales_prompt import get_persona_category_label
                 ai_cfg = getattr(current_node, "ai_model_config", None) or {}
                 product_id = ai_cfg.get("product_id") if isinstance(ai_cfg, dict) else None
-                persona_category = get_persona_category_label(product_id)
+                persona_category = get_persona_category_label(product_id, merchant=getattr(channel, "owner", None))
                 name_for_note = (agent_name or "AI Agent").strip() or "AI Agent"
                 takeover_note_body = f"AI agent {name_for_note} took over as {persona_category} (persona-category)."
                 _add_ai_action_note(channel, sender, takeover_note_body)
@@ -2019,7 +3094,7 @@ def run_ai_agent_node(current_node, sender, channel, state_header=None):
     return output_messages
 
 
-def execute_flow(flow, sender, channel=None, user=None):
+def execute_flow(flow, sender, channel=None, user=None, incoming_body=None, start_node_id=None):
     """
     Execute flow and return clean WhatsApp-ready messages
     
@@ -2028,6 +3103,7 @@ def execute_flow(flow, sender, channel=None, user=None):
         sender: رقم المرسل
         channel: القناة (اختياري) - للتحقق من الصلاحيات
         user: المستخدم (اختياري) - للتحقق من الصلاحيات
+        incoming_body: current user message text for AI agent nodes (Franco translation + LLM context).
     """
     try:
         # التحقق من الصلاحيات إذا كان channel و user موجودين
@@ -2040,18 +3116,23 @@ def execute_flow(flow, sender, channel=None, user=None):
         nodes = flow.nodes.all().order_by("id")
         connections = flow.connections.all()
 
-        if not flow.start_node:
+        if not flow.start_node and not start_node_id:
             print("❌ No start node defined for this flow")
             return None
 
-        # Skip trigger node → Jump to next actual node
-        current_node = flow.start_node
-        if current_node.node_type == "trigger":
-            next_conn = connections.filter(from_node=current_node).first()
-            if not next_conn:
-                print("❌ Trigger node has no outgoing connection")
-                return None
-            current_node = next_conn.to_node
+        # Optionally start from a specific node (used by interactive button branching).
+        current_node = None
+        if start_node_id:
+            current_node = Node.objects.filter(id=start_node_id, flow=flow).first()
+        if current_node is None:
+            # Skip trigger node → Jump to next actual node
+            current_node = flow.start_node
+            if current_node and current_node.node_type == "trigger":
+                next_conn = connections.filter(from_node=current_node).first()
+                if not next_conn:
+                    print("❌ Trigger node has no outgoing connection")
+                    return None
+                current_node = next_conn.to_node
 
         visited = set()
         output_messages = []
@@ -2082,6 +3163,168 @@ def execute_flow(flow, sender, channel=None, user=None):
                         "delay": current_node.delay or 0
                     })
 
+            # BUTTONS MESSAGE (Interactive buttons config stored as JSON in content_text)
+            elif current_node.node_type == "buttons-message":
+                btn_content = {}
+                try:
+                    raw = (current_node.content_text or "").strip()
+                    if raw:
+                        btn_content = json.loads(raw)
+                except Exception:
+                    btn_content = {}
+
+                body_text = (btn_content.get("text") or "").strip()
+                if body_text:
+                    button_type = (btn_content.get("button_type") or "reply").strip().lower()
+                    delay_value = current_node.delay or int(btn_content.get("delay") or 0) or 0
+                    if button_type == "cta_url":
+                        # WhatsApp session messages do not reliably support CTA URL interactive in all versions.
+                        # Fallback to text with URL so customer still gets the action.
+                        cta_label = (btn_content.get("cta_label") or "Open Link").strip()
+                        cta_url = (btn_content.get("cta_url") or "").strip()
+                        cta_text = body_text
+                        if cta_url:
+                            cta_text += f"\n\n{cta_label}: {cta_url}"
+                        output_messages.append({
+                            "type": "text",
+                            "content": cta_text,
+                            "delay": delay_value,
+                        })
+                    else:
+                        reply_buttons = btn_content.get("reply_buttons") or []
+                        if not isinstance(reply_buttons, list):
+                            reply_buttons = []
+                        if not reply_buttons:
+                            legacy = (btn_content.get("buttons") or "")
+                            reply_buttons = [b.strip() for b in str(legacy).split(",") if b.strip()]
+                        reply_buttons = reply_buttons[:3]
+                        if not reply_buttons:
+                            output_messages.append({
+                                "type": "text",
+                                "content": body_text,
+                                "delay": delay_value,
+                            })
+                        else:
+                            header_type = (btn_content.get("header_type") or "").strip().lower()
+                            header_text = (btn_content.get("header_text") or "").strip()
+                            header_media_url = (btn_content.get("header_media_url") or "").strip()
+                            footer_text = (btn_content.get("footer_text") or "").strip()
+                            interactive = {
+                                "type": "button",
+                                "body": {"text": body_text},
+                                "action": {"buttons": []},
+                            }
+                            if footer_text:
+                                interactive["footer"] = {"text": footer_text[:60]}
+                            if header_type == "text" and header_text:
+                                interactive["header"] = {"type": "text", "text": header_text[:60]}
+                            elif header_type in ("image", "video") and header_media_url:
+                                interactive["header"] = {
+                                    "type": header_type,
+                                    header_type: {"link": header_media_url},
+                                }
+                            for idx, title in enumerate(reply_buttons):
+                                safe_title = str(title).strip()[:20]
+                                if not safe_title:
+                                    continue
+                                interactive["action"]["buttons"].append({
+                                    "type": "reply",
+                                    "reply": {
+                                        "id": f"btn_{current_node.id}_{idx+1}",
+                                        "title": safe_title,
+                                    }
+                                })
+                            if interactive["action"]["buttons"]:
+                                output_messages.append({
+                                    "type": "interactive",
+                                    "interactive": interactive,
+                                    "content": body_text,  # stored in Message.body for dashboard snippet
+                                    "delay": delay_value,
+                                })
+                                # Per-button branch routing: store mapping and wait for customer's click.
+                                if channel and sender:
+                                    routes = []
+                                    for idx, title in enumerate(reply_buttons, start=1):
+                                        safe_title = str(title).strip()[:20]
+                                        if not safe_title:
+                                            continue
+                                        port = f"btn_{idx}"
+                                        branch_conn = (
+                                            connections.filter(from_node=current_node)
+                                            .filter(Q(data__source_port=port) | Q(data__branch=port))
+                                            .first()
+                                        )
+                                        if branch_conn and branch_conn.to_node_id:
+                                            routes.append({
+                                                "index": idx,
+                                                "title": safe_title,
+                                                "title_norm": safe_title.lower(),
+                                                "target_node_id": int(branch_conn.to_node_id),
+                                            })
+                                    if routes:
+                                        _set_button_routing_pending(
+                                            channel=channel,
+                                            sender=sender,
+                                            flow_id=flow.id,
+                                            from_node_id=current_node.id,
+                                            routes=routes,
+                                        )
+                                    else:
+                                        _clear_button_routing_pending(channel, sender)
+                                # Stop flow here, continue after click response.
+                                break
+                            else:
+                                output_messages.append({
+                                    "type": "text",
+                                    "content": body_text,
+                                    "delay": delay_value,
+                                })
+
+            # TEMPLATE MESSAGE (WhatsApp approved template)
+            elif current_node.node_type == "template-message":
+                template_cfg = {}
+                try:
+                    raw = (current_node.content_text or "").strip()
+                    if raw:
+                        template_cfg = json.loads(raw)
+                except Exception:
+                    template_cfg = {}
+
+                template_id = template_cfg.get("template_id")
+                template_name = (template_cfg.get("template_name") or "").strip()
+                template_lang = (template_cfg.get("language") or "ar").strip() or "ar"
+                delay_value = current_node.delay or int(template_cfg.get("delay") or 0) or 0
+                preview_body = (template_cfg.get("body") or "").strip()
+
+                tpl_obj = None
+                if template_id:
+                    try:
+                        tpl_obj = Template.objects.filter(id=int(template_id)).first()
+                    except Exception:
+                        tpl_obj = None
+                if not tpl_obj and template_name:
+                    qs = Template.objects.filter(name=template_name)
+                    if channel:
+                        qs = qs.filter(channel=channel)
+                    tpl_obj = qs.first()
+
+                if tpl_obj:
+                    template_name = (tpl_obj.name or template_name or "").strip()
+                    template_lang = (tpl_obj.language or template_lang or "ar").strip() or "ar"
+                    preview_body = (tpl_obj.body or preview_body or "").strip()
+
+                if template_name:
+                    output_messages.append({
+                        "type": "template",
+                        "template": {
+                            "name": template_name,
+                            "language": {"code": template_lang},
+                            "components": [],
+                        },
+                        "content": preview_body,
+                        "delay": delay_value,
+                    })
+
             # MIXED (text + media)
             elif current_node.node_type == "mixed":
 
@@ -2105,7 +3348,11 @@ def execute_flow(flow, sender, channel=None, user=None):
 
             # AI AGENT (delegate to run_ai_agent_node; session expiry on order is handled inside)
             elif current_node.node_type == "ai-agent":
-                output_messages.extend(run_ai_agent_node(current_node, sender, channel, state_header=None))
+                output_messages.extend(
+                    run_ai_agent_node(
+                        current_node, sender, channel, state_header=None, incoming_body=incoming_body
+                    )
+                )
 
             # FOLLOW-UP NODE: schedule task only; no immediate message
             elif current_node.node_type == "follow-up":
@@ -2121,6 +3368,54 @@ def execute_flow(flow, sender, channel=None, user=None):
                     _run_google_sheets_export(current_node, flow, sender, channel, user)
                 except Exception as e:
                     logger.warning("Google Sheets export: %s", e)
+
+            # UPSELL NODE: handled post-order via on_order_success routing; skip in linear traversal
+            elif current_node.node_type == "upsell":
+                pass
+            elif current_node.node_type == "webhook":
+                # Execute outbound webhook call and continue flow regardless of result.
+                try:
+                    webhook_cfg = {}
+                    raw = (current_node.content_text or "").strip()
+                    if raw:
+                        try:
+                            webhook_cfg = json.loads(raw)
+                        except Exception:
+                            webhook_cfg = {}
+                    url = (webhook_cfg.get("url") or "").strip()
+                    method = (webhook_cfg.get("method") or "POST").strip().upper()
+                    payload_raw = webhook_cfg.get("payload")
+                    if not url:
+                        logger.warning("Webhook node %s skipped: missing URL", current_node.id)
+                    else:
+                        if method not in ("GET", "POST", "PUT", "DELETE", "PATCH"):
+                            method = "POST"
+                        payload_obj = None
+                        if isinstance(payload_raw, dict):
+                            payload_obj = payload_raw
+                        elif isinstance(payload_raw, str) and payload_raw.strip():
+                            try:
+                                payload_obj = json.loads(payload_raw)
+                            except Exception:
+                                payload_obj = None
+                        context_payload = {
+                            "sender": sender,
+                            "incoming_body": incoming_body or "",
+                            "channel_id": getattr(channel, "id", None),
+                            "flow_id": getattr(flow, "id", None),
+                            "node_id": getattr(current_node, "id", None),
+                        }
+                        if isinstance(payload_obj, dict):
+                            payload_obj.setdefault("context", context_payload)
+                        else:
+                            payload_obj = {"context": context_payload}
+                        timeout_sec = 12
+                        if method == "GET":
+                            _ = requests.get(url, params=payload_obj, timeout=timeout_sec)
+                        else:
+                            _ = requests.request(method, url, json=payload_obj, timeout=timeout_sec)
+                except Exception as e:
+                    logger.warning("Webhook node execution failed (%s): %s", current_node.id, e)
 
             # Get next node
             next_conn = connections.filter(from_node=current_node).first()
@@ -2234,25 +3529,63 @@ def _run_google_sheets_export(current_node, flow, sender, channel, user):
     t.start()
 
 
-def get_conversation_history(sender, channel, limit=25):
-    """Build conversation_messages for GPT from Message model (sender + channel)."""
+def _strip_image_urls_from_body(body):
+    """Remove markdown images and bare image URLs from message body so the LLM doesn't repeat them."""
+    if not body:
+        return body
+    cleaned = _RE_MARKDOWN_IMAGE.sub('', body)
+    cleaned = _RE_BARE_IMAGE_URL.sub('[image sent separately]', cleaned)
+    return cleaned.strip() or "[media]"
+
+
+def get_conversation_history(sender, channel, limit=None):
+    """
+    Build conversation_messages for GPT from Message model (sender + channel).
+    Uses PERSISTENT_CONTEXT_MESSAGE_LIMIT (15) by default for AI context resumption.
+    Returns list of {"role": "agent"|"customer", "body": "..."} ordered oldest to newest.
+    Strips image URLs from agent messages to prevent the LLM from repeating them.
+    """
+    if limit is None:
+        limit = PERSISTENT_CONTEXT_MESSAGE_LIMIT
     qs = Message.objects.filter(sender=sender).order_by("-timestamp")
     if channel:
         qs = qs.filter(channel=channel)
     messages = list(qs[:limit])
     messages.reverse()
-    return [
-        {"role": "agent" if m.is_from_me else "customer", "body": (m.body or "").strip() or "[media]"}
-        for m in messages
-    ]
+    result = []
+    for m in messages:
+        body = (m.body or "").strip() or "[media]"
+        if m.is_from_me:
+            body = _strip_image_urls_from_body(body)
+        result.append({"role": "agent" if m.is_from_me else "customer", "body": body})
+    return result
 
 
-def try_ai_voice_reply(sender, body, channel):
+def get_conversation_for_llm(sender, channel, incoming_body=None):
+    """
+    Persistent context retrieval: fetch last PERSISTENT_CONTEXT_MESSAGE_LIMIT messages
+    from DB, then ensure the new incoming message is at the end (for when it is not yet saved).
+    Use this before calling the LLM so returning customers get context-aware replies.
+    """
+    conversation = get_conversation_history(sender, channel)
+    if incoming_body is not None and (not conversation or conversation[-1].get("role") != "customer"):
+        conversation = conversation or []
+        conversation.append({"role": "customer", "body": (incoming_body or "").strip() or "[media]"})
+    elif incoming_body is not None and conversation and conversation[-1].get("role") == "customer":
+        last_body = (conversation[-1].get("body") or "").strip()
+        if last_body != (incoming_body or "").strip():
+            conversation = list(conversation)
+            conversation[-1] = {"role": "customer", "body": (incoming_body or "").strip() or "[media]"}
+    return conversation
+
+
+def try_ai_voice_reply(sender, body, channel, skip_sentinel=False):
     """
     When no flow matches: if channel.ai_auto_reply is on, get GPT sales-agent reply
     (with optional save_order and [ORDER_DATA: ...] tag), then send as voice (with
     channel.voice_delay_seconds) or text. Fallback to text if TTS fails.
     Hard-guard: plan must allow auto_reply and (if voice) ai_voice at execution time.
+    skip_sentinel: True when run_ai_agent_node already ran the sentinel this turn (avoid double increment).
     """
     if not channel:
         return
@@ -2263,12 +3596,17 @@ def try_ai_voice_reply(sender, body, channel):
     try:
         from django.core.exceptions import PermissionDenied
         from discount.services.security_check import verify_plan_access, FEATURE_AUTO_REPLY, FEATURE_AI_VOICE
+        from discount.services.wallet import chargeUserForAiUsage
         verify_plan_access(store, FEATURE_AUTO_REPLY)
     except PermissionDenied:
         logger.info("AI auto-reply skipped: plan does not allow auto_reply")
         return
     except ImportError as e:
         logger.warning("AI voice reply imports failed: %s", e)
+        return
+
+    if store and Decimal(getattr(store, "wallet_balance", 0) or 0) <= Decimal("0"):
+        _pause_ai_for_wallet_depleted(channel, sender, active_node=None)
         return
     try:
         from discount.whatssapAPI.voice_engine import generate_audio_file, process_and_send_voice
@@ -2282,14 +3620,24 @@ def try_ai_voice_reply(sender, body, channel):
             reset_trust_score,
             looks_like_order_confirmation_without_data,
         )
-        from ai_assistant.services import generate_reply_with_tools
+        from ai_assistant.services import generate_reply_with_tools, apply_franco_translation_to_conversation
     except ImportError as e:
         logger.warning("AI voice reply imports failed: %s", e)
         return
 
-    conversation = get_conversation_history(sender, channel)
-    if not conversation or conversation[-1].get("role") != "customer":
-        conversation.append({"role": "customer", "body": body or ""})
+    # AI Sentinel: same checkpoint as run_ai_agent_node (only when this path is the sole AI entry)
+    if channel and sender and not skip_sentinel:
+        sc = _sentinel_checkpoint(channel, sender, skip=False)
+        if sc == "spam":
+            send_automated_response(
+                sender,
+                [{"type": "text", "content": SENTINEL_SPAM_FALLBACK_TEXT, "delay": 0}],
+                channel=channel,
+            )
+            return
+
+    conversation = get_conversation_for_llm(sender, channel, incoming_body=body)
+    conversation = apply_franco_translation_to_conversation(conversation)
 
     # Dynamic market/tone: from prior conversation dialect, else from phone (no node/product here)
     from ai_assistant.services import infer_market_from_conversation, infer_market_from_phone
@@ -2301,15 +3649,25 @@ def try_ai_voice_reply(sender, body, channel):
     if market not in ("MA", "SA", "GCC"):
         market = "MA"
 
-    # No product selected: give the AI the full catalog so it can answer "what do you have?" and suggest closest matches.
-    catalog_context = get_channel_catalog_context(channel) if channel else ""
-    product_context_for_reply = catalog_context or None
+    from discount.services.voice_dialect import merchant_voice_mode_enabled, resolve_dialect_for_llm_hierarchy
+    from discount.services.bot_language import effective_bot_language
+    from ai_assistant.services import market_from_resolved_dialect
+
+    output_language_voice = effective_bot_language(channel)
+    _vd_node = getattr(get_active_session(channel, sender), "active_node", None) if channel and sender else None
+    voice_dialect_label_voice = resolve_dialect_for_llm_hierarchy(channel, _vd_node, sender)
+    if output_language_voice not in ("fr", "en"):
+        _market_v = market_from_resolved_dialect(voice_dialect_label_voice)
+        if _market_v:
+            market = _market_v
+
+    # Keep fallback context lean: do not inject the full store catalog each turn.
+    product_context_for_reply = None
     custom_instruction = (
-        "You have the STORE CATALOG below (all products this store has). Use it to answer what we have. "
-        "If the customer asks for a product we don't have exactly (e.g. moringa and we only have gastro-balance supplement), "
-        "call search_products with their request and suggest the closest products we do have (same category or similar use). "
+        "No fixed product context is selected. Keep replies short. "
+        "When product intent is unclear, call search_products(query) using the customer words and offer the closest matches. "
         "CRITICAL: Do NOT call save_order or record_order in this chat. Do NOT output [ORDER_DATA: ...]. "
-        "If they want to order, tell them to choose a product from the catalog first."
+        "If they want to order, ask them to choose a specific product first."
     )
     if is_order_cap_reached(channel):
         custom_instruction = (
@@ -2323,12 +3681,48 @@ def try_ai_voice_reply(sender, body, channel):
         )
         custom_instruction = (custom_instruction + " " + post_order_note) if custom_instruction else post_order_note
 
+    # Inject upsell context for generic/fallback flow (customer replies after upsell pitch)
+    _voice_session = get_active_session(channel, sender) if channel else None
+    voice_product_id = None
+    try:
+        _voice_ai_cfg = getattr(getattr(_voice_session, "active_node", None), "ai_model_config", None) or {}
+        _vp = _voice_ai_cfg.get("product_id") if isinstance(_voice_ai_cfg, dict) else None
+        voice_product_id = int(_vp) if _vp is not None else None
+    except Exception:
+        voice_product_id = None
+    if _voice_session:
+        _voice_upsell = (getattr(_voice_session, "context_data", None) or {}).get("upsell_pending")
+        if _voice_upsell and isinstance(_voice_upsell, dict):
+            _vu_oid = _voice_upsell.get("order_id", "")
+            _vu_name = _voice_upsell.get("upsell_product_name", "")
+            _vu_price = _voice_upsell.get("upsell_price", "")
+            upsell_voice_instruction = (
+                f"\n\n[UPSELL MODE ACTIVE]\n"
+                f"You just completed order '{_vu_oid}'. You are now offering an upsell: "
+                f"'{_vu_name}' at a special price of {_vu_price} MAD. "
+                f"The order_id for the existing order is: {_vu_oid}\n"
+                "RULES:\n"
+                "- If the customer agrees (e.g. 'yes', 'add it', 'ok', 'واه', 'زيدها'), "
+                "call add_upsell_to_existing_order with order_id='" + _vu_oid + "', "
+                f"new_item_name='{_vu_name}', new_item_price={_vu_price}.\n"
+                "- DO NOT ask for shipping details again.\n"
+                "- DO NOT create a new order. UPDATE the existing one.\n"
+                "- If the customer declines, thank them politely and confirm their original order."
+            )
+            custom_instruction = (custom_instruction or "") + upsell_voice_instruction
+
     override_rules_voice = ""
     try:
         channel.refresh_from_db(fields=["ai_override_rules"])
     except Exception:
         pass
     override_rules_voice = (getattr(channel, "ai_override_rules", None) or "").strip()
+
+    _vd_node = getattr(_voice_session, "active_node", None) if _voice_session else None
+    # voice_dialect_label_voice and market already aligned above (hierarchy + TTS market).
+    voice_notes_mode_voice = True
+    voice_script_for_voice = bool(merchant_voice_mode_enabled(channel) or voice_notes_mode_voice)
+    memory_summary_voice = _maybe_build_memory_summary(channel, sender, conversation, recent_limit=6)
 
     trust_score = get_trust_score(channel.id, sender)
     try:
@@ -2340,17 +3734,31 @@ def try_ai_voice_reply(sender, body, channel):
             market=market,
             customer_phone=sender,
             override_rules=override_rules_voice or None,
+            product_id=voice_product_id,
+            merchant_id=getattr(store, "id", None),
+            voice_dialect=voice_dialect_label_voice,
+            voice_notes_mode=voice_notes_mode_voice,
+            voice_script_style=voice_script_for_voice,
+            output_language=output_language_voice,
+            memory_summary=memory_summary_voice,
         )
+        if store:
+            chargeUserForAiUsage(
+                store.id,
+                result.get("prompt_tokens", 0),
+                result.get("completion_tokens", 0),
+            )
     except Exception as e:
         logger.exception("generate_reply_with_tools failed: %s", e)
         return
 
-    # Execute info tools (track_order, check_stock, apply_discount, search_products) and get final reply
+    # Execute tools: info tools + submit_customer_order (so generic/fallback flow can create orders)
     tool_calls = result.get("tool_calls") or []
-    info_tools = [tc for tc in tool_calls if tc.get("name") in ("track_order", "check_stock", "apply_discount", "search_products")]
-    if info_tools and channel:
-        raw_msg = result.get("raw_message") or {}
-        tool_calls_from_api = raw_msg.get("tool_calls") or []
+    raw_msg = result.get("raw_message") or {}
+    tool_calls_from_api = raw_msg.get("tool_calls") or []
+    order_was_saved_voice = False
+    saved_order_voice = None
+    if channel and tool_calls_from_api:
         tool_results = []
         for tc in tool_calls_from_api:
             tcid = tc.get("id")
@@ -2369,13 +3777,77 @@ def try_ai_voice_reply(sender, body, channel):
                 tool_results.append({"tool_call_id": tcid, "content": content})
                 _add_ai_action_note(channel, sender, f"AI agent checked stock (product_id={args.get('product_id') or '—'}, sku={args.get('sku') or '—'}).")
             elif name == "apply_discount":
-                content = _execute_apply_discount(channel, args.get("coupon_code"))
+                content = _execute_apply_discount(
+                    channel,
+                    args.get("coupon_code"),
+                    current_node=(getattr(_voice_session, "active_node", None) if _voice_session else None),
+                )
                 tool_results.append({"tool_call_id": tcid, "content": content})
                 _add_ai_action_note(channel, sender, f"AI agent applied discount: {args.get('coupon_code') or '—'}.")
             elif name == "search_products":
                 content = _execute_search_products(channel, args.get("query") or "")
                 tool_results.append({"tool_call_id": tcid, "content": content})
                 _add_ai_action_note(channel, sender, f"AI agent searched products: \"{args.get('query') or ''}\".")
+            elif name == "send_product_media":
+                content = _execute_send_product_media(channel, sender, args.get("product_id"), caption=args.get("caption", ""))
+                tool_results.append({"tool_call_id": tcid, "content": content})
+                _add_ai_action_note(channel, sender, f"AI agent sent product media for product_id={args.get('product_id') or '—'}.")
+            elif name == "add_upsell_to_existing_order":
+                try:
+                    from discount.orders_ai import handle_add_upsell_tool
+                    content = handle_add_upsell_tool(args, channel)
+                except Exception as e:
+                    logger.exception("try_ai_voice_reply add_upsell: %s", e)
+                    content = json.dumps({"success": False, "message": str(e)}, ensure_ascii=False)
+                tool_results.append({"tool_call_id": tcid, "content": content})
+                try:
+                    upsell_out = json.loads(content)
+                    if upsell_out.get("success"):
+                        _add_ai_action_note(channel, sender, f"AI agent added upsell to order {args.get('order_id')}: {args.get('new_item_name')}.")
+                        try:
+                            _vs = get_active_session(channel, sender)
+                            if _vs:
+                                _vctx = getattr(_vs, "context_data", None) or {}
+                                _vctx.pop("upsell_pending", None)
+                                _vs.context_data = _vctx
+                                _vs.save(update_fields=["context_data"])
+                            expire_chat_session(channel, sender)
+                        except Exception:
+                            pass
+                except Exception:
+                    pass
+            elif name == "submit_customer_order":
+                send_automated_response(
+                    sender,
+                    [{"type": "text", "content": SUBMIT_ORDER_TRANSITIONAL_MESSAGE, "delay": 0}],
+                    channel=channel,
+                )
+                session_seller_id = getattr(channel, "owner_id", None) or (getattr(channel, "owner", None) and getattr(channel.owner, "id", None))
+                try:
+                    from discount.orders_ai import handle_submit_order_tool
+                    content = handle_submit_order_tool(
+                        args,
+                        session_product_id=None,
+                        session_seller_id=session_seller_id,
+                        channel=channel,
+                        customer_phone_from_chat=sender,
+                    )
+                except Exception as e:
+                    logger.exception("try_ai_voice_reply submit_customer_order: %s", e)
+                    content = json.dumps({
+                        "status": "error",
+                        "success": False,
+                        "message": "A technical error occurred. Ask the user to try again or wait for human support.",
+                    }, ensure_ascii=False)
+                tool_results.append({"tool_call_id": tcid, "content": content})
+                try:
+                    outcome = json.loads(content) if isinstance(content, str) else content
+                    if outcome.get("success") and outcome.get("order_id"):
+                        order_was_saved_voice = True
+                        saved_order_voice = SimpleOrder.objects.filter(order_id=outcome["order_id"]).first()
+                        _add_ai_action_note(channel, sender, f"AI agent created order: {outcome['order_id']} (voice/fallback path) for customer {sender}.")
+                except Exception:
+                    pass
         if tool_results:
             try:
                 from ai_assistant.services import continue_after_tool_calls, get_agent_name_for_node
@@ -2390,7 +3862,20 @@ def try_ai_voice_reply(sender, body, channel):
                     agent_name=get_agent_name_for_node(False, None, market=market),
                     customer_phone=sender,
                     override_rules=override_rules_voice or None,
+                    product_id=voice_product_id,
+                    merchant_id=getattr(store, "id", None),
+                    voice_dialect=voice_dialect_label_voice,
+                    voice_notes_mode=voice_notes_mode_voice,
+                    voice_script_style=voice_script_for_voice,
+                    output_language=output_language_voice,
+                    memory_summary=memory_summary_voice,
                 )
+                if store:
+                    chargeUserForAiUsage(
+                        store.id,
+                        result.get("prompt_tokens", 0),
+                        result.get("completion_tokens", 0),
+                    )
                 order_tools = [t for t in tool_calls if t.get("name") in ("save_order", "record_order")]
                 if order_tools:
                     result["tool_calls"] = list(result.get("tool_calls") or []) + order_tools
@@ -2398,14 +3883,19 @@ def try_ai_voice_reply(sender, body, channel):
                 logger.warning("continue_after_tool_calls (voice) failed: %s", cont_err)
 
     reply_text = (result.get("reply") or "").strip()
+    if not reply_text:
+        logger.warning(
+            "AI voice path produced empty reply (channel=%s, sender=%s). "
+            "Reason candidates: LLM returned empty/whitespace, or reply was fully consumed by [ORDER_DATA]/tool tags.",
+            channel.id if channel else None,
+            sender,
+        )
     current_stage = result.get("stage")
-    order_was_saved = False
-    saved_order = None
+    order_was_saved = order_was_saved_voice
+    saved_order = saved_order_voice
 
-    # CRITICAL: This path has NO product context (no flow/product selected). Do NOT save orders —
-    # the AI could hallucinate product/price. Orders are only allowed when the customer is in a
-    # product flow (run_ai_agent_node with product_context).
-    if False:  # disabled: never save order in voice/fallback path (no product context)
+    # Legacy: save_order/record_order from [ORDER_DATA] remain disabled here; order creation is via submit_customer_order only.
+    if False:  # disabled: never save from save_order/record_order in voice path (use submit_customer_order instead)
         for tc in result.get("tool_calls") or []:
             if tc.get("name") == "save_order" and getattr(channel, "ai_order_capture", True):
                 args = tc.get("arguments") or {}
@@ -2454,8 +3944,17 @@ def try_ai_voice_reply(sender, body, channel):
         except Exception:
             reply_text = "تم تسجيل طلبك. سنتواصل معك قريباً."
     if not (reply_text or "").strip():
-        reply_text = "عذراً، وقع شي خلل تقني. مرني نكمّل؟ (Sorry, a small glitch happened. Can we continue?)"
-        logger.warning("AI voice/fallback returned empty reply (channel=%s, sender=%s); sending fallback.", channel.id if channel else None, sender)
+        logger.warning(
+            "AI voice/fallback returned empty reply (channel=%s, sender=%s); sending fallback message so user is not left without a reply.",
+            channel.id if channel else None,
+            sender,
+        )
+        # Never leave the user without a reply: send a friendly fallback (e.g. LLM returned empty or reply was stripped)
+        reply_text = (
+            "عذراً، ما قدرتش أكمل من هنا. من فضلك اختر منتجاً من القائمة أولاً، ثم أرسل اسمك ورقم هاتفك ونكمل تسجيل الطلب."
+            if market == "MA"
+            else "عذراً، لم أستطع إكمال الطلب من هنا. من فضلك اختر منتجاً من القائمة أولاً ثم أرسل اسمك ورقم هاتفك."
+        )
 
     if not reply_text:
         return
@@ -2468,10 +3967,26 @@ def try_ai_voice_reply(sender, body, channel):
             use_voice = False
     if use_voice:
         try:
-            process_and_send_voice(sender, reply_text, channel, send_whatsapp_audio_file)
+            def _tts_text_fallback(recipient, script_text, ch):
+                clean = remove_arabic_diacritics(script_text)
+                send_automated_response(
+                    recipient,
+                    [{"type": "text", "content": clean, "delay": 0}],
+                    channel=ch,
+                )
+
+            process_and_send_voice(
+                sender,
+                reply_text,
+                channel,
+                send_whatsapp_audio_file,
+                text_fallback_callback=_tts_text_fallback,
+            )
         except Exception as e:
             logger.warning("process_and_send_voice failed, falling back to text: %s", e)
-            send_automated_response(sender, [{"type": "text", "content": reply_text}], channel=channel)
+            ai_generated_text = reply_text
+            clean_text = remove_arabic_diacritics(ai_generated_text)
+            send_automated_response(sender, [{"type": "text", "content": clean_text}], channel=channel)
     else:
         send_automated_response(sender, [{"type": "text", "content": reply_text}], channel=channel)
 
@@ -2712,7 +4227,7 @@ def whatsapp_webhook(request):
             return HttpResponse("ERROR", status=500)
 
 
-def process_messages(messages , channel = None , name = None):
+def process_messages(messages, channel=None, name=None, _skip_debounce=False, _skip_incoming_save=False):
     """
     معالجة الرسائل الواردة - تدعم الإعلانات (Referral)
     """
@@ -2721,9 +4236,11 @@ def process_messages(messages , channel = None , name = None):
             sender = msg["from"]
             message_type = msg.get("type", "text")
             body = ""
+            interactive_reply_id = ""
             is_referral = False
             body_override = None
             transcription_failed = False
+            stt_whisper_hallucination = False
 
             # --- AI Ears: Audio (STT) and Image (Vision) ---
             access_token = None
@@ -2746,6 +4263,8 @@ def process_messages(messages , channel = None , name = None):
                                     transcribe_audio,
                                     clean_transcription,
                                     STT_UNINTELLIGIBLE,
+                                    build_whisper_prompt_with_context,
+                                    is_whisper_hallucination,
                                 )
                                 # Use active session node language or channel default for STT
                                 voice_language_hint = "AUTO"
@@ -2757,18 +4276,30 @@ def process_messages(messages , channel = None , name = None):
                                         ).strip() or getattr(channel, "voice_language", "AUTO")
                                     else:
                                         voice_language_hint = getattr(channel, "voice_language", "AUTO")
+                                last_ai_ctx = _get_last_agent_message_bodies(sender, channel, 2)
+                                whisper_prompt, _ = build_whisper_prompt_with_context(
+                                    voice_language_hint, last_ai_ctx
+                                )
                                 body_override = transcribe_audio(
                                     media_content,
+                                    prompt=whisper_prompt,
                                     voice_language_hint=voice_language_hint,
                                 )
                                 if body_override == STT_UNINTELLIGIBLE:
                                     body_override = ""
                                     transcription_failed = True
                                 elif body_override and body_override.strip():
-                                    body_override = clean_transcription(
-                                        body_override,
-                                        target_language=voice_language_hint or "AUTO",
-                                    )
+                                    if is_whisper_hallucination(body_override):
+                                        body_override = ""
+                                        stt_whisper_hallucination = True
+                                    else:
+                                        body_override = clean_transcription(
+                                            body_override,
+                                            target_language=voice_language_hint or "AUTO",
+                                        )
+                                        if is_whisper_hallucination(body_override):
+                                            body_override = ""
+                                            stt_whisper_hallucination = True
                             except Exception as e:
                                 logger.exception("STT transcribe_audio: %s", e)
                             if body_override is None:
@@ -2804,7 +4335,9 @@ def process_messages(messages , channel = None , name = None):
             elif message_type == "interactive":
                 int_type = msg.get("interactive", {}).get("type")
                 if int_type == "button_reply":
-                    body = msg["interactive"]["button_reply"]["title"]
+                    button_obj = msg["interactive"].get("button_reply", {}) or {}
+                    body = button_obj.get("title")
+                    interactive_reply_id = str(button_obj.get("id") or "").strip()
                 elif int_type == "list_reply":
                     body = msg["interactive"]["list_reply"]["title"]
 
@@ -2842,10 +4375,24 @@ def process_messages(messages , channel = None , name = None):
                     logger.warning("cancel_pending_follow_up_tasks_for_customer: %s", e)
             
             # حفظ الرسالة (مع نص من STT/Vision إن وجد)
-            save_incoming_message(
-                msg, message_type=message_type, channel=channel, name=name,
-                body_override=body_override if body_override is not None else None,
-            )
+            if not _skip_incoming_save:
+                save_incoming_message(
+                    msg, message_type=message_type, channel=channel, name=name,
+                    body_override=body_override if body_override is not None else None,
+                )
+
+            # Debounce only WhatsApp "text" messages (not buttons/lists/audio/image).
+            # When buffered, we skip immediate LLM execution and wait for the timer flush.
+            if (
+                (not _skip_debounce)
+                and message_type == "text"
+                and channel
+                and sender
+                and (body or "").strip()
+            ):
+                buffered = _debounce_store_text(channel, sender, name, body)
+                if buffered:
+                    continue
 
             # Full Autopilot must be on to send any automated reply (trigger match, session, or fallback)
             if channel and not getattr(channel, "ai_auto_reply", False):
@@ -2883,16 +4430,77 @@ def process_messages(messages , channel = None , name = None):
                         logger.warning("HITL/sales-intent reset: %s", e)
                         continue
 
+            # Whisper hallucination / subtitle artifacts: do not run LLM or sentinel — ask user to retry
+            if stt_whisper_hallucination:
+                send_automated_response(
+                    sender,
+                    [
+                        {
+                            "type": "text",
+                            "content": _voice_transcription_retry_text(channel),
+                            "delay": 0,
+                        }
+                    ],
+                    channel=channel,
+                )
+                continue
+
             # إذا فشل التحويل الصوتي، نرسل رداً ثابتاً ولا نشغل الفلو
             if transcription_failed:
                 send_automated_response(
                     sender,
-                    [{"type": "text", "content": "عذراً، لم أسمع المقطع الصوتي جيداً، هل يمكنك إعادة إرساله أو كتابة طلبك؟", "delay": 0}],
+                    [{"type": "text", "content": _voice_transcription_retry_text(channel), "delay": 0}],
                     channel=channel,
                 )
                 continue
  
             flow = None
+
+            # Interactive button branch continuation:
+            # if a previous buttons node is awaiting a click, route directly to its linked node.
+            if channel and body:
+                pending_route = _get_button_routing_pending(channel, sender)
+                if pending_route:
+                    routes = pending_route.get("routes") or []
+                    selected_target_node_id = None
+                    # 1) Match by returned WhatsApp button id: btn_<nodeId>_<index>
+                    if interactive_reply_id and interactive_reply_id.startswith("btn_"):
+                        parts = interactive_reply_id.split("_")
+                        if len(parts) >= 3:
+                            try:
+                                selected_idx = int(parts[-1])
+                            except Exception:
+                                selected_idx = None
+                            if selected_idx:
+                                for r in routes:
+                                    if int(r.get("index") or 0) == selected_idx:
+                                        selected_target_node_id = r.get("target_node_id")
+                                        break
+                    # 2) Match by title (fallback)
+                    if not selected_target_node_id:
+                        norm_body = (body or "").strip().lower()
+                        for r in routes:
+                            if norm_body and norm_body == str(r.get("title_norm") or "").strip().lower():
+                                selected_target_node_id = r.get("target_node_id")
+                                break
+                    if selected_target_node_id:
+                        flow_id = pending_route.get("flow_id")
+                        branch_flow = Flow.objects.filter(id=flow_id).first() if flow_id else None
+                        if branch_flow:
+                            output_messages = execute_flow(
+                                branch_flow,
+                                sender,
+                                channel=channel,
+                                incoming_body=body,
+                                start_node_id=selected_target_node_id,
+                            )
+                            _clear_button_routing_pending(channel, sender)
+                            if output_messages:
+                                send_automated_response(sender, output_messages, channel=channel)
+                                branch_flow.usage_count += 1
+                                branch_flow.last_used = timezone.now()
+                                branch_flow.save()
+                            continue
 
             if is_referral:
                 flows_start = Flow.objects.filter(active=True, trigger_on_start=True)
@@ -2925,7 +4533,7 @@ def process_messages(messages , channel = None , name = None):
                     sentiment=ctx.get("sentiment"),
                 )
                 output_messages = run_ai_agent_node(
-                    session.active_node, sender, channel, state_header=state_header
+                    session.active_node, sender, channel, state_header=state_header, incoming_body=body
                 )
                 if output_messages:
                     send_automated_response(sender, output_messages, channel=channel)
@@ -2933,7 +4541,7 @@ def process_messages(messages , channel = None , name = None):
                     flow.last_used = timezone.now()
                     flow.save()
                 else:
-                    try_ai_voice_reply(sender, body, channel)
+                    try_ai_voice_reply(sender, body, channel, skip_sentinel=True)
             elif flow:
                 # New trigger or different flow: bind session and run full flow
                 if channel:
@@ -2941,7 +4549,7 @@ def process_messages(messages , channel = None , name = None):
                     if ai_node:
                         update_chat_session_on_trigger(channel, sender, ai_node)
                 print(f"🚀 Executing Flow: {flow.name}")
-                output_messages = execute_flow(flow, sender, channel=channel)
+                output_messages = execute_flow(flow, sender, channel=channel, incoming_body=body)
 
                 if output_messages:
                     send_automated_response(sender, output_messages, channel=channel)
@@ -2971,11 +4579,13 @@ def process_messages(messages , channel = None , name = None):
                                 sales_stage=None,
                                 sentiment=None,
                             )
-                            output_messages = run_ai_agent_node(chosen_node, sender, channel, state_header=state_header)
+                            output_messages = run_ai_agent_node(
+                                chosen_node, sender, channel, state_header=state_header, incoming_body=body
+                            )
                             if output_messages:
                                 send_automated_response(sender, output_messages, channel=channel)
                             else:
-                                try_ai_voice_reply(sender, body, channel)
+                                try_ai_voice_reply(sender, body, channel, skip_sentinel=True)
                         else:
                             try_ai_voice_reply(sender, body, channel)
                         continue
@@ -3006,12 +4616,12 @@ def process_messages(messages , channel = None , name = None):
                         sentiment=ctx.get("sentiment"),
                     )
                     output_messages = run_ai_agent_node(
-                        session.active_node, sender, channel, state_header=state_header
+                        session.active_node, sender, channel, state_header=state_header, incoming_body=body
                     )
                     if output_messages:
                         send_automated_response(sender, output_messages, channel=channel)
                     else:
-                        try_ai_voice_reply(sender, body, channel)
+                        try_ai_voice_reply(sender, body, channel, skip_sentinel=True)
                 else:
                     try_ai_voice_reply(sender, body, channel)
                 
@@ -3198,16 +4808,334 @@ def convert_audio_to_ogg(input_path):
             output_path
         ]
         
-        # تنفيذ الأمر وإخفاء المخرجات
-        subprocess.check_call(command, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        # تنفيذ الأمر مع التقاط stderr لعرض سبب الفشل الحقيقي
+        try:
+            subprocess.run(command, check=True, capture_output=True, text=True)
+        except subprocess.CalledProcessError as e:
+            logger.error("FFmpeg convert_audio_to_ogg failed stderr=%s", (e.stderr or "")[:4000])
+            return None
         
         if os.path.exists(output_path) and os.path.getsize(output_path) > 0:
             return output_path
         return None
     except Exception as e:
-        print(f"❌ Error converting audio: {e}")
+        logger.exception("convert_audio_to_ogg unexpected failure: %s", e)
         return None
     
+
+def convert_to_whatsapp_ptt(input_audio_bytes) -> bytes:
+    """
+    Convert arbitrary input audio bytes to WhatsApp-native voice-note format:
+    audio/ogg; codecs=opus (PTT-compatible).
+    """
+    if not input_audio_bytes:
+        return b""
+    in_fd, in_path = tempfile.mkstemp(suffix=".input")
+    out_fd, out_path = tempfile.mkstemp(suffix=".ogg")
+    os.close(in_fd)
+    os.close(out_fd)
+    try:
+        with open(in_path, "wb") as f:
+            f.write(input_audio_bytes)
+        command = [
+            "ffmpeg",
+            "-y",
+            "-i",
+            in_path,
+            "-c:a",
+            "libopus",
+            "-b:a",
+            "32k",
+            "-vbr",
+            "on",
+            "-compression_level",
+            "10",
+            "-frame_duration",
+            "60",
+            "-application",
+            "voip",
+            out_path,
+        ]
+        try:
+            subprocess.run(command, check=True, capture_output=True, text=True)
+        except subprocess.CalledProcessError as e:
+            logger.error("FFmpeg convert_to_whatsapp_ptt failed stderr=%s", (e.stderr or "")[:4000])
+            return b""
+        if not os.path.exists(out_path) or os.path.getsize(out_path) <= 0:
+            logger.error("FFmpeg convert_to_whatsapp_ptt produced empty output")
+            return b""
+        with open(out_path, "rb") as f:
+            return f.read()
+    finally:
+        for p in (in_path, out_path):
+            try:
+                if p and os.path.exists(p):
+                    os.remove(p)
+            except Exception:
+                pass
+
+
+def convert_to_whatsapp_ptt_from_path(input_path: str) -> bytes:
+    """
+    Same output as convert_to_whatsapp_ptt, but ffmpeg reads the real file path so
+    WebM/MP4/M4A/MPEG containers are detected. Feeding browser MediaRecorder bytes
+    via a '.input' file often fails silently, while TTS MP3/Opus still works from bytes.
+    """
+    if not input_path or not os.path.isfile(input_path):
+        return b""
+    out_fd, out_path = tempfile.mkstemp(suffix=".ogg")
+    os.close(out_fd)
+    try:
+        command = [
+            "ffmpeg",
+            "-y",
+            "-i",
+            input_path,
+            "-c:a",
+            "libopus",
+            "-b:a",
+            "32k",
+            "-vbr",
+            "on",
+            "-compression_level",
+            "10",
+            "-frame_duration",
+            "60",
+            "-application",
+            "voip",
+            out_path,
+        ]
+        try:
+            subprocess.run(command, check=True, capture_output=True, text=True)
+        except subprocess.CalledProcessError as e:
+            logger.error(
+                "FFmpeg convert_to_whatsapp_ptt_from_path failed input=%s stderr=%s",
+                input_path,
+                (e.stderr or "")[:4000],
+            )
+            return b""
+        if not os.path.exists(out_path) or os.path.getsize(out_path) == 0:
+            logger.error("FFmpeg convert_to_whatsapp_ptt_from_path produced empty output")
+            return b""
+        with open(out_path, "rb") as f:
+            return f.read()
+    except Exception as e:
+        logger.exception("convert_to_whatsapp_ptt_from_path unexpected failure: %s", e)
+        return b""
+    finally:
+        try:
+            if out_path and os.path.exists(out_path):
+                os.remove(out_path)
+        except Exception:
+            pass
+
+
+def _temp_suffix_from_filename_and_mime(saved_filename, saved_mime):
+    """
+    Browser WebSocket uploads often omit `filename`; consumer used `file` with no extension.
+    Temp paths like /tmp/tmpXYZ had no .webm/.mp4 suffix, so ffmpeg could not decode recordings.
+    TTS always sends filename voice_message.ogg — that path worked.
+    MediaRecorder blobs may be named *.ogg while bytes are WebM/MP4 — trust MIME over extension.
+    """
+    m = (saved_mime or "").lower()
+    ext = os.path.splitext(saved_filename or "")[1]
+    if ext.lower() == ".ogg":
+        if "webm" in m or "matroska" in m:
+            return ".webm"
+        if "mp4" in m or "m4a" in m or "audio/mp4" in m or "mpeg" in m:
+            return ".m4a"
+    if ext:
+        return ext
+    m = (saved_mime or "").lower()
+    if "webm" in m:
+        return ".webm"
+    if "audio/mp4" in m or "audio/m4a" in m or ("mp4" in m and "audio" in m):
+        return ".m4a"
+    if "mpeg" in m or "mp3" in m:
+        return ".mp3"
+    if "ogg" in m or "opus" in m:
+        return ".ogg"
+    if "wav" in m:
+        return ".wav"
+    if "mp4" in m:
+        return ".mp4"
+    if "jpeg" in m or "jpg" in m:
+        return ".jpg"
+    if "png" in m:
+        return ".png"
+    return ""
+
+
+def _ffmpeg_live_chat_incoming_to_ptt_ogg(input_path: str) -> Optional[str]:
+    """
+    Live Chat manual recording: read blob from a real on-disk path (never in-memory-only),
+    run the strict WhatsApp PTT FFmpeg profile, return path to temp_outgoing_ptt.ogg.
+
+    Command matches Meta-friendly Opus-in-OGG voip profile used for successful ElevenLabs path.
+    """
+    if not input_path or not os.path.isfile(input_path):
+        logger.error("_ffmpeg_live_chat_incoming_to_ptt_ogg: missing input %s", input_path)
+        return None
+    try:
+        if os.path.getsize(input_path) <= 0:
+            logger.error("_ffmpeg_live_chat_incoming_to_ptt_ogg: empty incoming blob %s", input_path)
+            return None
+    except OSError as e:
+        logger.error("_ffmpeg_live_chat_incoming_to_ptt_ogg: stat failed: %s", e)
+        return None
+
+    out_fd, output_path = tempfile.mkstemp(suffix=".ogg")
+    os.close(out_fd)
+    command = [
+        "ffmpeg",
+        "-y",
+        "-i",
+        input_path,
+        "-c:a",
+        "libopus",
+        "-b:a",
+        "32k",
+        "-vbr",
+        "on",
+        "-compression_level",
+        "10",
+        "-frame_duration",
+        "60",
+        "-application",
+        "voip",
+        output_path,
+    ]
+    try:
+        subprocess.run(command, check=True, capture_output=True, text=True)
+    except subprocess.CalledProcessError as e:
+        logger.error(
+            "_ffmpeg_live_chat_incoming_to_ptt_ogg ffmpeg stderr=%s",
+            (e.stderr or "")[:4000],
+        )
+        try:
+            os.remove(output_path)
+        except OSError:
+            pass
+        return None
+    except OSError as e:
+        logger.exception("_ffmpeg_live_chat_incoming_to_ptt_ogg: %s", e)
+        try:
+            os.remove(output_path)
+        except OSError:
+            pass
+        return None
+
+    if not os.path.isfile(output_path) or os.path.getsize(output_path) <= 0:
+        logger.error("_ffmpeg_live_chat_incoming_to_ptt_ogg: output empty or missing %s", output_path)
+        try:
+            os.remove(output_path)
+        except OSError:
+            pass
+        return None
+    return output_path
+
+
+def ffmpeg_live_chat_to_explicit_output(input_path: str, output_path: str) -> bool:
+    """
+    Run FFmpeg on two real local paths only (HTTP Live Chat pipeline).
+    Command must match the voip Opus profile used for Meta voice notes.
+    """
+    if not input_path or not output_path:
+        return False
+    if not os.path.isfile(input_path) or os.path.getsize(input_path) <= 0:
+        logger.error("ffmpeg_live_chat_to_explicit_output: invalid input %s", input_path)
+        return False
+    command = [
+        "ffmpeg",
+        "-y",
+        "-i",
+        input_path,
+        "-c:a",
+        "libopus",
+        "-b:a",
+        "32k",
+        "-vbr",
+        "on",
+        "-compression_level",
+        "10",
+        "-frame_duration",
+        "60",
+        "-application",
+        "voip",
+        output_path,
+    ]
+    try:
+        subprocess.run(command, check=True, capture_output=True, text=True)
+    except subprocess.CalledProcessError as e:
+        logger.error(
+            "ffmpeg_live_chat_to_explicit_output stderr=%s",
+            (e.stderr or "")[:4000],
+        )
+        try:
+            if os.path.isfile(output_path):
+                os.remove(output_path)
+        except OSError:
+            pass
+        return False
+    except OSError as e:
+        logger.exception("ffmpeg_live_chat_to_explicit_output: %s", e)
+        try:
+            if os.path.isfile(output_path):
+                os.remove(output_path)
+        except OSError:
+            pass
+        return False
+    if not os.path.isfile(output_path) or os.path.getsize(output_path) <= 0:
+        logger.error("ffmpeg_live_chat_to_explicit_output: empty output %s", output_path)
+        try:
+            os.remove(output_path)
+        except OSError:
+            pass
+        return False
+    return True
+
+
+def _live_chat_audio_to_opus_ogg(temp_input_path: str) -> Optional[str]:
+    """
+    Live Chat (dashboard): never upload browser bytes as-is.
+    1) Strict path FFmpeg from disk (_ffmpeg_live_chat_incoming_to_ptt_ogg).
+    2) Fallback: convert_to_whatsapp_ptt_from_path bytes → temp .ogg.
+    3) Fallback: convert_audio_to_ogg (mono 16k voip).
+    """
+    if not temp_input_path or not os.path.isfile(temp_input_path):
+        return None
+
+    primary = _ffmpeg_live_chat_incoming_to_ptt_ogg(temp_input_path)
+    if primary:
+        return primary
+
+    ptt_bytes = convert_to_whatsapp_ptt_from_path(temp_input_path)
+    if not ptt_bytes:
+        try:
+            with open(temp_input_path, "rb") as fh:
+                ptt_bytes = convert_to_whatsapp_ptt(fh.read())
+        except OSError as e:
+            logger.warning("_live_chat_audio_to_opus_ogg: read failed: %s", e)
+            ptt_bytes = b""
+    if ptt_bytes:
+        fd, out = tempfile.mkstemp(suffix=".ogg")
+        os.close(fd)
+        try:
+            with open(out, "wb") as f:
+                f.write(ptt_bytes)
+            if os.path.getsize(out) > 0:
+                return out
+        except OSError as e:
+            logger.warning("_live_chat_audio_to_opus_ogg: write opus failed: %s", e)
+        try:
+            os.remove(out)
+        except OSError:
+            pass
+    alt = convert_audio_to_ogg(temp_input_path)
+    if alt and os.path.isfile(alt) and os.path.getsize(alt) > 0:
+        return alt
+    return None
+
 
 def send_whatsapp_audio_file(recipient, audio_path, channel, user=None, group_name=None):
     """
@@ -3222,15 +5150,32 @@ def send_whatsapp_audio_file(recipient, audio_path, channel, user=None, group_na
     group_name = group_name or (f"team_updates_{channel.owner.id}" if channel and getattr(channel, "owner", None) else "webhook_events")
     temp_ogg_path = None
     try:
-        temp_ogg_path = convert_audio_to_ogg(audio_path)
-        path_to_send = temp_ogg_path if temp_ogg_path else audio_path
-        with open(path_to_send, "rb") as f:
-            raw_bytes = f.read()
-        b64 = base64.b64encode(raw_bytes).decode("ascii")
+        with open(audio_path, "rb") as f:
+            source_bytes = f.read()
+        provider = (
+            getattr(channel, "ai_voice_provider", None)
+            or getattr(channel, "voice_provider", None)
+            or "ELEVENLABS"
+        ).strip().upper()
+        if provider == "OPENAI":
+            # OpenAI can generate opus directly; avoid ffmpeg where possible.
+            ptt_bytes = source_bytes
+        else:
+            # ElevenLabs returns mp3; convert using real path so ffmpeg detects MPEG reliably.
+            ptt_bytes = convert_to_whatsapp_ptt_from_path(audio_path)
+            if not ptt_bytes:
+                ptt_bytes = convert_to_whatsapp_ptt(source_bytes)
+            if not ptt_bytes:
+                logger.warning("PTT conversion returned empty bytes; fallback to convert_audio_to_ogg path")
+                temp_ogg_path = convert_audio_to_ogg(audio_path)
+                path_to_send = temp_ogg_path if temp_ogg_path else audio_path
+                with open(path_to_send, "rb") as f:
+                    ptt_bytes = f.read()
+        b64 = base64.b64encode(ptt_bytes).decode("ascii")
         message = {
             "data": b64,
             "filename": "voice_message.ogg",
-            "mime": "audio/ogg",
+            "mime": "audio/ogg; codecs=opus",
             "body": "",
             "type": "audio",
         }
@@ -3343,7 +5288,8 @@ def send_message_socket(sreciver,  user ,channel_id ,  message, msg_type,
                     raw_bytes = base64.b64decode(data)
 
                 # احفظ بايت مؤقتًا في ملف حتى يمكن رفعه لواتساب
-                fd, tmp_path = tempfile.mkstemp(suffix=os.path.splitext(saved_filename)[1] or "")
+                _suf = _temp_suffix_from_filename_and_mime(saved_filename, saved_mime)
+                fd, tmp_path = tempfile.mkstemp(suffix=_suf)
                 os.close(fd)
                 with open(tmp_path, "wb") as f:
                     f.write(raw_bytes)
@@ -3356,7 +5302,8 @@ def send_message_socket(sreciver,  user ,channel_id ,  message, msg_type,
                     if hasattr(uploaded_file, "temporary_file_path"):
                         temp_input_path = uploaded_file.temporary_file_path()
                     else:
-                        fd, tmp_path = tempfile.mkstemp(suffix=os.path.splitext(saved_filename)[1] or "")
+                        _suf = _temp_suffix_from_filename_and_mime(saved_filename, saved_mime)
+                        fd, tmp_path = tempfile.mkstemp(suffix=_suf)
                         os.close(fd)
                         with open(tmp_path, "wb") as out_f:
                             for chunk in uploaded_file.chunks():
@@ -3367,42 +5314,145 @@ def send_message_socket(sreciver,  user ,channel_id ,  message, msg_type,
                     send_socket("error", {"error": "failed to save uploaded file", "details": str(e)} , group_name=group_name)
                     return {"ok": False, "error": "failed_save", "details": str(e)}
 
-            # تحويل للصيغ المطلوبة إن لزم (مثلاً audio -> ogg)
-            if media_type == "audio":
+            # Reject empty incoming blob before FFmpeg (Safari / network edge cases).
+            if media_type == "audio" and temp_input_path and os.path.isfile(temp_input_path):
                 try:
-                    temp_conv = convert_audio_to_ogg(temp_input_path)   
-                    if temp_conv:
-                        temp_input_path = temp_conv
-                        saved_filename = "voice_message.ogg"
-                        saved_mime = "audio/ogg"
+                    if os.path.getsize(temp_input_path) <= 0:
+                        _cleanup_paths(temp_input_path, temp_converted_path)
+                        send_socket(
+                            "error",
+                            {"error": "empty_incoming_audio", "details": "Recorded audio file is empty."},
+                            group_name=group_name,
+                        )
+                        return {"ok": False, "error": "empty_incoming_audio"}
+                except OSError as e:
+                    _cleanup_paths(temp_input_path, temp_converted_path)
+                    send_socket(
+                        "error",
+                        {"error": "incoming_audio_stat_failed", "details": str(e)},
+                        group_name=group_name,
+                    )
+                    return {"ok": False, "error": "incoming_audio_stat_failed"}
 
-                except Exception as e:
-                    print("Audio conversion failed:", e)
+            # Live Chat / dashboard audio: always re-encode to real OGG Opus (never trust .ogg filename).
+            if media_type == "audio":
+                out_ogg = _live_chat_audio_to_opus_ogg(temp_input_path)
+                if not out_ogg:
+                    _cleanup_paths(temp_input_path, temp_converted_path)
+                    send_socket(
+                        "error",
+                        {
+                            "error": "audio_conversion_failed",
+                            "details": "Could not convert recording to OGG Opus (ffmpeg). Check server ffmpeg install.",
+                        },
+                        group_name=group_name,
+                    )
+                    return {"ok": False, "error": "audio_conversion_failed"}
+                if out_ogg != temp_input_path:
+                    _cleanup_paths(temp_input_path)
+                temp_input_path = out_ogg
+                temp_converted_path = out_ogg
+                saved_filename = "voice_message.ogg"
+                saved_mime = "audio/ogg"
+                logger.info(
+                    "Live Chat audio re-encoded to Opus OGG for Meta upload path=%s size=%s",
+                    out_ogg,
+                    os.path.getsize(out_ogg) if os.path.isfile(out_ogg) else 0,
+                )
 
             # إعداد الميتا
             if not saved_mime:
                 saved_mime = mimetypes.guess_type(saved_filename)[0] or "application/octet-stream"
 
-            # رفع الملف إلى WhatsApp
+            if media_type == "audio":
+                # Hard guard: never upload empty/invalid converted audio to Meta.
+                if (not temp_input_path) or (not os.path.isfile(temp_input_path)) or os.path.getsize(temp_input_path) <= 0:
+                    _cleanup_paths(temp_input_path, temp_converted_path)
+                    send_socket("error", {"error": "audio_output_invalid", "details": "Converted OGG output is empty or missing."}, group_name=group_name)
+                    return {"ok": False, "error": "audio_output_invalid"}
+
+            # رفع الملف إلى WhatsApp — Meta expects messaging_product + file; MIME must match supported types.
+            # Use plain audio/ogg for Opus (not "audio/ogg; codecs=opus") to avoid upload error 131053.
             fb_upload_url = f"https://graph.facebook.com/v22.0/{PHONE_NUMBER_ID}/media"
-            params = {"messaging_product": "whatsapp", "access_token": ACCESS_TOKEN}
+            upload_mime = saved_mime or "application/octet-stream"
+            if media_type == "audio":
+                upload_mime = "audio/ogg"
+            elif upload_mime.startswith("audio/ogg"):
+                upload_mime = "audio/ogg"
+            elif upload_mime.startswith("audio/webm"):
+                upload_mime = "audio/webm"
 
             try:
-                with open(temp_input_path, "rb") as fh:
-                    files = {"file": (saved_filename, fh, saved_mime)}
-                    fb_res = requests.post(fb_upload_url, params=params, files=files, timeout=80)
+                # CRITICAL (Live Chat voice): Meta multipart must use fixed name + audio/ogg — not frontend filename.
+                if media_type == "audio":
+                    with open(temp_input_path, "rb") as fh:
+                        files = {"file": ("voice_message.ogg", fh, "audio/ogg")}
+                        fb_res = requests.post(
+                            fb_upload_url,
+                            params={
+                                "messaging_product": "whatsapp",
+                                "access_token": ACCESS_TOKEN,
+                            },
+                            files=files,
+                            timeout=80,
+                        )
+                    _upload_log_name = "voice_message.ogg"
+                    _upload_log_mime = "audio/ogg"
+                else:
+                    with open(temp_input_path, "rb") as fh:
+                        files = {"file": (saved_filename, fh, upload_mime)}
+                        fb_res = requests.post(
+                            fb_upload_url,
+                            params={
+                                "messaging_product": "whatsapp",
+                                "access_token": ACCESS_TOKEN,
+                            },
+                            files=files,
+                            timeout=80,
+                        )
+                    _upload_log_name = saved_filename
+                    _upload_log_mime = upload_mime
             except Exception as e:
                 _cleanup_paths(temp_input_path, temp_converted_path)
                 send_socket("error", {"error": "upload connection failed", "details": str(e)} , group_name=group_name)
                 return {"ok": False, "error": "upload_failed", "details": str(e)}
+
+            # Meta /media — full response (debug voice & other uploads)
+            _upload_body = (fb_res.text or "")[:12000]
+            _upload_headers = dict(getattr(fb_res, "headers", {}) or {})
+            print(
+                "[Meta WhatsApp] POST /media",
+                f"status={fb_res.status_code}",
+                f"filename={_upload_log_name!r}",
+                f"upload_mime={_upload_log_mime!r}",
+                f"media_type={media_type!r}",
+                f"headers={_upload_headers}",
+                f"body={_upload_body}",
+            )
+            logger.info(
+                "[Meta WhatsApp] POST /media status=%s filename=%s upload_mime=%s media_type=%s headers=%s body=%s",
+                fb_res.status_code,
+                _upload_log_name,
+                _upload_log_mime,
+                media_type,
+                _upload_headers,
+                _upload_body,
+            )
 
             if fb_res.status_code not in (200, 201):
                 _cleanup_paths(temp_input_path, temp_converted_path)
                 send_socket("error", {"error": "whatsapp upload rejected", "details": fb_res.text} , group_name=group_name)
                 return {"ok": False, "error": "upload_rejected", "details": fb_res.text}
 
-            fb_json = fb_res.json()
+            try:
+                fb_json = fb_res.json()
+            except Exception as je:
+                logger.warning("[Meta WhatsApp] /media JSON parse error: %s raw=%s", je, _upload_body)
+                fb_json = {}
+            print("[Meta WhatsApp] /media parsed_json=", fb_json)
             media_id = fb_json.get("id")
+            print("[Meta WhatsApp] /media parsed media_id=", media_id)
+            logger.info("[Meta WhatsApp] /media parsed media_id=%s", media_id)
 
             # اقرأ الملف ليحفظ محلياً لاحقاً
             try:
@@ -3510,6 +5560,10 @@ def send_message_socket(sreciver,  user ,channel_id ,  message, msg_type,
                     send_socket("error", {"error": "missing both media_id and media_url"} , group_name=group_name)
                     return {"ok": False, "error": "missing_media_source"}
 
+                # Voice notes (agent recording + TTS): improves delivery/display vs generic audio file.
+                if media_type == "audio" and media_object.get("id"):
+                    media_object["voice"] = True
+
                 # 4. إضافة الكائن للـ Payload
                 send_payload["type"] = media_type
                 send_payload[media_type] = media_object
@@ -3519,11 +5573,12 @@ def send_message_socket(sreciver,  user ,channel_id ,  message, msg_type,
                     send_payload[media_type]["caption"] = body_text
 
         elif media_type == "template":
-                if "template_name" in payload:
+                tpl_src = message if isinstance(message, dict) else {}
+                if "template_name" in tpl_src:
                     template_data = {
-                        "name": payload.get("template_name"),
-                        "language": payload.get("language"),
-                        "components": payload.get("components", [])
+                        "name": tpl_src.get("template_name"),
+                        "language": tpl_src.get("language"),
+                        "components": tpl_src.get("components", [])
                     }
 
         else:
@@ -3535,7 +5590,24 @@ def send_message_socket(sreciver,  user ,channel_id ,  message, msg_type,
         url = f"https://graph.facebook.com/v22.0/{PHONE_NUMBER_ID}/messages"
         headers = {"Authorization": f"Bearer {ACCESS_TOKEN}", "Content-Type": "application/json"}
         r = requests.post(url, headers=headers, json=send_payload, timeout=30)
-        print('payload to sent',send_payload)
+        _msg_body = (r.text or "")[:12000]
+        _msg_headers = dict(getattr(r, "headers", {}) or {})
+        print(
+            "[Meta WhatsApp] POST /messages",
+            f"status={r.status_code}",
+            f"media_type={media_type!r}",
+            f"request_payload={send_payload!r}",
+            f"headers={_msg_headers}",
+            f"response_body={_msg_body}",
+        )
+        logger.info(
+            "[Meta WhatsApp] POST /messages status=%s media_type=%s request=%s headers=%s response=%s",
+            r.status_code,
+            media_type,
+            send_payload,
+            _msg_headers,
+            _msg_body,
+        )
         
     except Exception as e:
         _cleanup_paths(temp_input_path, temp_converted_path)
@@ -3648,8 +5720,45 @@ def send_message_socket(sreciver,  user ,channel_id ,  message, msg_type,
 
         except Exception as e:
             print("Error saving to DB:", e)
+
     # تنظيف نهائي
     _cleanup_paths(temp_input_path, temp_converted_path)
+
+    # Never broadcast "finished" / sidebar success when Meta rejected the message — the UI was
+    # showing the bubble as sent even though the customer received nothing.
+    if status_code not in (200, 201):
+        err_detail = ""
+        try:
+            err_detail = r.text if hasattr(r, "text") else ""
+        except Exception:
+            pass
+        print(
+            "[Meta WhatsApp] POST /messages FAILED",
+            f"status={status_code}",
+            f"media_type={media_type!r}",
+            f"response_body={(err_detail or '')[:12000]}",
+        )
+        logger.warning(
+            "send_message_socket WhatsApp API error status=%s body=%s",
+            status_code,
+            err_detail[:2000] if err_detail else "",
+        )
+        send_socket(
+            "error",
+            {
+                "error": "whatsapp_messages_api_failed",
+                "status": status_code,
+                "details": err_detail,
+            },
+            group_name=group_name,
+        )
+        return {
+            "ok": False,
+            "error": "whatsapp_messages_api_failed",
+            "status": status_code,
+            "details": err_detail,
+        }
+
     snippet = body or ""
     if media_type == 'image': snippet = 'image'
     elif media_type == 'video': snippet = 'vedio'
@@ -3687,7 +5796,7 @@ def send_message_socket(sreciver,  user ,channel_id ,  message, msg_type,
 
 
     # للإستخدام الداخلي نعيد dict
-    return {"ok": status_code in (200,201), "result": final_payload}
+    return {"ok": True, "result": final_payload}
 
 
 # ---------------------------------------------------------------------------

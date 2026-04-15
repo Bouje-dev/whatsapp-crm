@@ -15,11 +15,13 @@ Including another URLconf
     2. Add a URL to urlpatterns:  path('blog/', include('blog.urls'))
 """
 from django.contrib import admin
-from django.urls import path ,include
+from django.urls import path ,include, reverse_lazy
+from django.contrib.auth import views as auth_views
 from discount import views ,shopifyLink , user_dash , activites , tests
 from discount.marketing.views import serve_tracker_by_id
 from django.conf import settings
 from django.conf.urls.static import static
+from django.contrib.staticfiles.urls import staticfiles_urlpatterns
 from django.conf.urls import handler404
 from django.shortcuts import render
 
@@ -27,7 +29,10 @@ from django.shortcuts import render
 urlpatterns = [    
     # whatssap API cloud 
     path('discount/whatssapAPI/', include('discount.whatssapAPI.urls')),
- 
+   
+    # Founder-only HQ (Superuser dashboard)
+    path('founder-hq/', include('core_admin.urls')),
+
     # tracking/get_tracking_company_data/
     path('admin/', admin.site.urls),
 
@@ -64,7 +69,35 @@ urlpatterns = [
     path('auth/logout/', user_dash.logout, name='logout'),
     path('auth/singup/', user_dash.singup, name='singup'),
     path('auth/change_password/', user_dash.change_password, name='change_password'),
-    # path('auth/forgot_password/', user_dash.forgot_password, name='forgot_password'),
+
+    path(
+        'auth/password-reset/',
+        auth_views.PasswordResetView.as_view(
+            template_name='user/password_reset_form.html',
+            email_template_name='user/password_reset_email.txt',
+            subject_template_name='user/password_reset_subject.txt',
+            success_url=reverse_lazy('password_reset_done'),
+        ),
+        name='password_reset',
+    ),
+    path(
+        'auth/password-reset/done/',
+        auth_views.PasswordResetDoneView.as_view(template_name='user/password_reset_done.html'),
+        name='password_reset_done',
+    ),
+    path(
+        'auth/reset/<uidb64>/<token>/',
+        auth_views.PasswordResetConfirmView.as_view(
+            template_name='user/password_reset_confirm.html',
+            success_url=reverse_lazy('password_reset_complete'),
+        ),
+        name='password_reset_confirm',
+    ),
+    path(
+        'auth/reset/done/',
+        auth_views.PasswordResetCompleteView.as_view(template_name='user/password_reset_complete.html'),
+        name='password_reset_complete',
+    ),
 
     path('auth/edit_profile/', user_dash.edit_profile, name='update_profile'),
     path('auth/upgrade_plan/', user_dash.upgrade_plan, name='upgrade_plan'),
@@ -74,6 +107,7 @@ urlpatterns = [
     path('delete_token/<int:token_id>/', user_dash.delete_token, name='delete_token'),
 
     path('tracking/user/', user_dash.user, name='user'),
+    path('dashboard/voice-settings/', user_dash.voice_settings_dashboard, name='voice_settings'),
 
 
 # stuff 
@@ -111,10 +145,17 @@ path('terms/', views.terms, name='terms'),
 path('data-deletion/', views.data_deletion, name='data_deletion'),
 path('contact/', views.contact, name='contact'),
 
+    # Merchant suspension gate page
+    path('account-suspended/', views.account_suspended, name='account_suspended'),
+
 
 ]+ static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
 
-if not settings.DEBUG:
+# Serve static assets in development (works with finders without collectstatic).
+if settings.DEBUG:
+    urlpatterns += staticfiles_urlpatterns()
+else:
+    # Fallback static serving when running without an external web server.
     urlpatterns += static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)
 
 

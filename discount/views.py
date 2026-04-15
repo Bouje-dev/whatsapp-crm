@@ -644,3 +644,17 @@ def data_deletion(request):
 def contact(request):
     return render(request, 'contact.html')
 
+
+@login_required
+def account_suspended(request):
+    owner = getattr(request.user, "team_admin", None) or request.user
+    reason = getattr(owner, "suspension_reason", None) or ""
+    # Render even if reason is empty (middleware ensures redirection for suspended accounts)
+    return render(
+        request,
+        "account_suspended.html",
+        {
+            "suspension_reason": reason,
+        },
+    )
+

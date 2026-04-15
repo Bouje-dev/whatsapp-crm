@@ -884,14 +884,21 @@ def tracking(request,leades = None):
     # 2. تحديد القناة النشطة (Default Channel)
     # الخيار أ: نتحقق هل هناك قناة محفوظة في الجلسة (Session) من زيارة سابقة؟
     last_active_id = request.session.get('active_channel_id')
+    requested_channel_id = request.GET.get('channel_id')
     
     active_channel = None
-    if last_active_id:
+    if requested_channel_id:
+        active_channel = user_channels.filter(id=requested_channel_id).first()
+        if active_channel:
+            request.session['active_channel_id'] = active_channel.id
+    if not active_channel and last_active_id:
         active_channel = user_channels.filter(id=last_active_id).first()
     
     # الخيار ب: إذا لم نجد، نأخذ أول قناة متاحة
     if not active_channel:
         active_channel = user_channels.first()
+    setup_success = (request.GET.get('setup') == 'success')
+
 
     unread_msg = []
     if active_channel:
@@ -926,6 +933,8 @@ def tracking(request,leades = None):
             'initial_channel_id': active_channel.id if active_channel else 'null' ,
             'unread_msg': unread_msg ,
             'active_channel': active_channel
+            ,
+            'setup_success': setup_success
             
             }, request=request)
 
@@ -946,7 +955,11 @@ def tracking(request,leades = None):
     else:     
             team_members = CustomUser.objects.filter(id=user.id)
 
-    
+    # AI agent for "Assign to Agent" dropdown (same owner as channel or leader)
+    from discount.orders_ai import get_or_create_ai_agent_user
+    _owner = active_channel.owner if active_channel else (leader or user)
+    ai_agent = get_or_create_ai_agent_user(_owner, agent_name="AI Agent") if _owner else None
+
     from discount.models import Contact
     
     # user.is_team_admin = True
@@ -959,6 +972,16 @@ def tracking(request,leades = None):
 
     pipeline_choices = Contact.PipelineStage.choices
     from discount.models import CannedResponse
+    from discount.whatssapAPI.wsettings import _store_can_feature
+
+    plan_can_ai_assistant = False
+    if active_channel:
+        plan_can_ai_assistant = _store_can_feature(active_channel, "auto_reply")
+    can_open_stripe_portal = bool(
+        active_channel
+        and getattr(request.user, "id", None) == getattr(active_channel, "owner_id", None)
+    )
+
     channel = active_channel.id if active_channel else None
     # quick_replay = CannedResponse.objects.filter(user = request.user , channel = channel).order_by("created_at")
 
@@ -989,8 +1012,12 @@ def tracking(request,leades = None):
             
             'unread_msg': unread_msg,
             'active_channel': active_channel ,
-            'team_members': team_members , 
-            'pipeline_choices': pipeline_choices
+            'team_members': team_members ,
+            'ai_agent': ai_agent ,
+            'pipeline_choices': pipeline_choices,
+            'setup_success': setup_success,
+            'plan_can_ai_assistant': plan_can_ai_assistant,
+            'can_open_stripe_portal': can_open_stripe_portal,
         })
 
 from django.core.paginator import PageNotAnInteger, EmptyPage

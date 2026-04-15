@@ -29,6 +29,77 @@ from discount.models import Template
 
 logger = logging.getLogger(__name__)
 
+
+def upload_template_media_to_meta_handle(file_field, channel):
+    """
+    Upload a Django FileField to Meta's app-owned resumable upload API.
+    Returns (handle_str, None) or (None, error_message).
+    Same flow as profile image sync in wsettings.sync_profile_with_meta.
+    """
+    import mimetypes
+    from django.conf import settings
+
+    app_id = getattr(settings, "META_APP_ID", None) or ""
+    app_secret = getattr(settings, "META_APP_SECRET", None) or ""
+    if not app_id or not app_secret:
+        return None, "META_APP_ID / META_APP_SECRET must be set to submit media headers to Meta."
+
+    app_access_token = f"{app_id}|{app_secret}"
+    api_ver = channel.api_version or "v18.0"
+    api_ver = str(api_ver).strip()
+    if not api_ver.startswith("v"):
+        api_ver = f"v{api_ver}"
+
+    try:
+        with file_field.open("rb") as fh:
+            content = fh.read()
+    except Exception as e:
+        logger.exception("read template media")
+        return None, f"Could not read uploaded file: {e}"
+
+    size = len(content)
+    name = getattr(file_field, "name", "") or ""
+    mime = getattr(file_field, "content_type", None) or mimetypes.guess_type(name)[0] or "application/octet-stream"
+
+    base = f"https://graph.facebook.com/{api_ver}"
+    session_url = f"{base}/{app_id}/uploads"
+    session_params = {
+        "file_length": size,
+        "file_type": mime,
+        "access_token": app_access_token,
+    }
+    try:
+        session_resp = requests.post(session_url, params=session_params, timeout=120)
+    except Exception as e:
+        return None, f"Meta upload session failed: {e}"
+
+    if session_resp.status_code != 200:
+        return None, f"Meta upload session error: {session_resp.text}"
+
+    session_id = session_resp.json().get("id")
+    if not session_id:
+        return None, f"Meta upload session missing id: {session_resp.text}"
+
+    upload_url = f"{base}/{session_id}"
+    headers_upload = {
+        "Authorization": f"OAuth {app_access_token}",
+        "file_offset": "0",
+    }
+    try:
+        upload_resp = requests.post(upload_url, headers=headers_upload, data=content, timeout=120)
+    except Exception as e:
+        return None, f"Meta binary upload failed: {e}"
+
+    if upload_resp.status_code != 200:
+        return None, f"Meta binary upload error: {upload_resp.text}"
+
+    handle = upload_resp.json().get("h")
+    if not handle:
+        return None, f"Meta upload missing handle: {upload_resp.text}"
+
+    return handle, None
+
+
 # ---------- دالة مساعدة لإرسال القالب إلى Meta (Create template on WABA) ----------
 def submit_template_to_meta(template , channel , user = None):
     """
@@ -56,15 +127,43 @@ def submit_template_to_meta(template , channel , user = None):
     # language: pass what user set (prefer full code like "ar" or "ar_MA")
     language = template.language or 'ar'
 
-    # Build components list
+    # Build components list (HEADER must come before BODY for Meta)
     components = []
 
-    # Header text (only TEXT header handled here)
-    if template.header_type == 'text' and (template.header_text or '').strip():
+    ht = (template.header_type or "text").strip().lower()
+
+    if ht == "text" and (template.header_text or "").strip():
         components.append({
             "type": "HEADER",
             "format": "TEXT",
-            "text": template.header_text
+            "text": (template.header_text or "").strip(),
+        })
+    elif ht == "image" and getattr(template, "header_image", None) and template.header_image:
+        handle, err = upload_template_media_to_meta_handle(template.header_image, channel)
+        if err:
+            return {"ok": False, "error": err}
+        components.append({
+            "type": "HEADER",
+            "format": "IMAGE",
+            "example": {"header_handle": [handle]},
+        })
+    elif ht == "video" and getattr(template, "header_video", None) and template.header_video:
+        handle, err = upload_template_media_to_meta_handle(template.header_video, channel)
+        if err:
+            return {"ok": False, "error": err}
+        components.append({
+            "type": "HEADER",
+            "format": "VIDEO",
+            "example": {"header_handle": [handle]},
+        })
+    elif ht == "document" and getattr(template, "header_document", None) and template.header_document:
+        handle, err = upload_template_media_to_meta_handle(template.header_document, channel)
+        if err:
+            return {"ok": False, "error": err}
+        components.append({
+            "type": "HEADER",
+            "format": "DOCUMENT",
+            "example": {"header_handle": [handle]},
         })
 
     # Body (required)
@@ -149,9 +248,11 @@ def submit_template_to_meta(template , channel , user = None):
                     btn_list.append({"type": "PHONE_NUMBER", "text": text, "phone_number": b.get('phone', '')})
                 elif t == 'quick_reply' or t == 'quickreply':
                     btn_list.append({"type": "QUICK_REPLY", "text": text})
-                elif t == 'COPY' or t == 'COPY_CODE':
-             
+                elif t in ("copy", "COPY_CODE", "copy_code"):
+                    # Meta expects example sample for copy-to-clipboard templates
                     btn_list.append({"type": "COPY_CODE", "example": text})
+                elif t == "custom":
+                    btn_list.append({"type": "QUICK_REPLY", "text": text})
                 else:
                     # generic fallback
                     btn_list.append({"type": "QUICK_REPLY", "text": text})

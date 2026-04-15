@@ -1,4 +1,7 @@
 {% load static %}
+<script>
+    window.__FLOW_PLAN_CAN_AI__ = {% if plan_can_ai_assistant %}true{% else %}false{% endif %};
+</script>
  
     <!-- Fonts -->
     <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@300;400;500;700;800&display=swap" rel="stylesheet">
@@ -112,6 +115,11 @@
         }
 
         .none {
+            display: none !important;
+        }
+
+        .cls3741_sidebar.flow-builder-sidebar-hidden,
+        #cls3741_hamburger.flow-builder-sidebar-hidden {
             display: none !important;
         }
 
@@ -424,6 +432,31 @@
             transform: translateY(-2px);
         }
 
+        .component-item.component-item--plan-locked {
+            opacity: 0.42;
+            cursor: not-allowed;
+            transform: none;
+            border-style: dashed;
+            border-color: rgba(148, 163, 184, 0.35);
+        }
+        .component-item.component-item--plan-locked:hover {
+            border-color: rgba(148, 163, 184, 0.45);
+            transform: none;
+        }
+        .component-item.component-item--plan-locked .component-title,
+        .component-item.component-item--plan-locked .component-desc {
+            pointer-events: none;
+        }
+        .component-plan-lock-badge {
+            display: block;
+            font-size: 0.65rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+            color: var(--warning);
+            margin-top: 6px;
+        }
+
         .component-header {
             display: flex;
             align-items: center;
@@ -482,6 +515,30 @@
             gap: 0.75rem;
             align-items: center;
         }
+        .view-toggle {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.25rem;
+            padding: 0.25rem;
+            border: 1px solid var(--border);
+            border-radius: 999px;
+            background: var(--surface-2, #1f2937);
+        }
+        .view-toggle-btn {
+            border: none;
+            border-radius: 999px;
+            padding: 0.45rem 0.8rem;
+            font-size: 0.78rem;
+            font-weight: 700;
+            color: var(--text-secondary);
+            background: transparent;
+            cursor: pointer;
+        }
+        .view-toggle-btn.active {
+            background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+            color: #fff;
+            box-shadow: 0 6px 18px rgba(124, 58, 237, 0.35);
+        }
 
         /* Canvas Area */
 .canvas-area {
@@ -491,6 +548,8 @@
     overflow: hidden;   /* <--- هذا هو الحل! يخفي أي شيء زائد عن حجم الشاشة */
     background-color: #0F172A;
     cursor: grab;
+    user-select: none;
+    -webkit-user-select: none;
 }
 
 
@@ -511,7 +570,93 @@
         linear-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1px),
         linear-gradient(90deg, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
     background-size: 20px 20px;
+    user-select: none;
+    -webkit-user-select: none;
 }
+        .schema-view {
+            position: absolute;
+            inset: 0;
+            overflow: auto;
+            padding: 1.25rem 1.25rem 2rem;
+            background: linear-gradient(180deg, #0b1220 0%, #111827 100%);
+        }
+        .schema-doc {
+            max-width: 980px;
+            margin: 0 auto;
+            background: rgba(15, 23, 42, 0.55);
+            border: 1px solid rgba(148, 163, 184, 0.22);
+            border-radius: 16px;
+            padding: 1rem;
+            backdrop-filter: blur(2px);
+        }
+        .schema-title {
+            margin: 0 0 0.75rem;
+            color: #e2e8f0;
+            font-size: 1rem;
+            font-weight: 800;
+        }
+        .schema-empty {
+            color: #94a3b8;
+            padding: 1rem;
+            border: 1px dashed rgba(148, 163, 184, 0.35);
+            border-radius: 12px;
+        }
+        .schema-step {
+            border: 1px solid rgba(148, 163, 184, 0.24);
+            background: rgba(15, 23, 42, 0.78);
+            border-radius: 12px;
+            padding: 0.8rem;
+            margin-bottom: 0.7rem;
+            cursor: pointer;
+        }
+        .schema-step:hover { border-color: #38bdf8; }
+        .schema-step-head {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 0.5rem;
+            margin-bottom: 0.35rem;
+        }
+        .schema-step-kind {
+            color: #22d3ee;
+            font-size: 0.72rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            font-weight: 800;
+        }
+        .schema-step-id {
+            color: #94a3b8;
+            font-size: 0.72rem;
+            font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+        }
+        .schema-step-text {
+            color: #e2e8f0;
+            font-size: 0.86rem;
+            line-height: 1.4;
+            white-space: pre-wrap;
+        }
+        .schema-branches {
+            margin-top: 0.55rem;
+            padding-top: 0.55rem;
+            border-top: 1px dashed rgba(148, 163, 184, 0.28);
+        }
+        .schema-branch-row {
+            display: flex;
+            gap: 0.45rem;
+            align-items: center;
+            margin-bottom: 0.32rem;
+            color: #cbd5e1;
+            font-size: 0.78rem;
+        }
+        .schema-branch-badge {
+            background: rgba(34, 197, 94, 0.18);
+            border: 1px solid rgba(34, 197, 94, 0.4);
+            color: #86efac;
+            border-radius: 999px;
+            padding: 0.08rem 0.45rem;
+            font-size: 0.7rem;
+            font-weight: 700;
+        }
 
         /* Flow Node Styles */
         .flow-node {
@@ -524,6 +669,39 @@
             transition: all 0.3s ease;
             cursor: move;
             z-index: 100;
+            will-change: left, top;
+            /* Prevent browser text selection when dragging nodes / drawing jsPlumb connections */
+            user-select: none;
+            -webkit-user-select: none;
+            -moz-user-select: none;
+            -ms-user-select: none;
+        }
+        .flow-node.is-dragging {
+            transition: none !important;
+            box-shadow: none !important;
+            filter: none !important;
+        }
+        .flow-node.is-dragging:hover {
+            transform: none !important;
+        }
+
+        /* Still allow selecting & editing text inside form controls */
+        .flow-node input:not([type="checkbox"]):not([type="radio"]):not([type="file"]),
+        .flow-node textarea,
+        .flow-node select,
+        .flow-node [contenteditable="true"] {
+            user-select: text;
+            -webkit-user-select: text;
+            cursor: text;
+        }
+
+        /* jsPlumb SVG overlays: don't let labels steal drag from connectors */
+        #flow-canvas svg,
+        #flow-canvas .jtk-connector,
+        #flow-canvas .jtk-endpoint,
+        #flow-canvas .jtk-overlay {
+            user-select: none;
+            -webkit-user-select: none;
         }
 
         .flow-node:hover {
@@ -544,6 +722,25 @@
             box-shadow: 0 0 0 3px rgba(15, 157, 88, 0.25);
         }
         .flow-node[data-node-type="google-sheets"] .node-icon { background: rgba(255,255,255,0.25); }
+
+        .flow-node[data-node-type="upsell"] .node-header {
+            background: linear-gradient(135deg, #F59E0B, #D97706);
+        }
+        .flow-node[data-node-type="upsell"].selected {
+            border-color: #F59E0B;
+            box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.25);
+        }
+        .flow-node[data-node-type="upsell"] .node-icon { background: rgba(255,255,255,0.25); }
+
+        .endpoint-label {
+            font-size: 0.6rem;
+            color: #F59E0B;
+            background: rgba(0,0,0,0.6);
+            padding: 1px 5px;
+            border-radius: 4px;
+            white-space: nowrap;
+            pointer-events: none;
+        }
 
         .node-header {
             background: linear-gradient(135deg, var(--primary), var(--primary-dark));
@@ -708,6 +905,143 @@
             outline: none;
             border-color: var(--primary);
             box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.2);
+        }
+        .buttons-node-shell {
+            /* background: #f8fafc; */
+            /* border: 1px solid var(--border); */
+            border-radius: 12px;
+            /* padding: 0.85rem; */
+        }
+        .buttons-required-alert {
+            display: none;
+            background: #ef4444;
+            color: #fff;
+            border-radius: 999px;
+            font-size: 0.72rem;
+            font-weight: 700;
+            padding: 0.35rem 0.65rem;
+            margin-bottom: 0.6rem;
+        }
+        .buttons-required-alert.show { display: block; }
+        .buttons-node-row { margin-bottom: 0.7rem; }
+        .buttons-node-row .form-label { margin-bottom: 0.35rem; }
+        .buttons-node-radio-group {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            flex-wrap: wrap;
+            margin-top: 0.25rem;
+        }
+        .buttons-node-radio-group label {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.35rem;
+            font-size: 0.82rem;
+            color: var(--text-secondary);
+            cursor: pointer;
+        }
+        .buttons-reply-wrap, .buttons-cta-wrap {
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            background: #fff;
+            padding: 0.65rem;
+        }
+        .buttons-cta-wrap { display: none; }
+        .buttons-mini-count {
+            margin-top: 0.2rem;
+            font-size: 0.69rem;
+            color: var(--text-muted);
+        }
+        .buttons-reply-row {
+            display: flex;
+            align-items: center;
+            gap: 0.45rem;
+            margin-top: 8px;
+        }
+        .buttons-reply-row:first-of-type { margin-top: 0; }
+        .buttons-link-btn {
+            border: 1px solid #cbd5e1;
+            background: #fff;
+            color: #334155;
+            border-radius: 8px;
+            font-size: 0.7rem;
+            font-weight: 700;
+            padding: 0.3rem 0.45rem;
+            cursor: pointer;
+            white-space: nowrap;
+        }
+        .buttons-link-btn:hover {
+            border-color: var(--primary);
+            color: var(--primary);
+        }
+        .buttons-media-tools {
+            display: flex;
+            gap: 0.5rem;
+            align-items: center;
+            flex-wrap: wrap;
+            margin-top: 0.5rem;
+        }
+        .buttons-media-upload-btn {
+            border: 1px solid var(--primary);
+            background: rgba(124, 58, 237, 0.08);
+            color: var(--primary);
+            border-radius: 8px;
+            font-size: 0.75rem;
+            font-weight: 700;
+            padding: 0.35rem 0.6rem;
+            cursor: pointer;
+        }
+        .buttons-media-upload-btn:hover {
+            background: rgba(124, 58, 237, 0.14);
+        }
+        .buttons-media-upload-status {
+            font-size: 0.72rem;
+            color: var(--text-muted);
+        }
+        .buttons-header-media-preview {
+            margin-top: 0.6rem;
+            border: 1px dashed var(--border);
+            border-radius: 10px;
+            background: #fff;
+            min-height: 80px;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+            padding: 0.4rem;
+            position: relative;
+        }
+        .buttons-header-media-preview.show { display: flex; }
+        .buttons-header-media-preview img,
+        .buttons-header-media-preview video {
+            max-width: 100%;
+            max-height: 160px;
+            border-radius: 8px;
+            object-fit: cover;
+        }
+        .buttons-media-remove-btn {
+            position: absolute;
+            top: 6px;
+            right: 6px;
+            width: 22px;
+            height: 22px;
+            border: none;
+            border-radius: 999px;
+            background: rgba(15, 23, 42, 0.75);
+            color: #fff;
+            font-size: 12px;
+            line-height: 1;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .buttons-media-remove-btn:hover {
+            background: rgba(239, 68, 68, 0.95);
+        }
+        .buttons-header-media-empty {
+            font-size: 0.72rem;
+            color: var(--text-muted);
         }
 
         /* Scrollbar */
@@ -963,7 +1297,7 @@
         }
     </style>
  <!-- Header -->
- <div class="header" style="padding:1.25rem 1.5rem;border-bottom:1px solid rgba(255,255,255,0.06); height:auto; background:rgba(255,255,255,0.03);">
+<div id="automations-top-header" class="header" style="padding:1.25rem 1.5rem;border-bottom:1px solid rgba(255,255,255,0.06); height:auto; background:rgba(255,255,255,0.03);">
     <div class="title-section" style="display: flex;align-items: center;gap: 12px;">
         <div style="width:44px;height:44px;border-radius:12px;display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,#10b981,#059669);color:#ecfdf5;font-size:1rem;flex-shrink:0;">
             <i class="fas fa-robot"></i>
@@ -1032,6 +1366,10 @@
                     document.getElementById('flow-builder-container').classList.add('none');
                     document.getElementById('flow-builder-container').classList.remove('flow-builder-active');
                     document.getElementById('automations-container').classList.remove('none');
+                    document.getElementById('automations-top-header')?.classList.remove('none');
+                    if (typeof window.setFlowBuilderSidebarVisibility === 'function') {
+                        window.setFlowBuilderSidebarVisibility(true);
+                    }
                 }
                 var modal = document.getElementById('flow-unsaved-modal');
                 var btnCancel = document.getElementById('flow_unsaved_cancel');
@@ -1067,6 +1405,10 @@
             </script>
         </div>
                 <div class="header-actions">
+                    <div class="view-toggle" id="view-toggle">
+                        <button class="view-toggle-btn active" id="btn-canvas-view" type="button">Canvas View</button>
+                        <button class="view-toggle-btn" id="btn-schema-view" type="button">Schema View</button>
+                    </div>
                     <select class="form-select" id="flow-select" style="width: 200px;">
                         <option value="">-- Select Flow --</option>
                     </select>
@@ -1106,6 +1448,12 @@
                                 Load Existing Flow
                             </button>
                         </div>
+                    </div>
+                </div>
+                <div id="schema-view" class="schema-view none">
+                    <div class="schema-doc">
+                        <h3 class="schema-title">Flow Schema (Read-Only SOP View)</h3>
+                        <div id="schema-view-content" class="schema-empty">No nodes to display.</div>
                     </div>
                 </div>
             </div>
@@ -1171,6 +1519,13 @@
                         </div>
                         <div class="component-desc">Dropdown list for selections</div>
                     </div>
+                    <div class="component-item" data-type="template-message" draggable="true">
+                        <div class="component-header">
+                            <div class="component-icon">🧩</div>
+                            <div class="component-title">Template</div>
+                        </div>
+                        <div class="component-desc">Send approved WhatsApp template</div>
+                    </div>
                 </div>
             </div>
 
@@ -1202,12 +1557,19 @@
                         </div>
                         <div class="component-desc">Delay before the next action</div>
                     </div>
-                    <div class="component-item" data-type="ai-agent" draggable="true">
+                    <div class="component-item{% if not plan_can_ai_assistant %} component-item--plan-locked{% endif %}"
+                         data-type="ai-agent"
+                         data-plan-locked="{% if not plan_can_ai_assistant %}1{% else %}0{% endif %}"
+                         draggable="{% if plan_can_ai_assistant %}true{% else %}false{% endif %}"
+                         {% if not plan_can_ai_assistant %}title="Upgrade your plan to use the AI Sales Agent node" aria-disabled="true"{% endif %}>
                         <div class="component-header">
                             <div class="component-icon">🤖</div>
                             <div class="component-title">AI Sales Agent</div>
                         </div>
                         <div class="component-desc">Product context + GPT reply (text/voice)</div>
+                        {% if not plan_can_ai_assistant %}
+                        <span class="component-plan-lock-badge">Plan required · AI assistant</span>
+                        {% endif %}
                     </div>
                     <div class="component-item" data-type="follow-up" draggable="true">
                         <div class="component-header">
@@ -1222,6 +1584,13 @@
                             <div class="component-title">Google Sheets</div>
                         </div>
                         <div class="component-desc">Export order data to a sheet (Name, Phone, Address…)</div>
+                    </div>
+                    <div class="component-item" data-type="upsell" draggable="true">
+                        <div class="component-header">
+                            <div class="component-icon">🎁</div>
+                            <div class="component-title">Upsell Offer</div>
+                        </div>
+                        <div class="component-desc">Post-purchase upsell pitch after order success</div>
                     </div>
                     <div class="component-item" data-type="webhook" draggable="true">
                         <div class="component-header">
@@ -1351,6 +1720,25 @@
     /**
      * كلاس لإدارة قائمة التلقائيات
      */
+    window.setFlowBuilderSidebarVisibility = function(show) {
+        var sidebar = document.querySelector('.cls3741_sidebar');
+        var hamburger = document.getElementById('cls3741_hamburger');
+        var overlay = document.getElementById('cls3741_sidebar_overlay');
+
+        if (sidebar) {
+            sidebar.classList.toggle('flow-builder-sidebar-hidden', !show);
+        }
+        if (hamburger) {
+            hamburger.classList.toggle('flow-builder-sidebar-hidden', !show);
+        }
+        if (overlay && !show) {
+            overlay.classList.remove('show');
+        }
+        if (document.body && !show) {
+            document.body.classList.remove('sidebar-open');
+        }
+    };
+
     class AutomationsList {
         constructor() {
             this.apiBaseUrl = "/discount/whatssapAPI"; 
@@ -1453,7 +1841,6 @@ closeCreateFlowForm() {
 
 
         async refreshForChannel(channelId) {
-        console.log("🔄 Reloading automations for channel:", channelId);
         
         // 1. تنظيف القائمة الحالية وعرض رسالة تحميل
         const container = document.getElementById('automations-list');
@@ -1554,7 +1941,6 @@ closeCreateFlowForm() {
         async toggleFlow(flowId) {
             try {
                 const flow = flowId
-                console.log('flow ' , flow)
                 if (!flow) return;
                 const updatedFlow = { ...flow, active: !flow.active };
                 const response = await this.apiPost(`${this.apiBaseUrl}/api/flows/${flowId}/turnoff/`, updatedFlow);
@@ -1625,9 +2011,12 @@ closeCreateFlowForm() {
         showFlowBuilder() {
             const automationsContainer = document.getElementById('automations-container');
             const flowBuilderContainer = document.getElementById('flow-builder-container');
+            const automationsTopHeader = document.getElementById('automations-top-header');
+            automationsTopHeader?.classList.add('none');
             automationsContainer?.classList.add('none');
             flowBuilderContainer?.classList.remove('none');
             flowBuilderContainer?.classList.add('flow-builder-active');
+            window.setFlowBuilderSidebarVisibility(false);
             if (window.flowBuilder) {
                 if (this.selectedFlowId) {
                     window.flowBuilder.loadFlow(this.selectedFlowId);
@@ -1641,9 +2030,12 @@ closeCreateFlowForm() {
             this.selectedFlowId = null;
             const automationsContainer = document.getElementById('automations-container');
             const flowBuilderContainer = document.getElementById('flow-builder-container');
+            const automationsTopHeader = document.getElementById('automations-top-header');
+            automationsTopHeader?.classList.remove('none');
             automationsContainer?.classList.remove('none');
             flowBuilderContainer?.classList.add('none');
             flowBuilderContainer?.classList.remove('flow-builder-active');
+            window.setFlowBuilderSidebarVisibility(true);
         }
 
         async apiGet(url) {
@@ -1792,6 +2184,10 @@ class FlowBuilder {
         this.maxZoom = 3.0;
         this.isLoadingFlow = false;
         this.hasUnsavedChanges = false;
+        this.buttonsPortObservers = new Map();
+        this._nodeGeometryObservers = new Map();
+        this._dragRepaintRaf = new Map();
+        this.currentViewMode = 'canvas';
         this.initializeElements();
         this.initializeEventListeners();
         this.initializeJsPlumb();
@@ -1805,8 +2201,8 @@ this.connectionBranch = null;
         
          
         this.zoomLevel = 1.0;
-        // ابدأ من منتصف الكانفاس العملاق (5000/2 = 2500 تقريباً)
-        this.pan = { x: -2000, y: -2000 }; 
+        // Keep initial pan neutral to avoid first-interaction jump.
+        this.pan = { x: 0, y: 0 };
         this.isPanning = false;
         // ----------------------------------
 
@@ -1825,6 +2221,10 @@ this.connectionBranch = null;
         this.layoutBtn = document.getElementById('layout-btn');
         this.addVariableBtn = document.getElementById('add-variable-btn');
         this.sampleFlowBtn = document.getElementById('sample-flow-btn');
+        this.schemaViewEl = document.getElementById('schema-view');
+        this.schemaViewContentEl = document.getElementById('schema-view-content');
+        this.canvasViewBtn = document.getElementById('btn-canvas-view');
+        this.schemaViewBtn = document.getElementById('btn-schema-view');
         // إخفاء العناصر غير المرغوبة
         const loadFlowBtn = document.getElementById('load-flow-btn');
         const flowSelect = document.getElementById('flow-select');
@@ -1845,6 +2245,18 @@ this.connectionBranch = null;
         this.layoutBtn.addEventListener('click', () => this.autoLayout());
         this.addVariableBtn.addEventListener('click', () => this.addVariable());
         this.sampleFlowBtn.addEventListener('click', () => this.addSampleFlow());
+        if (this.canvasViewBtn) this.canvasViewBtn.addEventListener('click', () => this.setViewMode('canvas'));
+        if (this.schemaViewBtn) this.schemaViewBtn.addEventListener('click', () => this.setViewMode('schema'));
+        if (this.schemaViewEl) {
+            this.schemaViewEl.addEventListener('click', (e) => {
+                const step = e.target.closest('.schema-step[data-node-id]');
+                if (!step) return;
+                const nodeId = step.getAttribute('data-node-id');
+                if (!nodeId) return;
+                this.setViewMode('canvas');
+                this.focusNodeInCanvas(nodeId);
+            });
+        }
     }
 
     // ==========================================
@@ -1885,7 +2297,21 @@ this.connectionBranch = null;
             DropOptions: { hoverClass: 'drag-hover' }
         });
         this.setupJsPlumbEvents();
-        console.log('✅ jsPlumb initialized successfully');
+        // Block native text selection while drawing connections / dragging (CSS user-select is not always enough)
+        const fc = document.getElementById('flow-canvas');
+        if (fc && !fc.dataset.selectGuard) {
+            fc.dataset.selectGuard = '1';
+            fc.addEventListener('selectstart', function (ev) {
+                const el = ev.target;
+                if (el && el.closest && el.closest('input, textarea, select, [contenteditable="true"]')) return;
+                ev.preventDefault();
+            }, true);
+            fc.addEventListener('mousedown', function (ev) {
+                const el = ev.target;
+                if (el && el.closest && el.closest('input, textarea, select, [contenteditable="true"]')) return;
+                if (window.getSelection) window.getSelection().removeAllRanges();
+            }, true);
+        }
     }
 
     // ==========================================
@@ -1893,14 +2319,29 @@ this.connectionBranch = null;
     // ==========================================
     setupJsPlumbEvents() {
         this.jsPlumbInstance.bind("connection", (info) => {
+            try {
+                const conn = info && info.connection ? info.connection : null;
+                const srcEp = conn && conn.endpoints ? conn.endpoints[0] : null;
+                const port = srcEp && srcEp.getParameters ? srcEp.getParameters().port : null;
+                if (conn && port) {
+                    const data = conn.getData ? (conn.getData() || {}) : {};
+                    if (!data.source_port) {
+                        data.source_port = port;
+                    }
+                    if (!data.branch && /^btn_[1-3]$/i.test(port)) {
+                        data.branch = port;
+                    }
+                    conn.setData && conn.setData(data);
+                }
+            } catch (e) {}
             this.updateStats();
             this.hasUnsavedChanges = true;
-            console.log('🔗 Connection established:', info);
+            if (this.currentViewMode === 'schema') this.renderSchemaView();
         });
         this.jsPlumbInstance.bind("connectionDetached", (info) => {
             this.updateStats();
             this.hasUnsavedChanges = true;
-            console.log('🔗 Connection detached:', info);
+            if (this.currentViewMode === 'schema') this.renderSchemaView();
         });
         this.jsPlumbInstance.bind("click", (conn, originalEvent) => {
             if (confirm('Delete this connection?')) {
@@ -1909,7 +2350,6 @@ this.connectionBranch = null;
             }
         });
         this.jsPlumbInstance.bind("connectionMoved", (info) => {
-            console.log('🔗 Connection moved:', info);
         });
     }
 
@@ -1921,6 +2361,14 @@ this.connectionBranch = null;
       
         components.forEach(component => {
             component.addEventListener('dragstart', (e) => {
+                if (component.dataset.planLocked === '1' || component.getAttribute('draggable') === 'false') {
+                    e.preventDefault();
+                    return;
+                }
+                if (component.dataset.type === 'ai-agent' && window.__FLOW_PLAN_CAN_AI__ === false) {
+                    e.preventDefault();
+                    return;
+                }
                 e.dataTransfer.setData('component-type', component.dataset.type);
                 e.dataTransfer.effectAllowed = 'copy';
             });
@@ -1932,18 +2380,36 @@ this.connectionBranch = null;
         this.flowCanvas.addEventListener('drop', (e) => {
             e.preventDefault();
             const componentType = e.dataTransfer.getData('component-type');
-            const rect = this.flowCanvas.getBoundingClientRect();
-            const x = (e.clientX - rect.left) / this.zoomLevel - 140;
-            const y = (e.clientY - rect.top) / this.zoomLevel - 50;
+            if (componentType === 'ai-agent' && window.__FLOW_PLAN_CAN_AI__ === false) {
+                return;
+            }
+            const canvasPoint = this.clientToCanvasPoint(e.clientX, e.clientY);
+            const x = canvasPoint.x - 140;
+            const y = canvasPoint.y - 50;
           
             this.createNode(componentType, x, y);
         });
+    }
+
+    clientToCanvasPoint(clientX, clientY) {
+        const container = this.flowCanvas.parentElement;
+        const rect = container ? container.getBoundingClientRect() : this.flowCanvas.getBoundingClientRect();
+        return {
+            x: (clientX - rect.left - this.pan.x) / this.zoomLevel,
+            y: (clientY - rect.top - this.pan.y) / this.zoomLevel,
+        };
     }
 
     // ==========================================
     // إنشاء عقدة جديدة (Drag & Drop)
     // ==========================================
     createNode(type, x, y) {
+        if (type === 'ai-agent' && window.__FLOW_PLAN_CAN_AI__ === false) {
+            if (typeof this.showNotification === 'function') {
+                this.showNotification('AI Sales Agent is not available on your plan. Upgrade to include the AI assistant.', 'warning');
+            }
+            return null;
+        }
         this.nodeCounter++;
         const nodeId = `node-${this.nodeCounter}`;
       
@@ -1965,6 +2431,7 @@ this.connectionBranch = null;
         this.initializeNodeSafe(node);
         this.updateStats();
         this.hasUnsavedChanges = true;
+        if (this.currentViewMode === 'schema') this.renderSchemaView();
       
         return nodeId;
     }
@@ -1976,6 +2443,7 @@ this.connectionBranch = null;
         const templates = {
             'text-message': this.createTextMessageNodeTemplate,
             'media-message': this.createMediaMessageNodeTemplate,
+            'template-message': this.createTemplateMessageNodeTemplate,
             'buttons-message': this.createButtonsMessageNodeTemplate,
             'list-message': this.createListMessageNodeTemplate,
             'condition': this.createConditionNodeTemplate,
@@ -1988,7 +2456,8 @@ this.connectionBranch = null;
             'trigger': this.createTriggerNodeTemplate,
             'ai-agent': this.createAiAgentNodeTemplate,
             'follow-up': this.createFollowUpNodeTemplate,
-            'google-sheets': this.createGoogleSheetsNodeTemplate
+            'google-sheets': this.createGoogleSheetsNodeTemplate,
+            'upsell': this.createUpsellNodeTemplate
         };
         return templates[type] || templates['text-message'];
     }
@@ -2057,6 +2526,45 @@ this.connectionBranch = null;
         `;
     }
 
+    createTemplateMessageNodeTemplate(nodeId) {
+        return `
+            <div class="node-header">
+                <div class="node-icon">🧩</div>
+                <div class="node-title">Template</div>
+                <div class="node-type">template-message</div>
+            </div>
+            <div class="node-body">
+                <div class="form-group">
+                    <label class="form-label">Template</label>
+                    <select class="form-select template-message-select">
+                        <option value="">Loading templates...</option>
+                    </select>
+                    <div class="text-muted" style="font-size:0.72rem; margin-top:4px;">
+                        Shows templates linked to the current channel.
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Category</label>
+                    <input type="text" class="form-input template-message-category" placeholder="MARKETING / UTILITY / AUTHENTICATION" readonly>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Preview</label>
+                    <textarea class="form-textarea template-message-preview" rows="3" readonly placeholder="Template body preview..."></textarea>
+                </div>
+                <div class="node-properties">
+                    <div class="node-property">
+                        <span>Delay:</span>
+                        <input type="number" value="0" min="0" class="delay-input form-input" style="width: 60px;"> seconds
+                    </div>
+                </div>
+            </div>
+            <div class="node-footer">
+                <button class="btn btn-secondary btn-sm connect-btn" data-node-id="${nodeId}">Connect</button>
+                <button class="btn btn-danger btn-sm delete-node-btn">Delete</button>
+            </div>
+        `;
+    }
+
     createButtonsMessageNodeTemplate(nodeId) {
         return `
             <div class="node-header">
@@ -2065,8 +2573,73 @@ this.connectionBranch = null;
                 <div class="node-type">buttons-message</div>
             </div>
             <div class="node-body">
-                <textarea class="message-content form-textarea" placeholder="Message text..." rows="2"></textarea>
-                <input type="text" class="buttons-list form-input" placeholder="Button labels (comma-separated, e.g., Yes,No)">
+                <div class="buttons-node-shell">
+                    <div class="buttons-required-alert">Please fill all the required fields</div>
+                    <div class="buttons-node-row">
+                        <label class="form-label">Header (Optional)</label>
+                        <select class="buttons-header-type form-select">
+                            <option value="">None</option>
+                            <option value="text" selected>Text</option>
+                            <option value="image">Photo</option>
+                            <option value="video">Video</option>
+                        </select>
+                    </div>
+                    <div class="buttons-node-row buttons-header-text-row">
+                        <label class="form-label">Header Text</label>
+                        <input type="text" class="buttons-header-text form-input" maxlength="60" placeholder="Enter header text">
+                        <div class="buttons-mini-count">0 / 60</div>
+                    </div>
+                    <div class="buttons-node-row buttons-header-media-row" style="display:none;">
+                        <label class="form-label">Header Media URL</label>
+                        <input type="url" class="buttons-header-media-url form-input" placeholder="https://example.com/header-media.jpg">
+                        <div class="buttons-mini-count">Upload from desktop or paste a media URL</div>
+                        <div class="buttons-media-tools">
+                            <input type="file" class="buttons-header-media-file" accept="image/*,video/*" style="display:none;">
+                            <button type="button" class="buttons-media-upload-btn">Upload Photo/Video</button>
+                            <span class="buttons-media-upload-status">No file selected</span>
+                        </div>
+                        <div class="buttons-header-media-preview">
+                            <div class="buttons-header-media-empty">No media preview</div>
+                        </div>
+                    </div>
+                    <div class="buttons-node-row">
+                        <label class="form-label">Body <span style="color:#ef4444">*</span></label>
+                        <textarea class="message-content form-textarea" placeholder="Enter the main message for this message type" rows="3" maxlength="1024"></textarea>
+                        <div class="buttons-mini-count">0 / 1024</div>
+                    </div>
+                    <div class="buttons-node-row">
+                        <label class="form-label">Footer Text (Optional)</label>
+                        <input type="text" class="buttons-footer-text form-input" maxlength="60" placeholder="Enter footer text">
+                        <div class="buttons-mini-count">0 / 60</div>
+                    </div>
+                    <div class="buttons-node-row">
+                        <label class="form-label">Reply Buttons</label>
+                    </div>
+                    <div class="buttons-node-row buttons-reply-wrap" style="display:block;">
+                        <label class="form-label">Reply Buttons (at least 1 button) <span style="color:#ef4444">*</span></label>
+                        <div class="buttons-reply-row">
+                            <input type="text" class="buttons-reply-1 form-input" maxlength="20" placeholder="Button 1 Label">
+                            <button type="button" class="buttons-link-btn connect-btn" data-node-id="${nodeId}" data-branch="btn_1">Link</button>
+                        </div>
+                        <div class="buttons-mini-count">0 / 20</div>
+                        <div class="buttons-reply-row">
+                            <input type="text" class="buttons-reply-2 form-input" maxlength="20" placeholder="Button 2 Label">
+                            <button type="button" class="buttons-link-btn connect-btn" data-node-id="${nodeId}" data-branch="btn_2">Link</button>
+                        </div>
+                        <div class="buttons-mini-count">0 / 20</div>
+                        <div class="buttons-reply-row">
+                            <input type="text" class="buttons-reply-3 form-input" maxlength="20" placeholder="Button 3 Label">
+                            <button type="button" class="buttons-link-btn connect-btn" data-node-id="${nodeId}" data-branch="btn_3">Link</button>
+                        </div>
+                        <div class="buttons-mini-count">0 / 20</div>
+                    </div>
+                    <div class="buttons-node-row" style="margin-bottom:0;">
+                        <label style="display:inline-flex; align-items:center; gap:6px; font-size:0.82rem; color:var(--text-secondary);">
+                            <input type="checkbox" class="buttons-no-reply-followup">
+                            Enable "No Reply Within" follow-up
+                        </label>
+                    </div>
+                </div>
                 <div class="node-properties">
                     <div class="node-property">
                         <span>Delay:</span>
@@ -2183,6 +2756,10 @@ this.connectionBranch = null;
                         <option value="DELETE">DELETE</option>
                     </select>
                 </div>
+                <div class="form-group">
+                    <label class="form-label">JSON Payload (optional)</label>
+                    <textarea class="form-textarea webhook-payload" rows="3" placeholder='{"event":"new_message","sender":"{{sender}}","text":"{{incoming_body}}"}'></textarea>
+                </div>
             </div>
             <div class="node-footer">
                 <button class="btn btn-secondary btn-sm connect-btn" data-node-id="${nodeId}">Connect</button>
@@ -2231,11 +2808,18 @@ this.connectionBranch = null;
         return `
             <div class="node-header">
                 <div class="node-icon">🏷️+</div>
-                <div class="node-title">Add Tags</div>
+                <div class="node-title">Pipeline Stage</div>
                 <div class="node-type">add-tags</div>
             </div>
             <div class="node-body">
-                <input type="text" class="tags-list form-input" placeholder="Tags (comma-separated)">
+                <label class="form-label">Select Stage</label>
+                <select class="form-select pipeline-stage-select">
+                    <option value="new">New</option>
+                    <option value="interested">Interested</option>
+                    <option value="follow_up">Follow Up</option>
+                    <option value="closed">Closed / Won</option>
+                    <option value="rejected">Not Interested</option>
+                </select>
             </div>
             <div class="node-footer">
                 <button class="btn btn-secondary btn-sm connect-btn" data-node-id="${nodeId}">Connect</button>
@@ -2328,12 +2912,28 @@ this.connectionBranch = null;
                 <div class="ai-agent-tab-content" data-tab="identity" style="display:none;">
                     <!-- Language: always visible (needed for GPT text generation) -->
                     <div class="form-group ai-agent-language-row" style="margin-top:8px;">
-                        <label class="form-label">Language</label>
-                        <input type="text" class="form-input ai-agent-node-language" placeholder="e.g. AR_MA, EN_US" maxlength="20" style="font-size:0.8rem;">
+                        <label class="form-label">Language / locale</label>
+                        <select class="form-select ai-agent-node-language" style="font-size:0.8rem;">
+                            <option value="">Auto — all locales (no filter)</option>
+                            <option value="AR_MA">Arabic (Morocco — Moroccan Darija) — ar-ma</option>
+                            <option value="AR_SA">Arabic (Saudi Arabia — Saudi Arabic) — ar-sa</option>
+                            <option value="AR_AE">Arabic (UAE — Gulf Arabic) — ar-ae</option>
+                            <option value="AR_EG">Arabic (Egypt — Egyptian Arabic) — ar-eg</option>
+                            <option value="FR_FR">French (France) — fr-fr</option>
+                            <option value="FR_MA">French (Morocco) — fr-ma</option>
+                            <option value="EN_US">English (United States) — en-us</option>
+                            <option value="EN_GB">English (United Kingdom) — en-gb</option>
+                            <option value="ES_ES">Spanish (Spain) — es-es</option>
+                            <option value="DE_DE">German (Germany) — de-de</option>
+                            <option value="IT_IT">Italian (Italy) — it-it</option>
+                        </select>
+                        <p class="text-muted mb-0 mt-1" style="font-size:0.65rem; line-height:1.35;">Voice cards use the same <strong>Voice Gallery</strong> as WhatsApp Settings (Django Admin). Filter by gender and locale; <strong>Auto</strong> shows all.</p>
                     </div>
 
                     <!-- Voice Settings: hidden when response_mode === TEXT_ONLY -->
                     <div class="ai-agent-voice-settings-section ai-agent-visibility-transition">
+                        <input type="hidden" class="ai-agent-persona-id" value="">
+                        <input type="hidden" class="ai-agent-node-voice-id" value="">
                         <div class="form-group mt-3 pt-3" style="border-top:1px solid rgba(255,255,255,0.1);">
                             <label class="form-label">Voice provider</label>
                             <select class="form-select ai-agent-voice-provider" style="font-size:0.8rem;">
@@ -2342,48 +2942,40 @@ this.connectionBranch = null;
                             </select>
                         </div>
                         <div class="form-group">
-                            <label class="form-label">Fallback (legacy)</label>
-                            <select class="form-select ai-agent-node-voice-id" style="font-size:0.8rem;">
-                                <option value="">Default channel voice</option>
-                                <option value="native">Native-sounding</option>
-                            </select>
-                            <select class="form-select ai-agent-node-gender mt-1" style="font-size:0.8rem;">
-                                <option value="">—</option>
+                            <label class="form-label">Filter by gender (ElevenLabs gallery)</label>
+                            <select class="form-select ai-agent-node-gender" style="font-size:0.8rem;">
+                                <option value="">— Any —</option>
                                 <option value="MALE">Male</option>
                                 <option value="FEMALE">Female</option>
                             </select>
                         </div>
 
-                        <!-- Sales Agent (Voice Selection) -->
-                        <input type="hidden" class="ai-agent-persona-id" value="">
+                        <!-- Voice Gallery (same catalog as Settings → Voice Gallery) -->
                         <div class="persona-section">
                             <div class="persona-section-header">
-                                <h4 class="persona-section-title">Sales Agent</h4>
-                                <p class="persona-section-desc">Choose a voice and personality for this node. Premium unlocks high-quality and cloned voices.</p>
+                                <h4 class="persona-section-title">Voice preview</h4>
+                                <p class="persona-section-desc">Pick a voice from your platform Voice Gallery. Requires a WhatsApp channel selected in the workspace.</p>
                             </div>
-                            <div class="ai-agent-no-voices-msg persona-gallery-empty" style="display:none;" role="status">
-                                <span class="persona-gallery-empty-icon">🔇</span>
-                                <p class="persona-gallery-empty-text">No voices found for this selection.</p>
-                            </div>
-                            <div class="persona-tabs-wrap">
-                                <div class="ai-agent-persona-tabs" role="tablist">
-                                    <button type="button" class="ai-agent-persona-tab active" data-persona-tab="standard" role="tab" aria-selected="true">
-                                        <span class="persona-tab-icon">👤</span>
-                                        <span>Standard Agents</span>
-                                    </button>
-                                    <button type="button" class="ai-agent-persona-tab" data-persona-tab="my" role="tab" aria-selected="false">
-                                        <span class="persona-tab-icon">🎙</span>
-                                        <span>My Voices</span>
-                                    </button>
+                            <div class="ai-agent-voice-gallery-wrap">
+                                <div class="ai-agent-no-voices-msg persona-gallery-empty" style="display:none;" role="status">
+                                    <span class="persona-gallery-empty-icon">🔇</span>
+                                    <p class="persona-gallery-empty-text">No voices match this filter.</p>
+                                </div>
+                                <div class="persona-gallery-wrap">
+                                    <div class="ai-agent-voice-gallery-grid" role="tabpanel"></div>
                                 </div>
                             </div>
-                            <div class="persona-gallery-wrap">
-                                <div class="ai-agent-persona-gallery ai-agent-persona-gallery-standard" data-tab="standard" role="tabpanel"></div>
-                                <div class="ai-agent-persona-gallery ai-agent-persona-gallery-my" data-tab="my" role="tabpanel" style="display:none;"></div>
-                            </div>
-                            <div class="ai-agent-persona-premium-hint persona-premium-banner" style="display:none;">
-                                <span class="persona-premium-icon">👑</span>
-                                <span>Upgrade to Premium to use high-quality and cloned voices.</span>
+                            <div class="ai-agent-openai-voice-row" style="display:none;">
+                                <label class="form-label">OpenAI TTS voice</label>
+                                <select class="form-select ai-agent-openai-voice" style="font-size:0.8rem;">
+                                    <option value="alloy">alloy</option>
+                                    <option value="echo">echo</option>
+                                    <option value="fable">fable</option>
+                                    <option value="onyx">onyx</option>
+                                    <option value="nova">nova</option>
+                                    <option value="shimmer">shimmer</option>
+                                </select>
+                                <p class="text-muted small mt-1 mb-0" style="font-size:0.65rem;">OpenAI uses voice names above (not the ElevenLabs gallery).</p>
                             </div>
                         </div>
 
@@ -2481,6 +3073,9 @@ this.connectionBranch = null;
                     <label class="form-label">Delay (hours)</label>
                     <input type="number" class="form-input follow-up-delay-hours" value="6" min="1" max="168" step="1" style="width:80px;">
                     <span class="text-muted" style="font-size:0.75rem;">hours before re-engage</span>
+                    <div class="text-muted" style="font-size:0.72rem; margin-top:4px;">
+                        Auto-skip is enabled: follow-up will NOT be sent if this customer already placed an order.
+                    </div>
                 </div>
                 <div class="form-group form-check">
                     <input type="checkbox" class="form-check-input follow-up-ai-personalized" id="follow-up-ai-${nodeId}">
@@ -2496,17 +3091,56 @@ this.connectionBranch = null;
                     </select>
                 </div>
                 <input type="hidden" class="follow-up-file-path" value="">
-                <div class="form-group follow-up-media-wrap">
+                <div class="form-group follow-up-media-wrap" style="display:none;">
                     <label class="form-label">Media (optional)</label>
-                    <div class="follow-up-media-dropzone" style="border:2px dashed #64748b; border-radius:8px; padding:12px; text-align:center; min-height:50px; font-size:0.8rem; color:#94a3b8;">
+                        <div class="follow-up-media-dropzone" style="border:2px dashed #64748b; border-radius:8px; padding:12px; text-align:center; min-height:50px; font-size:0.8rem; color:#94a3b8;">
                         <span class="follow-up-media-text">Drop or click to upload</span>
-                        <input type="file" class="follow-up-media-input" accept="image/*,video/*,audio/*" style="display:none;">
+                        <input type="file" class="follow-up-media-input" accept="image/*,video/*" style="display:none;">
                     </div>
                     <p class="follow-up-file-name text-muted" style="font-size:0.7rem; margin-top:4px; display:none;"></p>
                 </div>
-                <div class="form-group">
+                <div class="form-group follow-up-caption-wrap">
                     <label class="form-label">Message / Caption</label>
-                    <textarea class="form-textarea follow-up-caption" rows="2" placeholder="Default text or caption for media (e.g. مرحباً، تذكرنا أنك مهتم...)" style="font-size:0.85rem;"></textarea>
+                    <textarea class="form-textarea follow-up-caption" rows="2" placeholder="Default text or caption for media (e.g. مرحباً، تذكرنا أنك مهتم...)" style="font-size:0.85rem;">مرحبا  واش فكرتي في العرض ديالنا؟ راه الكمية قربات تسالي</textarea>
+                </div>
+            </div>
+            <div class="node-footer">
+                <button type="button" class="btn btn-secondary btn-sm connect-btn" data-node-id="${nodeId}">Connect</button>
+                <button type="button" class="btn btn-danger btn-sm delete-node-btn">Delete</button>
+            </div>
+        `;
+    }
+
+    createUpsellNodeTemplate(nodeId) {
+        return `
+            <div class="node-header">
+                <div class="node-icon">🎁</div>
+                <div class="node-title">Upsell Offer</div>
+                <div class="node-type">upsell</div>
+            </div>
+            <div class="node-body">
+                <div class="form-group" data-upsell-product-row-node="${nodeId}">
+                    <label class="form-label required">Upsell Product</label>
+                    <select class="form-select upsell-product-select" style="width:100%;">
+                        <option value="">— Load products —</option>
+                    </select>
+                    <p class="text-muted small mt-1 mb-0" style="font-size:0.72rem;">The product to offer after the main order succeeds.</p>
+                </div>
+                <div class="form-group">
+                    <label class="form-label required">Special Upsell Price</label>
+                    <input type="number" class="form-input upsell-price" min="0" step="0.01" placeholder="e.g. 99" style="width:100px;">
+                    <span class="text-muted" style="font-size:0.75rem;"> MAD</span>
+                    <p class="text-muted small mt-1 mb-0" style="font-size:0.72rem;">Discounted price shown only in this upsell offer.</p>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">AI Pitch Prompt</label>
+                    <textarea class="form-textarea upsell-pitch-prompt" rows="3" placeholder="e.g. بما أنك خديتي المنتج الأول، عندنا عرض خاص ليك..." style="font-size:0.85rem;"></textarea>
+                    <p class="text-muted small mt-1 mb-0" style="font-size:0.72rem;">Opening line the AI uses to pitch this upsell. Leave empty for auto-generated pitch.</p>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Delay after order (seconds)</label>
+                    <input type="number" class="form-input upsell-delay-seconds" value="10" min="0" max="300" step="1" style="width:80px;">
+                    <p class="text-muted small mt-1 mb-0" style="font-size:0.72rem;">Wait time after main order before sending the upsell pitch.</p>
                 </div>
             </div>
             <div class="node-footer">
@@ -2548,6 +3182,32 @@ this.connectionBranch = null;
             </div>
         `;
     }
+
+    scheduleNodeGeometryRepaint(nodeId, nodeEl) {
+        if (!this.jsPlumbInstance || !nodeId) return;
+        if (this._dragRepaintRaf.has(nodeId)) return;
+        const rafId = requestAnimationFrame(() => {
+            this._dragRepaintRaf.delete(nodeId);
+            // Repaint/revalidate only this node (drag + resize) for smooth performance.
+            this.jsPlumbInstance.revalidate(nodeId);
+            this.jsPlumbInstance.repaint(nodeId);
+        });
+        this._dragRepaintRaf.set(nodeId, rafId);
+    }
+
+    bindNodeGeometryRepaint(nodeElement) {
+        const nodeId = nodeElement && nodeElement.id;
+        if (!nodeId || typeof ResizeObserver === 'undefined') return;
+        const oldRo = this._nodeGeometryObservers.get(nodeId);
+        if (oldRo) {
+            try { oldRo.disconnect(); } catch (e) {}
+        }
+        const ro = new ResizeObserver(() => {
+            this.scheduleNodeGeometryRepaint(nodeId, nodeElement);
+        });
+        ro.observe(nodeElement);
+        this._nodeGeometryObservers.set(nodeId, ro);
+    }
    
     // ==========================================
     // تهيئة عقدة واحدة بشكل آمن (النسخة المحسّنة)
@@ -2572,7 +3232,19 @@ this.connectionBranch = null;
                 this.jsPlumbInstance.draggable(nodeId, {
                     containment: true,
                     grid: [10, 10],
+                    start: () => {
+                        nodeElement.classList.add('is-dragging');
+                    },
+                    drag: () => {
+                        this.scheduleNodeGeometryRepaint(nodeId, nodeElement);
+                    },
                     stop: () => {
+                        nodeElement.classList.remove('is-dragging');
+                        const pendingRaf = this._dragRepaintRaf.get(nodeId);
+                        if (pendingRaf) {
+                            cancelAnimationFrame(pendingRaf);
+                            this._dragRepaintRaf.delete(nodeId);
+                        }
                         this.jsPlumbInstance.revalidate(nodeId);
                         this.jsPlumbInstance.repaint(nodeId);
                     }
@@ -2597,6 +3269,39 @@ this.connectionBranch = null;
                         strokeWidth: 3
                     }
                 });
+                // Buttons node: per-reply-button source ports (for branch routing)
+                if (nodeElement.dataset.nodeType === 'buttons-message') {
+                    const buttonPorts = [
+                        // Keep main source point intact; add 3 dedicated points aligned
+                        // with each reply button row so each branch starts "in front" of its button.
+                        { port: 'btn_1', anchor: [1, 0.82, 1, 0], color: '#22C55E' },
+                        { port: 'btn_2', anchor: [1, 0.89, 1, 0], color: '#16A34A' },
+                        { port: 'btn_3', anchor: [1, 0.96, 1, 0], color: '#15803D' },
+                    ];
+                    buttonPorts.forEach(bp => {
+                        this.jsPlumbInstance.addEndpoint(nodeId, {
+                            endpoint: "Dot",
+                            paintStyle: { fill: bp.color, radius: 5 },
+                            hoverPaintStyle: { fill: "#10B981", radius: 6 },
+                            isSource: true,
+                            anchor: bp.anchor,
+                            maxConnections: 1,
+                            connector: ["Flowchart", { stub: 5, gap: 5, cornerRadius: 5 }],
+                            connectorStyle: {
+                                stroke: bp.color,
+                                strokeWidth: 2,
+                                outlineStroke: "transparent",
+                                outlineWidth: 10
+                            },
+                            connectorHoverStyle: {
+                                stroke: "#10B981",
+                                strokeWidth: 3
+                            },
+                            parameters: { port: bp.port },
+                            uuid: nodeId + "_" + bp.port
+                        });
+                    });
+                }
                 // إضافة نقطة الهدف (يسار)
                 this.jsPlumbInstance.addEndpoint(nodeId, {
                     endpoint: "Dot",
@@ -2626,6 +3331,12 @@ this.connectionBranch = null;
                         e.stopPropagation();
                         this.removeNode(nodeId);
                     });
+                }
+                if (nodeElement.dataset.nodeType === 'buttons-message') {
+                    this.setupButtonsNodeUI(nodeElement);
+                }
+                if (nodeElement.dataset.nodeType === 'template-message') {
+                    this.setupTemplateNodeUI(nodeElement);
                 }
                 // AI Agent: Fetch from URL → modal edit → confirm → save & show summary
                 if (nodeElement.dataset.nodeType === 'ai-agent') {
@@ -2688,7 +3399,13 @@ this.connectionBranch = null;
                         if (urlRow) urlRow.style.display = v === 'URL_SCRAPER' ? 'block' : 'none';
                         if (productSelectRow) productSelectRow.style.display = v === 'PRODUCT_SELECT' ? 'block' : 'none';
                         if (manualContextRow) manualContextRow.style.display = (v === 'MANUAL' || v === 'URL_SCRAPER') ? 'block' : 'none';
-                        if (v === 'PRODUCT_SELECT' && productSelect && productSelect.options.length <= 1) loadProductsForAiNode(nodeElement);
+                        const hintEl = nodeElement.querySelector('.ai-agent-product-empty-hint');
+                        if (hintEl) {
+                            hintEl.style.display = (v === 'PRODUCT_SELECT' && nodeElement.dataset.aiAgentProductsEmpty === '1') ? 'block' : 'none';
+                        }
+                        if (v === 'PRODUCT_SELECT' && productSelect && nodeElement.dataset.aiProductsLoaded !== '1') {
+                            loadProductsForAiNode(nodeElement).then(function () { nodeElement.dataset.aiProductsLoaded = '1'; });
+                        }
                     }
                     if (contextSource) {
                         contextSource.addEventListener('change', updateProductSourceVisibility);
@@ -2697,6 +3414,7 @@ this.connectionBranch = null;
                     if (nodeElement.dataset.savedProductId) {
                         const pid = nodeElement.dataset.savedProductId;
                         loadProductsForAiNode(nodeElement).then(function() {
+                            nodeElement.dataset.aiProductsLoaded = '1';
                             const sel = nodeElement.querySelector('.ai-agent-product-select');
                             if (sel && pid) {
                                 sel.value = pid;
@@ -2708,8 +3426,21 @@ this.connectionBranch = null;
                     async function loadProductsForAiNode(nodeEl) {
                         const sel = nodeEl.querySelector('.ai-agent-product-select');
                         if (!sel) return;
+                        const row = nodeEl.querySelector('.ai-agent-product-select-row');
+                        let hint = nodeEl.querySelector('.ai-agent-product-empty-hint');
+                        if (row && !hint) {
+                            hint = document.createElement('div');
+                            hint.className = 'ai-agent-product-empty-hint';
+                            hint.style.cssText = 'display:none;margin-top:10px;padding:10px 12px;border-radius:10px;border:1px dashed rgba(148,163,184,0.35);background:rgba(0,0,0,0.25);font-size:12px;color:#94a3b8;line-height:1.45;';
+                            row.appendChild(hint);
+                        }
                         const chId = window.currentChannelId || (typeof window.getCurrentChannelId === 'function' && window.getCurrentChannelId());
-                        if (!chId) { sel.innerHTML = '<option value="">No channel selected</option>'; return; }
+                        if (!chId) {
+                            sel.innerHTML = '<option value="">No channel selected</option>';
+                            nodeEl.dataset.aiAgentProductsEmpty = '0';
+                            if (hint) { hint.innerHTML = ''; hint.style.display = 'none'; }
+                            return;
+                        }
                         sel.innerHTML = '<option value="">Loading…</option>';
                         const baseUrl = (typeof window.flowBuilder !== 'undefined' && window.flowBuilder.apiBaseUrl) ? window.flowBuilder.apiBaseUrl : (self.apiBaseUrl || '/discount/whatssapAPI');
                         const url = baseUrl + '/api_products/?channel_id=' + encodeURIComponent(chId);
@@ -2719,11 +3450,33 @@ this.connectionBranch = null;
                             if (!r.ok) {
                                 const text = await r.text();
                                 console.error('Products API error', r.status, url, text.slice(0, 200));
-                                sel.innerHTML = '<option value="">Failed to load (' + r.status + ')</option>';
+                                sel.innerHTML = '<option value="">Could not load catalog (' + r.status + ')</option>';
+                                nodeEl.dataset.aiAgentProductsEmpty = '0';
+                                if (hint) { hint.innerHTML = ''; hint.style.display = 'none'; }
                                 return;
                             }
                             const j = contentType.indexOf('json') >= 0 ? await r.json() : { products: [] };
                             const list = j.products || [];
+                            if (list.length === 0) {
+                                sel.innerHTML = '<option value="">No products in catalog</option>';
+                                nodeEl.dataset.aiAgentProductsEmpty = '1';
+                                if (hint) {
+                                    hint.innerHTML = '<span>No products yet.</span> <button type="button" class="ai-agent-open-products-btn" style="margin-left:8px;padding:4px 10px;border-radius:8px;border:none;background:#4d71ab;color:#fff;cursor:pointer;font-size:11px;font-weight:600;">Create product</button>';
+                                    hint.style.display = (contextSource && contextSource.value === 'PRODUCT_SELECT') ? 'block' : 'none';
+                                    const btn = hint.querySelector('.ai-agent-open-products-btn');
+                                    if (btn) {
+                                        btn.addEventListener('click', (e) => {
+                                            e.preventDefault();
+                                            e.stopPropagation();
+                                            const nav = document.querySelector('.cls3741_btn[data-target="products"]');
+                                            if (nav) nav.click();
+                                        });
+                                    }
+                                }
+                                return;
+                            }
+                            nodeEl.dataset.aiAgentProductsEmpty = '0';
+                            if (hint) { hint.innerHTML = ''; hint.style.display = 'none'; }
                             sel.innerHTML = '<option value="">— Select a product —</option>';
                             list.forEach(p => {
                                 const opt = document.createElement('option');
@@ -2739,7 +3492,9 @@ this.connectionBranch = null;
                             });
                         } catch (e) {
                             console.error('Products load failed', e);
-                            sel.innerHTML = '<option value="">Failed to load products</option>';
+                            sel.innerHTML = '<option value="">Network error</option>';
+                            nodeEl.dataset.aiAgentProductsEmpty = '0';
+                            if (hint) { hint.innerHTML = ''; hint.style.display = 'none'; }
                         }
                     }
                     if (productSelect && productContextTa) {
@@ -2787,9 +3542,9 @@ this.connectionBranch = null;
                             nodeElement.querySelectorAll('.ai-agent-tab-content').forEach(c => {
                                 c.style.display = c.dataset.tab === tab ? 'block' : 'none';
                             });
-                            if (tab === 'identity' && typeof window.loadAiAgentPersonaGalleries === 'function') {
-                                const std = nodeElement.querySelector('.ai-agent-persona-gallery-standard');
-                                if (std && !std.dataset.loaded) window.loadAiAgentPersonaGalleries(nodeElement);
+                            if (tab === 'identity' && typeof window.loadAiAgentVoiceGallery === 'function') {
+                                const vg = nodeElement.querySelector('.ai-agent-voice-gallery-grid');
+                                if (vg && !vg.dataset.loaded) window.loadAiAgentVoiceGallery(nodeElement);
                                 if (typeof window.applyAiNodeVisibility === 'function') window.applyAiNodeVisibility(nodeElement);
                             }
                         });
@@ -2800,28 +3555,28 @@ this.connectionBranch = null;
                     const responseModeEl = nodeElement.querySelector('.ai-agent-response-mode');
                     const voiceProviderEl = nodeElement.querySelector('.ai-agent-voice-provider');
                     const nodeGenderEl = nodeElement.querySelector('.ai-agent-node-gender');
-                    [responseModeEl, voiceProviderEl, nodeGenderEl].forEach(el => {
+                    const nodeLangEl = nodeElement.querySelector('.ai-agent-node-language');
+                    [responseModeEl, nodeGenderEl, nodeLangEl].forEach(el => {
                         if (el) el.addEventListener('change', () => { if (typeof window.applyAiNodeVisibility === 'function') window.applyAiNodeVisibility(nodeElement); });
                     });
-                    if (typeof window.applyAiNodeVisibility === 'function') window.applyAiNodeVisibility(nodeElement);
-                    // Persona sub-tabs (Standard Agents / My Voices) – bind on node so click always works
-                    nodeElement.querySelectorAll('.ai-agent-persona-tab').forEach(btn => {
-                        btn.addEventListener('click', (e) => {
-                            e.preventDefault();
-                            e.stopPropagation();
-                            const tabName = btn.getAttribute('data-persona-tab');
-                            nodeElement.querySelectorAll('.ai-agent-persona-tab').forEach(t => {
-                                t.classList.remove('active');
-                                t.setAttribute('aria-selected', 'false');
-                            });
-                            btn.classList.add('active');
-                            btn.setAttribute('aria-selected', 'true');
-                            const stdGal = nodeElement.querySelector('.ai-agent-persona-gallery-standard');
-                            const myGal = nodeElement.querySelector('.ai-agent-persona-gallery-my');
-                            if (stdGal) stdGal.style.display = tabName === 'standard' ? 'grid' : 'none';
-                            if (myGal) myGal.style.display = tabName === 'my' ? 'grid' : 'none';
+                    if (voiceProviderEl) {
+                        voiceProviderEl.addEventListener('change', () => {
+                            if (voiceProviderEl.value === 'ELEVENLABS') {
+                                const vg = nodeElement.querySelector('.ai-agent-voice-gallery-grid');
+                                if (vg && !vg.dataset.loaded && typeof window.loadAiAgentVoiceGallery === 'function') window.loadAiAgentVoiceGallery(nodeElement);
+                            }
+                            if (typeof window.applyAiNodeVisibility === 'function') window.applyAiNodeVisibility(nodeElement);
                         });
-                    });
+                    }
+                    if (typeof window.applyAiNodeVisibility === 'function') window.applyAiNodeVisibility(nodeElement);
+                    const openaiVoiceSel = nodeElement.querySelector('.ai-agent-openai-voice');
+                    if (openaiVoiceSel) {
+                        openaiVoiceSel.addEventListener('change', () => {
+                            const prov = nodeElement.querySelector('.ai-agent-voice-provider');
+                            const hidden = nodeElement.querySelector('.ai-agent-node-voice-id');
+                            if (prov && prov.value === 'OPENAI' && hidden) hidden.value = openaiVoiceSel.value;
+                        });
+                    }
                     // Persona: sliders update value labels
                     const stabSlider = nodeElement.querySelector('.ai-agent-voice-stability');
                     const stabVal = nodeElement.querySelector('.ai-agent-voice-stability-val');
@@ -2863,6 +3618,245 @@ this.connectionBranch = null;
                         });
                     }
                 }
+                if (nodeElement.dataset.nodeType === 'follow-up') {
+                    const aiCheckEl = nodeElement.querySelector('.follow-up-ai-personalized');
+                    const responseTypeEl = nodeElement.querySelector('.follow-up-response-type');
+                    const captionWrapEl = nodeElement.querySelector('.follow-up-caption-wrap');
+                    const captionEl = nodeElement.querySelector('.follow-up-caption');
+                    const mediaWrapEl = nodeElement.querySelector('.follow-up-media-wrap');
+                    const mediaDropzoneEl = nodeElement.querySelector('.follow-up-media-dropzone');
+                    const fileInputEl = nodeElement.querySelector('.follow-up-media-input');
+                    const filePathEl = nodeElement.querySelector('.follow-up-file-path');
+                    const fileNameEl = nodeElement.querySelector('.follow-up-file-name');
+
+                    const defaultFollowUpMsg = "مرحبا  واش فكرتي في العرض ديالنا؟ راه الكمية قربات تسالي";
+
+                    const applyFollowUpVisibility = () => {
+                        const resp = (responseTypeEl?.value || 'TEXT').trim().toUpperCase();
+                        const isAiPersonalized = !!(aiCheckEl && aiCheckEl.checked);
+
+                        // Caption:
+                        // - TEXT/AUDIO: shown unless AI personalized is enabled
+                        // - IMAGE/VIDEO: hidden (we send just media)
+                        if (captionWrapEl) {
+                            const captionShouldShow = !isAiPersonalized && (resp === 'TEXT' || resp === 'AUDIO');
+                            captionWrapEl.style.display = captionShouldShow ? 'block' : 'none';
+                        }
+
+                        // When AI personalize is OFF, ensure default caption exists if empty and caption is visible.
+                        if (!isAiPersonalized && captionEl && (captionWrapEl?.style.display !== 'none') && !captionEl.value.trim()) {
+                            captionEl.value = defaultFollowUpMsg;
+                        }
+
+                        // Media:
+                        // - TEXT/IMAGE/VIDEO: shown (image/video only)
+                        // - AUDIO: hidden in this node (audio comes from caption/Ai audio)
+                        if (mediaWrapEl) {
+                            mediaWrapEl.style.display = (resp === 'TEXT' || resp === 'IMAGE' || resp === 'VIDEO') ? 'block' : 'none';
+                        }
+
+                        if (fileInputEl) {
+                            if (resp === 'VIDEO') fileInputEl.accept = 'video/*';
+                            else if (resp === 'IMAGE') fileInputEl.accept = 'image/*';
+                            else fileInputEl.accept = 'image/*,video/*';
+                        }
+
+                        // If media is already uploaded, show the filename.
+                        if (filePathEl && fileNameEl) {
+                            const saved = (filePathEl.value || '').trim();
+                            if (saved) {
+                                const base = saved.split('/').filter(Boolean).pop() || saved;
+                                fileNameEl.textContent = base;
+                                fileNameEl.style.display = 'block';
+                            } else {
+                                fileNameEl.textContent = '';
+                                fileNameEl.style.display = 'none';
+                            }
+                        }
+                    };
+
+                    // Back-compat name used by fillNodeContent for follow-up nodes
+                    nodeElement._applyFollowUpPersonalizedVisibility = applyFollowUpVisibility;
+                    if (aiCheckEl) aiCheckEl.addEventListener('change', applyFollowUpVisibility);
+                    if (responseTypeEl) responseTypeEl.addEventListener('change', applyFollowUpVisibility);
+                    applyFollowUpVisibility();
+
+                    // File upload: store `file_path` for backend FollowUpNode.file_attachment.
+                    if (mediaDropzoneEl && fileInputEl) {
+                        const self = this;
+
+                        const uploadFollowUpMediaFile = async (file) => {
+                            const flowId = self.currentFlowId;
+                            if (!flowId) {
+                                alert('Please save the flow first to upload media.');
+                                return;
+                            }
+
+                            const resp = (responseTypeEl?.value || 'TEXT').trim().toUpperCase();
+                            if (resp === 'AUDIO') {
+                                alert('Audio upload is not available in this Follow-up node. Use caption/Ai audio instead.');
+                                return;
+                            }
+
+                            const isVideo = (file.type || '').toLowerCase().startsWith('video/');
+                            const fileType =
+                                resp === 'VIDEO' ? 'Video' :
+                                resp === 'IMAGE' ? 'Image' :
+                                (isVideo ? 'Video' : 'Image');
+
+                            const form = new FormData();
+                            form.append('flow_id', flowId);
+                            form.append('node_id', nodeId);
+                            form.append('file', file);
+                            form.append('file_type', fileType);
+                            form.append('description', '');
+                            form.append('csrfmiddlewaretoken', self.csrfToken || '');
+
+                            const uploadUrl = (self.apiBaseUrl || '/discount/whatssapAPI') + '/api/flows/node-media-upload/';
+                            const r = await fetch(uploadUrl, {
+                                method: 'POST',
+                                body: form,
+                                headers: { 'X-CSRFToken': self.csrfToken || '' }
+                            });
+                            const j = await r.json();
+                            if (!r.ok || j.error) {
+                                alert(j.error || 'Upload failed');
+                                return;
+                            }
+
+                            if (filePathEl) filePathEl.value = j.file_path || '';
+                            if (fileNameEl) {
+                                fileNameEl.textContent = (file?.name || '').trim() || (j.file_path || '').split('/').filter(Boolean).pop() || '';
+                                fileNameEl.style.display = fileNameEl.textContent ? 'block' : 'none';
+                            }
+
+                            if (fileInputEl) fileInputEl.value = '';
+                            applyFollowUpVisibility();
+                        };
+
+                        mediaDropzoneEl.addEventListener('click', () => fileInputEl.click());
+                        ['dragenter', 'dragover'].forEach(ev => {
+                            mediaDropzoneEl.addEventListener(ev, (e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                mediaDropzoneEl.style.borderColor = '#4d71ab';
+                            });
+                        });
+                        ['dragleave', 'drop'].forEach(ev => {
+                            mediaDropzoneEl.addEventListener(ev, (e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                mediaDropzoneEl.style.borderColor = '#64748b';
+                            });
+                        });
+
+                        mediaDropzoneEl.addEventListener('drop', (e) => {
+                            const files = e.dataTransfer && e.dataTransfer.files;
+                            if (files && files.length) Array.from(files).forEach(f => uploadFollowUpMediaFile(f));
+                        });
+
+                        fileInputEl.addEventListener('change', () => {
+                            const files = fileInputEl.files;
+                            if (files && files.length) uploadFollowUpMediaFile(files[0]);
+                            if (fileInputEl) fileInputEl.value = '';
+                        });
+                    }
+                }
+                if (nodeElement.dataset.nodeType === 'upsell') {
+                    const self = this;
+                    async function loadUpsellProducts(nodeEl) {
+                        const sel = nodeEl.querySelector('.upsell-product-select');
+                        if (!sel) return;
+                        const chId = window.currentChannelId || (typeof window.getCurrentChannelId === 'function' && window.getCurrentChannelId());
+                        if (!chId) { sel.innerHTML = '<option value="">No channel selected</option>'; return; }
+                        sel.innerHTML = '<option value="">Loading…</option>';
+                        let hint = nodeEl.querySelector('.upsell-product-empty-hint');
+                        if (!hint) {
+                            hint = document.createElement('div');
+                            hint.className = 'upsell-product-empty-hint';
+                            hint.style.cssText = 'display:none;margin-top:8px;padding:8px 10px;border-radius:8px;border:1px dashed rgba(148,163,184,0.3);font-size:11px;color:#94a3b8;';
+                            sel.parentNode && sel.parentNode.appendChild(hint);
+                        }
+                        const baseUrl = (typeof window.flowBuilder !== 'undefined' && window.flowBuilder.apiBaseUrl) ? window.flowBuilder.apiBaseUrl : (self.apiBaseUrl || '/discount/whatssapAPI');
+                        const url = baseUrl + '/api_products/?channel_id=' + encodeURIComponent(chId);
+                        try {
+                            const r = await fetch(url, { credentials: 'same-origin', headers: { 'Accept': 'application/json' } });
+                            if (!r.ok) { sel.innerHTML = '<option value="">Could not load (' + r.status + ')</option>'; if (hint) hint.style.display = 'none'; return; }
+                            const j = await r.json();
+                            const list = j.products || [];
+                            if (list.length === 0) {
+                                sel.innerHTML = '<option value="">No products in catalog</option>';
+                                if (hint) {
+                                    hint.innerHTML = 'No products yet. <button type="button" class="upsell-open-products-btn" style="margin-left:6px;padding:3px 8px;border-radius:6px;border:none;background:#4d71ab;color:#fff;cursor:pointer;font-size:10px;font-weight:600;">Create product</button>';
+                                    hint.style.display = 'block';
+                                    const btn = hint.querySelector('.upsell-open-products-btn');
+                                    if (btn) {
+                                        btn.addEventListener('click', (e) => {
+                                            e.preventDefault();
+                                            e.stopPropagation();
+                                            const nav = document.querySelector('.cls3741_btn[data-target="products"]');
+                                            if (nav) nav.click();
+                                        });
+                                    }
+                                }
+                                return;
+                            }
+                            if (hint) { hint.innerHTML = ''; hint.style.display = 'none'; }
+                            sel.innerHTML = '<option value="">— Select upsell product —</option>';
+                            list.forEach(p => {
+                                const opt = document.createElement('option');
+                                opt.value = p.id;
+                                opt.textContent = (p.name || 'Product') + (p.price ? ' — ' + p.price + ' ' + (p.currency || 'MAD') : '');
+                                sel.appendChild(opt);
+                            });
+                        } catch (e) {
+                            console.error('Upsell products load failed', e);
+                            sel.innerHTML = '<option value="">Network error</option>';
+                            if (hint) hint.style.display = 'none';
+                        }
+                    }
+                    nodeElement._loadUpsellProducts = loadUpsellProducts;
+                    loadUpsellProducts(nodeElement).then(() => {
+                        const savedPid = nodeElement.dataset.savedUpsellProductId;
+                        if (savedPid) {
+                            const sel = nodeElement.querySelector('.upsell-product-select');
+                            if (sel) sel.value = savedPid;
+                        }
+                    });
+                }
+                // Add on_order_success output endpoint for AI Agent nodes
+                if (nodeElement.dataset.nodeType === 'ai-agent') {
+                    this.jsPlumbInstance.addEndpoint(nodeId, {
+                        endpoint: "Dot",
+                        paintStyle: { fill: "#F59E0B", radius: 6 },
+                        hoverPaintStyle: { fill: "#D97706", radius: 7 },
+                        isSource: true,
+                        anchor: [1, 0.85, 1, 0],
+                        maxConnections: -1,
+                        connector: ["Flowchart", { stub: 5, gap: 5, cornerRadius: 5 }],
+                        connectorStyle: {
+                            stroke: "#F59E0B",
+                            strokeWidth: 2,
+                            outlineStroke: "transparent",
+                            outlineWidth: 10
+                        },
+                        connectorHoverStyle: {
+                            stroke: "#D97706",
+                            strokeWidth: 3
+                        },
+                        overlays: [
+                            ["Label", {
+                                label: "on order ✓",
+                                location: [1.8, 0.5],
+                                cssClass: "endpoint-label",
+                                id: "on_order_success_label"
+                            }]
+                        ],
+                        parameters: { port: "on_order_success" },
+                        uuid: nodeId + "_on_order_success"
+                    });
+                }
+                this.bindNodeGeometryRepaint(nodeElement);
                 // التحقق من العقدة بعد التهيئة
                 setTimeout(() => {
                     this.jsPlumbInstance.revalidate(nodeId);
@@ -2878,7 +3872,6 @@ this.connectionBranch = null;
         // ============================================================
             // [إضافة جديدة] منطق إخفاء/إظهار الكلمات المفتاحية حسب النوع
             // ============================================================
-            console.log('Initializing trigger node logic for:', nodeId , nodeElement.dataset.nodeType);
             if (nodeElement.dataset.nodeType === 'trigger') {
                 const typeSelect = nodeElement.querySelector('.trigger-match-type');
                 const kwContainer = nodeElement.querySelector(`#kw_container_${nodeId}`);
@@ -2909,9 +3902,340 @@ this.connectionBranch = null;
         return this.initializeNodeSafe(nodeElement);
     }
 
+    setupButtonsNodeUI(nodeElement) {
+        if (!nodeElement || nodeElement.dataset.nodeType !== 'buttons-message') return;
+        if (nodeElement.dataset.buttonsUiBound === '1') return;
+        nodeElement.dataset.buttonsUiBound = '1';
+
+        const replyWrap = nodeElement.querySelector('.buttons-reply-wrap');
+        const ctaWrap = nodeElement.querySelector('.buttons-cta-wrap');
+        const headerTypeEl = nodeElement.querySelector('.buttons-header-type');
+        const headerTextRow = nodeElement.querySelector('.buttons-header-text-row');
+        const headerMediaRow = nodeElement.querySelector('.buttons-header-media-row');
+        const headerTextInput = nodeElement.querySelector('.buttons-header-text');
+        const headerMediaUrlInput = nodeElement.querySelector('.buttons-header-media-url');
+        const headerMediaFileInput = nodeElement.querySelector('.buttons-header-media-file');
+        const headerMediaUploadBtn = nodeElement.querySelector('.buttons-media-upload-btn');
+        const headerMediaUploadStatus = nodeElement.querySelector('.buttons-media-upload-status');
+        const headerMediaPreview = nodeElement.querySelector('.buttons-header-media-preview');
+        const radios = nodeElement.querySelectorAll('.buttons-type-radio');
+        const bodyEl = nodeElement.querySelector('.message-content');
+        const b1 = nodeElement.querySelector('.buttons-reply-1');
+        const ctaLabel = nodeElement.querySelector('.buttons-cta-label');
+        const ctaUrl = nodeElement.querySelector('.buttons-cta-url');
+        const alertEl = nodeElement.querySelector('.buttons-required-alert');
+        const countPairs = [
+            [nodeElement.querySelector('.buttons-header-text'), nodeElement.querySelector('.buttons-header-text')?.nextElementSibling],
+            [nodeElement.querySelector('.message-content'), nodeElement.querySelector('.message-content')?.nextElementSibling],
+            [nodeElement.querySelector('.buttons-footer-text'), nodeElement.querySelector('.buttons-footer-text')?.nextElementSibling],
+            [nodeElement.querySelector('.buttons-reply-1'), nodeElement.querySelector('.buttons-reply-1')?.nextElementSibling],
+            [nodeElement.querySelector('.buttons-reply-2'), nodeElement.querySelector('.buttons-reply-2')?.nextElementSibling],
+            [nodeElement.querySelector('.buttons-reply-3'), nodeElement.querySelector('.buttons-reply-3')?.nextElementSibling],
+            [nodeElement.querySelector('.buttons-cta-label'), nodeElement.querySelector('.buttons-cta-label')?.nextElementSibling],
+        ];
+
+        const renderHeaderMediaPreview = () => {
+            if (!headerMediaPreview) return;
+            const mediaUrl = (headerMediaUrlInput && headerMediaUrlInput.value || '').trim();
+            const type = headerTypeEl ? headerTypeEl.value : '';
+            if (!mediaUrl || !(type === 'image' || type === 'video')) {
+                headerMediaPreview.classList.remove('show');
+                headerMediaPreview.innerHTML = '<div class="buttons-header-media-empty">No media preview</div>';
+                return;
+            }
+            headerMediaPreview.classList.add('show');
+            if (type === 'video') {
+                headerMediaPreview.innerHTML = `<video src="${mediaUrl}" controls playsinline preload="metadata"></video><button type="button" class="buttons-media-remove-btn" title="Remove media" aria-label="Remove media">✕</button>`;
+            } else {
+                headerMediaPreview.innerHTML = `<img src="${mediaUrl}" alt="Header preview"><button type="button" class="buttons-media-remove-btn" title="Remove media" aria-label="Remove media">✕</button>`;
+            }
+            const removeBtn = headerMediaPreview.querySelector('.buttons-media-remove-btn');
+            if (removeBtn) {
+                removeBtn.addEventListener('click', () => {
+                    if (headerMediaUrlInput) headerMediaUrlInput.value = '';
+                    if (headerMediaUploadStatus) headerMediaUploadStatus.textContent = 'Media removed.';
+                    renderHeaderMediaPreview();
+                    validate();
+                });
+            }
+        };
+        const updateToggle = () => {
+            const value = nodeElement.querySelector('.buttons-type-radio:checked')?.value || 'reply';
+            if (replyWrap) replyWrap.style.display = value === 'reply' ? 'block' : 'none';
+            if (ctaWrap) ctaWrap.style.display = value === 'cta_url' ? 'block' : 'none';
+            if (alertEl) alertEl.classList.remove('show');
+        };
+        const updateHeaderTypeUI = () => {
+            const type = headerTypeEl ? headerTypeEl.value : '';
+            const isText = type === 'text';
+            const isMedia = type === 'image' || type === 'video';
+            if (headerTextRow) headerTextRow.style.display = isText ? 'block' : 'none';
+            if (headerMediaRow) headerMediaRow.style.display = isMedia ? 'block' : 'none';
+            if (!isText && headerTextInput) headerTextInput.value = '';
+            if (!isMedia && headerMediaUrlInput) {
+                headerMediaUrlInput.value = '';
+                renderHeaderMediaPreview();
+            }
+        };
+        radios.forEach(r => r.addEventListener('change', updateToggle));
+        updateToggle();
+        if (headerTypeEl) headerTypeEl.addEventListener('change', updateHeaderTypeUI);
+        updateHeaderTypeUI();
+
+        const refreshCounts = () => {
+            countPairs.forEach(([input, counter]) => {
+                if (!input || !counter) return;
+                const max = parseInt(input.getAttribute('maxlength'), 10) || 0;
+                const len = (input.value || '').length;
+                counter.textContent = max ? `${len} / ${max}` : `${len}`;
+            });
+        };
+        countPairs.forEach(([input]) => input && input.addEventListener('input', refreshCounts));
+        refreshCounts();
+        if (headerMediaUrlInput) {
+            headerMediaUrlInput.addEventListener('input', renderHeaderMediaPreview);
+            headerMediaUrlInput.addEventListener('change', renderHeaderMediaPreview);
+        }
+
+        if (headerMediaUploadBtn && headerMediaFileInput) {
+            headerMediaUploadBtn.addEventListener('click', () => headerMediaFileInput.click());
+            headerMediaFileInput.addEventListener('change', async () => {
+                const file = headerMediaFileInput.files && headerMediaFileInput.files[0];
+                if (!file) return;
+                const isVideo = file.type && file.type.startsWith('video/');
+                const isImage = file.type && file.type.startsWith('image/');
+                if (!isImage && !isVideo) {
+                    if (headerMediaUploadStatus) headerMediaUploadStatus.textContent = 'Only image/video files are allowed.';
+                    return;
+                }
+                if (headerTypeEl) headerTypeEl.value = isVideo ? 'video' : 'image';
+                updateHeaderTypeUI();
+                if (headerMediaUploadStatus) headerMediaUploadStatus.textContent = 'Uploading...';
+                try {
+                    const mediaUrl = await this.uploadMediaFile(file);
+                    if (headerMediaUrlInput) headerMediaUrlInput.value = mediaUrl || '';
+                    if (headerMediaUploadStatus) headerMediaUploadStatus.textContent = 'Uploaded successfully.';
+                    renderHeaderMediaPreview();
+                } catch (err) {
+                    console.error('Buttons header media upload failed:', err);
+                    if (headerMediaUploadStatus) headerMediaUploadStatus.textContent = 'Upload failed. Try again.';
+                } finally {
+                    headerMediaFileInput.value = '';
+                }
+            });
+        }
+
+        const validate = () => {
+            const value = nodeElement.querySelector('.buttons-type-radio:checked')?.value || 'reply';
+            const bodyOk = !!(bodyEl && bodyEl.value.trim());
+            const buttonsOk = value === 'reply'
+                ? !!(b1 && b1.value.trim())
+                : !!(ctaLabel && ctaLabel.value.trim() && ctaUrl && ctaUrl.value.trim());
+            if (alertEl) alertEl.classList.toggle('show', !(bodyOk && buttonsOk));
+        };
+        [bodyEl, b1, ctaLabel, ctaUrl, headerTextInput, headerMediaUrlInput].forEach(el => el && el.addEventListener('input', validate));
+        radios.forEach(r => r.addEventListener('change', validate));
+        if (headerTypeEl) headerTypeEl.addEventListener('change', validate);
+        renderHeaderMediaPreview();
+        validate();
+        this.refreshButtonsPortAnchors(nodeElement);
+        this.bindButtonsPortAutoAlign(nodeElement);
+    }
+
+    async setupTemplateNodeUI(nodeElement) {
+        if (!nodeElement || nodeElement.dataset.nodeType !== 'template-message') return;
+        const selectEl = nodeElement.querySelector('.template-message-select');
+        const categoryEl = nodeElement.querySelector('.template-message-category');
+        const previewEl = nodeElement.querySelector('.template-message-preview');
+        if (!selectEl) return;
+
+        const extractBodyFromComponents = (componentsValue) => {
+            const findBodyTextDeep = (value) => {
+                if (!value) return '';
+                if (Array.isArray(value)) {
+                    for (const item of value) {
+                        const found = findBodyTextDeep(item);
+                        if (found) return found;
+                    }
+                    return '';
+                }
+                if (typeof value === 'object') {
+                    const typeVal = String(value.type || '').toUpperCase();
+                    if (typeVal === 'BODY' && value.text) {
+                        return String(value.text).trim();
+                    }
+                    // common direct keys
+                    if (typeof value.body === 'string' && value.body.trim()) {
+                        return value.body.trim();
+                    }
+                    if (typeof value.text === 'string' && value.text.trim() && typeVal === 'BODY') {
+                        return value.text.trim();
+                    }
+                    for (const k of Object.keys(value)) {
+                        const found = findBodyTextDeep(value[k]);
+                        if (found) return found;
+                    }
+                }
+                return '';
+            };
+
+            if (!componentsValue) return '';
+            let comps = componentsValue;
+            if (typeof comps === 'string') {
+                try { comps = JSON.parse(comps); } catch (e) { return ''; }
+            }
+            return findBodyTextDeep(comps);
+        };
+
+        const getPreviewText = (opt) => {
+            if (!opt || !opt.dataset) return '';
+            let body = (opt.dataset.body || '').trim();
+            if (body) return body;
+            return extractBodyFromComponents((opt.dataset.components || '').trim());
+        };
+
+        const updateFromSelected = () => {
+            const opt = selectEl.options[selectEl.selectedIndex];
+            const category = (opt && opt.dataset && opt.dataset.category) || '';
+            const body = getPreviewText(opt);
+            if (categoryEl) categoryEl.value = category;
+            if (previewEl) previewEl.value = body;
+            this.hasUnsavedChanges = true;
+        };
+
+        selectEl.onchange = updateFromSelected;
+
+        const selectedTemplateId = String(selectEl.dataset.selectedId || '').trim();
+        const selectedTemplateName = String(selectEl.dataset.selectedName || '').trim();
+        const selectedTemplateCategory = String(selectEl.dataset.selectedCategory || '').trim();
+        const selectedTemplateLang = String(selectEl.dataset.selectedLanguage || '').trim();
+        const selectedTemplateBody = String(selectEl.dataset.selectedBody || '').trim();
+
+        const chId = window.currentChannelId || (typeof window.getCurrentChannelId === 'function' && window.getCurrentChannelId());
+        if (!chId) {
+            selectEl.innerHTML = '<option value="">Select a channel first</option>';
+            if (categoryEl) categoryEl.value = selectedTemplateCategory;
+            if (previewEl) previewEl.value = selectedTemplateBody;
+            return;
+        }
+
+        try {
+            const url = `${this.apiBaseUrl}/api/template/?channel_id=${encodeURIComponent(chId)}`;
+            const resp = await this.apiGet(url);
+            const list = (resp && resp.templates) ? resp.templates : [];
+            selectEl.innerHTML = '';
+            const placeholder = document.createElement('option');
+            placeholder.value = '';
+            placeholder.textContent = list.length ? 'Select template...' : 'No templates found';
+            selectEl.appendChild(placeholder);
+
+            list.forEach(tpl => {
+                const opt = document.createElement('option');
+                opt.value = String(tpl.id || '');
+                opt.textContent = `${tpl.name || 'Template'}${tpl.status ? ` (${tpl.status})` : ''}`;
+                opt.dataset.language = tpl.language || '';
+                const derivedBody = (tpl.body || '').trim() || extractBodyFromComponents(tpl.components || []);
+                opt.dataset.body = derivedBody || '';
+                opt.dataset.category = tpl.category || '';
+                opt.dataset.components = JSON.stringify(tpl.components || []);
+                opt.dataset.name = tpl.name || '';
+                selectEl.appendChild(opt);
+            });
+
+            if (selectedTemplateId) {
+                selectEl.value = selectedTemplateId;
+            } else if (selectedTemplateName) {
+                const match = Array.from(selectEl.options).find(o => (o.dataset && o.dataset.name) === selectedTemplateName);
+                if (match) selectEl.value = match.value;
+            } else if (list.length > 0 && selectEl.options.length > 1) {
+                // Auto-select first template so preview is visible immediately.
+                selectEl.selectedIndex = 1;
+            }
+            updateFromSelected();
+        } catch (e) {
+            selectEl.innerHTML = '<option value="">Failed to load templates</option>';
+            if (categoryEl) categoryEl.value = selectedTemplateCategory;
+            if (previewEl) previewEl.value = selectedTemplateBody;
+        }
+    }
+
+    getButtonsPortAnchors(nodeElement) {
+        const fallback = { btn_1: 0.82, btn_2: 0.89, btn_3: 0.96 };
+        if (!nodeElement) return fallback;
+        const nodeHeight = nodeElement.clientHeight || 0;
+        if (!nodeHeight) return fallback;
+        const rows = Array.from(nodeElement.querySelectorAll('.buttons-reply-row'));
+        if (!rows.length) return fallback;
+        const out = {};
+        rows.slice(0, 3).forEach((row, idx) => {
+            const y = (row.offsetTop + (row.offsetHeight / 2)) / nodeHeight;
+            out[`btn_${idx + 1}`] = Math.max(0.05, Math.min(0.98, y));
+        });
+        return {
+            btn_1: out.btn_1 ?? fallback.btn_1,
+            btn_2: out.btn_2 ?? fallback.btn_2,
+            btn_3: out.btn_3 ?? fallback.btn_3,
+        };
+    }
+
+    refreshButtonsPortAnchors(nodeElement) {
+        if (!nodeElement || nodeElement.dataset.nodeType !== 'buttons-message' || !this.jsPlumbInstance) return;
+        const nodeId = nodeElement.id;
+        if (!nodeId) return;
+        const anchors = this.getButtonsPortAnchors(nodeElement);
+        const endpoints = this.jsPlumbInstance.getEndpoints(nodeId) || [];
+        endpoints.forEach(ep => {
+            const params = (ep.getParameters && ep.getParameters()) || {};
+            const port = params.port;
+            if (!port || !anchors[port]) return;
+            if (typeof ep.setAnchor === 'function') {
+                ep.setAnchor([1, anchors[port], 1, 0]);
+            }
+        });
+        this.jsPlumbInstance.revalidate(nodeId);
+        this.jsPlumbInstance.repaint(nodeId);
+    }
+
+    bindButtonsPortAutoAlign(nodeElement) {
+        if (!nodeElement || nodeElement.dataset.nodeType !== 'buttons-message') return;
+        const nodeId = nodeElement.id;
+        if (!nodeId) return;
+        const oldObs = this.buttonsPortObservers.get(nodeId);
+        if (oldObs) {
+            try { oldObs.resizeObserver && oldObs.resizeObserver.disconnect(); } catch (e) {}
+            try { oldObs.mutationObserver && oldObs.mutationObserver.disconnect(); } catch (e) {}
+        }
+        const schedule = () => {
+            if (nodeElement.dataset._btnPortRaf === '1') return;
+            nodeElement.dataset._btnPortRaf = '1';
+            requestAnimationFrame(() => {
+                nodeElement.dataset._btnPortRaf = '0';
+                this.refreshButtonsPortAnchors(nodeElement);
+            });
+        };
+        let resizeObserver = null;
+        if (typeof ResizeObserver !== 'undefined') {
+            resizeObserver = new ResizeObserver(() => schedule());
+            resizeObserver.observe(nodeElement);
+        }
+        const mutationObserver = new MutationObserver(() => schedule());
+        mutationObserver.observe(nodeElement, { childList: true, subtree: true, attributes: true });
+        this.buttonsPortObservers.set(nodeId, { resizeObserver, mutationObserver });
+        schedule();
+    }
+
 
     // دالة جديدة لتدمير النسخة وإعادة تهيئتها بالكامل
     resetJsPlumb() {
+        this.buttonsPortObservers.forEach((obs) => {
+            try { obs.resizeObserver && obs.resizeObserver.disconnect(); } catch (e) {}
+            try { obs.mutationObserver && obs.mutationObserver.disconnect(); } catch (e) {}
+        });
+        this.buttonsPortObservers.clear();
+        this._nodeGeometryObservers.forEach((ro) => {
+            try { ro.disconnect(); } catch (e) {}
+        });
+        this._nodeGeometryObservers.clear();
         if (this.jsPlumbInstance) {
             // 1. مسح كل شيء من الذاكرة
             this.jsPlumbInstance.reset(); 
@@ -2943,10 +4267,8 @@ this.connectionBranch = null;
             this.isLoadingFlow = true;
             this.currentFlowId = flowId;
           
-            console.log(`📥 Loading flow ID: ${flowId}`);
           
             const response = await this.apiGet(`/discount/whatssapAPI/api/flows/${flowId}/`);
-            console.log('📦 Flow data received:', response);
           
             if (response.item) {
                 this.currentFlowName = response.item.name;
@@ -3038,6 +4360,7 @@ this.connectionBranch = null;
             setTimeout(doRepaint, 50);
             setTimeout(doRepaint, 150);
             setTimeout(doRepaint, 400);
+            if (this.currentViewMode === 'schema') this.renderSchemaView();
           
             this.hideLoadingIndicator();
           
@@ -3118,7 +4441,6 @@ this.connectionBranch = null;
     // ==========================================
     async initializeAllNodes() {
         const nodes = document.querySelectorAll('.flow-node');
-        console.log(`🔧 Initializing ${nodes.length} nodes with jsPlumb...`);
       
         for (const node of nodes) {
             await this.initializeNodeSafe(node);
@@ -3148,6 +4470,9 @@ this.connectionBranch = null;
             try {
                 const sourceId = conn.source != null ? String(conn.source) : (conn.sourceId != null ? String(conn.sourceId) : '');
                 const targetId = conn.target != null ? String(conn.target) : (conn.targetId != null ? String(conn.targetId) : '');
+                const connData = (conn && conn.data) ? conn.data : {};
+                const sourcePort = (connData.source_port || connData.branch || '').toString().trim();
+                const isButtonPort = /^btn_[1-3]$/i.test(sourcePort);
                 if (!sourceId || !targetId) {
                     console.warn('❌ Connection missing source or target:', conn);
                     return resolve();
@@ -3163,11 +4488,34 @@ this.connectionBranch = null;
                     target: targetId
                 });
                 if (existingConnections && existingConnections.length > 0) {
-                    return resolve();
+                    // Allow same source->target for different button ports.
+                    const hasSamePort = existingConnections.some(existing => {
+                        const data = (existing.getData && existing.getData()) || {};
+                        const p = (data.source_port || data.branch || '').toString().trim();
+                        return p === sourcePort;
+                    });
+                    if (hasSamePort || !sourcePort) {
+                        return resolve();
+                    }
                 }
+                let sourceEndpoint = null;
+                if (sourcePort) {
+                    const eps = this.jsPlumbInstance.getEndpoints(sourceId) || [];
+                    sourceEndpoint = eps.find(ep => {
+                        const p = (ep.getParameters && ep.getParameters()) || {};
+                        return p.port === sourcePort;
+                    }) || null;
+                }
+                const btnColorByPort = {
+                    btn_1: '#22C55E',
+                    btn_2: '#16A34A',
+                    btn_3: '#15803D',
+                };
+                const lineColor = isButtonPort ? (btnColorByPort[sourcePort] || '#16A34A') : '#7C3AED';
                 const connection = this.jsPlumbInstance.connect({
                     source: sourceId,
                     target: targetId,
+                    ...(sourceEndpoint ? { sourceEndpoint } : {}),
                     anchors: ["RightMiddle", "LeftMiddle"],
                     endpoint: "Dot",
                     connector: ["Flowchart", {
@@ -3176,7 +4524,7 @@ this.connectionBranch = null;
                         cornerRadius: 5
                     }],
                     paintStyle: {
-                        stroke: "#7C3AED",
+                        stroke: lineColor,
                         strokeWidth: 2,
                         outlineStroke: "transparent",
                         outlineWidth: 10
@@ -3194,8 +4542,11 @@ this.connectionBranch = null;
                         }]
                     ]
                 });
-                if (connection && conn.data) {
-                    connection.setData(conn.data);
+                if (connection) {
+                    const nextData = Object.assign({}, connData);
+                    if (sourcePort && !nextData.source_port) nextData.source_port = sourcePort;
+                    if (isButtonPort && !nextData.branch) nextData.branch = sourcePort;
+                    connection.setData(nextData);
                 }
                 resolve();
             } catch (err) {
@@ -3233,13 +4584,55 @@ this.connectionBranch = null;
                     const mediaDelayInput = node.querySelector('.delay-input');
                     if (mediaDelayInput && content.delay !== undefined) mediaDelayInput.value = content.delay;
                     break;
+                case 'template-message': {
+                    const sel = node.querySelector('.template-message-select');
+                    const category = node.querySelector('.template-message-category');
+                    const preview = node.querySelector('.template-message-preview');
+                    const delay = node.querySelector('.delay-input');
+                    if (sel) {
+                        sel.dataset.selectedId = content.template_id != null ? String(content.template_id) : '';
+                        sel.dataset.selectedName = content.template_name || '';
+                        sel.dataset.selectedLanguage = content.language || '';
+                        sel.dataset.selectedCategory = content.category || '';
+                        sel.dataset.selectedBody = content.body || '';
+                    }
+                    if (category) category.value = content.category || '';
+                    if (preview) preview.value = content.body || '';
+                    if (delay && content.delay !== undefined) delay.value = content.delay;
+                    break;
+                }
                   
                 case 'buttons-message':
                     const messageTextarea = node.querySelector('.message-content');
                     if (messageTextarea && content.text) messageTextarea.value = content.text;
-                  
-                    const buttonsInput = node.querySelector('.buttons-list');
-                    if (buttonsInput && content.buttons) buttonsInput.value = content.buttons;
+                    const headerType = node.querySelector('.buttons-header-type');
+                    if (headerType && content.header_type !== undefined) headerType.value = content.header_type || '';
+                    const headerText = node.querySelector('.buttons-header-text');
+                    if (headerText && content.header_text) headerText.value = content.header_text;
+                    const headerMediaUrl = node.querySelector('.buttons-header-media-url');
+                    if (headerMediaUrl && content.header_media_url) headerMediaUrl.value = content.header_media_url;
+                    const footerText = node.querySelector('.buttons-footer-text');
+                    if (footerText && content.footer_text) footerText.value = content.footer_text;
+                    const noReplyCb = node.querySelector('.buttons-no-reply-followup');
+                    if (noReplyCb) noReplyCb.checked = !!content.no_reply_followup;
+
+                    const legacyButtons = (content.buttons || "").split(",").map(b => (b || "").trim()).filter(Boolean);
+                    const replyButtons = Array.isArray(content.reply_buttons) ? content.reply_buttons : legacyButtons;
+                    const b1 = node.querySelector('.buttons-reply-1');
+                    const b2 = node.querySelector('.buttons-reply-2');
+                    const b3 = node.querySelector('.buttons-reply-3');
+                    if (b1) b1.value = replyButtons[0] || "";
+                    if (b2) b2.value = replyButtons[1] || "";
+                    if (b3) b3.value = replyButtons[2] || "";
+
+                    const ctaLabel = node.querySelector('.buttons-cta-label');
+                    const ctaUrl = node.querySelector('.buttons-cta-url');
+                    if (ctaLabel && content.cta_label) ctaLabel.value = content.cta_label;
+                    if (ctaUrl && content.cta_url) ctaUrl.value = content.cta_url;
+                    const desiredType = (content.button_type || (content.cta_url ? "cta_url" : "reply"));
+                    const selectedRadio = node.querySelector(`.buttons-type-radio[value="${desiredType}"]`);
+                    if (selectedRadio) selectedRadio.checked = true;
+                    this.setupButtonsNodeUI(node);
                   
                     const buttonsDelayInput = node.querySelector('.delay-input');
                     if (buttonsDelayInput && content.delay !== undefined) buttonsDelayInput.value = content.delay;
@@ -3278,6 +4671,18 @@ this.connectionBranch = null;
                   
                     const methodSelect = node.querySelector('.webhook-method');
                     if (methodSelect && content.method) methodSelect.value = content.method;
+                    const payloadEl = node.querySelector('.webhook-payload');
+                    if (payloadEl && content.payload !== undefined && content.payload !== null) {
+                        if (typeof content.payload === 'string') {
+                            payloadEl.value = content.payload;
+                        } else {
+                            try {
+                                payloadEl.value = JSON.stringify(content.payload, null, 2);
+                            } catch (e) {
+                                payloadEl.value = '';
+                            }
+                        }
+                    }
                     break;
                   
                 case 'add-contact':
@@ -3296,7 +4701,13 @@ this.connectionBranch = null;
                     if (fieldsInput && content.fields) fieldsInput.value = content.fields;
                     break;
                   
-                case 'add-tags':
+                case 'add-tags': {
+                    const stageSelect = node.querySelector('.pipeline-stage-select');
+                    if (stageSelect) {
+                        stageSelect.value = content.pipeline_stage || content.tags || 'new';
+                    }
+                    break;
+                }
                 case 'remove-tags':
                     const tagsInput = node.querySelector('.tags-list');
                     if (tagsInput && content.tags) tagsInput.value = content.tags;
@@ -3345,12 +4756,29 @@ this.connectionBranch = null;
                     const nodeVoiceEl = node.querySelector('.ai-agent-node-voice-id');
                     if (nodeVoiceEl && content.node_voice_id !== undefined) nodeVoiceEl.value = content.node_voice_id || '';
                     const nodeLangEl = node.querySelector('.ai-agent-node-language');
-                    if (nodeLangEl && content.node_language !== undefined) nodeLangEl.value = content.node_language || '';
+                    if (nodeLangEl && content.node_language !== undefined) {
+                        const raw = (content.node_language || '').trim();
+                        const norm = typeof window.normalizeAiNodeLangCode === 'function'
+                            ? window.normalizeAiNodeLangCode(raw)
+                            : raw.replace(/-/g, '_').toUpperCase();
+                        if (!norm) {
+                            nodeLangEl.value = '';
+                        } else if ([...nodeLangEl.options].some(o => o.value === norm)) {
+                            nodeLangEl.value = norm;
+                        } else {
+                            const opt = document.createElement('option');
+                            opt.value = norm;
+                            opt.textContent = norm + ' (saved)';
+                            nodeLangEl.appendChild(opt);
+                            nodeLangEl.value = norm;
+                        }
+                    }
                     const nodeGenderEl = node.querySelector('.ai-agent-node-gender');
                     if (nodeGenderEl && content.node_gender !== undefined) nodeGenderEl.value = content.node_gender || '';
                     const voiceProviderEl = node.querySelector('.ai-agent-voice-provider');
                     if (voiceProviderEl && content.voice_provider) voiceProviderEl.value = content.voice_provider;
-                    if (node.querySelector('.ai-agent-persona-gallery-standard') && !node.querySelector('.ai-agent-persona-gallery-standard').dataset.loaded) window.loadAiAgentPersonaGalleries && window.loadAiAgentPersonaGalleries(node);
+                    const vgGrid = node.querySelector('.ai-agent-voice-gallery-grid');
+                    if (vgGrid && !vgGrid.dataset.loaded && typeof window.loadAiAgentVoiceGallery === 'function') window.loadAiAgentVoiceGallery(node);
                     if (typeof window.applyAiNodeVisibility === 'function') window.applyAiNodeVisibility(node);
                     const mediaListEl = node.querySelector('.ai-agent-media-list');
                     if (mediaListEl && Array.isArray(content.media)) {
@@ -3409,6 +4837,9 @@ this.connectionBranch = null;
                     if (captionEl && content.caption !== undefined) captionEl.value = content.caption || '';
                     const filePathEl = node.querySelector('.follow-up-file-path');
                     if (filePathEl && content.file_path !== undefined) filePathEl.value = content.file_path || '';
+                    if (typeof node._applyFollowUpPersonalizedVisibility === 'function') {
+                        node._applyFollowUpPersonalizedVisibility();
+                    }
                     break;
                 }
 
@@ -3426,6 +4857,27 @@ this.connectionBranch = null;
                             if (typeof window.__loadGoogleSheetsPreview === 'function') window.__loadGoogleSheetsPreview(node);
                         }
                     }
+                    break;
+                }
+
+                case 'upsell': {
+                    const upsellProductEl = node.querySelector('.upsell-product-select');
+                    const upsellPid = content.upsell_product_id != null ? String(content.upsell_product_id) : '';
+                    if (upsellPid && upsellProductEl) {
+                        if (typeof node._loadUpsellProducts === 'function') {
+                            node._loadUpsellProducts(node).then(() => {
+                                upsellProductEl.value = upsellPid;
+                            }).catch(() => {});
+                        } else {
+                            node.dataset.savedUpsellProductId = upsellPid;
+                        }
+                    }
+                    const upsellPriceEl = node.querySelector('.upsell-price');
+                    if (upsellPriceEl && content.upsell_price != null) upsellPriceEl.value = content.upsell_price;
+                    const pitchEl = node.querySelector('.upsell-pitch-prompt');
+                    if (pitchEl && content.pitch_prompt !== undefined) pitchEl.value = content.pitch_prompt || '';
+                    const upsellDelayEl = node.querySelector('.upsell-delay-seconds');
+                    if (upsellDelayEl && content.delay_seconds != null) upsellDelayEl.value = content.delay_seconds;
                     break;
                 }
                   
@@ -3560,11 +5012,14 @@ this.connectionBranch = null;
             nodes.push(nodeData);
         }
         const connections = this.jsPlumbInstance
-            ? this.jsPlumbInstance.getAllConnections().map(conn => ({
-                  source: conn.sourceId,
-                  target: conn.targetId,
-                  data: conn.getData() || {}
-              }))
+            ? this.jsPlumbInstance.getAllConnections().map(conn => {
+                  const data = conn.getData() || {};
+                  const srcEp = conn.endpoints && conn.endpoints[0];
+                  if (srcEp && srcEp.getParameters && srcEp.getParameters().port) {
+                      data.source_port = srcEp.getParameters().port;
+                  }
+                  return { source: conn.sourceId, target: conn.targetId, data };
+              })
             : [];
         return {
             nodes,
@@ -3576,6 +5031,164 @@ this.connectionBranch = null;
                 connectionCount: connections.length
             }
         };
+    }
+
+    setViewMode(mode = 'canvas') {
+        this.currentViewMode = mode === 'schema' ? 'schema' : 'canvas';
+        const isSchema = this.currentViewMode === 'schema';
+        if (this.schemaViewEl) this.schemaViewEl.classList.toggle('none', !isSchema);
+        if (this.flowCanvas) this.flowCanvas.classList.toggle('none', isSchema);
+        if (this.canvasViewBtn) this.canvasViewBtn.classList.toggle('active', !isSchema);
+        if (this.schemaViewBtn) this.schemaViewBtn.classList.toggle('active', isSchema);
+        if (isSchema) this.renderSchemaView();
+    }
+
+    _safeText(v) {
+        return String(v == null ? '' : v).replace(/[&<>"']/g, (m) => ({
+            '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+        }[m]));
+    }
+
+    _nodeSummary(nodeEl, nodeType) {
+        if (!nodeEl) return '';
+        if (nodeType === 'trigger') {
+            const mt = nodeEl.querySelector('.trigger-match-type')?.value || 'contains';
+            const kw = nodeEl.querySelector('.trigger-keywords')?.value?.trim() || '';
+            return mt === 'conversation_start' ? 'Start on conversation start' : `Keywords: ${kw || '—'}`;
+        }
+        if (nodeType === 'text-message') {
+            return nodeEl.querySelector('textarea')?.value?.trim() || 'Text message';
+        }
+        if (nodeType === 'media-message') {
+            const t = nodeEl.querySelector('.media-type')?.value || 'image';
+            const c = nodeEl.querySelector('textarea')?.value?.trim() || '';
+            return `${t.toUpperCase()}${c ? ` - ${c}` : ''}`;
+        }
+        if (nodeType === 'buttons-message') {
+            const body = nodeEl.querySelector('.message-content')?.value?.trim() || '';
+            const b = [
+                nodeEl.querySelector('.buttons-reply-1')?.value?.trim() || '',
+                nodeEl.querySelector('.buttons-reply-2')?.value?.trim() || '',
+                nodeEl.querySelector('.buttons-reply-3')?.value?.trim() || '',
+            ].filter(Boolean);
+            return `${body || 'Buttons message'}${b.length ? ` | Buttons: ${b.join(', ')}` : ''}`;
+        }
+        if (nodeType === 'condition') {
+            const v = nodeEl.querySelector('.condition-variable')?.value?.trim() || '';
+            const op = nodeEl.querySelector('.condition-operator')?.value || 'equals';
+            const val = nodeEl.querySelector('.condition-value')?.value?.trim() || '';
+            return `If ${v || 'field'} ${op} ${val || 'value'}`;
+        }
+        if (nodeType === 'template-message') {
+            const n = nodeEl.querySelector('.template-message-select')?.selectedOptions?.[0]?.dataset?.name
+                || nodeEl.querySelector('.template-message-select')?.selectedOptions?.[0]?.textContent
+                || 'Template';
+            const p = nodeEl.querySelector('.template-message-preview')?.value?.trim() || '';
+            return `${n}${p ? ` - ${p}` : ''}`;
+        }
+        if (nodeType === 'webhook') {
+            const m = nodeEl.querySelector('.webhook-method')?.value || 'POST';
+            const u = nodeEl.querySelector('.webhook-url')?.value?.trim() || '';
+            return `${m} ${u || '(missing URL)'}`;
+        }
+        if (nodeType === 'add-tags') {
+            const st = nodeEl.querySelector('.pipeline-stage-select')?.value || 'new';
+            return `Set Pipeline Stage -> ${st}`;
+        }
+        if (nodeType === 'delay') {
+            const d = nodeEl.querySelector('.delay-duration')?.value || '0';
+            return `Wait ${d} sec`;
+        }
+        return (nodeEl.querySelector('textarea,input,select')?.value || '').toString().trim() || nodeType;
+    }
+
+    renderSchemaView() {
+        if (!this.schemaViewContentEl) return;
+        const nodeEls = Array.from(document.querySelectorAll('.flow-node'));
+        if (!nodeEls.length) {
+            this.schemaViewContentEl.className = 'schema-empty';
+            this.schemaViewContentEl.textContent = 'No nodes to display.';
+            return;
+        }
+        const nodes = nodeEls.map(el => ({
+            id: el.id,
+            type: el.dataset.nodeType || 'text-message',
+            summary: this._nodeSummary(el, el.dataset.nodeType || 'text-message'),
+            x: parseInt(el.style.left, 10) || 0,
+            y: parseInt(el.style.top, 10) || 0,
+        }));
+        const nodeMap = new Map(nodes.map(n => [n.id, n]));
+        const connsRaw = this.jsPlumbInstance ? this.jsPlumbInstance.getAllConnections() : [];
+        const edges = connsRaw.map(c => {
+            const data = (c.getData && c.getData()) || {};
+            const branch = data.source_port || data.branch || '';
+            return { source: c.sourceId, target: c.targetId, branch };
+        });
+        const out = new Map();
+        const indeg = new Map(nodes.map(n => [n.id, 0]));
+        edges.forEach(e => {
+            if (!out.has(e.source)) out.set(e.source, []);
+            out.get(e.source).push(e);
+            indeg.set(e.target, (indeg.get(e.target) || 0) + 1);
+        });
+        let starts = nodes.filter(n => n.type === 'trigger');
+        if (!starts.length) starts = nodes.filter(n => (indeg.get(n.id) || 0) === 0);
+        if (!starts.length) starts = [nodes.sort((a, b) => a.y - b.y || a.x - b.x)[0]];
+
+        const visited = new Set();
+        const ordered = [];
+        const walk = (id) => {
+            if (!id || visited.has(id)) return;
+            visited.add(id);
+            const n = nodeMap.get(id);
+            if (!n) return;
+            ordered.push(n);
+            const next = (out.get(id) || []).slice().sort((a, b) => (a.branch || '').localeCompare(b.branch || ''));
+            next.forEach(e => walk(e.target));
+        };
+        starts.forEach(s => walk(s.id));
+        nodes.forEach(n => { if (!visited.has(n.id)) ordered.push(n); });
+
+        const steps = ordered.map((n) => {
+            const branches = (out.get(n.id) || []).map(e => {
+                const to = nodeMap.get(e.target);
+                const lbl = e.branch || 'next';
+                return `<div class="schema-branch-row"><span class="schema-branch-badge">${this._safeText(lbl)}</span><span>Go to: ${this._safeText(to ? `${to.type} (${to.id})` : e.target)}</span></div>`;
+            }).join('');
+            return `
+                <div class="schema-step" data-node-id="${this._safeText(n.id)}">
+                    <div class="schema-step-head">
+                        <div class="schema-step-kind">${this._safeText(n.type)}</div>
+                        <div class="schema-step-id">${this._safeText(n.id)}</div>
+                    </div>
+                    <div class="schema-step-text">${this._safeText(n.summary || '—')}</div>
+                    ${branches ? `<div class="schema-branches">${branches}</div>` : ''}
+                </div>
+            `;
+        }).join('');
+
+        this.schemaViewContentEl.className = '';
+        this.schemaViewContentEl.innerHTML = steps || '<div class="schema-empty">No nodes to display.</div>';
+    }
+
+    focusNodeInCanvas(nodeId) {
+        const node = document.getElementById(nodeId);
+        if (!node) return;
+        const container = this.flowCanvas ? this.flowCanvas.parentElement : null;
+        if (!container || !this.flowCanvas) return;
+        const w = container.clientWidth || 0;
+        const h = container.clientHeight || 0;
+        const x = (parseInt(node.style.left, 10) || 0) + (node.offsetWidth / 2);
+        const y = (parseInt(node.style.top, 10) || 0) + (node.offsetHeight / 2);
+        this.pan.x = (w / 2) - (x * this.zoomLevel);
+        this.pan.y = (h / 2) - (y * this.zoomLevel);
+        this.updateTransform();
+        node.classList.add('selected');
+        setTimeout(() => node.classList.remove('selected'), 1600);
+        if (this.jsPlumbInstance) {
+            this.jsPlumbInstance.revalidate(nodeId);
+            this.jsPlumbInstance.repaintEverything();
+        }
     }
 
     // ==========================================
@@ -3616,6 +5229,41 @@ this.connectionBranch = null;
                         content.media_url = "";
                     }
                     break;
+
+                case 'buttons-message':
+                    content.text = node.querySelector('.message-content')?.value?.trim() || '';
+                    content.header_type = node.querySelector('.buttons-header-type')?.value || '';
+                    content.header_text = node.querySelector('.buttons-header-text')?.value?.trim() || '';
+                    content.header_media_url = node.querySelector('.buttons-header-media-url')?.value?.trim() || '';
+                    content.footer_text = node.querySelector('.buttons-footer-text')?.value?.trim() || '';
+                    content.button_type = node.querySelector('.buttons-type-radio:checked')?.value || 'reply';
+                    content.reply_buttons = [
+                        node.querySelector('.buttons-reply-1')?.value?.trim() || '',
+                        node.querySelector('.buttons-reply-2')?.value?.trim() || '',
+                        node.querySelector('.buttons-reply-3')?.value?.trim() || '',
+                    ].filter(Boolean);
+                    content.buttons = content.reply_buttons.join(',');
+                    content.cta_label = node.querySelector('.buttons-cta-label')?.value?.trim() || '';
+                    content.cta_url = node.querySelector('.buttons-cta-url')?.value?.trim() || '';
+                    content.no_reply_followup = !!node.querySelector('.buttons-no-reply-followup')?.checked;
+                    content.delay = parseInt(node.querySelector('.delay-input')?.value) || 0;
+                    break;
+                case 'template-message': {
+                    const sel = node.querySelector('.template-message-select');
+                    const selected = sel ? sel.options[sel.selectedIndex] : null;
+                    content.template_id = sel && sel.value ? parseInt(sel.value, 10) : null;
+                    content.template_name = selected ? ((selected.dataset && selected.dataset.name) || selected.textContent || '') : '';
+                    content.language = (selected && selected.dataset ? selected.dataset.language : '')
+                        || 'ar';
+                    content.category = node.querySelector('.template-message-category')?.value?.trim()
+                        || (selected && selected.dataset ? selected.dataset.category : '')
+                        || '';
+                    content.body = node.querySelector('.template-message-preview')?.value?.trim()
+                        || (selected && selected.dataset ? selected.dataset.body : '')
+                        || '';
+                    content.delay = parseInt(node.querySelector('.delay-input')?.value) || 0;
+                    break;
+                }
                   
                 case 'condition':
                     content.variable = node.querySelector('.condition-variable')?.value?.trim() || '';
@@ -3652,7 +5300,12 @@ this.connectionBranch = null;
                     const spd = node.querySelector('.ai-agent-voice-speed')?.value;
                     content.voice_speed = spd != null ? parseFloat(spd) : null;
                     content.node_voice_id = node.querySelector('.ai-agent-node-voice-id')?.value?.trim() || '';
-                    content.node_language = node.querySelector('.ai-agent-node-language')?.value?.trim() || '';
+                    {
+                        const rawLang = node.querySelector('.ai-agent-node-language')?.value?.trim() || '';
+                        content.node_language = (typeof window.normalizeAiNodeLangCode === 'function'
+                            ? window.normalizeAiNodeLangCode(rawLang)
+                            : rawLang.replace(/-/g, '_').toUpperCase()) || '';
+                    }
                     content.node_gender = node.querySelector('.ai-agent-node-gender')?.value?.trim() || '';
                     content.voice_provider = node.querySelector('.ai-agent-voice-provider')?.value?.trim() || 'ELEVENLABS';
                     content.media = [];
@@ -3683,10 +5336,26 @@ this.connectionBranch = null;
                     content.send_all_data = node.querySelector('.google-sheets-send-all')?.checked !== false;
                     break;
                 }
+
+                case 'upsell': {
+                    const upsellProductVal = node.querySelector('.upsell-product-select')?.value;
+                    content.upsell_product_id = upsellProductVal ? parseInt(upsellProductVal, 10) : null;
+                    content.upsell_price = parseFloat(node.querySelector('.upsell-price')?.value) || null;
+                    content.pitch_prompt = node.querySelector('.upsell-pitch-prompt')?.value?.trim() || '';
+                    content.delay_seconds = parseInt(node.querySelector('.upsell-delay-seconds')?.value, 10) || 10;
+                    break;
+                }
                   
+                case 'add-tags':
+                    content.pipeline_stage = node.querySelector('.pipeline-stage-select')?.value || 'new';
+                    // keep legacy field for backward compatibility
+                    content.tags = content.pipeline_stage;
+                    break;
+
                 case 'webhook':
                     content.url = node.querySelector('.webhook-url')?.value?.trim() || '';
                     content.method = node.querySelector('.webhook-method')?.value || 'POST';
+                    content.payload = node.querySelector('.webhook-payload')?.value?.trim() || '';
                     break;
                   
                 default:
@@ -3981,7 +5650,7 @@ initializeZoom() {
         // زر إعادة التعيين: يعيدك للمنتصف
         if(btnReset) btnReset.onclick = () => {
             this.zoomLevel = 0.8;
-            this.pan = { x: 1, y:1 };
+            this.pan = { x: 0, y: 0 };
             this.updateTransform();
         };
 
@@ -4036,7 +5705,7 @@ initializeZoom() {
     toggleFullscreen() {
         const elem = document.getElementById('flow-builder-container');
         if (!document.fullscreenElement) {
-            elem.requestFullscreen().catch(err => console.log(err));
+            elem.requestFullscreen().catch(() => {});
         } else {
             document.exitFullscreen();
         }
@@ -4083,6 +5752,7 @@ initializeZoom() {
         this.nodeCounter = 0;
         this.updateStats();
         this.hasUnsavedChanges = false;
+        if (this.currentViewMode === 'schema') this.renderSchemaView();
         if (!silent) {
             this.showNotification('Canvas cleared successfully', 'success');
         }
@@ -4132,6 +5802,22 @@ initializeZoom() {
 
     removeNode(nodeId) {
         if (confirm('Are you sure you want to delete this node?')) {
+            const obs = this.buttonsPortObservers.get(nodeId);
+            if (obs) {
+                try { obs.resizeObserver && obs.resizeObserver.disconnect(); } catch (e) {}
+                try { obs.mutationObserver && obs.mutationObserver.disconnect(); } catch (e) {}
+                this.buttonsPortObservers.delete(nodeId);
+            }
+            const geoRo = this._nodeGeometryObservers.get(nodeId);
+            if (geoRo) {
+                try { geoRo.disconnect(); } catch (e) {}
+                this._nodeGeometryObservers.delete(nodeId);
+            }
+            const pendingGeoRaf = this._dragRepaintRaf.get(nodeId);
+            if (pendingGeoRaf) {
+                cancelAnimationFrame(pendingGeoRaf);
+                this._dragRepaintRaf.delete(nodeId);
+            }
             if (this.jsPlumbInstance) {
                 this.jsPlumbInstance.removeAllEndpoints(nodeId);
                 this.jsPlumbInstance.deleteConnectionsForElement(nodeId);
@@ -4144,6 +5830,7 @@ initializeZoom() {
             }
             this.hasUnsavedChanges = true;
             this.updateStats();
+            if (this.currentViewMode === 'schema') this.renderSchemaView();
             this.showNotification('Node deleted', 'success');
         }
     }
@@ -4222,21 +5909,40 @@ initializeZoom() {
     }
 
     createConnection(sourceId, targetId, branch = null) {
-        console.log('Creating connection fromb-----------', sourceId, 'to', targetId);
       
         if (!this.jsPlumbInstance) return;
         try {
+            let sourceEndpoint = null;
+            const isButtonBranch = typeof branch === 'string' && /^btn_[1-3]$/i.test(branch);
             const existing = this.jsPlumbInstance.getConnections({
                 source: sourceId,
                 target: targetId
-            });
-            if (existing && existing.length > 0) {
-                this.showNotification('Connection already exists', 'warning');
-                return;
+            }) || [];
+            if (existing.length > 0) {
+                if (!isButtonBranch) {
+                    this.showNotification('Connection already exists', 'warning');
+                    return;
+                }
+                const hasSameButtonBranch = existing.some(conn => {
+                    const data = (conn.getData && conn.getData()) || {};
+                    return data.source_port === branch || data.branch === branch;
+                });
+                if (hasSameButtonBranch) {
+                    this.showNotification('This button is already linked to this node', 'warning');
+                    return;
+                }
+            }
+            if (isButtonBranch) {
+                const eps = this.jsPlumbInstance.getEndpoints(sourceId) || [];
+                sourceEndpoint = eps.find(ep => {
+                    const p = (ep.getParameters && ep.getParameters()) || {};
+                    return p.port === branch;
+                }) || null;
             }
             const connection = this.jsPlumbInstance.connect({
                 source: sourceId,
                 target: targetId,
+                ...(sourceEndpoint ? { sourceEndpoint } : {}),
                 overlays: [
                     ["Arrow", {
                         location: 1,
@@ -4257,7 +5963,11 @@ initializeZoom() {
             });
             if (connection) {
                 if (branch) {
-                    connection.setData({ branch: branch });
+                    const nextData = { branch: branch };
+                    if (isButtonBranch) {
+                        nextData.source_port = branch;
+                    }
+                    connection.setData(nextData);
                 }
                 this.showNotification('Connection created successfully', 'success');
                 this.updateStats();
@@ -4408,9 +6118,7 @@ initializeZoom() {
             if (typeof jsPlumb !== 'undefined') {
                 flowBuilder = new FlowBuilder();
                 window.flowBuilder = flowBuilder;
-                console.log('✅ FlowBuilder initialized successfully');
             } else {
-                console.log('⏳ Waiting for jsPlumb to load...');
                 setTimeout(initializeFlowBuilder, 100);
             }
         }
@@ -4877,17 +6585,19 @@ initializeZoom() {
   border: 1px solid rgba(255,255,255,0.08);
   border-radius: 12px;
 }
-.ai-agent-persona-gallery {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
-  gap: 10px;
-  max-height: 220px;
+/* Voice Gallery: horizontal rows (list) */
+.ai-agent-voice-gallery-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 320px;
   overflow-y: auto;
   overflow-x: hidden;
+  padding: 2px 0;
 }
-.ai-agent-persona-gallery::-webkit-scrollbar { width: 6px; }
-.ai-agent-persona-gallery::-webkit-scrollbar-track { background: rgba(255,255,255,0.05); border-radius: 3px; }
-.ai-agent-persona-gallery::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.15); border-radius: 3px; }
+.ai-agent-voice-gallery-grid::-webkit-scrollbar { width: 6px; }
+.ai-agent-voice-gallery-grid::-webkit-scrollbar-track { background: rgba(255,255,255,0.05); border-radius: 3px; }
+.ai-agent-voice-gallery-grid::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.15); border-radius: 3px; }
 .persona-premium-banner {
   display: flex;
   align-items: center;
@@ -4901,65 +6611,177 @@ initializeZoom() {
   border-radius: 8px;
 }
 .persona-premium-icon { font-size: 1rem; }
-/* —— Persona cards (injected by JS) —— */
-.ai-agent-persona-card {
-  border: 1px solid rgba(255,255,255,0.1);
-  border-radius: 12px;
-  padding: 12px;
+/* —— Voice Gallery rows (injected by JS) —— */
+.ai-agent-voice-gallery-grid .ai-agent-persona-card.ai-agent-voice-row {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 10px;
+  border-radius: 10px;
+  border: 1px solid rgba(255,255,255,0.08);
+  background: rgba(255,255,255,0.03);
   cursor: pointer;
-  text-align: center;
-  transition: border-color 0.2s, background 0.2s, box-shadow 0.2s;
-  background: rgba(255,255,255,0.04);
-  position: relative;
+  text-align: left;
+  transition: border-color 0.2s, background 0.2s;
+  min-height: 56px;
+  min-width: 0;
 }
-.ai-agent-persona-card:hover {
-  border-color: rgba(77, 113, 171, 0.5);
-  background: rgba(77, 113, 171, 0.12);
-  box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+.ai-agent-voice-gallery-grid .ai-agent-voice-row:hover {
+  border-color: rgba(77, 113, 171, 0.45);
+  background: rgba(255,255,255,0.06);
 }
-.ai-agent-persona-card.selected {
+.ai-agent-voice-gallery-grid .ai-agent-voice-row.selected {
   border-color: #4d71ab;
-  background: rgba(77, 113, 171, 0.2);
-  box-shadow: 0 0 0 1px #4d71ab;
+  background: rgba(77, 113, 171, 0.18);
+  box-shadow: 0 0 0 1px rgba(77, 113, 171, 0.35);
 }
-.ai-agent-persona-card .name {
+.ai-agent-voice-row-avatar-wrap {
+  position: relative;
+  flex-shrink: 0;
+  width: 40px;
+  height: 40px;
+}
+.ai-agent-voice-row-avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 0.95rem;
+  color: #fff;
+  text-shadow: 0 1px 2px rgba(0,0,0,0.35);
+  border: 1px solid rgba(255,255,255,0.12);
+}
+.ai-agent-voice-row-check {
+  position: absolute;
+  top: -2px;
+  right: -2px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #0f172a;
+  border: 1px solid rgba(255,255,255,0.2);
+  color: #fff;
+  font-size: 0.55rem;
+  line-height: 14px;
+  text-align: center;
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+.ai-agent-voice-row.selected .ai-agent-voice-row-check {
+  opacity: 1;
+}
+.ai-agent-voice-row-main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.ai-agent-voice-row-dialect-badge {
+  display: inline-block;
+  font-size: 0.65rem;
   font-weight: 600;
-  font-size: 0.8rem;
-  color: #e2e8f0;
-  margin-bottom: 6px;
-  line-height: 1.3;
-  min-height: 2.6em;
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
+  margin-left: 8px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+  color: #a8c4e0;
+  vertical-align: middle;
 }
-.ai-agent-persona-card .desc {
-  font-size: 0.7rem;
+.ai-agent-voice-row-title {
+  font-weight: 600;
+  font-size: 0.78rem;
+  color: #f1f5f9;
+  line-height: 1.3;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.ai-agent-voice-row-sub {
+  font-size: 0.65rem;
   color: #94a3b8;
-  margin-bottom: 10px;
   line-height: 1.35;
   display: -webkit-box;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
-.ai-agent-persona-card .play-btn {
+.ai-agent-voice-row-lang {
+  flex-shrink: 0;
+  width: 88px;
+  text-align: left;
+}
+.ai-agent-voice-row-lang-flag {
   font-size: 0.7rem;
-  padding: 5px 10px;
-  border-radius: 6px;
-  border: 1px solid rgba(255,255,255,0.2);
+  margin-right: 4px;
+}
+.ai-agent-voice-row-lang-top {
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: #e2e8f0;
+  line-height: 1.3;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.ai-agent-voice-row-lang-sub {
+  font-size: 0.6rem;
+  color: #64748b;
+  margin-top: 1px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.ai-agent-voice-row-cat {
+  flex-shrink: 0;
+  width: 72px;
+  font-size: 0.68rem;
+  color: #cbd5e1;
+  text-align: right;
+  line-height: 1.25;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.ai-agent-voice-row-play {
+  flex-shrink: 0;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  border-radius: 8px;
+  border: 1px solid rgba(255,255,255,0.15);
   background: rgba(255,255,255,0.06);
   color: #94a3b8;
   cursor: pointer;
-  transition: background 0.2s, color 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.2s, color 0.2s, border-color 0.2s;
 }
-.ai-agent-persona-card .play-btn:hover {
-  background: rgba(77, 113, 171, 0.3);
-  color: #e2e8f0;
+.ai-agent-voice-row-play:hover {
+  background: rgba(77, 113, 171, 0.35);
+  color: #f1f5f9;
   border-color: #4d71ab;
 }
+.ai-agent-voice-row-play.is-playing {
+  border-color: #4d71ab;
+  background: rgba(77, 113, 171, 0.28);
+  color: #f1f5f9;
+}
+.ai-agent-voice-row-play i {
+  font-size: 0.75rem;
+  margin-left: 2px;
+}
 /* Empty state when no personas / no cloned voices */
+.ai-agent-voice-gallery-grid > .persona-gallery-empty {
+  grid-column: unset;
+  width: 100%;
+}
 .persona-gallery-empty {
   grid-column: 1 / -1;
   display: flex;
@@ -5015,12 +6837,141 @@ initializeZoom() {
     return (typeof window.currentChannelId !== 'undefined' && window.currentChannelId) || (document.querySelector('[data-current-channel-id]') && document.querySelector('[data-current-channel-id]').getAttribute('data-current-channel-id')) || '';
   }
 
-  /** OpenAI tts-1 voice_id -> gender (for filtering) */
-  var OPENAI_VOICE_GENDER = { alloy: 'MALE', onyx: 'MALE', nova: 'FEMALE', shimmer: 'FEMALE', echo: 'MALE', fable: 'MALE' };
+  /** Normalize locale to match VoicePersona.language_code (AR_MA, FR_FR, …). Accepts ar-ma or AR_MA. */
+  window.normalizeAiNodeLangCode = function(raw) {
+    if (raw == null) return '';
+    var s = String(raw).trim();
+    if (!s) return '';
+    return s.replace(/-/g, '_').toUpperCase();
+  };
+
+  /** Normalize language_code from DB for comparisons. */
+  window.normVoiceLangCode = function(s) {
+    if (s == null) return '';
+    return String(s).trim().replace(/-/g, '_').toUpperCase();
+  };
+
+  /**
+   * Sort key for Voice Gallery when a locale is selected (lower = earlier):
+   * 0 = exact match (e.g. AR_MA when filter is AR_MA)
+   * 1 = language-only code (e.g. AR) matching that family
+   * 2 = other regional variants (AR_SA, AR_EG when filter is AR_MA)
+   * 99 = no language_code in DB (legacy rows)
+   */
+  window.voiceLocaleSortRank = function(voiceLangRaw, selectedNorm) {
+    if (!selectedNorm) return 0;
+    var vl = window.normVoiceLangCode(voiceLangRaw);
+    var sel = window.normVoiceLangCode(selectedNorm);
+    if (!vl) return 99;
+    if (vl === 'MULTILINGUAL') return 3;
+    if (vl === sel) return 0;
+    var vp = vl.split('_');
+    var sp = sel.split('_');
+    if (!vp[0] || !sp[0] || vp[0] !== sp[0]) return 50;
+    if (vp.length === 1) return 1;
+    return 2;
+  };
+
+  /**
+   * Voice row matches selected locale using DB language_code (exact, generic e.g. AR, or same family AR_*).
+   * If language_code is empty, uses tags + native_arabic (legacy).
+   */
+  window.galleryVoiceMatchesLocale = function(card, selectedLangNorm) {
+    if (!selectedLangNorm) return true;
+    var vl = window.normVoiceLangCode(card.dataset.languageCode);
+    if (vl) {
+      if (vl === 'MULTILINGUAL') return true;
+      var sel = window.normVoiceLangCode(selectedLangNorm);
+      if (vl === sel) return true;
+      var vp = vl.split('_');
+      var sp = sel.split('_');
+      if (vp[0] && sp[0] && vp[0] === sp[0]) return true;
+      return false;
+    }
+    var tags = (card.dataset.tagsLower || '');
+    var nativeAr = card.dataset.nativeArabic === '1';
+    if (selectedLangNorm.indexOf('AR_') === 0) {
+      return nativeAr || tags.indexOf('arabic') !== -1;
+    }
+    if (selectedLangNorm.indexOf('FR_') === 0) {
+      return !tags || tags.indexOf('french') !== -1 || tags.indexOf('multilingual') !== -1;
+    }
+    if (selectedLangNorm.indexOf('EN_') === 0) {
+      return !tags || tags.indexOf('english') !== -1 || tags.indexOf('multilingual') !== -1;
+    }
+    if (selectedLangNorm.indexOf('ES_') === 0) {
+      return !tags || tags.indexOf('spanish') !== -1 || tags.indexOf('multilingual') !== -1;
+    }
+    if (selectedLangNorm.indexOf('DE_') === 0) {
+      return !tags || tags.indexOf('german') !== -1 || tags.indexOf('multilingual') !== -1;
+    }
+    if (selectedLangNorm.indexOf('IT_') === 0) {
+      return !tags || tags.indexOf('italian') !== -1 || tags.indexOf('multilingual') !== -1;
+    }
+    return true;
+  };
+
+  /** Language column: primary language + region from DB `language_code`. */
+  window.voiceGalleryRowLangParts = function(code) {
+    var c = typeof window.normVoiceLangCode === 'function' ? window.normVoiceLangCode(code) : String(code || '').trim().replace(/-/g, '_').toUpperCase();
+    var LANG = { AR: 'Arabic', FR: 'French', EN: 'English', ES: 'Spanish', DE: 'German', IT: 'Italian' };
+    var REGION = {
+      MA: 'Morocco (Moroccan Darija)',
+      SA: 'Saudi Arabia (Saudi Arabic)',
+      AE: 'UAE (Gulf Arabic)',
+      EG: 'Egypt (Egyptian Arabic)',
+      FR: 'France',
+      US: 'United States',
+      GB: 'United Kingdom',
+      ES: 'Spain',
+      DE: 'Germany',
+      IT: 'Italy'
+    };
+    var FLAG = { MA: '\uD83C\uDDF2\uD83C\uDDE6', SA: '\uD83C\uDDF8\uD83C\uDDE6', AE: '\uD83C\uDDE6\uD83C\uDDEA', EG: '\uD83C\uDDEA\uD83C\uDDEC', FR: '\uD83C\uDDEB\uD83C\uDDF7', US: '\uD83C\uDDFA\uD83C\uDDF8', GB: '\uD83C\uDDEC\uD83C\uDDE7', ES: '\uD83C\uDDEA\uD83C\uDDF8', DE: '\uD83C\uDDE9\uD83C\uDDEA', IT: '\uD83C\uDDEE\uD83C\uDDF9' };
+    if (!c) return { top: '\u2014', sub: '', flag: '' };
+    var p = c.split('_');
+    var langName = LANG[p[0]] || p[0];
+    var sub = p.length >= 2 ? (REGION[p[1]] || p[1]) : 'All regions';
+    var flag = (p.length >= 2 && FLAG[p[1]]) ? FLAG[p[1]] : '';
+    return { top: langName, sub: sub, flag: flag };
+  };
+
+  window.voiceGalleryAvatarGradient = function(seed) {
+    var s = String(seed || 'x');
+    var h = 216;
+    for (var i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) % 360;
+    var h2 = (h + 42) % 360;
+    return 'linear-gradient(135deg, hsl(' + h + ',52%,38%), hsl(' + h2 + ',48%,24%))';
+  };
+
+  window.voiceGalleryEsc = function(s) {
+    return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  };
+
+  /** Keep gallery cards in voiceLocaleSortRank order (exact locale → generic language → other regions → legacy). */
+  window.reorderAiAgentVoiceGalleryCards = function(node, selectedLangNorm) {
+    var grid = node && node.querySelector('.ai-agent-voice-gallery-grid');
+    if (!grid || !selectedLangNorm) return;
+    var cards = Array.prototype.slice.call(grid.querySelectorAll('.ai-agent-persona-card'));
+    if (cards.length < 2) return;
+    cards.sort(function(a, b) {
+      var ra = typeof window.voiceLocaleSortRank === 'function'
+        ? window.voiceLocaleSortRank(a.dataset.languageCode || '', selectedLangNorm)
+        : 0;
+      var rb = typeof window.voiceLocaleSortRank === 'function'
+        ? window.voiceLocaleSortRank(b.dataset.languageCode || '', selectedLangNorm)
+        : 0;
+      if (ra !== rb) return ra - rb;
+      var na = (a.querySelector('.ai-agent-voice-row-title') && a.querySelector('.ai-agent-voice-row-title').textContent) || '';
+      var nb = (b.querySelector('.ai-agent-voice-row-title') && b.querySelector('.ai-agent-voice-row-title').textContent) || '';
+      return na.localeCompare(nb);
+    });
+    cards.forEach(function(c) { grid.appendChild(c); });
+  };
 
   /**
    * Apply conditional visibility for AI Node: response_mode, provider, gender.
-   * Call on load, when response_mode/voice_provider/gender change, and after persona gallery load.
+   * Call on load, when response_mode/voice_provider/gender change, and after Voice Gallery load.
    */
   window.applyAiNodeVisibility = function(node) {
     if (!node || !node.querySelector) return;
@@ -5031,11 +6982,16 @@ initializeZoom() {
     var slidersWrap = node.querySelector('.ai-agent-voice-sliders-wrap');
     var openaiNote = node.querySelector('.ai-agent-openai-note');
     var noVoicesMsg = node.querySelector('.ai-agent-no-voices-msg');
-    var personaIdInput = node.querySelector('.ai-agent-persona-id');
+    var nodeVoiceHidden = node.querySelector('.ai-agent-node-voice-id');
+    var langEl = node.querySelector('.ai-agent-node-language');
+    var elLabsWrap = node.querySelector('.ai-agent-voice-gallery-wrap');
+    var openaiRow = node.querySelector('.ai-agent-openai-voice-row');
+    var openaiSel = node.querySelector('.ai-agent-openai-voice');
 
     var responseMode = (responseModeEl && responseModeEl.value) ? responseModeEl.value : 'TEXT_ONLY';
     var provider = (providerEl && providerEl.value) ? providerEl.value.trim().toUpperCase() : 'ELEVENLABS';
     var gender = (genderEl && genderEl.value) ? genderEl.value.trim() : '';
+    var selectedLangNorm = (langEl && langEl.value) ? window.normalizeAiNodeLangCode(langEl.value) : '';
 
     // Level 1: Response mode -> hide/show entire Voice Settings (Language stays visible)
     if (voiceSection) {
@@ -5058,125 +7014,293 @@ initializeZoom() {
       openaiNote.style.display = provider === 'OPENAI' ? 'block' : 'none';
     }
 
-    // Level 3: Filter persona cards by provider + gender; reset selection if invalid
-    var cards = node.querySelectorAll('.ai-agent-persona-card');
+    if (elLabsWrap) elLabsWrap.style.display = provider === 'ELEVENLABS' ? 'block' : 'none';
+    if (openaiRow) openaiRow.style.display = provider === 'OPENAI' ? 'block' : 'none';
+
+    if (provider === 'OPENAI') {
+      if (typeof window.stopAiAgentVoiceGalleryPreview === 'function') window.stopAiAgentVoiceGalleryPreview();
+      if (openaiSel && nodeVoiceHidden) {
+        var hv = (nodeVoiceHidden.value || '').trim();
+        if (hv && [].some.call(openaiSel.options, function(o) { return o.value === hv; })) {
+          openaiSel.value = hv;
+        } else if (!hv) {
+          openaiSel.value = 'alloy';
+          nodeVoiceHidden.value = openaiSel.value;
+        } else {
+          nodeVoiceHidden.value = openaiSel.value;
+        }
+      }
+      if (noVoicesMsg) noVoicesMsg.style.display = 'none';
+      return;
+    }
+
+    // Level 3 (ElevenLabs): Voice Gallery cards — gender + locale; order: exact locale → generic (e.g. AR) → other regions → legacy
+    var cards = node.querySelectorAll('.ai-agent-voice-gallery-grid .ai-agent-persona-card');
     var visibleCount = 0;
-    var firstVisibleId = null;
     cards.forEach(function(card) {
-      var cardProvider = (card.dataset.provider || 'ELEVENLABS').toUpperCase();
       var cardGender = (card.dataset.gender || '').trim();
-      var providerMatch = cardProvider === provider;
       var genderMatch = !gender || !cardGender || cardGender === gender;
-      var show = providerMatch && genderMatch;
+      var langMatch = typeof window.galleryVoiceMatchesLocale === 'function'
+        ? window.galleryVoiceMatchesLocale(card, selectedLangNorm)
+        : true;
+      var show = genderMatch && langMatch;
       if (show) {
         card.classList.remove('ai-agent-persona-filtered-out');
         visibleCount++;
-        if (firstVisibleId === null) firstVisibleId = card.dataset.personaId;
       } else {
         card.classList.add('ai-agent-persona-filtered-out');
       }
     });
-    if (personaIdInput && visibleCount > 0) {
-      var currentId = personaIdInput.value ? parseInt(personaIdInput.value, 10) : null;
-      var currentCard = node.querySelector('.ai-agent-persona-card.selected');
+    if (selectedLangNorm && typeof window.reorderAiAgentVoiceGalleryCards === 'function') {
+      window.reorderAiAgentVoiceGalleryCards(node, selectedLangNorm);
+    }
+    if (nodeVoiceHidden && visibleCount > 0) {
+      var currentVid = (nodeVoiceHidden.value || '').trim();
+      var currentCard = node.querySelector('.ai-agent-voice-gallery-grid .ai-agent-persona-card.selected');
       var currentStillVisible = currentCard && !currentCard.classList.contains('ai-agent-persona-filtered-out');
-      if (currentId && !currentStillVisible) {
-        personaIdInput.value = firstVisibleId || '';
-        node.querySelectorAll('.ai-agent-persona-card').forEach(function(c) { c.classList.remove('selected'); });
-        var firstCard = node.querySelector('.ai-agent-persona-card:not(.ai-agent-persona-filtered-out)');
-        if (firstCard) firstCard.classList.add('selected');
+      if (currentVid && !currentStillVisible) {
+        var firstCard = node.querySelector('.ai-agent-voice-gallery-grid .ai-agent-persona-card:not(.ai-agent-persona-filtered-out)');
+        node.querySelectorAll('.ai-agent-voice-gallery-grid .ai-agent-persona-card').forEach(function(c) { c.classList.remove('selected'); });
+        if (firstCard) {
+          firstCard.classList.add('selected');
+          nodeVoiceHidden.value = firstCard.dataset.voiceId || '';
+        } else {
+          nodeVoiceHidden.value = '';
+        }
       }
     }
+    if (visibleCount === 0 && nodeVoiceHidden) nodeVoiceHidden.value = '';
     if (noVoicesMsg) {
       noVoicesMsg.style.display = visibleCount === 0 ? 'flex' : 'none';
     }
   };
 
-  window.loadAiAgentPersonaGalleries = function(node) {
-    var stdGallery = node && node.querySelector('.ai-agent-persona-gallery-standard');
-    var myGallery = node && node.querySelector('.ai-agent-persona-gallery-my');
-    var personaIdInput = node && node.querySelector('.ai-agent-persona-id');
-    var selectedId = personaIdInput ? (personaIdInput.value ? parseInt(personaIdInput.value, 10) : null) : null;
-    if (!stdGallery) return;
-    var base = (typeof window.location !== 'undefined' && window.location.origin) ? window.location.origin : '';
-    var apiBase = base + '/discount/whatssapAPI';
-    fetch(apiBase + '/api/personas/')
+  /** Single active preview for AI node voice rows: one at a time; second click on same play = stop. */
+  var _aiVoicePreview = { audio: null, blobUrl: null, playBtn: null, pendingBtn: null, reqSeq: 0 };
+
+  window.stopAiAgentVoiceGalleryPreview = function() {
+    _aiVoicePreview.reqSeq = (_aiVoicePreview.reqSeq || 0) + 1;
+    if (_aiVoicePreview.pendingBtn) {
+      try {
+        _aiVoicePreview.pendingBtn.disabled = false;
+        var pi = _aiVoicePreview.pendingBtn.querySelector('i');
+        if (pi) pi.className = 'fas fa-play';
+        _aiVoicePreview.pendingBtn.classList.remove('is-playing');
+      } catch (e) {}
+      _aiVoicePreview.pendingBtn = null;
+    }
+    if (_aiVoicePreview.audio) {
+      try {
+        _aiVoicePreview.audio.pause();
+        _aiVoicePreview.audio.currentTime = 0;
+        _aiVoicePreview.audio.removeAttribute('src');
+        _aiVoicePreview.audio.load();
+      } catch (e) {}
+      _aiVoicePreview.audio = null;
+    }
+    if (_aiVoicePreview.blobUrl) {
+      try { URL.revokeObjectURL(_aiVoicePreview.blobUrl); } catch (e) {}
+      _aiVoicePreview.blobUrl = null;
+    }
+    if (_aiVoicePreview.playBtn) {
+      var btn = _aiVoicePreview.playBtn;
+      var icon = btn.querySelector('i');
+      if (icon) icon.className = 'fas fa-play';
+      btn.classList.remove('is-playing');
+      btn.setAttribute('aria-label', 'Play sample');
+      btn.setAttribute('title', 'Play sample');
+      _aiVoicePreview.playBtn = null;
+    }
+  };
+
+  window.loadAiAgentVoiceGallery = function(node) {
+    var grid = node && node.querySelector('.ai-agent-voice-gallery-grid');
+    if (!grid) return;
+    var provEl = node.querySelector('.ai-agent-voice-provider');
+    if (provEl && provEl.value === 'OPENAI') {
+      if (typeof window.stopAiAgentVoiceGalleryPreview === 'function') window.stopAiAgentVoiceGalleryPreview();
+      return;
+    }
+    var nodeVoiceHidden = node.querySelector('.ai-agent-node-voice-id');
+    var selectedVid = nodeVoiceHidden ? (nodeVoiceHidden.value || '').trim() : '';
+    var apiBase = (typeof window.flowBuilder !== 'undefined' && window.flowBuilder.apiBaseUrl) ? window.flowBuilder.apiBaseUrl : '/discount/whatssapAPI';
+    var listUrl = apiBase + '/api/voice-gallery/list/';
+    var previewUrl = apiBase + '/api/voice-gallery/preview/';
+    var csrf = (document.querySelector('[name=csrfmiddlewaretoken]') && document.querySelector('[name=csrfmiddlewaretoken]').value) || '';
+    var chId = getChannelId();
+    var formData = new FormData();
+    formData.append('channel_id', chId);
+    formData.append('csrfmiddlewaretoken', csrf);
+    fetch(listUrl, { method: 'POST', body: formData, credentials: 'same-origin' })
       .then(function(r) { return r.json(); })
       .then(function(data) {
-        if (!data.success) return;
-        function renderCard(p) {
+        if (data.status !== 'success') {
+          grid.dataset.loaded = '1';
+          grid.innerHTML = '<div class="persona-gallery-empty"><span class="persona-gallery-empty-icon">⚠️</span><p class="persona-gallery-empty-text">' + (data.message || 'Could not load Voice Gallery.') + '</p></div>';
+          return;
+        }
+        if (typeof window.stopAiAgentVoiceGalleryPreview === 'function') window.stopAiAgentVoiceGalleryPreview();
+        grid.innerHTML = '';
+        var langElLoad = node.querySelector('.ai-agent-node-language');
+        var selectedLangForSort = (langElLoad && langElLoad.value) ? window.normalizeAiNodeLangCode(langElLoad.value) : '';
+        var voices = data.voices || [];
+        if (selectedLangForSort) {
+          voices = voices.slice().sort(function(a, b) {
+            var ra = typeof window.voiceLocaleSortRank === 'function'
+              ? window.voiceLocaleSortRank(a.language_code || '', selectedLangForSort)
+              : 0;
+            var rb = typeof window.voiceLocaleSortRank === 'function'
+              ? window.voiceLocaleSortRank(b.language_code || '', selectedLangForSort)
+              : 0;
+            if (ra !== rb) return ra - rb;
+            var na = (a.label || a.name || '').toString();
+            var nb = (b.label || b.name || '').toString();
+            return na.localeCompare(nb);
+          });
+        }
+        voices.forEach(function(v) {
+          var vid = (v.voice_id || v.id || '').trim();
+          if (!vid) return;
           var card = document.createElement('div');
-          card.className = 'ai-agent-persona-card';
-          card.dataset.personaId = p.id;
-          card.dataset.provider = (p.provider || 'ELEVENLABS').toUpperCase();
-          var voiceId = (p.voice_id || '').toLowerCase();
-          if (card.dataset.provider === 'OPENAI' && OPENAI_VOICE_GENDER[voiceId]) card.dataset.gender = OPENAI_VOICE_GENDER[voiceId];
-          else if (p.gender) card.dataset.gender = (p.gender || '').toUpperCase();
-          if (selectedId === p.id) card.classList.add('selected');
-          card.innerHTML = '<div class="name">' + (p.name || '') + '</div><div class="desc">' + (p.description || '').substring(0, 60) + '</div><button type="button" class="btn btn-sm btn-outline-secondary play-btn ai-agent-play-sample">Play</button>';
-          card.querySelector('.ai-agent-play-sample').addEventListener('click', function(e) {
-            e.preventDefault();
-            e.stopPropagation();
-            var chId = getChannelId();
-            var form = new FormData();
-            form.append('persona_id', p.id);
-            form.append('channel_id', chId);
-            form.append('text', 'مرحبا كيف اساعدك ');
-            fetch(apiBase + '/api/preview-voice/', { method: 'POST', body: form, credentials: 'same-origin', headers: { 'X-CSRFToken': (document.querySelector('[name=csrfmiddlewaretoken]') && document.querySelector('[name=csrfmiddlewaretoken]').value) || '' } })
-              .then(function(res) {
-                if (!res.ok) return res.json().then(function(j) { alert(j.message || 'Preview failed'); });
-                return res.blob();
-              })
-              .then(function(blob) {
-                if (!blob) return;
-                var url = URL.createObjectURL(blob);
-                var audio = new Audio(url);
-                audio.play();
-                audio.onended = function() { URL.revokeObjectURL(url); };
-              });
-          });
-          card.addEventListener('click', function(e) {
-            if (e.target.classList.contains('ai-agent-play-sample')) return;
-            node.querySelectorAll('.ai-agent-persona-card').forEach(function(c) { c.classList.remove('selected'); });
-            card.classList.add('selected');
-            if (personaIdInput) personaIdInput.value = p.id;
-          });
-          return card;
-        }
-        stdGallery.innerHTML = '';
-        var standardList = data.standard_agents || [];
-        standardList.forEach(function(p) {
-          stdGallery.appendChild(renderCard(p));
-        });
-        if (standardList.length === 0) {
-          var emptyStd = document.createElement('div');
-          emptyStd.className = 'persona-gallery-empty';
-          emptyStd.innerHTML = '<span class="persona-gallery-empty-icon">👤</span><p class="persona-gallery-empty-text">No standard agents found.</p>';
-          stdGallery.appendChild(emptyStd);
-        }
-        stdGallery.dataset.loaded = '1';
-        if (myGallery) {
-          myGallery.innerHTML = '';
-          var myList = data.my_voices || [];
-          myList.forEach(function(p) {
-            myGallery.appendChild(renderCard(p));
-          });
-          if (myList.length === 0) {
-            var emptyMy = document.createElement('div');
-            emptyMy.className = 'persona-gallery-empty';
-            emptyMy.innerHTML = '<span class="persona-gallery-empty-icon">🎙</span><p class="persona-gallery-empty-text">No cloned voices found.</p><p class="persona-gallery-empty-hint">Clone your voice in Settings → Automation → Voice Identity.</p>';
-            myGallery.appendChild(emptyMy);
+          card.className = 'ai-agent-persona-card ai-agent-voice-row';
+          card.dataset.voiceId = vid;
+          card.dataset.gender = (v.gender || '').toString().toUpperCase();
+          var tagStr = (v.tags || []).map(function(t) { return String(t).toLowerCase(); }).join(' ');
+          card.dataset.tagsLower = tagStr;
+          card.dataset.nativeArabic = v.native_arabic ? '1' : '';
+          card.dataset.languageCode = (v.language_code || '').trim().replace(/-/g, '_').toUpperCase();
+          card.dataset.previewUrl = (v.preview_audio_url || '').trim();
+          var displayName = ((v.name || '').trim() || vid).toString();
+          var labelTrim = ((v.label || '').trim());
+          var titleText = labelTrim || displayName;
+          var subText = '';
+          if (labelTrim && displayName && labelTrim !== displayName) {
+            subText = displayName;
+          } else if (v.tags && v.tags.length) {
+            subText = v.tags.join(' · ');
+          } else {
+            subText = (v.language_code && String(v.language_code).trim()) ? String(v.language_code).trim() : 'Voice Gallery';
           }
-          myGallery.dataset.loaded = '1';
+          var langP = typeof window.voiceGalleryRowLangParts === 'function' ? window.voiceGalleryRowLangParts(v.language_code) : { top: '\u2014', sub: '', flag: '' };
+          var dialectDisplay = (v.dialect_display || '').trim();
+          // In voice preview rows, show the voice's explicit dialect from DB (not generic region fallback).
+          if (dialectDisplay) {
+            langP.sub = dialectDisplay;
+          } else if (!langP.sub) {
+            langP.sub = 'Moroccan Darija';
+          }
+          var initial = (displayName.charAt(0) || '?').toUpperCase();
+          var grad = typeof window.voiceGalleryAvatarGradient === 'function' ? window.voiceGalleryAvatarGradient(vid) : 'linear-gradient(135deg, hsl(216,52%,38%), hsl(258,48%,24%))';
+          var esc = typeof window.voiceGalleryEsc === 'function' ? window.voiceGalleryEsc : function(t) { return String(t).replace(/</g, '&lt;'); };
+          if (selectedVid && selectedVid === vid) card.classList.add('selected');
+          card.innerHTML =
+            '<div class="ai-agent-voice-row-avatar-wrap">' +
+              '<div class="ai-agent-voice-row-avatar" style="background:' + grad + '">' + esc(initial) + '</div>' +
+              '<span class="ai-agent-voice-row-check" aria-hidden="true">\u2713</span>' +
+            '</div>' +
+            '<div class="ai-agent-voice-row-main">' +
+              '<div class="ai-agent-voice-row-title">' + esc(titleText) +
+              (dialectDisplay ? '<span class="ai-agent-voice-row-dialect-badge">' + esc(dialectDisplay) + '</span>' : '') +
+              '</div>' +
+              '<div class="ai-agent-voice-row-sub">' + esc(subText) + '</div>' +
+            '</div>' +
+            '<div class="ai-agent-voice-row-lang">' +
+              (langP.flag ? '<span class="ai-agent-voice-row-lang-flag">' + langP.flag + '</span>' : '') +
+              '<div class="ai-agent-voice-row-lang-top" style="color: color(srgb 0.9588 0.6218 0.0453);">' + esc(langP.top) + '</div>' +
+              '<div class="ai-agent-voice-row-lang-sub">' + esc(langP.sub) + '</div>' +
+            '</div>' +
+             
+            '<button type="button" class="ai-agent-voice-row-play ai-agent-play-sample" title="Play sample" aria-label="Play sample"><i class="fas fa-play"></i></button>';
+          (function(playBtn, voiceId, cardEl) {
+            playBtn.addEventListener('click', function(e) {
+              e.preventDefault();
+              e.stopPropagation();
+              var cid = getChannelId();
+              if (!cid) { alert('Select a WhatsApp channel (workspace) so we can load the Voice Gallery.'); return; }
+              if (_aiVoicePreview.playBtn === playBtn && _aiVoicePreview.audio && !_aiVoicePreview.audio.paused) {
+                if (typeof window.stopAiAgentVoiceGalleryPreview === 'function') window.stopAiAgentVoiceGalleryPreview();
+                return;
+              }
+              if (typeof window.stopAiAgentVoiceGalleryPreview === 'function') window.stopAiAgentVoiceGalleryPreview();
+              var purl = (cardEl.dataset.previewUrl || '').trim();
+              if (purl) {
+                var au = new Audio(purl);
+                _aiVoicePreview.audio = au;
+                _aiVoicePreview.playBtn = playBtn;
+                var icon = playBtn.querySelector('i');
+                if (icon) icon.className = 'fas fa-pause';
+                playBtn.classList.add('is-playing');
+                playBtn.setAttribute('aria-label', 'Stop');
+                playBtn.setAttribute('title', 'Stop');
+                au.onended = function() { if (typeof window.stopAiAgentVoiceGalleryPreview === 'function') window.stopAiAgentVoiceGalleryPreview(); };
+                au.onerror = function() { if (typeof window.stopAiAgentVoiceGalleryPreview === 'function') window.stopAiAgentVoiceGalleryPreview(); };
+                au.play().catch(function() { if (typeof window.stopAiAgentVoiceGalleryPreview === 'function') window.stopAiAgentVoiceGalleryPreview(); });
+                return;
+              }
+              var mySeq = _aiVoicePreview.reqSeq;
+              var form = new FormData();
+              form.append('channel_id', cid);
+              form.append('voice_id', voiceId);
+              form.append('csrfmiddlewaretoken', csrf);
+              var iconLoad = playBtn.querySelector('i');
+              _aiVoicePreview.pendingBtn = playBtn;
+              if (iconLoad) iconLoad.className = 'fas fa-circle-notch fa-spin';
+              playBtn.disabled = true;
+              fetch(previewUrl, { method: 'POST', body: form, credentials: 'same-origin' })
+                .then(function(res) {
+                  if (!res.ok) return res.json().then(function(j) { throw new Error(j.message || 'Preview failed'); });
+                  return res.blob();
+                })
+                .then(function(blob) {
+                  _aiVoicePreview.pendingBtn = null;
+                  if (mySeq !== _aiVoicePreview.reqSeq) return;
+                  if (!blob || blob.size === 0) {
+                    throw new Error('Empty preview');
+                  }
+                  var url = URL.createObjectURL(blob);
+                  var audio = new Audio(url);
+                  _aiVoicePreview.audio = audio;
+                  _aiVoicePreview.blobUrl = url;
+                  _aiVoicePreview.playBtn = playBtn;
+                  if (iconLoad) iconLoad.className = 'fas fa-pause';
+                  playBtn.classList.add('is-playing');
+                  playBtn.setAttribute('aria-label', 'Stop');
+                  playBtn.setAttribute('title', 'Stop');
+                  audio.onended = function() { if (typeof window.stopAiAgentVoiceGalleryPreview === 'function') window.stopAiAgentVoiceGalleryPreview(); };
+                  audio.onerror = function() { if (typeof window.stopAiAgentVoiceGalleryPreview === 'function') window.stopAiAgentVoiceGalleryPreview(); };
+                  return audio.play();
+                })
+                .catch(function(err) {
+                  _aiVoicePreview.pendingBtn = null;
+                  if (typeof window.stopAiAgentVoiceGalleryPreview === 'function') window.stopAiAgentVoiceGalleryPreview();
+                  alert(err.message || 'Could not play sample.');
+                })
+                .finally(function() {
+                  playBtn.disabled = false;
+                });
+            });
+          })(card.querySelector('.ai-agent-play-sample'), vid, card);
+          card.addEventListener('click', function(e) {
+            if (e.target.closest && e.target.closest('.ai-agent-voice-row-play')) return;
+            if (e.target.classList.contains('ai-agent-play-sample')) return;
+            node.querySelectorAll('.ai-agent-voice-gallery-grid .ai-agent-persona-card').forEach(function(c) { c.classList.remove('selected'); });
+            card.classList.add('selected');
+            if (nodeVoiceHidden) nodeVoiceHidden.value = vid;
+          });
+          grid.appendChild(card);
+        });
+        if (voices.length === 0) {
+          var empty = document.createElement('div');
+          empty.className = 'persona-gallery-empty';
+          empty.innerHTML = '<span class="persona-gallery-empty-icon">🔇</span><p class="persona-gallery-empty-text">No voices in the gallery. Add entries in Django Admin → Voice Gallery.</p>';
+          grid.appendChild(empty);
         }
-        if (data.can_use_premium === false && node.querySelector('.ai-agent-persona-premium-hint')) {
-          node.querySelector('.ai-agent-persona-premium-hint').style.display = 'block';
-        }
+        grid.dataset.loaded = '1';
         if (typeof window.applyAiNodeVisibility === 'function') window.applyAiNodeVisibility(node);
       })
       .catch(function() {
-        stdGallery.dataset.loaded = '1';
-        stdGallery.innerHTML = '<div class="persona-gallery-empty"><span class="persona-gallery-empty-icon">⚠️</span><p class="persona-gallery-empty-text">Could not load agents. Try again.</p></div>';
+        grid.dataset.loaded = '1';
+        grid.innerHTML = '<div class="persona-gallery-empty"><span class="persona-gallery-empty-icon">⚠️</span><p class="persona-gallery-empty-text">Could not load Voice Gallery. Check your connection and try again.</p></div>';
       });
   };
 })();

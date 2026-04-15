@@ -377,6 +377,9 @@ class WebhookConsumer(AsyncWebsocketConsumer):
                 }
             )
 
+            # Presence/collision only — never requires WhatsApp channel_id; returning avoids
+            # false "missing Channel ID" when payload has no channel_id (see main.js chat_activity).
+            return
 
         if not c_id:
             return await self.send(json.dumps({"type": "error", "message": "missing Channel ID"}))
@@ -387,14 +390,27 @@ class WebhookConsumer(AsyncWebsocketConsumer):
       
          
         if command_type == 'send_message':
-            msg_type = payload_content.get("msg_type") or payload_content.get("type") or "text"
             reciver = payload_content.get("reciver") or payload_content.get("to")
             body = payload_content.get("body", "") 
             caption = payload_content.get("caption", "") 
             file_b64 = payload_content.get("file")
             filename = payload_content.get("filename")
             mime = payload_content.get("mime")
-             
+
+            # Base64/file-bytes uploads must use msg_type "media_upload". If "msg_type" is
+            # missing, falling back to payload "type" (e.g. "audio") skips the upload branch
+            # and nothing is sent to WhatsApp.
+            is_file_url = isinstance(file_b64, str) and file_b64.startswith(
+                ("http://", "https://")
+            )
+            if file_b64 and not is_file_url:
+                msg_type = "media_upload"
+            else:
+                msg_type = (
+                    payload_content.get("msg_type")
+                    or payload_content.get("type")
+                    or "text"
+                )
 
             if not reciver:
                 await self.send(json.dumps({"type": "error", "message": "missing 'reciver' (or 'to') field"}))

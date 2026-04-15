@@ -105,9 +105,7 @@
         + '/ws/chat/' + roomName + '/'
     );
 
-    Socket.onopen = function(e) {
-        console.log("WebSocket connection established.");
-    };
+    Socket.onopen = function(e) {};
 
     document.getElementById('sendBtn').addEventListener('click', function() {
         const messageInputDom = document.getElementById('messageInput');
@@ -123,7 +121,6 @@
     
     Socket.addEventListener('message', function(event) {
         const data = JSON.parse(event.data);
-        console.log('Message received from server:', data);
         if (data.user === '{{ user }}') {
             // Sent message
             document.querySelector('.chat-messages').innerHTML += `

@@ -115,6 +115,21 @@
       color: #fca5a5; padding: 12px; border-radius: 8px; font-size: 13px; margin-bottom: 20px;
     }
 
+    /* Plan Banner */
+    .plan-banner {
+      display: flex; align-items: center; gap: 10px;
+      padding: 12px 16px; border-radius: 12px; margin-bottom: 24px;
+      background: linear-gradient(135deg, rgba(124, 58, 237, 0.18), rgba(79, 70, 229, 0.10));
+      border: 1px solid rgba(124, 58, 237, 0.45);
+      font-size: 14px; color: #e0e7ff;
+    }
+    .plan-banner-icon {
+      width: 32px; height: 32px; border-radius: 8px; flex-shrink: 0;
+      background: rgba(124, 58, 237, 0.35); display: flex; align-items: center; justify-content: center;
+      font-size: 15px;
+    }
+    .plan-banner strong { color: #c4b5fd; }
+
     /* ---------- RIGHT: VISUAL AREA ---------- */
     .visual-area {
       background: rgba(255, 255, 255, 0.02);
@@ -191,8 +206,16 @@
         <h2 class="page-title">Start Free Trial</h2>
         <p class="page-desc">Join 500+ COD merchants scaling with AI.</p>
 
+        {% if selected_plan %}
+        <div class="plan-banner">
+          <div class="plan-banner-icon">✦</div>
+          <span>You're signing up for the <strong>{{ selected_plan|title }}</strong> plan</span>
+        </div>
+        {% endif %}
+
         <form method="post" action="{% url 'singup' %}" novalidate>
           {% csrf_token %}
+          {% if selected_plan %}<input type="hidden" name="selected_plan" value="{{ selected_plan }}">{% endif %}
 
           {% if form.errors %}
             <div class="alert-box">
@@ -291,6 +314,36 @@
       return cookieValue;
     }
 
+    // TODO: Replace switch-plan mock with Stripe Checkout Session redirect
+    var SELECTED_PLAN = "{{ selected_plan|escapejs }}";
+
+    function redirectToStripeCheckout(msgBox) {
+      if (!SELECTED_PLAN) {
+        window.location.href = "{% url 'tracking' %}";
+        return;
+      }
+      msgBox.text("✅ Account verified! Redirecting to secure checkout…").css("color", "#4ade80").show();
+      $.ajax({
+        url: "/discount/whatssapAPI/api/billing/create-checkout-session/",
+        type: "POST",
+        contentType: "application/json",
+        headers: { "X-CSRFToken": getCookie("csrftoken") },
+        data: JSON.stringify({ planId: SELECTED_PLAN }),
+        success: function(res) {
+          if (res.success && res.url) {
+            window.location.href = res.url;
+          } else {
+            msgBox.text("Payment setup failed — taking you to dashboard.").css("color", "#fca5a5").show();
+            setTimeout(function(){ window.location.href = "{% url 'tracking' %}"; }, 1500);
+          }
+        },
+        error: function() {
+          msgBox.text("Payment setup failed — taking you to dashboard.").css("color", "#fca5a5").show();
+          setTimeout(function(){ window.location.href = "{% url 'tracking' %}"; }, 1500);
+        }
+      });
+    }
+
     // --- AJAX Verification Logic ---
     function virecode(url, codeVal) {
       const btn = $("#ActivationBtn");
@@ -309,10 +362,13 @@
         headers: { "X-CSRFToken": getCookie('csrftoken') },
         data: { code: codeVal },
         success: function(response) {
-          console.log('response', response);
           msgBox.text(response.message || "Success! Redirecting...").css("color", response.success ? "#4ade80" : "#fca5a5").show();
           if (response.success) {
-            setTimeout(function(){ window.location.href = "{% url 'tracking' %}"; }, 1000);
+            if (SELECTED_PLAN) {
+              redirectToStripeCheckout(msgBox);
+            } else {
+              setTimeout(function(){ window.location.href = "{% url 'tracking' %}"; }, 1500);
+            }
           } else {
             btn.prop("disabled", false);
             resendBtn.prop("disabled", false);

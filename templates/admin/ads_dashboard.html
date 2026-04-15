@@ -700,18 +700,17 @@ if (data && data.errors && data.errors.length) {
       renderEditTable(demo);
 
       // top action words
-      document.getElementById('action-refresh').addEventListener('click', ()=> { console.log('Refresh requested'); showToast('Refresh requested'); });
-      document.getElementById('action-export').addEventListener('click', ()=> { console.log('Export requested'); showToast('Export requested'); });
+      document.getElementById('action-refresh').addEventListener('click', ()=> { showToast('Refresh requested'); });
+      document.getElementById('action-export').addEventListener('click', ()=> { showToast('Export requested'); });
 
       // control words inside admin panel
-      document.getElementById('word-reindex').addEventListener('click', ()=> { console.log('Reindex'); showToast('Reindex requested'); });
-      document.getElementById('word-clearcache').addEventListener('click', ()=> { console.log('Clear cache'); showToast('Clear cache requested'); });
-      document.getElementById('word-settings').addEventListener('click', ()=> { console.log('Open settings'); showToast('Open settings'); });
+      document.getElementById('word-reindex').addEventListener('click', ()=> { showToast('Reindex requested'); });
+      document.getElementById('word-clearcache').addEventListener('click', ()=> { showToast('Clear cache requested'); });
+      document.getElementById('word-settings').addEventListener('click', ()=> { showToast('Open settings'); });
 
       // trigger update
       document.getElementById('btnTriggerUpdate').addEventListener('click', ()=> {
         const country = document.getElementById('countrySelect').value || 'ALL';
-        console.log('Trigger update for', country);
         showToast('Update triggered for ' + country);
       });
 
@@ -726,7 +725,6 @@ if (data && data.errors && data.errors.length) {
         if (el.matches('[data-action="delete"]')) {
           const id = el.dataset.id;
           if (!confirm('Confirm delete from database?')) return;
-          console.log('Delete', id);
           showToast('Deleted ' + id);
           // remove from demo for UI
           const idx = demo.findIndex(x => String(x.saved_id)===String(id));
@@ -747,7 +745,6 @@ if (data && data.errors && data.errors.length) {
         const status = document.getElementById('statusFilter').value;
         const from = document.getElementById('fromDate').value;
         const to = document.getElementById('toDate').value;
-        console.log('Filter', {q, platform, status, from, to});
         let filtered = demo.slice();
         if (q) filtered = filtered.filter(r => (r.page_name||'').toLowerCase().includes(q) || (r.advertiser||'').toLowerCase().includes(q));
         if (platform) filtered = filtered.filter(r => r.platform.toLowerCase()===platform.toLowerCase());
@@ -772,14 +769,12 @@ if (data && data.errors && data.errors.length) {
       document.getElementById('word-bulk-export').addEventListener('click', ()=> {
         const selected = Array.from(document.querySelectorAll('.row-check:checked')).map(x=>x.dataset.id);
         if (!selected.length) return showToast('No rows selected');
-        console.log('Export selected', selected);
         showToast('Export requested for ' + selected.length + ' items');
       });
       document.getElementById('word-bulk-delete').addEventListener('click', ()=> {
         const selected = Array.from(document.querySelectorAll('.row-check:checked')).map(x=>x.dataset.id);
         if (!selected.length) return showToast('No rows selected');
         if (!confirm('Confirm delete ' + selected.length + ' items?')) return;
-        console.log('Delete selected', selected);
         showToast('Delete requested for ' + selected.length + ' items');
       });
 

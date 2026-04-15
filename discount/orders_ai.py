@@ -1,10 +1,15 @@
 """
 Save order data extracted by AI (e.g. from GPT function calling or [ORDER_DATA: ...] tag).
 Used by the AI voice / sales agent auto-reply flow.
+
+ARCHITECTURE RULE: Do not use hardcoded arrays or regex to guess user intent from chat
+messages. Always use LLM Tool descriptions and injected context to extract structured data.
+This module validates and persists data; it does not interpret phrases like "same number".
 """
 import json
 import logging
 import re
+import traceback
 import uuid
 from datetime import timedelta
 from decimal import Decimal
@@ -15,6 +20,40 @@ from django.utils import timezone
 from discount.models import SimpleOrder, Products, WhatsAppChannel, CustomUser, Contact
 
 logger = logging.getLogger(__name__)
+
+# Only these keys may appear in submit_customer_order payload; strip any other keys (LLM hallucination).
+ALLOWED_ORDER_KEYS = ("customer_name", "phone_number", "shipping_city", "shipping_address")
+
+# Checkout mode (product.checkout_mode) → required_order_fields for AI tool schema and validation
+CHECKOUT_MODE_MAP = {
+    "quick_lead": ["customer_name", "phone_number"],
+    "standard_cod": ["customer_name", "phone_number", "shipping_city"],
+    "strict_cod": ["customer_name", "phone_number", "shipping_city", "shipping_address"],
+}
+CHECKOUT_MODE_LABELS = {
+    "quick_lead": "Quick Lead (Name & Phone only)",
+    "standard_cod": "Standard COD (Name, Phone, City)",
+    "strict_cod": "Strict COD (Full Address)",
+}
+
+
+def get_required_order_fields_for_product(product):
+    """
+    Resolve required order fields for a product: use checkout_mode if set, else required_order_fields.
+    Returns a list of valid field keys for submit_customer_order (e.g. customer_name, phone_number, shipping_city, shipping_address).
+    """
+    if not product:
+        return ["customer_name", "phone_number", "shipping_city", "shipping_address"]
+    mode = (getattr(product, "checkout_mode", None) or "").strip()
+    if mode and mode in CHECKOUT_MODE_MAP:
+        return list(CHECKOUT_MODE_MAP[mode])
+    _raw = getattr(product, "required_order_fields", None)
+    _valid = {"customer_name", "phone_number", "shipping_city", "shipping_address"}
+    if isinstance(_raw, list):
+        _filtered = [str(f) for f in _raw if isinstance(f, str) and f in _valid]
+        if _filtered:
+            return _filtered
+    return ["customer_name", "phone_number", "shipping_city", "shipping_address"]
 
 
 def get_or_create_ai_agent_user(owner, agent_name=None):
@@ -133,149 +172,403 @@ def validate_moroccan_phone(phone):
     return (digits, None)
 
 
-def _same_number_phrase(phone_input):
-    """True if the user indicated 'same number' / 'نفس الرقم' instead of typing digits."""
-    if not phone_input or not isinstance(phone_input, str):
-        return False
-    p = phone_input.strip().lower()
-    return p in ("same number", "this number", "نفس الرقم", "هذا الرقم", "رقم الواتساب", "chat number") or len(re.sub(r"\D", "", p)) < 5
+def _safe_order_arg(arguments, key, default=""):
+    """Null-safe extraction: checkout_mode may omit fields (e.g. quick_lead has no shipping_*). Never crash on missing or None."""
+    if not isinstance(arguments, dict):
+        return default or ""
+    val = arguments.get(key)
+    if val is None:
+        return default or ""
+    try:
+        return (str(val).strip() or default) or ""
+    except (TypeError, AttributeError):
+        return default or ""
 
 
 def handle_submit_order_tool(arguments, session_product_id, session_seller_id, channel, customer_phone_from_chat=None):
     """
-    Process the submit_customer_order tool output. Product is bound from session — no AI guessing.
+    Bulletproof submit_customer_order handler.
 
-    - Validates phone with international rules (8–15 digits, any country); on failure returns a message for the AI.
-    - On success, saves the order with session_product_id and session_seller_id.
-
-    Returns:
-        dict: {"success": True, "order_id": str, "message": str} or
-              {"success": False, "message": str} (message is for AI context / tool result).
+    - Static schema: product_id, customer_name and phone_number required; shipping_city and shipping_address optional.
+    - Asynchronous UX: caller sends the transitional WhatsApp message immediately before calling this handler.
+    - DB-safe: shipping_city and shipping_address are always coerced to empty strings (no NULL crashes).
+    - Feedback loop: ALWAYS returns a JSON string for the LLM to read (never raises to the caller).
     """
-    if not isinstance(arguments, dict):
-        return {"success": False, "message": "SYSTEM ERROR: Invalid arguments. Ask the customer again for name, city, address, and phone number."}
-    customer_name = (arguments.get("customer_name") or "").strip()
-    shipping_city = (arguments.get("shipping_city") or "").strip()
-    shipping_address = (arguments.get("shipping_address") or "").strip()
-    phone_number = (arguments.get("phone_number") or "").strip()
-
-    if not customer_name:
-        return {"success": False, "message": "SYSTEM ERROR: Customer name is missing. Politely ask the customer to provide their name for delivery."}
-    if not shipping_city:
-        return {"success": False, "message": "SYSTEM ERROR: Shipping city is missing. Politely ask the customer to provide their city."}
-    if not shipping_address:
-        return {"success": False, "message": "SYSTEM ERROR: Shipping address is missing. Politely ask the customer to provide the full delivery address."}
-    if not phone_number:
-        return {"success": False, "message": "SYSTEM ERROR: The phone number is missing. Politely ask the customer to provide their phone number (with country code if possible, e.g. +XXX...)."}
-
-    normalized_phone, phone_error = validate_phone_international(phone_number)
-    if phone_error:
-        return {"success": False, "message": phone_error}
-
-    if not channel:
-        return {"success": False, "message": "SYSTEM ERROR: Channel not available. Please try again."}
-    if not session_product_id or not session_seller_id:
-        return {"success": False, "message": "SYSTEM ERROR: No product is selected in this conversation. Ask the customer to choose a product first before collecting order details."}
-
     try:
-        product = Products.objects.filter(id=session_product_id, admin_id=session_seller_id).first()
+        logger.info("TOOL CALLED: Raw arguments received -> %s", arguments)
+
+        if not channel or not session_seller_id:
+            logger.error(
+                "submit_customer_order: missing channel/product/seller (channel=%s, product_id=%s, seller_id=%s)",
+                getattr(channel, "id", None),
+                session_product_id,
+                session_seller_id,
+            )
+            return json.dumps({
+                "status": "error",
+                "success": False,
+                "message": "Technical configuration error. Tell the user there was a technical glitch and that a human agent will assist shortly.",
+            }, ensure_ascii=False)
+
+        if not isinstance(arguments, dict):
+            logger.error("submit_customer_order: invalid arguments type (%s)", type(arguments))
+            return json.dumps({
+                "status": "error",
+                "success": False,
+                "message": "Invalid order details from AI. Politely ask the user to resend their name and phone number.",
+            }, ensure_ascii=False)
+
+        # Static, safe parsing
+        customer_name = _safe_order_arg(arguments, "customer_name", "")
+        phone_number = _safe_order_arg(arguments, "phone_number", "")
+        shipping_city = _safe_order_arg(arguments, "shipping_city", "")
+        shipping_address = _safe_order_arg(arguments, "shipping_address", "")
+        raw_product_id = arguments.get("product_id")
+        tool_product_id = None
+        if raw_product_id is not None:
+            try:
+                tool_product_id = int(raw_product_id)
+            except (TypeError, ValueError):
+                return json.dumps({
+                    "status": "error",
+                    "success": False,
+                    "message": "product_id is invalid. Ask the user clearly which product they want from the catalog, then use the correct numeric ID.",
+                }, ensure_ascii=False)
+
+        # Enforce required fields in code (product_id + name + phone)
+        effective_product_id = tool_product_id or session_product_id
+        if not effective_product_id:
+            return json.dumps({
+                "status": "error",
+                "success": False,
+                "message": "product_id is missing. Ask the user exactly which product they want to order from the catalog, then call the tool again with that product_id.",
+            }, ensure_ascii=False)
+
+        if not customer_name:
+            return json.dumps({
+                "status": "error",
+                "success": False,
+                "message": "Customer name is missing. Politely ask the user to share their full name.",
+            }, ensure_ascii=False)
+
+        phone_to_use = phone_number or (customer_phone_from_chat or "")
+        phone_to_use = phone_to_use.strip()
+        if not phone_to_use:
+            return json.dumps({
+                "status": "error",
+                "success": False,
+                "message": "Phone number is missing. Politely ask the user to confirm or send their phone number (with country code).",
+            }, ensure_ascii=False)
+
+        normalized_phone, phone_error = validate_phone_international(phone_to_use)
+        if phone_error:
+            return json.dumps({
+                "status": "error",
+                "success": False,
+                "message": phone_error,
+            }, ensure_ascii=False)
+
+        # At this point, shipping_city / shipping_address are guaranteed non-None strings (possibly "")
+        logger.info("VALIDATION PASSED: name=%s, phone=%s, city=%s, address=%s",
+                    customer_name, normalized_phone, shipping_city, shipping_address)
+
+        # Resolve product and store
+        product = Products.objects.filter(id=effective_product_id, admin_id=session_seller_id).first()
         if not product:
-            logger.warning("handle_submit_order_tool: product_id=%s not found for seller %s", session_product_id, session_seller_id)
-            return {"success": False, "message": "SYSTEM ERROR: Product no longer available. Ask the customer to choose another product."}
-    except Exception as e:
-        logger.exception("handle_submit_order_tool: product lookup failed: %s", e)
-        return {"success": False, "message": "SYSTEM ERROR: Could not verify product. Please try again."}
+            logger.error("submit_customer_order: product_id=%s not found for seller %s", effective_product_id, session_seller_id)
+            return json.dumps({
+                "status": "error",
+                "success": False,
+                "message": "Product not available anymore or does not belong to this store. Tell the user to choose a product from the catalog and use its ID.",
+            }, ensure_ascii=False)
 
-    store = getattr(channel, "owner", None)
-    if not store or getattr(store, "id", None) != session_seller_id:
-        return {"success": False, "message": "SYSTEM ERROR: Store mismatch. Please try again."}
+        store = getattr(channel, "owner", None)
+        if not store or getattr(store, "id", None) != session_seller_id:
+            logger.error("submit_customer_order: store mismatch (channel.owner_id=%s, session_seller_id=%s)",
+                         getattr(store, "id", None), session_seller_id)
+            return json.dumps({
+                "status": "error",
+                "success": False,
+                "message": "Store configuration mismatch. Tell the user there was a technical glitch and that a human agent will assist shortly.",
+            }, ensure_ascii=False)
 
-    if customer_phone_from_chat and _same_number_phrase(phone_number):
-        # Use chat number (any country, with or without country code)
-        normalized_phone, phone_error = validate_phone_international(customer_phone_from_chat)
-        if phone_error:
-            normalized_phone, phone_error = validate_phone_international(phone_number)
-        if phone_error:
-            return {"success": False, "message": phone_error}
+        # Database insertion with strict try/except
+        try:
+            logger.info("DB INSERT ATTEMPT... (product_id=%s, customer=%s)", effective_product_id, customer_name)
 
-    # Duplicate order prevention (COD): same phone + same product, placed in last 24h or still pending/active
-    cutoff = timezone.now() - timedelta(hours=24)
-    duplicate_exists = (
-        SimpleOrder.objects.filter(
-            customer_phone=normalized_phone,
-            product_id=session_product_id,
-        )
-        .filter(
-            Q(created_at__gte=cutoff) | Q(status__in=["pending", "out_for_delivery" , "shipped","delivered" , "cancelled", "returned" , "confirmed" , "Confirmed"])
+            try:
+                price = Decimal(str(getattr(product, "price", None) or "0"))
+            except Exception:
+                price = Decimal("0")
+            if price is None or price <= 0:
+                price = Decimal("0")
 
-        )
-        .exists()
-    )
-    if duplicate_exists:
-        return {
-            "success": False,
-            "message": "SYSTEM INSTRUCTION: A duplicate order was detected for this phone number and product. Politely inform the customer that their order is already registered and is currently being processed, so there is no need to submit it again.",
-        }
+            order_agent = get_or_create_ai_agent_user(store, agent_name="AI Agent") or store
 
-    price = getattr(product, "price", None)
-    if price is None or Decimal(str(price)) <= 0:
-        price = Decimal("0")
-    try:
-        price = Decimal(str(price))
-    except Exception:
-        price = Decimal("0")
-
-    customer_city_display = f"{shipping_city} | {shipping_address}".strip() if shipping_address else shipping_city
-
-    try:
-        order_agent = get_or_create_ai_agent_user(store, agent_name="AI Agent")
-        order_agent = order_agent or store
-        order_id = str(uuid.uuid4())[:8]
-        while SimpleOrder.objects.filter(order_id=order_id).exists():
             order_id = str(uuid.uuid4())[:8]
+            while SimpleOrder.objects.filter(order_id=order_id).exists():
+                order_id = str(uuid.uuid4())[:8]
 
-        SimpleOrder.objects.create(
-            product=product,
-            agent=order_agent,
-            channel=channel,
-            sku=getattr(product, "sku", "") or "",
-            product_name=getattr(product, "name", "") or "",
-            customer_name=customer_name,
-            customer_phone=normalized_phone,
-            customer_city=customer_city_display,
-            order_id=order_id,
-            status="pending",
-            created_at=timezone.now(),
-            price=price,
-            quantity=Decimal("1"),
-            created_by_ai=True,
-            created_by_bot_session=f"submit_order:{getattr(channel, 'id', '')}:{customer_phone_from_chat or normalized_phone}"[:100],
-            sheets_export_status="pending",
-        )
+            customer_city_display = f"{shipping_city} | {shipping_address}".strip()
 
-        logger.info("handle_submit_order_tool: order_id=%s created for product_id=%s", order_id, session_product_id)
-        try:
-            from discount.whatssapAPI.follow_up import cancel_pending_follow_up_tasks_for_customer
-            cancel_pending_follow_up_tasks_for_customer(channel, normalized_phone)
-        except Exception as e:
-            logger.warning("cancel_pending_follow_up_tasks_for_customer: %s", e)
-        order_obj = SimpleOrder.objects.filter(order_id=order_id).first()
-        if order_obj:
-            _notify_owner_order_created(channel, order_obj)
-        # Automatically set lead status to 'closed' when order is successfully saved
-        try:
-            contact = Contact.objects.filter(channel=channel).filter(phone=normalized_phone).first()
-            if not contact and len(normalized_phone) >= 8:
-                contact = Contact.objects.filter(channel=channel).filter(phone__endswith=normalized_phone[-8:]).first()
-            if contact:
-                contact.pipeline_stage = Contact.PipelineStage.CLOSED
-                contact.save(update_fields=["pipeline_stage"])
-        except Exception as e:
-            logger.warning("handle_submit_order_tool: set contact to closed failed: %s", e)
-        return {"success": True, "order_id": order_id, "message": f"Order {order_id} registered successfully. Confirm to the customer in a short, friendly message (e.g. تم تسجيل طلبك، سنتواصل معك قريباً)."}
+            order = SimpleOrder.objects.create(
+                product=product,
+                agent=order_agent,
+                channel=channel,
+                sku=str(getattr(product, "sku", "") or "")[:100],
+                product_name=str(getattr(product, "name", "") or "")[:200],
+                customer_name=str(customer_name)[:200],
+                customer_phone=str(normalized_phone)[:20],
+                # Explicitly avoid NULLs: use "" when no city/address provided
+                customer_city=customer_city_display[:100] if customer_city_display else "",
+                order_id=order_id,
+                status="pending",
+                created_at=timezone.now(),
+                price=price,
+                quantity=Decimal("1"),
+                created_by_ai=True,
+                created_by_bot_session=(f"submit_order:{getattr(channel, 'id', '')}:{normalized_phone}"[:100] or None),
+                sheets_export_status="pending",
+            )
+
+            logger.info("DB SUCCESS: Order ID -> %s", order_id)
+
+            try:
+                from discount.whatssapAPI.follow_up import cancel_pending_follow_up_tasks_for_customer
+                cancel_pending_follow_up_tasks_for_customer(channel, normalized_phone)
+            except Exception as e:
+                logger.warning("cancel_pending_follow_up_tasks_for_customer: %s", e)
+
+            try:
+                if order:
+                    _notify_owner_order_created(channel, order)
+                contact = Contact.objects.filter(channel=channel).filter(phone=normalized_phone).first()
+                if not contact and len(normalized_phone) >= 8:
+                    contact = Contact.objects.filter(channel=channel).filter(phone__endswith=normalized_phone[-8:]).first()
+                if contact:
+                    contact.pipeline_stage = Contact.PipelineStage.CLOSED
+                    contact.save(update_fields=["pipeline_stage"])
+            except Exception as e:
+                logger.warning("submit_customer_order: contact pipeline update failed: %s", e)
+
+            return json.dumps({
+                "status": "success",
+                "success": True,
+                "message": "Order saved successfully. Confirm the order with the customer now.",
+                "order_id": order_id,
+            }, ensure_ascii=False)
+
+        except Exception as db_err:
+            logger.error("DB INSERT ERROR in submit_customer_order -> %s", db_err)
+            logger.error("DB INSERT ERROR (stack) -> %s", traceback.format_exc())
+            return json.dumps({
+                "status": "error",
+                "success": False,
+                "message": "Database insertion failed. Tell the user there was a technical glitch and ask them to verify their details or wait for human support.",
+            }, ensure_ascii=False)
+
     except Exception as e:
-        logger.exception("handle_submit_order_tool: save failed: %s", e)
-        return {"success": False, "message": "SYSTEM ERROR: Order could not be saved. Ask the customer to try again in a moment."}
+        logger.error("FATAL TOOL ERROR in submit_customer_order -> %s", e)
+        logger.error("FATAL TOOL ERROR (stack) -> %s", traceback.format_exc())
+        return json.dumps({
+            "status": "error",
+            "success": False,
+            "message": "System error while processing the order. Tell the user there was a technical glitch and that a human agent will assist shortly.",
+        }, ensure_ascii=False)
+
+
+def handle_add_upsell_tool(arguments, channel):
+    """
+    UPDATE an existing order to add an upsell item (same package, same shipment).
+    Appends the new item name to product_name, adds price, increments quantity.
+    Returns a JSON string for the LLM context.
+    """
+    try:
+        logger.info("UPSELL TOOL CALLED: args -> %s", arguments)
+
+        if not isinstance(arguments, dict):
+            return json.dumps({"status": "error", "success": False,
+                               "message": "Invalid arguments. Ask the user to confirm the upsell."}, ensure_ascii=False)
+
+        order_id = _safe_order_arg(arguments, "order_id", "")
+        new_item_name = _safe_order_arg(arguments, "new_item_name", "")
+        raw_price = arguments.get("new_item_price")
+
+        if not order_id:
+            return json.dumps({"status": "error", "success": False,
+                               "message": "order_id is missing. You should have the order_id from the previous order in your context."}, ensure_ascii=False)
+        if not new_item_name:
+            return json.dumps({"status": "error", "success": False,
+                               "message": "new_item_name is missing. Ask the user which product they want to add."}, ensure_ascii=False)
+
+        try:
+            new_price = Decimal(str(raw_price or "0"))
+            if new_price < 0:
+                new_price = Decimal("0")
+        except Exception:
+            new_price = Decimal("0")
+
+        order = SimpleOrder.objects.filter(order_id=order_id).first()
+        if not order:
+            logger.error("UPSELL: order_id=%s not found", order_id)
+            return json.dumps({"status": "error", "success": False,
+                               "message": "Order not found. The order_id may be incorrect."}, ensure_ascii=False)
+
+        if channel and order.channel_id and order.channel_id != channel.id:
+            logger.error("UPSELL: order channel mismatch (order.channel=%s, current=%s)", order.channel_id, channel.id)
+            return json.dumps({"status": "error", "success": False,
+                               "message": "Order does not belong to this channel."}, ensure_ascii=False)
+
+        old_product_name = (order.product_name or "").strip()
+        old_price = order.price or Decimal("0")
+        old_quantity = order.quantity or Decimal("1")
+
+        order.product_name = f"{old_product_name} + {new_item_name.strip()}"[:200]
+        order.price = old_price + new_price
+        order.quantity = old_quantity + Decimal("1")
+
+        if order.sheets_export_status == "success":
+            order.sheets_export_status = "pending"
+
+        order.save(update_fields=["product_name", "price", "quantity", "sheets_export_status"])
+
+        logger.info("UPSELL DB SUCCESS: order_id=%s, new total=%s, items=%s",
+                     order_id, order.price, order.product_name)
+
+        try:
+            _resync_upsell_to_google_sheets(order)
+        except Exception as gs_err:
+            logger.warning("UPSELL Google Sheets re-sync: %s", gs_err)
+
+        return json.dumps({
+            "status": "success",
+            "success": True,
+            "message": f"Upsell added! The order now contains: {order.product_name}. New total: {order.price}. Confirm this with the customer.",
+            "order_id": order_id,
+            "updated_product_name": order.product_name,
+            "updated_price": str(order.price),
+        }, ensure_ascii=False)
+
+    except Exception as e:
+        logger.error("FATAL UPSELL TOOL ERROR -> %s", e)
+        logger.error("FATAL UPSELL TOOL ERROR (stack) -> %s", traceback.format_exc())
+        return json.dumps({"status": "error", "success": False,
+                           "message": "System error adding the upsell. Tell the user there was a glitch."}, ensure_ascii=False)
+
+
+def _resync_upsell_to_google_sheets(order):
+    """
+    After an upsell UPDATE, find the existing row in Google Sheets by order_id
+    and update the product_name and price cells in-place (no new row).
+    """
+    try:
+        from discount.models import GoogleSheetsConfig
+        from discount.services.google_sheets_service import get_client_for_config
+    except ImportError:
+        return
+
+    if not order.channel or not order.channel.owner_id:
+        return
+
+    config = GoogleSheetsConfig.objects.filter(user_id=order.channel.owner_id).first()
+    if not config or not (getattr(config, "spreadsheet_id", None) or "").strip():
+        return
+
+    client = get_client_for_config(config)
+    if not client:
+        return
+
+    spreadsheet_id = (config.spreadsheet_id or "").strip()
+    sheet_name = (getattr(config, "sheet_name", None) or "Orders").strip()
+
+    try:
+        spreadsheet = client.open_by_key(spreadsheet_id)
+        worksheet = spreadsheet.worksheet(sheet_name)
+
+        sheets_mapping = getattr(config, "sheets_mapping", None)
+        column_mapping = getattr(config, "column_mapping", None) or {}
+
+        order_id_col = _find_column_for_field("order_id", sheets_mapping, column_mapping)
+        product_name_col = _find_column_for_field("product_name", sheets_mapping, column_mapping)
+        price_col = _find_column_for_field("price", sheets_mapping, column_mapping)
+        quantity_col = _find_column_for_field("quantity", sheets_mapping, column_mapping)
+
+        if not order_id_col:
+            logger.info("UPSELL SHEETS: no order_id column mapped, cannot locate row")
+            return
+
+        all_values = worksheet.col_values(_col_letter_to_index(order_id_col))
+        target_row = None
+        oid_str = str(order.order_id or "")
+        for i, val in enumerate(all_values):
+            if str(val).strip() == oid_str:
+                target_row = i + 1
+                break
+
+        if not target_row:
+            logger.info("UPSELL SHEETS: order_id=%s not found in column %s, appending fresh row instead", oid_str, order_id_col)
+            order.sheets_export_status = "pending"
+            order.save(update_fields=["sheets_export_status"])
+            from discount.services.google_sheets_service import sync_order_to_google_sheets
+            sync_order_to_google_sheets(order.pk)
+            return
+
+        updates = {}
+        if product_name_col:
+            updates[f"{product_name_col}{target_row}"] = order.product_name or ""
+        if price_col:
+            updates[f"{price_col}{target_row}"] = str(order.price) if order.price is not None else ""
+        if quantity_col:
+            updates[f"{quantity_col}{target_row}"] = str(order.quantity) if order.quantity is not None else ""
+
+        if updates:
+            for cell_ref, value in updates.items():
+                worksheet.update(cell_ref, [[value]], value_input_option="USER_ENTERED")
+            logger.info("UPSELL SHEETS: updated row %d for order_id=%s (%s)", target_row, oid_str, list(updates.keys()))
+
+        order.sheets_export_status = "success"
+        order.sheets_export_error = None
+        order.save(update_fields=["sheets_export_status", "sheets_export_error"])
+
+    except Exception as e:
+        logger.exception("_resync_upsell_to_google_sheets failed: %s", e)
+        try:
+            order.sheets_export_status = "failed"
+            order.sheets_export_error = str(e)[:500]
+            order.save(update_fields=["sheets_export_status", "sheets_export_error"])
+        except Exception:
+            pass
+
+
+def _find_column_for_field(field_name, sheets_mapping, column_mapping):
+    """Find the column letter for a given field name from sheets_mapping or column_mapping."""
+    if sheets_mapping and isinstance(sheets_mapping, list):
+        for i, entry in enumerate(sheets_mapping):
+            mapped_field = entry.get("field") if isinstance(entry, dict) else None
+            if mapped_field == field_name:
+                return _col_index_to_letter(i + 1)
+    if column_mapping and isinstance(column_mapping, dict):
+        for col_letter, var_key in column_mapping.items():
+            if var_key == field_name:
+                return col_letter
+    return None
+
+
+def _col_index_to_letter(index):
+    """Convert 1-based column index to letter (1=A, 2=B, ..., 27=AA)."""
+    result = ""
+    while index > 0:
+        index, remainder = divmod(index - 1, 26)
+        result = chr(65 + remainder) + result
+    return result
+
+
+def _col_letter_to_index(letter):
+    """Convert column letter to 1-based index (A=1, B=2, ..., AA=27)."""
+    result = 0
+    for ch in letter.upper():
+        result = result * 26 + (ord(ch) - 64)
+    return result
 
 
 def handle_update_lead_status(channel, customer_phone, new_status):
@@ -457,14 +750,22 @@ def should_accept_order_data(conversation_messages, order_data, current_stage=No
 def is_order_cap_reached(channel):
     """Return True if the channel's plan has max_monthly_orders and current month count >= cap."""
     store = getattr(channel, "owner", None)
-    if not store or not hasattr(store, "get_plan") or not callable(store.get_plan):
+    if not store:
         return False
-    plan = store.get_plan()
-    if not plan or getattr(plan, "max_monthly_orders", None) is None:
-        return False
-    start_of_month = timezone.now().replace(day=1, hour=0, minute=0, second=0, microsecond=0)
-    count = SimpleOrder.objects.filter(channel=channel, created_at__gte=start_of_month).count()
-    return count >= plan.max_monthly_orders
+    try:
+        from discount.services.plan_limits import is_limit_reached
+        reached, _limit, _current = is_limit_reached(store, "max_monthly_orders")
+        return reached
+    except Exception:
+        logger.debug("is_order_cap_reached: plan_limits import failed, falling back")
+        if not hasattr(store, "get_plan") or not callable(store.get_plan):
+            return False
+        plan = store.get_plan()
+        if not plan or getattr(plan, "max_monthly_orders", None) is None:
+            return False
+        start_of_month = timezone.now().replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+        count = SimpleOrder.objects.filter(channel=channel, created_at__gte=start_of_month).count()
+        return count >= plan.max_monthly_orders
 
 
 def _order_data_has_all_mandatory_slots(data):

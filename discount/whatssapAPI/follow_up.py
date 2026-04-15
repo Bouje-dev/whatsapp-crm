@@ -9,7 +9,7 @@ from datetime import timedelta
 
 from django.utils import timezone
 
-from discount.models import FollowUpTask, FollowUpNode
+from discount.models import FollowUpTask, FollowUpNode, SimpleOrder
 
 logger = logging.getLogger(__name__)
 
@@ -43,6 +43,27 @@ def cancel_pending_follow_up_tasks(channel, customer_phone):
 
 # Alias for process_messages import
 cancel_pending_follow_up_tasks_for_customer = cancel_pending_follow_up_tasks
+
+
+def _customer_has_existing_order(channel, customer_phone):
+    """
+    Return True when this customer already has an order in this channel.
+    Uses exact phone first, then a safe endswith(8) fallback.
+    """
+    if not channel or not customer_phone:
+        return False
+    phone = str(customer_phone).strip()
+    if not phone:
+        return False
+    try:
+        qs = SimpleOrder.objects.filter(channel=channel, customer_phone=phone)
+        if qs.exists():
+            return True
+        if len(phone) >= 8:
+            return SimpleOrder.objects.filter(channel=channel, customer_phone__endswith=phone[-8:]).exists()
+        return False
+    except Exception:
+        return False
 
 
 def _next_allowed_send_time(now=None):
@@ -83,6 +104,18 @@ def create_follow_up_task(node, channel, customer_phone):
     if not node or not channel or not customer_phone:
         return None
     try:
+        # Business rule: never schedule follow-up for customers who already placed an order.
+        if _customer_has_existing_order(channel, customer_phone):
+            logger.info(
+                "Skip follow-up task creation for %s (channel %s): customer already has an order.",
+                customer_phone,
+                getattr(channel, "id", None),
+            )
+            return None
+
+        # Keep at most one pending follow-up per customer/channel.
+        cancel_pending_follow_up_tasks(channel, customer_phone)
+
         config = getattr(node, "follow_up_config", None)
         if not config:
             # Node might not have follow_up_config yet (e.g. old flow); try to get or create
@@ -173,8 +206,22 @@ def run_follow_up_task(task):
 
     channel = task.channel
     phone = task.customer_phone
+
+    # Final guard at send time (in case an order was created after scheduling).
+    if _customer_has_existing_order(channel, phone):
+        task.status = FollowUpTask.STATUS_CANCELLED
+        task.is_cancelled = True
+        task.save(update_fields=["status", "is_cancelled"])
+        logger.info(
+            "Cancelled follow-up task %s for %s: customer already has an order.",
+            task.id,
+            phone,
+        )
+        return False
+
     response_type = (config.response_type or FollowUpNode.RESPONSE_TYPE_TEXT).upper()
     caption = (config.caption or "").strip()
+    has_media = bool(getattr(config, "file_attachment", None))
 
     if getattr(config, "ai_personalized", False):
         try:
@@ -187,10 +234,31 @@ def run_follow_up_task(task):
     if not caption and response_type == FollowUpNode.RESPONSE_TYPE_TEXT:
         caption = "مرحباً، تذكرنا أنك كنت مهتماً بمنتجاتنا. هل تحتاج مساعدة؟"
 
+    uploaded_kind = None
+    media_url = None
+    if has_media:
+        try:
+            file_name = (getattr(config.file_attachment, "name", "") or "").lower()
+            video_exts = (".mp4", ".mov", ".webm", ".m4v", ".avi", ".mkv")
+            uploaded_kind = "VIDEO" if file_name.endswith(video_exts) else "IMAGE"
+        except Exception:
+            uploaded_kind = "IMAGE"
+        media_url = _build_media_url(config.file_attachment)
+
     try:
         if response_type == FollowUpNode.RESPONSE_TYPE_TEXT:
             from discount.whatssapAPI.process_messages import send_automated_response
-            send_automated_response(phone, [{"type": "text", "content": caption, "delay": 0}], channel=channel)
+            if has_media and media_url:
+                # TEXT + media => send media with text as caption
+                send_type = (uploaded_kind or "IMAGE").lower()
+                send_automated_response(
+                    phone,
+                    [{"type": send_type, "media_url": media_url, "content": caption, "delay": 0}],
+                    channel=channel,
+                )
+            else:
+                # TEXT only => send just text
+                send_automated_response(phone, [{"type": "text", "content": caption, "delay": 0}], channel=channel)
         elif response_type == FollowUpNode.RESPONSE_TYPE_AUDIO:
             if getattr(config, "ai_personalized", False) and caption:
                 from discount.whatssapAPI.voice_engine import generate_audio_file
@@ -209,12 +277,20 @@ def run_follow_up_task(task):
                         channel=channel,
                     )
         elif response_type in (FollowUpNode.RESPONSE_TYPE_IMAGE, FollowUpNode.RESPONSE_TYPE_VIDEO):
-            media_url = _build_media_url(config.file_attachment) if config.file_attachment else None
             if media_url:
+                from discount.whatssapAPI.process_messages import send_automated_response
+                # IMAGE/VIDEO => send just the media (no caption)
+                send_automated_response(
+                    phone,
+                    [{"type": response_type.lower(), "media_url": media_url, "content": ""}],
+                    channel=channel,
+                )
+            else:
+                # Fallback: if somehow media is missing, send caption as text.
                 from discount.whatssapAPI.process_messages import send_automated_response
                 send_automated_response(
                     phone,
-                    [{"type": response_type.lower(), "media_url": media_url, "content": caption}],
+                    [{"type": "text", "content": caption or "", "delay": 0}],
                     channel=channel,
                 )
         else:

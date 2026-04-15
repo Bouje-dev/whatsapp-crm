@@ -7,9 +7,17 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 import os
 import dj_database_url
 from dotenv import load_dotenv
+import sentry_sdk
+from sentry_sdk.integrations.django import DjangoIntegration
 MEDIA_URL = '/media/'
 MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 load_dotenv(os.path.join(BASE_DIR, '.env'))
+
+sentry_sdk.init(
+    dsn=os.environ.get("SENTRY_DSN"),
+    integrations=[DjangoIntegration()],
+    traces_sample_rate=1.0,
+)
 
 # Google Sheets: support JSON in env (multi-line .env can be truncated by load_dotenv) or path to file
 _gs_json = os.environ.get("GOOGLE_SHEETS_CREDENTIALS_JSON", "").strip()
@@ -58,7 +66,10 @@ GOOGLE_SHEETS_SERVICE_ACCOUNT_EMAIL = _gs_email or ""
 SECRET_KEY = 'django-insecure-8*lzwv5+jl80b65ev5=atx-bn2&-bf^jk7)y&886_xbf2)m_%('
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = False
+
+# Default dialect label key when the LLM cannot resolve a voice-specific dialect (matches `discount.models.VOICE_DIALECT_DEFAULT`).
+DEFAULT_VOICE_DIALECT = os.environ.get("DEFAULT_VOICE_DIALECT", "MA_DARIJA").strip() or "MA_DARIJA"
 
 # Admin: allow editing user Plan from Django admin. Set to False in production to lock plan changes.
 ALLOW_ADMIN_PLAN_EDITS = os.environ.get("ALLOW_ADMIN_PLAN_EDITS", "true").lower() in ("true", "1", "yes")
@@ -83,6 +94,7 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    'core_admin',
     'discount',
     'orders',
     'reputation',
@@ -106,6 +118,8 @@ MIDDLEWARE = [
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
     'discount.middleware.AccountActivationMiddleware',
+    'discount.middleware.SuspensionRequiredMiddleware',
+    'discount.middleware.PlanRequiredMiddleware',
 ]
 
 ROOT_URLCONF = 'disound.urls'
@@ -123,6 +137,7 @@ TEMPLATES = [
                 'django.template.context_processors.request',
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
+                'disound.context_processors.sentry_config',
             ],
         },
     },
@@ -382,6 +397,15 @@ SECURE_CROSS_ORIGIN_OPENER_POLICY = 'same-origin-allow-popups'
 
 
 
+
+# Stripe
+STRIPE_SECRET_KEY = os.environ.get("STRIPE_SECRET_KEY", "")
+STRIPE_WEBHOOK_SECRET = os.environ.get("STRIPE_WEBHOOK_SECRET", "")
+STRIPE_PUBLISHABLE_KEY = os.environ.get("STRIPE_PUBLISHABLE_KEY", "")
+# Optional: Stripe Price ID for recurring extra-channel add-on; if empty, Checkout uses price_data from EXTRA_CHANNEL_MONTHLY_USD.
+STRIPE_EXTRA_CHANNEL_PRICE_ID = os.environ.get("STRIPE_EXTRA_CHANNEL_PRICE_ID", "").strip()
+EXTRA_CHANNEL_MONTHLY_USD = float(os.environ.get("EXTRA_CHANNEL_MONTHLY_USD", "5"))
+APP_URL = os.environ.get("APP_URL", "https://app.waselytics.com")
 
 META_APP_ID = os.getenv('META_APP_ID', '843023434947245')
 META_APP_SECRET = os.getenv('META_APP_SECRET')

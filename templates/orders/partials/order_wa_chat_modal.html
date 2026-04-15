@@ -234,7 +234,12 @@
       if (!silent && messagesArea) messagesArea.innerHTML = '<div class="order-wa-loading">No channel configured.</div>';
       return;
     }
-    var url = messagesUrl + '?phone=' + encodeURIComponent(currentPhone) + '&since_id=' + (lastMessageId||0) + '&channel_id=' + channelId + '&tracking=true';
+    var url;
+    if (silent && lastMessageId > 0) {
+      url = messagesUrl + '?phone=' + encodeURIComponent(currentPhone) + '&since_id=' + lastMessageId + '&channel_id=' + channelId + '&tracking=true';
+    } else {
+      url = messagesUrl + '?phone=' + encodeURIComponent(currentPhone) + '&channel_id=' + channelId + '&limit=10&tracking=true';
+    }
     fetch(url, { cache: 'no-store', headers: { 'Accept': 'application/json' } })
       .then(function(r) { return r.json(); })
       .then(function(data) {

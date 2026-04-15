@@ -660,8 +660,6 @@
                         inputField.value = `SKU: ${sku}, Name: ${name}`; // أو أي تنسيق آخر تريده
 
                     // مثال: طباعة البيانات في الـ Console
-                    console.log("SKU:", sku);
-                    console.log("الاسم:", name);
                                      }
    
         
@@ -716,8 +714,6 @@
             //     const name = this.getAttribute('gift-name');
     
             //     // مثال: طباعة البيانات في الـ Console
-            //     console.log("SKU:", sku);
-            //     console.log("الاسم:", name);
             event.stopPropagation();
 
             const stockMessage = this.querySelector('.stockwarning');
@@ -739,7 +735,6 @@
                 stockMessage.innerHTML = 'تم التحديد بنجاح';
             }
 
-            console.log('تم اختيار المنتج:', this.getAttribute('gift-name') || 'غير معرف');
         });
     });
 

@@ -195,7 +195,7 @@ admin.site.register(GroupMessages)
 
 
 
-from .models import WhatsAppChannel , CannedResponse , Plan
+from .models import WhatsAppChannel , CannedResponse , Plan, VoiceGalleryEntry, VoiceCloneRequest
 class ChannelAdmin(admin.ModelAdmin):
     list_display = ('name', 'phone_number', 'phone_number_id', 'business_account_id', 'access_token', 'is_active', 'created_at')
     search_fields = ('name', 'phone_number', 'phone_number_id', 'business_account_id')
@@ -206,6 +206,37 @@ admin.site.register(CannedResponse)
 class PlanAdmin(admin.ModelAdmin):
     list_display = ('name', 'can_use_ai_voice', 'can_use_voice_cloning', 'can_use_auto_reply', 'price')
 admin.site.register(Plan, PlanAdmin)
+
+
+class VoiceGalleryEntryAdmin(admin.ModelAdmin):
+    list_display = (
+        "provider",
+        "elevenlabs_voice_id",
+        "name",
+        "language_code",
+        "dialect",
+        "gender",
+        "native_arabic",
+        "is_active",
+        "sort_order",
+        "preview_file",
+    )
+    list_filter = ("is_active", "provider", "gender", "native_arabic", "dialect")
+    search_fields = ("elevenlabs_voice_id", "name", "label", "preview_file", "language_code")
+    ordering = ("sort_order", "id")
+
+
+admin.site.register(VoiceGalleryEntry, VoiceGalleryEntryAdmin)
+
+
+class VoiceCloneRequestAdmin(admin.ModelAdmin):
+    list_display = ("id", "merchant", "dialect", "status", "consent_agreed", "created_at")
+    list_filter = ("status", "consent_agreed", "dialect", "created_at")
+    search_fields = ("merchant__username", "merchant__email", "merchant__user_name")
+    ordering = ("-created_at",)
+
+
+admin.site.register(VoiceCloneRequest, VoiceCloneRequestAdmin)
 
 # from .models import ChannelPermission
 # class ChannelPermissionAdmin(admin.ModelAdmin):

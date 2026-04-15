@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <script src="https://cdn.tailwindcss.com"></script>
+  <title>Founder HQ</title>
+</head>
+<body class="bg-slate-950 text-slate-100">
+  <header class="border-b border-slate-800 bg-slate-900/60 backdrop-blur">
+    <div class="mx-auto max-w-6xl px-4 py-4 flex items-center justify-between">
+      <div>
+        <div class="text-lg font-semibold">Founder HQ</div>
+        <div class="text-xs text-slate-400">Superuser-only analytics & AI audit</div>
+      </div>
+      <nav class="flex gap-3 text-sm">
+        <a class="px-3 py-2 rounded hover:bg-slate-800 {% if request.path == '/founder-hq/' %}bg-slate-800{% endif %}"
+           href="/founder-hq/">Home</a>
+        <a class="px-3 py-2 rounded hover:bg-slate-800 {% if request.path == '/founder-hq/ai-chat-logs/' %}bg-slate-800{% endif %}"
+           href="/founder-hq/ai-chat-logs/">AI Chat Logs</a>
+        <a class="px-3 py-2 rounded hover:bg-slate-800 {% if request.path == '/founder-hq/merchants-suspension/' %}bg-slate-800{% endif %}"
+           href="/founder-hq/merchants-suspension/">Merchant Suspensions</a>
+        <a class="px-3 py-2 rounded hover:bg-slate-800 {% if request.path == '/founder-hq/pending-voice-clones/' %}bg-slate-800{% endif %}"
+           href="/founder-hq/pending-voice-clones/">Pending Voice Clones</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="mx-auto max-w-6xl px-4 py-6">
+    {% block content %}{% endblock %}
+  </main>
+</body>
+</html>
+

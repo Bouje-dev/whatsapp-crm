@@ -9,6 +9,7 @@ urlpatterns = [
     path("chat/", views.chat_view, name="chat_view"),
     path("whatsapp/", views.whatssap, name="whatsapp"),
     path("send/", views.send_message, name="send_message"),
+    path("api/live-chat/audio/", views.live_chat_audio_upload, name="live_chat_audio_upload"),
     
     # API endpoints
     path("api/get_messages/", views.get_messages1, name="get_messages"),
@@ -106,6 +107,7 @@ path('api/settings/routing/', wsettings.update_routing_settings, name='api_updat
     # Voice Studio
     path('api/voice-preview/', wsettings.voice_preview, name='voice_preview'),
     path('api/voice-clone/', wsettings.voice_clone, name='voice_clone'),
+    path('api/voice/request-clone/', wsettings.voice_request_clone, name='voice_request_clone'),
     # Voice Gallery (multilingual v2, native-friendly)
     path('voice-gallery/', wsettings.voice_gallery_page, name='voice_gallery_page'),
     path('api/voice-gallery/list/', wsettings.voice_gallery_list, name='voice_gallery_list'),
@@ -119,6 +121,21 @@ path('api/settings/routing/', wsettings.update_routing_settings, name='api_updat
     path('api/google-sheets/config/', flow.api_google_sheets_config, name='api_google_sheets_config'),
     path('api/google-sheets/test-connection/', flow.api_google_sheets_test_connection, name='api_google_sheets_test_connection'),
     path('api/google-sheets/service-email/', flow.api_google_sheets_service_email, name='api_google_sheets_service_email'),
+
+    # TODO: REMOVE BEFORE PRODUCTION — dev-only plan switcher
+    path('api/dev/switch-plan/', views.dev_switch_plan, name='dev_switch_plan'),
+
+    # Stripe billing
+    path('api/billing/create-checkout-session/', views.create_checkout_session, name='create_checkout_session'),
+    path('api/billing/create-portal-session/', views.create_portal_session, name='create_portal_session'),
+    path('api/wallet/topup/', views.wallet_topup, name='wallet_topup'),
+    path('api/billing/wallet-summary/', views.wallet_summary, name='wallet_summary'),
+    path('api/billing/wallet-settings/', views.wallet_settings, name='wallet_settings'),
+    path('api/billing/webhook/', views.stripe_webhook, name='stripe_webhook'),
+    path('api/webhooks/stripe/', views.stripe_webhook, name='stripe_webhook_alias'),
+    path('api/billing/channel-limit-status/', views.api_channel_limit_status, name='api_channel_limit_status'),
+    path('api/billing/extra-channel-checkout/', views.api_create_extra_channel_checkout, name='api_extra_channel_checkout'),
+    path('api/billing/verify-extra-channel/', views.api_verify_extra_channel_checkout, name='api_verify_extra_channel'),
 ]
 
 

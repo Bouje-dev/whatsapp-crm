@@ -74,6 +74,12 @@ def serialize_flow(obj):
             content_data['voice_enabled'] = getattr(n, 'voice_enabled', False)
             ac = getattr(n, 'ai_model_config', None) or {}
             content_data['ai_model_config'] = ac
+            content_data['voice_provider'] = 'ELEVENLABS'
+            if isinstance(ac, dict):
+                _vp = (ac.get('voice_provider') or 'ELEVENLABS')
+                _vp = str(_vp).strip().upper()
+                if _vp in ('OPENAI', 'ELEVENLABS'):
+                    content_data['voice_provider'] = _vp
             content_data['product_id'] = ac.get('product_id')
             content_data['delay'] = getattr(n, 'delay', 0)
             content_data['response_mode'] = getattr(n, 'response_mode', None) or 'TEXT_ONLY'
@@ -126,7 +132,83 @@ def serialize_flow(obj):
         elif n.node_type == 'google-sheets':
             content_data['label'] = (n.content_text or '').strip() or 'Export to Google Sheets'
 
-        # --- 6. أي عقد أخرى (أزرار، تأخير، إلخ) ---
+        # --- 5c. Upsell node ---
+        elif n.node_type == 'upsell':
+            ac = getattr(n, 'ai_model_config', None) or {}
+            content_data['upsell_product_id'] = ac.get('upsell_product_id')
+            content_data['upsell_price'] = ac.get('upsell_price')
+            content_data['pitch_prompt'] = ac.get('pitch_prompt', '')
+            content_data['delay_seconds'] = ac.get('delay_seconds', 10)
+
+        # --- 6. Buttons message ---
+        elif n.node_type == 'buttons-message':
+            raw = (n.content_text or '').strip()
+            parsed = {}
+            if raw:
+                try:
+                    parsed = json.loads(raw)
+                except Exception:
+                    parsed = {}
+            content_data['text'] = parsed.get('text', '')
+            content_data['delay'] = parsed.get('delay', getattr(n, 'delay', 0))
+            content_data['header_type'] = parsed.get('header_type', '')
+            content_data['header_text'] = parsed.get('header_text', '')
+            content_data['header_media_url'] = parsed.get('header_media_url', '')
+            content_data['footer_text'] = parsed.get('footer_text', '')
+            content_data['button_type'] = parsed.get('button_type', 'reply')
+            content_data['reply_buttons'] = parsed.get('reply_buttons', [])
+            content_data['buttons'] = parsed.get('buttons', ','.join(content_data['reply_buttons']) if content_data['reply_buttons'] else '')
+            content_data['cta_label'] = parsed.get('cta_label', '')
+            content_data['cta_url'] = parsed.get('cta_url', '')
+            content_data['no_reply_followup'] = bool(parsed.get('no_reply_followup', False))
+        elif n.node_type == 'template-message':
+            raw = (n.content_text or '').strip()
+            parsed = {}
+            if raw:
+                try:
+                    parsed = json.loads(raw)
+                except Exception:
+                    parsed = {}
+            content_data['template_id'] = parsed.get('template_id')
+            content_data['template_name'] = parsed.get('template_name', '')
+            content_data['language'] = parsed.get('language', 'ar')
+            content_data['category'] = parsed.get('category', '')
+            content_data['body'] = parsed.get('body', '')
+            content_data['delay'] = parsed.get('delay', getattr(n, 'delay', 0))
+        elif n.node_type == 'webhook':
+            raw = (n.content_text or '').strip()
+            parsed = {}
+            if raw:
+                try:
+                    parsed = json.loads(raw)
+                except Exception:
+                    parsed = {}
+            content_data['url'] = parsed.get('url', '')
+            content_data['method'] = parsed.get('method', 'POST')
+            content_data['payload'] = parsed.get('payload', '')
+        elif n.node_type == 'add-tags':
+            raw = (n.content_text or '').strip()
+            parsed = {}
+            if raw:
+                try:
+                    parsed = json.loads(raw)
+                except Exception:
+                    parsed = {}
+            # Backward compatibility: legacy content_text used plain tags text.
+            fallback_tags = (n.content_text or '').strip() if not parsed else ''
+            content_data['pipeline_stage'] = parsed.get('pipeline_stage') or parsed.get('tags') or fallback_tags or 'new'
+            content_data['tags'] = content_data['pipeline_stage']
+        elif n.node_type == 'remove-tags':
+            raw = (n.content_text or '').strip()
+            parsed = {}
+            if raw:
+                try:
+                    parsed = json.loads(raw)
+                except Exception:
+                    parsed = {}
+            content_data['tags'] = parsed.get('tags', (n.content_text or '').strip())
+
+        # --- 7. أي عقد أخرى ---
         else:
             content_data['text'] = n.content_text
             content_data['delay'] = getattr(n, 'delay', 0)
@@ -263,6 +345,7 @@ def is_valid_response(response_data):
 
 
 
+
 def process_flow_for_message(flow, message_text, phone, media_type=None):
     """
     معالجة تدفق معين للعثور على رد للرسالة - معدل بشكل كامل
@@ -336,6 +419,55 @@ def process_flow_for_message(flow, message_text, phone, media_type=None):
                     responses.append(response)
                 else:
                     print("⚠️ Media node has invalid data")
+            elif node_type == 'buttons-message':
+                content_data = current_node.get('content', {}) if isinstance(current_node.get('content'), dict) else {}
+                txt = (content_data.get('text') or '').strip()
+                if txt:
+                    reply_buttons = content_data.get('reply_buttons') or []
+                    if not isinstance(reply_buttons, list):
+                        reply_buttons = []
+                    if not reply_buttons:
+                        legacy = (content_data.get('buttons') or '')
+                        reply_buttons = [b.strip() for b in str(legacy).split(',') if b.strip()]
+                    reply_buttons = reply_buttons[:3]
+                    if reply_buttons:
+                        interactive = {
+                            "type": "button",
+                            "body": {"text": txt},
+                            "action": {
+                                "buttons": [
+                                    {
+                                        "type": "reply",
+                                        "reply": {"id": f"btn_{current_node.get('id')}_{i+1}", "title": str(t)[:20]},
+                                    }
+                                    for i, t in enumerate(reply_buttons) if str(t).strip()
+                                ]
+                            }
+                        }
+                        header_type = (content_data.get('header_type') or '').strip().lower()
+                        header_text = (content_data.get('header_text') or '').strip()
+                        header_media_url = (content_data.get('header_media_url') or '').strip()
+                        footer_text = (content_data.get('footer_text') or '').strip()
+                        if footer_text:
+                            interactive["footer"] = {"text": footer_text[:60]}
+                        if header_type == 'text' and header_text:
+                            interactive["header"] = {"type": "text", "text": header_text[:60]}
+                        elif header_type in ('image', 'video') and header_media_url:
+                            interactive["header"] = {"type": header_type, header_type: {"link": header_media_url}}
+                        responses.append({
+                            'type': 'interactive',
+                            'interactive': interactive,
+                            'content': txt,
+                            'delay': int(content_data.get('delay', 0) or 0),
+                            'node_type': 'buttons-message',
+                        })
+                    else:
+                        responses.append({
+                            'type': 'text',
+                            'content': txt,
+                            'delay': int(content_data.get('delay', 0) or 0),
+                            'node_type': 'buttons-message',
+                        })
                     
             elif node_type == 'condition':
                 condition_result = evaluate_condition(current_node, message_text, phone)
@@ -364,7 +496,17 @@ def process_flow_for_message(flow, message_text, phone, media_type=None):
                 content = current_node.get('content', {}) or {}
                 product_context = content.get('product_context', '').strip() or None
                 try:
-                    from ai_assistant.services import generate_reply_with_tools
+                    from discount.services.voice_dialect import (
+                        merchant_voice_mode_enabled,
+                        resolve_dialect_for_llm_hierarchy,
+                        should_inject_tts_dialect_prompt,
+                    )
+                    from discount.services.bot_language import effective_bot_language
+                    from ai_assistant.services import (
+                        generate_reply_with_tools,
+                        infer_market_from_phone,
+                        market_from_resolved_dialect,
+                    )
                     from discount.orders_ai import (
                         extract_order_data_from_reply,
                         save_order_from_ai,
@@ -384,13 +526,28 @@ def process_flow_for_message(flow, message_text, phone, media_type=None):
                         except Exception:
                             pass
                         override_rules_flow = (getattr(flow.channel, "ai_override_rules", None) or "").strip()
+                    _vd_flow = resolve_dialect_for_llm_hierarchy(flow.channel, None, phone)
+                    _vn_flow = should_inject_tts_dialect_prompt(flow.channel, None)
+                    _out_lang_flow = effective_bot_language(flow.channel)
+                    _market_flow = None
+                    if _vn_flow and _out_lang_flow not in ("fr", "en"):
+                        _market_flow = market_from_resolved_dialect(_vd_flow)
+                    if _market_flow not in ("MA", "SA", "GCC"):
+                        _market_flow = infer_market_from_phone(phone or "") or "MA"
+                    _vs_style = bool(merchant_voice_mode_enabled(flow.channel) or _vn_flow)
                     result = generate_reply_with_tools(
                         conversation,
                         custom_instruction=None,
                         product_context=product_context,
                         trust_score=trust_score,
+                        market=_market_flow,
                         customer_phone=phone,
                         override_rules=override_rules_flow or None,
+                        merchant_id=getattr(getattr(flow, "channel", None), "owner_id", None),
+                        voice_dialect=_vd_flow,
+                        voice_notes_mode=_vn_flow,
+                        voice_script_style=_vs_style,
+                        output_language=_out_lang_flow,
                     )
                     reply_text = (result.get("reply") or "").strip()
                     current_stage = result.get("stage")
@@ -427,6 +584,9 @@ def process_flow_for_message(flow, message_text, phone, media_type=None):
                 if reply_text:
                     responses.append({'type': 'text', 'content': reply_text, 'delay': content.get('delay', 0)})
                 
+            elif node_type == 'upsell':
+                print(f"🎁 Upsell node: skipped in linear flow (triggered via on_order_success)")
+
             else:
                 print(f"ℹ️ Unknown node type: {node_type}")
                 
@@ -1660,12 +1820,41 @@ class SaveFlowView(APIView):
                     if node_type_str == "media-message":
                         mediatype = n.get("content", {}).get("mediaType", "")
 
+                    content_obj = n.get("content", {}) or {}
+                    clean_text_value = ""
+                    clean_delay_value = 0
+                    clean_media_value = None
+                    if node_type_str == "text-message":
+                        clean_text_value = content_obj.get("text", "")
+                        clean_delay_value = content_obj.get("delay", 0)
+                    elif node_type_str == "media-message":
+                        clean_text_value = content_obj.get("caption", "")
+                        clean_media_value = content_obj.get("media_url") or content_obj.get("url")
+                        clean_delay_value = content_obj.get("delay", 0)
+                    elif node_type_str == "buttons-message":
+                        clean_text_value = json.dumps(content_obj, ensure_ascii=False)
+                        clean_delay_value = content_obj.get("delay", 0)
+                    elif node_type_str == "template-message":
+                        clean_text_value = json.dumps(content_obj, ensure_ascii=False)
+                        clean_delay_value = content_obj.get("delay", 0)
+                    elif node_type_str == "webhook":
+                        clean_text_value = json.dumps(content_obj, ensure_ascii=False)
+                        clean_delay_value = 0
+                    elif node_type_str in ("add-tags", "remove-tags"):
+                        clean_text_value = json.dumps(content_obj, ensure_ascii=False)
+                        clean_delay_value = 0
+                    else:
+                        clean_text_value = content_obj.get("text", "")
+                        clean_delay_value = content_obj.get("delay", 0)
+
                     # إنشاء العقدة
                     node = Node.objects.create(
                         flow=flow,
                         node_id=n.get("id"), # الـ ID الوهمي من الفرونت إند
                         node_type=node_type_str, # النوع الصحيح الآن
-                        content_text=n.get("content", {}),
+                        content_text=clean_text_value,
+                        content_media_url=clean_media_value,
+                        delay=clean_delay_value,
                         position_x=n.get("position", {}).get("x", 0),
                         position_y=n.get("position", {}).get("y", 0),
                         media_type=mediatype # يتم تمرير None أو القيمة الصحيحة
@@ -1673,6 +1862,34 @@ class SaveFlowView(APIView):
                     
                     # تخزين الرابط في الخريطة
                     node_map[n.get("id")] = node
+
+                    # Smart Follow-up config persistence
+                    if node_type_str == "follow-up":
+                        from discount.models import FollowUpNode
+                        delay_hours = content_obj.get("delay_hours")
+                        try:
+                            delay_hours = int(delay_hours) if delay_hours is not None else 6
+                        except (TypeError, ValueError):
+                            delay_hours = 6
+
+                        response_type = (content_obj.get("response_type") or "TEXT").strip().upper()
+                        if response_type not in ("TEXT", "AUDIO", "IMAGE", "VIDEO"):
+                            response_type = "TEXT"
+
+                        ai_personalized = bool(content_obj.get("ai_personalized", False))
+                        caption = (content_obj.get("caption") or "").strip()
+                        file_path = (content_obj.get("file_path") or "").strip()
+
+                        FollowUpNode.objects.update_or_create(
+                            node=node,
+                            defaults={
+                                "delay_hours": delay_hours,
+                                "response_type": response_type,
+                                "ai_personalized": ai_personalized,
+                                "caption": caption,
+                                "file_attachment": file_path or None,
+                            },
+                        )
 
                     # تحديد عقدة البداية
                     if node_type_str == "trigger":
@@ -1871,6 +2088,22 @@ def api_update_flows(request, pk):
                 clean_text = content.get("label", "Export to Google Sheets") or "Export to Google Sheets"
                 clean_delay = 0
 
+            elif ntype == "upsell":
+                clean_text = (content.get("pitch_prompt") or "").strip()
+                clean_delay = 0
+            elif ntype == "buttons-message":
+                clean_text = json.dumps(content, ensure_ascii=False)
+                clean_delay = content.get("delay", 0)
+            elif ntype == "template-message":
+                clean_text = json.dumps(content, ensure_ascii=False)
+                clean_delay = content.get("delay", 0)
+            elif ntype == "webhook":
+                clean_text = json.dumps(content, ensure_ascii=False)
+                clean_delay = 0
+            elif ntype in ("add-tags", "remove-tags"):
+                clean_text = json.dumps(content, ensure_ascii=False)
+                clean_delay = 0
+
             # إنشاء كائن العقدة
             create_kw = dict(
                 flow=flow,
@@ -1891,11 +2124,15 @@ def api_update_flows(request, pk):
                 ai_cfg = content.get("ai_model_config") if isinstance(content.get("ai_model_config"), dict) else {}
                 if not isinstance(ai_cfg, dict):
                     ai_cfg = {}
+                ai_cfg = dict(ai_cfg)
                 pid = content.get("product_id")
                 try:
                     ai_cfg["product_id"] = int(pid) if pid is not None and str(pid).strip() else None
                 except (TypeError, ValueError):
                     ai_cfg["product_id"] = None
+                _vprov = (content.get("voice_provider") or "").strip().upper()
+                if _vprov in ("OPENAI", "ELEVENLABS"):
+                    ai_cfg["voice_provider"] = _vprov
                 create_kw["ai_model_config"] = ai_cfg
                 create_kw["response_mode"] = content.get("response_mode") or "TEXT_ONLY"
                 create_kw["node_voice_id"] = (content.get("node_voice_id") or "").strip() or None
@@ -1927,6 +2164,7 @@ def api_update_flows(request, pk):
                     response_type = "TEXT"
                 ai_personalized = bool(content.get("ai_personalized", False))
                 caption = (content.get("caption") or "").strip()
+                file_path = (content.get("file_path") or "").strip()
                 FollowUpNode.objects.update_or_create(
                     node=new_node,
                     defaults={
@@ -1934,6 +2172,7 @@ def api_update_flows(request, pk):
                         "response_type": response_type,
                         "ai_personalized": ai_personalized,
                         "caption": caption,
+                        "file_attachment": file_path or None,
                     },
                 )
 
@@ -1966,6 +2205,25 @@ def api_update_flows(request, pk):
                         file_type=file_type,
                         description=(m.get("description") or "")[:255],
                     )
+
+            if ntype == "upsell":
+                upsell_cfg = {}
+                pid = content.get("upsell_product_id")
+                try:
+                    upsell_cfg["upsell_product_id"] = int(pid) if pid is not None and str(pid).strip() else None
+                except (TypeError, ValueError):
+                    upsell_cfg["upsell_product_id"] = None
+                try:
+                    upsell_cfg["upsell_price"] = float(content.get("upsell_price")) if content.get("upsell_price") is not None else None
+                except (TypeError, ValueError):
+                    upsell_cfg["upsell_price"] = None
+                upsell_cfg["pitch_prompt"] = (content.get("pitch_prompt") or "").strip()
+                try:
+                    upsell_cfg["delay_seconds"] = int(content.get("delay_seconds")) if content.get("delay_seconds") is not None else 10
+                except (TypeError, ValueError):
+                    upsell_cfg["delay_seconds"] = 10
+                new_node.ai_model_config = upsell_cfg
+                new_node.save(update_fields=["ai_model_config"])
 
             # تعيين عقدة البداية
             if ntype == "trigger":

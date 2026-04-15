@@ -948,11 +948,9 @@ function getCookie(name) {
 //     );
 
 //     Socket.onopen = function(e) {
-//         console.log("WebSocket connection established.");
 //     };
 
 // Socket.onclose = () => { 
-//   console.log("WebSock closed . reconnecting...");
 //     setTimeout(connectWebSocket() , set_interval);
 //     retryInterval = Math.min(retryInterval * 2, 10000);
 // }; 
@@ -978,7 +976,6 @@ function showSendError(resData = {}, options = {} , phone=null) {
     onSelectTemplate = null,
     autoDismissMs = 8000
   } = options;
-  console.log('showSendError called with:', { resData, options, phone });
 
   const wrapper = document.querySelector(wrapperSelector);
   if (!wrapper) return console.warn('showSendError: wrapper not found:', wrapperSelector);
@@ -1397,7 +1394,6 @@ document.addEventListener('DOMContentLoaded', function () {
           headers: { 'Accept': 'application/json' }
         });
          if (res.status == 400) {
-            console.log('phone', currentPhone);
   const resData = await res.json();
 
   showSendError(resData, {
@@ -1437,7 +1433,6 @@ document.addEventListener('DOMContentLoaded', function () {
 // ====== إنشاء WS مع تسجيل و queue للإرسال إذا لم يفتح بعد ======
 const websocket_protocol = window.location.protocol === 'https:' ? 'wss' : 'ws';
 const WS_PATH = websocket_protocol + '://' + window.location.host + '/chat/stream/'; 
-console.log('Chat WS connecting to', WS_PATH);
 
 let ws = null;
 let wsSendQueue = [];
@@ -1450,7 +1445,6 @@ function initWebSocket() {
   ws = new WebSocket(WS_PATH);
 
   ws.onopen = function() {
-    console.log('WebSocket OPEN');
     wsIsReady = true;
     // أفرغ الطابور
     while (wsSendQueue.length) {
@@ -1463,7 +1457,6 @@ function initWebSocket() {
     // انتبه: هذه الدالة كانت لديك مسبقًا؛ أبقِ المنطق هنا كما هو
     try {
       const data = JSON.parse(event.data);
-      console.log('WS onmessage', data);
       if (data.status === 400) {
         showSendError(data, { phone: currentPhone, onRetry: () => sendMessageLocal(), onSelectTemplate: () => { showTemplateModal(currentPhone); document.dispatchEvent(new CustomEvent('openTemplatePanel')); }, autoDismissMs: 9000 });
         return;
@@ -1551,6 +1544,44 @@ async function sendMessageLocal(fileObj = null, fileType = null) {
   const fileToSend = fileObj || queuedFile;
   const typeToSend = fileType || queuedFileType;
 
+  const activeChannelId = window.currentChannelId;
+  if (fileToSend && typeToSend === 'audio') {
+    if (!activeChannelId || activeChannelId === 'null') {
+      alert('خطأ: القناة غير محددة.');
+      return;
+    }
+    if (sendBtn) sendBtn.disabled = true;
+    try {
+      const fd = new FormData();
+      fd.append('audio', fileToSend, fileToSend.name || 'recording.webm');
+      fd.append('channel_id', String(activeChannelId));
+      fd.append('to', currentPhone);
+      const cap = messageInput ? messageInput.value : '';
+      if (cap) fd.append('body', cap);
+      const resp = await fetch('/discount/whatssapAPI/api/live-chat/audio/', {
+        method: 'POST',
+        body: fd,
+        credentials: 'same-origin',
+      });
+      let data = {};
+      try { data = await resp.json(); } catch (_) {}
+      if (!resp.ok || !data.ok) {
+        const msg = (data && (data.details || data.error)) || resp.statusText || 'خطأ غير معروف';
+        throw new Error(typeof msg === 'string' ? msg : JSON.stringify(msg));
+      }
+      if (messageInput) messageInput.value = '';
+      queuedFile = null;
+      queuedFileType = null;
+      if (mediaPreview) mediaPreview.innerHTML = '';
+    } catch (err) {
+      console.error('chat9999.sendMessageLocal audio:', err);
+      alert('فشل إرسال الصوت: ' + (err.message || err));
+    } finally {
+      if (sendBtn) sendBtn.disabled = false;
+    }
+    return;
+  }
+
   if (sendBtn) sendBtn.disabled = true;
 
   try {
@@ -1586,7 +1617,6 @@ async function sendMessageLocal(fileObj = null, fileType = null) {
     }
 
     // فحص سريع لحالة websocket (نطبع الحالة في الكونسول لمساعدة التشخيص)
-    console.log('ws.readyState', ws && ws.readyState, 'wsIsReady', wsIsReady);
 
     // أرسل عبر wsSendJson - هذه الدالة تضع الرسالة في طابور إذا لم يكن الاتصال مفتوحاً
     // await wsSendJson({
@@ -1754,7 +1784,6 @@ async function sendMessageLocal(fileObj = null, fileType = null) {
   // بدء التكرار
   pollLoop();
 
-  console.log('chat9999 initialized (isolated chat UI)');
 })();
 </script>
 

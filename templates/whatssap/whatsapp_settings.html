@@ -45,6 +45,105 @@
     opacity: 1;
 }
 
+/* --- Phone style profile preview --- */
+.wa-phone-preview {
+    width: 100%;
+    max-width: 280px;
+    border-radius: 24px;
+    border: 1px solid #2f3a45;
+    background: #0d1117;
+    box-shadow: 0 16px 32px rgba(0, 0, 0, 0.35);
+    overflow: hidden;
+}
+.wa-phone-preview .wa-phone-topbar {
+    background: #1f2c34;
+    color: #e6edf3;
+    padding: 10px 14px;
+    font-size: 12px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+.wa-phone-preview .wa-phone-body {
+    background: #111b21;
+    min-height: 280px;
+    padding: 16px 14px 18px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+.wa-phone-preview .wa-profile-circle {
+    width: 124px;
+    height: 124px;
+    border-radius: 50%;
+    position: relative;
+    overflow: hidden;
+    border: 3px solid #2a3942;
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.35);
+}
+.wa-phone-preview .wa-profile-circle img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+.wa-phone-preview .wa-edit-badge {
+    position: absolute;
+    right: 2px;
+    bottom: 2px;
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    border: 2px solid #111b21;
+    background: #25d366;
+    color: #0d1117;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+}
+.wa-phone-preview .wa-name {
+    margin-top: 14px;
+    color: #e6edf3;
+    font-weight: 700;
+    font-size: 15px;
+    text-align: center;
+}
+.wa-phone-preview .wa-number {
+    margin-top: 4px;
+    color: #8b949e;
+    font-size: 12px;
+}
+.wa-phone-preview .wa-chip {
+    margin-top: 12px;
+    background: rgba(37, 211, 102, 0.14);
+    color: #74f0a5;
+    border: 1px solid rgba(37, 211, 102, 0.35);
+    border-radius: 999px;
+    padding: 4px 10px;
+    font-size: 11px;
+    font-weight: 600;
+}
+.wa-phone-preview .wa-upload-hint {
+    margin-top: 14px;
+    color: #8b949e;
+    font-size: 12px;
+    text-align: center;
+    line-height: 1.4;
+}
+.wa-phone-preview .wa-upload-btn {
+    margin-top: 10px;
+    border: 1px solid #2f3a45;
+    color: #dce3ea;
+    background: rgba(255, 255, 255, 0.04);
+    border-radius: 8px;
+    padding: 7px 12px;
+    font-size: 12px;
+    cursor: pointer;
+}
+.wa-phone-preview .wa-upload-btn:hover {
+    background: rgba(255, 255, 255, 0.08);
+}
+
 /* --- مودال الخطر --- */
 .letter-spacing-2 {
     letter-spacing: 5px;
@@ -170,6 +269,32 @@
 .gs-drag-list .gs-item.sortable-ghost { opacity: 0.5; }
 .gs-drag-list .gs-active-item .gs-header-input { flex: 1; min-width: 0; padding: 4px 8px; font-size: 0.875rem; background: #0d1117; border: 1px solid #30363d; color: #e6edf3; border-radius: 6px; }
 .gs-drag-list .gs-active-item .gs-field-label { font-size: 0.8rem; color: #8b949e; min-width: 100px; }
+.gs-app-tile {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 12px;
+    padding: 12px 14px;
+}
+.gs-app-left { display: flex; align-items: center; gap: 12px; min-width: 0; }
+.gs-app-icon {
+    width: 38px;
+    height: 38px;
+    border-radius: 10px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    color: #4ade80;
+    background: rgba(74, 222, 128, 0.12);
+    border: 1px solid rgba(74, 222, 128, 0.25);
+}
+.gs-app-name { color: #e6edf3; font-weight: 600; }
+.gs-app-desc { color: #8b949e; font-size: 0.8rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 520px; }
+.gs-app-toggle i { transition: transform .2s ease; }
+.gs-app-toggle[aria-expanded="true"] i { transform: rotate(180deg); }
 
 /* --- زر الحفظ --- */
 .btn-save-glow {
@@ -392,6 +517,27 @@
 .routing-total-bar .total-invalid { color: #ef4444; font-weight: 600; }
 .routing-save-btn { transition: opacity 0.2s; }
 .routing-save-btn:disabled { opacity: 0.5; cursor: not-allowed !important; }
+
+/* Voice Gallery modal (ElevenLabs) */
+#voiceGalleryModal .voice-gallery-modal-body { max-height: min(70vh, 720px); overflow-y: auto; }
+#voiceGalleryModal .vg-voice-card {
+    background: #161b22;
+    border: 2px solid #30363d;
+    border-radius: 12px;
+    padding: 1rem;
+    height: 100%;
+    cursor: pointer;
+    transition: border-color 0.2s, box-shadow 0.2s;
+}
+#voiceGalleryModal .vg-voice-card:hover { border-color: #8b949e; }
+#voiceGalleryModal .vg-voice-card.vg-selected {
+    border-color: #58a6ff;
+    box-shadow: 0 0 0 1px #58a6ff;
+}
+#voiceGalleryModal .vg-voice-card .vg-name { font-weight: 600; color: #e6edf3; margin-bottom: 0.35rem; }
+#voiceGalleryModal .vg-voice-card .vg-tags { font-size: 0.75rem; color: #8b949e; margin-bottom: 0.65rem; }
+#voiceGalleryModal .vg-voice-card .vg-tags span { margin-right: 0.35rem; }
+#voiceGalleryModal .badge-vg-native { background: linear-gradient(135deg, #238636, #2ea043); color: #fff; font-size: 0.7rem; }
 </style>
 <div class="container-fluid p-4">
     <div class="mb-4">
@@ -494,6 +640,39 @@
                                 Changes here will be <strong class="text-white">synced with WhatsApp directly</strong>. Please update carefully.
                             </div>
                         </div>
+                        
+                        <div class="cls3741_account_card mb-4">
+                            <div class="account_qr_section">
+                                <div id="qrcode_container" class="qr_img_wrapper" style="width: 120px; height: 120px; background: white; padding: 8px; border-radius: 12px; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 12px rgba(0,0,0,0.1);"></div>
+                                <div class="scan_hint">Scan to conntact</div>
+                            </div>
+                            <div class="account_info_grid">
+                                <div class="info_item">
+                                    <label>Display Name</label>
+                                    <div class="val" id="dash_display_name"> </div>
+                                </div>
+                                <div class="info_item">
+                                    <label>Connected Number</label>
+                                    <div class="val highlight" id="dash_phone_number">+{{ active_channel.phone_number }}</div>
+                                </div>
+                                <div class="info_item">
+                                    <label>WABA ID</label>
+                                    <div class="val mono" id="dash_waba_id">{{ active_channel.business_account_id }}</div>
+                                </div>
+                                <div class="info_item">
+                                    <label>Messaging Limit</label>
+                                    <div class="val" id="dash_messaging_limit">TIER_250</div>
+                                </div>
+                                <div class="info_item">
+                                    <label>Quality Rating</label>
+                                    <div class="val text-green" id="dash_quality_rating">GREEN ●</div>
+                                </div>
+                                <div class="info_item">
+                                    <label>Account Status</label>
+                                    <div class="val status_tag" id="dash_account_status">APPROVED</div>
+                                </div>
+                            </div>
+                        </div>
                     
                         <div class="row g-4">
                             
@@ -536,18 +715,27 @@
                             </div>
                     
                             <div class="col-lg-4 order-1 order-lg-2 d-flex flex-column align-items-center justify-content-start pt-lg-2">
-                                <div class="inner-card p-4 text-center w-100 h-100 d-flex flex-column align-items-center justify-content-center" style="min-height: 250px;">
-                                    <div class="profile-upload-wrapper mb-3">
-                                        <img id="profile_preview" src="{% if channel.profile_image %}{{ channel.profile_image.url }}{% else %}/static/img/default-wa.png{% endif %}" class="rounded-circle profile-img-lg shadow-lg" alt="Profile" style="width: 120px; height: 120px; border: 4px solid #30363d;">
-                                        
-                                        <label for="profile_image_input" class="upload-overlay" style="border-radius: 50%;">
-                                            <i class="fas fa-camera text-white fs-4"></i>
-                                        </label>
+                                <div class="w-100 h-100 d-flex flex-column align-items-center justify-content-center" style="min-height: 250px;">
+                                    <div class="wa-phone-preview">
+                                        <div class="wa-phone-topbar">
+                                            <span>WhatsApp</span>
+                                            <span><i class="fas fa-signal me-1"></i><i class="fas fa-battery-three-quarters"></i></span>
+                                        </div>
+                                        <div class="wa-phone-body">
+                                            <div class="wa-profile-circle profile-upload-wrapper">
+                                                <img id="profile_preview" src="{% if channel.profile_image %}{{ channel.profile_image.url }}{% else %}/static/img/default-wa.png{% endif %}" alt="Profile Preview">
+                                                <label for="profile_image_input" class="wa-edit-badge" title="Update profile photo">
+                                                    <i class="fas fa-camera"></i>
+                                                </label>
+                                            </div>
+                                            <input type="file" id="profile_image_input" name="profile_image" class="d-none" accept="image/*">
+                                            <div class="wa-name" id="wa_cloud_display_name">Loading Meta name...</div>
+                                            <div class="wa-number">{{ active_channel.phone_number }}</div>
+                                            <div class="wa-chip">Business Account</div>
+                                            <div class="wa-upload-hint">This is how your profile photo looks in phone app.</div>
+                                            <label for="profile_image_input" class="wa-upload-btn">Upload / Update Photo</label>
+                                        </div>
                                     </div>
-                                    <input type="file" id="profile_image_input" name="profile_image" class="d-none" accept="image/*">
-                                    
-                                    <h5 class="text-white mb-1">Channel Icon</h5>
-                                    <p class="text-muted small mb-0 px-3">Upload a high-quality logo (min 500x500px) for your dashboard & WhatsApp.</p>
                                 </div>
                             </div>
                     
@@ -606,7 +794,7 @@
 
                     <div class="tab-pane fade" id="content-automation">
                         <div class="automation-tab">
-                            <!-- Row 1: Welcome + Workflow -->
+                            <!-- Row 1: Welcome + Workflow
                             <div class="row g-4 mb-4">
                                 <div class="col-md-6">
                                     <div class="automation-card automation-card-welcome">
@@ -651,9 +839,10 @@
                                         </div>
                                     </div>
                                 </div>
-                            </div>
+                            </div> -->
 
                             <!-- AI Sales Voice Orchestrator -->
+                            {% if plan_can_ai_assistant %}
                             <div class="automation-ai-section">
                                 <div class="automation-ai-header">
                                     <span class="automation-ai-badge"><i class="fas fa-robot me-1"></i> AI Sales Voice</span>
@@ -741,24 +930,22 @@
                                                         <option value="FR_FR" {% if channel.voice_language == 'FR_FR' %}selected{% endif %}>French (France)</option>
                                                         <option value="EN_US" {% if channel.voice_language == 'EN_US' %}selected{% endif %}>English (US)</option>
                                                     </select>
-                                                    <span class="d-inline-block mt-1" data-bs-toggle="tooltip" title="Auto-Detect: AI responds in the customer's language."><i class="fas fa-info-circle text-muted small"></i></span>
+                                                    <span class="d-inline-block mt-1" data-bs-toggle="tooltip" title="Auto-Detect: AI responds in the customer's language. French (France) locks replies to formal French and skips Arabic dialect prompts."><i class="fas fa-info-circle text-muted small"></i></span>
                                                 </div>
                                                 <div class="automation-voice-switches">
                                                     <div class="form-check form-switch mb-2">
                                                         <input class="form-check-input" type="checkbox" name="ai_voice_enabled" id="switch_ai_voice" {% if channel.ai_voice_enabled %}checked{% endif %}>
                                                         <label class="form-check-label text-muted" for="switch_ai_voice">Send as voice</label>
                                                     </div>
-                                                    <div class="form-check form-switch mb-2" id="voice_cloning_row" title="">
+                                                    <div id="voice_cloning_row" class="form-check form-switch mb-2 {% if channel.voice_provider != 'ELEVENLABS' %}d-none{% endif %}" title="">
                                                         <input class="form-check-input" type="checkbox" name="voice_cloning_enabled" id="switch_voice_cloning" {% if channel.voice_cloning_enabled %}checked{% endif %}>
                                                         <label class="form-check-label text-muted" for="switch_voice_cloning">Voice Cloning <span class="pro-badge ms-1">👑 PRO</span></label>
                                                         <span class="ms-1" data-bs-toggle="tooltip" title="Clone your own voice. Premium only."><i class="fas fa-info-circle text-muted small"></i></span>
                                                     </div>
                                                 </div>
-                                                <div class="mt-2 {% if channel.voice_provider != 'ELEVENLABS' %}d-none{% endif %}" id="elevenlabs_key_wrap">
-                                                    <label class="form-label text-muted small mb-1">ElevenLabs API Key</label>
-                                                    <input type="password" name="elevenlabs_api_key" class="form-control form-control-sm modern-input" placeholder="Paste key from elevenlabs.io" autocomplete="off">
-                                                    <small class="text-warning d-block mt-1 small">Save settings so Voice Gallery can use it.</small>
-                                                    <a href="#" id="btn_voice_gallery" class="btn btn-outline-info btn-sm mt-2 w-100 d-none" target="_blank" rel="noopener"><i class="fas fa-th-large me-1"></i> Voice Gallery</a>
+                                                <div class="mt-2">
+                                                    <button type="button" id="btn_voice_gallery" class="btn btn-outline-info btn-sm w-100"><i class="fas fa-th-large me-1"></i> Voice Gallery</button>
+                                                    <small class="text-muted d-block mt-1 small">Lists OpenAI or ElevenLabs voices to match the Provider above.</small>
                                                 </div>
                                                 <div class="automation-block mt-3 pt-3" id="tone_control_card" title="">
                                                     <h6 class="text-white mb-2 small">Tone <span class="pro-badge ms-1">👑 PRO</span></h6>
@@ -767,20 +954,45 @@
                                                     <label class="form-label text-muted small d-flex justify-content-between mb-1">Similarity <span id="voice_similarity_value" class="text-white">0.75</span></label>
                                                     <input type="range" class="form-range" name="voice_similarity" id="voice_similarity_slider" min="0" max="1" step="0.05" value="{{ channel.voice_similarity|default:0.75 }}">
                                                 </div>
-                                                <div class="automation-block mt-3 pt-3" id="voice_clone_section">
+                                                {% if user.is_superuser %}
+                                                <div id="voice_clone_section" class="automation-block mt-3 pt-3 {% if channel.voice_provider != 'ELEVENLABS' %}d-none{% endif %}">
                                                     <h6 class="text-white mb-2 small">Clone <span class="pro-badge ms-1">👑 PRO</span></h6>
-                                                    <input type="file" id="clone_audio_input" class="form-control form-control-sm modern-input mb-2" accept="audio/*">
+                                                    <p class="text-muted small mb-2">Upload your own voice only. Celebrity/news/public figure voices are strictly forbidden.</p>
+                                                    <label class="form-label text-muted small mb-1" for="clone_audio_input">Voice sample (required)</label>
+                                                    <input type="file" id="clone_audio_input" class="form-control form-control-sm modern-input mb-2" accept=".mp3,.wav,.m4a,.ogg,.webm,audio/*">
+                                                    <label class="form-label text-muted small mb-1" for="clone_dialect_select">What dialect is this voice speaking? <span class="text-danger">*</span></label>
+                                                    <select id="clone_dialect_select" class="form-select form-select-sm modern-input mb-2">
+                                                        <option value="">Select dialect…</option>
+                                                        <option value="MA_DARIJA">Moroccan Darija</option>
+                                                        <option value="SA_ARABIC">Saudi Arabic</option>
+                                                        <option value="EG_ARABIC">Egyptian Arabic</option>
+                                                        <option value="MSA">Modern Standard Arabic</option>
+                                                        <option value="LEV_ARABIC">Levantine Arabic</option>
+                                                        <option value="GULF_ARABIC">Gulf Arabic</option>
+                                                        <option value="OTHER">Other / Multilingual</option>
+                                                    </select>
+                                                    <div class="form-check mb-2">
+                                                        <input class="form-check-input" type="checkbox" id="clone_consent_checkbox">
+                                                        <label class="form-check-label text-muted small" for="clone_consent_checkbox">
+                                                            I confirm this is my own voice (or I have explicit legal authorization), and I accept full responsibility for misuse.
+                                                        </label>
+                                                    </div>
                                                     <button type="button" class="btn btn-outline-primary btn-sm w-100 mb-2" id="btn_process_clone">
                                                         <i class="fas fa-cog fa-spin d-none" id="clone_spinner"></i>
-                                                        <i class="fas fa-upload me-1" id="clone_icon"></i> Process &amp; Clone
+                                                        <i class="fas fa-upload me-1" id="clone_icon"></i> Submit for Review
                                                     </button>
                                                     <span class="badge bg-secondary" id="clone_status_badge">Not Set</span>
                                                 </div>
-                                                <div class="automation-block mt-3 pt-3">
-                                                    <label class="form-label text-muted small mb-1">Preview</label>
-                                                    <input type="text" class="form-control form-control-sm modern-input mb-2" id="preview_text_input" placeholder="مرحبا كيف اساعدك ..." value="">
-                                                    <button type="button" class="btn btn-outline-info btn-sm w-100" id="btn_play_preview"><i class="fas fa-play me-1"></i> Play</button>
+                                                {% else %}
+                                                <div id="voice_clone_section" class="automation-block mt-3 pt-3 {% if channel.voice_provider != 'ELEVENLABS' %}d-none{% endif %}">
+                                                    <h6 class="text-white mb-2 small">Clone <span class="pro-badge ms-1">👑 PRO</span></h6>
+                                                    <div class="alert alert-secondary mb-0 py-2 px-3">
+                                                        <i class="fas fa-hourglass-half me-2"></i>
+                                                        Coming soon.
+                                                    </div>
                                                 </div>
+                                                {% endif %}
+                                               
                                             </div>
                                         </div>
                                     </div>
@@ -817,6 +1029,37 @@
                                     </div> -->
                                 </div>
                             </div>
+                            {% else %}
+                            <div class="automation-ai-section ai-assistant-plan-locked">
+                                <div class="automation-ai-header">
+                                    <span class="automation-ai-badge"><i class="fas fa-robot me-1"></i> AI Assistant</span>
+                                    <p class="automation-ai-subtitle mb-0">Plan upgrade required</p>
+                                </div>
+                                <div class="row g-4">
+                                    <div class="col-12">
+                                        <div class="automation-card" style="border: 1px dashed rgba(248, 180, 113, 0.35); background: rgba(248, 180, 113, 0.06);">
+                                            <div class="automation-card-head border-0 pb-0">
+                                                <span class="automation-card-icon bg-warning bg-opacity-10 text-warning"><i class="fas fa-lock"></i></span>
+                                                <div>
+                                                    <h6 class="automation-card-title mb-0">AI agents aren’t included in your current plan</h6>
+                                                    <p class="automation-card-desc mb-0 mt-1">You can’t use AI Sales agents on this channel until you move to a plan that includes AI automation.</p>
+                                                </div>
+                                            </div>
+                                            <div class="automation-card-body pt-3">
+                                                <p class="text-muted small mb-4 mb-lg-3">Open Stripe’s customer portal to change your plan, payment method, and invoices—same place as “Manage subscription &amp; billing”.</p>
+                                                {% if can_open_stripe_portal %}
+                                                <button type="button" class="btn btn-primary w-100 py-2 fw-semibold rounded-3" id="btn_open_stripe_portal_ai">
+                                                    <i class="fas fa-external-link-alt me-2"></i> Manage subscription &amp; billing
+                                                </button>
+                                                {% else %}
+                                                <p class="text-secondary small mb-0"><i class="fas fa-info-circle me-1"></i> Only the workspace owner can open billing. Ask them to upgrade the plan.</p>
+                                                {% endif %}
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            {% endif %}
                         </div>
                         <style>
                         .automation-tab { padding: 0 2px; }
@@ -846,6 +1089,7 @@
 
                             <div class="rounded-3 border border-secondary p-4 mb-4" style="background: rgba(255,255,255,0.02);">
                                 <h6 class="text-white mb-3">Behavior</h6>
+                                {% if plan_can_ai_assistant %}
                                 <div class="routing-toggle-wrap">
                                     <div class="routing-toggle-label">
                                         Full AI Autopilot
@@ -856,6 +1100,7 @@
                                     </div>
                                     <button type="button" class="routing-toggle-switch on" id="routing_toggle_autopilot" aria-pressed="true"></button>
                                 </div>
+                                {% endif %}
                                 <div class="routing-toggle-wrap">
                                     <div class="routing-toggle-label">
                                         Dynamic Offline Redistribution
@@ -884,7 +1129,8 @@
                                             <span class="text-muted">%</span>
                                         </div>
                                     </div>
-                                    <!-- Team rows filled by JS from data.routing -->
+                                    <!-- Team rows: only users with access to this channel (filled by JS from data.routing) -->
+                                    <p class="text-muted small mb-2 mt-2" id="routing_team_note">Only agents with access to this channel are shown.</p>
                                     <div id="routing_team_rows"></div>
                                 </div>
                             </div>
@@ -895,7 +1141,7 @@
 
                                     <span class="routing-tooltip-wrap">
                                         <span class="routing-tooltip-btn" style="cursor: help;" aria-label="Help"><i class="fas fa-question-circle text-muted"></i></span>
-                                        <span class="routing-tooltip-box">The sum of all routing percentages must equal 100% to save. When Full AI Autopilot is on, the AI share is included; when off, only team members' percentages count.</span>
+                                        <span class="routing-tooltip-box">The sum of all routing percentages must equal 100% to save. {% if plan_can_ai_assistant %}When Full AI Autopilot is on, the AI share is included; when it is off, only team members' percentages count.{% else %}Only team members' percentages count (AI routing is not on your plan).{% endif %}</span>
                                     </span>
                                 </div>
                                 <button type="button" class="btn btn-save-glow routing-save-btn" id="btn_save_routing" disabled><i class="fas fa-save me-1"></i> Save changes</button>
@@ -910,6 +1156,19 @@
                             <div class="col-lg-8">
                                 <h5 class="text-white mb-3"><i class="fas fa-table text-success me-2"></i> Google Sheets</h5>
                                 <p class="text-muted small mb-4">Export order data (Name, Phone, Address, etc.) to a Google Sheet when a flow reaches the Google Sheets node. Connection uses a global service account—no per-user credentials.</p>
+                                <div class="gs-app-tile mb-3">
+                                    <div class="gs-app-left">
+                                        <span class="gs-app-icon"><i class="fas fa-table"></i></span>
+                                        <div class="min-w-0">
+                                            <div class="gs-app-name">Google Sheets App</div>
+                                            <div class="gs-app-desc">Click to configure connection, sheet mapping, and export fields.</div>
+                                        </div>
+                                    </div>
+                                    <button type="button" class="btn btn-outline-light btn-sm gs-app-toggle" id="gs-app-toggle-btn" aria-expanded="false" aria-controls="gs-app-content">
+                                        Open <i class="fas fa-chevron-down ms-1"></i>
+                                    </button>
+                                </div>
+                                <div id="gs-app-content" class="d-none">
 
                                 <!-- Connection Box -->
                                 <div class="inner-card p-4 mb-4 border border-secondary">
@@ -978,6 +1237,7 @@
                                     </div>
                                     <button type="button" class="btn btn-outline-secondary btn-sm" id="gs-add-mapping-row"><i class="fas fa-plus me-1"></i> Add row</button>
                                 </div>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -991,10 +1251,11 @@
                                             <div class="bg-dark p-2 rounded me-3 text-warning"><i class="fas fa-volume-up"></i></div>
                                             <div>
                                                 <h6 class="mb-0 text-white">Sound Notifications</h6>
+                                                <p class="text-muted small mb-0 mt-1">Play a sound when a new customer message arrives (toast / background tab).</p>
                                             </div>
                                         </div>
                                         <div class="form-check form-switch">
-                                            <input class="form-check-input" type="checkbox" id="personal_sound_toggle">
+                                            <input class="form-check-input" type="checkbox" id="personal_sound_toggle" name="wa_sound_notifications" aria-label="Enable sound for new message notifications">
                                         </div>
                                     </div>
                                     </div>
@@ -1017,6 +1278,67 @@
             </div>
         </div>
     </div>
+
+    <div class="modal fade" id="voiceGalleryModal" tabindex="-1" aria-labelledby="voiceGalleryModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-xl modal-dialog-scrollable modal-dialog-centered">
+            <div class="modal-content bg-dark border-secondary text-white" style="max-width: 100%; overflow-y: auto;">
+                <div class="modal-header border-secondary">
+                    <h5 class="modal-title" id="voiceGalleryModalLabel"><i class="fas fa-th-large me-2 text-info"></i> Voice Gallery</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body voice-gallery-modal-body pt-0">
+                    <p class="text-muted small mb-3" id="voice_gallery_modal_intro">
+                        <i class="fas fa-info-circle me-1"></i>
+                        <span id="voice_gallery_modal_intro_text">Voices match your selected Provider (OpenAI TTS or ElevenLabs).</span>
+                    </p>
+                    <div class="alert alert-secondary py-2 small mb-3" role="alert">
+                        <i class="fas fa-headphones me-2"></i>
+                        <span id="voice_gallery_modal_banner_text">Open this gallery after choosing Provider in Voice Identity.</span>
+                    </div>
+                    <div class="row g-2 mb-3">
+                        <div class="col-auto">
+                            <label class="form-label small text-muted mb-0">Gender</label>
+                            <select id="voice_gallery_filter_gender" class="form-select form-select-sm modern-input">
+                                <option value="">All</option>
+                                <option value="MALE">Male</option>
+                                <option value="FEMALE">Female</option>
+                            </select>
+                        </div>
+                        <div class="col-auto">
+                            <label class="form-label small text-muted mb-0">Language</label>
+                            <select id="voice_gallery_filter_lang" class="form-select form-select-sm modern-input">
+                                <option value="">All languages</option>
+                                <option value="AR_MA">Arabic (Morocco)</option>
+                                <option value="AR_SA">Arabic (Saudi Arabia)</option>
+                                <option value="AR_AE">Arabic (UAE)</option>
+                                <option value="AR_EG">Arabic (Egypt)</option>
+                                <option value="FR_FR">French (France)</option>
+                                <option value="FR_MA">French (Morocco)</option>
+                                <option value="EN_US">English (US)</option>
+                                <option value="EN_GB">English (UK)</option>
+                                <option value="ES_ES">Spanish (Spain)</option>
+                                <option value="DE_DE">German (Germany)</option>
+                                <option value="IT_IT">Italian (Italy)</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div id="voice_gallery_cards" class="row g-3">
+                        <div class="col-12 text-muted small">Open this gallery from channel settings with a channel selected.</div>
+                    </div>
+                    <p class="text-muted small mt-3 mb-0">
+                        <i class="fas fa-headphones me-1"></i> Click <strong>Play Sample</strong> to preview. Click a card to select that voice for this channel.
+                    </p>
+                </div>
+                <div class="modal-footer border-secondary">
+                    <div class="alert alert-secondary py-2 small mb-3 " role="alert">
+                        <i class="fas fa-headphones me-2"></i>
+                       This voice you select here will be used for reponse on chats out of context / out of <strong >Flow</strong>, you can still select spicific voice for each flow / <strong>Product</strong> in the <strong>Flow Builder</strong>
+                   </div>
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Done</button> 
+                </div>
+            </div>
+        </div>
+    </div>
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
@@ -1030,6 +1352,14 @@
     });
 
     // ----- Team & Routing: toggles (Full AI Autopilot, Dynamic Offline) -----
+    window._planCanAiAssistant = {% if plan_can_ai_assistant %}true{% else %}false{% endif %};
+    function routingAutopilotEffectiveOn() {
+        if (window._planCanAiAssistant === false) return false;
+        var t = document.getElementById('routing_toggle_autopilot');
+        if (t && $(t).hasClass('on')) return true;
+        if ($('#switch_ai_autopilot').length && $('#switch_ai_autopilot').is(':checked')) return true;
+        return false;
+    }
     function routingToggleState(btn) {
         return $(btn).hasClass('on');
     }
@@ -1038,10 +1368,13 @@
     }
     /** Apply Full AI Autopilot state to the AI row (toggle + inputs + disabled class). Call whenever autopilot state may have changed. */
     function applyRoutingAutopilotUI(on) {
+        if (window._planCanAiAssistant === false) on = false;
         var toggleEl = document.getElementById('routing_toggle_autopilot');
         var rowEl = document.getElementById('routing_row_ai');
-        if (!toggleEl || !rowEl) return;
-        routingToggleSet(toggleEl, !!on);
+        if (!rowEl) return;
+        if (toggleEl) {
+            routingToggleSet(toggleEl, !!on);
+        }
         if (!on) {
             $('#routing_slider_ai, #routing_input_ai').val(0).prop('disabled', true);
             $(rowEl).addClass('disabled');
@@ -1080,7 +1413,7 @@
     window._renderRoutingTable = function () {
         var list = window._routingData || [];
         // Derive autopilot from both toggles so AI row stays in sync (backend / Automation tab / Routing tab)
-        var fullAutopilot = $('#routing_toggle_autopilot').hasClass('on') || ($('#switch_ai_autopilot').length && $('#switch_ai_autopilot').is(':checked'));
+        var fullAutopilot = routingAutopilotEffectiveOn();
         var aiPct = Math.min(100, Math.max(0, parseInt(window._aiRoutingPct, 10) || 0));
         $('#routing_input_ai').data('last', aiPct);
         applyRoutingAutopilotUI(fullAutopilot);
@@ -1107,12 +1440,12 @@
             _updateRoutingTotal();
         });
         // Re-apply AI row state so it stays correct after DOM/event setup
-        applyRoutingAutopilotUI($('#routing_toggle_autopilot').hasClass('on') || ($('#switch_ai_autopilot').length && $('#switch_ai_autopilot').is(':checked')));
+        applyRoutingAutopilotUI(routingAutopilotEffectiveOn());
         _updateRoutingTotal();
     };
     function _updateRoutingTotal() {
         var total = 0;
-        var autopilotOn = $('#routing_toggle_autopilot').hasClass('on') || ($('#switch_ai_autopilot').length && $('#switch_ai_autopilot').is(':checked'));
+        var autopilotOn = routingAutopilotEffectiveOn();
         if (autopilotOn) {
             var ai = parseInt($('#routing_input_ai').val(), 10);
             if (!isNaN(ai)) total += ai;
@@ -1145,8 +1478,267 @@
         $('#order_notify_whatsapp_row').toggleClass('d-none', m !== 'WHATSAPP');
     }
 
-    window.loadSetting = function (channel_id){      
-     
+    /** Voice Gallery modal: same APIs as standalone `voice_gallery.html`. */
+    (function voiceGalleryModalInit() {
+        var vgVoices = [];
+        var vgSelectedId = '';
+        var vgGalleryAudio = null;
+        var vgGalleryAudioBtn = null;
+        var vgListUrl = '{% url "voice_gallery_list" %}';
+        var vgPreviewUrl = '{% url "voice_gallery_preview" %}';
+        var vgSelectUrl = '{% url "voice_gallery_select" %}';
+        var vgCsrf = '{{ csrf_token }}';
+
+        function vgChannelId() {
+            return window._settingsChannelId || window._activeChannelId || window.currentChannelId || '';
+        }
+
+        function vgStopAudio(resetBtn) {
+            if (vgGalleryAudio) {
+                try { vgGalleryAudio.pause(); } catch (e) {}
+                vgGalleryAudio.currentTime = 0;
+                vgGalleryAudio = null;
+            }
+            if (resetBtn && vgGalleryAudioBtn) {
+                var ib = vgGalleryAudioBtn.querySelector('i');
+                if (ib) ib.className = 'fas fa-play me-1';
+                vgGalleryAudioBtn.disabled = false;
+                vgGalleryAudioBtn = null;
+            }
+        }
+        window._vgStopVoiceGalleryAudio = vgStopAudio;
+
+        /** Match Voice Gallery row to locale filter; uses Admin `language_code` when set. */
+        function vgLangMatch(v, selectedNorm) {
+            if (!selectedNorm) return true;
+            var lc = (v.language_code || '').trim().replace(/-/g, '_').toUpperCase();
+            var sel = String(selectedNorm).trim().replace(/-/g, '_').toUpperCase();
+            if (lc) {
+                if (lc === 'MULTILINGUAL') return true;
+                if (lc === sel) return true;
+                var a = lc.split('_'), b = sel.split('_');
+                if (a[0] && b[0] && a[0] === b[0]) return true;
+                return false;
+            }
+            if (sel.indexOf('AR_') === 0) return !!(v.native_arabic) || (v.tags || []).join(' ').toLowerCase().indexOf('arabic') !== -1;
+            if (sel.indexOf('FR_') === 0) {
+                var tj = (v.tags || []).join(' ').toLowerCase();
+                return tj.indexOf('french') !== -1 || tj.indexOf('multilingual') !== -1;
+            }
+            if (sel.indexOf('EN_') === 0) {
+                var te = (v.tags || []).join(' ').toLowerCase();
+                return te.indexOf('english') !== -1 || te.indexOf('multilingual') !== -1;
+            }
+            if (sel.indexOf('ES_') === 0) {
+                var ts = (v.tags || []).join(' ').toLowerCase();
+                return ts.indexOf('spanish') !== -1 || ts.indexOf('multilingual') !== -1;
+            }
+            if (sel.indexOf('DE_') === 0) {
+                var td = (v.tags || []).join(' ').toLowerCase();
+                return td.indexOf('german') !== -1 || td.indexOf('multilingual') !== -1;
+            }
+            if (sel.indexOf('IT_') === 0) {
+                var ti = (v.tags || []).join(' ').toLowerCase();
+                return ti.indexOf('italian') !== -1 || ti.indexOf('multilingual') !== -1;
+            }
+            return true;
+        }
+
+        function vgRenderCards() {
+            var genderEl = document.getElementById('voice_gallery_filter_gender');
+            var langEl = document.getElementById('voice_gallery_filter_lang');
+            var gender = genderEl ? genderEl.value : '';
+            var lang = langEl ? langEl.value : '';
+            var list = vgVoices.filter(function(v) {
+                if (gender && v.gender !== gender) return false;
+                return vgLangMatch(v, lang);
+            });
+            var html = '';
+            list.forEach(function(v) {
+                var tagsHtml = (v.tags || []).map(function(t) { return '<span>' + t + '</span>'; }).join('');
+                if (v.native_arabic) tagsHtml += ' <span class="badge badge-vg-native">👑 Native Support</span>';
+                if (v.dialect_display) {
+                    tagsHtml += ' <span class="badge bg-dark border border-secondary">' + String(v.dialect_display).replace(/</g, '&lt;') + '</span>';
+                }
+                var selected = (v.id === vgSelectedId) ? ' vg-selected' : '';
+                var pv = (v.preview_audio_url || '').replace(/"/g, '&quot;');
+                var nm = String(v.label || v.name || '');
+                var nmAttr = nm.replace(/"/g, '&quot;');
+                html += '<div class="col-12 col-sm-6 col-lg-4">' +
+                    '<div class="vg-voice-card' + selected + '" data-voice-id="' + String(v.id).replace(/"/g, '') + '" data-voice-label="' + nmAttr + '">' +
+                    '<div class="vg-name">' + nm + '</div>' +
+                    '<div class="vg-tags">' + tagsHtml + '</div>' +
+                    '<button type="button" class="btn btn-outline-primary btn-sm btn-vg-play" data-voice-id="' + String(v.id).replace(/"/g, '') + '" data-preview-url="' + pv + '">' +
+                    '<i class="fas fa-play me-1"></i> Play Sample</button>' +
+                    '</div></div>';
+            });
+            var wrap = document.getElementById('voice_gallery_cards');
+            if (wrap) wrap.innerHTML = html || '<div class="col-12 text-muted">No voices match the filters.</div>';
+            document.querySelectorAll('#voice_gallery_cards .vg-voice-card').forEach(function(el) {
+                el.onclick = function(e) {
+                    if (e.target.closest('.btn-vg-play')) return;
+                    vgSelectVoice(el.getAttribute('data-voice-id'), el.getAttribute('data-voice-label'));
+                };
+            });
+            document.querySelectorAll('#voice_gallery_cards .btn-vg-play').forEach(function(btn) {
+                btn.onclick = function(e) {
+                    e.stopPropagation();
+                    vgPlaySample(btn.getAttribute('data-voice-id'), btn);
+                };
+            });
+        }
+
+        function vgPlaySample(voiceId, btnEl) {
+            var channelId = vgChannelId();
+            if (!channelId) { alert('Channel not selected.'); return; }
+            var previewUrl = (btnEl.getAttribute('data-preview-url') || '').trim();
+            if (previewUrl) {
+                if (vgGalleryAudioBtn === btnEl && vgGalleryAudio && !vgGalleryAudio.paused) {
+                    vgStopAudio(true);
+                    return;
+                }
+                vgStopAudio(true);
+                vgGalleryAudioBtn = btnEl;
+                var iconS = btnEl.querySelector('i');
+                iconS.className = 'fas fa-pause me-1';
+                vgGalleryAudio = new Audio(previewUrl);
+                vgGalleryAudio.onended = function() { vgStopAudio(true); };
+                vgGalleryAudio.onerror = function() {
+                    vgStopAudio(true);
+                    alert('Preview MP3 missing. Add files under static/audio/voice-previews/ (see README there).');
+                };
+                vgGalleryAudio.play().catch(function() { vgStopAudio(true); });
+                return;
+            }
+            vgStopAudio(true);
+            var formData = new FormData();
+            formData.append('channel_id', channelId);
+            formData.append('voice_id', voiceId);
+            formData.append('csrfmiddlewaretoken', vgCsrf);
+            formData.append('text', 'مرحبا كيف اساعدك ');
+            var icon = btnEl.querySelector('i');
+            icon.className = 'fas fa-circle-notch fa-spin me-1';
+            btnEl.disabled = true;
+            fetch(vgPreviewUrl, { method: 'POST', body: formData, credentials: 'same-origin' })
+                .then(function(r) {
+                    if (!r.ok) return r.json().then(function(j) { throw new Error(j.message || 'Preview failed'); });
+                    return r.blob();
+                })
+                .then(function(blob) {
+                    var url = URL.createObjectURL(blob);
+                    var audio = new Audio(url);
+                    audio.onended = function() { URL.revokeObjectURL(url); };
+                    audio.onerror = function() { URL.revokeObjectURL(url); };
+                    audio.play().catch(function() {});
+                })
+                .catch(function(err) { alert(err.message || 'Could not play sample.'); })
+                .finally(function() {
+                    icon.className = 'fas fa-play me-1';
+                    btnEl.disabled = false;
+                });
+        }
+
+        function vgSelectVoice(voiceId, label) {
+            vgSelectedId = voiceId;
+            vgRenderCards();
+            var channelId = vgChannelId();
+            if (!channelId) return;
+            var previewUrl = '';
+            for (var i = 0; i < vgVoices.length; i++) {
+                if (vgVoices[i].id === voiceId || vgVoices[i].voice_id === voiceId) {
+                    previewUrl = vgVoices[i].preview_audio_url || '';
+                    break;
+                }
+            }
+            var formData = new FormData();
+            formData.append('channel_id', channelId);
+            formData.append('voice_id', voiceId);
+            formData.append('voice_preview_url', previewUrl);
+            formData.append('csrfmiddlewaretoken', vgCsrf);
+            var provSel2 = document.querySelector('select[name="voice_provider"]');
+            if (provSel2 && provSel2.value) {
+                formData.append('voice_provider', provSel2.value);
+            }
+            fetch(vgSelectUrl, { method: 'POST', body: formData, credentials: 'same-origin' })
+                .then(function(r) { return r.json(); })
+                .then(function(data) {
+                    if (data.status === 'success') {
+                        if (typeof showToast === 'function') showToast('Voice selected: ' + (label || voiceId), 'success');
+                    } else {
+                        alert(data.message || 'Selection failed');
+                    }
+                })
+                .catch(function() { alert('Request failed'); });
+        }
+
+        function vgLoadList() {
+            var channelId = vgChannelId();
+            var wrap = document.getElementById('voice_gallery_cards');
+            if (!wrap) return;
+            if (!channelId) {
+                wrap.innerHTML = '<div class="col-12 text-warning">Select a channel first.</div>';
+                return;
+            }
+            wrap.innerHTML = '<div class="col-12 text-muted"><i class="fas fa-circle-notch fa-spin me-2"></i>Loading voices…</div>';
+            var formData = new FormData();
+            formData.append('channel_id', channelId);
+            formData.append('csrfmiddlewaretoken', vgCsrf);
+            var provSel = document.querySelector('select[name="voice_provider"]');
+            if (provSel && provSel.value) {
+                formData.append('voice_provider', provSel.value);
+            }
+            fetch(vgListUrl, { method: 'POST', body: formData, credentials: 'same-origin' })
+                .then(function(r) { return r.json(); })
+                .then(function(data) {
+                    if (data.status === 'success') {
+                        vgVoices = data.voices || [];
+                        vgSelectedId = data.selected_voice_id || '';
+                        var provBanner = (data.tts_provider || '').toUpperCase();
+                        var bt = document.getElementById('voice_gallery_modal_banner_text');
+                        if (bt) {
+                            bt.textContent = provBanner === 'OPENAI'
+                                ? 'Showing OpenAI TTS voices (alloy, nova, …). ElevenLabs voices are hidden while Provider is OpenAI.'
+                                : 'Showing ElevenLabs voices only. OpenAI voices are hidden while Provider is ElevenLabs.';
+                        }
+                        var it = document.getElementById('voice_gallery_modal_intro_text');
+                        if (it) {
+                            it.textContent = provBanner === 'OPENAI'
+                                ? 'Pick an OpenAI voice for Text-to-Speech.'
+                                : 'Pick an ElevenLabs voice (requires API key for synthesis).';
+                        }
+                        vgRenderCards();
+                    } else {
+                        wrap.innerHTML = '<div class="col-12 text-danger">' + (data.message || 'Could not load voices.') + '</div>';
+                    }
+                })
+                .catch(function() {
+                    wrap.innerHTML = '<div class="col-12 text-danger">Could not load voices.</div>';
+                });
+        }
+
+        $(function() {
+            $(document).on('click', '#btn_voice_gallery', function() {
+                var el = document.getElementById('voiceGalleryModal');
+                if (el && typeof bootstrap !== 'undefined' && bootstrap.Modal) {
+                    bootstrap.Modal.getOrCreateInstance(el).show();
+                }
+            });
+            $('#voiceGalleryModal').on('shown.bs.modal', function() {
+                vgLoadList();
+                document.querySelectorAll('#voiceGalleryModal [data-bs-toggle="tooltip"]').forEach(function(el) {
+                    if (typeof bootstrap !== 'undefined' && bootstrap.Tooltip) {
+                        try { new bootstrap.Tooltip(el); } catch (e) {}
+                    }
+                });
+            });
+            $('#voiceGalleryModal').on('hidden.bs.modal', function() { vgStopAudio(true); });
+            $(document).on('change', '#voice_gallery_filter_gender, #voice_gallery_filter_lang', function() { vgRenderCards(); });
+        });
+    })();
+
+    window.loadSetting = function (channel_id){
+    window._settingsChannelId = channel_id;
+
     const loader = $('#settings_loader');
     loader.removeClass('d-none'); 
     
@@ -1178,6 +1770,23 @@
                 $('input[name="enable_welcome_msg"]').prop('checked', data.b_welcom_enable);
                 $('textarea[name="welcome_msg_body"]').val(data.b_welcom_body);
                 $('input[name="channel_name"]').val(data.channel_name);
+                var metaName = (data.meta_display_name || '').toString().trim();
+                $('#wa_cloud_display_name').text(metaName || 'Meta name unavailable');
+                $('#dash_display_name').text(metaName || '—');
+                var metaPhone = (data.meta_connected_number || data.phone_number || '').toString().trim();
+                if (metaPhone && metaPhone.charAt(0) !== '+') metaPhone = '+' + metaPhone;
+                $('#dash_phone_number').text(metaPhone || '—');
+                $('#dash_waba_id').text((data.meta_waba_id || '').toString().trim() || '—');
+                $('#dash_messaging_limit').text((data.meta_messaging_limit || '').toString().trim() || 'UNKNOWN');
+                $('#dash_account_status').text((data.meta_account_status || '').toString().trim() || 'UNKNOWN');
+                var qr = ((data.meta_quality_rating || '').toString().trim() || 'UNKNOWN').toUpperCase();
+                var qrDot = (qr === 'GREEN') ? 'GREEN ●' : (qr === 'YELLOW') ? 'YELLOW ●' : (qr === 'RED') ? 'RED ●' : 'UNKNOWN';
+                var $qrEl = $('#dash_quality_rating');
+                $qrEl.text(qrDot);
+                $qrEl.removeClass('text-green text-warning text-danger');
+                if (qr === 'GREEN') $qrEl.addClass('text-green');
+                else if (qr === 'YELLOW') $qrEl.addClass('text-warning');
+                else if (qr === 'RED') $qrEl.addClass('text-danger');
 
                 // التحكم في ظهور منطقة نص الترحيب
                 if(data.b_welcom_enable) {
@@ -1201,13 +1810,15 @@
                 toggleOrderNotifyInputs();
                 $('input[name="voice_cloning_enabled"]').prop('checked', !!data.voice_cloning_enabled);
                 $('#switch_voice_cloning').prop('disabled', !data.is_premium);
-                $('input[name="elevenlabs_api_key"]').val(data.elevenlabs_api_key || '');
+                $('#btn_voice_gallery').removeClass('d-none');
                 if (data.voice_provider === 'ELEVENLABS') {
                     $('#elevenlabs_key_wrap').removeClass('d-none');
-                    $('#btn_voice_gallery').attr('href', '{% url "voice_gallery_page" %}?channel_id=' + (channel_id || '')).removeClass('d-none');
+                    $('#voice_cloning_row').removeClass('d-none');
+                    $('#voice_clone_section').removeClass('d-none');
                 } else {
                     $('#elevenlabs_key_wrap').addClass('d-none');
-                    $('#btn_voice_gallery').addClass('d-none');
+                    $('#voice_cloning_row').addClass('d-none');
+                    $('#voice_clone_section').addClass('d-none');
                 }
                 // When not premium, ensure we don't submit voice_cloning (backend will set false)
                 if (!data.is_premium) { $('input[name="voice_cloning_enabled"]').prop('checked', false); }
@@ -1244,9 +1855,14 @@
                     $('#tone_control_card').addClass('feature-locked').attr('title', lockTip);
                     $('#tone_control_card').find('input').prop('disabled', true);
                 }
-                $('#clone_status_badge').removeClass('bg-success').addClass('bg-secondary').text(data.cloned_voice_id ? 'Ready' : 'Not Set');
-                if (data.cloned_voice_id) { $('#clone_status_badge').removeClass('bg-secondary').addClass('bg-success'); }
-                $('#voice_clone_section').find('#clone_audio_input, #btn_process_clone').prop('disabled', !data.plan_can_voice_cloning);
+                if (data.clone_request_status === 'pending') {
+                    $('#clone_status_badge').removeClass('bg-success bg-secondary bg-danger').addClass('bg-warning text-dark').text('Under Review');
+                } else if (data.clone_request_status === 'rejected') {
+                    $('#clone_status_badge').removeClass('bg-success bg-secondary bg-warning text-dark').addClass('bg-danger').text('Rejected');
+                } else {
+                    $('#clone_status_badge').removeClass('bg-warning text-dark bg-danger').toggleClass('bg-success', !!data.cloned_voice_id).toggleClass('bg-secondary', !data.cloned_voice_id).text(data.cloned_voice_id ? 'Ready' : 'Not Set');
+                }
+                $('#voice_clone_section').find('#clone_audio_input, #btn_process_clone, #clone_consent_checkbox, #clone_dialect_select').prop('disabled', !data.plan_can_voice_cloning);
                 var defaultPreview = 'مرحبا كيف اساعدك ';
                 if (!$('#preview_text_input').val()) { $('#preview_text_input').attr('placeholder', defaultPreview); }
 
@@ -1255,10 +1871,12 @@
                 window._aiRoutingPct = typeof data.ai_routing_percentage !== 'undefined' ? data.ai_routing_percentage : 0;
                 window._dynamicOfflineRedistribution = !!data.dynamic_offline_redistribution;
                 if (document.getElementById('routing_dynamic_offline')) $('#routing_dynamic_offline').prop('checked', !!data.dynamic_offline_redistribution);
+                window._planCanAiAssistant = !!data.plan_can_auto_reply;
                 // Full AI Autopilot in Team & Routing: keep in sync with backend (data.ai_auto_reply)
                 if (typeof applyRoutingAutopilotUI === 'function') {
                     $('#routing_input_ai').data('last', window._aiRoutingPct || 0);
-                    applyRoutingAutopilotUI(!!data.ai_auto_reply);
+                    var wantOn = !!data.ai_auto_reply && window._planCanAiAssistant !== false;
+                    applyRoutingAutopilotUI(wantOn);
                 }
                 window._renderRoutingTable();
                 window._updateRoutingTotal();
@@ -1269,7 +1887,6 @@
         },
         error: function(xhr, status, error) {
             console.error('AJAX Error:', error);
-            console.log(xhr.responseText);
         },
         complete: function() {
             // 2. 🔥 إخفاء طبقة التحميل بعد انتهاء الجلب (بنجاح أو فشل) 🔥
@@ -1289,6 +1906,35 @@ $('#btn_open_settings').on('click', function() {
 // window.loadSetting = loadSetting(window.currentChannelId);
 
     $(document).ready(function() {
+
+        $(document).on('click', '#btn_open_stripe_portal_ai', function () {
+            var $btn = $(this);
+            var csrfToken = ($('input[name="csrfmiddlewaretoken"]').val() || '{{ csrf_token }}').toString();
+            $btn.prop('disabled', true);
+            fetch('{% url "create_portal_session" %}', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': csrfToken
+                },
+                body: '{}',
+                credentials: 'same-origin'
+            })
+                .then(function (r) { return r.json(); })
+                .then(function (data) {
+                    if (data.url) {
+                        window.location.href = data.url;
+                    } else {
+                        alert(data.error || 'Could not open the billing portal. Try again later.');
+                    }
+                })
+                .catch(function () {
+                    alert('Network error. Please try again.');
+                })
+                .finally(function () {
+                    $btn.prop('disabled', false);
+                });
+        });
   
         $('#profile_image_input').change(function(){
     const file = this.files[0];
@@ -1302,41 +1948,43 @@ $('#btn_open_settings').on('click', function() {
 });  
 
 
-    // --- إعدادات الصوت ---
-    const soundToggle = $('#personal_sound_toggle');
-    // القراءة من الذاكرة (الافتراضي true إذا لم يكن مخزناً)
-    const storedSound = localStorage.getItem('wa_sound_enabled');
-    const isSoundEnabled = storedSound === null ? true : (storedSound === 'true');
-    
-    soundToggle.prop('checked', isSoundEnabled);
-    window.soundEnabled = isSoundEnabled; // تحديث المتغير العام
+    // --- Sound Notifications (same audio as incoming-message toast; see playIncomingMessageSound in whatssap.html) ---
+    (function initSoundNotificationsPref() {
+        var soundToggle = $('#personal_sound_toggle');
+        if (!soundToggle.length) return;
+        var storedSound = localStorage.getItem('wa_sound_enabled');
+        var isSoundEnabled = storedSound === null ? true : (storedSound === 'true');
+        soundToggle.prop('checked', isSoundEnabled);
+        window.soundEnabled = isSoundEnabled;
 
-    soundToggle.on('change', function() {
-        const isChecked = $(this).is(':checked');
-        localStorage.setItem('wa_sound_enabled', isChecked);
-        window.soundEnabled = isChecked;
-        
-        // تشغيل صوت تجريبي عند التفعيل
-        if(isChecked) {
-            const audio = new Audio('/static/sounds/notification.mp3'); // تأكد من المسار
-            audio.volume = 0.5;
-            audio.play().catch(e => console.log('Audio test blocked'));
-        }
-    });
+        soundToggle.on('change', function () {
+            var isChecked = $(this).is(':checked');
+            localStorage.setItem('wa_sound_enabled', isChecked);
+            window.soundEnabled = isChecked;
+            if (isChecked && typeof window.playIncomingMessageSound === 'function') {
+                var a = document.getElementById('notification_sound');
+                var prev = a ? a.volume : 1;
+                if (a) a.volume = 0.5;
+                window.playIncomingMessageSound();
+                if (a) setTimeout(function () { a.volume = prev; }, 900);
+            }
+        });
+    })();
 
-    // --- إعدادات Enter للإرسال ---
-    const enterToggle = $('#personal_enter_send');
-    const storedEnter = localStorage.getItem('wa_enter_to_send');
-    const isEnterEnabled = storedEnter === null ? true : (storedEnter === 'true');
-
-    enterToggle.prop('checked', isEnterEnabled);
-    window.enterToSend = isEnterEnabled;
-
-    enterToggle.on('change', function() {
-        const isChecked = $(this).is(':checked');
-        localStorage.setItem('wa_enter_to_send', isChecked);
-        window.enterToSend = isChecked;
-    });
+    // --- Enter to send (optional UI; keep if #personal_enter_send is added later) ---
+    (function initEnterToSendPref() {
+        var enterToggle = $('#personal_enter_send');
+        if (!enterToggle.length) return;
+        var storedEnter = localStorage.getItem('wa_enter_to_send');
+        var isEnterEnabled = storedEnter === null ? true : (storedEnter === 'true');
+        enterToggle.prop('checked', isEnterEnabled);
+        window.enterToSend = isEnterEnabled;
+        enterToggle.on('change', function () {
+            var isChecked = $(this).is(':checked');
+            localStorage.setItem('wa_enter_to_send', isChecked);
+            window.enterToSend = isChecked;
+        });
+    })();
 
     // ==========================================
     // 2. Admin UI Logic (UX) 🔒
@@ -1364,12 +2012,17 @@ $('#btn_open_settings').on('click', function() {
         $('#voice_similarity_value').text($(this).val());
     });
 
-    // AI Voice: show ElevenLabs key field when provider is ELEVENLABS
+    // AI Voice: show ElevenLabs-only controls when provider is ELEVENLABS (Voice Gallery stays visible for both)
     $('select[name="voice_provider"]').on('change', function() {
+        $('#btn_voice_gallery').removeClass('d-none');
         if ($(this).val() === 'ELEVENLABS') {
             $('#elevenlabs_key_wrap').removeClass('d-none');
+            $('#voice_cloning_row').removeClass('d-none');
+            $('#voice_clone_section').removeClass('d-none');
         } else {
             $('#elevenlabs_key_wrap').addClass('d-none');
+            $('#voice_cloning_row').addClass('d-none');
+            $('#voice_clone_section').addClass('d-none');
         }
     });
 
@@ -1413,7 +2066,7 @@ $('#btn_open_settings').on('click', function() {
             });
         });
         var aiPct = 0;
-        if ($('#routing_toggle_autopilot').hasClass('on') || ($('#switch_ai_autopilot').length && $('#switch_ai_autopilot').is(':checked'))) {
+        if (typeof routingAutopilotEffectiveOn === 'function' && routingAutopilotEffectiveOn()) {
             aiPct = parseInt($('#routing_input_ai').val(), 10);
             if (isNaN(aiPct)) aiPct = 0;
             aiPct = Math.max(0, Math.min(100, aiPct));
@@ -1463,6 +2116,15 @@ $('#btn_open_settings').on('click', function() {
             if (typeof showToast === 'function') showToast('Please select an audio file first', 'warning');
             return;
         }
+        if (!$('#clone_consent_checkbox').is(':checked')) {
+            if (typeof showToast === 'function') showToast('You must confirm legal voice ownership before submitting.', 'warning');
+            return;
+        }
+        var cloneDialect = ($('#clone_dialect_select').val() || '').trim();
+        if (!cloneDialect) {
+            if (typeof showToast === 'function') showToast('Please select the dialect this voice is speaking.', 'warning');
+            return;
+        }
         var channelId = window.currentChannelId;
         if (!channelId) {
             if (typeof showToast === 'function') showToast('Channel not selected', 'warning');
@@ -1472,6 +2134,8 @@ $('#btn_open_settings').on('click', function() {
         formData.append('csrfmiddlewaretoken', '{{ csrf_token }}');
         formData.append('channel_id', channelId);
         formData.append('file', fileInput.files[0]);
+        formData.append('consent_agreed', '1');
+        formData.append('dialect', cloneDialect);
         var btn = $('#btn_process_clone');
         var spinner = $('#clone_spinner');
         var icon = $('#clone_icon');
@@ -1479,7 +2143,7 @@ $('#btn_open_settings').on('click', function() {
         spinner.removeClass('d-none');
         icon.addClass('d-none');
         $.ajax({
-            url: '{% url "voice_clone" %}',
+            url: '{% url "voice_request_clone" %}',
             type: 'POST',
             data: formData,
             processData: false,
@@ -1487,8 +2151,15 @@ $('#btn_open_settings').on('click', function() {
             dataType: 'json',
             success: function(res) {
                 if (res.status === 'success') {
-                    $('#clone_status_badge').removeClass('bg-secondary').addClass('bg-success').text('Ready');
-                    if (typeof showToast === 'function') showToast('Voice cloned successfully', 'success');
+                    $('#clone_status_badge').removeClass('bg-success bg-danger').addClass('bg-warning text-dark').text('Under Review');
+                    if (typeof showToast === 'function') {
+                        showToast(
+                            'Your voice is under review by our team for security purposes. It will be activated within 24 hours.',
+                            'success'
+                        );
+                    }
+                    $('#clone_audio_input').val('');
+                    $('#clone_consent_checkbox').prop('checked', false);
                 } else {
                     if (typeof showToast === 'function') showToast(res.message || 'Clone failed', 'error');
                 }
@@ -1597,12 +2268,11 @@ function submitChannelSettings() {
                 // تحديث المتغيرات العامة للتطبيق فوراً (Live Update)
                 if (response.config) {
                     window.collisionEnabled = response.config.enable_collision_detection;
-                    console.log("System config updated:", response.config);
                 }
 
                 // Team & Routing: keep Full AI Autopilot toggle in sync after main settings save
                 if (typeof applyRoutingAutopilotUI === 'function') {
-                    applyRoutingAutopilotUI($('#switch_ai_autopilot').is(':checked'));
+                    applyRoutingAutopilotUI(typeof routingAutopilotEffectiveOn === 'function' ? routingAutopilotEffectiveOn() : false);
                     if (typeof window._updateRoutingTotal === 'function') window._updateRoutingTotal();
                 }
 
@@ -1727,7 +2397,6 @@ function showToast(message, type) {
             color: '#fff'
         });
     } else {
-        console.log(`[${type.toUpperCase()}] ${message}`);
     }
 }
 
@@ -1740,6 +2409,15 @@ function showToast(message, type) {
     var availableFieldsList = [];
     var sortableAvailable = null;
     var sortableActive = null;
+    function setGsPanelOpen(open) {
+        var content = document.getElementById('gs-app-content');
+        var btn = document.getElementById('gs-app-toggle-btn');
+        if (!content || !btn) return;
+        content.classList.toggle('d-none', !open);
+        btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+        btn.innerHTML = (open ? 'Hide' : 'Open') + ' <i class="fas fa-chevron-down ms-1"></i>';
+        if (open) loadGoogleSheetsConfig();
+    }
 
     function getCsrfHeaders() {
         var tok = document.querySelector('input[name="csrfmiddlewaretoken"]');
@@ -2001,6 +2679,13 @@ function showToast(message, type) {
     if (tabEl) tabEl.addEventListener('shown.bs.tab', function() { loadGoogleSheetsConfig(); });
     document.addEventListener('DOMContentLoaded', function() {
         var emailEl = document.getElementById('gs-service-account-email');
+        var toggleBtn = document.getElementById('gs-app-toggle-btn');
+        if (toggleBtn) {
+            toggleBtn.addEventListener('click', function() {
+                var isOpen = toggleBtn.getAttribute('aria-expanded') === 'true';
+                setGsPanelOpen(!isOpen);
+            });
+        }
         if (emailEl) setTimeout(loadGoogleSheetsConfig, 150);
     });
     if (document.readyState === 'complete' || document.readyState === 'interactive') {

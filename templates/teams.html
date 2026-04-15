@@ -126,7 +126,6 @@ window.loadTeamStats = async function(channelId) {
       const data = await res.json();
       
       renderTeamTable(data.stats, tbody);
-      console.log('data - state ', data);
 
   } catch (e) {
       console.error("Failed to load team stats", e);

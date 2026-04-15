@@ -1,5 +1,5 @@
 """
-Initialize default Basic and Premium subscription plans.
+Initialize default subscription plans.
 Run: python manage.py init_plans
 """
 from django.core.management.base import BaseCommand
@@ -9,7 +9,7 @@ from discount.models import Plan
 
 
 class Command(BaseCommand):
-    help = "Create default Basic and Premium plans with their feature flags."
+    help = "Create default Starter, Pro, and Elite plans with their feature flags."
 
     def add_arguments(self, parser):
         parser.add_argument(
@@ -38,7 +38,7 @@ class Command(BaseCommand):
                 "can_use_auto_reply": False,
                 "can_use_advanced_tones": False,
                 "can_use_cloning": False,
-                "price": 0,
+                "price": 19,
             },
             {
                 "name": "Premium",
@@ -47,7 +47,19 @@ class Command(BaseCommand):
                 "can_use_auto_reply": True,
                 "can_use_advanced_tones": True,
                 "can_use_cloning": True,
-                "price": None,  # set your price or leave null
+                "price": 41,
+            },
+            {
+                "name": "Elite",
+                "can_use_ai_voice": True,
+                "can_use_voice_cloning": True,
+                "can_use_auto_reply": True,
+                "can_use_advanced_tones": True,
+                "can_use_cloning": True,
+                "price": 99,
+                "max_channels": None,
+                "max_team_members": None,
+                "max_monthly_orders": None,
             },
         ]
         for d in defaults:
@@ -60,6 +72,9 @@ class Command(BaseCommand):
                     "can_use_advanced_tones": d.get("can_use_advanced_tones", False),
                     "can_use_cloning": d.get("can_use_cloning", False),
                     "price": d.get("price"),
+                    "max_channels": d.get("max_channels"),
+                    "max_team_members": d.get("max_team_members"),
+                    "max_monthly_orders": d.get("max_monthly_orders"),
                 },
             )
             if created:

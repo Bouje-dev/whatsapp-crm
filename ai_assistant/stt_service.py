@@ -12,7 +12,23 @@ from django.conf import settings
 logger = logging.getLogger(__name__)
 
 WHISPER_API_URL = "https://api.openai.com/v1/audio/transcriptions"
+# Whisper-1 prompt budget (~224 tokens); keep aligned with build_whisper_prompt_with_context
+WHISPER_PROMPT_MAX_CHARS = 900
 DEFAULT_WHISPER_PROMPT = "This is a Moroccan/Arabic customer talking about e-commerce orders."
+# Biases Whisper vocabulary toward real Darija e-commerce speech (reduces subtitle/hallucination drift).
+WHISPER_MOROCCAN_ECOMMERCE_VOCAB = (
+    "دارجة مغربية: واش كاين التوصيل، بشحال الثمن، بغيت نشري، الدفع عند الاستلام، كازا، الرباط."
+)
+
+# Known Whisper Arabic/YouTube-style hallucinations on low-volume audio — never treat as customer intent.
+WHISPER_HALLUCINATION_PHRASES = [
+    "الاشتراك في القناة",
+    "المترجم",
+    "شكرا للمشاهدة",
+    "ترجمة",
+    "Amara.org",
+    "Subtitles",
+]
 
 # Returned when audio is unintelligible so caller can show localized fallback
 STT_UNINTELLIGIBLE = "__STT_UNINTELLIGIBLE__"
@@ -70,6 +86,54 @@ def get_whisper_config(voice_language_hint):
     key = _normalize_voice_language_hint(voice_language_hint)
     cfg = WHISPER_LANGUAGE_PROMPTS.get(key) or WHISPER_LANGUAGE_PROMPTS["AUTO"]
     return (cfg.get("language"), cfg.get("prompt") or DEFAULT_WHISPER_PROMPT)
+
+
+def build_whisper_prompt_with_context(voice_language_hint, last_ai_message_bodies):
+    """
+    Merge recent assistant messages into Whisper's prompt so vocabulary matches the live conversation.
+    OpenAI Whisper `prompt` guides style/vocabulary (Moroccan Darija, product names, etc.).
+    Returns (full_prompt_string, language_code_or_None).
+    """
+    lang_from_hint, base_prompt = get_whisper_config(voice_language_hint)
+    ctx_chunks = []
+    for t in (last_ai_message_bodies or [])[-2:]:
+        t = (t or "").strip()
+        if t and t != "[media]":
+            ctx_chunks.append(t[:400])
+    # Match OpenAI guidance: prompt steers vocabulary toward ongoing thread + Darija
+    if ctx_chunks:
+        ctx = "Context: " + " | ".join(ctx_chunks) + ". "
+    else:
+        ctx = ""
+    tail = "The user is speaking Moroccan Darija."
+    # Prepend Darija e-commerce vocab for AR / AUTO (strict transcription bias).
+    vocab = ""
+    if lang_from_hint in (None, "ar"):
+        vocab = WHISPER_MOROCCAN_ECOMMERCE_VOCAB + " "
+    full = (ctx + vocab + (base_prompt or DEFAULT_WHISPER_PROMPT) + " " + tail).strip()
+    if len(full) > WHISPER_PROMPT_MAX_CHARS:
+        full = full[:WHISPER_PROMPT_MAX_CHARS]
+    return full, lang_from_hint
+
+
+def is_whisper_hallucination(text):
+    """
+    True if transcription is empty or matches known Whisper subtitle/artifact hallucinations
+    (low-volume audio / Arabic ASR drift). Caller should not pass this text to LLM or sentinel.
+    """
+    if text is None:
+        return True
+    t = (text or "").strip()
+    if not t:
+        return True
+    t_lower = t.lower()
+    for phrase in WHISPER_HALLUCINATION_PHRASES:
+        p = (phrase or "").strip()
+        if not p:
+            continue
+        if p.lower() in t_lower or p in t:
+            return True
+    return False
 
 
 def _convert_audio_to_wav_or_mp3(media_content, original_suffix=".ogg"):
@@ -131,7 +195,8 @@ def transcribe_audio(media_content, prompt=None, model="whisper-1", language=Non
         logger.warning("stt_service: OPENAI_API_KEY not set")
         return None
 
-    if voice_language_hint is not None and prompt is None:
+    # Always derive language from hint when provided, even if prompt is passed in (context injection).
+    if voice_language_hint is not None:
         lang_from_hint, prompt_from_hint = get_whisper_config(voice_language_hint)
         if language is None:
             language = lang_from_hint
@@ -140,8 +205,8 @@ def transcribe_audio(media_content, prompt=None, model="whisper-1", language=Non
     if prompt is None:
         prompt = DEFAULT_WHISPER_PROMPT
     prompt = (prompt or "").strip()
-    if len(prompt) > 500:
-        prompt = prompt[:500]
+    if len(prompt) > WHISPER_PROMPT_MAX_CHARS:
+        prompt = prompt[:WHISPER_PROMPT_MAX_CHARS]
 
     # Prefer converted format for compatibility
     converted_path = _convert_audio_to_wav_or_mp3(media_content, ".ogg")
@@ -175,7 +240,8 @@ def transcribe_audio(media_content, prompt=None, model="whisper-1", language=Non
     try:
         with open(path_to_use, "rb") as f:
             files = {"file": (fname, f, mime)}
-            data = {"model": model}
+            # temperature=0: deterministic decoding, fewer hallucinations on quiet audio
+            data = {"model": model, "temperature": 0}
             if prompt:
                 data["prompt"] = prompt
             if language:

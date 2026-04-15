@@ -1,8 +1,23 @@
 <!DOCTYPE html>
-<html lang="ar" dir="rtl">
+<html lang="ar" dir="rtl" class="dark">
 <head>
     <meta charset="UTF-8">
+    <meta name="color-scheme" content="dark light" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script>
+    (function () {
+      try {
+        var s = localStorage.getItem('theme');
+        var dark = s ? s === 'dark' : true;
+        var root = document.documentElement;
+        root.classList.toggle('dark', dark);
+        root.setAttribute('data-bs-theme', dark ? 'dark' : 'light');
+      } catch (e) {
+        document.documentElement.classList.add('dark');
+        document.documentElement.setAttribute('data-bs-theme', 'dark');
+      }
+    })();
+    </script>
     <title>{% block title %}Tracking and follow Up{% endblock %}</title>
     
     <!-- Fonts -->
@@ -237,7 +252,10 @@ direction: rtl;
         <div class="nav-links">
             <a href="/tracking/" class="btn nav-link2 active">Tracking</a>
             <a href="{% url 'user' %}" class="btn nav-link2">Account</a>
+            {% if request.user.is_superuser %}
+            <a href="/admin/" class="btn nav_link">Admin</a>
             <a href="{% url 'analytics' %}" class="btn nav-link2">Analytics</a>
+            {% endif %}
         </div>
  
     </nav>

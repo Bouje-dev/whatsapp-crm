@@ -55,10 +55,8 @@
         <div class="d-flex flex-wrap align-items-center justify-content-between gap-3 mb-4">
             <div>
                 <h5 class="text-white mb-1">Voice Gallery</h5>
-                <p class="text-muted small mb-0">
-                    <span class="tooltip-multilingual" data-bs-toggle="tooltip" title="These voices use our advanced Multilingual V2 model for natural Arabic pronunciation.">
-                        <i class="fas fa-info-circle me-1"></i> Multilingual V2 – natural Arabic
-                    </span>
+                <p class="text-muted small mb-0" id="voice_gallery_provider_hint">
+                    Showing voices for your channel&rsquo;s TTS provider (OpenAI or ElevenLabs).
                 </p>
             </div>
             {% if channel_id %}
@@ -66,9 +64,9 @@
             {% endif %}
         </div>
 
-        <div id="api_key_alert" class="alert alert-warning d-none mb-3" role="alert">
-            <i class="fas fa-key me-2"></i>
-            <strong>ElevenLabs API key required.</strong> To play samples and use these voices, set your API key in <strong>Channel Settings → Voice Identity → ElevenLabs API Key</strong> and save. You can still select a voice without playing a sample.
+        <div class="alert alert-secondary mb-3" role="alert">
+            <i class="fas fa-headphones me-2"></i>
+            <strong>Local previews only.</strong> <strong>Play Sample</strong> uses MP3s from Django Admin (uploaded preview) or <code>static/audio/voice-previews/</code>. ElevenLabs is <strong>not</strong> used for gallery previews.
         </div>
 
         <div class="filter-bar row g-2">
@@ -83,9 +81,18 @@
             <div class="col-auto">
                 <label class="form-label small text-muted mb-0">Language</label>
                 <select id="filter_lang" class="form-select form-select-sm">
-                    <option value="">All</option>
-                    <option value="arabic">Optimized for Arabic</option>
-                    <option value="french">Optimized for French</option>
+                    <option value="">All languages</option>
+                    <option value="AR_MA">Arabic (Morocco)</option>
+                    <option value="AR_SA">Arabic (Saudi Arabia)</option>
+                    <option value="AR_AE">Arabic (UAE)</option>
+                    <option value="AR_EG">Arabic (Egypt)</option>
+                    <option value="FR_FR">French (France)</option>
+                    <option value="FR_MA">French (Morocco)</option>
+                    <option value="EN_US">English (US)</option>
+                    <option value="EN_GB">English (UK)</option>
+                    <option value="ES_ES">Spanish (Spain)</option>
+                    <option value="DE_DE">German (Germany)</option>
+                    <option value="IT_IT">Italian (Italy)</option>
                 </select>
             </div>
         </div>
@@ -105,25 +112,76 @@
             var channelId = {{ channel_id|default:0 }};
             var voices = [];
             var selectedVoiceId = '';
+            var galleryAudio = null;
+            var galleryAudioBtn = null;
+
+            function stopGalleryAudio(resetBtn) {
+                if (galleryAudio) {
+                    try { galleryAudio.pause(); } catch (e) {}
+                    galleryAudio.currentTime = 0;
+                    galleryAudio = null;
+                }
+                if (resetBtn && galleryAudioBtn) {
+                    var ib = galleryAudioBtn.querySelector('i');
+                    if (ib) ib.className = 'fas fa-play me-1';
+                    galleryAudioBtn.disabled = false;
+                    galleryAudioBtn = null;
+                }
+            }
+
+            function langMatch(v, selectedNorm) {
+                if (!selectedNorm) return true;
+                var lc = (v.language_code || '').trim().replace(/-/g, '_').toUpperCase();
+                var sel = String(selectedNorm).trim().replace(/-/g, '_').toUpperCase();
+                if (lc) {
+                    if (lc === 'MULTILINGUAL') return true;
+                    if (lc === sel) return true;
+                    var a = lc.split('_'), b = sel.split('_');
+                    if (a[0] && b[0] && a[0] === b[0]) return true;
+                    return false;
+                }
+                if (sel.indexOf('AR_') === 0) return !!(v.native_arabic) || (v.tags || []).join(' ').toLowerCase().indexOf('arabic') !== -1;
+                if (sel.indexOf('FR_') === 0) {
+                    var tj = (v.tags || []).join(' ').toLowerCase();
+                    return tj.indexOf('french') !== -1 || tj.indexOf('multilingual') !== -1;
+                }
+                if (sel.indexOf('EN_') === 0) {
+                    var te = (v.tags || []).join(' ').toLowerCase();
+                    return te.indexOf('english') !== -1 || te.indexOf('multilingual') !== -1;
+                }
+                if (sel.indexOf('ES_') === 0) {
+                    var ts = (v.tags || []).join(' ').toLowerCase();
+                    return ts.indexOf('spanish') !== -1 || ts.indexOf('multilingual') !== -1;
+                }
+                if (sel.indexOf('DE_') === 0) {
+                    var td = (v.tags || []).join(' ').toLowerCase();
+                    return td.indexOf('german') !== -1 || td.indexOf('multilingual') !== -1;
+                }
+                if (sel.indexOf('IT_') === 0) {
+                    var ti = (v.tags || []).join(' ').toLowerCase();
+                    return ti.indexOf('italian') !== -1 || ti.indexOf('multilingual') !== -1;
+                }
+                return true;
+            }
 
             function renderCards() {
                 var gender = document.getElementById('filter_gender').value;
                 var lang = document.getElementById('filter_lang').value;
                 var list = voices.filter(function(v) {
                     if (gender && v.gender !== gender) return false;
-                    if (lang === 'arabic' && !v.native_arabic) return false;
-                    if (lang === 'french' && v.tags.indexOf('French') === -1) return false;
-                    return true;
+                    return langMatch(v, lang);
                 });
                 var html = '';
                 list.forEach(function(v) {
                     var tagsHtml = (v.tags || []).map(function(t) { return '<span>' + t + '</span>'; }).join('');
                     if (v.native_arabic) tagsHtml += ' <span class="badge badge-native">👑 Native Support</span>';
+                    if (v.dialect_display) tagsHtml += ' <span class="badge bg-secondary">' + String(v.dialect_display).replace(/</g, '&lt;') + '</span>';
                     var selected = v.id === selectedVoiceId ? ' voice-card-selected' : '';
+                    var pv = (v.preview_audio_url || '').replace(/"/g, '&quot;');
                     html += '<div class="col-12 col-sm-6 col-lg-4 voice-card' + selected + '" data-voice-id="' + v.id + '" data-voice-label="' + (v.label || v.name) + '">' +
                         '<div class="name">' + (v.label || v.name) + '</div>' +
                         '<div class="tags">' + tagsHtml + '</div>' +
-                        '<button type="button" class="btn btn-outline-primary btn-play-sample btn-sm" data-voice-id="' + v.id + '" onclick="event.stopPropagation();">' +
+                        '<button type="button" class="btn btn-outline-primary btn-play-sample btn-sm" data-voice-id="' + v.id + '" data-preview-url="' + pv + '" onclick="event.stopPropagation();">' +
                         '<i class="fas fa-play me-1"></i> Play Sample</button>' +
                         '</div>';
                 });
@@ -154,6 +212,26 @@
 
             function playSample(voiceId, btnEl) {
                 if (!channelId) { alert('Channel not selected.'); return; }
+                var previewUrl = (btnEl.getAttribute('data-preview-url') || '').trim();
+                if (previewUrl) {
+                    if (galleryAudioBtn === btnEl && galleryAudio && !galleryAudio.paused) {
+                        stopGalleryAudio(true);
+                        return;
+                    }
+                    stopGalleryAudio(true);
+                    galleryAudioBtn = btnEl;
+                    var iconS = btnEl.querySelector('i');
+                    iconS.className = 'fas fa-pause me-1';
+                    galleryAudio = new Audio(previewUrl);
+                    galleryAudio.onended = function() { stopGalleryAudio(true); };
+                    galleryAudio.onerror = function() {
+                        stopGalleryAudio(true);
+                        alert('Preview MP3 missing. Add files under static/audio/voice-previews/ (see README there).');
+                    };
+                    galleryAudio.play().catch(function() { stopGalleryAudio(true); });
+                    return;
+                }
+                stopGalleryAudio(true);
                 var formData = new FormData();
                 formData.append('channel_id', channelId);
                 formData.append('voice_id', voiceId);
@@ -185,9 +263,17 @@
                 selectedVoiceId = voiceId;
                 renderCards();
                 if (!channelId) return;
+                var previewUrl = '';
+                for (var i = 0; i < voices.length; i++) {
+                    if (voices[i].id === voiceId || voices[i].voice_id === voiceId) {
+                        previewUrl = voices[i].preview_audio_url || '';
+                        break;
+                    }
+                }
                 var formData = new FormData();
                 formData.append('channel_id', channelId);
                 formData.append('voice_id', voiceId);
+                formData.append('voice_preview_url', previewUrl);
                 formData.append('csrfmiddlewaretoken', '{{ csrf_token }}');
                 fetch('{% url "voice_gallery_select" %}', { method: 'POST', body: formData, credentials: 'same-origin' })
                     .then(function(r) { return r.json(); })
@@ -214,8 +300,12 @@
                         if (data.status === 'success') {
                             voices = data.voices || [];
                             selectedVoiceId = data.selected_voice_id || '';
-                            if (!data.has_api_key) {
-                                document.getElementById('api_key_alert').classList.remove('d-none');
+                            var prov = (data.tts_provider || '').toUpperCase();
+                            var hint = document.getElementById('voice_gallery_provider_hint');
+                            if (hint) {
+                                hint.textContent = prov === 'OPENAI'
+                                    ? 'Showing OpenAI TTS voices only (select Provider = OpenAI in channel settings).'
+                                    : 'Showing ElevenLabs voices only (select Provider = ElevenLabs in channel settings).';
                             }
                             renderCards();
                         }

@@ -20,6 +20,7 @@ from django.contrib.auth import update_session_auth_hash
 from django.shortcuts import redirect, render
 from .activites import activity_log, log_activity
 from .Codnetwork import  fetch_leads_for_skus
+from .services.plan_limits import check_plan_limit
 from .crypto import encrypt_token
 from django.core.mail import EmailMessage
 
@@ -370,6 +371,9 @@ from django.contrib.auth import authenticate, login
 def singup(request):
     if request.user.is_authenticated and request.user.is_active and request.user.is_verified:
         return redirect('tracking')
+
+    selected_plan = (request.GET.get("plan") or request.POST.get("selected_plan") or "").strip().lower()
+
     form = CustomUserCreationForm()
     if request.method == 'POST':
         form = CustomUserCreationForm(request.POST)
@@ -381,6 +385,17 @@ def singup(request):
             try:
                 # 1. إنشاء المستخدم
                 user = register_user(email=email, password=password, user_name=user_name)
+
+                # Auto-assign plan from pricing page selection
+                if selected_plan:
+                    try:
+                        plan_obj = Plan.objects.filter(name__iexact=selected_plan).first()
+                        if plan_obj:
+                            user.plan = plan_obj
+                            user.save(update_fields=["plan"])
+                    except Exception as e:
+                        logging.getLogger(__name__).warning("singup plan assign: %s", e)
+
                 try :
                     login(request, user, backend='django.contrib.auth.backends.ModelBackend')
                 except Exception as e:
@@ -475,12 +490,12 @@ def singup(request):
                 # 🔥 التغيير هنا: لا توجهه لمكان آخر!
                 # أعد عرض نفس الصفحة مع متغير يخبر المتصفح بإظهار الـ Popup
                 print("✅ User created, showing OTP modal.")
-                return render(request, 'user/singup.html', {'form': form, 'show_otp': True})
+                return render(request, 'user/singup.html', {'form': form, 'show_otp': True, 'selected_plan': selected_plan})
 
             except Exception as e:
                 form.add_error(None, str(e))
     
-    return render(request, 'user/singup.html', {'form': form})
+    return render(request, 'user/singup.html', {'form': form, 'selected_plan': selected_plan})
 
 
 
@@ -577,11 +592,51 @@ def user(request):
             activety = None
  
 
-    # Plans for subscription section (Free, Basic, Premium)
-    all_plans = list(Plan.objects.all().order_by('price'))
-    current_plan = request.user.plan if (getattr(request.user, 'plan_id', None) and request.user.plan_id) else Plan.objects.filter(name='Free').first()
-    if not current_plan and all_plans:
-        current_plan = all_plans[0]
+    # Plans for subscription section (normalized to Starter / Pro / Elite)
+    raw_plans = list(Plan.objects.all().order_by('price'))
+
+    def _plan_tier_key(name):
+        key = (name or "").strip().lower()
+        if key in ("starter", "basic", "free"):
+            return "starter"
+        if key in ("pro", "premium"):
+            return "pro"
+        if key in ("elite",):
+            return "elite"
+        return "other"
+
+    def _pick_representative(plans, preferred_names):
+        if not plans:
+            return None
+        # Pick by preferred name order (not queryset order) so Starter does not
+        # accidentally resolve to legacy Free when Basic exists.
+        by_name = {(p.name or "").strip().lower(): p for p in plans}
+        for name in preferred_names:
+            if name in by_name:
+                return by_name[name]
+        return plans[0]
+
+    buckets = {"starter": [], "pro": [], "elite": []}
+    for p in raw_plans:
+        tier = _plan_tier_key(p.name)
+        if tier in buckets:
+            buckets[tier].append(p)
+
+    starter_plan = _pick_representative(buckets["starter"], ["starter", "basic", "free"])
+    pro_plan = _pick_representative(buckets["pro"], ["pro", "premium"])
+    elite_plan = _pick_representative(buckets["elite"], ["elite"])
+
+    all_plans = [p for p in (starter_plan, pro_plan, elite_plan) if p is not None]
+
+    user_plan = request.user.plan if (getattr(request.user, 'plan_id', None) and request.user.plan_id) else None
+    current_plan = user_plan
+    if not current_plan and starter_plan:
+        current_plan = starter_plan
+    if current_plan:
+        current_tier = _plan_tier_key(current_plan.name)
+        tier_selected = {"starter": starter_plan, "pro": pro_plan, "elite": elite_plan}.get(current_tier)
+        if tier_selected:
+            current_plan = tier_selected
 
     return render(request, 'user/user.html', {
         'tokenform': tokenform,
@@ -940,6 +995,7 @@ from django.http import JsonResponse
 
 
 
+@check_plan_limit("max_team_members")
 def invite_staff(request):
     if not request.user.is_authenticated:
         return redirect('login')
@@ -1904,3 +1960,37 @@ def leadstracking(request):
     count = len(leads)
     print("Leads fetched successfully for SKUs:", sku_list, "count:", count)
     return JsonResponse({"status": "success", "message": "Leads fetched successfully", "leads_count": count})
+
+
+def _accessible_whatsapp_channels_for_user(user):
+    """Channels the user may configure (owner, team workspace, assigned agent, superuser)."""
+    if getattr(user, "is_superuser", False):
+        return WhatsAppChannel.objects.all().order_by("id")
+    owner = getattr(user, "team_admin", None) or user
+    owned = WhatsAppChannel.objects.filter(owner=owner)
+    assigned = WhatsAppChannel.objects.filter(assigned_agents=user)
+    return (owned | assigned).distinct().order_by("id")
+
+
+@login_required(login_url="/auth/login/")
+def voice_settings_dashboard(request):
+    """
+    Merchant Voice Gallery: pick AI agent voice with static MP3 previews (no ElevenLabs preview API).
+    Catalog rows: Django Admin → Voice Gallery entries.
+    """
+    channels = _accessible_whatsapp_channels_for_user(request.user)
+    channel_id = (request.GET.get("channel_id") or "").strip()
+    channel = None
+    if channel_id.isdigit():
+        channel = channels.filter(id=int(channel_id)).first()
+    if channel is None:
+        channel = channels.first()
+    return render(
+        request,
+        "dashboard/voice_settings.html",
+        {
+            "channels": channels,
+            "channel": channel,
+            "channel_id": channel.id if channel else None,
+        },
+    )

@@ -3,6 +3,11 @@ from urllib import request
 from django.db import models
 from django.conf import settings # لاستخدام AUTH_USER_MODEL
 
+
+def _default_json_list():
+    return []
+
+
 class CODProduct(models.Model):
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='cod_products')
     project = models.CharField(max_length=600, blank=True, null=True)  # اسم المشروع
@@ -99,6 +104,8 @@ class Plan(models.Model):
     can_use_persona_gallery = models.BooleanField(default=False, help_text="High-quality & cloned personas in Flow Builder")
     price = models.DecimalField(max_digits=10, decimal_places=2, default=0, null=True, blank=True)
     max_monthly_orders = models.PositiveIntegerField(null=True, blank=True, help_text="Cap on auto-created orders per month; null = unlimited")
+    max_channels = models.PositiveIntegerField(null=True, blank=True, help_text="Max WhatsApp channels the owner can create; null = unlimited")
+    max_team_members = models.PositiveIntegerField(null=True, blank=True, help_text="Max team members (excl. owner/bots); null = unlimited")
 
     # Map feature_name (string) -> Plan boolean field name; extend this when adding new features
     FEATURE_FIELDS = {
@@ -156,7 +163,17 @@ class CustomUser(AbstractUser):
     email = models.EmailField(unique=True)
     user_name = models.CharField(max_length=255, blank=True, null=True, unique=False)  # يمكن استخدام هذا الحقل كاسم المستخدم
     phone = models.CharField(max_length=15, blank=True, null=True)
+    wallet_balance = models.DecimalField(max_digits=12, decimal_places=4, default=0)
+    total_tokens_used = models.PositiveIntegerField(default=0)
+    low_balance_alert_enabled = models.BooleanField(default=True)
+    stripe_customer_id = models.CharField(max_length=255, blank=True, null=True)
+    stripe_subscription_id = models.CharField(max_length=255, blank=True, null=True)
+    stripe_subscription_status = models.CharField(max_length=120, blank=True, null=True)
     is_verified = models.BooleanField(default=False)
+
+    # Risk management / kill switch for merchants
+    is_suspended = models.BooleanField(default=False)
+    suspension_reason = models.TextField(null=True, blank=True)
      
     stuff_momber  = models.BooleanField(default=False)
     is_team_admin = models.BooleanField(default=False)
@@ -284,6 +301,21 @@ class Products(models.Model):
 
     # Product creation from WhatsApp dashboard (required in form: name, price, description, images)
     price = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True, verbose_name=_('السعر'))
+    backup_price = models.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        verbose_name=_('سعر احتياطي للتفاوض'),
+        help_text=_('Optional fallback/negotiation price used by AI when offering a discount.'),
+    )
+    coupon_code = models.CharField(
+        max_length=64,
+        blank=True,
+        null=True,
+        verbose_name=_('كود كوبون'),
+        help_text=_('Optional coupon code the AI can use during negotiation.'),
+    )
     currency = models.CharField(max_length=10, default='MAD', blank=True, verbose_name=_('العملة'))
     description = models.TextField(blank=True, null=True, verbose_name=_('الوصف'))
     how_to_use = models.TextField(blank=True, null=True, verbose_name=_('طريقة الاستخدام'))
@@ -322,6 +354,29 @@ class Products(models.Model):
         null=True,
         verbose_name=_('Custom selling instructions'),
         help_text=_('Optional: seller instructions appended to the AI sales prompt for this product'),
+    )
+    required_order_fields = models.JSONField(
+        blank=True,
+        null=True,
+        default=list,
+        help_text=_(
+            'List of order fields the AI must collect for this product (e.g. '
+            '["customer_name", "phone_number"] or '
+            '["customer_name", "phone_number", "shipping_city", "shipping_address"]).'
+        ),
+    )
+    CHECKOUT_MODE_CHOICES = [
+        ('quick_lead', _('Quick Lead (Name & Phone only)')),
+        ('standard_cod', _('Standard COD (Name, Phone, City)')),
+        ('strict_cod', _('Strict COD (Full Address)')),
+    ]
+    checkout_mode = models.CharField(
+        max_length=20,
+        choices=CHECKOUT_MODE_CHOICES,
+        default='standard_cod',
+        blank=True,
+        verbose_name=_('Checkout mode (AI data collection)'),
+        help_text=_('Controls what information the AI Sales Agent collects: quick_lead, standard_cod, or strict_cod.'),
     )
     testimonial = models.FileField(
         upload_to='product_testimonials/%Y/%m/',
@@ -427,11 +482,38 @@ class UserPermissionSetting(models.Model):
     user = models.OneToOneField(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='permission_setting')
     can_create_orders = models.BooleanField(default=False)
     can_view_analytics = models.BooleanField(default=False)
+    can_create_templates = models.BooleanField(default=False)
+    can_create_channels = models.BooleanField(default=False)
     extra = models.JSONField(default=dict, blank=True)  # للحاجات الإضافية لاحقًا
 
     def __str__(self):
         return f"Permissions for {self.user}"
-        
+
+
+class ExtraChannelSlotSubscription(models.Model):
+    """
+    Paid add-on: each active row grants +1 WhatsApp channel vs the plan base limit.
+    Tied to a Stripe subscription; deactivated when that subscription ends.
+    """
+    billing_owner = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="extra_channel_slot_subscriptions",
+    )
+    stripe_subscription_id = models.CharField(max_length=255, unique=True)
+    stripe_customer_id = models.CharField(max_length=255, blank=True, null=True)
+    active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        indexes = [
+            models.Index(fields=["billing_owner", "active"]),
+        ]
+
+    def __str__(self):
+        return f"Extra channel slot for {self.billing_owner_id} ({self.stripe_subscription_id})"
+
 
 class SimpleOrder(models.Model):
     product = models.ForeignKey(
@@ -981,6 +1063,27 @@ import json
 from django.db import models
 from django.contrib.auth.models import User
 
+# Voice–TTS dialect (LLM output must match the selected ElevenLabs voice accent).
+# Must be defined before WhatsAppChannel / VoiceGalleryEntry / VoiceCloneRequest / VoicePersona.
+VOICE_DIALECT_CHOICES = [
+    ("MA_DARIJA", "Moroccan Darija"),
+    ("SA_ARABIC", "Saudi Arabic"),
+    ("EG_ARABIC", "Egyptian Arabic"),
+    ("MSA", "Modern Standard Arabic"),
+    ("LEV_ARABIC", "Levantine Arabic"),
+    ("GULF_ARABIC", "Gulf Arabic"),
+    ("OTHER", "Other / Multilingual"),
+]
+VOICE_DIALECT_DEFAULT = "MA_DARIJA"
+
+
+def dialect_key_to_display(key) -> str:
+    """Human label for a dialect choice key (used by APIs and voice_dialect service)."""
+    k = (key or "").strip() or VOICE_DIALECT_DEFAULT
+    lookup = dict(VOICE_DIALECT_CHOICES)
+    return lookup.get(k) or lookup.get(VOICE_DIALECT_DEFAULT, "Moroccan Darija")
+
+
 class WhatsAppChannel(models.Model):
     name = models.CharField(max_length=100, help_text="مثلاً: خدمة العملاء")
     
@@ -1205,6 +1308,12 @@ class WhatsAppChannel(models.Model):
         blank=True,
         help_text="ElevenLabs voice ID from the gallery (e.g. Layla, Rachel).",
     )
+    voice_dialect = models.CharField(
+        max_length=32,
+        choices=VOICE_DIALECT_CHOICES,
+        default=VOICE_DIALECT_DEFAULT,
+        help_text="Dialect aligned with the current voice (gallery selection or approved clone).",
+    )
     voice_preview_url = models.URLField(
         max_length=500,
         null=True,
@@ -1245,6 +1354,129 @@ class WhatsAppChannel(models.Model):
         default=False,
         help_text="When ON, exclude offline agents and redistribute their percentages among online agents only.",
     )
+
+
+class VoiceGalleryEntry(models.Model):
+    """
+    Voices shown in the Voice Gallery (settings UI + API): ElevenLabs IDs or OpenAI TTS names.
+    Manage rows in Django Admin: add/remove voices, set preview MP3 filename under
+    static/audio/voice-previews/, tags for filters, sort_order, and ``language_code``
+    for locale filtering (e.g. AR_MA, FR_FR).
+    """
+
+    GENDER_CHOICES = [("MALE", "Male"), ("FEMALE", "Female")]
+
+    PROVIDER_ELEVENLABS = "ELEVENLABS"
+    PROVIDER_OPENAI = "OPENAI"
+    PROVIDER_CHOICES = [
+        (PROVIDER_ELEVENLABS, "ElevenLabs"),
+        (PROVIDER_OPENAI, "OpenAI"),
+    ]
+
+    provider = models.CharField(
+        max_length=20,
+        choices=PROVIDER_CHOICES,
+        default=PROVIDER_ELEVENLABS,
+        help_text="TTS backend: ElevenLabs API or OpenAI audio.speech (tts-1).",
+    )
+
+    elevenlabs_voice_id = models.CharField(
+        max_length=64,
+        unique=True,
+        help_text="ElevenLabs voice_id, or OpenAI voice name (alloy, echo, fable, onyx, nova, shimmer) when provider is OpenAI.",
+    )
+    name = models.CharField(max_length=255, help_text="Short display name.")
+    label = models.CharField(
+        max_length=255,
+        blank=True,
+        help_text="Optional longer label; defaults to name if empty.",
+    )
+    preview_file = models.CharField(
+        max_length=255,
+        blank=True,
+        help_text="Filename only, e.g. rachel.mp3 — file must live under static/audio/voice-previews/",
+    )
+    preview_audio_file = models.FileField(
+        upload_to="voice_gallery_previews/",
+        null=True,
+        blank=True,
+        help_text="Optional MP3 upload for the preview. If set, the gallery uses this file instead of `preview_file`.",
+    )
+    gender = models.CharField(max_length=10, choices=GENDER_CHOICES, default="FEMALE")
+    tags = models.JSONField(
+        default=_default_json_list,
+        blank=True,
+        help_text='List of strings, e.g. ["Multilingual", "High Quality"]. Include "French" for French filter.',
+    )
+    native_arabic = models.BooleanField(
+        default=False,
+        help_text="If True, voice appears in “Optimized for Arabic” gallery filter.",
+    )
+    language_code = models.CharField(
+        max_length=32,
+        blank=True,
+        default="",
+        db_index=True,
+        help_text="Primary locale for filtering, e.g. AR_MA, FR_FR, EN_US (use underscore). "
+        "Leave empty for multilingual / any language.",
+    )
+    dialect = models.CharField(
+        max_length=32,
+        choices=VOICE_DIALECT_CHOICES,
+        default=VOICE_DIALECT_DEFAULT,
+        db_index=True,
+        help_text="Primary spoken dialect for this voice; drives LLM output to match TTS pronunciation.",
+    )
+    is_active = models.BooleanField(default=True)
+    sort_order = models.PositiveIntegerField(
+        default=0,
+        help_text="Lower numbers appear first in the gallery.",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["sort_order", "id"]
+        verbose_name = "Voice Gallery entry"
+        verbose_name_plural = "Voice Gallery entries"
+
+    def __str__(self):
+        return f"{self.name} ({self.elevenlabs_voice_id})"
+
+
+class VoiceCloneRequest(models.Model):
+    STATUS_PENDING = "pending"
+    STATUS_APPROVED = "approved"
+    STATUS_REJECTED = "rejected"
+    STATUS_CHOICES = [
+        (STATUS_PENDING, "Pending"),
+        (STATUS_APPROVED, "Approved"),
+        (STATUS_REJECTED, "Rejected"),
+    ]
+
+    merchant = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="voice_clone_requests",
+    )
+    audio_file = models.FileField(upload_to="voice_clone_requests/%Y/%m/")
+    consent_agreed = models.BooleanField(default=False)
+    dialect = models.CharField(
+        max_length=32,
+        choices=VOICE_DIALECT_CHOICES,
+        default=VOICE_DIALECT_DEFAULT,
+        help_text="Dialect the merchant declares for this sample (stored with the request and applied on approval).",
+    )
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default=STATUS_PENDING, db_index=True)
+    created_at = models.DateTimeField(auto_now_add=True, db_index=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+        verbose_name = "Voice clone request"
+        verbose_name_plural = "Voice clone requests"
+
+    def __str__(self):
+        return f"VoiceCloneRequest #{self.id} for {self.merchant_id} ({self.status})"
 
 
 class CoachConversationMessage(models.Model):
@@ -1399,6 +1631,7 @@ class Template(models.Model):
 
     header_image = models.FileField(upload_to='templates/headers/', blank=True, null=True)
     header_video = models.FileField(upload_to='templates/headers/', blank=True, null=True)
+    header_document = models.FileField(upload_to='templates/headers/', blank=True, null=True)
     header_audio = models.FileField(upload_to='templates/headers/', blank=True, null=True)
 
     # المتغيرات
@@ -1602,6 +1835,12 @@ class VoicePersona(models.Model):
         help_text="e.g. Use high-end vocabulary, be extremely polite, use specific emojis.",
     )
     language_code = models.CharField(max_length=20, default="AR_MA", help_text="AR_MA, FR_FR, EN_US, etc.")
+    dialect = models.CharField(
+        max_length=32,
+        choices=VOICE_DIALECT_CHOICES,
+        default=VOICE_DIALECT_DEFAULT,
+        help_text="Spoken dialect for this voice (especially user clones); drives LLM/TTS alignment.",
+    )
     # System personas only: standard (free) or premium (requires plan)
     tier = models.CharField(
         max_length=20,
@@ -1736,6 +1975,15 @@ class ChatSession(models.Model):
         blank=True,
         help_text="When the merchant last sent a manual message.",
     )
+    # AI Sentinel (cheap intent check after N consecutive user messages)
+    consecutive_user_messages = models.PositiveIntegerField(
+        default=0,
+        help_text="Increments per user message turn; checkpoint runs at threshold.",
+    )
+    requires_human = models.BooleanField(
+        default=False,
+        help_text="True when merchant should take over (e.g. sentinel flagged spam/time-wasting).",
+    )
 
     class Meta:
         constraints = [
@@ -1746,6 +1994,7 @@ class ChatSession(models.Model):
         ]
         indexes = [
             models.Index(fields=["channel", "customer_phone"]),
+            models.Index(fields=["channel", "requires_human"]),
         ]
         verbose_name = "Chat session"
         verbose_name_plural = "Chat sessions"
