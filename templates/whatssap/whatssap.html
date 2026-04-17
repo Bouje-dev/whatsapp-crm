@@ -7438,6 +7438,15 @@ $('#cls3741_attach_btn').on('click', function() {
           })
           .catch(function() { renderProductLoadError(wrap); });
       }
+      window.loadProductListForChannel = function(channelId) {
+        if (channelId) {
+          channelId = String(channelId);
+          window.currentChannelId = channelId;
+          var hiddenChannelInput = document.getElementById('product_channel_id');
+          if (hiddenChannelInput) hiddenChannelInput.value = channelId;
+        }
+        loadProductList();
+      };
 
       var PRODUCT_CATEGORY_LABELS = { beauty: 'Beauty', electronics: 'Electronics', fragrances: 'Fragrances', general: 'General' };
       function setProductCheckoutMode(value) {
@@ -11720,6 +11729,9 @@ if (typeof window.loadDashboardData === 'function') {
     }
     if(typeof  window.loadQuickRepliesGrid === 'function') {
         window.loadQuickRepliesGrid(newChannelId);
+    }
+    if (typeof window.loadProductListForChannel === 'function') {
+        window.loadProductListForChannel(newChannelId);
     }
 
 }
