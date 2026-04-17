@@ -1426,7 +1426,6 @@ def live_chat_audio_upload(request):
     from django.core.files import File
     from discount.whatssapAPI.process_messages import (
         _temp_suffix_from_filename_and_mime,
-        ffmpeg_live_chat_to_explicit_output,
     )
     from discount.channel.socket_utils import send_socket
 
@@ -1439,6 +1438,7 @@ def live_chat_audio_upload(request):
     body_text = (request.POST.get("body") or "").strip()
 
     temp_input_path = None
+    temp_mid_path = None
     temp_output_path = None
     saved_message = None
 
@@ -1472,15 +1472,61 @@ def live_chat_audio_upload(request):
         if not os.path.isfile(temp_input_path) or os.path.getsize(temp_input_path) <= 0:
             return JsonResponse({"ok": False, "error": "empty_incoming_audio"}, status=400)
 
+        mid_fd, temp_mid_path = tempfile.mkstemp(suffix=".wav")
+        os.close(mid_fd)
         out_fd, temp_output_path = tempfile.mkstemp(suffix=".ogg")
         os.close(out_fd)
-
-        if not ffmpeg_live_chat_to_explicit_output(temp_input_path, temp_output_path):
+        # Step 1 (Purify): rebuild headers/timestamps into PCM WAV @ 16k mono
+        ffmpeg_step1 = [
+            "ffmpeg",
+            "-y",
+            "-i",
+            temp_input_path,
+            "-ar",
+            "16000",
+            "-ac",
+            "1",
+            temp_mid_path,
+        ]
+        try:
+            subprocess.run(ffmpeg_step1, check=True, capture_output=True, text=True)
+        except subprocess.CalledProcessError as e:
+            logger.error("live_chat_audio_upload ffmpeg step1 failed stderr=%s", (e.stderr or "")[:4000])
             return JsonResponse(
-                {"ok": False, "error": "ffmpeg_failed", "details": "Could not convert audio to Opus OGG"},
+                {"ok": False, "error": "ffmpeg_purify_failed", "details": "Could not purify WebM to WAV"},
                 status=500,
             )
+        if not os.path.isfile(temp_mid_path) or os.path.getsize(temp_mid_path) <= 0:
+            return JsonResponse({"ok": False, "error": "empty_purified_wav"}, status=500)
 
+        # Step 2 (Encode): strict WhatsApp Opus profile for PTT compatibility
+        ffmpeg_step2 = [
+            "ffmpeg",
+            "-y",
+            "-i",
+            temp_mid_path,
+            "-c:a",
+            "libopus",
+            "-b:a",
+            "24k",
+            "-vbr",
+            "on",
+            "-compression_level",
+            "10",
+            "-frame_duration",
+            "60",
+            "-application",
+            "voip",
+            temp_output_path,
+        ]
+        try:
+            subprocess.run(ffmpeg_step2, check=True, capture_output=True, text=True)
+        except subprocess.CalledProcessError as e:
+            logger.error("live_chat_audio_upload ffmpeg step2 failed stderr=%s", (e.stderr or "")[:4000])
+            return JsonResponse(
+                {"ok": False, "error": "ffmpeg_encode_failed", "details": "Could not encode WAV to Opus OGG"},
+                status=500,
+            )
         if not os.path.isfile(temp_output_path) or os.path.getsize(temp_output_path) <= 0:
             return JsonResponse({"ok": False, "error": "empty_converted_audio"}, status=500)
 
@@ -1499,9 +1545,10 @@ def live_chat_audio_upload(request):
 
         api_ver = (channel.api_version or "v22.0").strip()
         fb_upload_url = f"https://graph.facebook.com/{api_ver}/{phone_id}/media"
-        with open(temp_output_path, "rb") as fh:
-            fh.seek(0)
-            files = {"file": ("voice_message.ogg", fh, "audio/ogg")}
+        # CRITICAL: use a fresh file handle for Meta upload.
+        # Never reuse the descriptor used by django-storages/S3 save path.
+        with open(temp_output_path, "rb") as meta_fh:
+            files = {"file": ("voice_message.ogg", meta_fh, "audio/ogg")}
             fb_res = requests.post(
                 fb_upload_url,
                 params={"messaging_product": "whatsapp", "access_token": access_token},
@@ -1646,7 +1693,7 @@ def live_chat_audio_upload(request):
                 pass
         return JsonResponse({"ok": False, "error": "server_error", "details": str(e)}, status=500)
     finally:
-        for p in (temp_input_path, temp_output_path):
+        for p in (temp_input_path, temp_mid_path, temp_output_path):
             if not p:
                 continue
             try:

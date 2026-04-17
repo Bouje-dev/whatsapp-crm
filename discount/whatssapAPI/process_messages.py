@@ -5038,7 +5038,8 @@ def _ffmpeg_live_chat_incoming_to_ptt_ogg(input_path: str) -> Optional[str]:
 def ffmpeg_live_chat_to_explicit_output(input_path: str, output_path: str) -> bool:
     """
     Run FFmpeg on two real local paths only (HTTP Live Chat pipeline).
-    Command must match the voip Opus profile used for Meta voice notes.
+    Command must match the strict voip Opus profile used for Meta voice notes
+    generated from browser MediaRecorder sources.
     """
     if not input_path or not output_path:
         return False
@@ -5053,7 +5054,11 @@ def ffmpeg_live_chat_to_explicit_output(input_path: str, output_path: str) -> bo
         "-c:a",
         "libopus",
         "-b:a",
-        "32k",
+        "24k",
+        "-ac",
+        "1",
+        "-ar",
+        "16000",
         "-vbr",
         "on",
         "-compression_level",
