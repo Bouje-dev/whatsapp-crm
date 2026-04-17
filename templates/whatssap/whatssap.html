@@ -6953,18 +6953,84 @@ $('#cls3741_attach_btn').on('click', function() {
                   <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;">
                     <input type="text" name="price" id="product_price" required placeholder="e.g. 299.00" style="flex:1;min-width:120px;">
                     <label for="product_currency" class="sr-only">Currency</label>
-                    <select name="currency" id="product_currency" style="min-width:100px;padding:11px 14px;border-radius:10px;border:1px solid rgba(255,255,255,0.1);background:rgba(2,6,23,0.5);color:#f1f5f9;font-size:0.9rem;">
-                      <option value="MAD" selected>MAD</option>
-                      <option value="USD">USD</option>
-                      <option value="EUR">EUR</option>
-                      <option value="GBP">GBP</option>
-                      <option value="CAD">CAD</option>
-                      <option value="AED">AED</option>
-                      <option value="XOF">XOF</option>
-                      <option value="TND">TND</option>
-                      <option value="DZD">DZD</option>
-                      <option value="EGP">EGP</option>
-                    </select>
+                    <div style="display:flex;flex-direction:column;gap:8px;min-width:180px;">
+                      <input
+                        type="text"
+                        id="product_currency_search"
+                        placeholder="Search currency (e.g. AED, NGN, ZAR)"
+                        style="padding:9px 12px;border-radius:10px;border:1px solid rgba(255,255,255,0.1);background:rgba(2,6,23,0.5);color:#f1f5f9;font-size:0.85rem;"
+                        autocomplete="off"
+                      >
+                      <select name="currency" id="product_currency" style="min-width:100px;padding:11px 14px;border-radius:10px;border:1px solid rgba(255,255,255,0.1);background:rgba(2,6,23,0.5);color:#f1f5f9;font-size:0.9rem;">
+                        <option value="MAD" selected>MAD — Moroccan Dirham</option>
+                        <option value="USD">USD — US Dollar</option>
+                        <option value="EUR">EUR — Euro</option>
+                        <option value="GBP">GBP — British Pound</option>
+                        <option value="CAD">CAD — Canadian Dollar</option>
+                        <option value="AUD">AUD — Australian Dollar</option>
+                        <option value="JPY">JPY — Japanese Yen</option>
+                        <option value="CNY">CNY — Chinese Yuan</option>
+                        <option value="INR">INR — Indian Rupee</option>
+                        <option value="TRY">TRY — Turkish Lira</option>
+
+                        <option value="AED">AED — UAE Dirham</option>
+                        <option value="SAR">SAR — Saudi Riyal</option>
+                        <option value="QAR">QAR — Qatari Riyal</option>
+                        <option value="KWD">KWD — Kuwaiti Dinar</option>
+                        <option value="BHD">BHD — Bahraini Dinar</option>
+                        <option value="OMR">OMR — Omani Rial</option>
+                        <option value="JOD">JOD — Jordanian Dinar</option>
+                        <option value="ILS">ILS — Israeli Shekel</option>
+                        <option value="LBP">LBP — Lebanese Pound</option>
+                        <option value="IQD">IQD — Iraqi Dinar</option>
+                        <option value="IRR">IRR — Iranian Rial</option>
+                        <option value="YER">YER — Yemeni Rial</option>
+
+                        <option value="DZD">DZD — Algerian Dinar</option>
+                        <option value="TND">TND — Tunisian Dinar</option>
+                        <option value="LYD">LYD — Libyan Dinar</option>
+                        <option value="EGP">EGP — Egyptian Pound</option>
+                        <option value="SDG">SDG — Sudanese Pound</option>
+                        <option value="MRU">MRU — Mauritanian Ouguiya</option>
+
+                        <option value="XOF">XOF — West African CFA Franc</option>
+                        <option value="XAF">XAF — Central African CFA Franc</option>
+                        <option value="NGN">NGN — Nigerian Naira</option>
+                        <option value="GHS">GHS — Ghanaian Cedi</option>
+                        <option value="SLL">SLL — Sierra Leonean Leone</option>
+                        <option value="LRD">LRD — Liberian Dollar</option>
+                        <option value="GMD">GMD — Gambian Dalasi</option>
+                        <option value="GNF">GNF — Guinean Franc</option>
+                        <option value="CVE">CVE — Cape Verdean Escudo</option>
+
+                        <option value="ETB">ETB — Ethiopian Birr</option>
+                        <option value="KES">KES — Kenyan Shilling</option>
+                        <option value="UGX">UGX — Ugandan Shilling</option>
+                        <option value="TZS">TZS — Tanzanian Shilling</option>
+                        <option value="RWF">RWF — Rwandan Franc</option>
+                        <option value="BIF">BIF — Burundian Franc</option>
+                        <option value="DJF">DJF — Djiboutian Franc</option>
+                        <option value="SOS">SOS — Somali Shilling</option>
+                        <option value="ERN">ERN — Eritrean Nakfa</option>
+
+                        <option value="ZAR">ZAR — South African Rand</option>
+                        <option value="NAD">NAD — Namibian Dollar</option>
+                        <option value="BWP">BWP — Botswana Pula</option>
+                        <option value="ZMW">ZMW — Zambian Kwacha</option>
+                        <option value="ZWL">ZWL — Zimbabwean Dollar</option>
+                        <option value="MWK">MWK — Malawian Kwacha</option>
+                        <option value="MZN">MZN — Mozambican Metical</option>
+                        <option value="AOA">AOA — Angolan Kwanza</option>
+                        <option value="CDF">CDF — Congolese Franc</option>
+
+                        <option value="MUR">MUR — Mauritian Rupee</option>
+                        <option value="SCR">SCR — Seychellois Rupee</option>
+                        <option value="KMF">KMF — Comorian Franc</option>
+                        <option value="MGA">MGA — Malagasy Ariary</option>
+                        <option value="SZL">SZL — Swazi Lilangeni</option>
+                        <option value="LSL">LSL — Lesotho Loti</option>
+                      </select>
+                    </div>
                   </div>
                   <div class="form-hint">Single unit price. Default currency: MAD (Moroccan Dirham).</div>
                 </div>
@@ -7208,6 +7274,32 @@ $('#cls3741_attach_btn').on('click', function() {
         form.addEventListener('input', function() { updateProductPreview(); });
         form.addEventListener('change', function() { updateProductPreview(); });
         form.addEventListener('keyup', function() { updateProductPreview(); });
+      }
+      var currencySearchInput = document.getElementById('product_currency_search');
+      var currencySelectEl = document.getElementById('product_currency');
+      var allCurrencyOptions = [];
+      if (currencySelectEl) {
+        allCurrencyOptions = Array.prototype.slice.call(currencySelectEl.options).map(function(opt) {
+          return { value: opt.value, text: opt.text, selected: !!opt.selected };
+        });
+      }
+      function filterCurrencyOptions() {
+        if (!currencySelectEl || !allCurrencyOptions.length) return;
+        var query = ((currencySearchInput && currencySearchInput.value) || '').trim().toLowerCase();
+        var currentValue = currencySelectEl.value;
+        var filtered = allCurrencyOptions.filter(function(opt) {
+          if (!query) return true;
+          return opt.value.toLowerCase().indexOf(query) !== -1 || opt.text.toLowerCase().indexOf(query) !== -1;
+        });
+        if (!filtered.length) filtered = allCurrencyOptions.slice();
+        currencySelectEl.innerHTML = filtered.map(function(opt) {
+          return '<option value="' + opt.value + '">' + opt.text + '</option>';
+        }).join('');
+        var hasCurrent = filtered.some(function(opt) { return opt.value === currentValue; });
+        if (hasCurrent) currencySelectEl.value = currentValue;
+      }
+      if (currencySearchInput) {
+        currencySearchInput.addEventListener('input', filterCurrencyOptions);
       }
 
       var productCategoryDebounce = null;
