@@ -6697,11 +6697,23 @@ $('#cls3741_attach_btn').on('click', function() {
       if (ordersPaginationWrap) ordersPaginationWrap.style.display = 'none';
     }
   }
+  window.loadOrdersForChannel = function(channelId, page) {
+    var targetPage = (typeof page === 'number' && page >= 1) ? page : 1;
+    ordersCurrentPage = targetPage;
+    return loadTemplates(channelId || null, targetPage);
+  };
+  window.loadTemplates = loadTemplates;
 
   // تحميل البيانات عند الضغط على الزر
   const templatesNavBtn = document.querySelector('.cls3741_btn[data-target="orders"]');
   if(templatesNavBtn && !templatesNavBtn.dataset._boundTemplatesLoader){
-    templatesNavBtn.addEventListener('click', loadTemplates);
+    templatesNavBtn.addEventListener('click', function() {
+      if (typeof window.loadOrdersForChannel === 'function') {
+        window.loadOrdersForChannel(window.currentChannelId || null, 1);
+      } else {
+        loadTemplates(null, 1);
+      }
+    });
     templatesNavBtn.dataset._boundTemplatesLoader = '1';
   }
 </script>
@@ -11732,6 +11744,11 @@ if (typeof window.loadDashboardData === 'function') {
     }
     if (typeof window.loadProductListForChannel === 'function') {
         window.loadProductListForChannel(newChannelId);
+    }
+    if (typeof window.loadOrdersForChannel === 'function') {
+        window.loadOrdersForChannel(newChannelId, 1);
+    } else if (typeof window.loadTemplates === 'function') {
+        window.loadTemplates(newChannelId, 1);
     }
 
 }
