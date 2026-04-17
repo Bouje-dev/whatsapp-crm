@@ -2852,7 +2852,11 @@ def api_products_list(request):
     target_channel = get_target_channel(user, request.GET.get("channel_id"))
     if not target_channel or not target_channel.owner_id:
         return JsonResponse({"products": []})
-    qs = Products.objects.filter(admin_id=target_channel.owner_id).order_by("-id")
+    channel_scope = str(target_channel.id)
+    qs = Products.objects.filter(
+        admin_id=target_channel.owner_id,
+        project=channel_scope,
+    ).order_by("-id")
     data = []
     for p in qs:
         imgs = ProductImage.objects.filter(product=p).order_by("order", "id")
@@ -3026,6 +3030,7 @@ def api_products_create(request):
 
     product = Products.objects.create(
         admin_id=channel.owner_id,
+        project=str(channel.id),
         name=name,
         sku=sku,
         price=price_val,
@@ -3101,7 +3106,12 @@ def api_products_detail(request, product_id):
         return JsonResponse({"error": "Authentication required"}, status=401)
     product = get_object_or_404(Products, id=product_id)
     channel = get_target_channel(user, request.GET.get("channel_id"))
-    if not channel or not channel.owner_id or product.admin_id != channel.owner_id:
+    if (
+        not channel
+        or not channel.owner_id
+        or product.admin_id != channel.owner_id
+        or (str(getattr(product, "project", "") or "") != str(channel.id))
+    ):
         return JsonResponse({"error": "Product not found or access denied"}, status=404)
     imgs = ProductImage.objects.filter(product=product).order_by("order", "id")
     vids = ProductVideo.objects.filter(product=product).order_by("order", "id")
@@ -3138,7 +3148,12 @@ def api_products_update(request, product_id):
     user = request.user
     product = get_object_or_404(Products, id=product_id)
     channel = get_target_channel(user, request.POST.get("channel_id") or request.GET.get("channel_id"))
-    if not channel or not channel.owner_id or product.admin_id != channel.owner_id:
+    if (
+        not channel
+        or not channel.owner_id
+        or product.admin_id != channel.owner_id
+        or (str(getattr(product, "project", "") or "") != str(channel.id))
+    ):
         return JsonResponse({"success": False, "error": "Product not found or permission denied"}, status=403)
     name = (request.POST.get("name") or "").strip()
     price_raw = (request.POST.get("price") or "").strip()
