@@ -7667,7 +7667,9 @@ $('#cls3741_attach_btn').on('click', function() {
           arr.forEach(function(t) { addOfferTierRow(t.qty, t.price, t.backup_price || ''); });
         } catch (e) {}
         productMediaFiles = [];
-        productExtractedImageUrls = [];
+        var serverImgs = (p.images && p.images.length) ? p.images.slice() : [];
+        var serverVids = (p.videos && p.videos.length) ? p.videos.slice() : [];
+        productExtractedImageUrls = serverImgs.concat(serverVids);
         syncProductImageUrlsHidden();
         updatePreviewImagesFromList();
         updateProductPreview();
