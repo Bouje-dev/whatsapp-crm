@@ -27,17 +27,25 @@ from django.conf import settings
 from .models import CustomUser, ExternalTokenmodel
 
 class CustomUserAdmin(UserAdmin):
-    list_display = ('username', 'email', 'plan', 'is_verified', 'is_staff', 'is_team_admin')
+    list_display = ('username', 'email', 'plan', 'wallet_balance', 'is_verified', 'is_staff', 'is_team_admin')
     list_filter = UserAdmin.list_filter + ('plan',)
     fieldsets = UserAdmin.fieldsets + (
         (None, {'fields': ('phone', 'is_verified')}),
         ('Subscription', {'fields': ('plan',), 'description': 'User plan (Free/Basic/Premium). Locked in production if ALLOW_ADMIN_PLAN_EDITS is False.'}),
+        (
+            'Wallet',
+            {
+                'fields': ('wallet_balance', 'low_balance_alert_enabled', 'total_tokens_used'),
+                'description': 'Adjust wallet_balance as platform credit. total_tokens_used is updated automatically by usage.',
+            },
+        ),
     )
 
     def get_readonly_fields(self, request, obj=None):
         readonly = list(super().get_readonly_fields(request, obj))
         if not getattr(settings, 'ALLOW_ADMIN_PLAN_EDITS', True):
             readonly.append('plan')
+        readonly.append('total_tokens_used')
         return readonly
 
 admin.site.register(CustomUser, CustomUserAdmin)
