@@ -7145,6 +7145,19 @@ $('#cls3741_attach_btn').on('click', function() {
       var channelId = '{{ initial_channel_id }}';
       var previewObjectUrls = [];
       var productMediaFiles = [];
+      var productExtractedImageUrls = [];
+      function escapeHtmlAttr(str) {
+        if (str == null || str === undefined) return '';
+        return String(str).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
+      }
+      function syncProductImageUrlsHidden() {
+        var hid = document.getElementById('product_image_urls');
+        if (hid) hid.value = productExtractedImageUrls.length ? JSON.stringify(productExtractedImageUrls) : '';
+      }
+      function isVideoUrl(u) {
+        if (!u || typeof u !== 'string') return false;
+        return /\.(mp4|webm|ogg)(\?|$)/i.test(u.trim());
+      }
       function getProductChannelId() {
         var ch = document.querySelector('.workspace-item.active');
         return (ch && ch.getAttribute('data-channel-id')) || channelId || '';
@@ -7200,48 +7213,105 @@ $('#cls3741_attach_btn').on('click', function() {
         var thumbsWrap = document.getElementById('preview_thumbs');
         var countEl = document.getElementById('product_media_count');
         if (!mainWrap || !thumbsWrap) return;
-        if (countEl) countEl.textContent = productMediaFiles.length ? productMediaFiles.length + ' photo(s)/video(s) added. Click "Add photos / videos" to add more.' : 'At least one photo or video required. Click above to add.';
-        if (!productMediaFiles.length) {
+
+        function buildPreviewItems() {
+          var items = [];
+          productExtractedImageUrls.forEach(function(u, i) {
+            items.push({ kind: 'url', url: u, urlIdx: i });
+          });
+          productMediaFiles.forEach(function(f, i) {
+            items.push({ kind: 'file', file: f, fileIdx: i });
+          });
+          return items;
+        }
+
+        var items = buildPreviewItems();
+        var totalCount = items.length;
+        if (countEl) {
+          countEl.textContent = totalCount
+            ? totalCount + ' photo(s)/video(s) added. Click "Add photos / videos" to add more.'
+            : 'At least one photo or video required. Click above to add.';
+        }
+        syncProductImageUrlsHidden();
+
+        if (!totalCount) {
           mainWrap.innerHTML = '<span class="preview-placeholder">Add photos or videos to see preview</span>';
           thumbsWrap.innerHTML = '';
           thumbsWrap.style.display = 'none';
           return;
         }
-        var first = productMediaFiles[0];
-        var firstUrl = URL.createObjectURL(first);
-        previewObjectUrls.push(firstUrl);
-        if (isVideoFile(first)) {
-          mainWrap.innerHTML = '<video src="' + firstUrl + '" controls muted playsinline></video>';
-        } else {
-          mainWrap.innerHTML = '<img src="' + firstUrl + '" alt="">';
-        }
-        var thumbsHtml = '';
-        for (var i = 0; i < productMediaFiles.length; i++) {
-          var f = productMediaFiles[i];
-          var u = URL.createObjectURL(f);
-          previewObjectUrls.push(u);
-          if (isVideoFile(f)) {
-            thumbsHtml += '<div class="preview-thumb-wrap" data-index="' + i + '"><div class="preview-thumb-video" title="Video"><i class="fas fa-video"></i></div><button type="button" class="preview-thumb-remove" aria-label="Remove">×</button></div>';
+
+        var first = items[0];
+        if (first.kind === 'url') {
+          if (isVideoUrl(first.url)) {
+            mainWrap.innerHTML = '<video src="' + escapeHtmlAttr(first.url) + '" controls muted playsinline></video>';
           } else {
-            thumbsHtml += '<div class="preview-thumb-wrap" data-index="' + i + '"><img src="' + u + '" alt=""><button type="button" class="preview-thumb-remove" aria-label="Remove">×</button></div>';
+            mainWrap.innerHTML = '<img src="' + escapeHtmlAttr(first.url) + '" alt="">';
+          }
+        } else {
+          var firstBlobUrl = URL.createObjectURL(first.file);
+          previewObjectUrls.push(firstBlobUrl);
+          if (isVideoFile(first.file)) {
+            mainWrap.innerHTML = '<video src="' + firstBlobUrl + '" controls muted playsinline></video>';
+          } else {
+            mainWrap.innerHTML = '<img src="' + firstBlobUrl + '" alt="">';
           }
         }
+
+        var thumbsHtml = '';
+        items.forEach(function(it) {
+          if (it.kind === 'url') {
+            if (isVideoUrl(it.url)) {
+              thumbsHtml += '<div class="preview-thumb-wrap" data-kind="url" data-url-idx="' + it.urlIdx + '"><div class="preview-thumb-video" title="Video"><i class="fas fa-video"></i></div><button type="button" class="preview-thumb-remove" aria-label="Remove">×</button></div>';
+            } else {
+              thumbsHtml += '<div class="preview-thumb-wrap" data-kind="url" data-url-idx="' + it.urlIdx + '"><img src="' + escapeHtmlAttr(it.url) + '" alt=""><button type="button" class="preview-thumb-remove" aria-label="Remove">×</button></div>';
+            }
+          } else {
+            var f = it.file;
+            var u = URL.createObjectURL(f);
+            previewObjectUrls.push(u);
+            if (isVideoFile(f)) {
+              thumbsHtml += '<div class="preview-thumb-wrap" data-kind="file" data-file-idx="' + it.fileIdx + '"><div class="preview-thumb-video" title="Video"><i class="fas fa-video"></i></div><button type="button" class="preview-thumb-remove" aria-label="Remove">×</button></div>';
+            } else {
+              thumbsHtml += '<div class="preview-thumb-wrap" data-kind="file" data-file-idx="' + it.fileIdx + '"><img src="' + u + '" alt=""><button type="button" class="preview-thumb-remove" aria-label="Remove">×</button></div>';
+            }
+          }
+        });
+
         thumbsWrap.innerHTML = thumbsHtml;
         thumbsWrap.style.display = 'flex';
         thumbsWrap.querySelectorAll('.preview-thumb-wrap').forEach(function(wrap) {
-          var idx = parseInt(wrap.getAttribute('data-index'), 10);
+          var kind = wrap.getAttribute('data-kind');
           var thumbEl = wrap.querySelector('img, .preview-thumb-video');
           thumbEl.addEventListener('click', function() {
-            var file = productMediaFiles[idx];
-            if (!file) return;
-            var url = URL.createObjectURL(file);
-            if (isVideoFile(file)) mainWrap.innerHTML = '<video src="' + url + '" controls muted playsinline></video>';
-            else mainWrap.innerHTML = '<img src="' + url + '" alt="">';
+            if (kind === 'url') {
+              var ui = parseInt(wrap.getAttribute('data-url-idx'), 10);
+              var surl = productExtractedImageUrls[ui];
+              if (!surl) return;
+              if (isVideoUrl(surl)) {
+                mainWrap.innerHTML = '<video src="' + escapeHtmlAttr(surl) + '" controls muted playsinline></video>';
+              } else {
+                mainWrap.innerHTML = '<img src="' + escapeHtmlAttr(surl) + '" alt="">';
+              }
+            } else {
+              var fi = parseInt(wrap.getAttribute('data-file-idx'), 10);
+              var file = productMediaFiles[fi];
+              if (!file) return;
+              var blobUrl = URL.createObjectURL(file);
+              if (isVideoFile(file)) mainWrap.innerHTML = '<video src="' + blobUrl + '" controls muted playsinline></video>';
+              else mainWrap.innerHTML = '<img src="' + blobUrl + '" alt="">';
+            }
           });
           wrap.querySelector('.preview-thumb-remove').addEventListener('click', function(e) {
             e.preventDefault();
             e.stopPropagation();
-            productMediaFiles.splice(idx, 1);
+            if (kind === 'url') {
+              var ur = parseInt(wrap.getAttribute('data-url-idx'), 10);
+              if (!isNaN(ur)) productExtractedImageUrls.splice(ur, 1);
+            } else {
+              var fr = parseInt(wrap.getAttribute('data-file-idx'), 10);
+              if (!isNaN(fr)) productMediaFiles.splice(fr, 1);
+            }
             updatePreviewImagesFromList();
           });
         });
@@ -7597,6 +7667,8 @@ $('#cls3741_attach_btn').on('click', function() {
           arr.forEach(function(t) { addOfferTierRow(t.qty, t.price, t.backup_price || ''); });
         } catch (e) {}
         productMediaFiles = [];
+        productExtractedImageUrls = [];
+        syncProductImageUrlsHidden();
         updatePreviewImagesFromList();
         updateProductPreview();
         showFormView(true);
@@ -7625,7 +7697,8 @@ $('#cls3741_attach_btn').on('click', function() {
       }
       function openFormWithGeneratedData(p) {
         document.getElementById('product_edit_id').value = '';
-        document.getElementById('product_image_urls').value = (p.image_urls && p.image_urls.length) ? JSON.stringify(p.image_urls) : '';
+        productExtractedImageUrls = (p.image_urls && p.image_urls.length) ? p.image_urls.slice() : [];
+        syncProductImageUrlsHidden();
         document.getElementById('product_name').value = p.name || '';
         document.getElementById('product_price').value = p.price || '';
         var backupEl = document.getElementById('product_backup_price');
@@ -7642,18 +7715,6 @@ $('#cls3741_attach_btn').on('click', function() {
         document.getElementById('offer_tiers_container').innerHTML = '';
         productMediaFiles = [];
         updatePreviewImagesFromList();
-        var urls = p.image_urls || [];
-        if (urls.length) {
-          var mainWrap = document.getElementById('preview_main_image');
-          var thumbsWrap = document.getElementById('preview_thumbs');
-          if (mainWrap) mainWrap.innerHTML = '<img src="' + urls[0] + '" alt="">';
-          if (thumbsWrap) {
-            var thumbsHtml = '';
-            for (var i = 0; i < urls.length; i++) thumbsHtml += '<img src="' + urls[i] + '" alt="">';
-            thumbsWrap.innerHTML = thumbsHtml;
-            thumbsWrap.style.display = 'flex';
-          }
-        }
         updateProductPreview();
         showFormView(false);
       }
@@ -7675,6 +7736,8 @@ $('#cls3741_attach_btn').on('click', function() {
         if (catHidden) catHidden.value = '';
         document.getElementById('offer_tiers_container').innerHTML = '';
         productMediaFiles = [];
+        productExtractedImageUrls = [];
+        syncProductImageUrlsHidden();
         updatePreviewImagesFromList();
         updateProductPreview();
         showFormView(false);
@@ -7801,6 +7864,8 @@ $('#cls3741_attach_btn').on('click', function() {
                 document.getElementById('product_image_urls').value = '';
                 document.getElementById('offer_tiers_container').innerHTML = '';
                 productMediaFiles = [];
+                productExtractedImageUrls = [];
+                syncProductImageUrlsHidden();
                 updatePreviewImagesFromList();
                 updateProductPreview();
                 if (btn) btn.disabled = false;
