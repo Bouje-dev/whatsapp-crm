@@ -2941,7 +2941,7 @@ this.connectionBranch = null;
                                 <option value="OPENAI">OpenAI</option>
                             </select>
                         </div>
-                        <div class="form-group">
+                        <div class="form-group ai-agent-gender-filter-row">
                             <label class="form-label">Filter by gender (ElevenLabs gallery)</label>
                             <select class="form-select ai-agent-node-gender" style="font-size:0.8rem;">
                                 <option value="">— Any —</option>
@@ -3544,7 +3544,11 @@ this.connectionBranch = null;
                             });
                             if (tab === 'identity' && typeof window.loadAiAgentVoiceGallery === 'function') {
                                 const vg = nodeElement.querySelector('.ai-agent-voice-gallery-grid');
-                                if (vg && !vg.dataset.loaded) window.loadAiAgentVoiceGallery(nodeElement);
+                                const vpSel = ((nodeElement.querySelector('.ai-agent-voice-provider') || {}).value || 'ELEVENLABS').trim().toUpperCase();
+                                const wantLabs = vpSel !== 'OPENAI';
+                                if (wantLabs && vg && (!vg.dataset.loaded || vg.dataset.galleryProvider !== 'ELEVENLABS')) {
+                                    window.loadAiAgentVoiceGallery(nodeElement);
+                                }
                                 if (typeof window.applyAiNodeVisibility === 'function') window.applyAiNodeVisibility(nodeElement);
                             }
                         });
@@ -3561,9 +3565,22 @@ this.connectionBranch = null;
                     });
                     if (voiceProviderEl) {
                         voiceProviderEl.addEventListener('change', () => {
+                            const vg = nodeElement.querySelector('.ai-agent-voice-gallery-grid');
                             if (voiceProviderEl.value === 'ELEVENLABS') {
-                                const vg = nodeElement.querySelector('.ai-agent-voice-gallery-grid');
-                                if (vg && !vg.dataset.loaded && typeof window.loadAiAgentVoiceGallery === 'function') window.loadAiAgentVoiceGallery(nodeElement);
+                                const hid = nodeElement.querySelector('.ai-agent-node-voice-id');
+                                const openaiVoiceNames = { alloy: 1, echo: 1, fable: 1, onyx: 1, nova: 1, shimmer: 1 };
+                                if (hid && openaiVoiceNames[(hid.value || '').trim().toLowerCase()]) hid.value = '';
+                                if (vg) {
+                                    delete vg.dataset.loaded;
+                                    delete vg.dataset.galleryProvider;
+                                }
+                                if (typeof window.loadAiAgentVoiceGallery === 'function') window.loadAiAgentVoiceGallery(nodeElement);
+                            } else if (voiceProviderEl.value === 'OPENAI') {
+                                if (vg) {
+                                    delete vg.dataset.loaded;
+                                    delete vg.dataset.galleryProvider;
+                                }
+                                if (typeof window.stopAiAgentVoiceGalleryPreview === 'function') window.stopAiAgentVoiceGalleryPreview();
                             }
                             if (typeof window.applyAiNodeVisibility === 'function') window.applyAiNodeVisibility(nodeElement);
                         });
@@ -4776,9 +4793,23 @@ this.connectionBranch = null;
                     const nodeGenderEl = node.querySelector('.ai-agent-node-gender');
                     if (nodeGenderEl && content.node_gender !== undefined) nodeGenderEl.value = content.node_gender || '';
                     const voiceProviderEl = node.querySelector('.ai-agent-voice-provider');
-                    if (voiceProviderEl && content.voice_provider) voiceProviderEl.value = content.voice_provider;
+                    if (voiceProviderEl) {
+                        let vpRaw = content.voice_provider;
+                        let amc = content.ai_model_config;
+                        if (typeof amc === 'string') {
+                            try { amc = JSON.parse(amc); } catch (e) { amc = null; }
+                        }
+                        if ((vpRaw == null || String(vpRaw).trim() === '') && amc && typeof amc === 'object') {
+                            vpRaw = amc.voice_provider;
+                        }
+                        const vpNorm = String(vpRaw || '').trim().toUpperCase();
+                        voiceProviderEl.value = vpNorm === 'OPENAI' ? 'OPENAI' : 'ELEVENLABS';
+                    }
                     const vgGrid = node.querySelector('.ai-agent-voice-gallery-grid');
-                    if (vgGrid && !vgGrid.dataset.loaded && typeof window.loadAiAgentVoiceGallery === 'function') window.loadAiAgentVoiceGallery(node);
+                    const fillProv = (node.querySelector('.ai-agent-voice-provider') && node.querySelector('.ai-agent-voice-provider').value || 'ELEVENLABS').trim().toUpperCase();
+                    if (fillProv !== 'OPENAI' && vgGrid && (!vgGrid.dataset.loaded || vgGrid.dataset.galleryProvider !== 'ELEVENLABS') && typeof window.loadAiAgentVoiceGallery === 'function') {
+                        window.loadAiAgentVoiceGallery(node);
+                    }
                     if (typeof window.applyAiNodeVisibility === 'function') window.applyAiNodeVisibility(node);
                     const mediaListEl = node.querySelector('.ai-agent-media-list');
                     if (mediaListEl && Array.isArray(content.media)) {
@@ -6989,7 +7020,13 @@ initializeZoom() {
     var openaiSel = node.querySelector('.ai-agent-openai-voice');
 
     var responseMode = (responseModeEl && responseModeEl.value) ? responseModeEl.value : 'TEXT_ONLY';
-    var provider = (providerEl && providerEl.value) ? providerEl.value.trim().toUpperCase() : 'ELEVENLABS';
+    var rawProv = (providerEl && providerEl.value) ? String(providerEl.value).trim().toUpperCase() : '';
+    if (rawProv !== 'OPENAI' && rawProv !== 'ELEVENLABS') {
+      rawProv = 'ELEVENLABS';
+      if (providerEl) providerEl.value = 'ELEVENLABS';
+    }
+    var provider = rawProv;
+    var genderRow = node.querySelector('.ai-agent-gender-filter-row');
     var gender = (genderEl && genderEl.value) ? genderEl.value.trim() : '';
     var selectedLangNorm = (langEl && langEl.value) ? window.normalizeAiNodeLangCode(langEl.value) : '';
 
@@ -7014,8 +7051,15 @@ initializeZoom() {
       openaiNote.style.display = provider === 'OPENAI' ? 'block' : 'none';
     }
 
+    if (genderRow) genderRow.style.display = provider === 'OPENAI' ? 'none' : '';
+    var personaVoiceHeader = node.querySelector('.persona-section > .persona-section-header');
+    if (personaVoiceHeader) personaVoiceHeader.style.display = provider === 'OPENAI' ? 'none' : '';
+
     if (elLabsWrap) elLabsWrap.style.display = provider === 'ELEVENLABS' ? 'block' : 'none';
-    if (openaiRow) openaiRow.style.display = provider === 'OPENAI' ? 'block' : 'none';
+    if (openaiRow) {
+      openaiRow.style.display = provider === 'OPENAI' ? 'block' : 'none';
+      openaiRow.toggleAttribute('hidden', provider !== 'OPENAI');
+    }
 
     if (provider === 'OPENAI') {
       if (typeof window.stopAiAgentVoiceGalleryPreview === 'function') window.stopAiAgentVoiceGalleryPreview();
@@ -7117,7 +7161,9 @@ initializeZoom() {
     var grid = node && node.querySelector('.ai-agent-voice-gallery-grid');
     if (!grid) return;
     var provEl = node.querySelector('.ai-agent-voice-provider');
-    if (provEl && provEl.value === 'OPENAI') {
+    var vpSel = (provEl && provEl.value) ? String(provEl.value).trim().toUpperCase() : 'ELEVENLABS';
+    if (vpSel !== 'OPENAI' && vpSel !== 'ELEVENLABS') vpSel = 'ELEVENLABS';
+    if (vpSel === 'OPENAI') {
       if (typeof window.stopAiAgentVoiceGalleryPreview === 'function') window.stopAiAgentVoiceGalleryPreview();
       return;
     }
@@ -7131,6 +7177,7 @@ initializeZoom() {
     var formData = new FormData();
     formData.append('channel_id', chId);
     formData.append('csrfmiddlewaretoken', csrf);
+    formData.append('voice_provider', 'ELEVENLABS');
     fetch(listUrl, { method: 'POST', body: formData, credentials: 'same-origin' })
       .then(function(r) { return r.json(); })
       .then(function(data) {
@@ -7296,6 +7343,7 @@ initializeZoom() {
           grid.appendChild(empty);
         }
         grid.dataset.loaded = '1';
+        grid.dataset.galleryProvider = ((data.tts_provider || 'ELEVENLABS') + '').toUpperCase();
         if (typeof window.applyAiNodeVisibility === 'function') window.applyAiNodeVisibility(node);
       })
       .catch(function() {
