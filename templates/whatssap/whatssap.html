@@ -11021,6 +11021,15 @@ document.addEventListener("DOMContentLoaded", function() {
 
 
 function getStatusIconHTML(status) {
+    const raw = status != null ? String(status).trim().toLowerCase() : '';
+    const normalized =
+        raw === 'played' || raw === 'listened'
+            ? 'read'
+            : raw === ''
+              ? 'sent'
+              : raw;
+    status = normalized;
+
     // 1. أيقونة الانتظار (ساعة)
     const pendingIcon = `
         <svg viewBox="0 0 24 24" class="msg-status-icon pending" xmlns="http://www.w3.org/2000/svg">

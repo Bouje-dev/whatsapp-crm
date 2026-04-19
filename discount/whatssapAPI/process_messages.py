@@ -35,6 +35,10 @@ from discount.models import CustomUser, Flow, Message, Contact, WhatsAppChannel,
 from django.utils import timezone
 from django.db.models import Q
 from ..channel.socket_utils import send_socket
+from discount.whatssapAPI.wa_status import (
+    normalize_whatsapp_delivery_status,
+    status_timestamp_from_meta_webhook,
+)
 
 SESSION_TIMEOUT_HOURS = 24
 # Number of past messages to load for AI context (persistent context / context resumption)
@@ -1486,6 +1490,7 @@ def _sentinel_checkpoint(channel, sender, skip=False):
             "[AI → Human] AI Sentinel: last messages were classified as spam or not serious buyer intent. "
             "Auto-reply was disabled; the customer received the standard handover message (transferred to the team). "
             "السبب: تصنيف الحماية — محتوى غير جاد أو spam.",
+            author_name="AI Sentinel",
         )
 
         team_id = getattr(channel, "owner_id", None) or (
@@ -1596,10 +1601,15 @@ def _conversation_already_has_order_confirmation(conversation_messages):
     return False
 
 
-def _add_ai_action_note(channel, sender, body):
-    """Add an internal note to the conversation for an AI agent action (visible to team only)."""
+def _add_ai_action_note(channel, sender, body, *, author_name=None):
+    """Add an internal note to the conversation for an AI agent action (visible to team only).
+
+    author_name is stored on Message.name when there is no staff User FK, so the inbox shows
+    the persona / agent label instead of \"Unknown\".
+    """
     if not channel or not sender or not body:
         return
+    display = (str(author_name).strip() if author_name is not None else "") or "AI Agent"
     try:
         Message.objects.create(
             channel=channel,
@@ -1609,6 +1619,7 @@ def _add_ai_action_note(channel, sender, body):
             is_internal=True,
             is_from_me=True,
             status="read",
+            name=display[:50],
         )
     except Exception as e:
         logger.warning("AI action note failed: %s", e)
@@ -1660,6 +1671,7 @@ def _pause_ai_for_wallet_depleted(channel, sender, active_node=None):
                 is_internal=True,
                 is_from_me=True,
                 status="read",
+                name="System",
             )
             ctx["wallet_depleted_note_created"] = True
             session.context_data = ctx
@@ -2261,6 +2273,7 @@ def run_ai_agent_node(current_node, sender, channel, state_header=None, skip_sen
     reply_text = None
     order_was_saved = False
     saved_order = None
+    agent_name = None
     try:
         from ai_assistant.services import (
             generate_reply_with_tools,
@@ -2619,36 +2632,46 @@ def run_ai_agent_node(current_node, sender, channel, state_header=None, skip_sen
                     )
                     tool_results.append({"tool_call_id": tcid, "content": content})
                     _add_ai_action_note(
-                        channel, sender,
+                        channel,
+                        sender,
                         f"AI agent checked stock (product_id={args.get('product_id') or '—'}, sku={args.get('sku') or '—'}).",
+                        author_name=agent_name,
                     )
                 elif name == "apply_discount":
                     content = _execute_apply_discount(channel, args.get("coupon_code"), current_node=current_node)
                     tool_results.append({"tool_call_id": tcid, "content": content})
                     _add_ai_action_note(
-                        channel, sender,
+                        channel,
+                        sender,
                         f"AI agent applied discount: {args.get('coupon_code') or '—'}.",
+                        author_name=agent_name,
                     )
                 elif name == "track_order":
                     content = _execute_track_order(channel, args.get("customer_phone") or sender)
                     tool_results.append({"tool_call_id": tcid, "content": content})
                     _add_ai_action_note(
-                        channel, sender,
+                        channel,
+                        sender,
                         f"AI agent tracked order for customer {args.get('customer_phone') or sender}.",
+                        author_name=agent_name,
                     )
                 elif name == "search_products":
                     content = _execute_search_products(channel, args.get("query") or "")
                     tool_results.append({"tool_call_id": tcid, "content": content})
                     _add_ai_action_note(
-                        channel, sender,
+                        channel,
+                        sender,
                         f"AI agent searched products: \"{args.get('query') or ''}\".",
+                        author_name=agent_name,
                     )
                 elif name == "send_product_media":
                     content = _execute_send_product_media(channel, sender, args.get("product_id"), caption=args.get("caption", ""))
                     tool_results.append({"tool_call_id": tcid, "content": content})
                     _add_ai_action_note(
-                        channel, sender,
+                        channel,
+                        sender,
                         f"AI agent sent product media for product_id={args.get('product_id') or '—'}.",
+                        author_name=agent_name,
                     )
                 elif name == "submit_customer_order":
                     # Step 1: Transitional message (instant reply) before DB work — no awkward silence
@@ -2693,8 +2716,10 @@ def run_ai_agent_node(current_node, sender, channel, state_header=None, skip_sen
                         upsell_outcome = json.loads(content)
                         if upsell_outcome.get("success"):
                             _add_ai_action_note(
-                                channel, sender,
+                                channel,
+                                sender,
                                 f"AI agent added upsell to order {args.get('order_id')}: {args.get('new_item_name')} (+{args.get('new_item_price')}).",
+                                author_name=agent_name,
                             )
                             # Clear upsell_pending from session and expire now
                             try:
@@ -2770,7 +2795,12 @@ def run_ai_agent_node(current_node, sender, channel, state_header=None, skip_sen
             oid = submit_order_success_outcome.get("order_id")
             if oid:
                 saved_order = SimpleOrder.objects.filter(order_id=oid).first()
-                _add_ai_action_note(channel, sender, f"AI agent created order: {oid} (submit_customer_order) for customer {sender}.")
+                _add_ai_action_note(
+                    channel,
+                    sender,
+                    f"AI agent created order: {oid} (submit_customer_order) for customer {sender}.",
+                    author_name=agent_name,
+                )
                 # Persist order_id in session state so upsell nodes can reference it
                 try:
                     _session = get_active_session(channel, sender)
@@ -2786,8 +2816,10 @@ def run_ai_agent_node(current_node, sender, channel, state_header=None, skip_sen
             order_was_saved = True
             saved_order = save_order_result_order
             _add_ai_action_note(
-                channel, sender,
+                channel,
+                sender,
                 f"AI agent created order: {getattr(save_order_result_order, 'order_id', '—')} (save_order/record_order) for customer {sender}.",
+                author_name=agent_name,
             )
 
         reply_text = (result.get("reply") or "").strip()
@@ -2855,6 +2887,7 @@ def run_ai_agent_node(current_node, sender, channel, state_header=None, skip_sen
                     sender,
                     f"[AI → Human] Handover to team. Reason: {session.handover_reason}. "
                     "Auto-reply disabled; customer received the transfer message.",
+                    author_name=agent_name,
                 )
                 team_id = getattr(channel, "owner_id", None) or (getattr(channel, "owner", None) and getattr(channel.owner, "id", None))
                 if team_id:
@@ -2890,8 +2923,10 @@ def run_ai_agent_node(current_node, sender, channel, state_header=None, skip_sen
                             saved_order = save_res
                             order_was_saved = True
                             _add_ai_action_note(
-                                channel, sender,
+                                channel,
+                                sender,
                                 f"AI agent created order: {getattr(save_res, 'order_id', '—')} (save_order/record_order from follow-up) for customer {sender}.",
+                                author_name=agent_name,
                             )
                     else:
                         logger.warning(
@@ -2921,8 +2956,10 @@ def run_ai_agent_node(current_node, sender, channel, state_header=None, skip_sen
                     saved_order = save_res
                     order_was_saved = True
                     _add_ai_action_note(
-                        channel, sender,
+                        channel,
+                        sender,
                         f"AI agent created order: {getattr(save_res, 'order_id', '—')} (ORDER_DATA) for customer {sender}.",
+                        author_name=agent_name,
                     )
             elif order_data:
                 logger.warning(
@@ -3093,6 +3130,7 @@ def run_ai_agent_node(current_node, sender, channel, state_header=None, skip_sen
                         sender,
                         "[AI → Human] Technical error (tool or LLM). Auto-reply disabled; "
                         "customer received the support handover message.",
+                        author_name=agent_name,
                     )
             except Exception as handoff_err:
                 logger.warning("Handoff on AI error failed: %s", handoff_err)
@@ -3112,7 +3150,7 @@ def run_ai_agent_node(current_node, sender, channel, state_header=None, skip_sen
                 persona_category = get_persona_category_label(product_id, merchant=getattr(channel, "owner", None))
                 name_for_note = (agent_name or "AI Agent").strip() or "AI Agent"
                 takeover_note_body = f"AI agent {name_for_note} took over as {persona_category} (persona-category)."
-                _add_ai_action_note(channel, sender, takeover_note_body)
+                _add_ai_action_note(channel, sender, takeover_note_body, author_name=name_for_note)
                 ctx = getattr(session_for_note, "context_data", None) or {}
                 ctx["ai_takeover_note_created"] = True
                 session_for_note.context_data = ctx
@@ -3680,7 +3718,7 @@ def try_ai_voice_reply(sender, body, channel, skip_sentinel=False):
 
     from discount.services.voice_dialect import merchant_voice_mode_enabled, resolve_dialect_for_llm_hierarchy
     from discount.services.bot_language import effective_bot_language, effective_output_language_for_node
-    from ai_assistant.services import market_from_resolved_dialect
+    from ai_assistant.services import get_agent_name_for_node, market_from_resolved_dialect
 
     output_language_voice = effective_bot_language(channel)
     _vd_node = getattr(get_active_session(channel, sender), "active_node", None) if channel and sender else None
@@ -3693,6 +3731,12 @@ def try_ai_voice_reply(sender, body, channel, skip_sentinel=False):
         _market_v = market_from_resolved_dialect(voice_dialect_label_voice)
         if _market_v:
             market = _market_v
+
+    _vd_persona = getattr(_vd_node, "persona", None) if _vd_node else None
+    _vd_rm = (getattr(_vd_node, "response_mode", None) or "") if _vd_node else ""
+    _vd_vleg = bool(getattr(_vd_node, "voice_enabled", False)) if _vd_node else False
+    _voice_reply_on_path = (_vd_rm == "AUDIO_ONLY") or (_vd_rm == "AUTO_SMART") or _vd_vleg
+    voice_path_agent_name = get_agent_name_for_node(_voice_reply_on_path, _vd_persona, market=market)
 
     # Keep fallback context lean: do not inject the full store catalog each turn.
     product_context_for_reply = None
@@ -3804,11 +3848,21 @@ def try_ai_voice_reply(sender, body, channel, skip_sentinel=False):
             if name == "track_order":
                 content = _execute_track_order(channel, args.get("customer_phone") or sender)
                 tool_results.append({"tool_call_id": tcid, "content": content})
-                _add_ai_action_note(channel, sender, f"AI agent tracked order for customer {args.get('customer_phone') or sender}.")
+                _add_ai_action_note(
+                    channel,
+                    sender,
+                    f"AI agent tracked order for customer {args.get('customer_phone') or sender}.",
+                    author_name=voice_path_agent_name,
+                )
             elif name == "check_stock":
                 content = _execute_check_stock(channel, product_id=args.get("product_id"), sku=args.get("sku"))
                 tool_results.append({"tool_call_id": tcid, "content": content})
-                _add_ai_action_note(channel, sender, f"AI agent checked stock (product_id={args.get('product_id') or '—'}, sku={args.get('sku') or '—'}).")
+                _add_ai_action_note(
+                    channel,
+                    sender,
+                    f"AI agent checked stock (product_id={args.get('product_id') or '—'}, sku={args.get('sku') or '—'}).",
+                    author_name=voice_path_agent_name,
+                )
             elif name == "apply_discount":
                 content = _execute_apply_discount(
                     channel,
@@ -3816,15 +3870,30 @@ def try_ai_voice_reply(sender, body, channel, skip_sentinel=False):
                     current_node=(getattr(_voice_session, "active_node", None) if _voice_session else None),
                 )
                 tool_results.append({"tool_call_id": tcid, "content": content})
-                _add_ai_action_note(channel, sender, f"AI agent applied discount: {args.get('coupon_code') or '—'}.")
+                _add_ai_action_note(
+                    channel,
+                    sender,
+                    f"AI agent applied discount: {args.get('coupon_code') or '—'}.",
+                    author_name=voice_path_agent_name,
+                )
             elif name == "search_products":
                 content = _execute_search_products(channel, args.get("query") or "")
                 tool_results.append({"tool_call_id": tcid, "content": content})
-                _add_ai_action_note(channel, sender, f"AI agent searched products: \"{args.get('query') or ''}\".")
+                _add_ai_action_note(
+                    channel,
+                    sender,
+                    f"AI agent searched products: \"{args.get('query') or ''}\".",
+                    author_name=voice_path_agent_name,
+                )
             elif name == "send_product_media":
                 content = _execute_send_product_media(channel, sender, args.get("product_id"), caption=args.get("caption", ""))
                 tool_results.append({"tool_call_id": tcid, "content": content})
-                _add_ai_action_note(channel, sender, f"AI agent sent product media for product_id={args.get('product_id') or '—'}.")
+                _add_ai_action_note(
+                    channel,
+                    sender,
+                    f"AI agent sent product media for product_id={args.get('product_id') or '—'}.",
+                    author_name=voice_path_agent_name,
+                )
             elif name == "add_upsell_to_existing_order":
                 try:
                     from discount.orders_ai import handle_add_upsell_tool
@@ -3836,7 +3905,12 @@ def try_ai_voice_reply(sender, body, channel, skip_sentinel=False):
                 try:
                     upsell_out = json.loads(content)
                     if upsell_out.get("success"):
-                        _add_ai_action_note(channel, sender, f"AI agent added upsell to order {args.get('order_id')}: {args.get('new_item_name')}.")
+                        _add_ai_action_note(
+                            channel,
+                            sender,
+                            f"AI agent added upsell to order {args.get('order_id')}: {args.get('new_item_name')}.",
+                            author_name=voice_path_agent_name,
+                        )
                         try:
                             _vs = get_active_session(channel, sender)
                             if _vs:
@@ -3878,7 +3952,12 @@ def try_ai_voice_reply(sender, body, channel, skip_sentinel=False):
                     if outcome.get("success") and outcome.get("order_id"):
                         order_was_saved_voice = True
                         saved_order_voice = SimpleOrder.objects.filter(order_id=outcome["order_id"]).first()
-                        _add_ai_action_note(channel, sender, f"AI agent created order: {outcome['order_id']} (voice/fallback path) for customer {sender}.")
+                        _add_ai_action_note(
+                            channel,
+                            sender,
+                            f"AI agent created order: {outcome['order_id']} (voice/fallback path) for customer {sender}.",
+                            author_name=voice_path_agent_name,
+                        )
                 except Exception:
                     pass
         if tool_results:
@@ -4716,75 +4795,41 @@ def process_message_statuses(statuses, channel=None) :
     """
     for status in statuses:
         try:
-            message_id = status.get('id')
-            status_value = status.get('status')
-            recipient_id = status.get('recipient_id')
-            timestamp = status.get('timestamp')
-            
-            
-            
-            # تحديث حالة الرسالة في قاعدة البيانات إذا لزم الأمر
-            if message_id:
-                try:
-                    message_filter = Message.objects.filter(message_id=message_id)
-                    if channel:
-                        message_filter = message_filter.filter(channel=channel)
-                    
-                    message = message_filter.first()
-                    if message:
-                        message.status = status_value
-                        message.status_timestamp = _dt.datetime.now(_dt.timezone.utc)
-                        message.save()
-                    payload={
-                                            'message_id': message.id,
-                                            'status': status_value,
-                                            'phone': status['recipient_id'] 
-                                        }
+            message_id = status.get("id")
+            raw_status = status.get("status")
+            status_value = normalize_whatsapp_delivery_status(raw_status)
+            if not message_id:
+                continue
 
-                    team_id = channel.owner.id 
+            message_filter = Message.objects.filter(message_id=message_id)
+            if channel:
+                message_filter = message_filter.filter(channel=channel)
 
-                    dynamic_group_name = f"team_updates_{team_id}"
+            message = message_filter.first()
+            if not message:
+                continue
 
-                    send_socket(
-                        data_type='message_status_update',
-                     payload = payload ,
-                     group_name =  dynamic_group_name
-                                        )
+            message.status = status_value
+            message.status_timestamp = status_timestamp_from_meta_webhook(status)
+            message.save(update_fields=["status", "status_timestamp"])
 
+            if not channel or not getattr(channel, "owner_id", None):
+                continue
 
-#                                           contact_payload = {
-#             "channel_id": channel.id if channel else None, # هام للفرونت إند - مع التحقق من None
-#             "phone": message_obj.sender,
-#             "name": name if name else message_obj.sender, # أو الاسم المخزن في جدول Contact
-#             "snippet": snippet,
-#             "unread": unread_count,
-#             "last_id": message_obj.id,
-#             "timestamp": message_obj.created_at.strftime("%H:%M") 
-#         }
-
-#         # 3. إرسال باكيج موحد يحتوي على الاثنين
-#         full_payload = {
-#             "contact": contact_payload,
-#             "message": msg_payload
-#         }
-#         team_id = channel.owner.id 
-
-# # 2. بناء اسم المجموعة الديناميكي (يجب أن يطابق تماماً ما كتبناه في consumers.py)
-#         dynamic_group_name = f"team_updates_{team_id}"
-
-#         send_socket(
-#             data_type="new_message_received", # اسم نوع جديد وواضح
-#             payload=full_payload ,
-#             group_name = dynamic_group_name
-#         )
-
-
-                     
-                except Message.DoesNotExist:
-                    pass
-                    
+            team_id = channel.owner_id
+            dynamic_group_name = f"team_updates_{team_id}"
+            payload = {
+                "message_id": message.id,
+                "status": status_value,
+                "phone": status.get("recipient_id"),
+            }
+            send_socket(
+                "message_status_update",
+                payload,
+                dynamic_group_name,
+            )
         except Exception as e:
-            print(f"❌ Error processing message status: {e}")
+            logger.warning("process_message_statuses: %s", e)
 
 
 

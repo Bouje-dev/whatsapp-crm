@@ -671,10 +671,15 @@ def process_message_statuses(statuses):
             # تحديث حالة الرسالة في قاعدة البيانات إذا لزم الأمر
             if message_id:
                 try:
+                    from discount.whatssapAPI.wa_status import (
+                        normalize_whatsapp_delivery_status,
+                        status_timestamp_from_meta_webhook,
+                    )
+
                     message = Message.objects.get(message_id=message_id)
-                    message.status = status_value
-                    message.status_timestamp = timestamp
-                    message.save()
+                    message.status = normalize_whatsapp_delivery_status(status_value)
+                    message.status_timestamp = status_timestamp_from_meta_webhook(status)
+                    message.save(update_fields=["status", "status_timestamp"])
                 except Message.DoesNotExist:
                     pass
                     
@@ -1705,6 +1710,8 @@ def live_chat_audio_upload(request):
 
 def _message_to_chat_dict(m, request):
     """Serialize a Message row for the live chat JSON API."""
+    from discount.whatssapAPI.wa_status import normalize_whatsapp_delivery_status
+
     msg_type = ''
     Type = getattr(m, 'type', None)
     if Type:
@@ -1713,7 +1720,8 @@ def _message_to_chat_dict(m, request):
         msg_type = getattr(m, 'media_type', 'text')
     media_file = getattr(m, 'media_file', None)
     media_url = None
-    status = getattr(m, 'status', None)
+    raw_st = getattr(m, "status", None)
+    status = normalize_whatsapp_delivery_status(raw_st) if raw_st else "sent"
     if media_file:
         try:
             url_attr = getattr(media_file, 'url', None)
@@ -1739,6 +1747,12 @@ def _message_to_chat_dict(m, request):
     else:
         media_url = getattr(m, 'media_url', None)
 
+    note_author = None
+    if getattr(m, "user_id", None):
+        note_author = m.user.username if m.user else None
+    elif (getattr(m, "type", None) or "") == "note" and getattr(m, "name", None):
+        note_author = (m.name or "").strip() or None
+
     return {
         "id": m.id,
         "body": m.body,
@@ -1747,7 +1761,7 @@ def _message_to_chat_dict(m, request):
         "type": msg_type,
         "url": media_url,
         "status": status,
-        "user": m.user.username if m.user else None,
+        "user": note_author,
         "timestamp": m.created_at.strftime('%Y-%m-%d %H:%M'),
         "captions": m.captions,
     }

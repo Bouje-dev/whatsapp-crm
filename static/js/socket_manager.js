@@ -253,16 +253,26 @@ const ChatSocket = {
         }
 
         case 'message_status_update':{
-            const payload = data.payload;
-            const msgStatusIcon = document.querySelector(`[data-msg-id="${data.payload.message_id}"] .cls3741_msg_status`);
-            
-            if (msgStatusIcon) {
-        const newIconSVG = window.getStatusIconHTML(data.payload.status);
-        msgStatusIcon.innerHTML = newIconSVG;
+            const payload = data.payload || {};
+            const mid = payload.message_id != null ? String(payload.message_id) : '';
+            if (!mid) break;
+            // Prefer direct match: both wrapper and inner span carry data-msg-id; descendant-only
+            // selectors break when the first matched node is already .cls3741_msg_status.
+            let msgStatusIcon = document.querySelector(
+                `.cls3741_msg_status[data-msg-id="${mid}"]`
+            );
+            if (!msgStatusIcon) {
+                msgStatusIcon = document.querySelector(
+                    `[data-msg-id="${mid}"] .cls3741_msg_status`
+                );
             }
-       
+            if (msgStatusIcon && typeof window.getStatusIconHTML === 'function') {
+                let st = (payload.status != null ? String(payload.status) : 'sent').trim().toLowerCase();
+                if (st === 'played' || st === 'listened') st = 'read';
+                msgStatusIcon.innerHTML = window.getStatusIconHTML(st || 'sent');
+            }
             break;
- }
+        }
 
 
 
