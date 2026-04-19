@@ -2029,7 +2029,7 @@ def _french_bot_language_prefix(voice_notes_mode: bool) -> str:
     )
 
 
-def build_messages_payload_sales(conversation_messages, custom_instruction=None, product_context=None, trust_score=0, media_context=None, state_header=None, sales_stage=None, sentiment=None, market=None, agent_name=None, customer_phone=None, override_rules=None, required_order_fields=None, checkout_mode_label=None, product_id=None, merchant_id=None, voice_dialect=None, voice_notes_mode=False, voice_script_style=False, output_language=None, memory_summary=None):
+def build_messages_payload_sales(conversation_messages, custom_instruction=None, product_context=None, trust_score=0, media_context=None, state_header=None, sales_stage=None, sentiment=None, market=None, agent_name=None, customer_phone=None, override_rules=None, required_order_fields=None, checkout_mode_label=None, product_id=None, merchant_id=None, voice_dialect=None, voice_notes_mode=False, voice_script_style=False, output_language=None, memory_summary=None, node_dialect_locked=False):
     """Build messages for the sales agent. Uses Elite Sales Consultant prompt when product_context is set (with trust_score, sales_stage, sentiment, market, agent_name).
     state_header: optional for session continuity. market: 'MA' or 'SA'. agent_name: e.g. Chuck or persona name so the AI thinks as that human.
     customer_phone: active WhatsApp number of the customer; injected as system note so the AI can use it when they say 'same number' / نفس الرقم.
@@ -2039,7 +2039,8 @@ def build_messages_payload_sales(conversation_messages, custom_instruction=None,
     voice_notes_mode: when True (channel voice notes on or node may emit TTS), inject strict dialect rule so LLM matches the voice.
     voice_script_style: when True, prepend AUDIO SCRIPT MODE (conversational TTS); when False, TEXT MESSAGING MODE (structured chat).
     output_language: None | 'fr' | 'ar' | 'en' — from channel voice_language. When 'fr', Arabic dialect/TTS coupling is skipped.
-    memory_summary: optional summarized long-term customer facts from older chat history."""
+    memory_summary: optional summarized long-term customer facts from older chat history.
+    node_dialect_locked: active flow node sets node_language — prepend strict dialect/language lock above global bot/voice hints."""
     catalog_is_empty = _is_catalog_empty_for_merchant(merchant_id=merchant_id)
     admin_rules_prefix = ""
     if override_rules and (override_rules or "").strip():
@@ -2054,6 +2055,29 @@ def build_messages_payload_sales(conversation_messages, custom_instruction=None,
             len(rules_text),
             (rules_text[:100] + "…") if len(rules_text) > 100 else rules_text,
         )
+    node_lock_prefix = ""
+    if node_dialect_locked:
+        if output_language == "fr":
+            node_lock_prefix = (
+                "## CRITICAL — ACTIVE FLOW NODE LANGUAGE (HIGHEST PRIORITY)\n"
+                "Respond in **French** only. This overrides channel voice dialect, Arabic TTS coupling, "
+                "and any conflicting language instructions later in this prompt.\n\n---\n\n"
+            )
+        elif output_language == "en":
+            node_lock_prefix = (
+                "## CRITICAL — ACTIVE FLOW NODE LANGUAGE (HIGHEST PRIORITY)\n"
+                "Respond in **English** only. Override conflicting dialect or Arabic instructions below.\n\n---\n\n"
+            )
+        elif voice_dialect and str(voice_dialect).strip() and output_language in (None, "ar"):
+            vd = str(voice_dialect).strip()
+            node_lock_prefix = (
+                "## CRITICAL — ACTIVE FLOW NODE DIALECT (HIGHEST PRIORITY)\n"
+                f"You MUST write (and, if audio mode, speak) strictly in **{vd}**.\n"
+                "This overrides channel Voice Gallery / cloned voice defaults and global bot-language hints. "
+                f"NEGATIVE CONSTRAINTS: Do not use Moroccan Darija vocabulary unless the locked dialect is Moroccan Darija; "
+                f"do not follow generic tone_desc blocks that prescribe a different regional variety than **{vd}**. "
+                f"Few-shot principle: mirror authentic {vd} phrasing only; ignore conflicting regional examples elsewhere.\n\n---\n\n"
+            )
     if product_context and (product_context or "").strip():
         system = _master_sales_closer_prompt(
             (product_context or "").strip(),
@@ -2085,7 +2109,7 @@ def build_messages_payload_sales(conversation_messages, custom_instruction=None,
     lang_prefix = ""
     if output_language == "fr":
         lang_prefix = _french_bot_language_prefix(voice_notes_mode)
-    system = admin_rules_prefix + lang_prefix + mode_line + system
+    system = admin_rules_prefix + node_lock_prefix + lang_prefix + mode_line + system
     if memory_summary and str(memory_summary).strip():
         system = (
             "CUSTOMER PROFILE / FACTS (summarized memory from earlier conversation):\n"
@@ -2266,7 +2290,7 @@ def parse_and_strip_stage(reply_text):
     return (cleaned, stage)
 
 
-def generate_reply_with_tools(conversation_messages, custom_instruction=None, product_context=None, trust_score=0, media_context=None, state_header=None, sales_stage=None, sentiment=None, market=None, agent_name=None, model=None, customer_phone=None, override_rules=None, required_order_fields=None, checkout_mode_label=None, product_id=None, merchant_id=None, voice_dialect=None, voice_notes_mode=False, voice_script_style=False, output_language=None, memory_summary=None):
+def generate_reply_with_tools(conversation_messages, custom_instruction=None, product_context=None, trust_score=0, media_context=None, state_header=None, sales_stage=None, sentiment=None, market=None, agent_name=None, model=None, customer_phone=None, override_rules=None, required_order_fields=None, checkout_mode_label=None, product_id=None, merchant_id=None, voice_dialect=None, voice_notes_mode=False, voice_script_style=False, output_language=None, memory_summary=None, node_dialect_locked=False):
     """
     Call OpenAI with sales tools. When product_context is set, uses Elite Sales Consultant prompt with trust_score, sales_stage, sentiment, market, agent_name.
     market: 'MA' or 'SA'. agent_name: e.g. Chuck or persona name — AI responds as this human, not as a bot.
@@ -2305,6 +2329,7 @@ def generate_reply_with_tools(conversation_messages, custom_instruction=None, pr
         voice_script_style=voice_script_style,
         output_language=output_language,
         memory_summary=memory_summary,
+        node_dialect_locked=node_dialect_locked,
     )
     headers = {"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"}
     # Static tools: submit_customer_order now has a fixed, safe schema (no dynamic override)
@@ -2395,6 +2420,7 @@ def continue_after_tool_calls(
     voice_script_style=False,
     output_language=None,
     memory_summary=None,
+    node_dialect_locked=False,
 ):
     """
     After the model returned tool_calls (e.g. check_stock, apply_discount), send tool results and get the final reply.
@@ -2425,6 +2451,7 @@ def continue_after_tool_calls(
         voice_script_style=voice_script_style,
         output_language=output_language,
         memory_summary=memory_summary,
+        node_dialect_locked=node_dialect_locked,
     )
     assistant_msg = {
         "role": "assistant",

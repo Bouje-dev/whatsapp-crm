@@ -15,6 +15,25 @@ from typing import Literal, Optional
 OutputLang = Optional[Literal["fr", "ar", "en"]]
 
 
+def effective_output_language_for_node(node) -> OutputLang:
+    """
+    Priority over channel voice_language: when the active flow node sets node_language
+    (e.g. AR_SA, FR_FR), lock LLM output language for that node.
+    """
+    if not node:
+        return None
+    nl = (getattr(node, "node_language", None) or "").strip().upper().replace("-", "_")
+    if not nl:
+        return None
+    if nl.startswith("FR"):
+        return "fr"
+    if nl.startswith("EN"):
+        return "en"
+    if nl.startswith("AR"):
+        return "ar"
+    return None
+
+
 def effective_bot_language(channel) -> OutputLang:
     """
     Return 'fr', 'ar', 'en', or None.

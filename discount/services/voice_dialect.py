@@ -10,7 +10,40 @@ Dialect hierarchy for prompts:
 
 from django.conf import settings
 
+from typing import Optional
+
 from discount.models import VOICE_DIALECT_DEFAULT, VoiceGalleryEntry, VoicePersona, dialect_key_to_display
+
+
+def dialect_label_from_node_language(node) -> Optional[str]:
+    """
+    Priority 1 for LLM/TTS alignment: explicit flow node_language (e.g. AR_MA → Moroccan Darija).
+    Returns None when the node does not specify an Arabic regional dialect we map (voice hierarchy applies).
+    """
+    if not node:
+        return None
+    raw = (getattr(node, "node_language", None) or "").strip()
+    if not raw:
+        return None
+    s = raw.upper().replace("-", "_")
+    key = None
+    if s.startswith("AR_MA") or s in ("MA",):
+        key = "MA_DARIJA"
+    elif s.startswith("AR_SA") or s == "SA":
+        key = "SA_ARABIC"
+    elif s.startswith("AR_EG") or s.startswith("EG_"):
+        key = "EG_ARABIC"
+    elif "GULF" in s or s.startswith("AR_GCC") or s.startswith("AR_AE") or s.startswith("AR_QA"):
+        key = "GULF_ARABIC"
+    elif s.startswith("AR_LB") or s.startswith("AR_SY") or "LEV" in s:
+        key = "LEV_ARABIC"
+    elif s == "MSA" or s.startswith("AR_MSA"):
+        key = "MSA"
+    elif s.startswith("OTHER") or s == "MULTILINGUAL":
+        key = "OTHER"
+    else:
+        return None
+    return dialect_key_to_display(key)
 
 
 def channel_has_selected_tts_voice(channel, node=None) -> bool:
@@ -45,11 +78,15 @@ def resolve_dialect_for_llm_hierarchy(channel, node=None, customer_phone=None) -
     """
     Human-readable dialect for LLM + TTS alignment.
 
-    P1: Voice / clone selected → resolve from gallery, persona, then channel.voice_dialect / default
-        (phone country is ignored).
-    P2: No voice id → phone country dialect.
-    P3: channel.voice_dialect, then platform default.
+    P1 (highest): Active flow node ``node_language`` → regional dialect label for prompts.
+    P2: Voice / clone selected → gallery / persona / channel.voice_dialect (phone ignored when voice id set).
+    P3: Phone country dialect when no voice id.
+    P4: channel.voice_dialect, settings, platform default.
     """
+    node_label = dialect_label_from_node_language(node)
+    if node_label:
+        return node_label
+
     if channel and channel_has_selected_tts_voice(channel, node):
         return resolve_voice_dialect_for_prompt(channel, node)
 

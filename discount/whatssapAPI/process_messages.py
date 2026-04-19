@@ -915,57 +915,80 @@ def save_incoming_message(msg, message_type, sender=None, channel=None, name=Non
 
 
 
-def get_matching_flow(sender_phone: str, message_text: str, channel=None):
+def _conversation_start_eligible_before_save(sender_phone: str, channel=None):
     """
-    البحث عن الفلو المناسب بناءً على:
-    1. هل هذه بداية محادثة جديدة؟ (Conversation Start)
-    2. هل النص يطابق أي كلمات مفتاحية؟ (Keyword Match)
-    
-    Args:
-        sender_phone: رقم المرسل
-        message_text: نص الرسالة
-        channel: القناة (اختياري) - للبحث في الرسائل الخاصة بالقناة فقط
+    Must run BEFORE persisting the current inbound Message.
+
+    True when there is no prior history for this sender+channel, OR the last prior message is older than 24h.
+    Avoids the race where saving the current message makes the DB look "non-new" and breaks trigger_on_start.
     """
-    
-    # 1. التحقق من حالة "بداية المحادثة"
-    # نتحقق مما إذا كان هناك رسائل سابقة من هذا الرقم خلال فترة معينة (مثلاً 24 ساعة)
-    # إذا لم نجد، فهذه "بداية محادثة"
     msg_filter = Message.objects.filter(sender=sender_phone)
     if channel:
         msg_filter = msg_filter.filter(channel=channel)
-    
-    last_msg = msg_filter.order_by('-timestamp').first()
-    
-    # نعتبرها محادثة جديدة إذا لم تكن هناك رسائل أبداً، أو آخر رسالة كانت قبل 24 ساعة
-    is_new_conversation = False
-    if not last_msg:
-        is_new_conversation = True
-    else:
-        if timezone.now() - last_msg.timestamp > timedelta(hours=24):
-            is_new_conversation = True
+    prior = msg_filter.order_by("-timestamp").first()
+    if prior is None:
+        return True
+    if timezone.now() - prior.timestamp > timedelta(hours=24):
+        return True
+    return False
 
+
+def get_matching_flow(
+    sender_phone: str,
+    message_text: str,
+    channel=None,
+    *,
+    conversation_start_eligible=None,
+):
+    """
+    البحث عن الفلو المناسب بناءً على:
+    1. هل هذه بداية محادثة جديدة؟ (Conversation Start / New customer)
+    2. هل النص يطابق أي كلمات مفتاحية؟ (Keyword Match)
+
+    conversation_start_eligible:
+        True/False when computed *before* saving the current inbound message (recommended).
+        None = legacy: infer from DB including the message just saved (buggy for first message).
+    """
     flows = Flow.objects.filter(active=True)
     if channel:
         flows = flows.filter(channel=channel)
 
-    # الأولوية 1: البحث عن فلو "بداية المحادثة" إذا انطبق الشرط
-    if is_new_conversation:
+    # Explicit path (no race): first-ever message or 24h gap, and/or brand-new Contact row
+    if conversation_start_eligible is True:
         start_flow = flows.filter(trigger_on_start=True).first()
         if start_flow:
-            print(f"🎯 Found Conversation Start Flow: {start_flow.name}")
+            print(f"🎯 Found Conversation Start Flow (pre-save signal): {start_flow.name}")
             return start_flow
+        # fall through to keyword matching if no start flow configured
 
-    # الأولوية 2: البحث عن الكلمات المفتاحية في النص
+    if conversation_start_eligible is False:
+        # Skip conversation-start flows; keyword / keywordless start flows handled only via keywords below
+        pass
+    elif conversation_start_eligible is None:
+        # Legacy fallback (post-save): last Message row may be the current inbound → breaks first-message detection
+        msg_filter = Message.objects.filter(sender=sender_phone)
+        if channel:
+            msg_filter = msg_filter.filter(channel=channel)
+        last_msg = msg_filter.order_by("-timestamp").first()
+        is_new_conversation = False
+        if not last_msg:
+            is_new_conversation = True
+        elif timezone.now() - last_msg.timestamp > timedelta(hours=24):
+            is_new_conversation = True
+        if is_new_conversation:
+            start_flow = flows.filter(trigger_on_start=True).first()
+            if start_flow:
+                print(f"🎯 Found Conversation Start Flow (legacy DB infer): {start_flow.name}")
+                return start_flow
+
     if message_text:
         for flow in flows:
-            # نتجاوز فلو البداية هنا لأننا فحصناه، إلا إذا كان له كلمات مفتاحية أيضاً
             if flow.trigger_on_start and not flow.trigger_keywords:
                 continue
-                
             if flow.match_trigger(message_text):
                 print(f"🎯 Found Keyword Match Flow: {flow.name}")
                 return flow
-    
+
     return None
 
 
@@ -2331,9 +2354,13 @@ def run_ai_agent_node(current_node, sender, channel, state_header=None, skip_sen
             resolve_dialect_for_llm_hierarchy,
             should_inject_tts_dialect_prompt,
         )
-        from discount.services.bot_language import effective_bot_language
+        from discount.services.bot_language import effective_bot_language, effective_output_language_for_node
 
         output_language = effective_bot_language(channel)
+        _node_output_lang = effective_output_language_for_node(current_node)
+        if _node_output_lang is not None:
+            output_language = _node_output_lang
+        node_dialect_locked = bool((getattr(current_node, "node_language", None) or "").strip())
         voice_notes_mode = should_inject_tts_dialect_prompt(channel, current_node)
         voice_dialect_label = resolve_dialect_for_llm_hierarchy(channel, current_node, sender)
         # AUDIO SCRIPT vs TEXT: merchant toggle (ai_voice_enabled), or flow/node TTS without toggle (AUDIO_ONLY, etc.)
@@ -2560,6 +2587,7 @@ def run_ai_agent_node(current_node, sender, channel, state_header=None, skip_sen
                 voice_script_style=voice_script_style,
                 output_language=output_language,
                 memory_summary=memory_summary,
+                node_dialect_locked=node_dialect_locked,
             )
             if store_owner:
                 chargeUserForAiUsage(
@@ -2724,6 +2752,7 @@ def run_ai_agent_node(current_node, sender, channel, state_header=None, skip_sen
                         voice_script_style=voice_script_style,
                         output_language=output_language,
                         memory_summary=memory_summary,
+                        node_dialect_locked=node_dialect_locked,
                     )
                     if store_owner:
                         chargeUserForAiUsage(
@@ -3650,11 +3679,15 @@ def try_ai_voice_reply(sender, body, channel, skip_sentinel=False):
         market = "MA"
 
     from discount.services.voice_dialect import merchant_voice_mode_enabled, resolve_dialect_for_llm_hierarchy
-    from discount.services.bot_language import effective_bot_language
+    from discount.services.bot_language import effective_bot_language, effective_output_language_for_node
     from ai_assistant.services import market_from_resolved_dialect
 
     output_language_voice = effective_bot_language(channel)
     _vd_node = getattr(get_active_session(channel, sender), "active_node", None) if channel and sender else None
+    _nolv = effective_output_language_for_node(_vd_node)
+    if _nolv is not None:
+        output_language_voice = _nolv
+    node_dialect_locked_voice = bool(_vd_node and (getattr(_vd_node, "node_language", None) or "").strip())
     voice_dialect_label_voice = resolve_dialect_for_llm_hierarchy(channel, _vd_node, sender)
     if output_language_voice not in ("fr", "en"):
         _market_v = market_from_resolved_dialect(voice_dialect_label_voice)
@@ -3718,7 +3751,6 @@ def try_ai_voice_reply(sender, body, channel, skip_sentinel=False):
         pass
     override_rules_voice = (getattr(channel, "ai_override_rules", None) or "").strip()
 
-    _vd_node = getattr(_voice_session, "active_node", None) if _voice_session else None
     # voice_dialect_label_voice and market already aligned above (hierarchy + TTS market).
     voice_notes_mode_voice = True
     voice_script_for_voice = bool(merchant_voice_mode_enabled(channel) or voice_notes_mode_voice)
@@ -3741,6 +3773,7 @@ def try_ai_voice_reply(sender, body, channel, skip_sentinel=False):
             voice_script_style=voice_script_for_voice,
             output_language=output_language_voice,
             memory_summary=memory_summary_voice,
+            node_dialect_locked=node_dialect_locked_voice,
         )
         if store:
             chargeUserForAiUsage(
@@ -3869,6 +3902,7 @@ def try_ai_voice_reply(sender, body, channel, skip_sentinel=False):
                     voice_script_style=voice_script_for_voice,
                     output_language=output_language_voice,
                     memory_summary=memory_summary_voice,
+                    node_dialect_locked=node_dialect_locked_voice,
                 )
                 if store:
                     chargeUserForAiUsage(
@@ -4154,10 +4188,12 @@ def whatsapp_webhook(request):
                         active_channel = WhatsAppChannel.objects.get(phone_number_id=phone_number_id)
                     except WhatsAppChannel.DoesNotExist:
                         print(f"❌ رسالة لرقم غير مسجل عندنا: {phone_number_id}")
-                        continue  
-                    
-                    created= None
-                    
+                        continue
+
+                    contact_just_created_for_batch = None
+                    created = False
+                    raw_name = ""
+
                     if 'contacts' in value:
                         contact_data = value.get('contacts', [{}])[0]
                         phone = contact_data.get('wa_id')
@@ -4185,6 +4221,7 @@ def whatsapp_webhook(request):
                                     'assigned_agent': None,  # set below: AI (if autopilot) or weighted routing (else)
                                 }
                             )
+                            contact_just_created_for_batch = bool(created)
                             # Weighted Chat Routing: new contact only, when not Full Autopilot
                             if created and not ai_auto:
                                 try:
@@ -4212,7 +4249,12 @@ def whatsapp_webhook(request):
                                 contact.save()
                  
                     if 'messages' in value:
-                        process_messages(value.get("messages", []) , channel=active_channel , name = raw_name )
+                        process_messages(
+                            value.get("messages", []),
+                            channel=active_channel,
+                            name=raw_name,
+                            contact_just_created=contact_just_created_for_batch,
+                        )
 
                     if 'statuses' in value:
 
@@ -4227,7 +4269,14 @@ def whatsapp_webhook(request):
             return HttpResponse("ERROR", status=500)
 
 
-def process_messages(messages, channel=None, name=None, _skip_debounce=False, _skip_incoming_save=False):
+def process_messages(
+    messages,
+    channel=None,
+    name=None,
+    _skip_debounce=False,
+    _skip_incoming_save=False,
+    contact_just_created=None,
+):
     """
     معالجة الرسائل الواردة - تدعم الإعلانات (Referral)
     """
@@ -4241,6 +4290,7 @@ def process_messages(messages, channel=None, name=None, _skip_debounce=False, _s
             body_override = None
             transcription_failed = False
             stt_whisper_hallucination = False
+            conversation_start_eligible = None
 
             # --- AI Ears: Audio (STT) and Image (Vision) ---
             access_token = None
@@ -4374,6 +4424,14 @@ def process_messages(messages, channel=None, name=None, _skip_debounce=False, _s
                 except Exception as e:
                     logger.warning("cancel_pending_follow_up_tasks_for_customer: %s", e)
             
+            # New-user / session boundary: compute BEFORE save (saving first would make "new" checks fail)
+            if channel and sender and not _skip_incoming_save:
+                base_eligible = _conversation_start_eligible_before_save(sender, channel)
+                if contact_just_created is True:
+                    conversation_start_eligible = True
+                else:
+                    conversation_start_eligible = base_eligible
+
             # حفظ الرسالة (مع نص من STT/Vision إن وجد)
             if not _skip_incoming_save:
                 save_incoming_message(
@@ -4508,9 +4566,19 @@ def process_messages(messages, channel=None, name=None, _skip_debounce=False, _s
                     flows_start = flows_start.filter(channel=channel)
                 flow = flows_start.first()
                 if not flow and body:
-                    flow = get_matching_flow(sender, body, channel=channel)
+                    flow = get_matching_flow(
+                        sender,
+                        body,
+                        channel=channel,
+                        conversation_start_eligible=conversation_start_eligible,
+                    )
             else:
-                flow = get_matching_flow(sender, body, channel=channel)
+                flow = get_matching_flow(
+                    sender,
+                    body,
+                    channel=channel,
+                    conversation_start_eligible=conversation_start_eligible,
+                )
 
             # Step A: If trigger matched, check for continuation (same flow already in session)
             session = get_active_session(channel, sender) if (flow and channel) else None
