@@ -31,6 +31,46 @@ def _get_tenant_scoped_product(product_id, merchant=None):
         return None
 
 
+def build_product_context_for_prompt(product) -> str:
+    """
+    Authoritative PRODUCT CONTEXT block for the LLM: uses the product row's currency, price,
+    backup price, delivery line, and offer tiers (same source as product creation / dashboard).
+    """
+    if not product:
+        return ""
+    title = (getattr(product, "name", None) or "").strip() or "Product"
+    description = (getattr(product, "description", None) or "").strip() or ""
+    price = getattr(product, "price", None)
+    backup_price = getattr(product, "backup_price", None)
+    coupon_code = (getattr(product, "coupon_code", None) or "").strip().upper()
+    currency = (getattr(product, "currency", None) or "").strip() or "MAD"
+    delivery = (getattr(product, "delivery_options", None) or "").strip()
+    price_str = f"{price} {currency}" if price is not None else "—"
+    lines = [
+        "## PRODUCT CONTEXT (authoritative — use this currency and prices for all customer-facing quotes)",
+        f"Currency: **{currency}** (all prices and negotiation amounts below are in this currency).",
+        f"Title: {title}",
+        f"Description: {description}",
+        f"Price: {price_str}",
+    ]
+    if backup_price is not None:
+        lines.append(f"Backup / negotiation floor price: {backup_price} {currency}")
+    if coupon_code:
+        lines.append(f"Preferred coupon code: {coupon_code}")
+    if delivery:
+        lines.append(f"Delivery / shipping: {delivery}")
+    try:
+        from ai_assistant.services import format_product_offer_tiers_block
+
+        offer_txt = format_product_offer_tiers_block(product)
+        if offer_txt:
+            lines.append("")
+            lines.append(offer_txt)
+    except Exception as e:
+        logger.warning("build_product_context_for_prompt: offer tiers: %s", e)
+    return "\n".join(lines)
+
+
 def build_sales_system_prompt(product_id, merchant=None):
     """
     Generate the final system message for the AI Sales Agent when talking to a buyer.
@@ -50,33 +90,10 @@ def build_sales_system_prompt(product_id, merchant=None):
     if not product:
         return "\n\n".join(parts)
 
-    # Layer b: Product context
-    title = (getattr(product, "name", None) or "").strip() or "Product"
-    description = (getattr(product, "description", None) or "").strip() or ""
-    price = getattr(product, "price", None)
-    backup_price = getattr(product, "backup_price", None)
-    coupon_code = (getattr(product, "coupon_code", None) or "").strip().upper()
-    currency = (getattr(product, "currency", None) or "MAD").strip() or "MAD"
-    price_str = f"{price} {currency}" if price is not None else "—"
-    product_context = (
-        f"## Product context\n"
-        f"Title: {title}\n"
-        f"Description: {description}\n"
-        f"Price: {price_str}"
-    )
-    if backup_price is not None:
-        product_context += f"\nBackup price: {backup_price} {currency}"
-    if coupon_code:
-        product_context += f"\nPreferred coupon: {coupon_code}"
-    try:
-        from ai_assistant.services import format_product_offer_tiers_block
-
-        offer_txt = format_product_offer_tiers_block(product)
-        if offer_txt:
-            product_context += "\n\n" + offer_txt
-    except Exception as e:
-        logger.warning("build_sales_system_prompt: offer tiers: %s", e)
-    parts.append(product_context)
+    # Layer b: Product context (currency + prices from Products row)
+    product_context = build_product_context_for_prompt(product)
+    if product_context:
+        parts.append(product_context)
 
     # Layer c + d: Persona and seller instructions (from get_dynamic_persona_instruction)
     persona_instruction = get_dynamic_persona_instruction(product_id, merchant=merchant)

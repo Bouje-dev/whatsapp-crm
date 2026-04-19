@@ -311,6 +311,7 @@ def handle_submit_order_tool(arguments, session_product_id, session_seller_id, c
 
             customer_city_display = f"{shipping_city} | {shipping_address}".strip()
 
+            _ord_cur = (getattr(product, "currency", None) or "").strip() or "MAD"
             order = SimpleOrder.objects.create(
                 product=product,
                 agent=order_agent,
@@ -325,6 +326,7 @@ def handle_submit_order_tool(arguments, session_product_id, session_seller_id, c
                 status="pending",
                 created_at=timezone.now(),
                 price=price,
+                currency=_ord_cur,
                 quantity=Decimal("1"),
                 created_by_ai=True,
                 created_by_bot_session=(f"submit_order:{getattr(channel, 'id', '')}:{normalized_phone}"[:100] or None),
@@ -991,6 +993,7 @@ def save_order_from_ai(channel, customer_phone, customer_name=None, customer_cit
             except Exception:
                 pass
 
+        _cur = (getattr(product_instance, "currency", None) or "").strip() or "MAD" if product_instance else "MAD"
         order = SimpleOrder.objects.create(
             product=product_instance,
             agent=order_agent,
@@ -1005,6 +1008,7 @@ def save_order_from_ai(channel, customer_phone, customer_name=None, customer_cit
             status="pending",
             created_at=timezone.now(),
             price=price_val,
+            currency=_cur,
             quantity=qty_val,
             created_by_ai=True,
             created_by_bot_session=(bot_session_id or "")[:100] or None,

@@ -223,10 +223,11 @@ def format_order_confirmation(order):
     name = (getattr(order, "customer_name", None) or "").strip() or "—"
     city = (getattr(order, "customer_city", None) or "").strip() or "—"
     address = city  # SimpleOrder has only customer_city; use as address
+    cur = (getattr(order, "currency", None) or "").strip() or "MAD"
     return (
         f"✅ Order Confirmed!\n"
-        f"Items: {product_name} x {qty} = {line_total:.0f} MAD\n"
-        f"Total: {total_val:.0f} MAD\n"
+        f"Items: {product_name} x {qty} = {line_total:.0f} {cur}\n"
+        f"Total: {total_val:.0f} {cur}\n"
         f"Information:\n"
         f"📞 Phone Number: {phone}\n"
         f"👤 Name: {name}\n"
@@ -2197,7 +2198,8 @@ def _trigger_upsell_after_order(ai_agent_node, channel, sender, saved_order):
     order_id = getattr(saved_order, "order_id", None) or ""
 
     if not pitch_prompt:
-        price_str = f"{upsell_price} MAD" if upsell_price else ""
+        _u_cur = (getattr(product, "currency", None) or "").strip() or "MAD"
+        price_str = f"{upsell_price} {_u_cur}" if upsell_price else ""
         pitch_prompt = (
             f"بما أنك خديتي الطلب ديالك، عندنا عرض خاص ليك على {product_name}"
             + (f" غير ب {price_str}" if price_str else "")
@@ -2213,6 +2215,7 @@ def _trigger_upsell_after_order(ai_agent_node, channel, sender, saved_order):
                 "upsell_product_id": upsell_product_id,
                 "upsell_product_name": product_name,
                 "upsell_price": str(upsell_price) if upsell_price else "",
+                "upsell_currency": (getattr(product, "currency", None) or "").strip() or "MAD",
                 "order_id": order_id,
                 "pitch_prompt": pitch_prompt,
             }
@@ -2328,7 +2331,28 @@ def run_ai_agent_node(current_node, sender, channel, state_header=None, skip_sen
                     session.save(update_fields=["context_data"])
 
         product_context = (getattr(current_node, "product_context", None) or "").strip()
+        _flow_node_product_notes = product_context
         store_owner = getattr(channel, "owner", None) if channel else None
+        # Catalog-bound AI node: inject authoritative currency/prices from Products row (same as product creation).
+        try:
+            _aicfg_ctx = getattr(current_node, "ai_model_config", None) or {}
+            _pid_ctx = _aicfg_ctx.get("product_id") if isinstance(_aicfg_ctx, dict) else None
+            if _pid_ctx is not None and store_owner:
+                from discount.models import Products as _ProductsCtx
+                from discount.product_sales_prompt import build_product_context_for_prompt as _build_prod_ctx
+
+                _prod_ctx_row = _ProductsCtx.objects.filter(id=int(_pid_ctx), admin=store_owner).first()
+                if _prod_ctx_row:
+                    _dbc = _build_prod_ctx(_prod_ctx_row)
+                    if _dbc:
+                        product_context = _dbc + (
+                            "\n\n---\n\nAdditional notes from flow builder:\n" + _flow_node_product_notes
+                            if _flow_node_product_notes
+                            else ""
+                        )
+        except Exception as _merge_prod_ctx_err:
+            logger.debug("merge catalog product_context for AI node: %s", _merge_prod_ctx_err)
+
         if store_owner and Decimal(getattr(store_owner, "wallet_balance", 0) or 0) <= Decimal("0"):
             _pause_ai_for_wallet_depleted(channel, sender, active_node=current_node)
             return []
@@ -2411,10 +2435,11 @@ def run_ai_agent_node(current_node, sender, channel, state_header=None, skip_sen
                 _u_order_id = _upsell_ctx.get("order_id", "")
                 _u_product = _upsell_ctx.get("upsell_product_name", "")
                 _u_price = _upsell_ctx.get("upsell_price", "")
+                _u_currency = (_upsell_ctx.get("upsell_currency") or "MAD").strip() or "MAD"
                 upsell_instruction = (
                     f"\n\n[UPSELL MODE ACTIVE]\n"
                     f"You just completed order '{_u_order_id}'. You are now offering an upsell: "
-                    f"'{_u_product}' at a special price of {_u_price} MAD. "
+                    f"'{_u_product}' at a special price of {_u_price} {_u_currency}. "
                     f"The order_id for the existing order is: {_u_order_id}\n"
                     "RULES:\n"
                     "- If the customer agrees (e.g. 'yes', 'add it', 'ok', 'واه', 'زيدها'), "
@@ -3775,10 +3800,11 @@ def try_ai_voice_reply(sender, body, channel, skip_sentinel=False):
             _vu_oid = _voice_upsell.get("order_id", "")
             _vu_name = _voice_upsell.get("upsell_product_name", "")
             _vu_price = _voice_upsell.get("upsell_price", "")
+            _vu_cur = (_voice_upsell.get("upsell_currency") or "MAD").strip() or "MAD"
             upsell_voice_instruction = (
                 f"\n\n[UPSELL MODE ACTIVE]\n"
                 f"You just completed order '{_vu_oid}'. You are now offering an upsell: "
-                f"'{_vu_name}' at a special price of {_vu_price} MAD. "
+                f"'{_vu_name}' at a special price of {_vu_price} {_vu_cur}. "
                 f"The order_id for the existing order is: {_vu_oid}\n"
                 "RULES:\n"
                 "- If the customer agrees (e.g. 'yes', 'add it', 'ok', 'واه', 'زيدها'), "
