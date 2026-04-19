@@ -2601,6 +2601,7 @@ def run_ai_agent_node(current_node, sender, channel, state_header=None, skip_sen
                 output_language=output_language,
                 memory_summary=memory_summary,
                 node_dialect_locked=node_dialect_locked,
+                node_language_code=getattr(current_node, "node_language", None),
             )
             if store_owner:
                 chargeUserForAiUsage(
@@ -2778,6 +2779,7 @@ def run_ai_agent_node(current_node, sender, channel, state_header=None, skip_sen
                         output_language=output_language,
                         memory_summary=memory_summary,
                         node_dialect_locked=node_dialect_locked,
+                        node_language_code=getattr(current_node, "node_language", None),
                     )
                     if store_owner:
                         chargeUserForAiUsage(
@@ -3818,6 +3820,7 @@ def try_ai_voice_reply(sender, body, channel, skip_sentinel=False):
             output_language=output_language_voice,
             memory_summary=memory_summary_voice,
             node_dialect_locked=node_dialect_locked_voice,
+            node_language_code=getattr(_vd_node, "node_language", None) if _vd_node else None,
         )
         if store:
             chargeUserForAiUsage(
@@ -3982,6 +3985,7 @@ def try_ai_voice_reply(sender, body, channel, skip_sentinel=False):
                     output_language=output_language_voice,
                     memory_summary=memory_summary_voice,
                     node_dialect_locked=node_dialect_locked_voice,
+                    node_language_code=getattr(_vd_node, "node_language", None) if _vd_node else None,
                 )
                 if store:
                     chargeUserForAiUsage(
