@@ -4407,7 +4407,10 @@ def process_messages(
                                         voice_language_hint = getattr(channel, "voice_language", "AUTO")
                                 last_ai_ctx = _get_last_agent_message_bodies(sender, channel, 2)
                                 whisper_prompt, _ = build_whisper_prompt_with_context(
-                                    voice_language_hint, last_ai_ctx
+                                    voice_language_hint,
+                                    last_ai_ctx,
+                                    channel=channel,
+                                    sender=sender,
                                 )
                                 body_override = transcribe_audio(
                                     media_content,
