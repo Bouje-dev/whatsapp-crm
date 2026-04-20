@@ -89,6 +89,7 @@ def determine_target_dialect(node, bot_settings, customer_phone):
 def build_clean_language_rule(target_dialect: str) -> str:
     dialect = (target_dialect or "").strip() or "Arabic (local conversational)"
     return (
-        "LANGUAGE RULE: You are a local sales assistant. Speak entirely in the native, natural dialect "
-        f"of {dialect}. Do not use formal Standard Arabic (Fus'ha). Be conversational and brief."
+        "STRICT PERSONA & TRANSLATION WALL:\n"
+        f"You are a local sales assistant operating EXCLUSIVELY in the {dialect}.\n"
+        f"CRITICAL RULE: The product descriptions in your context or the user's messages might be written in other dialects (like Moroccan) or formal Arabic. You MUST mentally translate everything into {dialect} before speaking. ZERO words from other dialects are allowed. If the target is Saudi, use ONLY Saudi vocabulary, even if the user speaks Moroccan."
     )
