@@ -2029,7 +2029,7 @@ def _french_bot_language_prefix(voice_notes_mode: bool) -> str:
     )
 
 
-def build_messages_payload_sales(conversation_messages, custom_instruction=None, product_context=None, trust_score=0, media_context=None, state_header=None, sales_stage=None, sentiment=None, market=None, agent_name=None, customer_phone=None, override_rules=None, required_order_fields=None, checkout_mode_label=None, product_id=None, merchant_id=None, voice_dialect=None, voice_notes_mode=False, voice_script_style=False, output_language=None, memory_summary=None, node_dialect_locked=False, node_language_code=None):
+def build_messages_payload_sales(conversation_messages, custom_instruction=None, product_context=None, trust_score=0, media_context=None, state_header=None, sales_stage=None, sentiment=None, market=None, agent_name=None, customer_phone=None, override_rules=None, required_order_fields=None, checkout_mode_label=None, product_id=None, merchant_id=None, voice_dialect=None, voice_notes_mode=False, voice_script_style=False, output_language=None, memory_summary=None, node_dialect_locked=False, node_language_code=None, node=None, bot_settings=None):
     """Build messages for the sales agent. Uses Elite Sales Consultant prompt when product_context is set (with trust_score, sales_stage, sentiment, market, agent_name).
     state_header: optional for session continuity. market: 'MA' or 'SA'. agent_name: e.g. Chuck or persona name so the AI thinks as that human.
     customer_phone: active WhatsApp number of the customer; injected as system note so the AI can use it when they say 'same number' / نفس الرقم.
@@ -2040,8 +2040,10 @@ def build_messages_payload_sales(conversation_messages, custom_instruction=None,
     voice_script_style: when True, prepend AUDIO SCRIPT MODE (conversational TTS); when False, TEXT MESSAGING MODE (structured chat).
     output_language: None | 'fr' | 'ar' | 'en' — from channel voice_language. When 'fr', Arabic dialect/TTS coupling is skipped.
     memory_summary: optional summarized long-term customer facts from older chat history.
-    node_dialect_locked: active flow node sets node_language — prepend strict dialect/language lock above global bot/voice hints.
-    node_language_code: raw Active Node ``node_language`` (e.g. AR_MA, AR_SA); drives exclusive Dialect Persona Engine for Arabic."""
+    node_dialect_locked: deprecated compatibility arg (ignored by dialect routing engine).
+    node_language_code: deprecated compatibility arg (ignored when ``node`` is provided).
+    node: active flow node used by determine_target_dialect hierarchy.
+    bot_settings: global channel/bot settings dict (fallback when node has no language)."""
     catalog_is_empty = _is_catalog_empty_for_merchant(merchant_id=merchant_id)
     admin_rules_prefix = ""
     if override_rules and (override_rules or "").strip():
@@ -2056,30 +2058,21 @@ def build_messages_payload_sales(conversation_messages, custom_instruction=None,
             len(rules_text),
             (rules_text[:100] + "…") if len(rules_text) > 100 else rules_text,
         )
-    node_lock_prefix = ""
-    dialect_persona_prefix = ""
-    if node_dialect_locked:
-        if output_language == "fr":
-            node_lock_prefix = (
-                "## CRITICAL — ACTIVE FLOW NODE LANGUAGE (HIGHEST PRIORITY)\n"
-                "Respond in **French** only. This overrides channel voice dialect, Arabic TTS coupling, "
-                "and any conflicting language instructions later in this prompt.\n\n---\n\n"
-            )
-        elif output_language == "en":
-            node_lock_prefix = (
-                "## CRITICAL — ACTIVE FLOW NODE LANGUAGE (HIGHEST PRIORITY)\n"
-                "Respond in **English** only. Override conflicting dialect or Arabic instructions below.\n\n---\n\n"
-            )
-        elif output_language in (None, "ar"):
-            from ai_assistant.dialect_persona import format_dialect_persona_block, resolve_dialect_registry_key
+    from ai_assistant.dialect_persona import build_clean_language_rule, determine_target_dialect
 
-            reg_key = resolve_dialect_registry_key(node_language_code)
-            dialect_persona_prefix = format_dialect_persona_block(reg_key)
-    elif output_language in (None, "ar"):
-        # Active node has no node_language set: multi-tenant-safe polite Arabic (no forced regional slang).
-        from ai_assistant.dialect_persona import REGISTRY_KEY_NEUTRAL_ARABIC, format_dialect_persona_block
+    active_node = node
+    if active_node is None and node_language_code:
+        class _TempNode:
+            pass
 
-        dialect_persona_prefix = format_dialect_persona_block(REGISTRY_KEY_NEUTRAL_ARABIC)
+        active_node = _TempNode()
+        setattr(active_node, "node_language", node_language_code)
+    target_dialect = determine_target_dialect(
+        active_node,
+        bot_settings=bot_settings,
+        customer_phone=customer_phone,
+    )
+    language_rule_prefix = build_clean_language_rule(target_dialect) + "\n\n---\n\n"
     if product_context and (product_context or "").strip():
         system = _master_sales_closer_prompt(
             (product_context or "").strip(),
@@ -2111,7 +2104,7 @@ def build_messages_payload_sales(conversation_messages, custom_instruction=None,
     lang_prefix = ""
     if output_language == "fr":
         lang_prefix = _french_bot_language_prefix(voice_notes_mode)
-    system = admin_rules_prefix + dialect_persona_prefix + node_lock_prefix + lang_prefix + mode_line + system
+    system = admin_rules_prefix + language_rule_prefix + lang_prefix + mode_line + system
     if memory_summary and str(memory_summary).strip():
         system = (
             "CUSTOMER PROFILE / FACTS (summarized memory from earlier conversation):\n"
@@ -2230,18 +2223,6 @@ def build_messages_payload_sales(conversation_messages, custom_instruction=None,
             "Once you have the name and phone, you MUST call the tool immediately."
         )
 
-    # Arabic / dialect TTS coupling only when bot language is not French (or English-only).
-    _tts_arabic_coupling = output_language in (None, "ar")
-    if voice_notes_mode and voice_dialect and str(voice_dialect).strip() and _tts_arabic_coupling:
-        rd = str(voice_dialect).strip()
-        audio_top = _build_critical_audio_scripting_block(rd)
-        if _is_moroccan_darija_dialect_label(rd):
-            tts_top = _build_moroccan_tts_system_override(rd)
-        else:
-            system = _strip_moroccan_default_instructions_for_tts(system)
-            tts_top = _build_non_moroccan_tts_system_override(rd)
-        system = audio_top + tts_top + system
-
     recent_messages = _trim_conversation_messages(conversation_messages, limit=MAX_CHAT_HISTORY_MESSAGES)
     messages = [{"role": "system", "content": system}]
     for msg in recent_messages:
@@ -2292,7 +2273,7 @@ def parse_and_strip_stage(reply_text):
     return (cleaned, stage)
 
 
-def generate_reply_with_tools(conversation_messages, custom_instruction=None, product_context=None, trust_score=0, media_context=None, state_header=None, sales_stage=None, sentiment=None, market=None, agent_name=None, model=None, customer_phone=None, override_rules=None, required_order_fields=None, checkout_mode_label=None, product_id=None, merchant_id=None, voice_dialect=None, voice_notes_mode=False, voice_script_style=False, output_language=None, memory_summary=None, node_dialect_locked=False, node_language_code=None):
+def generate_reply_with_tools(conversation_messages, custom_instruction=None, product_context=None, trust_score=0, media_context=None, state_header=None, sales_stage=None, sentiment=None, market=None, agent_name=None, model=None, customer_phone=None, override_rules=None, required_order_fields=None, checkout_mode_label=None, product_id=None, merchant_id=None, voice_dialect=None, voice_notes_mode=False, voice_script_style=False, output_language=None, memory_summary=None, node_dialect_locked=False, node_language_code=None, node=None, bot_settings=None):
     """
     Call OpenAI with sales tools. When product_context is set, uses Elite Sales Consultant prompt with trust_score, sales_stage, sentiment, market, agent_name.
     market: 'MA' or 'SA'. agent_name: e.g. Chuck or persona name — AI responds as this human, not as a bot.
@@ -2333,6 +2314,8 @@ def generate_reply_with_tools(conversation_messages, custom_instruction=None, pr
         memory_summary=memory_summary,
         node_dialect_locked=node_dialect_locked,
         node_language_code=node_language_code,
+        node=node,
+        bot_settings=bot_settings,
     )
     headers = {"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"}
     # Static tools: submit_customer_order now has a fixed, safe schema (no dynamic override)
@@ -2425,6 +2408,8 @@ def continue_after_tool_calls(
     memory_summary=None,
     node_dialect_locked=False,
     node_language_code=None,
+    node=None,
+    bot_settings=None,
 ):
     """
     After the model returned tool_calls (e.g. check_stock, apply_discount), send tool results and get the final reply.
@@ -2457,6 +2442,8 @@ def continue_after_tool_calls(
         memory_summary=memory_summary,
         node_dialect_locked=node_dialect_locked,
         node_language_code=node_language_code,
+        node=node,
+        bot_settings=bot_settings,
     )
     assistant_msg = {
         "role": "assistant",

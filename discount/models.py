@@ -1957,6 +1957,14 @@ class ChatSession(models.Model):
         related_name="active_sessions",
         help_text="Current product/AI node context",
     )
+    active_product = models.ForeignKey(
+        Products,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="active_product_sessions",
+        help_text="Persistent product memory for AI context (survives prompt truncation).",
+    )
     is_expired = models.BooleanField(default=False)
     context_data = models.JSONField(default=dict, blank=True)
     last_interaction = models.DateTimeField(auto_now=True)

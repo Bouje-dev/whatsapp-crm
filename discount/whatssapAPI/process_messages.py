@@ -1235,12 +1235,22 @@ def update_chat_session_on_trigger(channel, customer_phone, active_node):
     """On new trigger match: set or update ChatSession to this product (active_node)."""
     if not channel or not customer_phone or not active_node:
         return
+    active_product = None
+    try:
+        ai_cfg = getattr(active_node, "ai_model_config", None) or {}
+        pid = ai_cfg.get("product_id") if isinstance(ai_cfg, dict) else None
+        owner = getattr(channel, "owner", None)
+        if pid is not None and owner:
+            active_product = Products.objects.filter(id=int(pid), admin=owner).first()
+    except Exception as e:
+        logger.warning("update_chat_session_on_trigger resolve active_product: %s", e)
     try:
         ChatSession.objects.update_or_create(
             channel=channel,
             customer_phone=customer_phone,
             defaults={
                 "active_node": active_node,
+                "active_product": active_product,
                 "is_expired": False,
                 "last_interaction": timezone.now(),
             },
@@ -1249,8 +1259,38 @@ def update_chat_session_on_trigger(channel, customer_phone, active_node):
         logger.warning("update_chat_session_on_trigger: %s", e)
 
 
+def _format_persistent_product_context_line(product):
+    """Build the persistent product memory line injected into system prompt."""
+    if not product:
+        return ""
+    name = (getattr(product, "name", None) or "").strip() or "Unknown product"
+    price = getattr(product, "price", None)
+    currency = (getattr(product, "currency", None) or "").strip() or "MAD"
+    price_str = f"{price} {currency}" if price is not None else f"— {currency}"
+    return (
+        "PERSISTENT CONTEXT: The user is currently inquiring about the product: "
+        f"{name}. Price: {price_str}. Always assume their questions (like 'how much?') "
+        "refer to this product unless they explicitly change the topic."
+    )
+
+
+def _get_node_bound_product(node, channel):
+    """Resolve product bound to an AI node (tenant-safe)."""
+    if not node or not channel:
+        return None
+    try:
+        ai_cfg = getattr(node, "ai_model_config", None) or {}
+        pid = ai_cfg.get("product_id") if isinstance(ai_cfg, dict) else None
+        owner = getattr(channel, "owner", None)
+        if pid is None or not owner:
+            return None
+        return Products.objects.filter(id=int(pid), admin=owner).first()
+    except Exception:
+        return None
+
+
 def get_active_session(channel, customer_phone):
-    """Return active ChatSession for (channel, customer_phone) if not expired and within 24h. Uses select_related('active_node')."""
+    """Return active ChatSession for (channel, customer_phone) if not expired and within 24h."""
     if not channel or not customer_phone:
         return None
     cutoff = timezone.now() - timedelta(hours=SESSION_TIMEOUT_HOURS)
@@ -1261,7 +1301,7 @@ def get_active_session(channel, customer_phone):
             is_expired=False,
             last_interaction__gte=cutoff,
         )
-        .select_related("active_node")
+        .select_related("active_node", "active_product")
         .first()
     )
 
@@ -1643,6 +1683,7 @@ def _pause_ai_for_wallet_depleted(channel, sender, active_node=None):
             customer_phone=sender,
             defaults={
                 "active_node": active_node,
+                "active_product": _get_node_bound_product(active_node, channel),
                 "is_expired": False,
                 "ai_enabled": True,
             },
@@ -1652,6 +1693,11 @@ def _pause_ai_for_wallet_depleted(channel, sender, active_node=None):
         if session.active_node_id is None and active_node is not None:
             session.active_node = active_node
             update_fields.append("active_node")
+        if active_node is not None:
+            _node_product = _get_node_bound_product(active_node, channel)
+            if _node_product is not None and session.active_product_id != _node_product.id:
+                session.active_product = _node_product
+                update_fields.append("active_product")
         if session.ai_enabled:
             session.ai_enabled = False
             update_fields.append("ai_enabled")
@@ -2303,12 +2349,21 @@ def run_ai_agent_node(current_node, sender, channel, state_header=None, skip_sen
         from discount.services.wallet import chargeUserForAiUsage
 
         session = get_active_session(channel, sender)
+        _node_product = _get_node_bound_product(current_node, channel)
         if not session and channel and sender:
             session, _ = ChatSession.objects.get_or_create(
                 channel=channel,
                 customer_phone=sender,
-                defaults={"active_node": current_node, "is_expired": False, "ai_enabled": True},
+                defaults={
+                    "active_node": current_node,
+                    "active_product": _node_product,
+                    "is_expired": False,
+                    "ai_enabled": True,
+                },
             )
+        elif session and _node_product and getattr(session, "active_product_id", None) != getattr(_node_product, "id", None):
+            session.active_product = _node_product
+            session.save(update_fields=["active_product"])
 
         # Cheap intent checkpoint before expensive Sales Agent (uses same channel+phone session row)
         if channel and sender and not skip_sentinel:
@@ -2420,6 +2475,17 @@ def run_ai_agent_node(current_node, sender, channel, state_header=None, skip_sen
                 f"Identity: {identity}. {product_block} "
                 "Task: Respond to the customer as this specific persona. Match their tone but stay true to your identity."
             )
+        persistent_product = getattr(session, "active_product", None) if session else None
+        persistent_line = _format_persistent_product_context_line(persistent_product)
+        if persistent_line:
+            custom_instruction = (custom_instruction + "\n\n" + persistent_line) if custom_instruction else persistent_line
+        else:
+            fallback_persona_line = (
+                "Fallback persona: if product context is unclear, ask naturally in the local dialect (e.g., "
+                "'واش بغيتي نعاونك تختار من المنتجات اللي متوفرة؟') and avoid literal/awkward phrasing "
+                "like 'شنو كتشوف'."
+            )
+            custom_instruction = (custom_instruction + "\n\n" + fallback_persona_line) if custom_instruction else fallback_persona_line
         if _conversation_already_has_order_confirmation(conversation):
             post_order_note = (
                 
@@ -2627,6 +2693,11 @@ def run_ai_agent_node(current_node, sender, channel, state_header=None, skip_sen
                 memory_summary=memory_summary,
                 node_dialect_locked=node_dialect_locked,
                 node_language_code=getattr(current_node, "node_language", None),
+                node=current_node,
+                bot_settings={
+                    "voice_language": getattr(channel, "voice_language", None) if channel else None,
+                    "voice_dialect": getattr(channel, "voice_dialect", None) if channel else None,
+                },
             )
             if store_owner:
                 chargeUserForAiUsage(
@@ -2805,6 +2876,11 @@ def run_ai_agent_node(current_node, sender, channel, state_header=None, skip_sen
                         memory_summary=memory_summary,
                         node_dialect_locked=node_dialect_locked,
                         node_language_code=getattr(current_node, "node_language", None),
+                        node=current_node,
+                        bot_settings={
+                            "voice_language": getattr(channel, "voice_language", None) if channel else None,
+                            "voice_dialect": getattr(channel, "voice_dialect", None) if channel else None,
+                        },
                     )
                     if store_owner:
                         chargeUserForAiUsage(
@@ -3748,7 +3824,8 @@ def try_ai_voice_reply(sender, body, channel, skip_sentinel=False):
     from ai_assistant.services import get_agent_name_for_node, market_from_resolved_dialect
 
     output_language_voice = effective_bot_language(channel)
-    _vd_node = getattr(get_active_session(channel, sender), "active_node", None) if channel and sender else None
+    _voice_session = get_active_session(channel, sender) if channel and sender else None
+    _vd_node = getattr(_voice_session, "active_node", None) if _voice_session else None
     _nolv = effective_output_language_for_node(_vd_node)
     if _nolv is not None:
         output_language_voice = _nolv
@@ -3770,6 +3847,7 @@ def try_ai_voice_reply(sender, body, channel, skip_sentinel=False):
     custom_instruction = (
         "No fixed product context is selected. Keep replies short. "
         "When product intent is unclear, call search_products(query) using the customer words and offer the closest matches. "
+        "Use natural local phrasing; avoid literal translations like 'شنو كتشوف'. "
         "CRITICAL: Do NOT call save_order or record_order in this chat. Do NOT output [ORDER_DATA: ...]. "
         "If they want to order, ask them to choose a specific product first."
     )
@@ -3785,13 +3863,20 @@ def try_ai_voice_reply(sender, body, channel, skip_sentinel=False):
         )
         custom_instruction = (custom_instruction + " " + post_order_note) if custom_instruction else post_order_note
 
+    persistent_product_voice = getattr(_voice_session, "active_product", None) if _voice_session else None
+    persistent_line_voice = _format_persistent_product_context_line(persistent_product_voice)
+    if persistent_line_voice:
+        custom_instruction = (custom_instruction + "\n\n" + persistent_line_voice) if custom_instruction else persistent_line_voice
+
     # Inject upsell context for generic/fallback flow (customer replies after upsell pitch)
-    _voice_session = get_active_session(channel, sender) if channel else None
     voice_product_id = None
     try:
         _voice_ai_cfg = getattr(getattr(_voice_session, "active_node", None), "ai_model_config", None) or {}
         _vp = _voice_ai_cfg.get("product_id") if isinstance(_voice_ai_cfg, dict) else None
-        voice_product_id = int(_vp) if _vp is not None else None
+        if _vp is not None:
+            voice_product_id = int(_vp)
+        elif persistent_product_voice is not None:
+            voice_product_id = int(getattr(persistent_product_voice, "id", None))
     except Exception:
         voice_product_id = None
     if _voice_session:
@@ -3847,6 +3932,11 @@ def try_ai_voice_reply(sender, body, channel, skip_sentinel=False):
             memory_summary=memory_summary_voice,
             node_dialect_locked=node_dialect_locked_voice,
             node_language_code=getattr(_vd_node, "node_language", None) if _vd_node else None,
+            node=_vd_node,
+            bot_settings={
+                "voice_language": getattr(channel, "voice_language", None) if channel else None,
+                "voice_dialect": getattr(channel, "voice_dialect", None) if channel else None,
+            },
         )
         if store:
             chargeUserForAiUsage(
@@ -4012,6 +4102,11 @@ def try_ai_voice_reply(sender, body, channel, skip_sentinel=False):
                     memory_summary=memory_summary_voice,
                     node_dialect_locked=node_dialect_locked_voice,
                     node_language_code=getattr(_vd_node, "node_language", None) if _vd_node else None,
+                    node=_vd_node,
+                    bot_settings={
+                        "voice_language": getattr(channel, "voice_language", None) if channel else None,
+                        "voice_dialect": getattr(channel, "voice_dialect", None) if channel else None,
+                    },
                 )
                 if store:
                     chargeUserForAiUsage(
