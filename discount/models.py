@@ -1865,6 +1865,14 @@ class Node(models.Model):
         ('MANUAL', 'Manual'),
         ('URL_SCRAPER', 'URL Scraper'),
     ]
+    AI_ENGINE_AUTO = "AUTO"
+    AI_ENGINE_GPT_4O = "GPT_4O"
+    AI_ENGINE_CLAUDE_3_5 = "CLAUDE_3_5"
+    AI_ENGINE_CHOICES = [
+        (AI_ENGINE_AUTO, "Auto"),
+        (AI_ENGINE_GPT_4O, "GPT-4o"),
+        (AI_ENGINE_CLAUDE_3_5, "Claude 3.5"),
+    ]
 
     flow = models.ForeignKey(Flow, on_delete=models.CASCADE, related_name='nodes')
     node_type = models.CharField(max_length=30)
@@ -1899,6 +1907,13 @@ class Node(models.Model):
     node_voice_id = models.CharField(max_length=100, blank=True, null=True, help_text="Voice ID for this node (e.g. ElevenLabs) – legacy; prefer persona")
     node_language = models.CharField(max_length=20, blank=True, null=True, help_text="e.g. AR_MA, FR_FR, EN_US")
     node_gender = models.CharField(max_length=10, blank=True, null=True, help_text="FEMALE or MALE")
+    ai_engine = models.CharField(
+        max_length=20,
+        choices=AI_ENGINE_CHOICES,
+        default=AI_ENGINE_AUTO,
+        blank=True,
+        help_text="AI engine selection for this node: Auto, GPT-4o, or Claude 3.5.",
+    )
     # Persona gallery: one persona per node (voice + behavioral prompt)
     persona = models.ForeignKey(
         VoicePersona,

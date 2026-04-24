@@ -2929,6 +2929,17 @@ this.connectionBranch = null;
                         </select>
                         <p class="text-muted mb-0 mt-1" style="font-size:0.65rem; line-height:1.35;">Voice cards use the same <strong>Voice Gallery</strong> as WhatsApp Settings (Django Admin). Filter by gender and locale; <strong>Auto</strong> shows all.</p>
                     </div>
+                    <div class="form-group ai-agent-engine-row" style="margin-top:8px;">
+                        <label class="form-label">AI Engine
+                            <span title="GPT-4o: cheaper and standard for most dialects. Claude 3.5: premium, stronger on complex Maghreb dialects." style="cursor:help; margin-left:4px;">ⓘ</span>
+                        </label>
+                        <select class="form-select ai-agent-ai-engine" style="font-size:0.8rem;">
+                            <option value="AUTO">Auto (recommended)</option>
+                            <option value="GPT_4O">GPT-4o</option>
+                            <option value="CLAUDE_3_5">Claude 3.5 Sonnet</option>
+                        </select>
+                        <p class="text-muted mb-0 mt-1 ai-agent-engine-hint" style="font-size:0.65rem; line-height:1.35; display:none;"></p>
+                    </div>
 
                     <!-- Voice Settings: hidden when response_mode === TEXT_ONLY -->
                     <div class="ai-agent-voice-settings-section ai-agent-visibility-transition">
@@ -3560,6 +3571,25 @@ this.connectionBranch = null;
                     const voiceProviderEl = nodeElement.querySelector('.ai-agent-voice-provider');
                     const nodeGenderEl = nodeElement.querySelector('.ai-agent-node-gender');
                     const nodeLangEl = nodeElement.querySelector('.ai-agent-node-language');
+                    const aiEngineEl = nodeElement.querySelector('.ai-agent-ai-engine');
+                    const aiEngineHintEl = nodeElement.querySelector('.ai-agent-engine-hint');
+                    const updateAiEngineHint = () => {
+                        if (!aiEngineHintEl) return;
+                        const lang = ((nodeLangEl && nodeLangEl.value) || '').toUpperCase();
+                        if (lang.startsWith('AR_MA')) {
+                            aiEngineHintEl.style.display = 'block';
+                            aiEngineHintEl.textContent = 'Hint: Moroccan/Maghreb dialects are usually stronger on Claude 3.5 (premium).';
+                        } else if (lang.startsWith('AR_SA') || lang.startsWith('AR_AE')) {
+                            aiEngineHintEl.style.display = 'block';
+                            aiEngineHintEl.textContent = 'Hint: Saudi/Gulf dialects are usually great on GPT-4o (cheaper/standard).';
+                        } else {
+                            aiEngineHintEl.style.display = 'none';
+                            aiEngineHintEl.textContent = '';
+                        }
+                    };
+                    if (nodeLangEl) nodeLangEl.addEventListener('change', updateAiEngineHint);
+                    if (aiEngineEl && !aiEngineEl.value) aiEngineEl.value = 'AUTO';
+                    updateAiEngineHint();
                     [responseModeEl, nodeGenderEl, nodeLangEl].forEach(el => {
                         if (el) el.addEventListener('change', () => { if (typeof window.applyAiNodeVisibility === 'function') window.applyAiNodeVisibility(nodeElement); });
                     });
@@ -4790,6 +4820,12 @@ this.connectionBranch = null;
                             nodeLangEl.value = norm;
                         }
                     }
+                    const aiEngineEl = node.querySelector('.ai-agent-ai-engine');
+                    if (aiEngineEl && content.ai_engine !== undefined) {
+                        const eng = (content.ai_engine || 'AUTO').toString().trim().toUpperCase();
+                        aiEngineEl.value = ['AUTO', 'GPT_4O', 'CLAUDE_3_5'].includes(eng) ? eng : 'AUTO';
+                        aiEngineEl.dispatchEvent(new Event('change', { bubbles: true }));
+                    }
                     const nodeGenderEl = node.querySelector('.ai-agent-node-gender');
                     if (nodeGenderEl && content.node_gender !== undefined) nodeGenderEl.value = content.node_gender || '';
                     const voiceProviderEl = node.querySelector('.ai-agent-voice-provider');
@@ -5337,6 +5373,8 @@ this.connectionBranch = null;
                             ? window.normalizeAiNodeLangCode(rawLang)
                             : rawLang.replace(/-/g, '_').toUpperCase()) || '';
                     }
+                    content.ai_engine = (node.querySelector('.ai-agent-ai-engine')?.value || 'AUTO').trim().toUpperCase();
+                    if (!['AUTO', 'GPT_4O', 'CLAUDE_3_5'].includes(content.ai_engine)) content.ai_engine = 'AUTO';
                     content.node_gender = node.querySelector('.ai-agent-node-gender')?.value?.trim() || '';
                     content.voice_provider = node.querySelector('.ai-agent-voice-provider')?.value?.trim() || 'ELEVENLABS';
                     content.media = [];

@@ -293,6 +293,14 @@ def resolve_ai_brain(node, customer_phone):
     - Route Moroccan/North African dialects to Claude Sonnet, else GPT-4o.
     Returns: (selected_model, target_dialect)
     """
+    # Priority 1: explicit merchant override from Node Builder
+    if node is not None:
+        eng = (getattr(node, "ai_engine", None) or "").strip().upper()
+        if eng == "GPT_4O":
+            return (MODEL_GPT4O, "Standard Arabic")
+        if eng == "CLAUDE_3_5":
+            return (MODEL_CLAUDE_SONNET, "Moroccan Darija")
+
     node_dialect = ""
     if node is not None:
         node_dialect = (
@@ -307,7 +315,20 @@ def resolve_ai_brain(node, customer_phone):
         target_dialect = _dialect_from_phone(customer_phone)
 
     d = target_dialect.lower()
-    is_maghreb = any(k in d for k in ("moroccan", "darija", "north african", "maghreb", "algerian", "tunisian"))
+    is_maghreb = any(
+        k in d
+        for k in (
+            "moroccan",
+            "darija",
+            "north african",
+            "maghreb",
+            "algerian",
+            "tunisian",
+            "ar_ma",
+            "ar_dz",
+            "ar_tn",
+        )
+    )
     selected_model = MODEL_CLAUDE_SONNET if is_maghreb else MODEL_GPT4O
     return (selected_model, target_dialect)
 

@@ -86,6 +86,7 @@ def serialize_flow(obj):
             content_data['node_voice_id'] = getattr(n, 'node_voice_id', None) or ''
             content_data['node_language'] = getattr(n, 'node_language', None) or ''
             content_data['node_gender'] = getattr(n, 'node_gender', None) or ''
+            content_data['ai_engine'] = getattr(n, 'ai_engine', None) or 'AUTO'
             content_data['persona_id'] = getattr(n, 'persona_id', None)
             content_data['voice_stability'] = getattr(n, 'voice_stability', None)
             content_data['voice_similarity'] = getattr(n, 'voice_similarity', None)
@@ -2138,6 +2139,8 @@ def api_update_flows(request, pk):
                 create_kw["node_voice_id"] = (content.get("node_voice_id") or "").strip() or None
                 create_kw["node_language"] = (content.get("node_language") or "").strip() or None
                 create_kw["node_gender"] = (content.get("node_gender") or "").strip() or None
+                _eng = (content.get("ai_engine") or "AUTO").strip().upper()
+                create_kw["ai_engine"] = _eng if _eng in ("AUTO", "GPT_4O", "CLAUDE_3_5") else "AUTO"
                 pid = content.get("persona_id")
                 try:
                     create_kw["persona_id"] = int(pid) if pid is not None and int(pid) > 0 else None
