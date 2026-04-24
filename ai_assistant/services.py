@@ -1,8 +1,10 @@
 import logging
+import os
 import random
 import re
 import requests
 from django.conf import settings
+from litellm import completion
 
 logger = logging.getLogger(__name__)
 
@@ -29,6 +31,8 @@ MARKET_AGENT_NAMES = {
 
 OPENAI_API_URL = "https://api.openai.com/v1/chat/completions"
 DEFAULT_MODEL = "gpt-4o-mini"
+MODEL_CLAUDE_SONNET = "claude-3-5-sonnet-20241022"
+MODEL_GPT4O = "gpt-4o"
 
 # Strict context window management (keep most recent messages only).
 MAX_CHAT_HISTORY_MESSAGES = 6
@@ -261,8 +265,65 @@ def apply_franco_translation_to_conversation(conversation):
 
 def get_api_key():
     """Retrieve the OpenAI API key from Django settings or environment."""
-    import os
     return getattr(settings, "OPENAI_API_KEY", None) or os.environ.get("OPENAI_API_KEY", "")
+
+
+def get_anthropic_api_key():
+    """Retrieve the Anthropic API key from Django settings or environment."""
+    return getattr(settings, "ANTHROPIC_API_KEY", None) or os.environ.get("ANTHROPIC_API_KEY", "")
+
+
+def _normalize_dialect_text(value):
+    return (value or "").strip()
+
+
+def _dialect_from_phone(customer_phone):
+    s = (customer_phone or "").strip().replace(" ", "").replace("-", "")
+    if s.startswith("+212") or s.startswith("212"):
+        return "Moroccan Darija"
+    if s.startswith("+966") or s.startswith("966") or s.startswith("+971") or s.startswith("971"):
+        return "Saudi/Gulf Arabic"
+    return "Standard Arabic"
+
+
+def resolve_ai_brain(node, customer_phone):
+    """
+    Dynamic brain selector:
+    - Determine dialect from node (explicit) then phone fallback.
+    - Route Moroccan/North African dialects to Claude Sonnet, else GPT-4o.
+    Returns: (selected_model, target_dialect)
+    """
+    node_dialect = ""
+    if node is not None:
+        node_dialect = (
+            getattr(node, "dialect", None)
+            or getattr(node, "node_language", None)
+            or ""
+        )
+    node_dialect = _normalize_dialect_text(node_dialect)
+    if node_dialect and node_dialect.lower() != "auto":
+        target_dialect = node_dialect
+    else:
+        target_dialect = _dialect_from_phone(customer_phone)
+
+    d = target_dialect.lower()
+    is_maghreb = any(k in d for k in ("moroccan", "darija", "north african", "maghreb", "algerian", "tunisian"))
+    selected_model = MODEL_CLAUDE_SONNET if is_maghreb else MODEL_GPT4O
+    return (selected_model, target_dialect)
+
+
+def _prepare_litellm_provider_key(selected_model):
+    m = (selected_model or "").lower()
+    if "claude" in m:
+        anth = get_anthropic_api_key()
+        if not anth:
+            raise ValueError("ANTHROPIC_API_KEY is not set.")
+        os.environ["ANTHROPIC_API_KEY"] = anth
+    else:
+        oa = get_api_key()
+        if not oa:
+            raise ValueError("OPENAI_API_KEY is not set.")
+        os.environ["OPENAI_API_KEY"] = oa
 
 
 def build_system_prompt(language_hint="auto"):
@@ -2029,7 +2090,7 @@ def _french_bot_language_prefix(voice_notes_mode: bool) -> str:
     )
 
 
-def build_messages_payload_sales(conversation_messages, custom_instruction=None, product_context=None, trust_score=0, media_context=None, state_header=None, sales_stage=None, sentiment=None, market=None, agent_name=None, customer_phone=None, override_rules=None, required_order_fields=None, checkout_mode_label=None, product_id=None, merchant_id=None, voice_dialect=None, voice_notes_mode=False, voice_script_style=False, output_language=None, memory_summary=None, node_dialect_locked=False, node_language_code=None, node=None, bot_settings=None):
+def build_messages_payload_sales(conversation_messages, custom_instruction=None, product_context=None, trust_score=0, media_context=None, state_header=None, sales_stage=None, sentiment=None, market=None, agent_name=None, customer_phone=None, override_rules=None, required_order_fields=None, checkout_mode_label=None, product_id=None, merchant_id=None, voice_dialect=None, voice_notes_mode=False, voice_script_style=False, output_language=None, memory_summary=None, node_dialect_locked=False, node_language_code=None, node=None, bot_settings=None, target_dialect=None):
     """Build messages for the sales agent. Uses Elite Sales Consultant prompt when product_context is set (with trust_score, sales_stage, sentiment, market, agent_name).
     state_header: optional for session continuity. market: 'MA' or 'SA'. agent_name: e.g. Chuck or persona name so the AI thinks as that human.
     customer_phone: active WhatsApp number of the customer; injected as system note so the AI can use it when they say 'same number' / نفس الرقم.
@@ -2042,7 +2103,7 @@ def build_messages_payload_sales(conversation_messages, custom_instruction=None,
     memory_summary: optional summarized long-term customer facts from older chat history.
     node_dialect_locked: deprecated compatibility arg (ignored by dialect routing engine).
     node_language_code: deprecated compatibility arg (ignored when ``node`` is provided).
-    node: active flow node used by determine_target_dialect hierarchy.
+    node: active flow node used by intelligent model routing.
     bot_settings: global channel/bot settings dict (fallback when node has no language)."""
     catalog_is_empty = _is_catalog_empty_for_merchant(merchant_id=merchant_id)
     admin_rules_prefix = ""
@@ -2058,21 +2119,13 @@ def build_messages_payload_sales(conversation_messages, custom_instruction=None,
             len(rules_text),
             (rules_text[:100] + "…") if len(rules_text) > 100 else rules_text,
         )
-    from ai_assistant.dialect_persona import build_clean_language_rule, determine_target_dialect
-
-    active_node = node
-    if active_node is None and node_language_code:
-        class _TempNode:
-            pass
-
-        active_node = _TempNode()
-        setattr(active_node, "node_language", node_language_code)
-    target_dialect = determine_target_dialect(
-        active_node,
-        bot_settings=bot_settings,
-        customer_phone=customer_phone,
+    resolved_dialect = (target_dialect or "").strip() or "Standard Arabic"
+    language_rule_prefix = (
+        "STRICT PERSONA WALL: "
+        f"You are a local sales assistant operating EXCLUSIVELY in {resolved_dialect}. "
+        f"You MUST mentally translate any context, product descriptions, or user messages into authentic {resolved_dialect} before replying. "
+        "Do NOT use formal Standard Arabic (Fus'ha) unless requested. Be conversational, culturally accurate, and brief.\n\n---\n\n"
     )
-    language_rule_prefix = build_clean_language_rule(target_dialect) + "\n\n---\n\n"
     if product_context and (product_context or "").strip():
         system = _master_sales_closer_prompt(
             (product_context or "").strip(),
@@ -2105,6 +2158,8 @@ def build_messages_payload_sales(conversation_messages, custom_instruction=None,
     if output_language == "fr":
         lang_prefix = _french_bot_language_prefix(voice_notes_mode)
     system = admin_rules_prefix + language_rule_prefix + lang_prefix + mode_line + system
+    # Remove legacy dialect-lock/matrix lines to keep routing model-agnostic and avoid contamination.
+    system = _strip_moroccan_default_instructions_for_tts(system)
     if memory_summary and str(memory_summary).strip():
         system = (
             "CUSTOMER PROFILE / FACTS (summarized memory from earlier conversation):\n"
@@ -2285,11 +2340,9 @@ def generate_reply_with_tools(conversation_messages, custom_instruction=None, pr
     output_language: None | 'fr' | 'ar' | 'en' from channel settings (French skips Arabic dialect prompts).
     memory_summary: summarized key customer facts from older conversation history.
     """
-    api_key = get_api_key()
-    if not api_key:
-        raise ValueError("OPENAI_API_KEY is not set.")
-
-    model = model or DEFAULT_MODEL
+    routed_model, target_dialect = resolve_ai_brain(node, customer_phone)
+    model = model or routed_model
+    _prepare_litellm_provider_key(model)
     messages = build_messages_payload_sales(
         conversation_messages,
         custom_instruction=custom_instruction,
@@ -2316,8 +2369,8 @@ def generate_reply_with_tools(conversation_messages, custom_instruction=None, pr
         node_language_code=node_language_code,
         node=node,
         bot_settings=bot_settings,
+        target_dialect=target_dialect,
     )
-    headers = {"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"}
     # Static tools: submit_customer_order now has a fixed, safe schema (no dynamic override)
     tools = list(SALES_AGENT_TOOLS)
 
@@ -2331,31 +2384,47 @@ def generate_reply_with_tools(conversation_messages, custom_instruction=None, pr
     }
 
     est_tokens = _estimate_payload_tokens(messages)
-    logger.info("OpenAI payload estimate: ~%s tokens (messages=%s)", est_tokens, len(messages))
-    print(f"[OpenAI payload estimate] ~{est_tokens} tokens (messages={len(messages)})")
+    logger.info("LiteLLM payload estimate: ~%s tokens (messages=%s, model=%s, dialect=%s)", est_tokens, len(messages), model, target_dialect)
+    print(f"[LiteLLM payload estimate] ~{est_tokens} tokens (messages={len(messages)}, model={model})")
     _debug_print_sales_agent_system_prompt(
         messages, voice_dialect=voice_dialect, voice_notes_mode=voice_notes_mode, output_language=output_language
     )
 
     try:
-        response = requests.post(OPENAI_API_URL, headers=headers, json=payload, timeout=45)
-    except requests.exceptions.Timeout:
-        raise RuntimeError("OpenAI API request timed out.")
-    except requests.exceptions.ConnectionError:
-        raise RuntimeError("Could not connect to OpenAI API.")
+        response = completion(**payload)
+    except Exception as e:
+        raise RuntimeError(f"LiteLLM completion failed: {e}")
 
-    if response.status_code != 200:
-        logger.error("OpenAI API error %s: %s", response.status_code, response.text[:500])
-        raise RuntimeError(f"OpenAI API returned status {response.status_code}.")
-
-    data = response.json()
-    choice = data.get("choices", [{}])[0]
-    msg = choice.get("message", {})
+    choice0 = response.choices[0] if getattr(response, "choices", None) else {}
+    msg = getattr(choice0, "message", None) or {}
+    if not isinstance(msg, dict):
+        msg = {
+            "content": getattr(msg, "content", "") or "",
+            "tool_calls": getattr(msg, "tool_calls", None) or [],
+        }
     reply_text = (msg.get("content") or "").strip()
     tool_calls = []
     import json
+    normalized_tool_calls = []
     for tc in msg.get("tool_calls") or []:
-        fn = tc.get("function", {})
+        if isinstance(tc, dict):
+            tc_dict = tc
+        else:
+            fn_obj = getattr(tc, "function", None)
+            if isinstance(fn_obj, dict):
+                fn_dict = fn_obj
+            else:
+                fn_dict = {
+                    "name": getattr(fn_obj, "name", None),
+                    "arguments": getattr(fn_obj, "arguments", None),
+                }
+            tc_dict = {
+                "id": getattr(tc, "id", None),
+                "type": getattr(tc, "type", "function"),
+                "function": fn_dict,
+            }
+        normalized_tool_calls.append(tc_dict)
+        fn = tc_dict.get("function", {})
         name = fn.get("name")
         try:
             args = json.loads(fn.get("arguments") or "{}")
@@ -2364,7 +2433,12 @@ def generate_reply_with_tools(conversation_messages, custom_instruction=None, pr
             continue
         if name in ("save_order", "check_stock", "apply_discount", "record_order", "track_order", "search_products", "send_product_media", "submit_customer_order", "update_lead_status", "add_upsell_to_existing_order"):
             tool_calls.append({"name": name, "arguments": args})
-    usage = data.get("usage", {})
+    msg["tool_calls"] = normalized_tool_calls
+    usage_obj = getattr(response, "usage", None) or {}
+    usage = usage_obj if isinstance(usage_obj, dict) else {
+        "prompt_tokens": getattr(usage_obj, "prompt_tokens", 0),
+        "completion_tokens": getattr(usage_obj, "completion_tokens", 0),
+    }
     # Strip [STAGE: ...] from reply and expose for funnel state tracking
     reply_clean, stage = parse_and_strip_stage(reply_text)
     # Strip [HANDOVER] and set flag for HITL (human-in-the-loop)
@@ -2416,10 +2490,9 @@ def continue_after_tool_calls(
     first_assistant_message: dict from OpenAI with "content" and "tool_calls" (each with "id").
     tool_results: list of dicts {"tool_call_id": "...", "content": "result text"}.
     """
-    api_key = get_api_key()
-    if not api_key:
-        raise ValueError("OPENAI_API_KEY is not set.")
-    model = model or DEFAULT_MODEL
+    routed_model, target_dialect = resolve_ai_brain(node, customer_phone)
+    model = model or routed_model
+    _prepare_litellm_provider_key(model)
     messages = build_messages_payload_sales(
         conversation_messages,
         custom_instruction=custom_instruction,
@@ -2444,6 +2517,7 @@ def continue_after_tool_calls(
         node_language_code=node_language_code,
         node=node,
         bot_settings=bot_settings,
+        target_dialect=target_dialect,
     )
     assistant_msg = {
         "role": "assistant",
@@ -2455,7 +2529,6 @@ def continue_after_tool_calls(
         for r in tool_results
     ]
     messages = messages + [assistant_msg] + tool_msgs
-    headers = {"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"}
     payload = {
         "model": model,
         "messages": messages,
@@ -2465,28 +2538,45 @@ def continue_after_tool_calls(
         "tool_choice": "auto",
     }
     est_tokens = _estimate_payload_tokens(messages)
-    logger.info("OpenAI payload estimate (after tools): ~%s tokens (messages=%s)", est_tokens, len(messages))
-    print(f"[OpenAI payload estimate][after tools] ~{est_tokens} tokens (messages={len(messages)})")
+    logger.info("LiteLLM payload estimate (after tools): ~%s tokens (messages=%s, model=%s, dialect=%s)", est_tokens, len(messages), model, target_dialect)
+    print(f"[LiteLLM payload estimate][after tools] ~{est_tokens} tokens (messages={len(messages)}, model={model})")
     _debug_print_sales_agent_system_prompt(
         messages, voice_dialect=voice_dialect, voice_notes_mode=voice_notes_mode, output_language=output_language
     )
     try:
-        response = requests.post(OPENAI_API_URL, headers=headers, json=payload, timeout=45)
-    except requests.exceptions.Timeout:
-        raise RuntimeError("OpenAI API request timed out.")
-    except requests.exceptions.ConnectionError:
-        raise RuntimeError("Could not connect to OpenAI API.")
-    if response.status_code != 200:
-        logger.error("OpenAI API error %s: %s", response.status_code, response.text[:500])
-        raise RuntimeError(f"OpenAI API returned status {response.status_code}.")
-    data = response.json()
-    choice = data.get("choices", [{}])[0]
-    msg = choice.get("message", {})
+        response = completion(**payload)
+    except Exception as e:
+        raise RuntimeError(f"LiteLLM completion failed: {e}")
+    choice0 = response.choices[0] if getattr(response, "choices", None) else {}
+    msg = getattr(choice0, "message", None) or {}
+    if not isinstance(msg, dict):
+        msg = {
+            "content": getattr(msg, "content", "") or "",
+            "tool_calls": getattr(msg, "tool_calls", None) or [],
+        }
     reply_text = (msg.get("content") or "").strip()
     tool_calls = []
     import json as _json
+    normalized_tool_calls = []
     for tc in msg.get("tool_calls") or []:
-        fn = tc.get("function", {})
+        if isinstance(tc, dict):
+            tc_dict = tc
+        else:
+            fn_obj = getattr(tc, "function", None)
+            if isinstance(fn_obj, dict):
+                fn_dict = fn_obj
+            else:
+                fn_dict = {
+                    "name": getattr(fn_obj, "name", None),
+                    "arguments": getattr(fn_obj, "arguments", None),
+                }
+            tc_dict = {
+                "id": getattr(tc, "id", None),
+                "type": getattr(tc, "type", "function"),
+                "function": fn_dict,
+            }
+        normalized_tool_calls.append(tc_dict)
+        fn = tc_dict.get("function", {})
         name = fn.get("name")
         try:
             args = _json.loads(fn.get("arguments") or "{}")
@@ -2495,7 +2585,12 @@ def continue_after_tool_calls(
             continue
         if name in ("save_order", "check_stock", "apply_discount", "record_order", "track_order", "search_products", "send_product_media", "submit_customer_order", "update_lead_status", "add_upsell_to_existing_order"):
             tool_calls.append({"name": name, "arguments": args})
-    usage = data.get("usage", {})
+    msg["tool_calls"] = normalized_tool_calls
+    usage_obj = getattr(response, "usage", None) or {}
+    usage = usage_obj if isinstance(usage_obj, dict) else {
+        "prompt_tokens": getattr(usage_obj, "prompt_tokens", 0),
+        "completion_tokens": getattr(usage_obj, "completion_tokens", 0),
+    }
     reply_clean, stage = parse_and_strip_stage(reply_text)
     reply_clean, handover_reason = parse_and_strip_handover(reply_clean)
     return {
