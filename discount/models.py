@@ -597,6 +597,12 @@ class SimpleOrder(models.Model):
         verbose_name=_('تاريخ التوصيل المتوقع'),
         help_text="Expected delivery date.",
     )
+    order_notes = models.TextField(
+        blank=True,
+        null=True,
+        verbose_name=_('ملاحظات الطلب'),
+        help_text="Delivery timing, alternate phone, and other instructions (appended by AI or staff).",
+    )
     class Meta:
         verbose_name = _('طلب مبسط')
         verbose_name_plural = _('طلبات مبسطة')
@@ -1277,6 +1283,18 @@ class WhatsAppChannel(models.Model):
         help_text="Delay before sending voice (10-30 sec)",
     )
     ai_order_capture = models.BooleanField(default=True, help_text="Automatically extract and save orders from conversations")
+    CHANNEL_AI_LLM_ENGINE_CHOICES = [
+        ("AUTO", "Auto (dialect-based routing)"),
+        ("GPT_4O", "GPT-4o (OpenAI)"),
+        ("CLAUDE_3_5", "Claude 3.5 Sonnet (Anthropic)"),
+    ]
+    ai_llm_engine = models.CharField(
+        max_length=20,
+        choices=CHANNEL_AI_LLM_ENGINE_CHOICES,
+        default="AUTO",
+        blank=True,
+        help_text="Default LLM for AI agent replies on this channel. Flow node AI Engine overrides when set to GPT or Claude.",
+    )
     elevenlabs_api_key = models.CharField(max_length=255, null=True, blank=True)
     voice_cloning_enabled = models.BooleanField(default=False, help_text="Clone your voice (Premium only)")
     # Advanced Voice Studio (StoreSettings)

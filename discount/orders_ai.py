@@ -458,6 +458,127 @@ def handle_add_upsell_tool(arguments, channel):
                            "message": "System error adding the upsell. Tell the user there was a glitch."}, ensure_ascii=False)
 
 
+_NOTE_CATEGORY_CANONICAL = {
+    "delivery_time": "delivery_time",
+    "alternate_phone": "alternate_phone",
+    "general_instruction": "general_instruction",
+    "general": "general_instruction",
+}
+
+
+def _first_valid_phone_in_text(text):
+    """Extract first internationally-valid phone digit sequence from free-form note text."""
+    if not text or not isinstance(text, str):
+        return None
+    for chunk in re.findall(r"\+?[\d\s\-\.]{8,24}", text):
+        normalized, err = validate_phone_international(chunk)
+        if not err and normalized:
+            return normalized
+    digits_only = re.sub(r"\D", "", text)
+    if len(digits_only) >= _PHONE_DIGITS_MIN:
+        normalized, err = validate_phone_international(digits_only)
+        if not err and normalized:
+            return normalized
+    return None
+
+
+def execute_update_order_notes(order_id, note_category, note_content, channel=None, customer_phone_from_chat=None):
+    """
+    Persist post-order instructions on SimpleOrder.order_notes (append). Optionally updates
+    customer_phone when note_category is alternate_phone and a valid number is found in note_content.
+
+    Returns a JSON str for the LLM tool result (never raises to caller).
+    """
+    try:
+        order_id = _safe_order_arg({"order_id": order_id}, "order_id", "")
+        note_category = (str(note_category or "").strip())
+        note_content = (str(note_content or "").strip())
+
+        if not order_id:
+            return json.dumps({
+                "status": "error",
+                "success": False,
+                "message": "order_id is missing. Use the active order_id from your context (e.g. last_order_id).",
+            }, ensure_ascii=False)
+        if not note_content:
+            return json.dumps({
+                "status": "error",
+                "success": False,
+                "message": "note_content is empty. Ask the customer to repeat their instruction.",
+            }, ensure_ascii=False)
+
+        cat_key = (note_category or "").strip().lower().replace(" ", "_")
+        canonical = _NOTE_CATEGORY_CANONICAL.get(cat_key, "general_instruction")
+
+        order = SimpleOrder.objects.filter(order_id=order_id).first()
+        if not order:
+            logger.error("update_order_notes: order_id=%s not found", order_id)
+            return json.dumps({
+                "status": "error",
+                "success": False,
+                "message": "Order not found. Confirm the order reference with the customer.",
+            }, ensure_ascii=False)
+
+        if channel and order.channel_id and order.channel_id != channel.id:
+            logger.error(
+                "update_order_notes: channel mismatch (order.channel=%s, current=%s)",
+                order.channel_id, getattr(channel, "id", None),
+            )
+            return json.dumps({
+                "status": "error",
+                "success": False,
+                "message": "Order does not belong to this store channel.",
+            }, ensure_ascii=False)
+
+        # Loose match: order should belong to this chat customer when possible
+        if customer_phone_from_chat:
+            chat_n, _ = validate_phone_international(str(customer_phone_from_chat))
+            ord_n, _ = validate_phone_international(order.customer_phone or "")
+            if chat_n and ord_n and chat_n != ord_n:
+                if len(chat_n) >= 8 and len(ord_n) >= 8 and chat_n[-8:] != ord_n[-8:]:
+                    logger.warning(
+                        "update_order_notes: phone mismatch (chat vs order) order_id=%s — still allowing (same channel)",
+                        order_id,
+                    )
+
+        ts = timezone.now().strftime("%Y-%m-%d %H:%M")
+        line = f"[{ts}] [{canonical}] {note_content.strip()}"
+        prev = (order.order_notes or "").strip()
+        order.order_notes = (prev + "\n" + line).strip() if prev else line
+
+        update_fields = ["order_notes"]
+
+        if canonical == "alternate_phone":
+            alt = _first_valid_phone_in_text(note_content)
+            if alt:
+                order.customer_phone = str(alt)[:20]
+                update_fields.append("customer_phone")
+
+        if getattr(order, "sheets_export_status", None) == "success":
+            order.sheets_export_status = "pending"
+            update_fields.append("sheets_export_status")
+
+        order.save(update_fields=list(dict.fromkeys(update_fields)))
+
+        logger.info("update_order_notes: saved order_id=%s category=%s", order_id, canonical)
+
+        return json.dumps({
+            "status": "success",
+            "success": True,
+            "message": "Note saved on the order. Confirm to the customer it was registered for the delivery team.",
+            "order_id": order_id,
+        }, ensure_ascii=False)
+
+    except Exception as e:
+        logger.error("execute_update_order_notes: %s", e)
+        logger.error(traceback.format_exc())
+        return json.dumps({
+            "status": "error",
+            "success": False,
+            "message": "Could not save the note. Ask the customer to try again or contact support.",
+        }, ensure_ascii=False)
+
+
 def _resync_upsell_to_google_sheets(order):
     """
     After an upsell UPDATE, find the existing row in Google Sheets by order_id

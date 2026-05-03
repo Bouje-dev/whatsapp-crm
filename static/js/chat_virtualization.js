@@ -61,8 +61,16 @@
 
       var st = scrollEl.scrollTop;
       var ch = scrollEl.clientHeight || 0;
-      var start = Math.max(0, Math.floor(st / rowHeight) - overscan);
-      var end = Math.min(count, Math.ceil((st + ch) / rowHeight) + overscan);
+      var start;
+      var end;
+      // If height isn't measurable yet (hidden panel / first paint), don't cap to overscan-only (was showing 6 of 10).
+      if (ch < rowHeight) {
+        start = 0;
+        end = count;
+      } else {
+        start = Math.max(0, Math.floor(st / rowHeight) - overscan);
+        end = Math.min(count, Math.ceil((st + ch) / rowHeight) + overscan);
+      }
 
       rowPool.forEach(function (el, idx) {
         if (idx < start || idx >= end) {
@@ -89,13 +97,19 @@
 
     var onScroll = rafThrottle(sync);
 
+    /** Full redraw of visible rows — required when row *data* changes (unread, snippet). */
+    function refreshFromData() {
+      clearRows();
+      sync();
+    }
+
     scrollEl.innerHTML = "";
     scrollEl.appendChild(inner);
     scrollEl.addEventListener("scroll", onScroll, { passive: true });
     sync();
 
     return {
-      refresh: sync,
+      refresh: refreshFromData,
       scrollToIndex: function (idx) {
         var count = getCount() || 0;
         if (count <= 0) return;

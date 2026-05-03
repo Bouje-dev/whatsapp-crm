@@ -4522,6 +4522,26 @@ function sendCannedResponseDirectly(item) {
     </div>
 
     <style>
+      /* Chat sidebar: conversation rows + clear selected state */
+      .cls3741_panel_chats .cls3741_contact_item {
+        display: flex;
+        align-items: center;
+        gap: 0.65rem;
+        padding: 0.55rem 0.65rem;
+        margin-bottom: 2px;
+        border-radius: 10px;
+        cursor: pointer;
+        transition: background 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
+        border: 1px solid transparent;
+      }
+      .cls3741_panel_chats .cls3741_contact_item:hover {
+        background: rgba(255, 255, 255, 0.06);
+      }
+      .cls3741_panel_chats .cls3741_contact_item.cls3741_btn_active {
+        background: rgba(139, 92, 246, 0.2);
+        border-color: rgba(139, 92, 246, 0.4);
+        box-shadow: inset 0 0 0 1px rgba(139, 92, 246, 0.15);
+      }
       /* ========== PHONE: Chat input redesign (max-width: 768px) ========== */
       @media (max-width: 768px) {
         .cls3741_chat_input_wrapper {
@@ -10331,8 +10351,24 @@ document.addEventListener("DOMContentLoaded", function() {
     lastmsg:"{% url 'get_last_message' %}"
   };
 
+  /** Active chat phone/channel live on window — inner IIFE below defines let currentPhone (not visible here). */
+  function hitlResolvePhone() {
+    try {
+      if (typeof window.getCurrentChatPhone === 'function') {
+        var p = window.getCurrentChatPhone();
+        if (p) return String(p);
+      }
+    } catch (e) {}
+    if (window.currentPhone != null && window.currentPhone !== '') return String(window.currentPhone);
+    return '';
+  }
+  function hitlResolveChannelId() {
+    var c = window.currentChannelId != null ? window.currentChannelId : window._activeChannelId;
+    return c != null && c !== '' ? c : '';
+  }
+
   window.updateHitlUI = function(phone) {
-    var cid = window.currentChannelId || currentChannelId;
+    var cid = hitlResolveChannelId();
     var wrap = document.getElementById('hitl_badge_wrap');
     var toggle = document.getElementById('hitl_ai_toggle');
     if (!phone || !cid) {
@@ -10364,8 +10400,8 @@ document.addEventListener("DOMContentLoaded", function() {
     var hitlToggle = document.getElementById('hitl_ai_toggle');
     if (hitlToggle) {
       hitlToggle.addEventListener('change', function() {
-        var phone = window.currentPhone || currentPhone;
-        var cid = window.currentChannelId || currentChannelId;
+        var phone = hitlResolvePhone();
+        var cid = hitlResolveChannelId();
         if (!phone || !cid) return;
         var form = new FormData();
         form.append('channel_id', cid);
@@ -10382,8 +10418,8 @@ document.addEventListener("DOMContentLoaded", function() {
     var reenableBtn = document.getElementById('hitl_reenable_btn');
     if (reenableBtn) {
       reenableBtn.addEventListener('click', function() {
-        var phone = window.currentPhone || currentPhone;
-        var cid = window.currentChannelId || currentChannelId;
+        var phone = hitlResolvePhone();
+        var cid = hitlResolveChannelId();
         if (!phone || !cid) return;
         var form = new FormData();
         form.append('channel_id', cid);
@@ -10491,18 +10527,81 @@ document.addEventListener("DOMContentLoaded", function() {
       return (p || '').replace(/^\+/, '').replace(/\s+/g, '');
     }
 
+    function phoneDigitsOnly(p) {
+      return String(p || '').replace(/\D/g, '');
+    }
+
+    /** Same chat identity even if formats differ (06… vs +212… vs 212…). */
+    function contactPhonesMatch(a, b) {
+      var da = phoneDigitsOnly(a);
+      var db = phoneDigitsOnly(b);
+      if (!da || !db) return false;
+      if (da === db) return true;
+      if (da.length >= 9 && db.length >= 9 && da.slice(-9) === db.slice(-9)) return true;
+      return false;
+    }
+    window.contactPhonesMatch = contactPhonesMatch;
+
+    /** Beside chat (cls3741_contacts_list): one selected row — fixes VL + phone format drift vs CSS .cls3741_panel_chats … .cls3741_btn_active */
+    function syncSidebarActiveRowHighlight(optionalHint) {
+      var list = contactsListEl;
+      if (!list) return;
+      var active =
+        (typeof window.getCurrentChatPhone === 'function' && window.getCurrentChatPhone()) ||
+        (window.currentPhone != null && window.currentPhone !== '' ? String(window.currentPhone) : '');
+      if (!active && optionalHint) {
+        active = normalizeContactPhone(String(optionalHint));
+      }
+      if (!active) {
+        list.querySelectorAll('.cls3741_contact_item.cls3741_btn_active').forEach(function (row) {
+          row.classList.remove('cls3741_btn_active');
+          row.setAttribute('aria-selected', 'false');
+        });
+        return;
+      }
+      list.querySelectorAll('.cls3741_contact_item').forEach(function (row) {
+        var dp = row.getAttribute('data-phone') || '';
+        var on = contactPhonesMatch(dp, active);
+        row.classList.toggle('cls3741_btn_active', on);
+        row.setAttribute('aria-selected', on ? 'true' : 'false');
+      });
+    }
+
+    /** Zero unread for this peer in sidebar + full lists, then redraw rows (badge + green snippet). */
+    function clearUnreadForOpenedChat(phoneRaw) {
+      if (!phoneRaw) return;
+      var changed = false;
+      sidebarState.contacts.forEach(function (c) {
+        if (contactPhonesMatch(c.phone, phoneRaw)) {
+          c.unread = 0;
+          changed = true;
+        }
+      });
+      allContactsData.forEach(function (c) {
+        if (contactPhonesMatch(c.phone, phoneRaw)) {
+          c.unread = 0;
+          changed = true;
+        }
+      });
+      if (changed) window.__allContactsData = allContactsData;
+      if (__contactsVirtualList) __contactsVirtualList.refresh();
+      syncSidebarActiveRowHighlight(phoneRaw);
+    }
+
     function buildContactItemElement(c, kind) {
       const item = document.createElement('div');
       item.className = 'cls3741_contact_item';
+      item.setAttribute('role', 'listitem');
       const phoneRaw = c.phone || '';
-      const norm = normalizeContactPhone(phoneRaw);
-      let activeNorm = '';
-      if (window.getCurrentChatPhone) {
-        activeNorm = normalizeContactPhone(window.getCurrentChatPhone() || '');
-      }
-      if (activeNorm && activeNorm === norm) {
+      const activePh =
+        (typeof window.getCurrentChatPhone === 'function' && window.getCurrentChatPhone()) ||
+        (window.currentPhone != null && window.currentPhone !== '' ? String(window.currentPhone) : '');
+      /* Use contactPhonesMatch (digits + last-9), not string equality — list phone format often differs from currentPhone */
+      const isSelected = !!activePh && contactPhonesMatch(phoneRaw, activePh);
+      if (isSelected) {
         item.classList.add('cls3741_btn_active');
       }
+      item.setAttribute('aria-selected', isSelected ? 'true' : 'false');
       item.setAttribute('data-phone', phoneRaw);
       item.setAttribute('data-name', c.name || '');
       item.setAttribute('data-channel-id', c.channel_id || '');
@@ -10558,6 +10657,7 @@ document.addEventListener("DOMContentLoaded", function() {
 
     function __refreshContactsVirtualList() {
       if (__contactsVirtualList) __contactsVirtualList.refresh();
+      syncSidebarActiveRowHighlight();
     }
     window.__refreshContactsVirtualList = __refreshContactsVirtualList;
 
@@ -11705,6 +11805,7 @@ function formatTime(seconds) {
 
         if (!Array.isArray(msgs) || msgs.length === 0) {
           window.notifyChatEnter(currentPhone);
+          clearUnreadForOpenedChat(currentPhone);
           return;
         }
 
@@ -11722,6 +11823,7 @@ function formatTime(seconds) {
 
         setupChatOlderObserver();
         window.notifyChatEnter(currentPhone);
+        clearUnreadForOpenedChat(currentPhone);
       } catch (e) {
         console.error('fetchMessagesForCurrentws', e);
       }
@@ -11993,6 +12095,15 @@ async function fetchContactsAndUpdateUIws(wsData = null, loadFromApi = false) {
             }
         }
 
+        const openPhone = typeof window.getCurrentChatPhone === 'function' ? window.getCurrentChatPhone() : null;
+        if (openPhone) {
+          const zUnread = function (c) {
+            if (c && contactPhonesMatch(c.phone, openPhone)) c.unread = 0;
+          };
+          allContactsData.forEach(zUnread);
+          sidebarState.contacts.forEach(zUnread);
+        }
+
         const contacts = Array.isArray(contactsToProcess) ? contactsToProcess : (contactsToProcess.contacts || []);
         const snapshot = JSON.stringify(contacts.map(c => [c.phone, c.last_id, c.unread]));
         
@@ -12105,6 +12216,17 @@ async function fetchContactsAndUpdateUIws(wsData = null, loadFromApi = false) {
       window._activeChannelId = channelId;
       lastMessageId = 0;
       window.currentPhone  = currentPhone 
+      /* Non-virtual list: toggle selection on live DOM before any refresh */
+      if (contactsListEl && !__contactsVirtualList) {
+        contactsListEl.querySelectorAll('.cls3741_contact_item').forEach(function (i) {
+          i.classList.remove('cls3741_btn_active');
+          i.setAttribute('aria-selected', 'false');
+        });
+        el.classList.add('cls3741_btn_active');
+        el.setAttribute('aria-selected', 'true');
+      }
+      /* Clear unread + virtual list: refresh() rebuilds rows (badge/snippet/active) from data */
+      clearUnreadForOpenedChat(phone);
       lastmsg();
       // داخل دالة فتح الشات
     if (AssignedA) {
@@ -12143,28 +12265,21 @@ async function fetchContactsAndUpdateUIws(wsData = null, loadFromApi = false) {
       messagesArea.innerHTML = '';
       messagesArea.appendChild(createLoadingMessage());
       
-      fetchMessagesForCurrentws().then(()=>{
-        if (__contactsVirtualList) {
-          const pn = normalizeContactPhone(phone);
-          sidebarState.contacts.forEach(function (c) {
-            if (normalizeContactPhone(c.phone) === pn) c.unread = 0;
-          });
-          allContactsData.forEach(function (c) {
-            if (normalizeContactPhone(c.phone) === pn) c.unread = 0;
-          });
-          window.__allContactsData = allContactsData;
-          __contactsVirtualList.refresh();
-        } else {
-          const item = contactsListEl.querySelector(`.cls3741_contact_item[data-phone="${phone}"]`);
+      fetchMessagesForCurrentws().then(function () {
+        /* clearUnread + VL refresh already applied after fetch; DOM fallback for non-VL */
+        clearUnreadForOpenedChat(phone);
+        if (!__contactsVirtualList && contactsListEl) {
+          const item =
+            contactsListEl.querySelector('.cls3741_contact_item.cls3741_btn_active') ||
+            Array.from(contactsListEl.querySelectorAll('.cls3741_contact_item')).find(function (row) {
+              return contactPhonesMatch(row.getAttribute('data-phone'), phone);
+            });
           if (item) {
-            const allItems = contactsListEl.querySelectorAll('.cls3741_contact_item');
-            allItems.forEach(i => i.classList.remove('cls3741_btn_active'));
-            item.classList.add('cls3741_btn_active');
-            const badge = item.querySelector('.cls3741_contact_badge');
-            if (badge) {
-              badge.textContent = '—';
-              badge.style.opacity = '0';
-            }
+            item.querySelectorAll('.cls3741_contact_badge').forEach(function (badge) {
+              badge.remove();
+            });
+            var sn = item.querySelector('.cls3741_contact_snippet');
+            if (sn) sn.classList.remove('green');
           }
         }
       });
@@ -12744,6 +12859,7 @@ async function loadSidebarContacts(reset = false) {
         let url = new URL(window.API_URLS.contacts, window.location.origin);
         url.searchParams.append('channel_id', activeChannelId);
         url.searchParams.append('page', sidebarState.page);
+        url.searchParams.append('page_size', '10');
 
         // إضافة بارامترات البحث والفلترة فقط إذا كانت مفعلة
         if (sidebarState.query) url.searchParams.append('q', sidebarState.query);
@@ -12816,6 +12932,7 @@ function renderSidebarItems(isReset) {
         const frag = document.createDocumentFragment();
         sidebarState.contacts.forEach(c => frag.appendChild(buildContactItemElement(c, 'sidebar')));
         sidebarListEl.appendChild(frag);
+        syncSidebarActiveRowHighlight();
         return;
     }
 
@@ -12825,24 +12942,38 @@ function renderSidebarItems(isReset) {
             const frag = document.createDocumentFragment();
             sidebarState.contacts.forEach(c => frag.appendChild(buildContactItemElement(c, 'sidebar')));
             sidebarListEl.appendChild(frag);
+            syncSidebarActiveRowHighlight();
             return;
         }
     }
     if (__contactsVirtualList) __contactsVirtualList.refresh();
+    syncSidebarActiveRowHighlight();
 }
 
-function applyContactItemSingleUpdate(contactData) {
+function applyContactItemSingleUpdate(contactData, messagePayload) {
   const listEl = document.getElementById('cls3741_contacts_list');
   if (!listEl || !contactData) return;
 
-  const safePhone = normalizeContactPhone(contactData.phone || '');
-  let activeNorm = window.getCurrentChatPhone ? normalizeContactPhone(window.getCurrentChatPhone() || '') : '';
-  const isChatActive = activeNorm && (activeNorm === safePhone);
+  const isChatActive = window.getCurrentChatPhone && contactPhonesMatch(window.getCurrentChatPhone(), contactData.phone || '');
 
   const merged = Object.assign({}, contactData);
+  if (messagePayload && typeof messagePayload === 'object') {
+    const mt = (messagePayload.type || messagePayload.media_type || '').toLowerCase();
+    var sn = merged.snippet;
+    if (messagePayload.body) sn = String(messagePayload.body).slice(0, 160);
+    else if (mt === 'image') sn = sn || '📷 Image';
+    else if (mt === 'video') sn = sn || '🎬 Video';
+    else if (mt === 'audio') sn = sn || '🎤 Audio';
+    else if (mt === 'document') sn = sn || '📎 Document';
+    if (sn) merged.snippet = sn;
+    if (messagePayload.id != null) merged.last_id = messagePayload.id;
+    if (messagePayload.time) merged.timestamp = messagePayload.time;
+    if (messagePayload.channel_id != null) merged.channel_id = messagePayload.channel_id;
+    if (typeof messagePayload.fromMe === 'boolean') merged.fromMe = messagePayload.fromMe;
+  }
   if (isChatActive) merged.unread = 0;
 
-  let idx = allContactsData.findIndex(c => normalizeContactPhone(c.phone) === safePhone);
+  let idx = allContactsData.findIndex(c => contactPhonesMatch(c.phone, contactData.phone));
   if (idx >= 0) {
     allContactsData[idx] = Object.assign({}, allContactsData[idx], merged);
   } else {
@@ -12850,7 +12981,7 @@ function applyContactItemSingleUpdate(contactData) {
   }
   window.__allContactsData = allContactsData;
 
-  let sidx = sidebarState.contacts.findIndex(c => normalizeContactPhone(c.phone) === safePhone);
+  let sidx = sidebarState.contacts.findIndex(c => contactPhonesMatch(c.phone, contactData.phone));
   let base = sidx >= 0 ? sidebarState.contacts[sidx] : {};
   let row = Object.assign({}, base, merged);
   if (sidx >= 0) sidebarState.contacts.splice(sidx, 1);
@@ -12987,8 +13118,10 @@ window.fetchContactsAndUpdateUIws = function(wsData, isFullReload) {
       }
       
       currentPhone = normalized;
-      let contactRow = sidebarState.contacts.find(c => normalizeContactPhone(c.phone) === normalized);
-      if (!contactRow) contactRow = allContactsData.find(c => normalizeContactPhone(c.phone) === normalized);
+      window.currentPhone = normalized;
+      clearUnreadForOpenedChat(phone || normalized);
+      let contactRow = sidebarState.contacts.find(c => contactPhonesMatch(c.phone, phone || normalized));
+      if (!contactRow) contactRow = allContactsData.find(c => contactPhonesMatch(c.phone, phone || normalized));
       if (contactRow && contactRow.channel_id) {
         currentChannelId = contactRow.channel_id;
         window.currentChannelId = currentChannelId;

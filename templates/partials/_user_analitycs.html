@@ -1337,7 +1337,7 @@ document.addEventListener("DOMContentLoaded", function () {
     </section>
 <!-- Recommendations panel -->
 <!-- Recommendations panel (enhanced) -->
-<!-- <div id="platformComparisons" class="mb-4"></div> -->
+<div id="platformComparisons" class="mb-4"></div>
 <!-- Recommendations area (place inside dashboard) -->
 <div id="recommendations">
   <div>
@@ -2386,14 +2386,6 @@ function renderGranularRecommendationsPro(recs) {
 
   // ----------------- Init on DOM ready -----------------
   document.addEventListener('DOMContentLoaded', function(){
-    // ensure DOM elements exist
-    if (!document.getElementById('platformComparisons')) {
-      console.warn('Missing #platformComparisons element — create it in your HTML to show platform comparisons.');
-    }
-    if (!document.getElementById('recommendations')) {
-      console.warn('Missing #recommendations element — create it in your HTML to show recommendations.');
-    }
-
     // initial fetch
     fetchAndRenderRecommendations();
 

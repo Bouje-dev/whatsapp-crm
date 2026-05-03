@@ -905,6 +905,15 @@
                                                 <h6 class="automation-card-title mb-0">Voice Identity</h6>
                                             </div>
                                             <div class="automation-card-body">
+                                                <div class="mb-3">
+                                                    <label class="form-label text-muted small mb-1">AI chat model</label>
+                                                    <select name="ai_llm_engine" id="channel_ai_llm_engine" class="form-select form-select-sm modern-input">
+                                                        <option value="AUTO" {% if channel.ai_llm_engine == 'AUTO' or not channel.ai_llm_engine %}selected{% endif %}>Auto (dialect-based)</option>
+                                                        <option value="GPT_4O" {% if channel.ai_llm_engine == 'GPT_4O' %}selected{% endif %}>GPT-4o (OpenAI)</option>
+                                                        <option value="CLAUDE_3_5" {% if channel.ai_llm_engine == 'CLAUDE_3_5' %}selected{% endif %}>Claude 3.5 (Cloud)</option>
+                                                    </select>
+                                                    <small class="text-muted d-block mt-1" style="font-size: 0.7rem;">Default model for AI conversations on this number. A specific choice on an <strong>AI Agent flow node</strong> overrides this.</small>
+                                                </div>
                                                 <div class="row g-2 mb-3">
                                                     <div class="col-6">
                                                         <label class="form-label text-muted small mb-1">Provider</label>
@@ -1845,6 +1854,7 @@
                 }
                 // Voice Studio: language, tone sliders, clone status
                 $('select[name="voice_language"]').val(data.voice_language || 'AUTO');
+                $('select[name="ai_llm_engine"]').val(data.ai_llm_engine || 'AUTO');
                 var stab = parseFloat(data.voice_stability);
                 var sim = parseFloat(data.voice_similarity);
                 if (!isNaN(stab)) { $('#voice_stability_slider').val(stab); $('#voice_stability_value').text(stab); }
@@ -2268,6 +2278,9 @@ function submitChannelSettings() {
                 // تحديث المتغيرات العامة للتطبيق فوراً (Live Update)
                 if (response.config) {
                     window.collisionEnabled = response.config.enable_collision_detection;
+                    if (typeof response.config.ai_llm_engine === 'string') {
+                        $('select[name="ai_llm_engine"]').val(response.config.ai_llm_engine);
+                    }
                 }
 
                 // Team & Routing: keep Full AI Autopilot toggle in sync after main settings save

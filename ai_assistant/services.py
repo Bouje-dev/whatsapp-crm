@@ -2,9 +2,13 @@ import logging
 import os
 import random
 import re
+import traceback
 import requests
 from django.conf import settings
+import litellm
 from litellm import completion
+
+from ai_assistant.dialect_persona import determine_target_dialect
 
 logger = logging.getLogger(__name__)
 
@@ -30,9 +34,10 @@ MARKET_AGENT_NAMES = {
 }
 
 OPENAI_API_URL = "https://api.openai.com/v1/chat/completions"
-DEFAULT_MODEL = "gpt-4o-mini"
-MODEL_CLAUDE_SONNET = "claude-3-5-sonnet-20241022"
-MODEL_GPT4O = "gpt-4o"
+DEFAULT_MODEL = "openai/gpt-4o-mini"
+# Anthropic route: Haiku test model (API key / account verification). Switch constant to Sonnet after confirm.
+MODEL_CLAUDE_SONNET = "anthropic/claude-haiku-4-5-20251001"  # Latest Sonnet: "anthropic/claude-3-5-sonnet-20241022"
+MODEL_GPT4O = "openai/gpt-4o"
 
 # Strict context window management (keep most recent messages only).
 MAX_CHAT_HISTORY_MESSAGES = 6
@@ -73,7 +78,8 @@ def summarize_customer_memory_from_messages(messages, model=None):
         compact_lines.append(f"{role}: {body}")
     if not compact_lines:
         return ""
-
+    
+    
     prompt = (
         "Summarize the key extracted facts from this conversation history. "
         "Focus ONLY on the customer's personal details, preferences, pain points "
@@ -105,11 +111,15 @@ def summarize_customer_memory_from_messages(messages, model=None):
 
 # Cheap model for WhatsApp AI Sentinel (intent check before expensive sales agent)
 SENTINEL_SYSTEM_PROMPT = (
-    "You are an Intent Analyzer for an e-commerce store. Read the user's messages. "
-    "Determine if they are genuinely interested in the product/shipping/pricing "
-    "(even if they ask many questions or seem hesitant), OR if they are a troll, spammer, "
-    "or deliberately wasting time with unrelated topics. "
-    "Reply with exactly ONE WORD: 'SERIOUS' or 'SPAM'."
+    "You are an Intent Analyzer for an e-commerce store. "
+    "LENIENCY OVERRIDE: You are a forgiving Intent Analyzer. We are currently in a testing phase. "
+    "You must classify a user as 'WASTING_TOKENS' ONLY IF they are explicitly trolling, using insults, "
+    "or repeatedly discussing completely unrelated non-e-commerce topics. "
+    "CRITICAL: If the user is asking many questions about products, showing hesitation, testing the bot's "
+    "limits regarding the store, or trying to negotiate prices, you MUST classify them as "
+    "'VALID_EXPLORATION' and allow the chat to continue. Do not flag them as time-wasters just because "
+    "they are slow to buy. "
+    "Reply with exactly ONE WORD: 'VALID_EXPLORATION' or 'WASTING_TOKENS'."
 )
 
 
@@ -158,10 +168,10 @@ def evaluate_sentinel_intent(user_message_texts):
         if not raw_words:
             return "SERIOUS"
         first = re.sub(r"[^A-Z]", "", raw_words[0])
-        if first == "SPAM":
+        if first in ("SPAM", "WASTINGTOKENS", "WASTING_TOKENS"):
             return "SPAM"
-        # Model may reply "THE WORD IS SPAM" — check any token
-        if any(re.sub(r"[^A-Z]", "", w) == "SPAM" for w in raw_words[:5]):
+        # Model may reply with short phrase; inspect early tokens.
+        if any(re.sub(r"[^A-Z_]", "", w) in ("SPAM", "WASTINGTOKENS", "WASTING_TOKENS") for w in raw_words[:7]):
             return "SPAM"
         return "SERIOUS"
     except Exception as e:
@@ -286,35 +296,36 @@ def _dialect_from_phone(customer_phone):
     return "Standard Arabic"
 
 
-def resolve_ai_brain(node, customer_phone):
+def resolve_ai_brain(node, customer_phone, channel=None, bot_settings=None):
     """
-    Dynamic brain selector:
-    - Determine dialect from node (explicit) then phone fallback.
-    - Route Moroccan/North African dialects to Claude Sonnet, else GPT-4o.
+    Dynamic brain selector (priority):
+    1) Node AI Engine (GPT-4o / Claude) when set — overrides channel default.
+    2) WhatsApp channel ai_llm_engine when Auto at node — merchant default for normal chat.
+    3) AUTO: Moroccan/Maghreb dialect → Anthropic Claude route (MODEL_CLAUDE_SONNET; currently Haiku for API test), else GPT-4o.
+
+    target_dialect comes from determine_target_dialect (node → bot settings → phone).
     Returns: (selected_model, target_dialect)
     """
-    # Priority 1: explicit merchant override from Node Builder
+    td = determine_target_dialect(node, bot_settings, customer_phone)
+
+    # Priority 1: explicit node override (flow builder)
     if node is not None:
         eng = (getattr(node, "ai_engine", None) or "").strip().upper()
         if eng == "GPT_4O":
-            return (MODEL_GPT4O, "Standard Arabic")
+            return (MODEL_GPT4O, td)
         if eng == "CLAUDE_3_5":
-            return (MODEL_CLAUDE_SONNET, "Moroccan Darija")
+            return (MODEL_CLAUDE_SONNET, td)
 
-    node_dialect = ""
-    if node is not None:
-        node_dialect = (
-            getattr(node, "dialect", None)
-            or getattr(node, "node_language", None)
-            or ""
-        )
-    node_dialect = _normalize_dialect_text(node_dialect)
-    if node_dialect and node_dialect.lower() != "auto":
-        target_dialect = node_dialect
-    else:
-        target_dialect = _dialect_from_phone(customer_phone)
+    # Priority 2: channel default (Voice / Automation settings)
+    if channel is not None:
+        ceng = (getattr(channel, "ai_llm_engine", None) or "").strip().upper()
+        if ceng == "GPT_4O":
+            return (MODEL_GPT4O, td)
+        if ceng == "CLAUDE_3_5":
+            return (MODEL_CLAUDE_SONNET, td)
 
-    d = target_dialect.lower()
+    # Priority 3: dialect-based AUTO routing
+    d = (td or "").lower()
     is_maghreb = any(
         k in d
         for k in (
@@ -330,12 +341,12 @@ def resolve_ai_brain(node, customer_phone):
         )
     )
     selected_model = MODEL_CLAUDE_SONNET if is_maghreb else MODEL_GPT4O
-    return (selected_model, target_dialect)
+    return (selected_model, td)
 
 
 def _prepare_litellm_provider_key(selected_model):
     m = (selected_model or "").lower()
-    if "claude" in m:
+    if m.startswith("anthropic/") or "claude" in m:
         anth = get_anthropic_api_key()
         if not anth:
             raise ValueError("ANTHROPIC_API_KEY is not set.")
@@ -345,6 +356,117 @@ def _prepare_litellm_provider_key(selected_model):
         if not oa:
             raise ValueError("OPENAI_API_KEY is not set.")
         os.environ["OPENAI_API_KEY"] = oa
+
+
+def _normalize_litellm_model_name(model_name):
+    """
+    LiteLLM requires provider-qualified model names.
+    Examples:
+    - gpt-4o -> openai/gpt-4o
+    - claude-3-5-sonnet-20241022 -> anthropic/claude-3-5-sonnet-20241022
+    """
+    m = (model_name or "").strip()
+    if not m:
+        return MODEL_GPT4O
+    low = m.lower()
+    if "/" in m:
+        return m
+    if low.startswith("claude"):
+        return f"anthropic/{m}"
+    if low.startswith("gpt"):
+        return f"openai/{m}"
+    return m
+
+
+def _litellm_completion_with_model_fallback(payload):
+    """
+    LiteLLM completion for sales agent.
+
+    TEMPORARY (Claude X-ray debug): Any Anthropic route uses exactly
+    MODEL_CLAUDE_SONNET (Haiku test ID); model-level fallback to alternate Claude IDs or GPT-4o is
+    DISABLED so failures surface loudly. Re-enable retries after Anthropic is verified.
+
+    Note: We do not pass litellm ``fallbacks=[...]`` here (none in codebase); optional
+    router fallbacks must stay disabled during this debug window.
+    """
+    # NOTE: Ensure server runtime includes anthropic SDK:
+    #   pip install anthropic
+    def _xray_litellm_call(call_payload):
+        model_name = str(call_payload.get("model") or "")
+        if model_name.startswith("anthropic/"):
+            anthropic_key = os.getenv("ANTHROPIC_API_KEY")
+            if not anthropic_key:
+                print("❌ CRITICAL: Anthropic Key is missing in OS Environment!")
+            forced_model = MODEL_CLAUDE_SONNET  # Haiku test; Latest Sonnet: anthropic/claude-3-5-sonnet-20241022
+            print("🚨 FORCING CLAUDE EXECUTION - NO FALLBACKS ALLOWED 🚨")
+            try:
+                # Anthropic Messages API: cannot send both temperature and top_p (400 invalid_request_error).
+                return litellm.completion(
+                    model=forced_model,
+                    messages=call_payload.get("messages") or [],
+                    api_key=anthropic_key,
+                    temperature=call_payload.get("temperature", 0.25),
+                    max_tokens=call_payload.get("max_tokens", 400),
+                    tools=call_payload.get("tools"),
+                    tool_choice=call_payload.get("tool_choice"),
+                    # fallbacks=["gpt-4o", ...]  # TEMP: do not use — obscures Claude failures
+                )
+            except Exception as e:
+                print(f"❌ LiteLLM Anthropic local error type: {type(e)}")
+                traceback.print_exc()
+                raise
+        try:
+            return litellm.completion(**call_payload)
+        except Exception as e:
+            print(f"❌ LiteLLM local error type: {type(e)}")
+            traceback.print_exc()
+            raise
+
+    return _xray_litellm_call(payload)
+
+
+def get_dynamic_dialect_vocabulary_rules(resolved_dialect, output_language):
+    """Single active-market vocabulary wall for the sales agent. Only one branch runs so other dialects' rules never appear in the system prompt."""
+    ol = (output_language or "").strip().lower()
+    if ol == "en":
+        return (
+            "CRITICAL LANGUAGE RULE: You must respond ONLY in English. Do not output any Arabic words."
+        )
+    if ol == "fr":
+        return (
+            "CRITICAL LANGUAGE RULE: You must respond ONLY in French. Do not output any Arabic or English words."
+        )
+
+    d = (resolved_dialect or "").strip().lower()
+    if "english" in d:
+        return (
+            "CRITICAL LANGUAGE RULE: You must respond ONLY in English. Do not output any Arabic words."
+        )
+    if ("french" in d) or ("français" in d):
+        return (
+            "CRITICAL LANGUAGE RULE: You must respond ONLY in French. Do not output any Arabic or English words."
+        )
+    if ("moroccan" in d) or ("darija" in d):
+        return (
+            "CRITICAL DARIJA PERSONA & VOCABULARY OVERRIDE V2:\n"
+            "You are a local, authentic Moroccan e-commerce seller. You must speak 100% natural Moroccan Darija street language.\n"
+            "ABSOLUTE BANS (ZERO TOLERANCE):\n"
+            "- DO NOT use Egyptian/Levantine filler words: NEVER use 'تمام' (use 'مزيان' or 'كلشي هو هداك'), "
+            "NEVER use 'حد' (use 'شي واحد'), NEVER use 'عشان' (use 'باش').\n"
+            "- DO NOT use literal formal translations: NEVER say 'الشراء معانا' (use 'تقديتي من عندنا' or 'ثقتي فينا').\n"
+            "- PREVIOUSLY BANNED: 'حسناً', 'نوديه', 'نرسلوه' (use 'نصيفطوه'), 'بزاف قريب' (use 'دغيا').\n"
+            "Keep the tone friendly, brief, and distinctly Moroccan. Use emojis naturally, but do not overdo it."
+        )
+    if ("saudi" in d) or ("gulf" in d) or ("uae" in d) or ("emirates" in d):
+        return (
+            "CRITICAL SAUDI VOCABULARY: Speak authentic Saudi/Gulf Arabic. "
+            "Use terms like 'أبشر', 'سم', 'طال عمرك'. "
+            "FORBIDDEN: Never use any Moroccan, Egyptian, or Levantine words (like مزيان, ديالي, عاوز)."
+        )
+    return (
+        "CRITICAL: Output must stay strictly in the selected target language/dialect only. "
+        "Do not mix languages in the same response."
+    )
 
 
 def build_system_prompt(language_hint="auto"):
@@ -1082,15 +1204,6 @@ def _debug_print_sales_agent_system_prompt(messages, voice_dialect=None, voice_n
     for m in messages:
         if m.get("role") == "system":
             content = m.get("content") or ""
-            print("=" * 88)
-            print("[OpenAI Sales Agent] EXACT SYSTEM PROMPT (pre-request)")
-            print(
-                f"[meta] voice_dialect={voice_dialect!r} voice_notes_mode={voice_notes_mode!r} "
-                f"output_language={output_language!r}"
-            )
-            print("=" * 88)
-            print(content)
-            print("=" * 88)
             return
 
 
@@ -1260,6 +1373,29 @@ def _debug_print_sales_agent_system_prompt(messages, voice_dialect=None, voice_n
 # """.strip()
 
 
+ORDER_MODIFICATION_RULE = (
+    "ORDER MODIFICATION RULE: If the user provides specific delivery timing preferences, alternate contact numbers, "
+    "or special instructions for their active order, you MUST call the `update_order_notes` tool to save this information. "
+    "After the tool executes successfully, naturally confirm to the user that their request has been registered and passed to the delivery team."
+)
+
+SALES_PACING_FRAMEWORK_BLOCK = """CRITICAL SALES PACING & CONVERSATION FRAMEWORK:
+NEVER rush the sale or use a Hard Close (e.g., 'Do you want to order now?') in the first few messages. You must follow this sales psychology:
+1. BUILD VALUE FIRST: Before mentioning the price, briefly highlight 1 or 2 key benefits or ingredients of the product based on the context. Make the customer feel the product's worth.
+2. STATE THE PRICE: Present the price and any offers (like free shipping) naturally.
+3. SOFT CLOSE (LOW FRICTION): End your message with an engaging, low-pressure question to keep the conversation flowing. NEVER ask 'Do you want to buy?'. Instead, ask questions like:
+- 'واش عندك شي استفسار على طريقة الاستعمال؟' (Do you have questions about how to use it?)
+- 'واش فايت ليك جربتي شي مكمل بحالو؟' (Have you tried a similar supplement before?)
+- 'شنو هما الأعراض لي كتحس بيهم دابا؟' (What symptoms are you currently experiencing?)
+Only ask to register the order when the user explicitly shows high buying intent.
+
+CRITICAL CTA FREQUENCY & TACTICAL SILENCE:
+You are a confident, patient seller. You MUST NOT end every message with a Call To Action (CTA).
+- THE 'ANSWER ONLY' RULE: If the user asks a specific question (e.g., 'How to use it?', 'What are the benefits?', 'How much is it?'), your ONLY job is to answer that specific question naturally. DO NOT append questions like 'Should we register the order?' at the end. Stop talking and let the user digest the information.
+- WHEN TO CLOSE: Only ask for order details (Name/Phone/City) if the user gives a clear Buying Signal (e.g., 'I want it', 'Send it to me', 'I live in Casa').
+- If you just provided info, end with a friendly period, or a very soft conversational question related to their health/need, NEVER a sales push."""
+
+
 def _master_sales_closer_prompt(product_context, trust_score=0, sales_stage=None, sentiment=None, market=None, agent_name=None):
     product_block = (product_context or "General product.").strip()
     ts = max(0, min(10, int(trust_score) if trust_score is not None else 0))
@@ -1275,9 +1411,9 @@ def _master_sales_closer_prompt(product_context, trust_score=0, sales_stage=None
     # ROLE: Elite AI Sales Closer ({market_identity})
     You are {name}, a highly skilled, human-like sales representative for a premium e-commerce store. You are NOT a robot, and you never sound like an automated system.
 
+{SALES_PACING_FRAMEWORK_BLOCK}
 
-
-"CRITICAL CLOSING RULE: Never end a message with a period or a generic 'how can I help?'. Always end your message with a 'Tied-Down Question' that assumes the sale or moves the customer to the next micro-commitment.
+"CRITICAL CLOSING RULE: After the first few messages (or once the user shows high buying intent), never end on a dead stop or a generic 'how can I help?'. Prefer a 'Tied-Down Question' that moves the customer to the next micro-commitment. In early messages, obey the SALES PACING block above: value first, then price, then a SOFT low-friction question—no 'order now' hard close.
 Example (Bad): 'The price is 199 MAD.'
 Example (Good): 'It's 199 MAD, and we have free shipping today. Which color do you prefer, black or silver?'"
 
@@ -1315,8 +1451,8 @@ You are a ruthless but polite SALES CLOSER, not a customer support bot.
    - "واش عندك شي سؤال آخر؟" / "Do you have any other questions?"
    - "إلا احتاجيتي شي حاجة أنا هنا" / "If you need anything I'm here"
    - Any variation of these in ANY language. These are SUPPORT phrases. You are NOT support.
-2. **ALWAYS ASSUME THE SALE:** Every single message you send MUST end with a Call To Action (CTA) or a Tied-Down Question that moves the customer closer to BUYING. No exceptions.
-3. **GOOD ENDINGS (use these patterns — vary the wording):**
+2. **PACING THEN CLOSE:** Follow **CRITICAL SALES PACING** and **CRITICAL CTA FREQUENCY & TACTICAL SILENCE** above: no hard close or order-registration ask until buying intent. Do NOT append order CTAs to messages that only answer the user's question (ANSWER ONLY rule). Use a CTA or Tied-Down Question only when the user signals purchase intent or you are clearly in the consent/order-collection phase—never on every turn. Never use generic support closings listed in item 1.
+3. **GOOD ENDINGS — ORDER CTAs (only after interest is warm; not for message 1–2 cold pitches — vary the wording):**
    - "واش نسجلو ليك الطلب دابا؟" (Shall we register your order now?)
    - "واش بغيتي نصيفطو ليك حبة ولا جوج؟" (Want us to send one or two?)
    - "خلي ليا غير سميتك ورقم التيليفون باش نأكدو ليك الطلبية." (Just leave your name and phone to confirm.)
@@ -1436,7 +1572,10 @@ SALES_AGENT_SYSTEM_PROMPT = (
     f"""
    # ROLE: Universal AI Sales Concierge
 You are a highly professional, warm, and street-smart sales assistant for a premium e-commerce store. Your ultimate goal is to close sales and provide instant, helpful answers.
-"CRITICAL CLOSING RULE: Never end a message with a period or a generic 'how can I help?'. Always end your message with a 'Tied-Down Question' that assumes the sale or moves the customer to the next micro-commitment.
+
+{SALES_PACING_FRAMEWORK_BLOCK}
+
+"CRITICAL CLOSING RULE: After the first few messages (or once the user shows high buying intent), never end on a dead stop or a generic 'how can I help?'. Prefer a 'Tied-Down Question' that moves the customer to the next micro-commitment. In early messages, obey the SALES PACING block above: value first, then price, then a SOFT low-friction question—no 'order now' hard close.
 Example (Bad): 'The price is 199 MAD.'
 Example (Good): 'It's 199 MAD, and we have free shipping today. Which color do you prefer, black or silver?'"
 
@@ -1483,8 +1622,8 @@ You are a ruthless but polite SALES CLOSER, not a customer support bot.
    - "واش عندك شي سؤال آخر؟" / "Do you have any other questions?"
    - "إلا احتاجيتي شي حاجة أنا هنا" / "If you need anything I'm here"
    - Any variation of these in ANY language. These are SUPPORT phrases. You are NOT support.
-2. **ALWAYS ASSUME THE SALE:** Every single message you send MUST end with a Call To Action (CTA) or a Tied-Down Question that moves the customer closer to BUYING. No exceptions.
-3. **GOOD ENDINGS (use these patterns — vary the wording):**
+2. **PACING THEN CLOSE:** Follow **CRITICAL SALES PACING** and **CRITICAL CTA FREQUENCY & TACTICAL SILENCE** above: no hard close or order-registration ask until buying intent. Do NOT append order CTAs to messages that only answer the user's question (ANSWER ONLY rule). Use a CTA or Tied-Down Question only when the user signals purchase intent or you are clearly in the consent/order-collection phase—never on every turn. Never use generic support closings listed in item 1.
+3. **GOOD ENDINGS — ORDER CTAs (only after interest is warm; not for message 1–2 cold pitches — vary the wording):**
    - "واش نسجلو ليك الطلب دابا؟" (Shall we register your order now?)
    - "واش بغيتي نصيفطو ليك حبة ولا جوج؟" (Want us to send one or two?)
    - "خلي ليا غير سميتك ورقم التيليفون باش نأكدو ليك الطلبية." (Just leave your name and phone to confirm.)
@@ -1606,13 +1745,13 @@ SEARCH_PRODUCTS_TOOL = {
     "type": "function",
     "function": {
         "name": "search_products",
-        "description": "Search the store catalog for products matching the customer's request. Call when the customer asks if we have a product (e.g. 'do you have moringa?', 'واش كاين موريغا؟') or what we have similar to X. Returns the closest matching products we have. If we don't have the exact product, use this to find and suggest the closest alternatives (e.g. same category or similar use).",
+        "description": "Search the store catalog and return real products we actually have. If customer asks generic availability (e.g. 'what products do you have?'), call with empty query ''. Use query text only when customer asks about a specific product by name/keyword. Never invent product names.",
         "parameters": {
             "type": "object",
             "properties": {
-                "query": {"type": "string", "description": "What the customer is looking for (e.g. 'moringa supplement', 'vitamin D', 'perfume for men')."},
+                "query": {"type": "string", "description": "Specific product search text. Leave empty ('') for full/available catalog listing."},
             },
-            "required": ["query"],
+            "required": [],
         },
     },
 }
@@ -1855,6 +1994,38 @@ ADD_UPSELL_TO_ORDER_TOOL = {
     },
 }
 
+UPDATE_ORDER_NOTES_TOOL = {
+    "type": "function",
+    "function": {
+        "name": "update_order_notes",
+        "description": (
+            "After an order is already placed, save the customer's new instructions on that order "
+            "(delivery time window, alternate phone, gate code, etc.). "
+            "Requires order_id from session context (same as upsell). "
+            "Always call this when the user gives actionable delivery/contact instructions for their existing order."
+        ),
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "order_id": {
+                    "type": "string",
+                    "description": "The active order's ID (from context, e.g. last_order_id).",
+                },
+                "note_category": {
+                    "type": "string",
+                    "enum": ["delivery_time", "alternate_phone", "general_instruction"],
+                    "description": "delivery_time | alternate_phone | general_instruction",
+                },
+                "note_content": {
+                    "type": "string",
+                    "description": "Full instruction text to store (e.g. 'Deliver in the morning before 10 AM', 'Alternate phone: 0656343423').",
+                },
+            },
+            "required": ["order_id", "note_category", "note_content"],
+        },
+    },
+}
+
 SALES_AGENT_TOOLS = [
     SAVE_ORDER_TOOL,
     CHECK_STOCK_TOOL,
@@ -1866,6 +2037,7 @@ SALES_AGENT_TOOLS = [
     SUBMIT_CUSTOMER_ORDER_TOOL,
     UPDATE_LEAD_STATUS_TOOL,
     ADD_UPSELL_TO_ORDER_TOOL,
+    UPDATE_ORDER_NOTES_TOOL,
 ]
 
 
@@ -2095,6 +2267,23 @@ Once the customer agrees to a price, stop negotiating immediately. Swiftly trans
 """.strip()
 
 
+def _coreference_pronoun_anchor_system_block(active_product_name: str) -> str:
+    """
+    Forces LLM to resolve pronouns (it/its/صورته/سعره) to the current active product without
+    asking the user to name the product again.
+    """
+    name = (active_product_name or "").strip()
+    if not name:
+        return ""
+    return (
+        "COREFERENCE & PRONOUN ANCHOR: The user's CURRENT ACTIVE PRODUCT is "
+        f"[{name}]. \n"
+        "CRITICAL RULE: If the user uses any pronouns (like 'it', 'its', 'this', 'that', 'صورته', 'سعره', 'تفاصيله') or asks a generic question without naming a product, you MUST ASSUME absolute certainty that they are referring to "
+        f"[{name}]. \n"
+        "FORBIDDEN: You are strictly PROHIBITED from asking the user 'Which product are you referring to?' or 'What is the product name?'. Use the active product context to answer immediately."
+    )
+
+
 def _french_bot_language_prefix(voice_notes_mode: bool) -> str:
     """Strict French corporate override; takes priority over Arabic voice-dialect prompts."""
     tts_note = ""
@@ -2111,7 +2300,7 @@ def _french_bot_language_prefix(voice_notes_mode: bool) -> str:
     )
 
 
-def build_messages_payload_sales(conversation_messages, custom_instruction=None, product_context=None, trust_score=0, media_context=None, state_header=None, sales_stage=None, sentiment=None, market=None, agent_name=None, customer_phone=None, override_rules=None, required_order_fields=None, checkout_mode_label=None, product_id=None, merchant_id=None, voice_dialect=None, voice_notes_mode=False, voice_script_style=False, output_language=None, memory_summary=None, node_dialect_locked=False, node_language_code=None, node=None, bot_settings=None, target_dialect=None):
+def build_messages_payload_sales(conversation_messages, custom_instruction=None, product_context=None, trust_score=0, media_context=None, state_header=None, sales_stage=None, sentiment=None, market=None, agent_name=None, customer_phone=None, override_rules=None, required_order_fields=None, checkout_mode_label=None, product_id=None, merchant_id=None, voice_dialect=None, voice_notes_mode=False, voice_script_style=False, output_language=None, memory_summary=None, node_dialect_locked=False, node_language_code=None, node=None, bot_settings=None, target_dialect=None, pronoun_anchor_product_name=None):
     """Build messages for the sales agent. Uses Elite Sales Consultant prompt when product_context is set (with trust_score, sales_stage, sentiment, market, agent_name).
     state_header: optional for session continuity. market: 'MA' or 'SA'. agent_name: e.g. Chuck or persona name so the AI thinks as that human.
     customer_phone: active WhatsApp number of the customer; injected as system note so the AI can use it when they say 'same number' / نفس الرقم.
@@ -2125,7 +2314,8 @@ def build_messages_payload_sales(conversation_messages, custom_instruction=None,
     node_dialect_locked: deprecated compatibility arg (ignored by dialect routing engine).
     node_language_code: deprecated compatibility arg (ignored when ``node`` is provided).
     node: active flow node used by intelligent model routing.
-    bot_settings: global channel/bot settings dict (fallback when node has no language)."""
+    bot_settings: global channel/bot settings dict (fallback when node has no language).
+    pronoun_anchor_product_name: display name for strict coreference rules (session active product / order)."""
     catalog_is_empty = _is_catalog_empty_for_merchant(merchant_id=merchant_id)
     admin_rules_prefix = ""
     if override_rules and (override_rules or "").strip():
@@ -2141,11 +2331,19 @@ def build_messages_payload_sales(conversation_messages, custom_instruction=None,
             (rules_text[:100] + "…") if len(rules_text) > 100 else rules_text,
         )
     resolved_dialect = (target_dialect or "").strip() or "Standard Arabic"
+    quarantine_rule = get_dynamic_dialect_vocabulary_rules(resolved_dialect, output_language)
     language_rule_prefix = (
         "STRICT PERSONA WALL: "
         f"You are a local sales assistant operating EXCLUSIVELY in {resolved_dialect}. "
         f"You MUST mentally translate any context, product descriptions, or user messages into authentic {resolved_dialect} before replying. "
-        "Do NOT use formal Standard Arabic (Fus'ha) unless requested. Be conversational, culturally accurate, and brief.\n\n---\n\n"
+        "Do NOT use formal Standard Arabic (Fus'ha) unless requested. Be conversational, culturally accurate, and brief.\n"
+        "\n"
+        "CRITICAL TTS RULE (NO DIGITS ALLOWED):\n"
+        "Because your output is converted directly to speech, you are FORBIDDEN from using any numerical digits (0-9). \n"
+        f"You MUST spell out all numbers, prices, quantities, and times completely in words, strictly using the {resolved_dialect} vocabulary. \n"
+        "- Example: NEVER write '150 درهم'. Instead, write 'مية وخمسين درهم' (if Moroccan) or 'مية وخمسين ريال' (if Saudi).\n"
+        "- Example: NEVER write '2'. Instead, write 'جوج' (Moroccan) or 'اثنين' (Saudi).\n"
+        "This is absolute. Treat digits as illegal characters.\n\n---\n\n"
     )
     if product_context and (product_context or "").strip():
         system = _master_sales_closer_prompt(
@@ -2164,6 +2362,9 @@ def build_messages_payload_sales(conversation_messages, custom_instruction=None,
                 f"You are {name}, a human sales rep. Think and respond as a real person, not a bot. "
                 "Never say you are an AI or assistant. Write like a human on WhatsApp.\n\n"
             ) + system
+    _anchor_block = _coreference_pronoun_anchor_system_block(pronoun_anchor_product_name or "")
+    if _anchor_block:
+        system = system + "\n\n" + _anchor_block
     if voice_script_style:
         mode_line = (
             "AUDIO SCRIPT MODE: Write a highly conversational, flowing script. Use human filler words. "
@@ -2178,7 +2379,13 @@ def build_messages_payload_sales(conversation_messages, custom_instruction=None,
     lang_prefix = ""
     if output_language == "fr":
         lang_prefix = _french_bot_language_prefix(voice_notes_mode)
-    system = admin_rules_prefix + language_rule_prefix + lang_prefix + mode_line + system
+    catalog_truth_prefix = (
+        "CATALOG TRUTH POLICY:\n"
+        "- If customer asks generic availability (what products do you have), call search_products with empty query ('') before naming any product.\n"
+        "- Use search_products(query) only when customer asks for a specific product by name/keyword.\n"
+        "- Never mention product names that are not returned by search_products or fixed product_context.\n\n---\n\n"
+    )
+    system = admin_rules_prefix + language_rule_prefix + catalog_truth_prefix + lang_prefix + mode_line + system
     # Remove legacy dialect-lock/matrix lines to keep routing model-agnostic and avoid contamination.
     system = _strip_moroccan_default_instructions_for_tts(system)
     if memory_summary and str(memory_summary).strip():
@@ -2230,6 +2437,7 @@ def build_messages_payload_sales(conversation_messages, custom_instruction=None,
             "(e.g. same number, نفس الرقم, نمرتي هادي, yes, اللي كاين) that they want to use their current chatting number. "
             "Do not ask again — pass this number into the phone_number parameter.]"
         )
+    system += "\n\n" + ORDER_MODIFICATION_RULE
     system += (
         "\n\n[SALES_BASE_RULES - MEDIA TOOL — ABSOLUTE RULE]\n"
         "🚫 FORBIDDEN — NEVER DO THIS:\n"
@@ -2298,6 +2506,8 @@ def build_messages_payload_sales(conversation_messages, custom_instruction=None,
             "It is STRICTLY FORBIDDEN to ask for their city, address, or location. "
             "Once you have the name and phone, you MUST call the tool immediately."
         )
+    # Language quarantine wall MUST be first line before any other system context.
+    system = quarantine_rule + "\n\n" + system
 
     recent_messages = _trim_conversation_messages(conversation_messages, limit=MAX_CHAT_HISTORY_MESSAGES)
     messages = [{"role": "system", "content": system}]
@@ -2349,7 +2559,7 @@ def parse_and_strip_stage(reply_text):
     return (cleaned, stage)
 
 
-def generate_reply_with_tools(conversation_messages, custom_instruction=None, product_context=None, trust_score=0, media_context=None, state_header=None, sales_stage=None, sentiment=None, market=None, agent_name=None, model=None, customer_phone=None, override_rules=None, required_order_fields=None, checkout_mode_label=None, product_id=None, merchant_id=None, voice_dialect=None, voice_notes_mode=False, voice_script_style=False, output_language=None, memory_summary=None, node_dialect_locked=False, node_language_code=None, node=None, bot_settings=None):
+def generate_reply_with_tools(conversation_messages, custom_instruction=None, product_context=None, trust_score=0, media_context=None, state_header=None, sales_stage=None, sentiment=None, market=None, agent_name=None, model=None, customer_phone=None, override_rules=None, required_order_fields=None, checkout_mode_label=None, product_id=None, merchant_id=None, voice_dialect=None, voice_notes_mode=False, voice_script_style=False, output_language=None, memory_summary=None, node_dialect_locked=False, node_language_code=None, node=None, bot_settings=None, channel=None, pronoun_anchor_product_name=None):
     """
     Call OpenAI with sales tools. When product_context is set, uses Elite Sales Consultant prompt with trust_score, sales_stage, sentiment, market, agent_name.
     market: 'MA' or 'SA'. agent_name: e.g. Chuck or persona name — AI responds as this human, not as a bot.
@@ -2361,8 +2571,8 @@ def generate_reply_with_tools(conversation_messages, custom_instruction=None, pr
     output_language: None | 'fr' | 'ar' | 'en' from channel settings (French skips Arabic dialect prompts).
     memory_summary: summarized key customer facts from older conversation history.
     """
-    routed_model, target_dialect = resolve_ai_brain(node, customer_phone)
-    model = model or routed_model
+    routed_model, target_dialect = resolve_ai_brain(node, customer_phone, channel=channel, bot_settings=bot_settings)
+    model = _normalize_litellm_model_name(model or routed_model)
     _prepare_litellm_provider_key(model)
     messages = build_messages_payload_sales(
         conversation_messages,
@@ -2391,6 +2601,7 @@ def generate_reply_with_tools(conversation_messages, custom_instruction=None, pr
         node=node,
         bot_settings=bot_settings,
         target_dialect=target_dialect,
+        pronoun_anchor_product_name=pronoun_anchor_product_name,
     )
     # Static tools: submit_customer_order now has a fixed, safe schema (no dynamic override)
     tools = list(SALES_AGENT_TOOLS)
@@ -2399,7 +2610,8 @@ def generate_reply_with_tools(conversation_messages, custom_instruction=None, pr
         "model": model,
         "messages": messages,
         "max_tokens": 400,
-        "temperature": 0.6,
+        "temperature": 0.25,
+        "top_p": 0.9,
         "tools": tools,
         "tool_choice": "auto",
     }
@@ -2412,7 +2624,7 @@ def generate_reply_with_tools(conversation_messages, custom_instruction=None, pr
     )
 
     try:
-        response = completion(**payload)
+        response = _litellm_completion_with_model_fallback(payload)
     except Exception as e:
         raise RuntimeError(f"LiteLLM completion failed: {e}")
 
@@ -2452,7 +2664,7 @@ def generate_reply_with_tools(conversation_messages, custom_instruction=None, pr
         except Exception as e:
             logger.warning("parse tool %s arguments: %s", name, e)
             continue
-        if name in ("save_order", "check_stock", "apply_discount", "record_order", "track_order", "search_products", "send_product_media", "submit_customer_order", "update_lead_status", "add_upsell_to_existing_order"):
+        if name in ("save_order", "check_stock", "apply_discount", "record_order", "track_order", "search_products", "send_product_media", "submit_customer_order", "update_lead_status", "add_upsell_to_existing_order", "update_order_notes"):
             tool_calls.append({"name": name, "arguments": args})
     msg["tool_calls"] = normalized_tool_calls
     usage_obj = getattr(response, "usage", None) or {}
@@ -2465,6 +2677,10 @@ def generate_reply_with_tools(conversation_messages, custom_instruction=None, pr
     # Strip [HANDOVER] and set flag for HITL (human-in-the-loop)
     reply_clean, handover_reason = parse_and_strip_handover(reply_clean)
 
+    _m = (model or "").strip() or "unknown"
+    logger.info("AI sales agent reply model: %s", _m)
+    print(f"🤖 AI reply model: {_m}")
+
     return {
         "reply": reply_clean,
         "stage": stage,
@@ -2475,6 +2691,7 @@ def generate_reply_with_tools(conversation_messages, custom_instruction=None, pr
         "prompt_tokens": usage.get("prompt_tokens", 0),
         "completion_tokens": usage.get("completion_tokens", 0),
         "model": model,
+        "target_dialect": target_dialect,
     }
 
 
@@ -2492,6 +2709,7 @@ def continue_after_tool_calls(
     market=None,
     agent_name=None,
     model=None,
+    inherited_target_dialect=None,
     customer_phone=None,
     override_rules=None,
     product_id=None,
@@ -2505,14 +2723,25 @@ def continue_after_tool_calls(
     node_language_code=None,
     node=None,
     bot_settings=None,
+    channel=None,
+    pronoun_anchor_product_name=None,
 ):
     """
     After the model returned tool_calls (e.g. check_stock, apply_discount), send tool results and get the final reply.
     first_assistant_message: dict from OpenAI with "content" and "tool_calls" (each with "id").
     tool_results: list of dicts {"tool_call_id": "...", "content": "result text"}.
+    model: pass the model string returned by generate_reply_with_tools for this turn (tool-loop inheritance).
+    inherited_target_dialect: pass target_dialect from the same turn so prompts stay aligned with the router.
     """
-    routed_model, target_dialect = resolve_ai_brain(node, customer_phone)
-    model = model or routed_model
+    routed_model, default_target_dialect = resolve_ai_brain(node, customer_phone, channel=channel, bot_settings=bot_settings)
+    if model is not None and str(model).strip():
+        model = _normalize_litellm_model_name(model)
+    else:
+        model = _normalize_litellm_model_name(routed_model)
+    if inherited_target_dialect is not None and str(inherited_target_dialect).strip():
+        target_dialect = str(inherited_target_dialect).strip()
+    else:
+        target_dialect = default_target_dialect
     _prepare_litellm_provider_key(model)
     messages = build_messages_payload_sales(
         conversation_messages,
@@ -2539,6 +2768,7 @@ def continue_after_tool_calls(
         node=node,
         bot_settings=bot_settings,
         target_dialect=target_dialect,
+        pronoun_anchor_product_name=pronoun_anchor_product_name,
     )
     assistant_msg = {
         "role": "assistant",
@@ -2554,7 +2784,8 @@ def continue_after_tool_calls(
         "model": model,
         "messages": messages,
         "max_tokens": 400,
-        "temperature": 0.6,
+        "temperature": 0.25,
+        "top_p": 0.9,
         "tools": SALES_AGENT_TOOLS,
         "tool_choice": "auto",
     }
@@ -2565,7 +2796,7 @@ def continue_after_tool_calls(
         messages, voice_dialect=voice_dialect, voice_notes_mode=voice_notes_mode, output_language=output_language
     )
     try:
-        response = completion(**payload)
+        response = _litellm_completion_with_model_fallback(payload)
     except Exception as e:
         raise RuntimeError(f"LiteLLM completion failed: {e}")
     choice0 = response.choices[0] if getattr(response, "choices", None) else {}
@@ -2604,7 +2835,7 @@ def continue_after_tool_calls(
         except Exception as e:
             logger.warning("parse tool %s arguments: %s", name, e)
             continue
-        if name in ("save_order", "check_stock", "apply_discount", "record_order", "track_order", "search_products", "send_product_media", "submit_customer_order", "update_lead_status", "add_upsell_to_existing_order"):
+        if name in ("save_order", "check_stock", "apply_discount", "record_order", "track_order", "search_products", "send_product_media", "submit_customer_order", "update_lead_status", "add_upsell_to_existing_order", "update_order_notes"):
             tool_calls.append({"name": name, "arguments": args})
     msg["tool_calls"] = normalized_tool_calls
     usage_obj = getattr(response, "usage", None) or {}
@@ -2614,6 +2845,11 @@ def continue_after_tool_calls(
     }
     reply_clean, stage = parse_and_strip_stage(reply_text)
     reply_clean, handover_reason = parse_and_strip_handover(reply_clean)
+
+    _m = (model or "").strip() or "unknown"
+    logger.info("AI sales agent reply model (after tool_calls): %s", _m)
+    print(f"🤖 AI reply model (after tool_calls): {_m}")
+
     return {
         "reply": reply_clean,
         "stage": stage,
@@ -2623,4 +2859,5 @@ def continue_after_tool_calls(
         "prompt_tokens": usage.get("prompt_tokens", 0),
         "completion_tokens": usage.get("completion_tokens", 0),
         "model": model,
+        "target_dialect": target_dialect,
     }

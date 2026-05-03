@@ -1057,6 +1057,9 @@ color:#ede9e9 !important;
  
 
 <div class="main-content-area">
+    {# Targets for marketing analytics script (fetchAndRenderRecommendations); hidden on WhatsApp-first layout #}
+    <div id="platformComparisons" style="display:none;" aria-hidden="true"></div>
+    <div id="recommendations" style="display:none;" aria-hidden="true"></div>
     {% if request.user.is_superuser %}
         <nav class="page-tabs-nav">
             <a class="nav-link active" href="#" id="whatssap_API_cloud" class="btn nav-link2" data-section="future-whatssap_API">Whatssapp</a>
@@ -1993,15 +1996,7 @@ color:#ede9e9 !important;
         
           // ----------------- Init on DOM ready -----------------
           document.addEventListener('DOMContentLoaded', function(){
-            // ensure DOM elements exist
-            if (!document.getElementById('platformComparisons')) {
-              console.warn('Missing #platformComparisons element — create it in your HTML to show platform comparisons.');
-            }
-            if (!document.getElementById('recommendations')) {
-              console.warn('Missing #recommendations element — create it in your HTML to show recommendations.');
-            }
-        
-            // initial fetch
+            // initial fetch (containers live in .main-content-area above)
             fetchAndRenderRecommendations();
         
             // wire refresh button if exists

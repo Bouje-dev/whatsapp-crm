@@ -301,7 +301,14 @@ const ChatSocket = {
             const chMatch = !curCh || !sidebarChannelId || (curCh === sidebarChannelId);
 
             if (chMatch && typeof window.updateContactItemSingle === 'function') {
-                const existingItem = document.querySelector(`.cls3741_contact_item[data-phone="${contactData.phone}"]`);
+                let existingItem = null;
+                document.querySelectorAll('.cls3741_contact_item').forEach(function (node) {
+                    if (existingItem) return;
+                    const dp = node.getAttribute('data-phone');
+                    if (dp === contactData.phone || (typeof window.contactPhonesMatch === 'function' && window.contactPhonesMatch(dp, contactData.phone))) {
+                        existingItem = node;
+                    }
+                });
                 if (existingItem) {
                     if (!contactData.name || contactData.name === contactData.phone) {
                         contactData.name = existingItem.getAttribute('data-name');
@@ -364,10 +371,17 @@ const ChatSocket = {
                                 ? window.getCurrentChatPhone() 
                                 : null;
 
-            // Only append the message to the chat area if same channel AND same phone
-            if (isCurrentChannel && activePhone && (activePhone == payload.contact.phone)) { 
+            const openMatchesIncoming =
+                activePhone &&
+                payload.contact.phone &&
+                (typeof window.contactPhonesMatch === 'function'
+                    ? window.contactPhonesMatch(activePhone, payload.contact.phone)
+                    : String(activePhone).replace(/\D/g, '') === String(incomingPhone).replace(/\D/g, ''));
+
+            // Only append the message to the chat area if same channel AND same phone (formats may differ)
+            if (isCurrentChannel && openMatchesIncoming) {
                 if (typeof window.appendMessagesws === 'function') {
-                    window.appendMessagesws([payload.message]); 
+                    window.appendMessagesws([payload.message]);
                 }
                 if (payload.message && !payload.message.fromMe && typeof window.dismissSendErrorBannerForChat === 'function') {
                     window.dismissSendErrorBannerForChat(payload.contact.phone);

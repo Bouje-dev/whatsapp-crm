@@ -1767,6 +1767,55 @@ def _message_to_chat_dict(m, request):
     }
 
 
+def _digits_only_phone(s):
+    return re.sub(r"\D", "", (s or ""))
+
+
+def _resolve_message_sender_for_channel(channel, phone_param):
+    """
+    Message.sender may not match the UI phone string (with/without +, national vs international).
+    Resolve to the sender value actually stored on Message rows so we mark the right rows read.
+    """
+    raw = (phone_param or "").strip()
+    if not raw:
+        return raw
+    dq = _digits_only_phone(raw)
+    if not dq:
+        return raw
+    if Message.objects.filter(channel=channel, sender=raw).exists():
+        return raw
+    best = None
+    for s in (
+        Message.objects.filter(channel=channel)
+        .values_list("sender", flat=True)
+        .distinct()
+    ):
+        sd = _digits_only_phone(str(s))
+        if not sd:
+            continue
+        if sd == dq:
+            return str(s)
+        if len(dq) >= 9 and len(sd) >= 9 and (
+            sd.endswith(dq[-9:]) or dq.endswith(sd[-9:])
+        ):
+            best = str(s)
+    return best if best else raw
+
+
+def _contact_for_channel_phone(channel, phone_param, resolved_sender):
+    """CRM lookup when Contact.phone uses the same or a different format."""
+    c = Contact.objects.filter(channel=channel, phone=resolved_sender).first()
+    if c:
+        return c
+    dq = _digits_only_phone(phone_param or resolved_sender or "")
+    if not dq:
+        return None
+    for row in Contact.objects.filter(channel=channel):
+        if _digits_only_phone(row.phone) == dq:
+            return row
+    return None
+
+
 @require_GET
 def get_messages1(request):
     """
@@ -1806,7 +1855,8 @@ def get_messages1(request):
     except (WhatsAppChannel.DoesNotExist, ValueError, TypeError):
         return JsonResponse(empty)
 
-    qs_base = Message.objects.filter(sender=phone, channel=channel)
+    resolved_sender = _resolve_message_sender_for_channel(channel, phone)
+    qs_base = Message.objects.filter(sender=resolved_sender, channel=channel)
 
     # --- Incremental: only new messages after since_id (skip pagination) ---
     since_val = None
@@ -1853,7 +1903,7 @@ def get_messages1(request):
 
     contact_crm_data = {}
     if not tracking and before_val is None:
-        contact = Contact.objects.filter(channel=channel, phone=phone).first()
+        contact = _contact_for_channel_phone(channel, phone, resolved_sender)
         if contact:
             contact_crm_data = {
                 'pipeline_stage': contact.pipeline_stage if contact.pipeline_stage else None,
@@ -1985,7 +2035,11 @@ def api_contacts2(request):
             conversations = conversations.filter(unread_count__gt=0)
 
         # 7. الترقيم (Pagination)
-        paginator = Paginator(conversations, 10) 
+        try:
+            page_size = max(1, min(50, int(request.GET.get("page_size", 10))))
+        except (TypeError, ValueError):
+            page_size = 10
+        paginator = Paginator(conversations, page_size)
         page_number = request.GET.get('page', 1)
         page_obj = paginator.get_page(page_number)
 

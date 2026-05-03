@@ -95,6 +95,12 @@ def update_channel_settings(request):
         except (TypeError, ValueError):
             channel.voice_delay_seconds = 20
         channel.ai_order_capture = request.POST.get('ai_order_capture') != 'off'  # default True
+        if hasattr(channel, "ai_llm_engine"):
+            _eng = (request.POST.get("ai_llm_engine") or "AUTO").strip().upper()
+            if _eng in ("AUTO", "GPT_4O", "CLAUDE_3_5"):
+                channel.ai_llm_engine = _eng
+            else:
+                channel.ai_llm_engine = "AUTO"
         if hasattr(channel, 'order_notify_method'):
             channel.order_notify_method = (request.POST.get('order_notify_method') or '').strip() or ''
             if channel.order_notify_method not in ('', 'EMAIL', 'WHATSAPP'):
@@ -182,6 +188,7 @@ def update_channel_settings(request):
                 'voice_gender': getattr(channel, 'voice_gender', 'FEMALE'),
                 'voice_delay_seconds': getattr(channel, 'voice_delay_seconds', 20),
                 'ai_order_capture': getattr(channel, 'ai_order_capture', True),
+                'ai_llm_engine': getattr(channel, 'ai_llm_engine', 'AUTO') or 'AUTO',
                 'voice_cloning_enabled': getattr(channel, 'voice_cloning_enabled', False),
             }
         }
@@ -619,6 +626,7 @@ def get_channel_settings(request):
             'voice_gender': getattr(channel, 'voice_gender', 'FEMALE'),
             'voice_delay_seconds': getattr(channel, 'voice_delay_seconds', 20),
             'ai_order_capture': getattr(channel, 'ai_order_capture', True),
+            'ai_llm_engine': getattr(channel, 'ai_llm_engine', 'AUTO') or 'AUTO',
             'order_notify_method': getattr(channel, 'order_notify_method', '') or '',
             'order_notify_email': getattr(channel, 'order_notify_email', '') or '',
             'order_notify_whatsapp_phone': getattr(channel, 'order_notify_whatsapp_phone', '') or '',

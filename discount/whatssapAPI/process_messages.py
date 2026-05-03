@@ -1289,6 +1289,56 @@ def _get_node_bound_product(node, channel):
         return None
 
 
+def _resolve_pronoun_anchor_product_name(channel, customer_phone, session, current_node, store_owner):
+    """
+    Display name for COREFERENCE & PRONOUN ANCHOR in the system prompt.
+    Priority: ChatSession.active_product (persists on the unique channel+phone row across inactive windows),
+    node-bound catalog product, then last non-cancelled SimpleOrder (e.g. customer returns next day).
+    """
+    if not channel or not customer_phone:
+        return None
+    sess = session
+    if sess is None:
+        try:
+            sess = (
+                ChatSession.objects.filter(channel=channel, customer_phone=customer_phone)
+                .select_related("active_product")
+                .first()
+            )
+        except Exception:
+            sess = None
+    ap = getattr(sess, "active_product", None) if sess else None
+    if ap is not None:
+        n = (getattr(ap, "name", None) or "").strip()
+        if n:
+            return n
+    np = _get_node_bound_product(current_node, channel) if current_node else None
+    if np is not None:
+        n = (getattr(np, "name", None) or "").strip()
+        if n:
+            return n
+    if store_owner:
+        try:
+            o = (
+                SimpleOrder.objects.filter(channel=channel, customer_phone=(customer_phone or "").strip())
+                .exclude(status="cancelled")
+                .select_related("product")
+                .order_by("-created_at")
+                .first()
+            )
+            if o:
+                if getattr(o, "product_id", None) and o.product:
+                    n = (getattr(o.product, "name", None) or "").strip()
+                    if n:
+                        return n
+                n = (getattr(o, "product_name", None) or "").strip()
+                if n:
+                    return n
+        except Exception:
+            pass
+    return None
+
+
 def get_active_session(channel, customer_phone):
     """Return active ChatSession for (channel, customer_phone) if not expired and within 24h."""
     if not channel or not customer_phone:
@@ -1334,6 +1384,7 @@ def _touch_session_last_interaction(channel, customer_phone):
 # AI Sentinel — cheap intent checkpoint after N consecutive user messages
 # ---------------------------------------------------------------------------
 SENTINEL_USER_MESSAGE_THRESHOLD = 5
+SENTINEL_GRACE_MESSAGE_EXCHANGE_MIN = 10
 SENTINEL_SPAM_FALLBACK_TEXT = (
     "يبدو أن استفساراتك تحتاج لمتابعة خاصة. لقد قمت بتحويل محادثتك لفريق العمل للرد عليك في أقرب وقت."
 )
@@ -1364,6 +1415,29 @@ def _get_last_n_customer_message_bodies(sender, channel, n=5):
     """Last n inbound customer messages (exclude agent replies), oldest first."""
     if not sender or not channel:
         return []
+
+
+def _session_message_exchange_count(channel, sender):
+    """
+    Count exchanged chat messages within current session window (24h).
+    Excludes internal notes so tester exploration isn't flagged too early.
+    """
+    if not channel or not sender:
+        return 0
+    try:
+        cutoff = timezone.now() - timedelta(hours=SESSION_TIMEOUT_HOURS)
+        return (
+            Message.objects.filter(
+                channel=channel,
+                sender=sender,
+                timestamp__gte=cutoff,
+            )
+            .exclude(is_internal=True)
+            .count()
+        )
+    except Exception as e:
+        logger.warning("_session_message_exchange_count: %s", e)
+        return 0
     try:
         qs = Message.objects.filter(sender=sender, channel=channel, is_from_me=False).order_by("-timestamp")[
             : max(1, int(n))
@@ -1493,6 +1567,11 @@ def _sentinel_checkpoint(channel, sender, skip=False):
             cnt = session.consecutive_user_messages
 
             if cnt < SENTINEL_USER_MESSAGE_THRESHOLD:
+                session.save(update_fields=["consecutive_user_messages"])
+                return "proceed"
+
+            exchanged_count = _session_message_exchange_count(channel, sender)
+            if exchanged_count < SENTINEL_GRACE_MESSAGE_EXCHANGE_MIN:
                 session.save(update_fields=["consecutive_user_messages"])
                 return "proceed"
 
@@ -2012,19 +2091,39 @@ def search_channel_products(channel, query, top_n=5):
     Used when the customer asks "do you have X?" — if we don't have X exactly, return the closest products we have.
     Returns a string for the AI (list of product names, prices, and why they're relevant).
     """
-    if not channel or not query or not str(query).strip():
-        return "No search query provided."
+    if not channel:
+        return "Store not configured."
     owner = getattr(channel, "owner", None)
     if not owner:
         return "Store not configured."
-    q = str(query).strip().lower()
-    words = [w for w in re.split(r"\s+", q) if len(w) >= 2]
-    if not words:
-        return "Query too short. Use 2+ characters or words."
+    q = str(query or "").strip().lower()
     try:
         products = list(Products.objects.filter(admin=owner).order_by("name")[:200])
         if not products:
             return "The store has no products in the catalog."
+        # Empty query means customer asked generic catalog question ("what products do you have?")
+        if not q:
+            lines = ["Available products in the store catalog:\n"]
+            for p in products[: max(1, int(top_n))]:
+                name = (getattr(p, "name", None) or "").strip() or "Unnamed"
+                price = getattr(p, "price", None)
+                currency = (getattr(p, "currency", None) or "MAD").strip() or "MAD"
+                price_str = f"{price} {currency}" if price is not None else "—"
+                category = (getattr(p, "category", None) or "").strip() or "general"
+                lines.append(f"- {name} | Price: {price_str} | Category: {category}")
+            return "\n".join(lines)
+        words = [w for w in re.split(r"\s+", q) if len(w) >= 2]
+        if not words:
+            # Very short/single-token query: fallback to catalog list instead of hallucinating.
+            lines = ["Available products in the store catalog:\n"]
+            for p in products[: max(1, int(top_n))]:
+                name = (getattr(p, "name", None) or "").strip() or "Unnamed"
+                price = getattr(p, "price", None)
+                currency = (getattr(p, "currency", None) or "MAD").strip() or "MAD"
+                price_str = f"{price} {currency}" if price is not None else "—"
+                category = (getattr(p, "category", None) or "").strip() or "general"
+                lines.append(f"- {name} | Price: {price_str} | Category: {category}")
+            return "\n".join(lines)
         scored = []
         for p in products:
             name = (getattr(p, "name", None) or "").strip().lower() or ""
@@ -2408,6 +2507,33 @@ def run_ai_agent_node(current_node, sender, channel, state_header=None, skip_sen
         except Exception as _merge_prod_ctx_err:
             logger.debug("merge catalog product_context for AI node: %s", _merge_prod_ctx_err)
 
+        # Stateful memory: node-level product_context only covers catalog-bound nodes. If the customer is on a
+        # generic/menu step but ChatSession.active_product is set (ad/trigger or earlier sync), hydrate the
+        # same DB-backed context here — otherwise only a short PERSISTENT line at the end of the prompt pointed
+        # at the product and the main system prompt stayed generic (felt like "forgetting" after history trim).
+        try:
+            _aicfg_for_pid = getattr(current_node, "ai_model_config", None) or {}
+            _node_pid = _aicfg_for_pid.get("product_id") if isinstance(_aicfg_for_pid, dict) else None
+            if _node_pid is None and store_owner and session and getattr(session, "active_product_id", None):
+                from discount.models import Products as _ProductsSession
+                from discount.product_sales_prompt import build_product_context_for_prompt as _build_sess_ctx
+
+                _ap = getattr(session, "active_product", None)
+                if _ap is None:
+                    _ap = _ProductsSession.objects.filter(
+                        id=int(session.active_product_id), admin=store_owner
+                    ).first()
+                if _ap:
+                    _sess_ctx = _build_sess_ctx(_ap)
+                    if _sess_ctx:
+                        product_context = _sess_ctx + (
+                            "\n\n---\n\nAdditional notes from flow builder:\n" + _flow_node_product_notes
+                            if _flow_node_product_notes
+                            else ""
+                        )
+        except Exception as _hydrate_sess_err:
+            logger.debug("hydrate product_context from session.active_product: %s", _hydrate_sess_err)
+
         if store_owner and Decimal(getattr(store_owner, "wallet_balance", 0) or 0) <= Decimal("0"):
             _pause_ai_for_wallet_depleted(channel, sender, active_node=current_node)
             return []
@@ -2528,6 +2654,21 @@ def run_ai_agent_node(current_node, sender, channel, state_header=None, skip_sen
                 product_context, sales_stage=sales_stage, sentiment=sentiment
             )
 
+        try:
+            _last_oid = (ctx.get("last_order_id") or "").strip()
+            if _last_oid:
+                _order_id_line = (
+                    f"ACTIVE ORDER FOR THIS CHAT: order_id=\"{_last_oid}\". "
+                    "Use this order_id with `update_order_notes` or `add_upsell_to_existing_order` when the customer "
+                    "gives delivery timing, alternate phone, special instructions, or upsell agreement."
+                )
+                if state_header and str(state_header).strip():
+                    state_header = str(state_header).strip() + "\n\n" + _order_id_line
+                else:
+                    state_header = "CURRENT STATE: " + _order_id_line + " Continue naturally."
+        except Exception:
+            pass
+
         media_context = None
         store = getattr(channel, "owner", None) if channel else None
         allow_multi_modal = store and getattr(store, "is_feature_allowed", None) and store.is_feature_allowed("multi_modal")
@@ -2545,6 +2686,8 @@ def run_ai_agent_node(current_node, sender, channel, state_header=None, skip_sen
         try:
             ai_cfg = getattr(current_node, "ai_model_config", None) or {}
             product_id = ai_cfg.get("product_id") if isinstance(ai_cfg, dict) else None
+            if product_id is None and session and getattr(session, "active_product_id", None):
+                product_id = int(session.active_product_id)
             if product_id is not None and store:
                 first_img = ProductImage.objects.filter(
                     product_id=int(product_id),
@@ -2614,7 +2757,9 @@ def run_ai_agent_node(current_node, sender, channel, state_header=None, skip_sen
                 # Use tools to discover products on demand to reduce token usage.
                 line = (
                     "You are a general store assistant. Do NOT assume a specific product unless the customer names one. "
-                    "When product is unclear, call search_products(query) with the customer wording, then suggest the closest matches. "
+                    "If customer asks generic catalog availability (e.g. what products do you have), call search_products with an empty query first to get real catalog items. "
+                    "Use search_products(query) only when customer asks about a specific product by name/keyword. "
+                    "Never list product names unless they came from search_products tool results. "
                     "For images, use send_product_media(product_id) only after selecting the relevant product."
                 )
                 custom_instruction = (custom_instruction or "") + "\n\n" + line
@@ -2651,6 +2796,10 @@ def run_ai_agent_node(current_node, sender, channel, state_header=None, skip_sen
             except Exception:
                 pass
             override_rules = (getattr(channel, "ai_override_rules", None) or "").strip()
+
+        pronoun_anchor_product_name = _resolve_pronoun_anchor_product_name(
+            channel, sender, session, current_node, store_owner
+        )
 
         # Intelligent Handover (Supervisor Agent): analyze intent & bot performance before calling GPT
         memory_summary = _maybe_build_memory_summary(channel, sender, conversation, recent_limit=6)
@@ -2698,6 +2847,8 @@ def run_ai_agent_node(current_node, sender, channel, state_header=None, skip_sen
                     "voice_language": getattr(channel, "voice_language", None) if channel else None,
                     "voice_dialect": getattr(channel, "voice_dialect", None) if channel else None,
                 },
+                channel=channel,
+                pronoun_anchor_product_name=pronoun_anchor_product_name,
             )
             if store_owner:
                 chargeUserForAiUsage(
@@ -2705,7 +2856,7 @@ def run_ai_agent_node(current_node, sender, channel, state_header=None, skip_sen
                     result.get("prompt_tokens", 0),
                     result.get("completion_tokens", 0),
                 )
-        tool_calls_for_info = [tc for tc in (result.get("tool_calls") or []) if tc.get("name") in ("check_stock", "apply_discount", "track_order", "search_products", "send_product_media", "submit_customer_order", "save_order", "record_order", "update_lead_status", "add_upsell_to_existing_order")]
+        tool_calls_for_info = [tc for tc in (result.get("tool_calls") or []) if tc.get("name") in ("check_stock", "apply_discount", "track_order", "search_products", "send_product_media", "submit_customer_order", "save_order", "record_order", "update_lead_status", "add_upsell_to_existing_order", "update_order_notes")]
         first_result_order_tools = [tc for tc in (result.get("tool_calls") or []) if tc.get("name") in ("save_order", "record_order")]
         submit_order_success_outcome = None
         save_order_result_order = None  # order from save_order/record_order when executed in loop
@@ -2831,6 +2982,31 @@ def run_ai_agent_node(current_node, sender, channel, state_header=None, skip_sen
                                 pass
                     except Exception:
                         pass
+                elif name == "update_order_notes":
+                    try:
+                        from discount.orders_ai import execute_update_order_notes
+                        content = execute_update_order_notes(
+                            args.get("order_id"),
+                            args.get("note_category"),
+                            args.get("note_content"),
+                            channel=channel,
+                            customer_phone_from_chat=sender,
+                        )
+                    except Exception as e:
+                        logger.exception("update_order_notes: %s", e)
+                        content = json.dumps({"success": False, "message": str(e)}, ensure_ascii=False)
+                    tool_results.append({"tool_call_id": tcid, "content": content})
+                    try:
+                        _un_out = json.loads(content)
+                        if _un_out.get("success"):
+                            _add_ai_action_note(
+                                channel,
+                                sender,
+                                f"AI agent updated order notes (order_id={args.get('order_id')}, category={args.get('note_category')}).",
+                                author_name=agent_name,
+                            )
+                    except Exception:
+                        pass
                 elif name in ("save_order", "record_order") and getattr(channel, "ai_order_capture", True):
                     args["customer_phone"] = normalize_customer_phone_for_order(args.get("customer_phone"), sender)
                     if "address" in args and not args.get("customer_city"):
@@ -2865,6 +3041,8 @@ def run_ai_agent_node(current_node, sender, channel, state_header=None, skip_sen
                         sentiment=sentiment,
                         market=market,
                         agent_name=agent_name,
+                        model=result.get("model"),
+                        inherited_target_dialect=result.get("target_dialect"),
                         customer_phone=sender,
                         override_rules=override_rules or None,
                         product_id=product_id,
@@ -2881,6 +3059,8 @@ def run_ai_agent_node(current_node, sender, channel, state_header=None, skip_sen
                             "voice_language": getattr(channel, "voice_language", None) if channel else None,
                             "voice_dialect": getattr(channel, "voice_dialect", None) if channel else None,
                         },
+                        pronoun_anchor_product_name=pronoun_anchor_product_name,
+                        channel=channel,
                     )
                     if store_owner:
                         chargeUserForAiUsage(
@@ -3846,7 +4026,9 @@ def try_ai_voice_reply(sender, body, channel, skip_sentinel=False):
     product_context_for_reply = None
     custom_instruction = (
         "No fixed product context is selected. Keep replies short. "
-        "When product intent is unclear, call search_products(query) using the customer words and offer the closest matches. "
+        "If customer asks generic catalog availability, call search_products with an empty query first. "
+        "Use search_products(query) only when they ask about a specific product. "
+        "Never mention product names that were not returned by search_products. "
         "Use natural local phrasing; avoid literal translations like 'شنو كتشوف'. "
         "CRITICAL: Do NOT call save_order or record_order in this chat. Do NOT output [ORDER_DATA: ...]. "
         "If they want to order, ask them to choose a specific product first."
@@ -3867,6 +4049,25 @@ def try_ai_voice_reply(sender, body, channel, skip_sentinel=False):
     persistent_line_voice = _format_persistent_product_context_line(persistent_product_voice)
     if persistent_line_voice:
         custom_instruction = (custom_instruction + "\n\n" + persistent_line_voice) if custom_instruction else persistent_line_voice
+    if persistent_product_voice and store:
+        try:
+            from discount.product_sales_prompt import build_product_context_for_prompt as _build_voice_ctx
+
+            _vctx = _build_voice_ctx(persistent_product_voice)
+            if _vctx:
+                product_context_for_reply = _vctx
+        except Exception as _vctx_err:
+            logger.debug("voice hydrate product_context from active_product: %s", _vctx_err)
+
+    if product_context_for_reply and not is_order_cap_reached(channel):
+        custom_instruction = custom_instruction.replace(
+            "No fixed product context is selected. Keep replies short. ",
+            "",
+        ).replace(
+            "CRITICAL: Do NOT call save_order or record_order in this chat. Do NOT output [ORDER_DATA: ...]. "
+            "If they want to order, ask them to choose a specific product first.",
+            "Use the fixed product context for checkout when the customer is ready to order.",
+        )
 
     # Inject upsell context for generic/fallback flow (customer replies after upsell pitch)
     voice_product_id = None
@@ -3908,10 +4109,25 @@ def try_ai_voice_reply(sender, body, channel, skip_sentinel=False):
         pass
     override_rules_voice = (getattr(channel, "ai_override_rules", None) or "").strip()
 
+    pronoun_anchor_product_name_voice = _resolve_pronoun_anchor_product_name(
+        channel, sender, _voice_session, _vd_node, store
+    )
+
     # voice_dialect_label_voice and market already aligned above (hierarchy + TTS market).
     voice_notes_mode_voice = True
     voice_script_for_voice = bool(merchant_voice_mode_enabled(channel) or voice_notes_mode_voice)
     memory_summary_voice = _maybe_build_memory_summary(channel, sender, conversation, recent_limit=6)
+
+    try:
+        if _voice_session:
+            _v_lo = (getattr(_voice_session, "context_data", None) or {}).get("last_order_id")
+            if _v_lo and str(_v_lo).strip():
+                custom_instruction = (custom_instruction or "") + (
+                    f"\n\n[ACTIVE ORDER FOR THIS CHAT] order_id=\"{str(_v_lo).strip()}\". "
+                    "Use with `update_order_notes` or `add_upsell_to_existing_order` when relevant."
+                )
+    except Exception:
+        pass
 
     trust_score = get_trust_score(channel.id, sender)
     try:
@@ -3937,6 +4153,8 @@ def try_ai_voice_reply(sender, body, channel, skip_sentinel=False):
                 "voice_language": getattr(channel, "voice_language", None) if channel else None,
                 "voice_dialect": getattr(channel, "voice_dialect", None) if channel else None,
             },
+            channel=channel,
+            pronoun_anchor_product_name=pronoun_anchor_product_name_voice,
         )
         if store:
             chargeUserForAiUsage(
@@ -4042,6 +4260,31 @@ def try_ai_voice_reply(sender, body, channel, skip_sentinel=False):
                             pass
                 except Exception:
                     pass
+            elif name == "update_order_notes":
+                try:
+                    from discount.orders_ai import execute_update_order_notes
+                    content = execute_update_order_notes(
+                        args.get("order_id"),
+                        args.get("note_category"),
+                        args.get("note_content"),
+                        channel=channel,
+                        customer_phone_from_chat=sender,
+                    )
+                except Exception as e:
+                    logger.exception("try_ai_voice_reply update_order_notes: %s", e)
+                    content = json.dumps({"success": False, "message": str(e)}, ensure_ascii=False)
+                tool_results.append({"tool_call_id": tcid, "content": content})
+                try:
+                    _vu_note = json.loads(content)
+                    if _vu_note.get("success"):
+                        _add_ai_action_note(
+                            channel,
+                            sender,
+                            f"AI agent updated order notes (order_id={args.get('order_id')}).",
+                            author_name=voice_path_agent_name,
+                        )
+                except Exception:
+                    pass
             elif name == "submit_customer_order":
                 send_automated_response(
                     sender,
@@ -4091,6 +4334,8 @@ def try_ai_voice_reply(sender, body, channel, skip_sentinel=False):
                     trust_score=trust_score,
                     market=market,
                     agent_name=get_agent_name_for_node(False, None, market=market),
+                    model=result.get("model"),
+                    inherited_target_dialect=result.get("target_dialect"),
                     customer_phone=sender,
                     override_rules=override_rules_voice or None,
                     product_id=voice_product_id,
@@ -4107,6 +4352,8 @@ def try_ai_voice_reply(sender, body, channel, skip_sentinel=False):
                         "voice_language": getattr(channel, "voice_language", None) if channel else None,
                         "voice_dialect": getattr(channel, "voice_dialect", None) if channel else None,
                     },
+                    pronoun_anchor_product_name=pronoun_anchor_product_name_voice,
+                    channel=channel,
                 )
                 if store:
                     chargeUserForAiUsage(

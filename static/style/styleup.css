@@ -2290,6 +2290,21 @@
 
     /* 🔥 قائمة جهات الاتصال المحسّنة */
     .cls3741_contacts_list{
+
+      
+        /* 1. Ensure the element is actually scrollable */
+        overflow: scroll; 
+      
+        /* 2. Hide scrollbar for Firefox */
+        scrollbar-width: none;
+      
+        /* 3. Hide scrollbar for IE and Edge */
+        -ms-overflow-style: none;
+    
+      
+      /* 4. Hide scrollbar for Chrome, Safari, and Opera */
+        
+
       overflow:auto;
       padding: 8px;
       display:flex;
@@ -2297,10 +2312,20 @@
       gap: 4px;
       flex: 1 1 0;
     }
+    .cls3741_contacts_list::-webkit-scrollbar {
+      display: none;
+    }
+    .cls3741_contacts_list::-webkit-scrollbar {
+      display: none !important;
+      width: 0 !important;
+      height: 0 !important;
+      background: transparent !important;
+      -webkit-appearance: none !important;
+    }
 
     /* Scrollbar مخصص */
     .cls3741_contacts_list::-webkit-scrollbar {
-      width: 6px;
+      width: 0px;
     }
 
     .cls3741_contacts_list::-webkit-scrollbar-track {

@@ -536,6 +536,7 @@ def process_flow_for_message(flow, message_text, phone, media_type=None):
                     if _market_flow not in ("MA", "SA", "GCC"):
                         _market_flow = infer_market_from_phone(phone or "") or "MA"
                     _vs_style = bool(merchant_voice_mode_enabled(flow.channel) or _vn_flow)
+                    _ch = getattr(flow, "channel", None)
                     result = generate_reply_with_tools(
                         conversation,
                         custom_instruction=None,
@@ -544,11 +545,17 @@ def process_flow_for_message(flow, message_text, phone, media_type=None):
                         market=_market_flow,
                         customer_phone=phone,
                         override_rules=override_rules_flow or None,
-                        merchant_id=getattr(getattr(flow, "channel", None), "owner_id", None),
+                        merchant_id=getattr(_ch, "owner_id", None),
                         voice_dialect=_vd_flow,
                         voice_notes_mode=_vn_flow,
                         voice_script_style=_vs_style,
                         output_language=_out_lang_flow,
+                        node=None,
+                        bot_settings={
+                            "voice_language": getattr(_ch, "voice_language", None) if _ch else None,
+                            "voice_dialect": getattr(_ch, "voice_dialect", None) if _ch else None,
+                        },
+                        channel=_ch,
                     )
                     reply_text = (result.get("reply") or "").strip()
                     current_stage = result.get("stage")
