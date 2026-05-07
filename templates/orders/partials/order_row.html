@@ -1,0 +1,61 @@
+<tr id="order-row-{{ order.pk }}">
+  <td class="order-check">
+    <input type="checkbox" class="form-check-input order-row-check" name="order_ids" value="{{ order.pk }}">
+  </td>
+  <td class="order-date">{{ order.created_at|date:"Y-m-d H:i" }}</td>
+  <td class="order-customer">{{ order.name }}</td>
+  <td class="order-phone">{{ order.phone }}</td>
+  <td class="order-product">
+    <span class="product-name" title="{{ order.product_name }}">{{ order.product_name }}</span>
+    {% if order.quantity > 1 %}<span class="text-muted small">&times;{{ order.quantity }}</span>{% endif %}
+  </td>
+  <td class="order-source">
+    {% if order.attribution_data and order.attribution_data.utm_source %}<span class="order-source-pill">{{ order.attribution_data.utm_source }}</span>{% else %}&mdash;{% endif %}
+  </td>
+  <td class="order-status-cell status-{{ order.status }}">
+    <select name="status"
+            class="form-select order-status-select"
+            hx-post="{% url 'orders:order_update_status' order.pk %}"
+            hx-trigger="change"
+            hx-target="closest tr"
+            hx-swap="outerHTML"
+            hx-include="#csrf-token-input">
+      {% for value, label in status_choices %}
+        <option value="{{ value }}" {% if order.status == value %}selected{% endif %}>{{ label }}</option>
+      {% endfor %}
+    </select>
+  </td>
+  <td>
+    <select name="assigned_agent"
+            class="form-select form-select-sm"
+            hx-post="{% url 'orders:order_update_agent' order.pk %}"
+            hx-trigger="change"
+            hx-target="closest tr"
+            hx-swap="outerHTML"
+            hx-include="#csrf-token-input">
+      <option value="">&mdash;</option>
+      {% for u in agents %}
+        <option value="{{ u.pk }}" {% if order.assigned_agent_id == u.pk %}selected{% endif %}>{{ u.get_full_name|default:u.username }}</option>
+      {% endfor %}
+    </select>
+  </td>
+  <td class="order-actions">
+    <button type="button" class="btn btn-wa order-wa-btn" title="Send WhatsApp" data-order-phone="{{ order.phone }}" data-order-name="{{ order.name }}">WhatsApp</button>
+  </td>
+  <td class="order-reputation">
+    {% with badge=order.get_reputation_badge %}
+      <div class="rep-cell rep-cell-popover"
+           data-bs-toggle="popover"
+           data-bs-trigger="hover focus"
+           data-bs-placement="left"
+           data-bs-custom-class="rep-popover"
+           data-bs-html="true"
+           data-bs-title="{{ badge.tooltip_title|default:'Risk breakdown' }}"
+           data-bs-content="{{ badge.tooltip_html|force_escape }}"
+           title="{{ badge.explanation }}">
+        <span class="rep-score" title="Trust Score (0-100)">{{ badge.score }}</span>
+        <span class="rep-badge rep-badge--{{ badge.color }}">{{ badge.level }}</span>
+      </div>
+    {% endwith %}
+  </td>
+</tr>

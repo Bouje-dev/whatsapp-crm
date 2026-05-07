@@ -1,0 +1,207 @@
+{% load static %}
+{# Fragment for embedding inside another page (e.g. analytics tab). Requires: agents, status_choices, source_choices, request, csrf_token. #}
+<style>
+  #order-manaagement .orders-page { background: #f1f5f9; padding: 1rem; direction: ltr; border-radius: 10px; }
+  #order-manaagement :root { --orders-bg: #f1f5f9; --orders-card: #fff; --orders-border: #e2e8f0; --orders-primary: #0f172a; --orders-accent: #2563eb; --orders-accent-hover: #1d4ed8; --orders-muted: #64748b; --orders-radius: 10px; --orders-shadow: 0 1px 3px rgba(0,0,0,0.08); --orders-shadow-lg: 0 4px 12px rgba(0,0,0,0.08); }
+  #order-manaagement .orders-filters-card, #order-manaagement .orders-bulk-card, #order-manaagement .orders-table-card { background: var(--orders-card); border-radius: var(--orders-radius); border: 1px solid var(--orders-border); }
+  #order-manaagement .orders-filters-card { padding: 1rem; margin-bottom: 0.75rem; }
+  #order-manaagement .orders-filters-row { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 0.75rem; }
+  #order-manaagement .orders-filters-card .form-label { font-size: 0.7rem; font-weight: 600; color: var(--orders-muted); text-transform: uppercase; margin-bottom: 0.25rem; display: block; }
+  #order-manaagement .orders-filters-card .form-control, #order-manaagement .orders-filters-card .form-select { font-size: 0.875rem; border-radius: 8px; border: 1px solid var(--orders-border); padding: 0.35rem 0.6rem; min-height: 34px; }
+  #order-manaagement .orders-filters-card .btn-filter { background: var(--orders-accent); color: #fff; font-weight: 600; font-size: 0.8125rem; padding: 0.4rem 1rem; border-radius: 8px; border: none; cursor: pointer; }
+  #order-manaagement .orders-bulk-card { padding: 0.6rem 1rem; margin-bottom: 0.75rem; display: flex; align-items: center; flex-wrap: wrap; gap: 0.5rem; }
+  #order-manaagement .orders-bulk-card .form-select { font-size: 0.8125rem; min-width: 140px; border-radius: 8px; }
+  #order-manaagement .orders-table-card { overflow: hidden; }
+  #order-manaagement .orders-table-card .table { margin: 0; width: 100%; border-collapse: collapse; font-size: 0.875rem; }
+  #order-manaagement .orders-table-card .table thead th { font-size: 0.65rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; color: var(--orders-muted); background: #f1f5f9; padding: 0.6rem 0.75rem; border-bottom: 1px solid var(--orders-border); text-align: left; }
+  #order-manaagement .orders-table-card .table tbody td { padding: 0.6rem 0.75rem; vertical-align: middle; border-bottom: 1px solid #f1f5f9; }
+  #order-manaagement .orders-table-card .table tbody tr:hover { background: #f8fafc; }
+  #order-manaagement .orders-table-card .table .order-status-cell .order-status-select { font-size: 0.7rem; font-weight: 600; padding: 0.3rem 0.5rem; border-radius: 6px; max-width: 140px; }
+  #order-manaagement .order-source-pill { display: inline-block; padding: 0.2rem 0.4rem; border-radius: 6px; font-size: 0.7rem; font-weight: 600; background: #e0e7ff; color: #3730a3; }
+  #order-manaagement .orders-pagination { padding: 0.5rem 0.75rem; border-top: 1px solid var(--orders-border); background: #fafafa; font-size: 0.8125rem; }
+  #order-manaagement .orders-pagination-inner { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 0.5rem; }
+  #order-manaagement .orders-pagination-btn { padding: 0.35rem 0.6rem; font-size: 0.75rem; border-radius: 6px; border: 1px solid var(--orders-border); background: #fff; color: var(--orders-primary); text-decoration: none; cursor: pointer; }
+  #order-manaagement .orders-pagination-btn:hover { background: #f1f5f9; color: var(--orders-accent); }
+  #order-manaagement .orders-pagination-btn.disabled { opacity: 0.5; cursor: not-allowed; pointer-events: none; }
+  #order-manaagement .orders-loading, #order-manaagement .orders-empty { text-align: center; padding: 2rem; color: var(--orders-muted); font-size: 0.875rem; }
+  #order-manaagement .orders-header-actions { display: flex; gap: 0.5rem; margin-bottom: 0.75rem; }
+  #order-manaagement .orders-btn-export, #order-manaagement .orders-btn-import { font-size: 0.75rem; padding: 0.35rem 0.7rem; border-radius: 6px; border: 1px solid var(--orders-border); background: #fff; color: var(--orders-primary); text-decoration: none; cursor: pointer; }
+  #order-manaagement .orders-btn-import { border: none; }
+  #order-manaagement .orders-btn-export:hover, #order-manaagement .orders-btn-import:hover { background: #f1f5f9; color: var(--orders-accent); }
+  #order-manaagement .order-reputation { vertical-align: middle; }
+  #order-manaagement .rep-cell {
+    display: inline-flex; align-items: center; gap: 0.5rem;
+    padding: 0.35rem 0.6rem; border-radius: 8px;
+    border: 1px solid rgba(0,0,0,0.06); background: rgba(0,0,0,0.02);
+    white-space: nowrap; cursor: help;
+    transition: border-color 0.15s ease, background 0.15s ease;
+  }
+  #order-manaagement .rep-cell:hover { border-color: rgba(0,0,0,0.1); background: rgba(0,0,0,0.04); }
+  #order-manaagement .rep-score { font-size: 0.8125rem; font-weight: 700; font-variant-numeric: tabular-nums; color: #374151; min-width: 1.75rem; text-align: right; }
+  #order-manaagement .rep-badge { display: inline-block; padding: 0.2rem 0.5rem; border-radius: 6px; font-size: 0.6875rem; font-weight: 700; letter-spacing: 0.02em; text-transform: uppercase; }
+  #order-manaagement .rep-badge--green { background: #dcfce7; color: #166534; }
+  #order-manaagement .rep-badge--blue { background: #dbeafe; color: #1e40af; }
+  #order-manaagement .rep-badge--yellow { background: #fef9c3; color: #854d0e; }
+  #order-manaagement .rep-badge--red { background: #fee2e2; color: #991b1b; }
+  #order-manaagement .rep-badge--gray { background: #f1f5f9; color: #64748b; }
+  #order-manaagement .rep-popover { max-width: 320px; }
+  #order-manaagement .rep-popover .popover-header { font-size: 0.8125rem; font-weight: 700; color: #111827; padding: 0.6rem 0.75rem; border-bottom: 1px solid rgba(0,0,0,0.08); background: #fafafa; border-radius: 8px 8px 0 0; }
+  #order-manaagement .rep-popover .popover-body { padding: 0.65rem 0.75rem; font-size: 0.8125rem; line-height: 1.5; color: #374151; }
+  #order-manaagement .rep-popover-body .rep-tt-row { display: block; margin-bottom: 0.35rem; }
+  #order-manaagement .rep-popover-body .rep-tt-label { display: inline-block; min-width: 5rem; color: #6b7280; }
+  #order-manaagement .rep-popover-body .rep-tt-val { font-weight: 600; }
+  #order-manaagement .rep-popover-body .rep-tt-good { color: #15803d; }
+  #order-manaagement .rep-popover-body .rep-tt-bad { color: #b91c1c; }
+  #order-manaagement .rep-popover-body .rep-tt-mid { color: #b45309; }
+  #order-manaagement .rep-popover-body .rep-tt-score-line,
+  #order-manaagement .rep-popover-body .rep-tt-level-line { margin-top: 0.5rem; padding-top: 0.4rem; border-top: 1px solid rgba(0,0,0,0.06); }
+  #order-manaagement .rep-popover-body .rep-tt-muted { font-size: 0.7rem; color: #9ca3af; margin-top: 0.5rem; margin-bottom: 0; }
+</style>
+<div class="orders-page">
+  <div class="orders-header-actions">
+    <a href="{% url 'orders:order_export' %}?{{ request.GET.urlencode }}" class="orders-btn-export" download>Export order list</a>
+    <button type="button" class="orders-btn-import" id="orders-import-btn">Import order list</button>
+  </div>
+  <form id="order-filters" class="orders-filters-card"
+        hx-get="{% url 'orders:order_table_partial' %}"
+        hx-target="#order-table-container"
+        hx-include="this"
+        hx-swap="innerHTML"
+        hx-trigger="submit"
+        method="get">
+    <div class="orders-filters-row">
+      <div>
+        <label class="form-label">Status</label>
+        <select name="status" class="form-select">
+          <option value="">All</option>
+          {% for value, label in status_choices %}
+            <option value="{{ value }}" {% if request.GET.status == value %}selected{% endif %}>{{ label }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div>
+        <label class="form-label">Source</label>
+        <select name="source" class="form-select">
+          {% for value, label in source_choices %}
+            <option value="{{ value }}" {% if request.GET.source == value %}selected{% endif %}>{{ label }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div>
+        <label class="form-label">Phone</label>
+        <input type="text" name="phone" class="form-control" placeholder="Phone" value="{{ request.GET.phone }}">
+      </div>
+      <div>
+        <label class="form-label">From</label>
+        <input type="date" name="date_after" class="form-control" value="{{ request.GET.date_after }}">
+      </div>
+      <div>
+        <label class="form-label">To</label>
+        <input type="date" name="date_before" class="form-control" value="{{ request.GET.date_before }}">
+      </div>
+      <div>
+        <button type="submit" class="btn btn-filter">Filter</button>
+      </div>
+    </div>
+  </form>
+  <div class="orders-bulk-card">
+    <span class="bulk-label">Bulk assign</span>
+    <form method="post" action="{% url 'orders:order_bulk_assign' %}" style="display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap;" id="bulk-assign-form">
+      {% csrf_token %}
+      <input type="hidden" name="order_ids" id="bulk-order-ids" value="">
+      <input type="hidden" name="status" value="{{ request.GET.status }}">
+      <input type="hidden" name="source" value="{{ request.GET.source }}">
+      <input type="hidden" name="phone" value="{{ request.GET.phone }}">
+      <input type="hidden" name="date_after" value="{{ request.GET.date_after }}">
+      <input type="hidden" name="date_before" value="{{ request.GET.date_before }}">
+      <select name="agent_id" class="form-select">
+        <option value="">— Unassign —</option>
+        {% for u in agents %}
+          <option value="{{ u.pk }}">{{ u.get_full_name|default:u.username }}</option>
+        {% endfor %}
+      </select>
+      <button type="submit" class="btn btn-outline-secondary btn-bulk">Assign selected</button>
+    </form>
+  </div>
+  <div class="orders-table-card">
+    <div id="order-table-container"
+         hx-get="{% url 'orders:order_table_partial' %}?{{ request.GET.urlencode }}"
+         hx-trigger="load, orderListRefresh from:body"
+         hx-swap="innerHTML">
+      <div class="orders-loading">Loading orders…</div>
+    </div>
+  </div>
+  <input type="hidden" name="csrfmiddlewaretoken" value="{{ csrf_token }}" id="csrf-token-input">
+</div>
+<div id="orders-import-modal" class="orders-modal" style="display: none;">
+  <div class="orders-modal-backdrop" id="orders-import-backdrop"></div>
+  <div class="orders-modal-box" style="max-width: 440px; background: #fff; border-radius: 10px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); position: relative;">
+    <div class="orders-modal-header" style="display: flex; justify-content: space-between; padding: 1rem; border-bottom: 1px solid #e2e8f0;">
+      <h2 style="margin: 0; font-size: 1.1rem;">Import order list</h2>
+      <button type="button" id="orders-import-close" style="background: none; border: none; font-size: 1.5rem; cursor: pointer;">&times;</button>
+    </div>
+    <div class="orders-modal-body" style="padding: 1rem;">
+      <p style="font-size: 0.8rem; color: #64748b; margin-bottom: 0.75rem;">CSV: name, phone, product_name, address, status (optional). Existing name+phone → order updated. Same row &gt;2 times in file = not saved.</p>
+      <form id="orders-import-form">
+        {% csrf_token %}
+        <input type="file" name="file" accept=".csv" required style="margin-bottom: 0.75rem;">
+        <button type="submit" class="btn btn-filter" id="orders-import-submit">Upload and import</button>
+      </form>
+      <div id="orders-import-processing" style="display: none; padding: 0.75rem; color: #2563eb;">Processing data…</div>
+    </div>
+  </div>
+</div>
+<div id="orders-import-report" style="display: none; position: fixed; inset: 0; z-index: 1001; align-items: center; justify-content: center; background: rgba(0,0,0,0.4);">
+  <div style="background: #fff; padding: 1.5rem; border-radius: 10px; max-width: 360px;">
+    <p id="orders-import-report-text" style="margin-bottom: 1rem;"></p>
+    <button type="button" class="btn btn-filter" id="orders-import-report-close">OK</button>
+  </div>
+</div>
+{% include "orders/partials/order_wa_chat_modal.html" %}
+<script>
+(function(){
+  var form = document.getElementById('bulk-assign-form');
+  if (form) form.addEventListener('submit', function(e) {
+    var ids = Array.from(document.querySelectorAll('.order-row-check:checked')).map(function(cb) { return cb.value; });
+    var el = document.getElementById('bulk-order-ids');
+    if (el) el.value = ids.join(',');
+    if (ids.length === 0) { e.preventDefault(); alert('Select at least one order.'); }
+  });
+  var modal = document.getElementById('orders-import-modal');
+  var reportEl = document.getElementById('orders-import-report');
+  var reportText = document.getElementById('orders-import-report-text');
+  var importForm = document.getElementById('orders-import-form');
+  var processing = document.getElementById('orders-import-processing');
+  var submitBtn = document.getElementById('orders-import-submit');
+  if (document.getElementById('orders-import-btn')) document.getElementById('orders-import-btn').addEventListener('click', function() { if (modal) modal.style.display = 'flex'; });
+  if (document.getElementById('orders-import-close')) document.getElementById('orders-import-close').addEventListener('click', function() { if (modal) modal.style.display = 'none'; });
+  if (document.getElementById('orders-import-backdrop')) document.getElementById('orders-import-backdrop').addEventListener('click', function() { if (modal) modal.style.display = 'none'; });
+  if (document.getElementById('orders-import-report-close')) document.getElementById('orders-import-report-close').addEventListener('click', function() { if (reportEl) reportEl.style.display = 'none'; document.body.dispatchEvent(new CustomEvent('orderListRefresh')); });
+  if (importForm) importForm.addEventListener('submit', function(e) {
+    e.preventDefault();
+    var fileInput = importForm.querySelector('input[type="file"]');
+    if (!fileInput || !fileInput.files || !fileInput.files[0]) { alert('Please select a CSV file.'); return; }
+    var fd = new FormData();
+    fd.append('file', fileInput.files[0]);
+    fd.append('csrfmiddlewaretoken', document.getElementById('csrf-token-input').value);
+    if (processing) processing.style.display = 'block';
+    if (submitBtn) submitBtn.disabled = true;
+    var csrfMeta = document.querySelector('meta[name="csrf-token"]');
+    fetch('{% url "orders:order_import" %}', { method: 'POST', body: fd, headers: csrfMeta ? { 'X-CSRFToken': csrfMeta.getAttribute('content') } : {}, credentials: 'same-origin' })
+      .then(function(r) { return r.json().then(function(data) { return { ok: r.ok, data: data }; }); })
+      .then(function(result) {
+        if (processing) processing.style.display = 'none';
+        if (submitBtn) submitBtn.disabled = false;
+        if (modal) modal.style.display = 'none';
+        if (result.ok) {
+          var msg = 'We saved ' + (result.data.saved || 0) + ' customer(s).';
+          if (result.data.updated) msg += ' We updated ' + result.data.updated + ' existing customer order(s).';
+          msg += ' We found ' + (result.data.duplicated || 0) + ' customer(s) duplicated.';
+          if (reportText) reportText.textContent = msg;
+          if (reportEl) { reportEl.style.display = 'flex'; reportEl.style.alignItems = 'center'; reportEl.style.justifyContent = 'center'; }
+        } else { alert(result.data.error || 'Import failed.'); }
+      })
+      .catch(function() { if (processing) processing.style.display = 'none'; if (submitBtn) submitBtn.disabled = false; alert('Import request failed.'); });
+  });
+})();
+</script>

@@ -1,0 +1,501 @@
+{% extends "base.html" %}
+
+{% block title %}Analytics Dashboard{% endblock %}
+{% block content %}
+
+<div class="container-fluid mt-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2 class="mb-0">📈 Advanced Store Analytics</h2>
+        <div class="dropdown">
+            <button class="btn btn-outline-secondary dropdown-toggle" type="button" 
+                    id="timeRangeDropdown" data-bs-toggle="dropdown" aria-expanded="false">
+                <i class="fas fa-calendar-alt me-2"></i>
+                Last 30 Days
+            </button>
+            <ul class="dropdown-menu" aria-labelledby="timeRangeDropdown">
+                <li><a class="dropdown-item" href="?range=today">Today</a></li>
+                <li><a class="dropdown-item" href="?range=week">Last 7 Days</a></li>
+                <li><a class="dropdown-item" href="?range=month">Last 30 Days</a></li>
+                <li><a class="dropdown-item" href="?range=quarter">Last 90 Days</a></li>
+                <li><a class="dropdown-item" href="?range=year">Last Year</a></li>
+            </ul>
+        </div>
+    </div>
+
+    <!-- Key Metrics -->
+    <div class="row g-4 mb-4">
+        <!-- First Row -->
+        <div class="col-xl-3 col-md-6">
+            <div class="card bg-primary bg-opacity-10 border-primary">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h6 class="text-muted mb-2">Total Orders</h6>
+                            <h3>{{ total_orders }}</h3>
+                        </div>
+                        <div class="avatar-sm">
+                            <span class="avatar-title bg-primary rounded-circle">
+                                <i class="fas fa-shopping-cart fs-4"></i>
+                            </span>
+                        </div>
+                    </div>
+                    <div class="mt-3">
+                        <span class="badge bg-success">↑ {{ order_growth }}% vs previous period</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-xl-3 col-md-6">
+            <div class="card bg-success bg-opacity-10 border-success">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h6 class="text-muted mb-2">Orders with Gift</h6>
+                            <h3>{{ orders_with_gift }}</h3>
+                            <small>{{ gift_percentage }}% of total</small>
+                        </div>
+                        <div class="avatar-sm">
+                            <span class="avatar-title bg-success rounded-circle">
+                                <i class="fas fa-gift fs-4"></i>
+                            </span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-xl-3 col-md-6">
+            <div class="card bg-info bg-opacity-10 border-info">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h6 class="text-muted mb-2">Confirmed Orders</h6>
+                            <h3>{{ confirmed_orders }}</h3>
+                            <small>{{ confirmation_rate }}% confirmation rate</small>
+                        </div>
+                        <div class="avatar-sm">
+                            <span class="avatar-title bg-info rounded-circle">
+                                <i class="fas fa-check-circle fs-4"></i>
+                            </span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-xl-3 col-md-6">
+            <div class="card bg-warning bg-opacity-10 border-warning">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h6 class="text-muted mb-2">Average Order Value</h6>
+                            <h3>${{ average_order_value }}</h3>
+                            <small>{{ aov_change }}% from last period</small>
+                        </div>
+                        <div class="avatar-sm">
+                            <span class="avatar-title bg-warning rounded-circle">
+                                <i class="fas fa-dollar-sign fs-4"></i>
+                            </span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Second Row -->
+        <div class="col-xl-3 col-md-6">
+            <div class="card bg-purple bg-opacity-10 border-purple">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h6 class="text-muted mb-2">Total Visitors</h6>
+                            <h3>{{ product_views }}</h3>
+                        </div>
+                        <div class="avatar-sm">
+                            <span class="avatar-title bg-purple rounded-circle">
+                                <i class="fas fa-users fs-4"></i>
+                            </span>
+                        </div>
+                    </div>
+                    <div class="mt-3">
+                        <span class="badge bg-{{ visitors_change >= 0 ? 'success' : 'danger' }}">
+                            {{ visitors_change >= 0 ? '↑' : '↓' }} {{ visitors_change }}% vs previous
+                        </span>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-xl-3 col-md-6">
+            <div class="card bg-orange bg-opacity-10 border-orange">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h6 class="text-muted mb-2">Conversions</h6>
+                            <h3>{{ conversions }}</h3>
+                        </div>
+                        <div class="avatar-sm">
+                            <span class="avatar-title bg-orange rounded-circle">
+                                <i class="fas fa-exchange-alt fs-4"></i>
+                            </span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-xl-3 col-md-6">
+            <div class="card bg-pink bg-opacity-10 border-pink">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h6 class="text-muted mb-2">Conversion Rate</h6>
+                            <h3>{{ conversion_rate }}%</h3>
+                        </div>
+                        <div class="avatar-sm">
+                            <span class="avatar-title bg-pink rounded-circle">
+                                <i class="fas fa-percentage fs-4"></i>
+                            </span>
+                        </div>
+                    </div>
+                    <div class="mt-3">
+                        <span class="badge bg-{{ conversion_change >= 0 ? 'success' : 'danger' }}">
+                            {{ conversion_change >= 0 ? '↑' : '↓' }} {{ conversion_change }}%
+                        </span>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-xl-3 col-md-6">
+            <div class="card bg-dark bg-opacity-10 border-dark">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h6 class="text-muted mb-2">Returning Customers</h6>
+                            <h3>{{ returning_customers }}</h3>
+                            <small>{{ retention_rate }}% retention rate</small>
+                        </div>
+                        <div class="avatar-sm">
+                            <span class="avatar-title bg-dark rounded-circle">
+                                <i class="fas fa-redo fs-4"></i>
+                            </span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Charts Row -->
+    <div class="row g-4 mb-4">
+        <!-- Gift Distribution Chart -->
+        <div class="col-lg-8">
+            <div class="card h-100">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">Most Popular Gifts</h5>
+                    <div class="dropdown">
+                        <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" 
+                                data-bs-toggle="dropdown" aria-expanded="false">
+                            By Count
+                        </button>
+                        <ul class="dropdown-menu">
+                            <li><a class="dropdown-item" href="#">By Count</a></li>
+                            <li><a class="dropdown-item" href="#">By Revenue</a></li>
+                            <li><a class="dropdown-item" href="#">By Conversion</a></li>
+                        </ul>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <canvas id="giftChart" height="300"></canvas>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Gift Category Distribution -->
+        <div class="col-lg-4">
+            <div class="card h-100">
+                <div class="card-header">
+                    <h5 class="mb-0">Gift Categories</h5>
+                </div>
+                <div class="card-body">
+                    <canvas id="categoryChart" height="300"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Second Charts Row -->
+    <div class="row g-4 mb-4">
+        <!-- Sales Trend -->
+        <div class="col-lg-6">
+            <div class="card h-100">
+                <div class="card-header">
+                    <h5 class="mb-0">Sales Trend</h5>
+                </div>
+                <div class="card-body">
+                    <canvas id="salesTrendChart" height="250"></canvas>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Top Performing Countries -->
+        <div class="col-lg-6">
+            <div class="card h-100">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">Top Performing Countries</h5>
+                    <div class="dropdown">
+                        <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" 
+                                data-bs-toggle="dropdown" aria-expanded="false">
+                            By Revenue
+                        </button>
+                        <ul class="dropdown-menu">
+                            <li><a class="dropdown-item" href="#">By Revenue</a></li>
+                            <li><a class="dropdown-item" href="#">By Orders</a></li>
+                            <li><a class="dropdown-item" href="#">By Conversion</a></li>
+                        </ul>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <canvas id="countryChart" height="250"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Data Tables Row -->
+    <div class="row g-4">
+        <!-- Recent Orders -->
+        <div class="col-lg-6">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">Recent Orders</h5>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Order ID</th>
+                                    <th>Date</th>
+                                    <th>Gift</th>
+                                    <th>Status</th>
+                                    <th>Amount</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for order in recent_orders %}
+                                <tr>
+                                    <td>#{{ order.id }}</td>
+                                    <td>{{ order.date|date:"Y-m-d" }}</td>
+                                    <td>{{ order.gift|default:"-" }}</td>
+                                    <td><span class="badge bg-{{ order.status_color }}">{{ order.status }}</span></td>
+                                    <td>${{ order.amount }}</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Low Stock Items -->
+        <div class="col-lg-6">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">Low Stock Alerts</h5>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Product</th>
+                                    <th>SKU</th>
+                                    <th>Current Stock</th>
+                                    <th>Threshold</th>
+                                    <th>Action</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for product in low_stock_items %}
+                                <tr>
+                                    <td>{{ product.name }}</td>
+                                    <td>{{ product.sku }}</td>
+                                    <td>{{ product.stock }}</td>
+                                    <td>{{ product.threshold }}</td>
+                                    <td>
+                                        <button class="btn btn-sm btn-outline-primary">Reorder</button>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Chart.js -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.0.0"></script>
+
+<!-- Custom JavaScript -->
+<script>
+    // Gift Distribution Chart
+    const giftCtx = document.getElementById('giftChart').getContext('2d');
+    new Chart(giftCtx, {
+        type: 'bar',
+        data: {
+            labels: {{ gift_labels|safe }},
+            datasets: [{
+                label: 'Times Selected',
+                data: {{ gift_data|safe }},
+                backgroundColor: 'rgba(54, 162, 235, 0.7)',
+                borderColor: 'rgba(54, 162, 235, 1)',
+                borderWidth: 1
+            }]
+        },
+        options: {
+            responsive: true,
+            plugins: {
+                legend: { display: false },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            return context.raw + ' selections';
+                        }
+                    }
+                },
+                datalabels: {
+                    anchor: 'end',
+                    align: 'top',
+                    formatter: (value) => value > 0 ? value : ''
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    ticks: { stepSize: 1 }
+                }
+            }
+        },
+        plugins: [ChartDataLabels]
+    });
+
+    // Category Distribution Chart
+    const categoryCtx = document.getElementById('categoryChart').getContext('2d');
+    new Chart(categoryCtx, {
+        type: 'doughnut',
+        data: {
+            labels: {{ category_labels|safe }},
+            datasets: [{
+                data: {{ category_data|safe }},
+                backgroundColor: [
+                    '#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0', 
+                    '#9966FF', '#FF9F40', '#8AC24A', '#607D8B'
+                ],
+                borderWidth: 1
+            }]
+        },
+        options: {
+            responsive: true,
+            plugins: {
+                legend: { position: 'right' },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            const label = context.label || '';
+                            const value = context.raw || 0;
+                            const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                            const percentage = Math.round((value / total) * 100);
+                            return `${label}: ${value} (${percentage}%)`;
+                        }
+                    }
+                }
+            }
+        }
+    });
+
+    // Sales Trend Chart
+    const salesCtx = document.getElementById('salesTrendChart').getContext('2d');
+    new Chart(salesCtx, {
+        type: 'line',
+        data: {
+            labels: {{ sales_labels|safe }},
+            datasets: [{
+                label: 'Sales',
+                data: {{ sales_data|safe }},
+                fill: true,
+                backgroundColor: 'rgba(75, 192, 192, 0.2)',
+                borderColor: 'rgba(75, 192, 192, 1)',
+                tension: 0.4,
+                borderWidth: 2
+            }]
+        },
+        options: {
+            responsive: true,
+            plugins: {
+                legend: { display: false }
+            },
+            scales: {
+                y: {
+                    beginAtZero: false
+                }
+            }
+        }
+    });
+
+    // Country Performance Chart
+    const countryCtx = document.getElementById('countryChart').getContext('2d');
+    new Chart(countryCtx, {
+        type: 'horizontalBar',
+        data: {
+            labels: {{ country_labels|safe }},
+            datasets: [{
+                label: 'Revenue ($)',
+                data: {{ country_data|safe }},
+                backgroundColor: 'rgba(153, 102, 255, 0.7)',
+                borderColor: 'rgba(153, 102, 255, 1)',
+                borderWidth: 1
+            }]
+        },
+        options: {
+            responsive: true,
+            plugins: {
+                legend: { display: false }
+            },
+            indexAxis: 'y',
+        }
+    });
+</script>
+
+<style>
+    .card {
+        transition: transform 0.2s ease, box-shadow 0.2s ease;
+        border-radius: 10px;
+        overflow: hidden;
+    }
+    .card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 10px 20px rgba(0,0,0,0.1);
+    }
+    .bg-purple { background-color: #6f42c1 !important; }
+    .bg-orange { background-color: #fd7e14 !important; }
+    .bg-pink { background-color: #e83e8c !important; }
+    .table-responsive { max-height: 300px; overflow-y: auto; }
+    .avatar-sm { width: 40px; height: 40px; }
+    .avatar-title { 
+        display: flex; 
+        align-items: center; 
+        justify-content: center; 
+        width: 100%; 
+        height: 100%; 
+    }
+</style>
+
+{% endblock %}

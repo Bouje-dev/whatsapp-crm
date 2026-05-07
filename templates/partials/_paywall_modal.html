@@ -1,0 +1,328 @@
+<div id="plan-paywall-overlay" class="plan-paywall-overlay" aria-modal="true" role="dialog" aria-label="Choose a plan to continue">
+  <div class="plan-paywall-card">
+    <div class="plan-paywall-head">
+      <h2>Choose your plan to continue</h2>
+      <p>Your account has no active plan yet. Select a plan and start your $1 trial to unlock the platform.</p>
+    </div>
+
+    <div class="plan-billing-toggle-wrap" id="planBillingToggleWrap" role="group" aria-label="Billing period">
+      <span id="paywallLabelMonthly" class="is-active">Monthly</span>
+      <button type="button" id="paywallBillingToggle" class="plan-billing-toggle" role="switch" aria-checked="false" aria-label="Switch billing period"></button>
+      <span id="paywallLabelYearly">Yearly <em>Save 20%</em></span>
+    </div>
+
+    <div class="plan-paywall-grid">
+      {% for plan in paywall_plans %}
+      <article class="plan-paywall-tier {% if plan.slug == 'pro' %}is-featured{% endif %}">
+        {% if plan.slug == "pro" %}
+        <span class="plan-badge">Best Value</span>
+        {% endif %}
+        <h3>{{ plan.display_name }}</h3>
+        <p class="plan-price-row" data-price-row data-monthly="{{ plan.monthly_price }}" data-yearly="{{ plan.yearly_price }}">
+          <strong data-price-amount>${{ plan.monthly_price }}</strong>
+          <small data-price-suffix>/mo</small>
+        </p>
+        <ul class="plan-tier-limits">
+          <li>{{ plan.channels_text }}</li>
+          <li>{{ plan.team_text }}</li>
+          <li>{{ plan.orders_text }}</li>
+        </ul>
+        <ul class="plan-tier-features">
+          {% for feature in plan.features %}
+          <li>{{ feature }}</li>
+          {% endfor %}
+        </ul>
+        <button
+          type="button"
+          class="plan-select-btn {% if plan.slug == 'elite' %}is-secondary{% endif %}"
+          data-plan="{{ plan.slug }}"
+        >
+          {% if plan.slug == "elite" %}Get started{% else %}Start your $1 trial{% endif %}
+        </button>
+      </article>
+      {% endfor %}
+    </div>
+
+    <p class="plan-paywall-footnote">
+      All plans include the same core AI platform. Only channel, team, and order limits change.
+    </p>
+  </div>
+</div>
+
+<style>
+  /* body.plan-paywall-locked {
+    overflow: hidden !important;
+  }
+  body.plan-paywall-locked > *:not(#plan-paywall-overlay) {
+    filter: blur(8px);
+    pointer-events: none !important;
+    user-select: none !important;
+  } */
+  #plan-paywall-overlay.plan-paywall-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 2147483000;
+    background: rgba(10, 15, 26, 0.66);
+    backdrop-filter: blur(2px);
+    display: grid;
+    place-items: center;
+    padding: 20px;
+  }
+  .plan-paywall-card {
+    width: min(1100px, 100%);
+    max-height: calc(100vh - 40px);
+    overflow: auto;
+    border-radius: 20px;
+    border: 1px solid rgba(255, 255, 255, 0.14);
+    background: linear-gradient(180deg, #111827 0%, #0b1220 100%);
+    color: #f8fafc;
+    padding: 24px;
+    box-shadow: 0 18px 60px rgba(0, 0, 0, 0.5);
+  }
+  .plan-paywall-head h2 {
+    margin: 0;
+    font-size: 28px;
+    line-height: 1.2;
+  }
+  .plan-paywall-head p {
+    margin: 10px 0 0;
+    color: #cbd5e1;
+    font-size: 15px;
+  }
+  .plan-billing-toggle-wrap {
+    margin: 18px auto 22px;
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 12px;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.08);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+  }
+  .plan-billing-toggle-wrap span {
+    font-size: 13px;
+    color: #cbd5e1;
+  }
+  .plan-billing-toggle-wrap span.is-active {
+    color: #ffffff;
+    font-weight: 600;
+  }
+  .plan-billing-toggle-wrap em {
+    font-style: normal;
+    color: #34d399;
+    font-weight: 700;
+    margin-left: 3px;
+  }
+  .plan-billing-toggle {
+    width: 52px;
+    height: 28px;
+    border-radius: 999px;
+    border: 0;
+    background: #1f2937;
+    cursor: pointer;
+    position: relative;
+    transition: background 0.2s ease;
+  }
+  .plan-billing-toggle::after {
+    content: "";
+    position: absolute;
+    top: 3px;
+    left: 3px;
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    background: #ffffff;
+    transition: transform 0.2s ease;
+  }
+  .plan-billing-toggle.is-yearly {
+    background: #2563eb;
+  }
+  .plan-billing-toggle.is-yearly::after {
+    transform: translateX(24px);
+  }
+  .plan-paywall-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 16px;
+  }
+  .plan-paywall-tier {
+    position: relative;
+    border: 1px solid rgba(255, 255, 255, 0.14);
+    border-radius: 16px;
+    background: rgba(15, 23, 42, 0.76);
+    padding: 18px;
+  }
+  .plan-paywall-tier.is-featured {
+    border-color: rgba(96, 165, 250, 0.9);
+    box-shadow: 0 0 0 1px rgba(96, 165, 250, 0.35), 0 16px 40px rgba(37, 99, 235, 0.2);
+  }
+  .plan-badge {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    background: #2563eb;
+    color: #ffffff;
+    border-radius: 999px;
+    padding: 3px 9px;
+    font-size: 11px;
+    font-weight: 700;
+  }
+  .plan-paywall-tier h3 {
+    margin: 2px 0 8px;
+    font-size: 20px;
+  }
+  .plan-price-row {
+    margin: 0 0 10px;
+    display: flex;
+    align-items: baseline;
+    gap: 6px;
+  }
+  .plan-price-row strong {
+    font-size: 32px;
+    line-height: 1;
+  }
+  .plan-price-row small {
+    color: #cbd5e1;
+  }
+  .plan-tier-limits {
+    margin: 0 0 16px;
+    padding: 0;
+    list-style: none;
+    display: grid;
+    gap: 8px;
+    color: #dbeafe;
+    font-size: 14px;
+  }
+  .plan-tier-limits li::before {
+    content: "✓";
+    color: #34d399;
+    margin-right: 8px;
+    font-weight: 700;
+  }
+  .plan-tier-features {
+    margin: 0 0 16px;
+    padding: 0;
+    list-style: none;
+    display: grid;
+    gap: 7px;
+    font-size: 13px;
+    color: #cbd5e1;
+    border-top: 1px dashed rgba(148, 163, 184, 0.35);
+    padding-top: 12px;
+  }
+  .plan-tier-features li::before {
+    content: "•";
+    color: #60a5fa;
+    margin-right: 8px;
+    font-weight: 700;
+  }
+  .plan-select-btn {
+    width: 100%;
+    border: 0;
+    border-radius: 12px;
+    height: 44px;
+    cursor: pointer;
+    font-weight: 700;
+    color: #ffffff;
+    background: linear-gradient(90deg, #2563eb 0%, #1d4ed8 100%);
+  }
+  .plan-select-btn.is-secondary {
+    background: rgba(148, 163, 184, 0.22);
+    border: 1px solid rgba(148, 163, 184, 0.45);
+  }
+  .plan-paywall-footnote {
+    margin: 16px 0 0;
+    color: #cbd5e1;
+    font-size: 13px;
+    text-align: center;
+  }
+  @media (max-width: 900px) {
+    .plan-paywall-grid {
+      grid-template-columns: 1fr;
+    }
+    .plan-paywall-head h2 {
+      font-size: 24px;
+    }
+  }
+</style>
+
+<script>
+  (function () {
+    if (window.__planPaywallInitDone) return;
+    window.__planPaywallInitDone = true;
+    document.body.classList.add("plan-paywall-locked");
+
+    function getCookie(name) {
+      var value = "; " + document.cookie;
+      var parts = value.split("; " + name + "=");
+      if (parts.length === 2) return parts.pop().split(";").shift();
+      return "";
+    }
+
+    function updatePrices(isYearly) {
+      var rows = document.querySelectorAll("#plan-paywall-overlay [data-price-row]");
+      rows.forEach(function (row) {
+        var amountEl = row.querySelector("[data-price-amount]");
+        var suffixEl = row.querySelector("[data-price-suffix]");
+        var monthly = row.getAttribute("data-monthly");
+        var yearly = row.getAttribute("data-yearly");
+        var amount = isYearly ? yearly : monthly;
+        if (amountEl) amountEl.textContent = "$" + amount;
+        if (suffixEl) suffixEl.textContent = isYearly ? "/mo (yearly)" : "/mo";
+      });
+    }
+
+    function toggleVisuals(isYearly) {
+      var btn = document.getElementById("paywallBillingToggle");
+      var m = document.getElementById("paywallLabelMonthly");
+      var y = document.getElementById("paywallLabelYearly");
+      if (!btn || !m || !y) return;
+      btn.classList.toggle("is-yearly", isYearly);
+      btn.setAttribute("aria-checked", isYearly ? "true" : "false");
+      m.classList.toggle("is-active", !isYearly);
+      y.classList.toggle("is-active", isYearly);
+    }
+
+    var yearly = false;
+    var billingToggle = document.getElementById("paywallBillingToggle");
+    if (billingToggle) {
+      billingToggle.addEventListener("click", function () {
+        yearly = !yearly;
+        toggleVisuals(yearly);
+        updatePrices(yearly);
+      });
+    }
+
+    document.querySelectorAll("#plan-paywall-overlay .plan-select-btn").forEach(function (btn) {
+      btn.addEventListener("click", async function () {
+        var plan = btn.getAttribute("data-plan");
+        var original = btn.textContent;
+        btn.disabled = true;
+        btn.textContent = "Redirecting...";
+        try {
+          var response = await fetch("/discount/whatssapAPI/api/billing/create-checkout-session/", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "X-CSRFToken": getCookie("csrftoken")
+            },
+            credentials: "same-origin",
+            body: JSON.stringify({ planId: plan })
+          });
+          var data = await response.json();
+          if (!response.ok || !data.url) {
+            throw new Error(data.error || "Unable to start checkout");
+          }
+          window.location.href = data.url;
+        } catch (err) {
+          alert(err.message || "Checkout failed");
+          btn.disabled = false;
+          btn.textContent = original;
+        }
+      });
+    });
+
+    toggleVisuals(false);
+    updatePrices(false);
+  })();
+</script>

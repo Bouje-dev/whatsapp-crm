@@ -1,0 +1,8523 @@
+/* الكارت العام */
+.cls3741_team_card {
+  background: var(--bg-secondary);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  border-radius: 16px;
+  padding: 20px;
+ 
+
+  height: 148px;
+  overflow: auto;
+  width: 100%;
+}
+
+.cls3741_card_header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+}
+
+.cls3741_card_title {
+  font-size: 16px;
+  font-weight: 700;
+  color: white;
+  margin: 0;
+}
+
+/* القائمة */
+.cls3741_team_list {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  max-height: 300px; /* سكرول إذا كانت القائمة طويلة */
+  overflow-y: auto;
+  padding-right: 5px; /* مساحة للسكرول بار */
+}
+
+/* العنصر الواحد (الموظف) */
+.cls3741_team_item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.02);
+  transition: background 0.2s;
+}
+
+.cls3741_team_item:hover {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+/* الأفاتار ونقطة الحالة */
+.cls3741_avatar_wrapper {
+  position: relative;
+  width: 40px;
+  height: 40px;
+}
+
+.cls3741_avatar_img, .cls3741_avatar_placeholder {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.cls3741_avatar_placeholder {
+  background: linear-gradient(135deg, #6366f1, #a855f7);
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: bold;
+  font-size: 14px;
+}
+
+/* النقطة الخضراء/الرمادية */
+.cls3741_status_indicator {
+  position: absolute;
+  bottom: 0;
+  right: 0;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  border: 2px solid var(--bg-secondary); /* حدود لدمجها مع الخلفية */
+}
+
+.cls3741_status_indicator.online {
+  background-color: #10b981;
+  box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.2);
+}
+
+.cls3741_status_indicator.offline {
+  background-color: #64748b;
+}
+
+/* النصوص */
+.cls3741_member_name {
+  font-size: 14px;
+  font-weight: 600;
+  color: #f1f5f9;
+}
+
+.cls3741_member_role {
+  font-size: 12px;
+  color: #94a3b8;
+}
+
+.cls3741_last_seen {
+  font-size: 12px;
+  color: #64748b;
+  white-space: nowrap;
+}
+
+
+
+
+
+
+/* الحاوية النسبية للقائمة */
+.cls3741_custom_dropdown {
+  position: relative;
+  display: inline-block;
+}
+
+/* زر القائمة الرئيسي */
+.cls3741_dropdown_trigger {
+  background: var(--bg-secondary); /* نفس لون خلفية الأزرار */
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: var(--text-secondary);
+  padding: 8px 16px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  transition: all 0.2s;
+  min-width: 160px; /* عرض مناسب */
+  justify-content: space-between;
+}
+
+.cls3741_dropdown_trigger:hover {
+  background: rgba(255, 255, 255, 0.05);
+  border-color: rgba(255, 255, 255, 0.2);
+  color: white;
+}
+
+/* القائمة المنبثقة */
+.cls3741_dropdown_menu {
+  display: none; /* مخفية افتراضياً */
+  position: absolute;
+  top: 110%; /* أسفل الزر قليلاً */
+  right: 0; /* محاذاة لليمين */
+  background: #1e293b; /* لون داكن جداً */
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 10px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+  z-index: 1000;
+  min-width: 180px;
+  overflow: hidden;
+  padding: 6px;
+}
+
+/* عناصر القائمة */
+.cls3741_dropdown_item {
+  padding: 10px 12px;
+  font-size: 13px;
+  color: #cbd5e1;
+  cursor: pointer;
+  border-radius: 6px;
+  transition: background 0.15s;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.cls3741_dropdown_item:hover {
+  background: rgba(124, 58, 237, 0.15); /* لون بنفسجي خفيف عند التحويم */
+  color: white;
+}
+
+/* كلاس لإظهار القائمة */
+.cls3741_dropdown_menu.show {
+  display: block;
+  animation: fadeInDown 0.2s ease;
+}
+
+/* أنيميشن بسيط */
+@keyframes fadeInDown {
+  from { opacity: 0; transform: translateY(-5px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+
+
+
+.cls3741_lifecycle_container {
+  display: grid;
+    gap: 16px;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  overflow-x: auto;
+  padding-bottom: 12px; /* مساحة للـ Scrollbar */
+  margin-bottom: 24px;
+  scrollbar-width: thin; /* للفايرفوكس */
+}
+
+/* تنسيق السكرول بار */
+.cls3741_lifecycle_container::-webkit-scrollbar {
+  height: 6px;
+}
+.cls3741_lifecycle_container::-webkit-scrollbar-track {
+  background: rgba(255,255,255,0.02);
+  border-radius: 10px;
+}
+.cls3741_lifecycle_container::-webkit-scrollbar-thumb {
+  background: rgba(255,255,255,0.1);
+  border-radius: 10px;
+}
+
+/* الكارت الواحد */
+.cls3741_lifecycle_card {
+  min-width: 200px;
+  background: var(--bg-secondary); /* لون الخلفية الداكن */
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  border-radius: 12px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  position: relative;
+  transition: transform 0.2s, border-color 0.2s;
+}
+
+.cls3741_lifecycle_card:hover {
+  transform: translateY(-2px);
+  border-color: rgba(255, 255, 255, 0.1);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+}
+
+/* الهيدر داخل الكارت */
+.cls3741_lc_header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+/* الرقم الكبير */
+.cls3741_lc_count {
+  font-size: 24px;
+  font-weight: 800;
+  color: white;
+  line-height: 1;
+}
+
+/* النسبة المئوية */
+.cls3741_lc_percent {
+  font-size: 12px;
+  color: #94a3b8;
+  background: rgba(255,255,255,0.05);
+  padding: 2px 6px;
+  border-radius: 4px;
+  margin-left: auto; /* دفعها لليمين */
+}
+
+/* الأيقونات الصغيرة في الأسفل */
+.cls3741_lc_footer {
+  display: flex;
+  gap: 12px;
+  margin-top: auto;
+  border-top: 1px solid rgba(255,255,255,0.05);
+  padding-top: 8px;
+}
+
+.cls3741_lc_metric {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  color: #64748b;
+}
+
+.cls3741_lc_metric i {
+  font-size: 12px;
+}
+
+/* تأثير التحميل (Skeleton Loader) */
+@keyframes pulse-bg {
+  0% { background-color: rgba(255, 255, 255, 0.05); }
+  50% { background-color: rgba(255, 255, 255, 0.1); }
+  100% { background-color: rgba(255, 255, 255, 0.05); }
+}
+
+.loading_skeleton {
+  animation: pulse-bg 1.5s infinite;
+  pointer-events: none; /* منع النقر أثناء التحميل */
+  border: none !important;
+}
+
+:root{
+  /* نظام متغيرات موحد */
+  --bg-deep: #071226;           /* خلفية عامة داكنة */
+  --sidebar-bg: #08192a;
+  --surface: #0b1228;          /* بطاقات وسطوح داكنة */
+  --panel-surface: #ffffff;    /* بطاقات داخلية فاتحة */
+  --text-primary: #e6eef6;
+  --text-muted: #94a3b8;
+  --accent: #06b6d4;           /* غيّرها حسب لوحة الألوان التي تختارها */
+  --success: #25d366;
+  --radius: 14px;
+  --gap: 18px;
+  --soft-shadow: 0 8px 24px rgba(2,6,23,0.45);
+  --card-shadow: 0 4px 12px rgba(2,6,23,0.28);
+  --glass: rgba(255,255,255,0.03);
+  color-scheme: dark;
+}
+
+:root {
+  /* =========================================
+     🎨 لوحة الألوان (Dark Theme Palette)
+     ========================================= */
+
+  /* --- الخلفيات (Backgrounds) --- */
+  --bg-deep: #000000;        /* الخلفية الأعمق (للصفحة بالكامل) */
+  --bg-primary: #0f1419;     /* خلفية الأعمدة والبطاقات الرئيسية */
+  --bg-secondary: #000000;   /* خلفية منطقة الشات (سوداء تماماً) */
+  --bg-tertiary: #202c33;    /* خلفية الهيدر وحقول الإدخال (رمادي مزرق) */
+  --bg-hover: #2a3942;       /* لون الخلفية عند تمرير الماوس */
+
+  /* --- النصوص (Typography) --- */
+  --text-primary: #e9edef;   /* أبيض مائل للرمادي قليلاً (مريح للعين) */
+  --text-secondary: #8696a0; /* رمادي متوسط (للنصوص الفرعية) */
+  --text-muted: #6b7280;     /* رمادي غامق (للتواريخ والأيقونات) */
+
+  /* --- ألوان البراند (WhatsApp Style) --- */
+  --accent: #00a884;         /* أخضر واتساب الرئيسي */
+  --accent-hover: #008f6f;   /* أخضر غامق (عند الضغط) */
+  
+  /* --- ألوان الفقاعات (Chat Bubbles) --- */
+  --message-out: #005c4b;    /* لون رسالتي (أخضر غامق) */
+  --message-in: #202c33;     /* لون رسالة الطرف الآخر (رمادي غامق) */
+
+  /* --- حالات النظام (Status) --- */
+  --danger: #ef4444;         /* أحمر (للأخطاء والحذف) */
+  --success: #22c55e;        /* أخضر فاقع (للنجاح) */
+  --warning: #f59e0b;        /* برتقالي (للتنبيهات) */
+
+  /* --- الحدود والظلال (Borders & Shadows) --- */
+  --border-color: #2f3336;   /* لون الخطوط الفاصلة */
+  --border-light: #374151;   /* حدود أفتح قليلاً */
+  --card-radius: 16px;       /* درجة انحناء الزوايا */
+  
+  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.3);
+  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.5);
+  --soft-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
+
+  /* --- تدرجات (Gradients) --- */
+  --gradient-avatar: linear-gradient(135deg, #00a884 0%, #005c4b 100%);
+  
+  /* --- إعدادات النظام --- */
+  color-scheme: dark;
+}
+
+/* --- System Log Message Styling --- */
+
+/* الحاوية الخارجية لتوسط العنصر */
+.system-log-wrapper {
+  display: flex;
+  justify-content: center;
+  margin: 24px 0;
+  width: 100%;
+}
+
+
+
+
+
+ 
+/* 2. تصميم الأزرار */
+.cls3741_btn {
+  position: relative; /* ضروري للـ Tooltip */
+  width: 44px;
+  height: 44px;
+  border: none;
+  background: transparent;
+  border-radius: 12px;
+  color: #94a3b8; /* لون الأيقونة العادية */
+  cursor: pointer;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  transition: all 0.2s ease;
+}
+
+/* حالة التحويم والنشط */
+.cls3741_btn:hover,
+.cls3741_btn_active {
+  background-color: #7c3aed; /* لون البراند البنفسجي */
+  color: white;
+  box-shadow: 0 4px 12px rgba(124, 58, 237, 0.3);
+  
+}
+
+.cls3741_icon {
+  font-size: 20px; /* حجم الأيقونة */
+}
+
+/* 3. تصميم الـ Tooltip (الاسم الذي يظهر) */
+.cls3741_tooltip {
+  position: absolute;
+  left: 120%; /* يظهر يمين الزر */
+  top: 50%;
+  transform: translateY(-50%);
+  background-color: #1e293b; /* خلفية داكنة للنص */
+  color: white;
+  padding: 6px 12px;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 500;
+  white-space: nowrap;
+  opacity: 0;
+  visibility: hidden;
+  transition: all 0.2s ease;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3);
+  pointer-events: none; /* لكي لا يعيق الماوس */
+  z-index: 1000;
+}
+
+/* سهم صغير للـ Tooltip (اختياري) */
+.cls3741_tooltip::before {
+  content: '';
+  position: absolute;
+  left: -4px;
+  top: 50%;
+  transform: translateY(-50%);
+  border-width: 5px;
+  border-style: solid;
+  border-color: transparent #1e293b transparent transparent;
+}
+
+/* إظهار الاسم عند التمرير */
+.cls3741_btn:hover .cls3741_tooltip {
+  opacity: 1;
+  visibility: visible;
+  left: 110%; /* حركة بسيطة للأنيميشن */
+}
+
+/* 4. نقطة التنبيهات (Badge Dot) */
+.cls3741_badge_dot {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 8px;
+  height: 8px;
+  background-color: #ef4444; /* أحمر */
+  border-radius: 50%;
+  display: none; /* مخفي افتراضياً */
+  border: 2px solid #0f172a; /* حدود لدمجها مع الخلفية */
+}
+
+/* إظهار النقطة إذا كان فيها محتوى (يمكن التحكم بها بالجافاسكريبت) */
+.cls3741_badge_dot:not(:empty) {
+  display: block;
+}
+
+
+
+
+
+
+/* البطاقة نفسها */
+.system-log-card {
+  background: rgba(30, 41, 59, 0.7); /* Slate-800 شفاف قليلاً */
+  backdrop-filter: blur(4px);         /* تأثير الزجاج */
+  border: 1px solid rgba(148, 163, 184, 0.1);
+  border-left: 3px solid #6366f1;     /* خط جانبي ملون (Indigo) */
+  border-radius: 8px;
+  padding: 0;
+  width: 100%;
+  max-width: 450px;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+  overflow: hidden;
+  font-family: 'Inter', system-ui, sans-serif;
+}
+
+/* الهيدر الصغير */
+.log-header {
+  background: rgba(0, 0, 0, 0.2);
+  padding: 8px 12px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.log-icon-box {
+  color: #6366f1; /* لون الأيقونة */
+  display: flex;
+  align-items: center;
+}
+.log-icon-box svg {
+  width: 14px;
+  height: 14px;
+}
+
+.log-title {
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  color: #94a3b8; /* Slate-400 */
+  text-transform: uppercase;
+}
+
+/* محتوى الرسالة */
+.log-body {
+  padding: 12px 16px;
+}
+
+.log-message {
+  font-size: 0.9rem;
+  color: #e2e8f0; /* Slate-200 */
+  margin: 0 0 6px 0;
+  line-height: 1.4;
+}
+
+/* المعلومات الإضافية (الوقت واسم المستخدم) */
+.log-meta {
+  font-size: 0.75rem;
+  color: #64748b; /* Slate-500 */
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.log-divider {
+  color: #475569;
+  font-weight: bold;
+}
+
+
+
+
+/* ---------------- modeals classses -----------------  */
+.cls3741_btn_facebook {
+  background-color: #1877F2;
+  color: white;
+  border: none;
+  padding: 12px 24px;
+  border-radius: 8px;
+  font-weight: bold;
+  cursor: pointer;
+  font-size: 15px;
+  width: 100%;
+  transition: background 0.2s;
+}
+.cls3741_btn_facebook:hover { background-color: #166fe5; }
+  /* Modal Overlay */
+.cls3741_modal_overlay {
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(0, 0, 0, 0.7);
+    backdrop-filter: blur(5px);
+    z-index: 9999;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* Modal Box */
+.cls3741_modal_content {
+    background: var(--bg-primary);
+    width: 500px;
+    max-width: 90%;
+    border-radius: 16px;
+    border: 1px solid var(--border-color);
+    box-shadow: 0 20px 50px rgba(0,0,0,0.5);
+    overflow: hidden;
+    animation: slideUp 0.3s ease-out;
+}
+
+@keyframes slideUp {
+    from { transform: translateY(20px); opacity: 0; }
+    to { transform: translateY(0); opacity: 1; }
+}
+
+/* Header */
+.cls3741_modal_header {
+    padding: 16px 24px;
+    border-bottom: 1px solid var(--border-color);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: var(--bg-tertiary);
+}
+.cls3741_modal_header h3 { margin: 0; color: var(--text-primary); font-size: 18px; }
+.cls3741_modal_close { background: none; border: none; color: var(--text-secondary); font-size: 24px; cursor: pointer; }
+
+/* Body */
+.cls3741_modal_body { padding: 24px; display: flex; flex-direction: column; gap: 16px; }
+
+.form-group label { display: block; color: var(--text-secondary); margin-bottom: 6px; font-size: 13px; }
+.cls3741_input_field {
+    width: 100%;
+    padding: 12px;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    color: var(--text-primary);
+    outline: none;
+}
+.cls3741_input_field:focus { border-color: var(--accent); }
+
+/* Footer */
+.cls3741_modal_footer {
+    padding: 16px 24px;
+    background: var(--bg-tertiary);
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+}
+
+.cls3741_btn_save {
+    background: var(--accent);
+    color: white;
+    padding: 10px 20px;
+    border-radius: 8px;
+    border: none;
+    font-weight: bold;
+    cursor: pointer;
+}
+.cls3741_btn_cancel {
+    background: transparent;
+    color: var(--text-secondary);
+    padding: 10px 20px;
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    cursor: pointer;
+}
+
+
+ 
+
+
+
+
+/* --------------end for amodal -=------------ */
+ .cls9999_empty_state{
+  color:white;
+  font-weight: bold;
+  
+ }
+  /* تنسيق عام */
+  html,body{height:100%;margin:0;font-family:Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;}
+  .cls3741_container{
+    /* background: linear-gradient(180deg, #071226 0%, #07111a 100%);  */
+    
+    color:#e6eef6; -webkit-font-smoothing:antialiased; -moz-osx-font-smoothing:grayscale; }
+
+/* تقليل كثافة الظلال لتحسين الأداء */
+.box-soft { box-shadow: var(--card-shadow); transition: transform 0.12s ease, box-shadow 0.12s ease; }
+.box-soft:hover { transform: translateY(-4px); box-shadow: 0 10px 30px rgba(2,6,23,0.18); }
+
+
+  .cls3741_container{
+    display:flex;
+    gap:var(--gap);
+    width: 100%;
+    max-width: 100vw;
+    box-sizing:border-box;
+    min-width: 0;
+  }
+
+  /* 1. حاوية الشريط الجانبي (Slim Sidebar) */
+.cls3741_sidebar {
+  width: 72px; /* عرض ثابت صغير للأيقونات */
+  background: linear-gradient(180deg, #0f172a 0%, #1e293b 100%); /* خلفية داكنة احترافية */
+  border-radius: 16px; /* حواف ناعمة */
+  padding: 16px 8px; /* مسافات داخلية متناسقة */
+  display: flex;
+  flex-direction: column;
+  align-items: center; /* توسيط كل العناصر أفقياً */
+  gap: 20px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+  /* height: calc(100vh - 40px);  */
+  position: relative; /* ضروري للتموضع */
+  transition: width 0.3s ease;
+}
+
+/* 2. منطقة اللوجو (Brand) */
+.cls3741_brand {
+  display: flex;
+  justify-content: center;
+  width: 100%;
+  padding-bottom: 10px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.cls3741_logo {
+  width: 50px;
+  height: 50px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--accent, #6366f1), #a855f7); /* لون متدرج */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 800;
+  color: white;
+  font-size: 20px;
+  box-shadow: 0 4px 12px rgba(99, 102, 241, 0.4);
+  cursor: pointer;
+}
+
+/* 🔥 إخفاء نصوص البراند (اسم القناة والوكلاء) لأن الشريط ضيق */
+.cls3741_brand > div:last-child {
+  display: none;
+}
+
+/* 3. قائمة التنقل (Nav) */
+.cls3741_nav {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  height: 675px;
+  flex: 1; /* يأخذ المساحة المتبقية */
+}
+
+/* 4. الأزرار (Buttons) */
+.cls3741_btn {
+  position: relative; /* ضروري للـ Tooltip */
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  border: none;
+  background: transparent;
+  color: #94a3b8; /* لون رمادي فاتح */
+  cursor: pointer;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.cls3741_icon {
+  font-size: 20px;
+}
+
+/* تأثير التحويم والنشط */
+.cls3741_btn:hover {
+  background-color: rgba(255, 255, 255, 0.1);
+  color: #f8fafc;
+  transform: translateY(-2px); /* حركة بسيطة للأعلى */
+}
+
+.cls3741_btn_active {
+  background: linear-gradient(135deg, var(--accent, #6366f1), #8b5cf6);
+  color: white;
+  box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
+}
+
+/* 5. الـ Tooltip (الاسم الجانبي) */
+.cls3741_tooltip {
+  position: absolute;
+  left: 60px; /* يظهر يمين الزر */
+  top: 50%;
+  transform: translateY(-50%) translateX(10px);
+  background-color: #1e293b;
+  color: white;
+  padding: 6px 12px;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 500;
+  white-space: nowrap;
+  opacity: 0;
+  visibility: hidden;
+  transition: all 0.2s ease;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3);
+  z-index: 100;
+  pointer-events: none;
+  border: 1px solid rgba(255,255,255,0.1);
+}
+
+/* سهم صغير للـ Tooltip */
+.cls3741_tooltip::before {
+  content: '';
+  position: absolute;
+  left: -4px;
+  top: 50%;
+  transform: translateY(-50%) rotate(45deg);
+  width: 8px;
+  height: 8px;
+  background-color: #1e293b;
+  border-left: 1px solid rgba(255,255,255,0.1);
+  border-bottom: 1px solid rgba(255,255,255,0.1);
+}
+
+.cls3741_btn:hover .cls3741_tooltip {
+  opacity: 1;
+  visibility: visible;
+  transform: translateY(-50%) translateX(0);
+}
+
+/* 6. نقطة التنبيهات الحمراء (Badge) */
+.cls3741_badge_dot {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 8px;
+  height: 8px;
+  background-color: #ef4444;
+  border-radius: 50%;
+  border: 2px solid #1e293b; /* دمج مع الخلفية */
+  display: none;
+}
+.cls3741_badge_dot:not(:empty) { display: block; }
+
+/* 7. الفوتر (حالة الحساب) - تحويله لأيقونة */
+.cls3741_sidebar > div:last-child {
+  margin-top: auto; /* يذهب للأسفل */
+  width: 44px;
+  height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255, 255, 255, 0.03);
+  border-radius: 12px;
+  cursor: help;
+  position: relative; /* للـ tooltip */
+}
+
+/* إخفاء النص القديم داخل الفوتر */
+.cls3741_sidebar > div:last-child > div {
+  display: none; 
+}
+
+/* وضع نقطة خضراء بدلاً من النص */
+.cls3741_sidebar > div:last-child::after {
+  content: '';
+  width: 10px;
+  height: 10px;
+  background-color: #10b981; /* أخضر */
+  border-radius: 50%;
+  box-shadow: 0 0 10px rgba(16, 185, 129, 0.5);
+}
+
+/* إظهار كلمة "Online" عند التمرير على النقطة */
+.cls3741_sidebar > div:last-child:hover::before {
+  content: 'Online';
+  position: absolute;
+  left: 55px;
+  background: #10b981;
+  color: white;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+}
+  /* المحتوى الرئيسي */
+  .cls3741_main{
+    flex:1;
+    min-width:0;
+    display:flex;
+    gap:20px;
+    align-items:flex-start;
+    /* min-height:calc(100vh - 44px); */
+  }
+
+  .cls3741_panel{
+    flex:1;
+    background:linear-gradient(180deg, #0d0f14 0%, #13161d 100%);
+    border-radius:var(--radius);
+    padding:0px;
+    box-shadow:var(--soft-shadow);
+    overflow:auto;
+    min-width:0;
+    height: 100%;
+    min-height: 0;
+  }
+
+  .cls3741_panel h2{margin:0 0 8px 0;font-size:20px;color:#cbd5e1}
+  .cls3741_panel p{margin:0;line-height:1.45}
+
+  /* البطاقة الجانبية للشات */
+  .cls3741_sidecard{
+    width:380px;
+    max-height:calc(100vh - 100px);
+    border-radius:12px;
+    background:linear-gradient(180deg,#0b1228 0%, #071226 100%);
+    box-shadow:var(--soft-shadow);
+    display:flex;
+    flex-direction:column;
+    overflow:hidden;
+    transform:translateX(18px);
+    transition: transform .28s ease, opacity .22s ease;
+    opacity:0;
+    pointer-events:none;
+  }
+
+  .cls3741_sidecard_visible{ transform:translateX(0); opacity:1; pointer-events:auto; }
+
+  .cls3741_sidecard_header{
+    display:flex;align-items:center;gap:12px;padding:16px;border-bottom:1px solid rgba(255,255,255,0.03);
+    background:linear-gradient(90deg, rgba(3,7,18,0.6), rgba(4,9,22,0.2));
+  }
+  .cls3741_avatar{width:48px;height:48px;border-radius:10px;background:linear-gradient(135deg,#f97316,#06b6d4);display:flex;align-items:center;justify-content:center;font-weight:700;color:#051021}
+  .cls3741_contact{display:flex;flex-direction:column}
+  .cls3741_name{font-weight:700;color:#eafcff}
+  .cls3741_phone{font-size:13px;color:var(--muted)}
+
+  .cls3741_messages{flex:1;padding:14px;overflow:auto;display:flex;flex-direction:column;gap:10px;background:linear-gradient(180deg, rgba(255,255,255,0.01), transparent);}
+
+  .cls3741_msg{
+    max-width:78%;
+    padding:10px 12px;border-radius:12px;background:linear-gradient(180deg,#08212b,#07202a);color:#eafcff;font-size:14px;
+  }
+
+  .cls3741_msg_me{
+    align-self:flex-end;background:linear-gradient(180deg,#065a5f,#037d7f);
+  }
+
+  .cls3741_sidecard_footer{padding:12px;border-top:1px solid rgba(255,255,255,0.03);display:flex;gap:8px;align-items:center;background:rgba(255,255,255,0.01)}
+  .cls3741_input{flex:1;padding:10px;border-radius:10px;border:none;background:#071426;color:#dff8fb;resize:none;min-height:44px}
+  .cls3741_sendbtn{background:var(--accent);border:none;color:#021020;padding:10px 12px;border-radius:10px;font-weight:700;cursor:pointer}
+
+  /* Hamburger: hidden on desktop */
+  .cls3741_hamburger,
+  .cls3741_sidebar_overlay {
+    display: none;
+  }
+  /* Channels inside sidebar: hidden on desktop (shown only in hamburger on mobile) */
+  .cls3741_sidebar_channels_mobile {
+    display: none;
+  }
+
+  /* responsive */
+  @media (max-width:920px){
+    .cls3741_container{padding:12px}
+    .cls3741_sidebar{width:72px;padding:10px;align-items:center}
+    .cls3741_title,.cls3741_sub{display:none}
+    .cls3741_btn{flex-direction:column;gap:6px;padding:10px}
+    .cls3741_badge{display:none}
+    .cls3741_sidecard{position:fixed;right:12px;bottom:12px;top:64px;width:92%;max-width:420px;border-radius:12px;z-index:60}
+    .cls3741_panel{padding:12px}
+  }
+
+  @media (max-width: 768px) {
+    .workspace-sidebar {
+      display: none;
+    }
+    .cls3741_container {
+      width: 100%;
+      max-width: 100%;
+      min-height: 0;
+      padding: 0 8px 8px 8px;
+    }
+    .cls3741_main {
+      flex: 1;
+      min-height: 0;
+      display: flex;
+      flex-direction: column;
+    }
+    .cls3741_panel {
+      min-height: 0;
+      flex: 1;
+    }
+    .cls3741_hamburger {
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      gap: 5px;
+      position: fixed;
+      top: 14px;
+      left: 14px;
+      z-index: 1001;
+      width: 44px;
+      height: 44px;
+      padding: 0;
+      border: none;
+      border-radius: 12px;
+      background: linear-gradient(180deg, #0f172a 0%, #1e293b 100%);
+      color: #e2e8f0;
+      cursor: pointer;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+      transition: background 0.2s;
+    }
+    .cls3741_hamburger span {
+      display: block;
+      width: 20px;
+      height: 2px;
+      background: currentColor;
+      border-radius: 1px;
+      margin: 0 auto;
+      transition: transform 0.25s, opacity 0.25s;
+    }
+    .cls3741_hamburger[aria-expanded="true"] span:nth-child(1) {
+      transform: translateY(7px) rotate(45deg);
+    }
+    .cls3741_hamburger[aria-expanded="true"] span:nth-child(2) {
+      opacity: 0;
+    }
+    .cls3741_hamburger[aria-expanded="true"] span:nth-child(3) {
+      transform: translateY(-7px) rotate(-45deg);
+    }
+    .cls3741_sidebar_overlay {
+      display: block;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.4);
+      z-index: 999;
+      opacity: 0;
+      visibility: hidden;
+      transition: opacity 0.25s, visibility 0.25s;
+    }
+    .cls3741_sidebar_overlay.visible {
+      opacity: 1;
+      visibility: visible;
+    }
+    .cls3741_sidebar {
+      position: fixed;
+      top: 0;
+      left: 0;
+      bottom: 0;
+      width: 91px !important;
+      max-width: 85vw;
+      z-index: 1000;
+      transform: translateX(-100%);
+      transition: transform 0.25s ease;
+      border-radius: 0;
+      box-shadow: 4px 0 20px rgba(0,0,0,0.3);
+    }
+    body.mobile-nav-open .cls3741_sidebar {
+      transform: translateX(0);
+    }
+    body.mobile-nav-open .cls3741_sidebar_overlay {
+      opacity: 1;
+      visibility: visible;
+    }
+    .cls3741_main {
+      margin-left: 0;
+    }
+    /* Channels block inside hamburger menu (mobile only) */
+    .cls3741_sidebar_channels_mobile {
+      display: block;
+      padding: 12px 12px 16px;
+      border-bottom: 1px solid rgba(255,255,255,0.1);
+      margin-bottom: 8px;
+    }
+    .cls3741_sidebar_channels_title {
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: rgba(255,255,255,0.5);
+      margin-bottom: 10px;
+      padding: 0 4px;
+    }
+    .cls3741_sidebar .workspace-list-in-sidebar {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .cls3741_sidebar .workspace-list-in-sidebar .workspace-item {
+      width: 100%;
+      height: 48px;
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: flex-start;
+      padding: 0 12px;
+      gap: 12px;
+      font-size: 14px;
+      font-weight: 600;
+      color: #374151;
+      background: rgba(255,255,255,0.9);
+      box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+    }
+    .cls3741_sidebar .workspace-list-in-sidebar .workspace-item img {
+      width: 36px;
+      height: 36px;
+      border-radius: 10px;
+      flex-shrink: 0;
+    }
+    .cls3741_sidebar .workspace-list-in-sidebar .workspace-item.active {
+      background: #4f46e5;
+      color: white;
+    }
+    .cls3741_sidebar .workspace-list-in-sidebar .workspace-item.add-new {
+      background: transparent;
+      border: 2px dashed rgba(255,255,255,0.3);
+      color: rgba(255,255,255,0.8);
+      justify-content: center;
+    }
+    .cls3741_sidebar .workspace-list-in-sidebar .workspace-item.add-new:hover {
+      border-color: #4f46e5;
+      color: #4f46e5;
+      background: rgba(79, 70, 229, 0.1);
+    }
+  }
+
+  @media (max-width:520px){
+    .cls3741_container{padding:8px}
+    .cls3741_sidecard{top:56px;right:8px;left:8px;width:auto}
+  }
+
+  /* Table responsive: horizontal scroll on small screens */
+  .table-responsive {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    width: 100%;
+  }
+  .table-responsive table {
+    min-width: 0;
+  }/* 🔥 CSS للمشغل الصوتي البسيط والأنيق */
+.audio-message {
+  max-width: 100%;
+  margin: 0 !important;
+}
+
+.audio-container {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 0 !important;
+  background: transparent !important;
+  border-radius: 12px !important;
+  border: none !important;
+  min-width: 200px !important;
+  max-width: 300px !important;
+  box-shadow: none !important;
+}
+
+.audio-play-btn {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  border: none;
+  background: #1c7f28 !important;
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  flex-shrink: 0;
+  box-shadow: var(--shadow-md);
+}
+
+.audio-play-btn:hover {
+  background: #1c7f27c7 !important;
+  transform: scale(1.05);
+}
+
+.audio-play-btn:focus {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.audio-play-btn:active {
+  transform: scale(0.95);
+}
+
+/* شريط التقدم */
+.audio-progress-container {
+  flex: 1;
+  position: relative;
+  height: 4px;
+  background: var(--border-color);
+  border-radius: 2px;
+  cursor: pointer;
+  margin: 0 8px;
+}
+
+
+/* --- Location Message Card --- */
+
+.location-card {
+  width: 280px;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+  font-family: 'Inter', system-ui, sans-serif;
+  position: relative;
+  border: 1px solid rgba(255,255,255,0.1);
+}
+
+/* خلفية "وهمية" للخريطة (نمط بصري) */
+.loc-header {
+  height: 120px;
+  background-color: #e5e7eb;
+  background-image: url('https://upload.wikimedia.org/wikipedia/commons/e/ec/World_map_blank_without_borders.svg'); /* صورة خريطة خفيفة عامة */
+  background-size: cover;
+  background-position: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+}
+/* طبقة تغميق خفيفة */
+.loc-header::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: rgba(0,0,0,0.1);
+}
+
+.loc-icon-bg {
+  background: white;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2;
+  box-shadow: 0 4px 6px rgba(0,0,0,0.2);
+  animation: bouncePin 2s infinite;
+}
+
+@keyframes bouncePin {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-5px); }
+}
+
+.loc-body {
+  padding: 12px;
+  background: rgba(30, 41, 59, 0.95); /* لون داكن */
+  backdrop-filter: blur(5px);
+}
+
+.loc-title {
+  margin: 0;
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: #f3f4f6;
+}
+
+.loc-coords {
+  margin: 2px 0 10px;
+  font-size: 0.75rem;
+  color: #9ca3af;
+  font-family: monospace;
+}
+
+.loc-btn {
+  display: block;
+  text-align: center;
+  background: rgba(255,255,255,0.1);
+  color: #6366f1; /* لون Indigo */
+  text-decoration: none;
+  padding: 8px;
+  border-radius: 6px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  transition: 0.2s;
+  border: 1px solid rgba(99, 102, 241, 0.3);
+}
+.loc-btn:hover {
+  background: rgba(99, 102, 241, 0.2);
+  color: white;
+}
+
+.loc-meta {
+  position: absolute;
+  bottom: 12px;
+  right: 12px;
+  font-size: 0.65rem;
+  color: rgba(255,255,255,0.5);
+  pointer-events: none;
+}
+
+
+
+.audio-progress-bar {
+  height: 100%;
+  background: #555050 !important;
+  border-radius: 2px;
+  overflow: hidden;
+  position: relative;
+}
+
+.audio-progress-fill {
+  height: 100%;
+  background: #1c7f28 !important;
+  border-radius: 2px;
+  width: 0%;
+  transition: width 0.1s ease;
+}
+
+.audio-seek-slider {
+  position: absolute;
+  top: -8px;
+  left: 0;
+  width: 100%;
+  height: 20px;
+  opacity: 0;
+  cursor: pointer;
+  margin: 0;
+}
+
+.audio-seek-slider::-webkit-slider-thumb {
+  appearance: none;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--accent);
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+}
+
+.audio-seek-slider::-moz-range-thumb {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--accent);
+  cursor: pointer;
+  border: none;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+}
+
+/* معلومات الصوت */
+.audio-info {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  min-width: 45px;
+}
+
+.audio-time {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.audio-duration {
+  font-size: 11px;
+  color: var(--text-secondary);
+  font-weight: 500;
+}
+
+/* تخصيص للرسائل المرسلة */
+.audio-message.fromMe .audio-time,
+.audio-message.fromMe .audio-duration {
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.audio-message.fromMe .audio-progress-fill {
+  background: rgba(255, 255, 255, 0.9);
+}
+
+.audio-message.fromMe .audio-progress-container {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+.audio-message.fromMe .audio-seek-slider::-webkit-slider-thumb {
+  background: rgba(255, 255, 255, 0.9);
+}
+
+.audio-message.fromMe .audio-seek-slider::-moz-range-thumb {
+  background: rgba(255, 255, 255, 0.9);
+}
+
+/* حالة الخطأ */
+.audio-error {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #ef4444;
+  font-size: 13px;
+  font-weight: 500;
+  padding: 8px 12px;
+}
+
+.audio-error svg {
+  flex-shrink: 0;
+}
+
+/* تحسينات للشاشات الصغيرة */
+@media (max-width: 480px) {
+  .audio-container {
+    min-width: 180px;
+    max-width: 260px;
+    gap: 8px;
+    padding: 10px 12px;
+  }
+
+  .audio-play-btn {
+    width: 40px;
+    height: 40px;
+  }
+
+  .audio-info {
+    min-width: 40px;
+  }
+
+  .audio-time {
+    font-size: 11px;
+  }
+
+  .audio-duration {
+    font-size: 10px;
+  }
+}🔥 CSS للمشغل الصوتي المتقدم مثل WhatsApp */
+.audio-message {
+  max-width: 100%;
+  margin: 4px 0;
+}
+ 
+
+.audio-play-btn {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  border: none;
+  background: var(--accent);
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  flex-shrink: 0;
+  box-shadow: var(--shadow-md);
+}
+
+.audio-play-btn:hover {
+  background: var(--accent-hover);
+  transform: scale(1.05);
+}
+
+.audio-play-btn:focus {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.audio-play-btn:active {
+  transform: scale(0.95);
+}
+
+/* شريط التقدم */
+.audio-progress-container {
+  flex: 1;
+  position: relative;
+  height: 4px;
+  background: var(--border-color);
+  border-radius: 2px;
+  cursor: pointer;
+  margin: 0 8px;
+}
+
+.audio-progress-bar {
+  height: 100%;
+  background: var(--border-color);
+  border-radius: 2px;
+  overflow: hidden;
+  position: relative;
+}
+
+.audio-progress-fill {
+  height: 100%;
+  background: var(--accent);
+  border-radius: 2px;
+  width: 0%;
+  transition: width 0.1s ease;
+}
+
+.audio-seek-slider {
+  position: absolute;
+  top: -8px;
+  left: 0;
+  width: 100%;
+  height: 20px;
+  opacity: 0;
+  cursor: pointer;
+  margin: 0;
+}
+
+.audio-seek-slider::-webkit-slider-thumb {
+  appearance: none;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--accent);
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+}
+
+.audio-seek-slider::-moz-range-thumb {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--accent);
+  cursor: pointer;
+  border: none;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+}
+
+/* معلومات الصوت */
+.audio-info {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  min-width: 45px;
+}
+
+.audio-time {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.audio-duration {
+  font-size: 11px;
+  color: var(--text-secondary);
+  font-weight: 500;
+}
+
+/* تخصيص للرسائل المرسلة */
+.audio-message.fromMe .audio-time,
+.audio-message.fromMe .audio-duration {
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.audio-message.fromMe .audio-progress-fill {
+  background: rgba(255, 255, 255, 0.9);
+}
+
+.audio-message.fromMe .audio-progress-container {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+.audio-message.fromMe .audio-seek-slider::-webkit-slider-thumb {
+  background: rgba(255, 255, 255, 0.9);
+}
+
+.audio-message.fromMe .audio-seek-slider::-moz-range-thumb {
+  background: rgba(255, 255, 255, 0.9);
+}
+
+/* حالة الخطأ */
+.audio-error {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #ef4444;
+  font-size: 13px;
+  font-weight: 500;
+  padding: 8px 12px;
+}
+
+.audio-error svg {
+  flex-shrink: 0;
+}
+
+/* تحسينات للشاشات الصغيرة */
+ 
+
+  .audio-play-btn {
+    width: 40px;
+    height: 40px;
+  }
+
+  .audio-info {
+    min-width: 40px;
+  }
+
+  .audio-time {
+    font-size: 11px;
+  }
+
+  .audio-duration {
+    font-size: 10px;
+  }
+  
+.audio-message {
+  max-width: 100%;
+  margin: 4px 0;
+}
+ 
+
+.audio-play-btn {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  border: none;
+  background: var(--accent);
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  flex-shrink: 0;
+  box-shadow: var(--shadow-md);
+}
+
+.audio-play-btn:hover {
+  background: var(--accent-hover);
+  transform: scale(1.05);
+}
+
+.audio-play-btn:focus {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.audio-play-btn:active {
+  transform: scale(0.95);
+}
+
+/* شريط التقدم */
+.audio-progress-container {
+  flex: 1;
+  position: relative;
+  height: 4px;
+  background: var(--border-color);
+  border-radius: 2px;
+  cursor: pointer;
+  margin: 0 8px;
+}
+
+.audio-progress-bar {
+  height: 100%;
+  background: var(--border-color);
+  border-radius: 2px;
+  overflow: hidden;
+  position: relative;
+}
+
+.audio-progress-fill {
+  height: 100%;
+  background: var(--accent);
+  border-radius: 2px;
+  width: 0%;
+  transition: width 0.1s ease;
+}
+
+.audio-seek-slider {
+  position: absolute;
+  top: -8px;
+  left: 0;
+  width: 100%;
+  height: 20px;
+  opacity: 0;
+  cursor: pointer;
+  margin: 0;
+}
+
+.audio-seek-slider::-webkit-slider-thumb {
+  appearance: none;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--accent);
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+}
+
+.audio-seek-slider::-moz-range-thumb {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--accent);
+  cursor: pointer;
+  border: none;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+}
+
+/* معلومات الصوت */
+.audio-info {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  min-width: 45px;
+}
+
+.audio-time {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.audio-duration {
+  font-size: 11px;
+  color: var(--text-secondary);
+  font-weight: 500;
+}
+
+/* تخصيص للرسائل المرسلة */
+.audio-message.fromMe .audio-time,
+.audio-message.fromMe .audio-duration {
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.audio-message.fromMe .audio-progress-fill {
+  background: rgba(255, 255, 255, 0.9);
+}
+
+.audio-message.fromMe .audio-progress-container {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+.audio-message.fromMe .audio-seek-slider::-webkit-slider-thumb {
+  background: rgba(255, 255, 255, 0.9);
+}
+
+.audio-message.fromMe .audio-seek-slider::-moz-range-thumb {
+  background: rgba(255, 255, 255, 0.9);
+}
+
+/* حالة الخطأ */
+.audio-error {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #ef4444;
+  font-size: 13px;
+  font-weight: 500;
+  padding: 8px 12px;
+}
+
+.audio-error svg {
+  flex-shrink: 0;
+}
+
+/* تحسينات للشاشات الصغيرة */
+ 
+  .audio-play-btn {
+    width: 40px;
+    height: 40px;
+  }
+
+  .audio-info {
+    min-width: 40px;
+  }
+
+  .audio-time {
+    font-size: 11px;
+  }
+
+  .audio-duration {
+    font-size: 10px;
+  }
+  
+.audio-message {
+  max-width: 100%;
+  margin: 4px 0;
+}
+
+ 
+
+.audio-play-btn {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  border: none;
+  background: var(--accent);
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  flex-shrink: 0;
+  box-shadow: var(--shadow-md);
+}
+
+.audio-play-btn:hover {
+  background: var(--accent-hover);
+  transform: scale(1.05);
+}
+
+.audio-play-btn:focus {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.audio-play-btn:active {
+  transform: scale(0.95);
+}
+
+/* شريط التقدم */
+.audio-progress-container {
+  flex: 1;
+  position: relative;
+  height: 4px;
+  background: var(--border-color);
+  border-radius: 2px;
+  cursor: pointer;
+  margin: 0 8px;
+}
+
+.audio-progress-bar {
+  height: 100%;
+  background: var(--border-color);
+  border-radius: 2px;
+  overflow: hidden;
+  position: relative;
+}
+
+.audio-progress-fill {
+  height: 100%;
+  background: var(--accent);
+  border-radius: 2px;
+  width: 0%;
+  transition: width 0.1s ease;
+}
+
+.audio-seek-slider {
+  position: absolute;
+  top: -8px;
+  left: 0;
+  width: 100%;
+  height: 20px;
+  opacity: 0;
+  cursor: pointer;
+  margin: 0;
+}
+
+.audio-seek-slider::-webkit-slider-thumb {
+  appearance: none;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--accent);
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+}
+
+.audio-seek-slider::-moz-range-thumb {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--accent);
+  cursor: pointer;
+  border: none;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+}
+
+/* معلومات الصوت */
+.audio-info {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  min-width: 45px;
+}
+
+.audio-time {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.audio-duration {
+  font-size: 11px;
+  color: var(--text-secondary);
+  font-weight: 500;
+}
+
+/* تخصيص للرسائل المرسلة */
+.audio-message.fromMe .audio-time,
+.audio-message.fromMe .audio-duration {
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.audio-message.fromMe .audio-progress-fill {
+  background: rgba(255, 255, 255, 0.9);
+}
+
+.audio-message.fromMe .audio-progress-container {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+.audio-message.fromMe .audio-seek-slider::-webkit-slider-thumb {
+  background: rgba(255, 255, 255, 0.9);
+}
+
+.audio-message.fromMe .audio-seek-slider::-moz-range-thumb {
+  background: rgba(255, 255, 255, 0.9);
+}
+
+/* حالة الخطأ */
+.audio-error {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #ef4444;
+  font-size: 13px;
+  font-weight: 500;
+  padding: 8px 12px;
+}
+
+.audio-error svg {
+  flex-shrink: 0;
+}
+
+/* تحسينات للشاشات الصغيرة */
+@media (max-width: 480px) {
+  .audio-container {
+    min-width: 180px;
+    max-width: 260px;
+    gap: 8px;
+    padding: 10px 12px;
+  }
+
+  .audio-play-btn {
+    width: 40px;
+    height: 40px;
+  }
+
+  .audio-info {
+    min-width: 40px;
+  }
+
+  .audio-time {
+    font-size: 11px;
+  }
+
+  .audio-duration {
+    font-size: 10px;
+  }
+}🔥 CSS للمشغل الصوتي المتقدم مثل WhatsApp */
+.audio-message {
+  max-width: 100%;
+  margin: 4px 0;
+}
+ 
+
+.audio-play-btn {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  border: none;
+  background: var(--accent);
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  flex-shrink: 0;
+  box-shadow: var(--shadow-md);
+}
+
+.audio-play-btn:hover {
+  background: var(--accent-hover);
+  transform: scale(1.05);
+}
+
+.audio-play-btn:focus {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.audio-play-btn:active {
+  transform: scale(0.95);
+}
+
+/* شريط التقدم */
+.audio-progress-container {
+  flex: 1;
+  position: relative;
+  height: 4px;
+  background: var(--border-color);
+  border-radius: 2px;
+  cursor: pointer;
+  margin: 0 8px;
+}
+
+.audio-progress-bar {
+  height: 100%;
+  background: var(--border-color);
+  border-radius: 2px;
+  overflow: hidden;
+  position: relative;
+}
+
+.audio-progress-fill {
+  height: 100%;
+  background: var(--accent);
+  border-radius: 2px;
+  width: 0%;
+  transition: width 0.1s ease;
+}
+
+.audio-seek-slider {
+  position: absolute;
+  top: -8px;
+  left: 0;
+  width: 100%;
+  height: 20px;
+  opacity: 0;
+  cursor: pointer;
+  margin: 0;
+}
+
+.audio-seek-slider::-webkit-slider-thumb {
+  appearance: none;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--accent);
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+}
+
+.audio-seek-slider::-moz-range-thumb {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--accent);
+  cursor: pointer;
+  border: none;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+}
+
+/* معلومات الصوت */
+.audio-info {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  min-width: 45px;
+}
+
+.audio-time {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.audio-duration {
+  font-size: 11px;
+  color: var(--text-secondary);
+  font-weight: 500;
+}
+
+/* تخصيص للرسائل المرسلة */
+.audio-message.fromMe .audio-time,
+.audio-message.fromMe .audio-duration {
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.audio-message.fromMe .audio-progress-fill {
+  background: rgba(255, 255, 255, 0.9);
+}
+
+.audio-message.fromMe .audio-progress-container {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+.audio-message.fromMe .audio-seek-slider::-webkit-slider-thumb {
+  background: rgba(255, 255, 255, 0.9);
+}
+
+.audio-message.fromMe .audio-seek-slider::-moz-range-thumb {
+  background: rgba(255, 255, 255, 0.9);
+}
+
+/* حالة الخطأ */
+.audio-error {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #ef4444;
+  font-size: 13px;
+  font-weight: 500;
+  padding: 8px 12px;
+}
+
+.audio-error svg {
+  flex-shrink: 0;
+}
+
+ 
+
+.cls3741_chats_root{
+      /* 🔥 تصميم احترافي أسود/أبيض مع خلفيات سوداء/زرقاء غامقة */
+      --accent:#000000;
+      --accent-hover:#1a1a1a;
+      --muted:#9ca3af;
+      --muted-light:#6b7280;
+      --glass:rgba(255,255,255,0.03);
+      --card-radius:16px;
+      --bg-primary:#0a0a0a; /* أسود غامق */
+      --bg-secondary:#000000; /* أسود أساسي */
+      --bg-tertiary:#0f1419; /* أزرق غامق جداً */
+      --bg-hover:#1a1d21; /* أزرق غامق للـ hover */
+      --text-primary:#ffffff; /* أبيض */
+      --text-secondary:#d1d5db; /* رمادي فاتح */
+      --border-color:#1f2937; /* رمادي غامق جداً */
+      --border-light:#374151;
+      --shadow-sm:0 1px 3px rgba(0,0,0,0.3);
+      --shadow-md:0 4px 12px rgba(0,0,0,0.4);
+      --shadow-lg:0 10px 25px rgba(0,0,0,0.5);
+      --gradient-primary:linear-gradient(135deg, #000000 0%, #0a0a0a 100%);
+      --gradient-secondary:linear-gradient(135deg, #0f1419 0%, #1a1d21 100%);
+    }
+
+    /* تحسين الخطوط كما في تصميم أبل */
+    .cls3741_chats_root {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      letter-spacing: -0.01em;
+      line-height: 1.4;
+    }
+
+    /* container */
+    .cls3741_chats_root{
+      display: flex;
+      /* gap: 18px; */
+      /* height: calc(-234px + 100vh); */
+      /* min-height: 520px; */
+      padding: 12px;
+      height: 100%;
+      box-sizing: border-box;
+      background-color: transparent !important;
+      flex-wrap: wrap;
+  }
+
+    /* 🔥 left contacts column - تصميم احترافي محسّن */
+    .cls3741_contacts_col{
+      width:320px;
+      min-width:280px;
+      background: transparent !important;
+      /* border-radius:var(--card-radius); */
+      border-top-left-radius:19px;
+      padding:0;
+      box-shadow:var(--shadow-lg);
+      display:flex;
+      flex-direction:column;
+      overflow:hidden;
+      border: 1px solid var(--border-color);
+      backdrop-filter: blur(10px);
+
+    }
+
+    /* 🔥 شريط البحث والفلترة الجديد */
+    .cls3741_search_filter_bar {
+      padding: 16px;
+      background: #0a0a0a;
+      border-bottom: 1px solid var(--border-color);
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      padding-top: 11px;
+    padding-bottom: 12px;
+    }
+
+    .cls3741_search_wrapper_new {
+      position: relative;
+      display: flex;
+      align-items: center;
+    }
+
+    .cls3741_search_icon_new {
+      position: absolute;
+      left: 14px;
+      color: var(--muted);
+      pointer-events: none;
+      z-index: 1;
+    }
+
+    .cls3741_search_input_new {
+      width: 100%;
+      padding: 12px 40px 12px 42px;
+      border-radius: 12px;
+      border: 1px solid var(--border-color);
+      background: var(--bg-tertiary);
+      color: var(--text-primary);
+      outline: none;
+      font-size: 14px;
+      font-weight: 500;
+      font-family: inherit;
+      transition: all 0.3s ease;
+    }
+
+    .cls3741_search_input_new::placeholder {
+      color: var(--muted);
+    }
+
+    .cls3741_search_input_new:focus {
+      border-color: var(--accent);
+      background: var(--bg-hover);
+      box-shadow: 0 0 0 3px rgba(0, 0, 0, 0.2);
+    }
+
+    .cls3741_search_clear {
+      position: absolute;
+      right: 12px;
+      width: 24px;
+      height: 24px;
+      border: none;
+      background: transparent;
+      color: var(--muted);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 50%;
+      transition: all 0.2s ease;
+      z-index: 1;
+    }
+
+    .cls3741_search_clear:hover {
+      background: var(--bg-hover);
+      color: var(--text-primary);
+    }
+
+    /* 🔥 أزرار الفلترة */
+    .cls3741_filter_buttons {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+
+    border-bottom: 1px solid #1f2937;
+    padding:13px;
+    }
+
+    .cls3741_filter_btn {
+      flex: 1;
+      min-width: 80px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      padding: 8px 12px;
+      border: 1px solid var(--border-color);
+      border-radius: 10px;
+      background: var(--bg-tertiary);
+      color: var(--text-secondary);
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      font-family: inherit;
+    }
+
+    .cls3741_filter_btn:hover {
+      background: var(--bg-hover);
+      border-color: var(--border-light);
+      color: var(--text-primary);
+    }
+
+    .cls3741_filter_btn.active {
+      background: var(--accent);
+      border-color: var(--accent);
+      color: #ffffff;
+    }
+
+    .cls3741_filter_btn svg {
+      flex-shrink: 0;
+    }
+
+    .cls3741_filter_btn span {
+      white-space: nowrap;
+    }
+
+    /* 🔥 Loader جديد */
+    .cls3741_loader_new {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 40px 20px;
+      color: var(--text-secondary);
+      gap: 16px;
+    }
+
+    .cls3741_spinner {
+      width: 32px;
+      height: 32px;
+      border: 3px solid var(--border-color);
+      border-top: 3px solid var(--accent);
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+
+    /* 🔥 قائمة جهات الاتصال المحسّنة */
+    .cls3741_contacts_list{
+      overflow:auto;
+      padding: 8px;
+      display:flex;
+      flex-direction:column;
+      gap: 4px;
+      flex: 1 1 0;
+    }
+
+    /* Scrollbar مخصص */
+    .cls3741_contacts_list::-webkit-scrollbar {
+      width: 6px;
+    }
+
+    .cls3741_contacts_list::-webkit-scrollbar-track {
+      background: transparent;
+    }
+
+    .cls3741_contacts_list::-webkit-scrollbar-thumb {
+      background: var(--border-color);
+      border-radius: 3px;
+    }
+
+    .cls3741_contacts_list::-webkit-scrollbar-thumb:hover {
+      background: var(--border-light);
+    }
+
+    /* 🔥 عناصر جهات الاتصال المحسّنة */
+    .cls3741_contact_item{
+      display:flex;
+      gap:12px;
+      align-items:center;
+      padding:14px 12px;
+      border-radius:12px;
+      cursor:pointer;
+      transition:all 0.2s ease;
+      border: 1px solid transparent;
+      background: transparent;
+      position: relative;
+    }
+
+    .cls3741_contact_item:hover {
+      background: var(--bg-hover);
+      border-color: var(--border-color);
+      transform: translateX(2px);
+    }
+
+    .cls3741_contact_item.cls3741_btn_active {
+      background: var(--bg-tertiary);
+      border-color: var(--accent);
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+    }
+
+    .cls3741_contact_avatar {
+      width:48px;
+      height:48px;
+      border-radius:12px;
+      background:var(--gradient-secondary);
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      font-weight:700;
+      color:#ffffff;
+      font-size:18px;
+      font-family: inherit;
+      flex-shrink: 0;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+    }
+
+    .cls3741_contact_meta{
+      flex:1;
+      min-width:0;
+      display: flex;
+      flex-direction:column;
+      gap: 4px;
+    }
+
+    .cls3741_contact_name{
+      font-weight:700;
+      color:var(--text-primary);
+      font-size:15px;
+      font-family: inherit;
+      line-height: 1.3;
+    }
+
+    .cls3741_contact_snippet{
+      font-size:13px;
+      color:var(--text-secondary);
+      white-space:nowrap;
+      overflow:hidden;
+      text-overflow:ellipsis;
+      font-family: 'Tajawal';
+      line-height: 1.4;
+    }
+
+    .cls3741_contact_snippet.green {
+      color: #10b981;
+      font-weight: 500;
+      font-family: 'Tajawal';
+    }
+
+    .cls3741_contact_badge{
+      background:var(--accent);
+      color:#ffffff;
+      padding:4px 10px;
+      border-radius:12px;
+      font-size:12px;
+      font-weight:700;
+      margin-left:8px;
+      font-family: inherit;
+      min-width: 20px;
+      text-align: center;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+    }
+
+    .cls3741_contact_badge.green {
+      background: #10b981;
+    }
+
+    /* 🔥 middle chat column - تصميم احترافي */
+    .cls3741_chat_col {
+          width: 577px;
+      flex:1;
+      background:var(--bg-primary);
+      /* border-radius:var(--card-radius); */
+      display:flex;
+      flex-direction:column;
+      overflow:hidden;
+      box-shadow:var(--shadow-lg);
+      border: 1px solid var(--border-color);
+      backdrop-filter: blur(10px);
+    }
+
+    .cls3741_chat_header {
+      display:flex;
+      align-items:center;
+      gap:12px;
+      padding:10px 20px;
+      border-bottom:1px solid var(--border-color);
+      background:var(--bg-primary);
+      backdrop-filter: blur(10px);
+    }
+
+    .cls3741_chat_header .title{
+      font-weight:700;
+      color: var(--text-primary);
+      font-family: inherit;
+      font-size: 16px;
+    }
+    /* 🔥 منطقة الرسائل - تصميم احترافي */
+    .cls3741_messages_area{
+      scrollbar-width: none !important;
+      flex:1 1 0;
+      padding:24px 20px;
+      overflow:auto;
+      display:flex;
+      flex-direction:column;
+      gap:16px;
+      background: var(--bg-secondary);
+      background-image: 
+        radial-gradient(circle at 20% 30%, rgba(15, 20, 25, 0.4) 0%, transparent 50%),
+        radial-gradient(circle at 80% 70%, rgba(15, 20, 25, 0.3) 0%, transparent 50%),
+        linear-gradient(rgba(255, 255, 255, 0.02) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255, 255, 255, 0.02) 1px, transparent 1px);
+      background-size: 100% 100%, 100% 100%, 30px 30px, 30px 30px;
+      background-position: 0 0, 0 0, 0 0, 0 0;
+position: relative;
+    }
+
+    /* Scrollbar مخصص لمنطقة الرسائل */
+    .cls3741_messages_area::-webkit-scrollbar {
+      width: 8px;
+    }
+
+    .cls3741_messages_area::-webkit-scrollbar-track {
+      background: transparent;
+    }
+
+    .cls3741_messages_area::-webkit-scrollbar-thumb {
+      background: var(--border-color);
+      border-radius: 4px;
+    }
+
+    .cls3741_messages_area::-webkit-scrollbar-thumb:hover {
+      background: var(--border-light);
+    }
+    
+    /* 🔥 تصميم احترافي للرسائل */
+    .cls3741_msg_bubble{
+      max-width:65%;
+      padding:12px 16px;
+      border-radius:18px;
+      color:var(--text-primary);
+      font-size:14px;
+      line-height:1.5;
+      position:relative;
+      box-shadow:var(--shadow-md);
+      transition:all 0.2s ease;
+      font-family: inherit;
+      word-wrap: break-word;
+      font-family: 'Tajawal';
+    }
+    
+    .cls3741_msg_bubble:hover {
+      transform: translateY(-1px);
+      box-shadow:var(--shadow-lg);
+    }
+    
+    .cls3741_msg_bubble:not(.me){
+      background:var(--bg-tertiary);
+      border: 1px solid var(--border-color);
+      align-self:flex-start;
+      border-bottom-left-radius: 4px;
+      color: var(--text-primary);
+    }
+    
+    .cls3741_msg_bubble.me{
+      background:var(--accent);
+      color:#ffffff;
+      align-self:flex-end;
+      border-bottom-right-radius: 4px;
+      border: 1px solid var(--accent);
+    } 
+    
+    .cls3741_msg_time{
+      display:block;
+      font-size:11px;
+      color:var(--text-secondary);
+      margin-top:8px;
+      text-align:right;
+      font-family: inherit;
+      opacity: 0.8;
+    }
+    
+    .cls3741_msg_bubble.me .cls3741_msg_time {
+      color:rgba(255,255,255,0.8);
+    }
+
+    /* 🔥 تصميم احترافي لمنطقة الإدخال */
+    .cls3741_chat_input_wrapper {
+      padding: 6px 24px;
+      /* background: var(--bg-primary); */
+      /* border-top: 1px solid var(--border-color); */
+      backdrop-filter: blur(10px);
+    }
+
+    /* .cls3741_chat_input_container  {
+      display: flex;
+      align-items: flex-end;
+      gap: 10px;
+      background: var(--bg-tertiary);
+      border-radius: 24px;
+      padding: 10px 14px;
+      border: 1px solid var(--border-color);
+      transition: all 0.3s ease;
+    } */
+
+    .cls3741_chat_input_container:focus-within {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px rgba(0, 0, 0, 0.2);
+      background: var(--bg-hover);
+    }
+     
+
+    .cls3741_input_actions   {
+      display: flex;
+      gap: 4px;
+      align-items: center;
+      margin-bottom: 4px;
+    }
+
+    .cls3741_icon_btn   {
+      width: 36px;
+      height: 36px;
+      min-width: 36px;
+      border-radius: 50%;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 18px;
+      cursor: pointer;
+      border: none;
+      background: transparent;
+      color: var(--text-secondary);
+      transition: all 0.2s ease;
+      font-family: inherit;
+    }
+
+    .cls3741_icon_btn:hover {
+      background: rgba(0,0,0,0.05);
+      color: var(--text-primary);
+    }
+    
+    .cls3741_icon_btn.recording {
+      background: #dc2626;
+      color: white;
+      animation: pulse 1.5s infinite;
+    }
+     
+
+    @keyframes pulse {
+      0% { transform: scale(1); }
+      50% { transform: scale(1.05); }
+      100% { transform: scale(1); }
+    }
+
+    .cls3741_chat_textarea   {
+      flex: 1;
+      border: none;
+      background: transparent;
+      resize: none;
+      outline: none;
+      padding: 8px 4px;
+      font-size: 15px;
+      font-weight: 500;
+      line-height: 1.5;
+      color: var(--text-primary);
+      min-height: 24px;
+      max-height: 120px;
+      font-family: inherit;
+    }
+
+    .cls3741_chat_textarea::placeholder {
+      color: var(--muted);
+    }
+    
+
+    .cls3741_send_btn   {
+      width: 40px;
+      height: 40px;
+      min-width: 40px;
+      border-radius: 50%;
+      border: none;
+      background: var(--accent);
+      color: white;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      font-family: inherit;
+      margin-bottom: 4px;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+    }
+    
+
+    .cls3741_send_btn:hover:not(:disabled) {
+      background: var(--accent-hover);
+      transform: scale(1.08);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+    }
+    
+    .cls3741_send_btn:disabled {
+      background: var(--text-secondary);
+      cursor: not-allowed;
+      opacity: 0.6;
+    }
+
+    .cls3741_send_icon {
+      width: 20px;
+      height: 20px;
+      transform: rotate(-30deg) translateX(1px);
+    }
+
+    /* منطقة معاينة الوسائط */
+    .cls3741_media_preview {
+      display: flex;
+      gap: 8px;
+      /* padding: 8px 0; */
+      flex-wrap: wrap;
+      justify-content: flex-start;
+      align-items: flex-start;
+
+      min-height: 0;
+      max-height: max-content;
+      height: fit-content;
+      border-radius: 10px;
+  }
+    .cls3741_preview_item {
+      width: 100%;
+      position: relative;
+      border-radius: 12px;
+      overflow: hidden;
+      background: var(--bg-tertiary);
+      border: 1px solid var(--border-color);
+    }
+
+    .cls3741_preview_image {
+      width: 80px;
+      height: 80px;
+      object-fit: cover;
+    }
+
+    .cls3741_preview_video {
+      width: 120px;
+      height: 80px;
+      object-fit: cover;
+    }
+
+    .cls3741_preview_audio {
+      width: 200px;
+      padding: 12px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .cls3741_preview_audio audio {
+      width: 100%;
+      height: 32px;
+    }
+
+    .cls3741_preview_remove {
+      position: absolute;
+      top: 4px;
+      right: 4px;
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      background: rgba(0,0,0,0.7);
+      color: white;
+      border: none;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 12px;
+      cursor: pointer;
+      font-family: inherit;
+    }
+
+    /* إخفاء عناصر الإدخال المرفوعة */
+    .cls3741_hidden_input  {
+      display: none;
+    }
+
+    /* right user card */
+    .cls3741_user_col{
+      width:320px;min-width:240px;
+      background:var(--bg-primary);
+      /* border-radius:var(--card-radius); */
+      padding:0px !important;
+      display:flex;
+      border-top-right-radius: 19px;
+      flex-direction:column;
+      overflow:hidden;
+      box-shadow:var(--shadow-md);
+      border: 1px solid var(--border-color);
+    }
+    .cls3741_user_head{
+      display:flex;align-items:center;gap:12px;padding-bottom:12px;
+      border-bottom:1px solid var(--border-color);
+    }
+    .cls3741_user_avatar{
+      width:64px;height:64px;border-radius:12px;
+      background:linear-gradient(135deg, #374151, var(--accent));
+      display:flex;align-items:center;justify-content:center;
+      font-weight:800;color:#ffffff;
+      font-family: inherit;
+    }
+    .cls3741_user_meta{display:flex;flex-direction:column}
+    .cls3741_user_name{font-weight:800;color:var(--text-primary); font-family: inherit;}
+    .cls3741_user_phone{font-size:13px;color:var(--text-secondary);margin-top:2px; font-family: inherit;}
+
+    .cls3741_user_section{
+      padding:12px;
+      border-radius:10px;
+      background:var(--bg-tertiary);
+      margin-top:12px;
+      border: 1px solid var(--border-color);
+    }
+    .cls3741_user_kv{
+      display:flex;justify-content:space-between;
+      color:var(--text-secondary);
+      font-size:13px;
+      margin-bottom:8px;
+      font-family: inherit;
+    }
+
+    .cls3741_action_row{display:flex;gap:8px;margin-top:12px}
+    .cls3741_action_btn{
+      flex:1;
+      padding:10px;
+      border-radius:10px;
+      border:none;
+      background:var(--accent);
+      color:#ffffff;
+      font-weight:700;
+      cursor:pointer;
+      transition:background 0.2s;
+      font-family: inherit;
+    }
+    .cls3741_action_btn:hover {
+      background:#1a1a1a;
+    }
+
+    /* Back button: hidden on desktop, shown on mobile */
+    .cls3741_chat_back_btn {
+      display: none;
+      align-items: center;
+      justify-content: center;
+      width: 40px;
+      height: 40px;
+      padding: 0;
+      margin-right: 8px;
+      border: none;
+      border-radius: 10px;
+      background: transparent;
+      color: var(--text-primary);
+      cursor: pointer;
+      flex-shrink: 0;
+      transition: background 0.2s;
+    }
+    .cls3741_chat_back_btn:hover {
+      background: var(--bg-hover);
+    }
+
+    /* small screens: stack layout */
+    @media (max-width:1000px){
+      .cls3741_chats_root{flex-direction:column;gap:12px;height:auto}
+      .cls3741_contacts_col,.cls3741_user_col{width:100%;min-width:0}
+      .cls3741_user_col{order:3}
+      .cls3741_chat_col{order:2}
+    }
+
+    /* Mobile: single-pane view (sidebar vs chat toggle) */
+    @media (max-width: 768px) {
+      .cls3741_chats_root {
+        flex-wrap: nowrap;
+        flex-direction: row;
+        flex: 1;
+        min-height: 0;
+        height: 100%;
+        padding: 0;
+        position: relative;
+        overflow: hidden;
+      }
+      .cls3741_contacts_col {
+        width: 100%;
+        min-width: 100%;
+        max-width: 100%;
+        height: 100%;
+        flex-shrink: 0;
+        transition: transform 0.25s ease, opacity 0.2s ease;
+      }
+      .cls3741_chat_col {
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        width: 100%;
+        height: 100%;
+        transform: translateX(100%);
+        transition: transform 0.25s ease;
+        z-index: 10;
+        order: unset;
+      }
+      .cls3741_chats_root.mobile-show-chat .cls3741_contacts_col {
+        transform: translateX(-100%);
+        opacity: 0;
+        pointer-events: none;
+      }
+      .cls3741_chats_root.mobile-show-chat .cls3741_chat_col {
+        transform: translateX(0);
+      }
+      .cls3741_chat_back_btn {
+        display: flex;
+      }
+      .cls3741_chat_header {
+        padding: 8px 12px 8px 8px;
+        min-height: 48px;
+      }
+      .cls3741_chat_header .title {
+        font-size: 15px;
+      }
+      .cls3741_messages_area {
+        padding: 12px 14px 100px;
+        flex: 1 1 0;
+        min-height: 0;
+      }
+      .cls3741_msg_bubble {
+        max-width: 85%;
+        padding: 10px 14px;
+        font-size: 15px;
+        line-height: 1.45;
+      }
+      .cls3741_msg_time {
+        font-size: 11px;
+        margin-top: 6px;
+      }
+      .cls3741_chat_input_wrapper {
+        position: sticky;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        padding: 10px 12px;
+        padding-bottom: max(10px, env(safe-area-inset-bottom));
+        background: var(--bg-primary);
+        border-top: 1px solid var(--border-color);
+        flex-shrink: 0;
+      }
+      .cls3741_input_container {
+        padding: 10px 12px;
+      }
+      .cls3741_chat_textarea {
+        font-size: 16px;
+        min-height: 22px;
+      }
+      .cls3741_panel_chats {
+        display: flex;
+        flex-direction: column;
+        flex: 1;
+        min-height: 0;
+        padding: 0;
+        overflow: hidden;
+      }
+      .cls3741_panel_chats .cls3741_chats_root {
+        flex: 1;
+        min-height: 0;
+      }
+      /* Contacts column: compact search & filter */
+      .cls3741_search_filter_bar {
+        position: relative;
+        padding: 10px 12px;
+        gap: 10px;
+      }
+      .cls3741_search_input_new {
+        padding: 10px 36px 10px 38px;
+        font-size: 16px;
+        min-height: 44px;
+      }
+      .cls3741_filter_buttons {
+        padding: 8px 12px;
+        gap: 6px;
+      }
+      .cls3741_filter_btn {
+        min-width: 0;
+        padding: 8px 10px;
+        font-size: 12px;
+      }
+      .cls3741_filter_btn span {
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        max-width: 60px;
+      }
+      .cls3741_contacts_list {
+        padding: 6px;
+      }
+      .cls3741_contact_item {
+        padding: 12px 10px;
+        min-height: 56px;
+      }
+      .cls3741_contact_item .cls3741_contact_name,
+      .cls3741_contact_item .cls3741_contact_meta {
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+      /* Filter dropdown: fit viewport, no overflow */
+      .filter-dropdown {
+        left: 12px;
+        right: 12px;
+        width: calc(100% - 24px);
+        max-width: 280px;
+      }
+      /* Chat header: truncate title, touch-friendly */
+      .cls3741_chat_header {
+        gap: 8px;
+        flex-wrap: nowrap;
+        min-height: 48px;
+      }
+      .cls3741_chat_header .title {
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      .cls3741_chat_header > div[style*="display:flex"] {
+        min-width: 0;
+      }
+      #cls3741_open_info.cls3741_action_btn {
+        flex-shrink: 0;
+        min-width: 44px;
+        padding: 8px 12px;
+      }
+      /* Chat input: wrap tools on small screens */
+      /* ─── Phone: professional chat input redesign ─── */
+      .cls3741_chat_input_wrapper {
+        padding: 10px 12px;
+        padding-bottom: max(12px, env(safe-area-inset-bottom));
+        background: var(--bg-primary);
+        border-top: 1px solid var(--border-color);
+        box-shadow: 0 -2px 12px rgba(0,0,0,0.06);
+      }
+      .cls3741_input_container,
+      .cls3741_input_container_phone {
+        padding: 10px 12px;
+        min-width: 0;
+        border-radius: 20px;
+        background: var(--bg-tertiary);
+        border: 1px solid var(--border-color);
+        box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+        gap: 10px;
+      }
+      .cls3741_actions_row {
+        flex-wrap: wrap;
+        gap: 6px;
+      }
+      /* One row: input + send/record */
+      .cls3741_input_send_row {
+        flex-direction: row;
+        align-items: flex-end;
+        gap: 8px;
+      }
+      .cls3741_input_row .cls3741_chat_textarea {
+        font-size: 16px;
+        min-height: 24px;
+        padding: 10px 0;
+        line-height: 1.4;
+      }
+      .cls3741_send_record_slot {
+        gap: 0;
+        align-items: center;
+      }
+      .cls3741_send_record_slot .cls3741_mobile_record_btn {
+        min-width: 44px;
+        min-height: 44px;
+        padding: 10px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: transparent;
+        color: var(--text-secondary);
+        transition: color 0.2s, background 0.2s;
+      }
+      .cls3741_send_record_slot .cls3741_mobile_record_btn:hover {
+        color: var(--text-primary);
+        background: var(--bg-hover);
+      }
+      .cls3741_send_record_slot .cls3741_send_button {
+        min-width: 44px;
+        min-height: 44px;
+        padding: 10px 16px;
+        border-radius: 22px;
+        font-size: 14px;
+        font-weight: 600;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 6px;
+      }
+      .cls3741_send_record_slot.has-text .cls3741_send_group .cls3741_send_button:not([disabled]) {
+        box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+      }
+      /* More button: pill style */
+      .cls3741_tools_more_btn {
+        display: flex !important;
+        min-width: 44px;
+        min-height: 44px;
+        padding: 10px 14px;
+        border-radius: 22px;
+        background: transparent;
+        border: 1px solid var(--border-color);
+        color: var(--text-secondary);
+        font-weight: 500;
+        font-size: 13px;
+      }
+      .cls3741_tools_more_btn:hover {
+        background: var(--bg-hover);
+        color: var(--text-primary);
+        border-color: var(--border-light);
+      }
+      .cls3741_tools_expanded {
+        display: none !important;
+        width: 100%;
+        flex-wrap: wrap;
+        gap: 10px;
+        padding: 12px 0 0;
+        border-top: 1px solid var(--border-color);
+        margin-top: 8px;
+      }
+      .cls3741_tools_group.is-open .cls3741_tools_expanded {
+        display: flex !important;
+      }
+      .cls3741_tools_group {
+        flex-wrap: wrap;
+        gap: 6px;
+        min-width: 0;
+      }
+      .cls3741_tools_group .cls3741_tool_btn,
+      .cls3741_tools_group .cls3741_icon_btn {
+        min-width: 44px;
+        min-height: 44px;
+        padding: 10px;
+        border-radius: 12px;
+        color: var(--text-secondary);
+      }
+      .cls3741_tools_group .cls3741_tool_btn:hover,
+      .cls3741_tools_group .cls3741_icon_btn:hover {
+        background: var(--bg-hover);
+        color: var(--text-primary);
+      }
+      .cls3741_send_button {
+        min-width: 44px;
+        min-height: 44px;
+      }
+      .cls3741_note_overlay,
+      #collision_alert_bar.cls3741_collision_bar {
+        max-width: 100%;
+        border-radius: 16px;
+      }
+      .cls3741_media_preview_phone {
+        padding: 0 0 8px;
+        max-height: 120px;
+        overflow-y: auto;
+      }
+      .cls3741_slash_menu_phone {
+        border-radius: 12px;
+        margin-bottom: 8px;
+        max-height: 200px;
+        overflow-y: auto;
+        box-shadow: 0 4px 20px rgba(0,0,0,0.12);
+      }
+      .ai-assist-panel,
+      .emoji-picker-panel {
+        width: min(380px, calc(100vw - 24px));
+        max-width: calc(100vw - 24px);
+        border-radius: 16px;
+        box-shadow: 0 8px 32px rgba(0,0,0,0.15);
+      }
+      .emoji-picker-panel {
+        width: min(320px, calc(100vw - 24px));
+      }
+      /* Right sidebar (contact info) when open on mobile: full-screen overlay */
+      .cls3741_user_col {
+        max-width: 100% !important;
+        width: 100% !important;
+      }
+      .cls3741_user_col:not(.d-none) {
+        position: fixed;
+        top: 0;
+        right: 0;
+        bottom: 0;
+        left: 0;
+        width: 100% !important;
+        max-width: 100% !important;
+        z-index: 105440;
+        border-radius: 0;
+      }
+      .crm-profile-section {
+        
+        flex-direction: row !important;
+        align-items: center;}
+      .quick-sidebar-container {
+        max-width: 100%;
+      }
+    }
+
+    @media (max-width: 480px) {
+      .cls3741_search_filter_bar { padding: 8px 10px; }
+      .cls3741_filter_btn span { max-width: 48px; }
+      .cls3741_filter_buttons { padding: 6px 10px; }
+      .cls3741_contact_item { padding: 10px 8px; min-height: 52px; }
+      .cls3741_chat_header { padding: 6px 10px 6px 6px; }
+      .cls3741_chat_input_wrapper { padding: 8px 10px; padding-bottom: max(10px, env(safe-area-inset-bottom)); }
+      .cls3741_input_container,
+      .cls3741_input_container_phone { padding: 8px 10px; border-radius: 18px; gap: 8px; }
+      .cls3741_input_row .cls3741_chat_textarea { min-height: 22px; padding: 8px 0; }
+      .cls3741_send_record_slot .cls3741_mobile_record_btn,
+      .cls3741_send_record_slot .cls3741_send_button { min-width: 42px; min-height: 42px; padding: 8px; }
+      .cls3741_tools_more_btn { min-width: 42px; min-height: 42px; padding: 8px 12px; font-size: 12px; }
+      .cls3741_tools_group .cls3741_tool_btn,
+      .cls3741_tools_group .cls3741_icon_btn { min-width: 42px; min-height: 42px; padding: 8px; }
+      .cls3741_tool_btn .cls3741_btn_label { display: none; }
+      .cls3741_msg_bubble { max-width: 90%; padding: 8px 12px; font-size: 14px; }
+      .cls3741_messages_area { padding: 10px 12px 80px; }
+      .cls3741_media_preview_phone { max-height: 100px; }
+    }
+
+    /* 🔥 CSS للمشغل الصوتي البسيط والأنيق */
+.audio-message {
+  max-width: 100%;
+  margin: 4px 0;
+}
+
+ 
+
+.audio-play-btn {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  border: none;
+  background: var(--accent);
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  flex-shrink: 0;
+  box-shadow: var(--shadow-md);
+}
+
+.audio-play-btn:hover {
+  background: var(--accent-hover);
+  transform: scale(1.05);
+}
+
+.audio-play-btn:focus {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.audio-play-btn:active {
+  transform: scale(0.95);
+}
+
+/* شريط التقدم */
+.audio-progress-container {
+  flex: 1;
+  position: relative;
+  height: 4px;
+  background: var(--border-color);
+  border-radius: 2px;
+  cursor: pointer;
+  margin: 0 8px;
+}
+
+.audio-progress-bar {
+  height: 100%;
+  background: var(--border-color);
+  border-radius: 2px;
+  overflow: hidden;
+  position: relative;
+}
+
+.audio-progress-fill {
+  height: 100%;
+  background: var(--accent);
+  border-radius: 2px;
+  width: 0%;
+  transition: width 0.1s ease;
+}
+
+.audio-seek-slider {
+  position: absolute;
+  top: -8px;
+  left: 0;
+  width: 100%;
+  height: 20px;
+  opacity: 0;
+  cursor: pointer;
+  margin: 0;
+}
+
+.audio-seek-slider::-webkit-slider-thumb {
+  appearance: none;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--accent);
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+}
+
+.audio-seek-slider::-moz-range-thumb {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--accent);
+  cursor: pointer;
+  border: none;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+}
+
+/* معلومات الصوت */
+.audio-info {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  min-width: 45px;
+}
+
+.audio-time {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.audio-duration {
+  font-size: 11px;
+  color: var(--text-secondary);
+  font-weight: 500;
+}
+
+/* تخصيص للرسائل المرسلة */
+.audio-message.fromMe .audio-time,
+.audio-message.fromMe .audio-duration {
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.audio-message.fromMe .audio-progress-fill {
+  background: rgba(255, 255, 255, 0.9);
+}
+
+.audio-message.fromMe .audio-progress-container {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+.audio-message.fromMe .audio-seek-slider::-webkit-slider-thumb {
+  background: rgba(255, 255, 255, 0.9);
+}
+
+.audio-message.fromMe .audio-seek-slider::-moz-range-thumb {
+  background: rgba(255, 255, 255, 0.9);
+}
+
+/* حالة الخطأ */
+.audio-error {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #ef4444;
+  font-size: 13px;
+  font-weight: 500;
+  padding: 8px 12px;
+}
+
+.audio-error svg {
+  flex-shrink: 0;
+}
+
+ 
+
+.cls3741_contact_badge.green {
+    background-color: green; /* خلفية خضراء للبادج */
+    color: white; /* نص أبيض للتباين */
+}
+
+.cls3741_contact_snippet.green {
+    color: green; /* لون النص الأخضر للـ snippet */
+}/* 🔥 CSS للمشغل الصوتي البسيط والأنيق */
+.audio-message {
+  max-width: 100%;
+  margin: 4px 0;
+}
+
+ 
+
+.audio-play-btn {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  border: none;
+  background: var(--accent);
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  flex-shrink: 0;
+  box-shadow: var(--shadow-md);
+}
+
+.audio-play-btn:hover {
+  background: var(--accent-hover);
+  transform: scale(1.05);
+}
+
+.audio-play-btn:focus {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.audio-play-btn:active {
+  transform: scale(0.95);
+}
+
+/* شريط التقدم */
+.audio-progress-container {
+  flex: 1;
+  position: relative;
+  height: 4px;
+  background: var(--border-color);
+  border-radius: 2px;
+  cursor: pointer;
+  margin: 0 8px;
+}
+
+.audio-progress-bar {
+  height: 100%;
+  background: var(--border-color);
+  border-radius: 2px;
+  overflow: hidden;
+  position: relative;
+}
+
+.audio-progress-fill {
+  height: 100%;
+  background: var(--accent);
+  border-radius: 2px;
+  width: 0%;
+  transition: width 0.1s ease;
+}
+
+.audio-seek-slider {
+  position: absolute;
+  top: -8px;
+  left: 0;
+  width: 100%;
+  height: 20px;
+  opacity: 0;
+  cursor: pointer;
+  margin: 0;
+}
+
+.audio-seek-slider::-webkit-slider-thumb {
+  appearance: none;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--accent);
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+}
+
+.audio-seek-slider::-moz-range-thumb {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--accent);
+  cursor: pointer;
+  border: none;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+}
+
+/* معلومات الصوت */
+.audio-info {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  min-width: 45px;
+}
+
+.audio-time {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.audio-duration {
+  font-size: 11px;
+  color: var(--text-secondary);
+  font-weight: 500;
+}
+
+/* تخصيص للرسائل المرسلة */
+.audio-message.fromMe .audio-time,
+.audio-message.fromMe .audio-duration {
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.audio-message.fromMe .audio-progress-fill {
+  background: rgba(255, 255, 255, 0.9);
+}
+
+.audio-message.fromMe .audio-progress-container {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+.audio-message.fromMe .audio-seek-slider::-webkit-slider-thumb {
+  background: rgba(255, 255, 255, 0.9);
+}
+
+.audio-message.fromMe .audio-seek-slider::-moz-range-thumb {
+  background: rgba(255, 255, 255, 0.9);
+}
+
+/* حالة الخطأ */
+.audio-error {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #ef4444;
+  font-size: 13px;
+  font-weight: 500;
+  padding: 8px 12px;
+}
+
+.audio-error svg {
+  flex-shrink: 0;
+}
+ 
+.audio-message {
+  max-width: 100%;
+  margin: 4px 0;
+}
+
+ 
+.audio-play-btn {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  border: none;
+  background: var(--accent);
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  flex-shrink: 0;
+  box-shadow: var(--shadow-md);
+}
+
+.audio-play-btn:hover {
+  background: var(--accent-hover);
+  transform: scale(1.05);
+}
+
+.audio-play-btn:focus {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.audio-play-btn:active {
+  transform: scale(0.95);
+}
+
+/* شريط التقدم */
+.audio-progress-container {
+  flex: 1;
+  position: relative;
+  height: 4px;
+  background: var(--border-color);
+  border-radius: 2px;
+  cursor: pointer;
+  margin: 0 8px;
+}
+
+.audio-progress-bar {
+  height: 100%;
+  background: var(--border-color);
+  border-radius: 2px;
+  overflow: hidden;
+  position: relative;
+}
+
+.audio-progress-fill {
+  height: 100%;
+  background: var(--accent);
+  border-radius: 2px;
+  width: 0%;
+  transition: width 0.1s ease;
+}
+
+.audio-seek-slider {
+  position: absolute;
+  top: -8px;
+  left: 0;
+  width: 100%;
+  height: 20px;
+  opacity: 0;
+  cursor: pointer;
+  margin: 0;
+}
+
+.audio-seek-slider::-webkit-slider-thumb {
+  appearance: none;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--accent);
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+}
+
+.audio-seek-slider::-moz-range-thumb {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--accent);
+  cursor: pointer;
+  border: none;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+}
+
+/* معلومات الصوت */
+.audio-info {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  min-width: 45px;
+}
+
+.audio-time {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.audio-duration {
+  font-size: 11px;
+  color: var(--text-secondary);
+  font-weight: 500;
+}
+
+/* تخصيص للرسائل المرسلة */
+.audio-message.fromMe .audio-time,
+.audio-message.fromMe .audio-duration {
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.audio-message.fromMe .audio-progress-fill {
+  background: rgba(255, 255, 255, 0.9);
+}
+
+.audio-message.fromMe .audio-progress-container {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+.audio-message.fromMe .audio-seek-slider::-webkit-slider-thumb {
+  background: rgba(255, 255, 255, 0.9);
+}
+
+.audio-message.fromMe .audio-seek-slider::-moz-range-thumb {
+  background: rgba(255, 255, 255, 0.9);
+}
+
+/* حالة الخطأ */
+.audio-error {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #ef4444;
+  font-size: 13px;
+  font-weight: 500;
+  padding: 8px 12px;
+}
+
+.audio-error svg {
+  flex-shrink: 0;
+}
+
+
+.audio-message {
+  max-width: 100%;
+  margin: 4px 0;
+}
+
+ 
+
+.audio-play-btn {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  border: none;
+  background: var(--accent);
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  flex-shrink: 0;
+  box-shadow: var(--shadow-md);
+}
+
+.audio-play-btn:hover {
+  background: var(--accent-hover);
+  transform: scale(1.05);
+}
+
+.audio-play-btn:focus {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.audio-play-btn:active {
+  transform: scale(0.95);
+}
+
+/* شريط التقدم */
+.audio-progress-container {
+  flex: 1;
+  position: relative;
+  height: 4px;
+  background: var(--border-color);
+  border-radius: 2px;
+  cursor: pointer;
+  margin: 0 8px;
+}
+
+.audio-progress-bar {
+  height: 100%;
+  background: var(--border-color);
+  border-radius: 2px;
+  overflow: hidden;
+  position: relative;
+}
+
+.audio-progress-fill {
+  height: 100%;
+  background: var(--accent);
+  border-radius: 2px;
+  width: 0%;
+  transition: width 0.1s ease;
+}
+
+.audio-seek-slider {
+  position: absolute;
+  top: -8px;
+  left: 0;
+  width: 100%;
+  height: 20px;
+  opacity: 0;
+  cursor: pointer;
+  margin: 0;
+}
+
+.audio-seek-slider::-webkit-slider-thumb {
+  appearance: none;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--accent);
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+}
+
+.audio-seek-slider::-moz-range-thumb {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--accent);
+  cursor: pointer;
+  border: none;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+}
+
+/* معلومات الصوت */
+.audio-info {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  min-width: 45px;
+}
+
+.audio-time {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.audio-duration {
+  font-size: 11px;
+  color: var(--text-secondary);
+  font-weight: 500;
+}
+
+/* تخصيص للرسائل المرسلة */
+.audio-message.fromMe .audio-time,
+.audio-message.fromMe .audio-duration {
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.audio-message.fromMe .audio-progress-fill {
+  background: rgba(255, 255, 255, 0.9);
+}
+
+.audio-message.fromMe .audio-progress-container {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+.audio-message.fromMe .audio-seek-slider::-webkit-slider-thumb {
+  background: rgba(255, 255, 255, 0.9);
+}
+
+.audio-message.fromMe .audio-seek-slider::-moz-range-thumb {
+  background: rgba(255, 255, 255, 0.9);
+}
+
+/* حالة الخطأ */
+.audio-error {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #ef4444;
+  font-size: 13px;
+  font-weight: 500;
+  padding: 8px 12px;
+}
+
+.audio-error svg {
+  flex-shrink: 0;
+}
+@media (max-width: 1400px) {
+.cls3741_user_col{
+  width: 316px;
+  /* display: none; */
+}
+
+}
+/* تحسينات للشاشات الصغيرة */
+@media (max-width: 480px) {
+  .audio-container {
+    min-width: 180px;
+    max-width: 260px;
+    gap: 8px;
+    padding: 10px 12px;
+  }
+
+  .audio-play-btn {
+    width: 40px;
+    height: 40px;
+  }
+
+  .audio-info {
+    min-width: 40px;
+  }
+
+  .audio-time {
+    font-size: 11px;
+  }
+
+  .audio-duration {
+    font-size: 10px;
+  }
+ 
+}🔥 CSS للمشغل الصوتي المتقدم مثل WhatsApp */
+.audio-message {
+  max-width: 100%;
+  margin: 4px 0;
+}
+
+ 
+
+.audio-play-btn {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  border: none;
+  background: var(--accent);
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  flex-shrink: 0;
+  box-shadow: var(--shadow-md);
+}
+
+.audio-play-btn:hover {
+  background: var(--accent-hover);
+  transform: scale(1.05);
+}
+
+.audio-play-btn:focus {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.audio-play-btn:active {
+  transform: scale(0.95);
+}
+
+/* شريط التقدم */
+.audio-progress-container {
+  flex: 1;
+  position: relative;
+  height: 4px;
+  background: var(--border-color);
+  border-radius: 2px;
+  cursor: pointer;
+  margin: 0 8px;
+}
+
+.audio-progress-bar {
+  height: 100%;
+  background: var(--border-color);
+  border-radius: 2px;
+  overflow: hidden;
+  position: relative;
+}
+
+.audio-progress-fill {
+  height: 100%;
+  background: var(--accent);
+  border-radius: 2px;
+  width: 0%;
+  transition: width 0.1s ease;
+}
+
+.audio-seek-slider {
+  position: absolute;
+  top: -8px;
+  left: 0;
+  width: 100%;
+  height: 20px;
+  opacity: 0;
+  cursor: pointer;
+  margin: 0;
+}
+
+.audio-seek-slider::-webkit-slider-thumb {
+  appearance: none;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--accent);
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+}
+
+.audio-seek-slider::-moz-range-thumb {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--accent);
+  cursor: pointer;
+  border: none;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+}
+
+/* معلومات الصوت */
+.audio-info {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  min-width: 45px;
+}
+
+.audio-time {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.audio-duration {
+  font-size: 11px;
+  color: var(--text-secondary);
+  font-weight: 500;
+}
+
+/* تخصيص للرسائل المرسلة */
+.audio-message.fromMe .audio-time,
+.audio-message.fromMe .audio-duration {
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.audio-message.fromMe .audio-progress-fill {
+  background: rgba(255, 255, 255, 0.9);
+}
+
+.audio-message.fromMe .audio-progress-container {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+.audio-message.fromMe .audio-seek-slider::-webkit-slider-thumb {
+  background: rgba(255, 255, 255, 0.9);
+}
+
+.audio-message.fromMe .audio-seek-slider::-moz-range-thumb {
+  background: rgba(255, 255, 255, 0.9);
+}
+
+/* حالة الخطأ */
+.audio-error {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #ef4444;
+  font-size: 13px;
+  font-weight: 500;
+  padding: 8px 12px;
+}
+
+.audio-error svg {
+  flex-shrink: 0;
+}
+ 
+.audio-message {
+  max-width: 100%;
+  margin: 4px 0;
+}
+
+ 
+
+.audio-play-btn {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  border: none;
+  background: var(--accent);
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  flex-shrink: 0;
+  box-shadow: var(--shadow-md);
+}
+
+.audio-play-btn:hover {
+  background: var(--accent-hover);
+  transform: scale(1.05);
+}
+
+.audio-play-btn:focus {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.audio-play-btn:active {
+  transform: scale(0.95);
+}
+
+/* شريط التقدم */
+.audio-progress-container {
+  flex: 1;
+  position: relative;
+  height: 4px;
+  background: var(--border-color);
+  border-radius: 2px;
+  cursor: pointer;
+  margin: 0 8px;
+}
+
+.audio-progress-bar {
+  height: 100%;
+  background: var(--border-color);
+  border-radius: 2px;
+  overflow: hidden;
+  position: relative;
+}
+
+.audio-progress-fill {
+  height: 100%;
+  background: var(--accent);
+  border-radius: 2px;
+  width: 0%;
+  transition: width 0.1s ease;
+}
+
+.audio-seek-slider {
+  position: absolute;
+  top: -8px;
+  left: 0;
+  width: 100%;
+  height: 20px;
+  opacity: 0;
+  cursor: pointer;
+  margin: 0;
+}
+
+.audio-seek-slider::-webkit-slider-thumb {
+  appearance: none;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--accent);
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+}
+
+.audio-seek-slider::-moz-range-thumb {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--accent);
+  cursor: pointer;
+  border: none;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+}
+
+/* معلومات الصوت */
+.audio-info {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  min-width: 45px;
+}
+
+.audio-time {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.audio-duration {
+  font-size: 11px;
+  color: var(--text-secondary);
+  font-weight: 500;
+}
+
+/* تخصيص للرسائل المرسلة */
+.audio-message.fromMe .audio-time,
+.audio-message.fromMe .audio-duration {
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.audio-message.fromMe .audio-progress-fill {
+  background: rgba(255, 255, 255, 0.9);
+}
+
+.audio-message.fromMe .audio-progress-container {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+.audio-message.fromMe .audio-seek-slider::-webkit-slider-thumb {
+  background: rgba(255, 255, 255, 0.9);
+}
+
+.audio-message.fromMe .audio-seek-slider::-moz-range-thumb {
+  background: rgba(255, 255, 255, 0.9);
+}
+
+/* حالة الخطأ */
+.audio-error {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #ef4444;
+  font-size: 13px;
+  font-weight: 500;
+  padding: 8px 12px;
+}
+
+.audio-error svg {
+  flex-shrink: 0;
+}
+
+/* تحسينات للشاشات الصغيرة */ 
+.audio-message {
+  max-width: 100%;
+  margin: 4px 0;
+}
+
+ 
+
+.audio-play-btn {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  border: none;
+  background: var(--accent);
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  flex-shrink: 0;
+  box-shadow: var(--shadow-md);
+}
+
+.audio-play-btn:hover {
+  background: var(--accent-hover);
+  transform: scale(1.05);
+}
+
+.audio-play-btn:focus {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.audio-play-btn:active {
+  transform: scale(0.95);
+}
+
+/* شريط التقدم */
+.audio-progress-container {
+  flex: 1;
+  position: relative;
+  height: 4px;
+  background: var(--border-color);
+  border-radius: 2px;
+  cursor: pointer;
+  margin: 0 8px;
+}
+
+.audio-progress-bar {
+  height: 100%;
+  background: var(--border-color);
+  border-radius: 2px;
+  overflow: hidden;
+  position: relative;
+}
+
+.audio-progress-fill {
+  height: 100%;
+  background: var(--accent);
+  border-radius: 2px;
+  width: 0%;
+  transition: width 0.1s ease;
+}
+
+.audio-seek-slider {
+  position: absolute;
+  top: -8px;
+  left: 0;
+  width: 100%;
+  height: 20px;
+  opacity: 0;
+  cursor: pointer;
+  margin: 0;
+}
+
+.audio-seek-slider::-webkit-slider-thumb {
+  appearance: none;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--accent);
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+}
+
+.audio-seek-slider::-moz-range-thumb {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--accent);
+  cursor: pointer;
+  border: none;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+}
+
+/* معلومات الصوت */
+.audio-info {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  min-width: 45px;
+}
+
+.audio-time {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.audio-duration {
+  font-size: 11px;
+  color: var(--text-secondary);
+  font-weight: 500;
+}
+
+/* تخصيص للرسائل المرسلة */
+.audio-message.fromMe .audio-time,
+.audio-message.fromMe .audio-duration {
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.audio-message.fromMe .audio-progress-fill {
+  background: rgba(255, 255, 255, 0.9);
+}
+
+.audio-message.fromMe .audio-progress-container {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+.audio-message.fromMe .audio-seek-slider::-webkit-slider-thumb {
+  background: rgba(255, 255, 255, 0.9);
+}
+
+.audio-message.fromMe .audio-seek-slider::-moz-range-thumb {
+  background: rgba(255, 255, 255, 0.9);
+}
+
+/* حالة الخطأ */
+.audio-error {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #ef4444;
+  font-size: 13px;
+  font-weight: 500;
+  padding: 8px 12px;
+}
+
+.audio-error svg {
+  flex-shrink: 0;
+}
+ 
+.audio-message {
+  max-width: 100%;
+  margin: 4px 0;
+}
+
+
+
+.audio-play-btn {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  border: none;
+  background: var(--accent);
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  flex-shrink: 0;
+  box-shadow: var(--shadow-md);
+}
+
+.audio-play-btn:hover {
+  background: var(--accent-hover);
+  transform: scale(1.05);
+}
+
+.audio-play-btn:focus {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.audio-play-btn:active {
+  transform: scale(0.95);
+}
+
+/* شريط التقدم */
+.audio-progress-container {
+  flex: 1;
+  position: relative;
+  height: 4px;
+  background: var(--border-color);
+  border-radius: 2px;
+  cursor: pointer;
+  margin: 0 8px;
+}
+
+.audio-progress-bar {
+  height: 100%;
+  background: var(--border-color);
+  border-radius: 2px;
+  overflow: hidden;
+  position: relative;
+}
+
+.audio-progress-fill {
+  height: 100%;
+  background: var(--accent);
+  border-radius: 2px;
+  width: 0%;
+  transition: width 0.1s ease;
+}
+
+.audio-seek-slider {
+  position: absolute;
+  top: -8px;
+  left: 0;
+  width: 100%;
+  height: 20px;
+  opacity: 0;
+  cursor: pointer;
+  margin: 0;
+}
+
+.audio-seek-slider::-webkit-slider-thumb {
+  appearance: none;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--accent);
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+}
+
+.audio-seek-slider::-moz-range-thumb {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--accent);
+  cursor: pointer;
+  border: none;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+}
+
+/* معلومات الصوت */
+.audio-info {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  min-width: 45px;
+}
+
+.audio-time {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.audio-duration {
+  font-size: 11px;
+  color: var(--text-secondary);
+  font-weight: 500;
+}
+
+/* تخصيص للرسائل المرسلة */
+.audio-message.fromMe .audio-time,
+.audio-message.fromMe .audio-duration {
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.audio-message.fromMe .audio-progress-fill {
+  background: rgba(255, 255, 255, 0.9);
+}
+
+.audio-message.fromMe .audio-progress-container {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+.audio-message.fromMe .audio-seek-slider::-webkit-slider-thumb {
+  background: rgba(255, 255, 255, 0.9);
+}
+
+.audio-message.fromMe .audio-seek-slider::-moz-range-thumb {
+  background: rgba(255, 255, 255, 0.9);
+}
+
+/* حالة الخطأ */
+.audio-error {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #ef4444;
+  font-size: 13px;
+  font-weight: 500;
+  padding: 8px 12px;
+}
+
+.audio-error svg {
+  flex-shrink: 0;
+}
+
+/* تحسينات للشاشات الصغيرة */
+@media (max-width: 480px) {
+  .audio-container {
+    min-width: 180px;
+    max-width: 260px;
+    gap: 8px;
+    padding: 10px 12px;
+  }
+
+  .audio-play-btn {
+    width: 40px;
+    height: 40px;
+  }
+
+  .audio-info {
+    min-width: 40px;
+  }
+
+  .audio-time {
+    font-size: 11px;
+  }
+
+  .audio-duration {
+    font-size: 10px;
+  }
+}🔥 CSS للمشغل الصوتي المتقدم مثل WhatsApp */
+.audio-message {
+  max-width: 100%;
+  margin: 4px 0;
+}
+
+.audio-container {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  background: var(--bg-primary);
+  border-radius: 12px;
+  border: 1px solid var(--border-color);
+  min-width: 200px;
+  max-width: 300px;
+  box-shadow: var(--shadow-sm);
+}
+
+.audio-play-btn {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  border: none;
+  background: var(--accent);
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  flex-shrink: 0;
+  box-shadow: var(--shadow-md);
+}
+
+.audio-play-btn:hover {
+  background: var(--accent-hover);
+  transform: scale(1.05);
+}
+
+.audio-play-btn:focus {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.audio-play-btn:active {
+  transform: scale(0.95);
+}
+
+/* شريط التقدم */
+.audio-progress-container {
+  flex: 1;
+  position: relative;
+  height: 4px;
+  background: var(--border-color);
+  border-radius: 2px;
+  cursor: pointer;
+  margin: 0 8px;
+}
+
+.audio-progress-bar {
+  height: 100%;
+  background: var(--border-color);
+  border-radius: 2px;
+  overflow: hidden;
+  position: relative;
+}
+
+.audio-progress-fill {
+  height: 100%;
+  background: var(--accent);
+  border-radius: 2px;
+  width: 0%;
+  transition: width 0.1s ease;
+}
+
+.audio-seek-slider {
+  position: absolute;
+  top: -8px;
+  left: 0;
+  width: 100%;
+  height: 20px;
+  opacity: 0;
+  cursor: pointer;
+  margin: 0;
+}
+
+.audio-seek-slider::-webkit-slider-thumb {
+  appearance: none;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--accent);
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+}
+
+.audio-seek-slider::-moz-range-thumb {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--accent);
+  cursor: pointer;
+  border: none;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+}
+
+/* معلومات الصوت */
+.audio-info {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  min-width: 45px;
+}
+
+.audio-time {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.audio-duration {
+  font-size: 11px;
+  color: var(--text-secondary);
+  font-weight: 500;
+}
+
+/* تخصيص للرسائل المرسلة */
+.audio-message.fromMe .audio-time,
+.audio-message.fromMe .audio-duration {
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.audio-message.fromMe .audio-progress-fill {
+  background: rgba(255, 255, 255, 0.9);
+}
+
+.audio-message.fromMe .audio-progress-container {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+.audio-message.fromMe .audio-seek-slider::-webkit-slider-thumb {
+  background: rgba(255, 255, 255, 0.9);
+}
+
+.audio-message.fromMe .audio-seek-slider::-moz-range-thumb {
+  background: rgba(255, 255, 255, 0.9);
+}
+
+/* حالة الخطأ */
+.audio-error {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #ef4444;
+  font-size: 13px;
+  font-weight: 500;
+  padding: 8px 12px;
+}
+
+.audio-error svg {
+  flex-shrink: 0;
+}
+
+/* تحسينات للشاشات الصغيرة */
+@media (max-width: 480px) {
+  .audio-container {
+    min-width: 180px;
+    max-width: 260px;
+    gap: 8px;
+    padding: 10px 12px;
+  }
+
+  .audio-play-btn {
+    width: 40px;
+    height: 40px;
+  }
+
+  .audio-info {
+    min-width: 40px;
+  }
+
+  .audio-time {
+    font-size: 11px;
+  }
+
+  .audio-duration {
+    font-size: 10px;
+  }
+}🔥 CSS للمشغل الصوتي المتقدم مثل WhatsApp */
+.audio-message {
+  max-width: 100%;
+  margin: 4px 0;
+}
+
+.audio-container {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  background: var(--bg-primary);
+  border-radius: 12px;
+  border: 1px solid var(--border-color);
+  min-width: 200px;
+  max-width: 300px;
+  box-shadow: var(--shadow-sm);
+}
+
+.audio-play-btn {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  border: none;
+  background: var(--accent);
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  flex-shrink: 0;
+  box-shadow: var(--shadow-md);
+}
+
+.audio-play-btn:hover {
+  background: var(--accent-hover);
+  transform: scale(1.05);
+}
+
+.audio-play-btn:focus {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.audio-play-btn:active {
+  transform: scale(0.95);
+}
+
+/* شريط التقدم */
+.audio-progress-container {
+  flex: 1;
+  position: relative;
+  height: 4px;
+  background: var(--border-color);
+  border-radius: 2px;
+  cursor: pointer;
+  margin: 0 8px;
+}
+
+.audio-progress-bar {
+  height: 100%;
+  background: var(--border-color);
+  border-radius: 2px;
+  overflow: hidden;
+  position: relative;
+}
+
+.audio-progress-fill {
+  height: 100%;
+  background: var(--accent);
+  border-radius: 2px;
+  width: 0%;
+  transition: width 0.1s ease;
+}
+
+.audio-seek-slider {
+  position: absolute;
+  top: -8px;
+  left: 0;
+  width: 100%;
+  height: 20px;
+  opacity: 0;
+  cursor: pointer;
+  margin: 0;
+}
+
+.audio-seek-slider::-webkit-slider-thumb {
+  appearance: none;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--accent);
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+}
+
+.audio-seek-slider::-moz-range-thumb {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--accent);
+  cursor: pointer;
+  border: none;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+}
+
+/* معلومات الصوت */
+.audio-info {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  min-width: 45px;
+}
+
+.audio-time {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.audio-duration {
+  font-size: 11px;
+  color: var(--text-secondary);
+  font-weight: 500;
+}
+
+/* تخصيص للرسائل المرسلة */
+.audio-message.fromMe .audio-time,
+.audio-message.fromMe .audio-duration {
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.audio-message.fromMe .audio-progress-fill {
+  background: rgba(255, 255, 255, 0.9);
+}
+
+.audio-message.fromMe .audio-progress-container {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+.audio-message.fromMe .audio-seek-slider::-webkit-slider-thumb {
+  background: rgba(255, 255, 255, 0.9);
+}
+
+.audio-message.fromMe .audio-seek-slider::-moz-range-thumb {
+  background: rgba(255, 255, 255, 0.9);
+}
+
+/* حالة الخطأ */
+.audio-error {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #ef4444;
+  font-size: 13px;
+  font-weight: 500;
+  padding: 8px 12px;
+}
+
+.audio-error svg {
+  flex-shrink: 0;
+}
+
+/* تحسينات للشاشات الصغيرة */
+@media (max-width: 480px) {
+  .audio-container {
+    min-width: 180px;
+    max-width: 260px;
+    gap: 8px;
+    padding: 10px 12px;
+  }
+
+  .audio-play-btn {
+    width: 40px;
+    height: 40px;
+  }
+
+  .audio-info {
+    min-width: 40px;
+  }
+
+  .audio-time {
+    font-size: 11px;
+  }
+
+  .audio-duration {
+    font-size: 10px;
+  }
+}SS للمشغل الصوتي المتقدم مثل WhatsApp */
+.audio-message {
+  max-width: 100%;
+  margin: 4px 0;
+}
+
+.audio-container {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  background: var(--bg-primary);
+  border-radius: 12px;
+  border: 1px solid var(--border-color);
+  min-width: 200px;
+  max-width: 300px;
+  box-shadow: var(--shadow-sm);
+}
+
+.audio-play-btn {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  border: none;
+  background: var(--accent);
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  flex-shrink: 0;
+  box-shadow: var(--shadow-md);
+}
+
+.audio-play-btn:hover {
+  background: var(--accent-hover);
+  transform: scale(1.05);
+}
+
+.audio-play-btn:focus {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.audio-play-btn:active {
+  transform: scale(0.95);
+}
+
+/* شريط التقدم */
+.audio-progress-container {
+  flex: 1;
+  position: relative;
+  height: 4px;
+  background: var(--border-color);
+  border-radius: 2px;
+  cursor: pointer;
+  margin: 0 8px;
+}
+
+.audio-progress-bar {
+  height: 100%;
+  background: var(--border-color);
+  border-radius: 2px;
+  overflow: hidden;
+  position: relative;
+}
+
+.audio-progress-fill {
+  height: 100%;
+  background: var(--accent);
+  border-radius: 2px;
+  width: 0%;
+  transition: width 0.1s ease;
+}
+
+.audio-seek-slider {
+  position: absolute;
+  top: -8px;
+  left: 0;
+  width: 100%;
+  height: 20px;
+  opacity: 0;
+  cursor: pointer;
+  margin: 0;
+}
+
+.audio-seek-slider::-webkit-slider-thumb {
+  appearance: none;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--accent);
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+}
+
+.audio-seek-slider::-moz-range-thumb {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--accent);
+  cursor: pointer;
+  border: none;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+}
+
+/* معلومات الصوت */
+.audio-info {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  min-width: 45px;
+}
+
+.audio-time {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.audio-duration {
+  font-size: 11px;
+  color: var(--text-secondary);
+  font-weight: 500;
+}
+
+/* تخصيص للرسائل المرسلة */
+.audio-message.fromMe .audio-time,
+.audio-message.fromMe .audio-duration {
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.audio-message.fromMe .audio-progress-fill {
+  background: rgba(255, 255, 255, 0.9);
+}
+
+.audio-message.fromMe .audio-progress-container {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+.audio-message.fromMe .audio-seek-slider::-webkit-slider-thumb {
+  background: rgba(255, 255, 255, 0.9);
+}
+
+.audio-message.fromMe .audio-seek-slider::-moz-range-thumb {
+  background: rgba(255, 255, 255, 0.9);
+}
+
+/* حالة الخطأ */
+.audio-error {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #ef4444;
+  font-size: 13px;
+  font-weight: 500;
+  padding: 8px 12px;
+}
+
+.audio-error svg {
+  flex-shrink: 0;
+}
+
+/* تحسينات للشاشات الصغيرة */
+@media (max-width: 480px) {
+  .audio-container {
+    min-width: 180px;
+    max-width: 260px;
+    gap: 8px;
+    padding: 10px 12px;
+  }
+
+  .audio-play-btn {
+    width: 40px;
+    height: 40px;
+  }
+
+  .audio-info {
+    min-width: 40px;
+  }
+
+  .audio-time {
+    font-size: 11px;
+  }
+
+  .audio-duration {
+    font-size: 10px;
+  }
+}SS للمشغل الصوتي المتقدم مثل WhatsApp */
+.audio-message {
+  max-width: 100%;
+  margin: 4px 0;
+}
+
+.audio-container {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  background: var(--bg-primary);
+  border-radius: 12px;
+  border: 1px solid var(--border-color);
+  min-width: 200px;
+  max-width: 300px;
+  box-shadow: var(--shadow-sm);
+}
+
+.audio-play-btn {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  border: none;
+  background: var(--accent);
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  flex-shrink: 0;
+  box-shadow: var(--shadow-md);
+}
+
+.audio-play-btn:hover {
+  background: var(--accent-hover);
+  transform: scale(1.05);
+}
+
+.audio-play-btn:focus {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.audio-play-btn:active {
+  transform: scale(0.95);
+}
+
+/* شريط التقدم */
+.audio-progress-container {
+  flex: 1;
+  position: relative;
+  height: 4px;
+  background: var(--border-color);
+  border-radius: 2px;
+  cursor: pointer;
+  margin: 0 8px;
+}
+
+.audio-progress-bar {
+  height: 100%;
+  background: var(--border-color);
+  border-radius: 2px;
+  overflow: hidden;
+  position: relative;
+}
+
+.audio-progress-fill {
+  height: 100%;
+  background: var(--accent);
+  border-radius: 2px;
+  width: 0%;
+  transition: width 0.1s ease;
+}
+
+.audio-seek-slider {
+  position: absolute;
+  top: -8px;
+  left: 0;
+  width: 100%;
+  height: 20px;
+  opacity: 0;
+  cursor: pointer;
+  margin: 0;
+}
+
+.audio-seek-slider::-webkit-slider-thumb {
+  appearance: none;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--accent);
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+}
+
+.audio-seek-slider::-moz-range-thumb {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--accent);
+  cursor: pointer;
+  border: none;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+}
+
+/* معلومات الصوت */
+.audio-info {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  min-width: 45px;
+}
+
+.audio-time {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.audio-duration {
+  font-size: 11px;
+  color: var(--text-secondary);
+  font-weight: 500;
+}
+
+/* تخصيص للرسائل المرسلة */
+.audio-message.fromMe .audio-time,
+.audio-message.fromMe .audio-duration {
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.audio-message.fromMe .audio-progress-fill {
+  background: rgba(255, 255, 255, 0.9);
+}
+
+.audio-message.fromMe .audio-progress-container {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+.audio-message.fromMe .audio-seek-slider::-webkit-slider-thumb {
+  background: rgba(255, 255, 255, 0.9);
+}
+
+.audio-message.fromMe .audio-seek-slider::-moz-range-thumb {
+  background: rgba(255, 255, 255, 0.9);
+}
+
+/* حالة الخطأ */
+.audio-error {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #ef4444;
+  font-size: 13px;
+  font-weight: 500;
+  padding: 8px 12px;
+}
+
+.audio-error svg {
+  flex-shrink: 0;
+}
+
+/* تحسينات للشاشات الصغيرة */
+@media (max-width: 480px) {
+  .audio-container {
+    min-width: 180px;
+    max-width: 260px;
+    gap: 8px;
+    padding: 10px 12px;
+  }
+
+  .audio-play-btn {
+    width: 40px;
+    height: 40px;
+  }
+
+  .audio-info {
+    min-width: 40px;
+  }
+
+  .audio-time {
+    font-size: 11px;
+  }
+
+  .audio-duration {
+    font-size: 10px;
+  }
+}S للمشغل الصوتي المتقدم مثل WhatsApp */
+.audio-message {
+  max-width: 100%;
+  margin: 4px 0;
+}
+
+.audio-container {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  background: var(--bg-primary);
+  border-radius: 12px;
+  border: 1px solid var(--border-color);
+  min-width: 200px;
+  max-width: 300px;
+  box-shadow: var(--shadow-sm);
+}
+
+.audio-play-btn {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  border: none;
+  background: var(--accent);
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  flex-shrink: 0;
+  box-shadow: var(--shadow-md);
+}
+
+.audio-play-btn:hover {
+  background: var(--accent-hover);
+  transform: scale(1.05);
+}
+
+.audio-play-btn:focus {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.audio-play-btn:active {
+  transform: scale(0.95);
+}
+
+/* شريط التقدم */
+.audio-progress-container {
+  flex: 1;
+  position: relative;
+  height: 4px;
+  background: var(--border-color);
+  border-radius: 2px;
+  cursor: pointer;
+  margin: 0 8px;
+}
+
+.audio-progress-bar {
+  height: 100%;
+  background: var(--border-color);
+  border-radius: 2px;
+  overflow: hidden;
+  position: relative;
+}
+
+.audio-progress-fill {
+  height: 100%;
+  background: var(--accent);
+  border-radius: 2px;
+  width: 0%;
+  transition: width 0.1s ease;
+}
+
+.audio-seek-slider {
+  position: absolute;
+  top: -8px;
+  left: 0;
+  width: 100%;
+  height: 20px;
+  opacity: 0;
+  cursor: pointer;
+  margin: 0;
+}
+
+.audio-seek-slider::-webkit-slider-thumb {
+  appearance: none;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--accent);
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+}
+
+.audio-seek-slider::-moz-range-thumb {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--accent);
+  cursor: pointer;
+  border: none;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+}
+
+/* معلومات الصوت */
+.audio-info {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  min-width: 45px;
+}
+
+.audio-time {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.audio-duration {
+  font-size: 11px;
+  color: var(--text-secondary);
+  font-weight: 500;
+}
+
+/* تخصيص للرسائل المرسلة */
+.audio-message.fromMe .audio-time,
+.audio-message.fromMe .audio-duration {
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.audio-message.fromMe .audio-progress-fill {
+  background: rgba(255, 255, 255, 0.9);
+}
+
+.audio-message.fromMe .audio-progress-container {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+.audio-message.fromMe .audio-seek-slider::-webkit-slider-thumb {
+  background: rgba(255, 255, 255, 0.9);
+}
+
+.audio-message.fromMe .audio-seek-slider::-moz-range-thumb {
+  background: rgba(255, 255, 255, 0.9);
+}
+
+/* حالة الخطأ */
+.audio-error {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #ef4444;
+  font-size: 13px;
+  font-weight: 500;
+  padding: 8px 12px;
+}
+
+.audio-error svg {
+  flex-shrink: 0;
+}
+
+/* تحسينات للشاشات الصغيرة */
+@media (max-width: 480px) {
+  .audio-container {
+    min-width: 180px;
+    max-width: 260px;
+    gap: 8px;
+    padding: 10px 12px;
+  }
+
+  .audio-play-btn {
+    width: 40px;
+    height: 40px;
+  }
+
+  .audio-info {
+    min-width: 40px;
+  }
+
+  .audio-time {
+    font-size: 11px;
+  }
+
+  .audio-duration {
+    font-size: 10px;
+  }
+}/* ===== audio-message: WhatsApp-like styling ===== */
+:root{
+  --wa-outgoing-bg: linear-gradient(180deg,#dcf8c6,#cbedb2);
+  --wa-incoming-bg: linear-gradient(180deg,#ffffff,#f1f1f1);
+  --wa-outgoing-color: #021020;
+  --wa-incoming-color: #021020;
+  --wa-accent: #25d366;
+  --wa-muted: #6b6f76;
+  --wa-shadow: 0 6px 18px rgba(2,6,23,0.12);
+}/* 🔥 CSS للمشغل الصوتي البسيط والأنيق */
+.audio-message {
+  max-width: 100%;
+  margin: 4px 0;
+}
+
+.audio-container {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  background: var(--bg-primary);
+  border-radius: 12px;
+  border: 1px solid var(--border-color);
+  min-width: 200px;
+  max-width: 300px;
+  box-shadow: var(--shadow-sm);
+}
+
+.audio-play-btn {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  border: none;
+  background: var(--accent);
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  flex-shrink: 0;
+  box-shadow: var(--shadow-md);
+}
+
+.audio-play-btn:hover {
+  background: var(--accent-hover);
+  transform: scale(1.05);
+}
+
+.audio-play-btn:focus {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.audio-play-btn:active {
+  transform: scale(0.95);
+}
+
+/* شريط التقدم */
+.audio-progress-container {
+  flex: 1;
+  position: relative;
+  height: 4px;
+  background: var(--border-color);
+  border-radius: 2px;
+  cursor: pointer;
+  margin: 0 8px;
+}
+
+.audio-progress-bar {
+  height: 100%;
+  background: var(--border-color);
+  border-radius: 2px;
+  overflow: hidden;
+  position: relative;
+}
+
+.audio-progress-fill {
+  height: 100%;
+  background: var(--accent);
+  border-radius: 2px;
+  width: 0%;
+  transition: width 0.1s ease;
+}
+
+.audio-seek-slider {
+  position: absolute;
+  top: -8px;
+  left: 0;
+  width: 100%;
+  height: 20px;
+  opacity: 0;
+  cursor: pointer;
+  margin: 0;
+}
+
+.audio-seek-slider::-webkit-slider-thumb {
+  appearance: none;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--accent);
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+}
+
+.audio-seek-slider::-moz-range-thumb {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--accent);
+  cursor: pointer;
+  border: none;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+}
+
+/* معلومات الصوت */
+.audio-info {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  min-width: 45px;
+}
+
+.audio-time {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.audio-duration {
+  font-size: 11px;
+  color: var(--text-secondary);
+  font-weight: 500;
+}
+
+/* تخصيص للرسائل المرسلة */
+.audio-message.fromMe .audio-time,
+.audio-message.fromMe .audio-duration {
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.audio-message.fromMe .audio-progress-fill {
+  background: rgba(255, 255, 255, 0.9);
+}
+
+.audio-message.fromMe .audio-progress-container {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+.audio-message.fromMe .audio-seek-slider::-webkit-slider-thumb {
+  background: rgba(255, 255, 255, 0.9);
+}
+
+.audio-message.fromMe .audio-seek-slider::-moz-range-thumb {
+  background: rgba(255, 255, 255, 0.9);
+}
+
+/* حالة الخطأ */
+.audio-error {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #ef4444;
+  font-size: 13px;
+  font-weight: 500;
+  padding: 8px 12px;
+}
+
+.audio-error svg {
+  flex-shrink: 0;
+}
+
+/* تحسينات للشاشات الصغيرة */
+@media (max-width: 480px) {
+  .audio-container {
+    min-width: 180px;
+    max-width: 260px;
+    gap: 8px;
+    padding: 10px 12px;
+  }
+
+  .audio-play-btn {
+    width: 40px;
+    height: 40px;
+  }
+
+  .audio-info {
+    min-width: 40px;
+  }
+
+  .audio-time {
+    font-size: 11px;
+  }
+
+  .audio-duration {
+    font-size: 10px;
+  }
+}/* ===== تصميم المقاطع الصوتية المحدث ===== */
+.audio-message {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  /* padding: 12px 16px; */
+  border-radius: 18px;
+  max-width: 280px;
+  position: relative;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+  transition: all 0.2s ease;
+}
+
+/* الرسائل الصادرة */
+.audio-message.fromMe {
+  margin-left: auto;
+  /* background: var(--accent, #000000); */
+  color: #ffffff;
+  border-bottom-right-radius: 4px;
+}
+
+/* الرسائل الواردة */
+.audio-message.fromThem {
+  background: transparent!important;
+  color: var(--text-primary, #000000);
+  /* border: 1px solid var(--border-color, #e5e7eb00); */
+  border-bottom-left-radius: 4px;
+}
+
+/* زر التشغيل - محدث */
+.audio-play {
+  width: 36px;
+  height: 36px;
+  min-width: 36px;
+  border-radius: 50%;
+  border: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  z-index: 2;
+}
+
+.audio-message.fromMe .audio-play {
+  background: rgba(255, 255, 255, 0.9);
+  color: #000000;
+}
+
+.audio-message.fromThem .audio-play {
+  background: var(--accent, #1b9f2c);
+  color: #ffffff;
+}
+
+.audio-play:hover {
+  transform: scale(1.05);
+}
+
+.audio-play:active {
+  transform: scale(0.95);
+}
+
+/* شريط التقدم - محدث */
+.audio-progress {
+  flex: 1;
+  height: 6px;
+  background: rgb(67 206 13);
+  border-radius: 3px;
+  overflow: hidden;
+  position: relative;
+  min-width: 120px;
+}
+
+.audio-message.fromThem .audio-progress {
+  background: #fafafa;
+}
+
+.audio-progress .bar {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 0%;
+  border-radius: 3px;
+  background: green;
+  transition: width 100ms linear;
+}
+
+.audio-message.fromThem .audio-progress .bar {
+  background: green;
+}
+
+/* الوقت - محدث */
+.audio-time {
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.7);
+  min-width: 40px;
+  /* text-align: right; */
+  /* margin-left: 8px; */
+  z-index: 2;
+  font-weight: 500;
+}
+
+.audio-message.fromThem .audio-time {
+  color: var(--text-secondary, #6b7280);
+}
+
+/* تأثيرات الظهور */
+.audio-message {
+  opacity: 1;
+  transform: translateY(10px);
+  transition: all 0.3s ease;
+}
+
+.audio-message.show {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* التصميم للهواتف */
+@media (max-width: 768px) {
+  .audio-message {
+    max-width: 240px;
+    padding: 10px 14px;
+    gap: 10px;
+  }
+  
+  .audio-progress {
+    min-width: 100px;
+  }
+  
+  .audio-play {
+    width: 32px;
+    height: 32px;
+    min-width: 32px;
+    font-size: 12px;
+  }
+}
+
+/* image / video quick style if used inside same bubble */
+.cls3741_media_image{ max-width:100%; border-radius:10px; display:block; }
+.cls3741_media_video{ max-width:260px; border-radius:10px; display:block; }
+
+/* focus & accessibility */
+.audio-play:focus{ outline:2px solid rgba(37,211,102,0.25); outline-offset:2px; }
+.audio-message[aria-hidden="true"]{ opacity: 0.8; }
+
+/* optional: small canvas-friendly fallback (if you use canvas waveform) */
+.audio-wave-canvas{ display:block; width:100%; height:auto; border-radius:6px; }/* 🔥 CSS للمشغل الصوتي البسيط والأنيق */
+.audio-message {
+  max-width: 100%;
+  margin: 4px 0;
+}
+
+.audio-container {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  background: var(--bg-primary);
+  border-radius: 12px;
+  border: 1px solid var(--border-color);
+  min-width: 200px;
+  max-width: 300px;
+  box-shadow: var(--shadow-sm);
+}
+
+.audio-play-btn {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  border: none;
+  background: var(--accent);
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  flex-shrink: 0;
+  box-shadow: var(--shadow-md);
+}
+
+.audio-play-btn:hover {
+  background: var(--accent-hover);
+  transform: scale(1.05);
+}
+
+.audio-play-btn:focus {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.audio-play-btn:active {
+  transform: scale(0.95);
+}
+
+/* شريط التقدم */
+.audio-progress-container {
+  flex: 1;
+  position: relative;
+  height: 4px;
+  background: var(--border-color);
+  border-radius: 2px;
+  cursor: pointer;
+  margin: 0 8px;
+}
+
+.audio-progress-bar {
+  height: 100%;
+  background: var(--border-color);
+  border-radius: 2px;
+  overflow: hidden;
+  position: relative;
+}
+
+.audio-progress-fill {
+  height: 100%;
+  background: var(--accent);
+  border-radius: 2px;
+  width: 0%;
+  transition: width 0.1s ease;
+}
+
+.audio-seek-slider {
+  position: absolute;
+  top: -8px;
+  left: 0;
+  width: 100%;
+  height: 20px;
+  opacity: 0;
+  cursor: pointer;
+  margin: 0;
+}
+
+.audio-seek-slider::-webkit-slider-thumb {
+  appearance: none;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--accent);
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+}
+
+.audio-seek-slider::-moz-range-thumb {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--accent);
+  cursor: pointer;
+  border: none;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+}
+
+/* معلومات الصوت */
+.audio-info {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  min-width: 45px;
+}
+
+.audio-time {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.audio-duration {
+  font-size: 11px;
+  color: var(--text-secondary);
+  font-weight: 500;
+}
+
+/* تخصيص للرسائل المرسلة */
+.audio-message.fromMe .audio-time,
+.audio-message.fromMe .audio-duration {
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.audio-message.fromMe .audio-progress-fill {
+  background: rgba(255, 255, 255, 0.9);
+}
+
+.audio-message.fromMe .audio-progress-container {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+.audio-message.fromMe .audio-seek-slider::-webkit-slider-thumb {
+  background: rgba(255, 255, 255, 0.9);
+}
+
+.audio-message.fromMe .audio-seek-slider::-moz-range-thumb {
+  background: rgba(255, 255, 255, 0.9);
+}
+
+/* حالة الخطأ */
+.audio-error {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #ef4444;
+  font-size: 13px;
+  font-weight: 500;
+  padding: 8px 12px;
+}
+
+.audio-error svg {
+  flex-shrink: 0;
+}
+
+/* تحسينات للشاشات الصغيرة */
+@media (max-width: 480px) {
+  .audio-container {
+    min-width: 180px;
+    max-width: 260px;
+    gap: 8px;
+    padding: 10px 12px;
+  }
+
+  .audio-play-btn {
+    width: 40px;
+    height: 40px;
+  }
+
+  .audio-info {
+    min-width: 40px;
+  }
+
+  .audio-time {
+    font-size: 11px;
+  }
+
+  .audio-duration {
+    font-size: 10px;
+  }
+}🔥 CSS للمشغل الصوتي المتقدم مثل WhatsApp */
+.audio-message {
+  max-width: 100%;
+  margin: 4px 0;
+}
+
+.audio-container {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  background: var(--bg-primary);
+  border-radius: 12px;
+  border: 1px solid var(--border-color);
+  min-width: 200px;
+  max-width: 300px;
+  box-shadow: var(--shadow-sm);
+}
+
+.audio-play-btn {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  border: none;
+  background: var(--accent);
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  flex-shrink: 0;
+  box-shadow: var(--shadow-md);
+}
+
+.audio-play-btn:hover {
+  background: var(--accent-hover);
+  transform: scale(1.05);
+}
+
+.audio-play-btn:focus {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.audio-play-btn:active {
+  transform: scale(0.95);
+}
+
+/* شريط التقدم */
+.audio-progress-container {
+  flex: 1;
+  position: relative;
+  height: 4px;
+  background: var(--border-color);
+  border-radius: 2px;
+  cursor: pointer;
+  margin: 0 8px;
+}
+
+.audio-progress-bar {
+  height: 100%;
+  background: var(--border-color);
+  border-radius: 2px;
+  overflow: hidden;
+  position: relative;
+}
+
+.audio-progress-fill {
+  height: 100%;
+  background: var(--accent);
+  border-radius: 2px;
+  width: 0%;
+  transition: width 0.1s ease;
+}
+
+.audio-seek-slider {
+  position: absolute;
+  top: -8px;
+  left: 0;
+  width: 100%;
+  height: 20px;
+  opacity: 0;
+  cursor: pointer;
+  margin: 0;
+}
+
+.audio-seek-slider::-webkit-slider-thumb {
+  appearance: none;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--accent);
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+}
+
+.audio-seek-slider::-moz-range-thumb {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--accent);
+  cursor: pointer;
+  border: none;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+}
+
+/* معلومات الصوت */
+.audio-info {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  min-width: 45px;
+}
+
+.audio-time {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.audio-duration {
+  font-size: 11px;
+  color: var(--text-secondary);
+  font-weight: 500;
+}
+
+/* تخصيص للرسائل المرسلة */
+.audio-message.fromMe .audio-time,
+.audio-message.fromMe .audio-duration {
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.audio-message.fromMe .audio-progress-fill {
+  background: rgba(255, 255, 255, 0.9);
+}
+
+.audio-message.fromMe .audio-progress-container {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+.audio-message.fromMe .audio-seek-slider::-webkit-slider-thumb {
+  background: rgba(255, 255, 255, 0.9);
+}
+
+.audio-message.fromMe .audio-seek-slider::-moz-range-thumb {
+  background: rgba(255, 255, 255, 0.9);
+}
+
+/* حالة الخطأ */
+.audio-error {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #ef4444;
+  font-size: 13px;
+  font-weight: 500;
+  padding: 8px 12px;
+}
+
+.audio-error svg {
+  flex-shrink: 0;
+}
+
+/* تحسينات للشاشات الصغيرة */
+@media (max-width: 480px) {
+  .audio-container {
+    min-width: 180px;
+    max-width: 260px;
+    gap: 8px;
+    padding: 10px 12px;
+  }
+
+  .audio-play-btn {
+    width: 40px;
+    height: 40px;
+  }
+
+  .audio-info {
+    min-width: 40px;
+  }
+
+  .audio-time {
+    font-size: 11px;
+  }
+
+  .audio-duration {
+    font-size: 10px;
+  }
+}🔥 CSS للمشغل الصوتي المتقدم مثل WhatsApp */
+.audio-message {
+  max-width: 100%;
+  margin: 4px 0;
+}
+
+.audio-container {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  background: var(--bg-primary);
+  border-radius: 12px;
+  border: 1px solid var(--border-color);
+  min-width: 200px;
+  max-width: 300px;
+  box-shadow: var(--shadow-sm);
+}
+
+.audio-play-btn {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  border: none;
+  background: var(--accent);
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  flex-shrink: 0;
+  box-shadow: var(--shadow-md);
+}
+
+.audio-play-btn:hover {
+  background: var(--accent-hover);
+  transform: scale(1.05);
+}
+
+.audio-play-btn:focus {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.audio-play-btn:active {
+  transform: scale(0.95);
+}
+
+/* شريط التقدم */
+.audio-progress-container {
+  flex: 1;
+  position: relative;
+  height: 4px;
+  background: var(--border-color);
+  border-radius: 2px;
+  cursor: pointer;
+  margin: 0 8px;
+}
+
+.audio-progress-bar {
+  height: 100%;
+  background: var(--border-color);
+  border-radius: 2px;
+  overflow: hidden;
+  position: relative;
+}
+
+.audio-progress-fill {
+  height: 100%;
+  background: var(--accent);
+  border-radius: 2px;
+  width: 0%;
+  transition: width 0.1s ease;
+}
+
+.audio-seek-slider {
+  position: absolute;
+  top: -8px;
+  left: 0;
+  width: 100%;
+  height: 20px;
+  opacity: 0;
+  cursor: pointer;
+  margin: 0;
+}
+
+.audio-seek-slider::-webkit-slider-thumb {
+  appearance: none;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--accent);
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+}
+
+.audio-seek-slider::-moz-range-thumb {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--accent);
+  cursor: pointer;
+  border: none;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+}
+
+/* معلومات الصوت */
+.audio-info {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  min-width: 45px;
+}
+
+.audio-time {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.audio-duration {
+  font-size: 11px;
+  color: var(--text-secondary);
+  font-weight: 500;
+}
+
+/* تخصيص للرسائل المرسلة */
+.audio-message.fromMe .audio-time,
+.audio-message.fromMe .audio-duration {
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.audio-message.fromMe .audio-progress-fill {
+  background: rgba(255, 255, 255, 0.9);
+}
+
+.audio-message.fromMe .audio-progress-container {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+.audio-message.fromMe .audio-seek-slider::-webkit-slider-thumb {
+  background: rgba(255, 255, 255, 0.9);
+}
+
+.audio-message.fromMe .audio-seek-slider::-moz-range-thumb {
+  background: rgba(255, 255, 255, 0.9);
+}
+
+/* حالة الخطأ */
+.audio-error {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #ef4444;
+  font-size: 13px;
+  font-weight: 500;
+  padding: 8px 12px;
+}
+
+.audio-error svg {
+  flex-shrink: 0;
+}
+
+/* تحسينات للشاشات الصغيرة */
+@media (max-width: 480px) {
+  .audio-container {
+    min-width: 180px;
+    max-width: 260px;
+    gap: 8px;
+    padding: 10px 12px;
+  }
+
+  .audio-play-btn {
+    width: 40px;
+    height: 40px;
+  }
+
+  .audio-info {
+    min-width: 40px;
+  }
+
+  .audio-time {
+    font-size: 11px;
+  }
+
+  .audio-duration {
+    font-size: 10px;
+  }
+}🔥 CSS للمشغل الصوتي المتقدم مثل WhatsApp */
+.audio-message {
+  max-width: 100%;
+  margin: 4px 0;
+}
+
+.audio-container {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  background: var(--bg-primary);
+  border-radius: 12px;
+  border: 1px solid var(--border-color);
+  min-width: 200px;
+  max-width: 300px;
+  box-shadow: var(--shadow-sm);
+}
+
+.audio-play-btn {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  border: none;
+  background: var(--accent);
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  flex-shrink: 0;
+  box-shadow: var(--shadow-md);
+}
+
+.audio-play-btn:hover {
+  background: var(--accent-hover);
+  transform: scale(1.05);
+}
+
+.audio-play-btn:focus {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.audio-play-btn:active {
+  transform: scale(0.95);
+}
+
+/* شريط التقدم */
+.audio-progress-container {
+  flex: 1;
+  position: relative;
+  height: 4px;
+  background: var(--border-color);
+  border-radius: 2px;
+  cursor: pointer;
+  margin: 0 8px;
+}
+
+.audio-progress-bar {
+  height: 100%;
+  background: var(--border-color);
+  border-radius: 2px;
+  overflow: hidden;
+  position: relative;
+}
+
+.audio-progress-fill {
+  height: 100%;
+  background: var(--accent);
+  border-radius: 2px;
+  width: 0%;
+  transition: width 0.1s ease;
+}
+
+.audio-seek-slider {
+  position: absolute;
+  top: -8px;
+  left: 0;
+  width: 100%;
+  height: 20px;
+  opacity: 0;
+  cursor: pointer;
+  margin: 0;
+}
+
+.audio-seek-slider::-webkit-slider-thumb {
+  appearance: none;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--accent);
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+}
+
+.audio-seek-slider::-moz-range-thumb {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--accent);
+  cursor: pointer;
+  border: none;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+}
+
+/* معلومات الصوت */
+.audio-info {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  min-width: 45px;
+}
+
+.audio-time {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.audio-duration {
+  font-size: 11px;
+  color: var(--text-secondary);
+  font-weight: 500;
+}
+
+/* تخصيص للرسائل المرسلة */
+.audio-message.fromMe .audio-time,
+.audio-message.fromMe .audio-duration {
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.audio-message.fromMe .audio-progress-fill {
+  background: rgba(255, 255, 255, 0.9);
+}
+
+.audio-message.fromMe .audio-progress-container {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+.audio-message.fromMe .audio-seek-slider::-webkit-slider-thumb {
+  background: rgba(255, 255, 255, 0.9);
+}
+
+.audio-message.fromMe .audio-seek-slider::-moz-range-thumb {
+  background: rgba(255, 255, 255, 0.9);
+}
+
+/* حالة الخطأ */
+.audio-error {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #ef4444;
+  font-size: 13px;
+  font-weight: 500;
+  padding: 8px 12px;
+}
+
+.audio-error svg {
+  flex-shrink: 0;
+}
+
+/* تحسينات للشاشات الصغيرة */
+@media (max-width: 480px) {
+  .audio-container {
+    min-width: 180px;
+    max-width: 260px;
+    gap: 8px;
+    padding: 10px 12px;
+  }
+
+  .audio-play-btn {
+    width: 40px;
+    height: 40px;
+  }
+
+  .audio-info {
+    min-width: 40px;
+  }
+
+  .audio-time {
+    font-size: 11px;
+  }
+
+  .audio-duration {
+    font-size: 10px;
+  }
+}🔥 CSS للمشغل الصوتي المتقدم مثل WhatsApp */
+.audio-message {
+  max-width: 100%;
+  margin: 4px 0;
+}
+
+.audio-container {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  background: var(--bg-primary);
+  border-radius: 12px;
+  border: 1px solid var(--border-color);
+  min-width: 200px;
+  max-width: 300px;
+  box-shadow: var(--shadow-sm);
+}
+
+.audio-play-btn {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  border: none;
+  background: var(--accent);
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  flex-shrink: 0;
+  box-shadow: var(--shadow-md);
+}
+
+.audio-play-btn:hover {
+  background: var(--accent-hover);
+  transform: scale(1.05);
+}
+
+.audio-play-btn:focus {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.audio-play-btn:active {
+  transform: scale(0.95);
+}
+
+/* شريط التقدم */
+.audio-progress-container {
+  flex: 1;
+  position: relative;
+  height: 4px;
+  background: var(--border-color);
+  border-radius: 2px;
+  cursor: pointer;
+  margin: 0 8px;
+}
+
+.audio-progress-bar {
+  height: 100%;
+  background: var(--border-color);
+  border-radius: 2px;
+  overflow: hidden;
+  position: relative;
+}
+
+.audio-progress-fill {
+  height: 100%;
+  background: var(--accent);
+  border-radius: 2px;
+  width: 0%;
+  transition: width 0.1s ease;
+}
+
+.audio-seek-slider {
+  position: absolute;
+  top: -8px;
+  left: 0;
+  width: 100%;
+  height: 20px;
+  opacity: 0;
+  cursor: pointer;
+  margin: 0;
+}
+
+.audio-seek-slider::-webkit-slider-thumb {
+  appearance: none;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--accent);
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+}
+
+.audio-seek-slider::-moz-range-thumb {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--accent);
+  cursor: pointer;
+  border: none;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+}
+
+/* معلومات الصوت */
+.audio-info {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  min-width: 45px;
+}
+
+.audio-time {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.audio-duration {
+  font-size: 11px;
+  color: var(--text-secondary);
+  font-weight: 500;
+}
+
+/* تخصيص للرسائل المرسلة */
+.audio-message.fromMe .audio-time,
+.audio-message.fromMe .audio-duration {
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.audio-message.fromMe .audio-progress-fill {
+  background: rgba(255, 255, 255, 0.9);
+}
+
+.audio-message.fromMe .audio-progress-container {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+.audio-message.fromMe .audio-seek-slider::-webkit-slider-thumb {
+  background: rgba(255, 255, 255, 0.9);
+}
+
+.audio-message.fromMe .audio-seek-slider::-moz-range-thumb {
+  background: rgba(255, 255, 255, 0.9);
+}
+
+/* حالة الخطأ */
+.audio-error {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #ef4444;
+  font-size: 13px;
+  font-weight: 500;
+  padding: 8px 12px;
+}
+
+.audio-error svg {
+  flex-shrink: 0;
+}
+
+/* تحسينات للشاشات الصغيرة */
+@media (max-width: 480px) {
+  .audio-container {
+    min-width: 180px;
+    max-width: 260px;
+    gap: 8px;
+    padding: 10px 12px;
+  }
+
+  .audio-play-btn {
+    width: 40px;
+    height: 40px;
+  }
+
+  .audio-info {
+    min-width: 40px;
+  }
+
+  .audio-time {
+    font-size: 11px;
+  }
+
+  .audio-duration {
+    font-size: 10px;
+  }
+}/* ===== Text & Image Messages - WhatsApp Style ===== */
+:root{
+  --wa-msg-out-bg: #dcf8c6; /* outgoing */
+  --wa-msg-in-bg: #ffffff;  /* incoming */
+  --wa-msg-out-color: #021020;
+  --wa-msg-in-color: #021020;
+  --wa-msg-muted: #6b6f76;
+  --wa-msg-shadow: 0 3px 12px rgba(2,6,23,0.08);
+}
+
+ 
+/* .message{
+  display: flex;
+  flex-direction: column;
+  max-width: 59%;
+  padding: 8px 12px;
+  border-radius: 18px;
+  position: relative;
+  margin: 4px 0;
+  box-shadow: var(--wa-msg-shadow);
+  word-break: break-word;
+  font-family: Inter, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
+} */
+
+/* outgoing / incoming */
+/* .message.fromMe{
+  margin-left:auto;
+  background: var(--wa-msg-out-bg);
+  color: var(--wa-msg-out-color);
+  border-radius:18px 18px 4px 18px;
+}
+.message.fromThem{
+  background: var(--wa-msg-in-bg);
+  color: var(--wa-msg-in-color);
+  border-radius:18px 18px 18px 4px;
+} */
+
+/* tail */
+/* .message.fromMe::after,
+.message.fromThem::after{
+  content:"";
+  position:absolute;
+  width:12px;
+  height:12px;
+  bottom:6px;
+  transform: rotate(45deg);
+  z-index:0;
+}
+.message.fromMe::after{
+  right:-6px;
+  background: var(--wa-msg-out-bg);
+  clip-path: polygon(0 0, 100% 0, 0 100%);
+}
+.message.fromThem::after{
+  left:-6px;
+  background: var(--wa-msg-in-bg);
+  clip-path: polygon(100% 0, 100% 100%, 0 0);
+}   */
+
+/* text styling */
+.cls3741_text{
+  font-size: 14px;
+  line-height: 1.4;
+  padding-right: 8px;
+  word-wrap: break-word;
+  color: white;
+  font-weight: bold;
+      max-width: 237px;
+}
+
+/* time styling */
+.cls3741_msg_time{
+  font-size: 12px;
+  color: var(--wa-msg-muted);
+  align-self: flex-end;
+  margin-left: 4px;
+}
+
+/* flex container for text+time */
+.message > div{
+  display: flex;
+  align-items: flex-end;
+  gap: 4px;
+}
+
+/* image inside message */
+.cls3741_text img{
+  max-width: 220px;
+  border-radius: 10px;
+  display:block;
+}
+
+/* responsive */
+@media (max-width:768px){
+  .message{ max-width:86%; padding:6px 10px; }
+  .cls3741_text img{ max-width:180px; }
+  .cls3741_msg_time{ font-size:11px; }
+}/* 🔥 CSS للمشغل الصوتي البسيط والأنيق */
+.audio-message {
+  max-width: 100%;
+  margin: 4px 0;
+}
+
+.audio-container {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  background: var(--bg-primary);
+  border-radius: 12px;
+  border: 1px solid var(--border-color);
+  min-width: 200px;
+  max-width: 300px;
+  box-shadow: var(--shadow-sm);
+}
+
+.audio-play-btn {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  border: none;
+  background: var(--accent);
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  flex-shrink: 0;
+  box-shadow: var(--shadow-md);
+}
+
+.audio-play-btn:hover {
+  background: var(--accent-hover);
+  transform: scale(1.05);
+}
+
+.audio-play-btn:focus {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.audio-play-btn:active {
+  transform: scale(0.95);
+}
+
+/* شريط التقدم */
+.audio-progress-container {
+  flex: 1;
+  position: relative;
+  height: 4px;
+  background: var(--border-color);
+  border-radius: 2px;
+  cursor: pointer;
+  margin: 0 8px;
+}
+
+.audio-progress-bar {
+  height: 100%;
+  background: var(--border-color);
+  border-radius: 2px;
+  overflow: hidden;
+  position: relative;
+}
+
+.audio-progress-fill {
+  height: 100%;
+  background: var(--accent);
+  border-radius: 2px;
+  width: 0%;
+  transition: width 0.1s ease;
+}
+
+.audio-seek-slider {
+  position: absolute;
+  top: -8px;
+  left: 0;
+  width: 100%;
+  height: 20px;
+  opacity: 0;
+  cursor: pointer;
+  margin: 0;
+}
+
+.audio-seek-slider::-webkit-slider-thumb {
+  appearance: none;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--accent);
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+}
+
+.audio-seek-slider::-moz-range-thumb {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--accent);
+  cursor: pointer;
+  border: none;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+}
+
+/* معلومات الصوت */
+.audio-info {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  min-width: 45px;
+}
+
+.audio-time {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.audio-duration {
+  font-size: 11px;
+  color: var(--text-secondary);
+  font-weight: 500;
+}
+
+/* تخصيص للرسائل المرسلة */
+.audio-message.fromMe .audio-time,
+.audio-message.fromMe .audio-duration {
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.audio-message.fromMe .audio-progress-fill {
+  background: rgba(255, 255, 255, 0.9);
+}
+
+.audio-message.fromMe .audio-progress-container {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+.audio-message.fromMe .audio-seek-slider::-webkit-slider-thumb {
+  background: rgba(255, 255, 255, 0.9);
+}
+
+.audio-message.fromMe .audio-seek-slider::-moz-range-thumb {
+  background: rgba(255, 255, 255, 0.9);
+}
+
+/* حالة الخطأ */
+.audio-error {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #ef4444;
+  font-size: 13px;
+  font-weight: 500;
+  padding: 8px 12px;
+}
+
+.audio-error svg {
+  flex-shrink: 0;
+}
+
+/* تحسينات للشاشات الصغيرة */
+@media (max-width: 480px) {
+  .audio-container {
+    min-width: 180px;
+    max-width: 260px;
+    gap: 8px;
+    padding: 10px 12px;
+  }
+
+  .audio-play-btn {
+    width: 40px;
+    height: 40px;
+  }
+
+  .audio-info {
+    min-width: 40px;
+  }
+
+  .audio-time {
+    font-size: 11px;
+  }
+
+  .audio-duration {
+    font-size: 10px;
+  }
+}  /* ----------------end whatssap style-------- *//* 🔥 CSS للمشغل الصوتي البسيط والأنيق */
+.audio-message {
+  max-width: 100%;
+  margin: 4px 0;
+}
+
+.audio-container {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  background: var(--bg-primary);
+  border-radius: 12px;
+  border: 1px solid var(--border-color);
+  min-width: 200px;
+  max-width: 300px;
+  box-shadow: var(--shadow-sm);
+}
+
+.audio-play-btn {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  border: none;
+  background: var(--accent);
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  flex-shrink: 0;
+  box-shadow: var(--shadow-md);
+}
+
+.audio-play-btn:hover {
+  background: var(--accent-hover);
+  transform: scale(1.05);
+}
+
+.audio-play-btn:focus {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.audio-play-btn:active {
+  transform: scale(0.95);
+}
+
+/* شريط التقدم */
+.audio-progress-container {
+  flex: 1;
+  position: relative;
+  height: 4px;
+  background: var(--border-color);
+  border-radius: 2px;
+  cursor: pointer;
+  margin: 0 8px;
+}
+
+.audio-progress-bar {
+  height: 100%;
+  background: var(--border-color);
+  border-radius: 2px;
+  overflow: hidden;
+  position: relative;
+}
+
+.audio-progress-fill {
+  height: 100%;
+  background: var(--accent);
+  border-radius: 2px;
+  width: 0%;
+  transition: width 0.1s ease;
+}
+
+.audio-seek-slider {
+  position: absolute;
+  top: -8px;
+  left: 0;
+  width: 100%;
+  height: 20px;
+  opacity: 0;
+  cursor: pointer;
+  margin: 0;
+}
+
+.audio-seek-slider::-webkit-slider-thumb {
+  appearance: none;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--accent);
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+}
+
+.audio-seek-slider::-moz-range-thumb {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--accent);
+  cursor: pointer;
+  border: none;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+}
+
+/* معلومات الصوت */
+.audio-info {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  min-width: 45px;
+}
+
+.audio-time {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.audio-duration {
+  font-size: 11px;
+  color: var(--text-secondary);
+  font-weight: 500;
+}
+
+/* تخصيص للرسائل المرسلة */
+.audio-message.fromMe .audio-time,
+.audio-message.fromMe .audio-duration {
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.audio-message.fromMe .audio-progress-fill {
+  background: rgba(255, 255, 255, 0.9);
+}
+
+.audio-message.fromMe .audio-progress-container {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+.audio-message.fromMe .audio-seek-slider::-webkit-slider-thumb {
+  background: rgba(255, 255, 255, 0.9);
+}
+
+.audio-message.fromMe .audio-seek-slider::-moz-range-thumb {
+  background: rgba(255, 255, 255, 0.9);
+}
+
+/* حالة الخطأ */
+.audio-error {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #ef4444;
+  font-size: 13px;
+  font-weight: 500;
+  padding: 8px 12px;
+}
+
+.audio-error svg {
+  flex-shrink: 0;
+}
+
+/* تحسينات للشاشات الصغيرة */
+@media (max-width: 480px) {
+  .audio-container {
+    min-width: 180px;
+    max-width: 260px;
+    gap: 8px;
+    padding: 10px 12px;
+  }
+
+  .audio-play-btn {
+    width: 40px;
+    height: 40px;
+  }
+
+  .audio-info {
+    min-width: 40px;
+  }
+
+  .audio-time {
+    font-size: 11px;
+  }
+
+  .audio-duration {
+    font-size: 10px;
+  }
+} CSS للمشغل الصوتي المتقدم مثل WhatsApp */
+.audio-message {
+  max-width: 100%;
+  margin: 4px 0;
+}
+
+.audio-container {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  background: var(--bg-primary);
+  border-radius: 12px;
+  border: 1px solid var(--border-color);
+  min-width: 200px;
+  max-width: 300px;
+  box-shadow: var(--shadow-sm);
+}
+
+.audio-play-btn {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  border: none;
+  background: var(--accent);
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  flex-shrink: 0;
+  box-shadow: var(--shadow-md);
+}
+
+.audio-play-btn:hover {
+  background: var(--accent-hover);
+  transform: scale(1.05);
+}
+
+.audio-play-btn:focus {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.audio-play-btn:active {
+  transform: scale(0.95);
+}
+
+/* شريط التقدم */
+.audio-progress-container {
+  flex: 1;
+  position: relative;
+  height: 4px;
+  background: var(--border-color);
+  border-radius: 2px;
+  cursor: pointer;
+  margin: 0 8px;
+}
+
+.audio-progress-bar {
+  height: 100%;
+  background: var(--border-color);
+  border-radius: 2px;
+  overflow: hidden;
+  position: relative;
+}
+
+.audio-progress-fill {
+  height: 100%;
+  background: var(--accent);
+  border-radius: 2px;
+  width: 0%;
+  transition: width 0.1s ease;
+}
+
+.audio-seek-slider {
+  position: absolute;
+  top: -8px;
+  left: 0;
+  width: 100%;
+  height: 20px;
+  opacity: 0;
+  cursor: pointer;
+  margin: 0;
+}
+
+.audio-seek-slider::-webkit-slider-thumb {
+  appearance: none;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--accent);
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+}
+
+.audio-seek-slider::-moz-range-thumb {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--accent);
+  cursor: pointer;
+  border: none;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+}
+
+/* معلومات الصوت */
+.audio-info {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  min-width: 45px;
+}
+
+.audio-time {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.audio-duration {
+  font-size: 11px;
+  color: var(--text-secondary);
+  font-weight: 500;
+}
+
+/* تخصيص للرسائل المرسلة */
+.audio-message.fromMe .audio-time,
+.audio-message.fromMe .audio-duration {
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.audio-message.fromMe .audio-progress-fill {
+  background: rgba(255, 255, 255, 0.9);
+}
+
+.audio-message.fromMe .audio-progress-container {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+.audio-message.fromMe .audio-seek-slider::-webkit-slider-thumb {
+  background: rgba(255, 255, 255, 0.9);
+}
+
+.audio-message.fromMe .audio-seek-slider::-moz-range-thumb {
+  background: rgba(255, 255, 255, 0.9);
+}
+
+/* حالة الخطأ */
+.audio-error {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #ef4444;
+  font-size: 13px;
+  font-weight: 500;
+  padding: 8px 12px;
+}
+
+.audio-error svg {
+  flex-shrink: 0;
+}
+
+/* تحسينات للشاشات الصغيرة */
+@media (max-width: 480px) {
+  .audio-container {
+    min-width: 180px;
+    max-width: 260px;
+    gap: 8px;
+    padding: 10px 12px;
+  }
+
+  .audio-play-btn {
+    width: 40px;
+    height: 40px;
+  }
+
+  .audio-info {
+    min-width: 40px;
+  }
+
+  .audio-time {
+    font-size: 11px;
+  }
+
+  .audio-duration {
+    font-size: 10px;
+  }
+} CSS للمشغل الصوتي المتقدم مثل WhatsApp */
+.audio-message {
+  max-width: 100%;
+  margin: 4px 0;
+}
+
+.audio-container {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  background: var(--bg-primary);
+  border-radius: 12px;
+  border: 1px solid var(--border-color);
+  min-width: 200px;
+  max-width: 300px;
+  box-shadow: var(--shadow-sm);
+}
+
+.audio-play-btn {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  border: none;
+  background: var(--accent);
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  flex-shrink: 0;
+  box-shadow: var(--shadow-md);
+}
+
+.audio-play-btn:hover {
+  background: var(--accent-hover);
+  transform: scale(1.05);
+}
+
+.audio-play-btn:focus {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.audio-play-btn:active {
+  transform: scale(0.95);
+}
+
+/* شريط التقدم */
+.audio-progress-container {
+  flex: 1;
+  position: relative;
+  height: 4px;
+  background: var(--border-color);
+  border-radius: 2px;
+  cursor: pointer;
+  margin: 0 8px;
+}
+
+.audio-progress-bar {
+  height: 100%;
+  background: var(--border-color);
+  border-radius: 2px;
+  overflow: hidden;
+  position: relative;
+}
+
+.audio-progress-fill {
+  height: 100%;
+  background: var(--accent);
+  border-radius: 2px;
+  width: 0%;
+  transition: width 0.1s ease;
+}
+
+.audio-seek-slider {
+  position: absolute;
+  top: -8px;
+  left: 0;
+  width: 100%;
+  height: 20px;
+  opacity: 0;
+  cursor: pointer;
+  margin: 0;
+}
+
+.audio-seek-slider::-webkit-slider-thumb {
+  appearance: none;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--accent);
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+}
+
+.audio-seek-slider::-moz-range-thumb {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--accent);
+  cursor: pointer;
+  border: none;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+}
+
+/* معلومات الصوت */
+.audio-info {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  min-width: 45px;
+}
+
+.audio-time {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.audio-duration {
+  font-size: 11px;
+  color: var(--text-secondary);
+  font-weight: 500;
+}
+
+/* تخصيص للرسائل المرسلة */
+.audio-message.fromMe .audio-time,
+.audio-message.fromMe .audio-duration {
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.audio-message.fromMe .audio-progress-fill {
+  background: rgba(255, 255, 255, 0.9);
+}
+
+.audio-message.fromMe .audio-progress-container {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+.audio-message.fromMe .audio-seek-slider::-webkit-slider-thumb {
+  background: rgba(255, 255, 255, 0.9);
+}
+
+.audio-message.fromMe .audio-seek-slider::-moz-range-thumb {
+  background: rgba(255, 255, 255, 0.9);
+}
+
+/* حالة الخطأ */
+.audio-error {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #ef4444;
+  font-size: 13px;
+  font-weight: 500;
+  padding: 8px 12px;
+}
+
+.audio-error svg {
+  flex-shrink: 0;
+}
+
+/* تحسينات للشاشات الصغيرة */
+@media (max-width: 480px) {
+  .audio-container {
+    min-width: 180px;
+    max-width: 260px;
+    gap: 8px;
+    padding: 10px 12px;
+  }
+
+  .audio-play-btn {
+    width: 40px;
+    height: 40px;
+  }
+
+  .audio-info {
+    min-width: 40px;
+  }
+
+  .audio-time {
+    font-size: 11px;
+  }
+
+  .audio-duration {
+    font-size: 10px;
+  }
+}🔥 CSS للمشغل الصوتي المتقدم مثل WhatsApp */
+.audio-message {
+  max-width: 100%;
+  margin: 4px 0;
+}
+
+.audio-container {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  background: var(--bg-primary);
+  border-radius: 12px;
+  border: 1px solid var(--border-color);
+  min-width: 200px;
+  max-width: 300px;
+  box-shadow: var(--shadow-sm);
+}
+
+.audio-play-btn {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  border: none;
+  background: var(--accent);
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  flex-shrink: 0;
+  box-shadow: var(--shadow-md);
+}
+
+.audio-play-btn:hover {
+  background: var(--accent-hover);
+  transform: scale(1.05);
+}
+
+.audio-play-btn:focus {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.audio-play-btn:active {
+  transform: scale(0.95);
+}
+
+/* شريط التقدم */
+.audio-progress-container {
+  flex: 1;
+  position: relative;
+  height: 4px;
+  background: var(--border-color);
+  border-radius: 2px;
+  cursor: pointer;
+  margin: 0 8px;
+}
+
+.audio-progress-bar {
+  height: 100%;
+  background: var(--border-color);
+  border-radius: 2px;
+  overflow: hidden;
+  position: relative;
+}
+
+.audio-progress-fill {
+  height: 100%;
+  background: var(--accent);
+  border-radius: 2px;
+  width: 0%;
+  transition: width 0.1s ease;
+}
+
+.audio-seek-slider {
+  position: absolute;
+  top: -8px;
+  left: 0;
+  width: 100%;
+  height: 20px;
+  opacity: 0;
+  cursor: pointer;
+  margin: 0;
+}
+
+.audio-seek-slider::-webkit-slider-thumb {
+  appearance: none;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--accent);
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+}
+
+.audio-seek-slider::-moz-range-thumb {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--accent);
+  cursor: pointer;
+  border: none;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+}
+
+/* معلومات الصوت */
+.audio-info {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  min-width: 45px;
+}
+
+.audio-time {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.audio-duration {
+  font-size: 11px;
+  color: var(--text-secondary);
+  font-weight: 500;
+}
+
+/* تخصيص للرسائل المرسلة */
+.audio-message.fromMe .audio-time,
+.audio-message.fromMe .audio-duration {
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.audio-message.fromMe .audio-progress-fill {
+  background: rgba(255, 255, 255, 0.9);
+}
+
+.audio-message.fromMe .audio-progress-container {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+.audio-message.fromMe .audio-seek-slider::-webkit-slider-thumb {
+  background: rgba(255, 255, 255, 0.9);
+}
+
+.audio-message.fromMe .audio-seek-slider::-moz-range-thumb {
+  background: rgba(255, 255, 255, 0.9);
+}
+
+/* حالة الخطأ */
+.audio-error {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #ef4444;
+  font-size: 13px;
+  font-weight: 500;
+  padding: 8px 12px;
+}
+
+.audio-error svg {
+  flex-shrink: 0;
+}
+
+/* تحسينات للشاشات الصغيرة */
+@media (max-width: 480px) {
+  .audio-container {
+    min-width: 180px;
+    max-width: 260px;
+    gap: 8px;
+    padding: 10px 12px;
+  }
+
+  .audio-play-btn {
+    width: 40px;
+    height: 40px;
+  }
+
+  .audio-info {
+    min-width: 40px;
+  }
+
+  .audio-time {
+    font-size: 11px;
+  }
+
+  .audio-duration {
+    font-size: 10px;
+  }
+}🔥 CSS للمشغل الصوتي المتقدم مثل WhatsApp */
+.audio-message {
+  max-width: 100%;
+  margin: 4px 0;
+}
+
+.audio-container {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  background: var(--bg-primary);
+  border-radius: 12px;
+  border: 1px solid var(--border-color);
+  min-width: 200px;
+  max-width: 300px;
+  box-shadow: var(--shadow-sm);
+}
+
+.audio-play-btn {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  border: none;
+  background: var(--accent);
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  flex-shrink: 0;
+  box-shadow: var(--shadow-md);
+}
+
+.audio-play-btn:hover {
+  background: var(--accent-hover);
+  transform: scale(1.05);
+}
+
+.audio-play-btn:focus {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.audio-play-btn:active {
+  transform: scale(0.95);
+}
+
+/* شريط التقدم */
+.audio-progress-container {
+  flex: 1;
+  position: relative;
+  height: 4px;
+  background: var(--border-color);
+  border-radius: 2px;
+  cursor: pointer;
+  margin: 0 8px;
+}
+
+.audio-progress-bar {
+  height: 100%;
+  background: var(--border-color);
+  border-radius: 2px;
+  overflow: hidden;
+  position: relative;
+}
+
+.audio-progress-fill {
+  height: 100%;
+  background: var(--accent);
+  border-radius: 2px;
+  width: 0%;
+  transition: width 0.1s ease;
+}
+
+.audio-seek-slider {
+  position: absolute;
+  top: -8px;
+  left: 0;
+  width: 100%;
+  height: 20px;
+  opacity: 0;
+  cursor: pointer;
+  margin: 0;
+}
+
+.audio-seek-slider::-webkit-slider-thumb {
+  appearance: none;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--accent);
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+}
+
+.audio-seek-slider::-moz-range-thumb {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--accent);
+  cursor: pointer;
+  border: none;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+}
+
+/* معلومات الصوت */
+.audio-info {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  min-width: 45px;
+}
+
+.audio-time {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.audio-duration {
+  font-size: 11px;
+  color: var(--text-secondary);
+  font-weight: 500;
+}
+
+/* تخصيص للرسائل المرسلة */
+.audio-message.fromMe .audio-time,
+.audio-message.fromMe .audio-duration {
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.audio-message.fromMe .audio-progress-fill {
+  background: rgba(255, 255, 255, 0.9);
+}
+
+.audio-message.fromMe .audio-progress-container {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+.audio-message.fromMe .audio-seek-slider::-webkit-slider-thumb {
+  background: rgba(255, 255, 255, 0.9);
+}
+
+.audio-message.fromMe .audio-seek-slider::-moz-range-thumb {
+  background: rgba(255, 255, 255, 0.9);
+}
+
+/* حالة الخطأ */
+.audio-error {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #ef4444;
+  font-size: 13px;
+  font-weight: 500;
+  padding: 8px 12px;
+}
+
+.audio-error svg {
+  flex-shrink: 0;
+}
+
+/* تحسينات للشاشات الصغيرة */
+@media (max-width: 480px) {
+  .audio-container {
+    min-width: 180px;
+    max-width: 260px;
+    gap: 8px;
+    padding: 10px 12px;
+  }
+
+  .audio-play-btn {
+    width: 40px;
+    height: 40px;
+  }
+
+  .audio-info {
+    min-width: 40px;
+  }
+
+  .audio-time {
+    font-size: 11px;
+  }
+
+  .audio-duration {
+    font-size: 10px;
+  }
+}🔥 CSS للمشغل الصوتي المتقدم مثل WhatsApp */
+.audio-message {
+  max-width: 100%;
+  margin: 4px 0;
+}
+
+.audio-container {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  background: var(--bg-primary);
+  border-radius: 12px;
+  border: 1px solid var(--border-color);
+  min-width: 200px;
+  max-width: 300px;
+  box-shadow: var(--shadow-sm);
+}
+
+.audio-play-btn {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  border: none;
+  background: var(--accent);
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  flex-shrink: 0;
+  box-shadow: var(--shadow-md);
+}
+
+.audio-play-btn:hover {
+  background: var(--accent-hover);
+  transform: scale(1.05);
+}
+
+.audio-play-btn:focus {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.audio-play-btn:active {
+  transform: scale(0.95);
+}
+
+/* شريط التقدم */
+.audio-progress-container {
+  flex: 1;
+  position: relative;
+  height: 4px;
+  background: var(--border-color);
+  border-radius: 2px;
+  cursor: pointer;
+  margin: 0 8px;
+}
+
+.audio-progress-bar {
+  height: 100%;
+  background: var(--border-color);
+  border-radius: 2px;
+  overflow: hidden;
+  position: relative;
+}
+
+.audio-progress-fill {
+  height: 100%;
+  background: var(--accent);
+  border-radius: 2px;
+  width: 0%;
+  transition: width 0.1s ease;
+}
+
+.audio-seek-slider {
+  position: absolute;
+  top: -8px;
+  left: 0;
+  width: 100%;
+  height: 20px;
+  opacity: 0;
+  cursor: pointer;
+  margin: 0;
+}
+
+.audio-seek-slider::-webkit-slider-thumb {
+  appearance: none;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--accent);
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+}
+
+.audio-seek-slider::-moz-range-thumb {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--accent);
+  cursor: pointer;
+  border: none;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+}
+
+/* معلومات الصوت */
+.audio-info {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  min-width: 45px;
+}
+
+.audio-time {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.audio-duration {
+  font-size: 11px;
+  color: var(--text-secondary);
+  font-weight: 500;
+}
+
+/* تخصيص للرسائل المرسلة */
+.audio-message.fromMe .audio-time,
+.audio-message.fromMe .audio-duration {
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.audio-message.fromMe .audio-progress-fill {
+  background: rgba(255, 255, 255, 0.9);
+}
+
+.audio-message.fromMe .audio-progress-container {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+.audio-message.fromMe .audio-seek-slider::-webkit-slider-thumb {
+  background: rgba(255, 255, 255, 0.9);
+}
+
+.audio-message.fromMe .audio-seek-slider::-moz-range-thumb {
+  background: rgba(255, 255, 255, 0.9);
+}
+
+/* حالة الخطأ */
+.audio-error {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #ef4444;
+  font-size: 13px;
+  font-weight: 500;
+  padding: 8px 12px;
+}
+
+.audio-error svg {
+  flex-shrink: 0;
+}
+
+/* تحسينات للشاشات الصغيرة */
+@media (max-width: 480px) {
+  .audio-container {
+    min-width: 180px;
+    max-width: 260px;
+    gap: 8px;
+    padding: 10px 12px;
+  }
+
+  .audio-play-btn {
+    width: 40px;
+    height: 40px;
+  }
+
+  .audio-info {
+    min-width: 40px;
+  }
+
+  .audio-time {
+    font-size: 11px;
+  }
+
+  .audio-duration {
+    font-size: 10px;
+  }
+}🔥 CSS للمشغل الصوتي المتقدم مثل WhatsApp */
+.audio-message {
+  max-width: 100%;
+  margin: 4px 0;
+}
+
+.audio-container {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  background: var(--bg-primary);
+  border-radius: 12px;
+  border: 1px solid var(--border-color);
+  min-width: 200px;
+  max-width: 300px;
+  box-shadow: var(--shadow-sm);
+}
+
+.audio-play-btn {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  border: none;
+  background: var(--accent);
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  flex-shrink: 0;
+  box-shadow: var(--shadow-md);
+}
+
+.audio-play-btn:hover {
+  background: var(--accent-hover);
+  transform: scale(1.05);
+}
+
+.audio-play-btn:focus {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.audio-play-btn:active {
+  transform: scale(0.95);
+}
+
+/* شريط التقدم */
+.audio-progress-container {
+  flex: 1;
+  position: relative;
+  height: 4px;
+  background: var(--border-color);
+  border-radius: 2px;
+  cursor: pointer;
+  margin: 0 8px;
+}
+
+.audio-progress-bar {
+  height: 100%;
+  background: var(--border-color);
+  border-radius: 2px;
+  overflow: hidden;
+  position: relative;
+}
+
+.audio-progress-fill {
+  height: 100%;
+  background: var(--accent);
+  border-radius: 2px;
+  width: 0%;
+  transition: width 0.1s ease;
+}
+
+.audio-seek-slider {
+  position: absolute;
+  top: -8px;
+  left: 0;
+  width: 100%;
+  height: 20px;
+  opacity: 0;
+  cursor: pointer;
+  margin: 0;
+}
+
+.audio-seek-slider::-webkit-slider-thumb {
+  appearance: none;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--accent);
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+}
+
+.audio-seek-slider::-moz-range-thumb {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--accent);
+  cursor: pointer;
+  border: none;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+}
+
+/* معلومات الصوت */
+.audio-info {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  min-width: 45px;
+}
+
+.audio-time {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.audio-duration {
+  font-size: 11px;
+  color: var(--text-secondary);
+  font-weight: 500;
+}
+
+/* تخصيص للرسائل المرسلة */
+.audio-message.fromMe .audio-time,
+.audio-message.fromMe .audio-duration {
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.audio-message.fromMe .audio-progress-fill {
+  background: rgba(255, 255, 255, 0.9);
+}
+
+.audio-message.fromMe .audio-progress-container {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+.audio-message.fromMe .audio-seek-slider::-webkit-slider-thumb {
+  background: rgba(255, 255, 255, 0.9);
+}
+
+.audio-message.fromMe .audio-seek-slider::-moz-range-thumb {
+  background: rgba(255, 255, 255, 0.9);
+}
+
+/* حالة الخطأ */
+.audio-error {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #ef4444;
+  font-size: 13px;
+  font-weight: 500;
+  padding: 8px 12px;
+}
+
+.audio-error svg {
+  flex-shrink: 0;
+}
+
+/* تحسينات للشاشات الصغيرة */
+@media (max-width: 480px) {
+  .audio-container {
+    min-width: 180px;
+    max-width: 260px;
+    gap: 8px;
+    padding: 10px 12px;
+  }
+
+  .audio-play-btn {
+    width: 40px;
+    height: 40px;
+  }
+
+  .audio-info {
+    min-width: 40px;
+  }
+
+  .audio-time {
+    font-size: 11px;
+  }
+
+  .audio-duration {
+    font-size: 10px;
+  }
+}🔥 CSS للمشغل الصوتي المتقدم مثل WhatsApp */
+.audio-message {
+  max-width: 100%;
+  margin: 4px 0;
+}
+
+.audio-container {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  background: var(--bg-primary);
+  border-radius: 12px;
+  border: 1px solid var(--border-color);
+  min-width: 200px;
+  max-width: 300px;
+  box-shadow: var(--shadow-sm);
+}
+
+.audio-play-btn {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  border: none;
+  background: var(--accent);
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  flex-shrink: 0;
+  box-shadow: var(--shadow-md);
+}
+
+.audio-play-btn:hover {
+  background: var(--accent-hover);
+  transform: scale(1.05);
+}
+
+.audio-play-btn:focus {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.audio-play-btn:active {
+  transform: scale(0.95);
+}
+
+/* شريط التقدم */
+.audio-progress-container {
+  flex: 1;
+  position: relative;
+  height: 4px;
+  background: var(--border-color);
+  border-radius: 2px;
+  cursor: pointer;
+  margin: 0 8px;
+}
+
+.audio-progress-bar {
+  height: 100%;
+  background: var(--border-color);
+  border-radius: 2px;
+  overflow: hidden;
+  position: relative;
+}
+
+.audio-progress-fill {
+  height: 100%;
+  background: var(--accent);
+  border-radius: 2px;
+  width: 0%;
+  transition: width 0.1s ease;
+}
+
+.audio-seek-slider {
+  position: absolute;
+  top: -8px;
+  left: 0;
+  width: 100%;
+  height: 20px;
+  opacity: 0;
+  cursor: pointer;
+  margin: 0;
+}
+
+.audio-seek-slider::-webkit-slider-thumb {
+  appearance: none;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--accent);
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+}
+
+.audio-seek-slider::-moz-range-thumb {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--accent);
+  cursor: pointer;
+  border: none;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+}
+
+/* معلومات الصوت */
+.audio-info {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  min-width: 45px;
+}
+
+.audio-time {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.audio-duration {
+  font-size: 11px;
+  color: var(--text-secondary);
+  font-weight: 500;
+}
+
+/* تخصيص للرسائل المرسلة */
+.audio-message.fromMe .audio-time,
+.audio-message.fromMe .audio-duration {
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.audio-message.fromMe .audio-progress-fill {
+  background: rgba(255, 255, 255, 0.9);
+}
+
+.audio-message.fromMe .audio-progress-container {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+.audio-message.fromMe .audio-seek-slider::-webkit-slider-thumb {
+  background: rgba(255, 255, 255, 0.9);
+}
+
+.audio-message.fromMe .audio-seek-slider::-moz-range-thumb {
+  background: rgba(255, 255, 255, 0.9);
+}
+
+/* حالة الخطأ */
+.audio-error {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #ef4444;
+  font-size: 13px;
+  font-weight: 500;
+  padding: 8px 12px;
+}
+
+.audio-error svg {
+  flex-shrink: 0;
+}
+
+/* تحسينات للشاشات الصغيرة */
+@media (max-width: 480px) {
+  .audio-container {
+    min-width: 180px;
+    max-width: 260px;
+    gap: 8px;
+    padding: 10px 12px;
+  }
+
+  .audio-play-btn {
+    width: 40px;
+    height: 40px;
+  }
+
+  .audio-info {
+    min-width: 40px;
+  }
+
+  .audio-time {
+    font-size: 11px;
+  }
+
+  .audio-duration {
+    font-size: 10px;
+  }
+}

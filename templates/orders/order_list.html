@@ -1,0 +1,552 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Orders – Order Manager</title>
+  <meta name="csrf-token" content="{{ csrf_token }}">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <script src="https://unpkg.com/htmx.org@1.9.10"></script>
+  <style>
+    * { box-sizing: border-box; }
+    body { margin: 0; font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif; }
+    :root {
+      --orders-bg: #f1f5f9;
+      --orders-card: #ffffff;
+      --orders-border: #e2e8f0;
+      --orders-primary: #0f172a;
+      --orders-accent: #2563eb;
+      --orders-accent-hover: #1d4ed8;
+      --orders-muted: #64748b;
+      --orders-radius: 10px;
+      --orders-shadow: 0 1px 3px rgba(0,0,0,0.08);
+      --orders-shadow-lg: 0 4px 12px rgba(0,0,0,0.08);
+    }
+    .orders-page {
+      background: var(--orders-bg);
+      min-height: 100vh;
+      padding: 2.5rem;
+      direction: ltr;
+      width:100%;
+      overflow: auto;
+      height: 100vh;
+    }
+    .orders-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .orders-title {
+      font-size: 1.5rem;
+      font-weight: 700;
+      color: var(--orders-primary);
+      margin: 0;
+    }
+    .orders-filters-card {
+      background: var(--orders-card);
+      border-radius: var(--orders-radius);
+      box-shadow: var(--orders-shadow);
+      border: 1px solid var(--orders-border);
+      padding: 1.25rem;
+      margin-bottom: 1rem;
+    }
+    .orders-filters-row {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: flex-end;
+      gap: 1rem;
+    }
+    .orders-filters-card .form-label {
+      font-size: 0.75rem;
+      font-weight: 600;
+      color: var(--orders-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.02em;
+      margin-bottom: 0.35rem;
+      display: block;
+    }
+    .orders-filters-card .form-control,
+    .orders-filters-card .form-select {
+      font-size: 0.875rem;
+      border-radius: 8px;
+      border: 1px solid var(--orders-border);
+      padding: 0.4rem 0.75rem;
+      min-height: 38px;
+    }
+    .orders-filters-card .form-control:focus,
+    .orders-filters-card .form-select:focus {
+      border-color: var(--orders-accent);
+      box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
+      outline: none;
+    }
+    .orders-filters-card .btn-filter {
+      background: var(--orders-accent);
+      color: #fff;
+      font-weight: 600;
+      font-size: 0.875rem;
+      padding: 0.5rem 1.25rem;
+      border-radius: 8px;
+      border: none;
+      cursor: pointer;
+    }
+    .orders-filters-card .btn-filter:hover {
+      background: var(--orders-accent-hover);
+      color: #fff;
+    }
+    .orders-bulk-card {
+      background: var(--orders-card);
+      border-radius: var(--orders-radius);
+      box-shadow: var(--orders-shadow);
+      border: 1px solid var(--orders-border);
+      padding: 0.75rem 1.25rem;
+      margin-bottom: 1rem;
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 0.75rem;
+    }
+    .orders-bulk-card .bulk-label {
+      font-size: 0.8125rem;
+      color: var(--orders-muted);
+      font-weight: 500;
+    }
+    .orders-bulk-card .form-select {
+      font-size: 0.8125rem;
+      width: auto;
+      min-width: 160px;
+      border-radius: 8px;
+      border: 1px solid var(--orders-border);
+      padding: 0.4rem 0.75rem;
+    }
+    .orders-bulk-card .btn-bulk {
+      font-size: 0.8125rem;
+      font-weight: 500;
+      border-radius: 8px;
+      padding: 0.4rem 0.9rem;
+    }
+    .orders-table-card {
+      background: var(--orders-card);
+      border-radius: var(--orders-radius);
+      box-shadow: var(--orders-shadow-lg);
+      border: 1px solid var(--orders-border);
+      overflow: hidden;
+    }
+    .orders-table-card .table {
+      margin: 0;
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.875rem;
+    }
+    .orders-table-card .table thead {
+      position: sticky;
+      top: 0;
+      z-index: 1;
+    }
+    .orders-table-card .table thead th {
+      font-size: 0.6875rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--orders-muted);
+      background: #f1f5f9;
+      padding: 0.85rem 1rem;
+      border-bottom: 2px solid var(--orders-border);
+      white-space: nowrap;
+      text-align: left;
+    }
+    .orders-table-card .table tbody td {
+      padding: 0.85rem 1rem;
+      vertical-align: middle;
+      border-bottom: 1px solid #f1f5f9;
+    }
+    .orders-table-card .table tbody tr {
+      transition: background 0.15s ease;
+    }
+    .orders-table-card .table tbody tr:hover {
+      background: #f8fafc;
+    }
+    .orders-table-card .table tbody tr:last-child td {
+      border-bottom: none;
+    }
+    .orders-table-card .table .order-check {
+      width: 2.5rem;
+      text-align: center;
+      padding-left: 0.75rem;
+    }
+    .orders-table-card .table .order-date {
+      color: var(--orders-muted);
+      font-size: 0.8125rem;
+      white-space: nowrap;
+    }
+    .orders-table-card .table .order-customer {
+      font-weight: 600;
+      color: var(--orders-primary);
+    }
+    .orders-table-card .table .order-phone {
+      font-family: ui-monospace, monospace;
+      font-size: 0.8125rem;
+      color: var(--orders-muted);
+    }
+    .orders-table-card .table .order-product {
+      max-width: 220px;
+    }
+    .orders-table-card .table .order-product .product-name {
+      display: block;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    /* Status cell: colored by status_choice */
+    .orders-table-card .table .order-status-cell {
+      min-width: 160px;
+    }
+    .orders-table-card .table .order-status-cell .order-status-select {
+      font-size: 0.75rem;
+      font-weight: 600;
+      padding: 0.4rem 0.6rem;
+      border-radius: 8px;
+      border: 1px solid transparent;
+      min-width: 0;
+      width: 100%;
+      max-width: 160px;
+      cursor: pointer;
+    }
+    .order-status-cell.status-NEW .order-status-select {
+      background: #dbeafe;
+      color: #1e40af;
+      border-color: #93c5fd;
+    }
+    .order-status-cell.status-PENDING_CONFIRMATION .order-status-select {
+      background: #fef3c7;
+      color: #b45309;
+      border-color: #fcd34d;
+    }
+    .order-status-cell.status-CONFIRMED .order-status-select {
+      background: #ccfbf1;
+      color: #0f766e;
+      border-color: #5eead4;
+    }
+    .order-status-cell.status-SHIPPED .order-status-select {
+      background: #e0e7ff;
+      color: #3730a3;
+      border-color: #a5b4fc;
+    }
+    .order-status-cell.status-DELIVERED .order-status-select {
+      background: #dcfce7;
+      color: #166534;
+      border-color: #86efac;
+    }
+    .order-status-cell.status-CANCELED .order-status-select {
+      background: #fee2e2;
+      color: #b91c1c;
+      border-color: #fca5a5;
+    }
+    .order-status-cell.status-RETURNED .order-status-select {
+      background: #ffedd5;
+      color: #c2410c;
+      border-color: #fdba74;
+    }
+    .order-status-cell.status-NO_ANSWER .order-status-select {
+      background: #f1f5f9;
+      color: #475569;
+      border-color: #cbd5e1;
+    }
+    .orders-table-card .table .order-actions {
+      white-space: nowrap;
+    }
+    .orders-table-card .table .order-actions .btn-wa {
+      font-size: 0.75rem;
+      font-weight: 600;
+      padding: 0.4rem 0.75rem;
+      border-radius: 8px;
+      background: #dcfce7;
+      color: #166534;
+      border: 1px solid #bbf7d0;
+      cursor: pointer;
+    }
+    .orders-table-card .table .order-actions .btn-wa:hover {
+      background: #bbf7d0;
+      color: #14532d;
+      border-color: #86efac;
+    }
+    .orders-loading {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 3rem;
+      color: var(--orders-muted);
+      font-size: 0.875rem;
+    }
+    .orders-empty {
+      text-align: center;
+      padding: 3rem 1rem;
+      color: var(--orders-muted);
+      font-size: 0.9375rem;
+    }
+    .orders-table-card .table .order-source { font-size: 0.8125rem; color: var(--orders-muted); }
+    .order-source-pill {
+      display: inline-block;
+      padding: 0.25rem 0.5rem;
+      border-radius: 6px;
+      font-size: 0.75rem;
+      font-weight: 600;
+      background: #e0e7ff;
+      color: #3730a3;
+    }
+    .orders-pagination {
+      padding: 0.75rem 1rem;
+      border-top: 1px solid var(--orders-border);
+      background: #fafafa;
+    }
+    .orders-pagination-inner {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.75rem;
+    }
+    .orders-pagination-info { font-size: 0.8125rem; color: var(--orders-muted); }
+    .orders-pagination-links { display: flex; gap: 0.5rem; align-items: center; }
+    .orders-pagination-btn {
+      display: inline-block;
+      padding: 0.4rem 0.75rem;
+      font-size: 0.8125rem;
+      font-weight: 500;
+      border-radius: 6px;
+      border: 1px solid var(--orders-border);
+      background: var(--orders-card);
+      color: var(--orders-primary);
+      text-decoration: none;
+      cursor: pointer;
+    }
+    .orders-pagination-btn:hover { background: #f1f5f9; border-color: var(--orders-accent); color: var(--orders-accent); }
+    .orders-pagination-btn.disabled { opacity: 0.5; cursor: not-allowed; pointer-events: none; }
+    .orders-header-actions { display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap; }
+    .orders-btn-export, .orders-btn-import { font-size: 0.8125rem; font-weight: 600; padding: 0.45rem 0.9rem; border-radius: 8px; text-decoration: none; border: 1px solid var(--orders-border); background: var(--orders-card); color: var(--orders-primary); cursor: pointer; }
+    .orders-btn-export:hover, .orders-btn-import:hover { background: #f1f5f9; border-color: var(--orders-accent); color: var(--orders-accent); }
+    .orders-btn-import { border: none; }
+    .orders-modal { position: fixed; inset: 0; z-index: 1000; display: flex; align-items: center; justify-content: center; padding: 1rem; }
+    .orders-modal-backdrop { position: absolute; inset: 0; background: rgba(0,0,0,0.4); }
+    .orders-modal-box { position: relative; background: var(--orders-card); border-radius: var(--orders-radius); box-shadow: var(--orders-shadow-lg); max-width: 440px; width: 100%; max-height: 90vh; overflow: auto; }
+    .orders-modal-header { display: flex; align-items: center; justify-content: space-between; padding: 1rem 1.25rem; border-bottom: 1px solid var(--orders-border); }
+    .orders-modal-title { margin: 0; font-size: 1.125rem; font-weight: 700; color: var(--orders-primary); }
+    .orders-modal-close { background: none; border: none; font-size: 1.5rem; line-height: 1; color: var(--orders-muted); cursor: pointer; padding: 0 0.25rem; }
+    .orders-modal-close:hover { color: var(--orders-primary); }
+    .orders-modal-body { padding: 1.25rem; }
+    .orders-import-hint { font-size: 0.8125rem; color: var(--orders-muted); margin-bottom: 1rem; line-height: 1.5; }
+    .orders-import-file { display: block; width: 100%; margin-bottom: 1rem; font-size: 0.875rem; }
+    .orders-import-actions { margin-top: 0.5rem; }
+    .orders-import-processing { display: flex; align-items: center; gap: 0.5rem; padding: 1rem; color: var(--orders-accent); font-size: 0.875rem; font-weight: 500; }
+    .orders-import-spinner { width: 20px; height: 20px; border: 2px solid var(--orders-border); border-top-color: var(--orders-accent); border-radius: 50%; animation: orders-spin 0.7s linear infinite; }
+    @keyframes orders-spin { to { transform: rotate(360deg); } }
+    .orders-import-report-text { font-size: 1rem; margin-bottom: 1rem; color: var(--orders-primary); }
+    .orders-report-box { max-width: 360px; }
+  </style>
+</head>
+<body>
+  <div class="orders-page">
+    <header class="orders-header">
+      <h1 class="orders-title">Orders</h1>
+      <div class="orders-header-actions">
+        <a href="{% url 'orders:order_export' %}?{{ request.GET.urlencode }}" class="btn orders-btn-export" download>Export order list</a>
+        <button type="button" class="btn orders-btn-import" id="orders-import-btn">Import order list</button>
+      </div>
+    </header>
+
+    <form id="order-filters" class="orders-filters-card"
+          hx-get="{% url 'orders:order_table_partial' %}"
+          hx-target="#order-table-container"
+          hx-include="this"
+          hx-swap="innerHTML"
+          hx-trigger="submit"
+          method="get">
+      <div class="orders-filters-row">
+        <div>
+          <label class="form-label">Status</label>
+          <select name="status" class="form-select">
+            <option value="">All</option>
+            {% for value, label in status_choices %}
+              <option value="{{ value }}" {% if request.GET.status == value %}selected{% endif %}>{{ label }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div>
+          <label class="form-label">Source</label>
+          <select name="source" class="form-select">
+            {% for value, label in source_choices %}
+              <option value="{{ value }}" {% if request.GET.source == value %}selected{% endif %}>{{ label }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div>
+          <label class="form-label">Phone</label>
+          <input type="text" name="phone" class="form-control" placeholder="Search by phone" value="{{ request.GET.phone }}">
+        </div>
+        <div>
+          <label class="form-label">From</label>
+          <input type="date" name="date_after" class="form-control" value="{{ request.GET.date_after }}">
+        </div>
+        <div>
+          <label class="form-label">To</label>
+          <input type="date" name="date_before" class="form-control" value="{{ request.GET.date_before }}">
+        </div>
+        <div>
+          <button type="submit" class="btn btn-filter">Filter</button>
+        </div>
+      </div>
+    </form>
+
+    <div class="orders-bulk-card">
+      <span class="bulk-label">Bulk assign</span>
+      <form method="post" action="{% url 'orders:order_bulk_assign' %}" style="display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap;" id="bulk-assign-form">
+        {% csrf_token %}
+        <input type="hidden" name="order_ids" id="bulk-order-ids" value="">
+        <input type="hidden" name="status" value="{{ request.GET.status }}">
+        <input type="hidden" name="source" value="{{ request.GET.source }}">
+        <input type="hidden" name="phone" value="{{ request.GET.phone }}">
+        <input type="hidden" name="date_after" value="{{ request.GET.date_after }}">
+        <input type="hidden" name="date_before" value="{{ request.GET.date_before }}">
+        <select name="agent_id" class="form-select">
+          <option value="">— Unassign —</option>
+          {% for u in agents %}
+            <option value="{{ u.pk }}">{{ u.get_full_name|default:u.username }}</option>
+          {% endfor %}
+        </select>
+        <button type="submit" class="btn btn-outline-secondary btn-bulk">Assign selected</button>
+      </form>
+    </div>
+
+    <div class="orders-table-card">
+      <div id="order-table-container"
+           hx-get="{% url 'orders:order_table_partial' %}?{{ request.GET.urlencode }}"
+           hx-trigger="load, orderListRefresh from:body"
+           hx-swap="innerHTML">
+        <div class="orders-loading">Loading orders…</div>
+      </div>
+    </div>
+    <input type="hidden" name="csrfmiddlewaretoken" value="{{ csrf_token }}" id="csrf-token-input">
+  </div>
+
+  <!-- Import modal -->
+  <div id="orders-import-modal" class="orders-modal" style="display: none;" aria-hidden="true">
+    <div class="orders-modal-backdrop" id="orders-import-backdrop"></div>
+    <div class="orders-modal-box">
+      <div class="orders-modal-header">
+        <h2 class="orders-modal-title">Import order list</h2>
+        <button type="button" class="orders-modal-close" id="orders-import-close" aria-label="Close">&times;</button>
+      </div>
+      <div class="orders-modal-body">
+        <p class="orders-import-hint">Upload a CSV with columns: <strong>name</strong> (or customer_name), <strong>phone</strong>, <strong>product_name</strong> (or product), <strong>address</strong> and <strong>status</strong> (optional). If name + phone already exist in your orders, their order is updated (status/product/address). Same phone + product + name more than 2 times in the file = not saved.</p>
+        <form id="orders-import-form">
+          {% csrf_token %}
+          <input type="file" name="file" accept=".csv" required class="orders-import-file">
+          <div class="orders-import-actions">
+            <button type="submit" class="btn btn-filter" id="orders-import-submit">Upload and import</button>
+          </div>
+        </form>
+        <div id="orders-import-processing" class="orders-import-processing" style="display: none;">
+          <span class="orders-import-spinner"></span> Processing data…
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Report popup (after import) -->
+  <div id="orders-import-report" class="orders-modal orders-report" style="display: none;" aria-hidden="true">
+    <div class="orders-modal-backdrop orders-report-backdrop"></div>
+    <div class="orders-modal-box orders-report-box">
+      <div class="orders-modal-body">
+        <p id="orders-import-report-text" class="orders-import-report-text"></p>
+        <button type="button" class="btn btn-filter" id="orders-import-report-close">OK</button>
+      </div>
+    </div>
+  </div>
+
+  {% include "orders/partials/order_wa_chat_modal.html" %}
+
+  <script>
+    document.addEventListener('DOMContentLoaded', function() {
+      document.body.addEventListener('htmx:configRequest', function(ev) {
+        var t = document.querySelector('meta[name="csrf-token"]');
+        if (t) ev.detail.headers['X-CSRFToken'] = t.getAttribute('content');
+      });
+    });
+    document.body.addEventListener('orderListRefresh', function() {});
+    document.getElementById('bulk-assign-form')?.addEventListener('submit', function(e) {
+      var ids = Array.from(document.querySelectorAll('.order-row-check:checked')).map(function(cb) { return cb.value; });
+      document.getElementById('bulk-order-ids').value = ids.join(',');
+      if (ids.length === 0) {
+        e.preventDefault();
+        alert('Select at least one order.');
+      }
+    });
+
+    (function() {
+      var modal = document.getElementById('orders-import-modal');
+      var reportEl = document.getElementById('orders-import-report');
+      var reportText = document.getElementById('orders-import-report-text');
+      var openBtn = document.getElementById('orders-import-btn');
+      var closeBtn = document.getElementById('orders-import-close');
+      var backdrop = document.getElementById('orders-import-backdrop');
+      var form = document.getElementById('orders-import-form');
+      var processing = document.getElementById('orders-import-processing');
+      var submitBtn = document.getElementById('orders-import-submit');
+      var reportCloseBtn = document.getElementById('orders-import-report-close');
+
+      function openModal() {
+        if (modal) { modal.style.display = 'flex'; modal.setAttribute('aria-hidden', 'false'); }
+      }
+      function closeModal() {
+        if (modal) { modal.style.display = 'none'; modal.setAttribute('aria-hidden', 'true'); }
+      }
+      function showReport(saved, updated, duplicated) {
+        var msg = 'We saved ' + saved + ' customer(s).';
+        if (updated) msg += ' We updated ' + updated + ' existing customer order(s).';
+        msg += ' We found ' + duplicated + ' customer(s) duplicated.';
+        if (reportText) reportText.textContent = msg;
+        if (reportEl) { reportEl.style.display = 'flex'; reportEl.setAttribute('aria-hidden', 'false'); }
+      }
+      function closeReport() {
+        if (reportEl) { reportEl.style.display = 'none'; reportEl.setAttribute('aria-hidden', 'true'); }
+      }
+
+      openBtn && openBtn.addEventListener('click', openModal);
+      closeBtn && closeBtn.addEventListener('click', closeModal);
+      backdrop && backdrop.addEventListener('click', closeModal);
+      reportCloseBtn && reportCloseBtn.addEventListener('click', function() { closeReport(); document.body.dispatchEvent(new CustomEvent('orderListRefresh')); });
+      reportEl && reportEl.querySelector('.orders-report-backdrop') && reportEl.querySelector('.orders-report-backdrop').addEventListener('click', closeReport);
+
+      form && form.addEventListener('submit', function(e) {
+        e.preventDefault();
+        var fileInput = form.querySelector('input[type="file"]');
+        if (!fileInput || !fileInput.files || !fileInput.files[0]) { alert('Please select a CSV file.'); return; }
+        var fd = new FormData();
+        fd.append('file', fileInput.files[0]);
+        fd.append('csrfmiddlewaretoken', document.getElementById('csrf-token-input').value);
+        if (processing) processing.style.display = 'flex';
+        if (submitBtn) submitBtn.disabled = true;
+        fetch('{% url "orders:order_import" %}', { method: 'POST', body: fd, headers: { 'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').getAttribute('content') }, credentials: 'same-origin' })
+          .then(function(r) { return r.json().then(function(data) { return { ok: r.ok, data: data }; }); })
+          .then(function(result) {
+            if (processing) processing.style.display = 'none';
+            if (submitBtn) submitBtn.disabled = false;
+            closeModal();
+            if (result.ok) {
+              showReport(result.data.saved || 0, result.data.updated || 0, result.data.duplicated || 0);
+            } else {
+              alert(result.data.error || 'Import failed.');
+            }
+          })
+          .catch(function() {
+            if (processing) processing.style.display = 'none';
+            if (submitBtn) submitBtn.disabled = false;
+            alert('Import request failed.');
+          });
+      });
+    })();
+  </script>
+</body>
+</html>

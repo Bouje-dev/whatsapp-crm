@@ -1,0 +1,49 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container" style="padding: 80px 20px; display: flex; gap: 50px; flex-wrap: wrap; justify-content: center;">
+    
+    <div style="flex: 1; min-width: 300px; max-width: 500px;">
+        <h1 style="margin-bottom: 20px;">Contact Us</h1>
+        <p style="color: var(--text-muted); margin-bottom: 40px;">
+            Have questions about our pricing, integrations, or enterprise solutions? Our team is here to help.
+        </p>
+        
+        <div style="margin-bottom: 30px;">
+            <h4 style="margin-bottom: 10px;">Email Support</h4>
+            <a href="mailto:admin@waselytics.com" style="color: var(--primary); font-size: 18px;">admin@waselytics.com</a>
+        </div>
+
+        <div style="margin-bottom: 30px;">
+            <h4 style="margin-bottom: 10px;">Office Address</h4>
+            <p style="color: var(--text-primary);">
+                <strong>Waselytics LLC</strong><br>
+                1209 MOUNTAIN ROAD PL NE, STE R<br>
+                ALBUQUERQUE, NM 87110<br>
+                United States
+            </p>
+        </div>
+    </div>
+
+    <div style="flex: 1; min-width: 300px; max-width: 500px; background: var(--bg-card); padding: 40px; border-radius: 24px; border: 1px solid var(--border);">
+        <form>
+            <div style="margin-bottom: 20px;">
+                <label style="display:block; margin-bottom: 8px; color: var(--text-muted);">Full Name</label>
+                <input type="text" class="form-control" placeholder="Your name" style="width:100%; padding:12px; background:rgba(0,0,0,0.2); border:1px solid var(--border); color:white; border-radius:8px;">
+            </div>
+            
+            <div style="margin-bottom: 20px;">
+                <label style="display:block; margin-bottom: 8px; color: var(--text-muted);">Work Email</label>
+                <input type="email" class="form-control" placeholder="you@company.com" style="width:100%; padding:12px; background:rgba(0,0,0,0.2); border:1px solid var(--border); color:white; border-radius:8px;">
+            </div>
+            
+            <div style="margin-bottom: 20px;">
+                <label style="display:block; margin-bottom: 8px; color: var(--text-muted);">Message</label>
+                <textarea rows="4" class="form-control" placeholder="How can we help?" style="width:100%; padding:12px; background:rgba(0,0,0,0.2); border:1px solid var(--border); color:white; border-radius:8px; resize:none;"></textarea>
+            </div>
+            
+            <button class="btn btn-primary" style="width:100%;">Send Message</button>
+        </form>
+    </div>
+</div>
+{% endblock %}

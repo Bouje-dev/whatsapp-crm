@@ -1,0 +1,4139 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en" class="dark" data-setup-success="{% if setup_success %}1{% else %}0{% endif %}">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>Order Tracking Dashboard</title>
+    
+    
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+    <link rel="icon" type="image/png" href="{% static 'img/logo.png' %}">
+    <link rel="stylesheet" href="{% static 'style/newstyle.css' %}">
+<!-- Socket tracking  -->
+ <script src="{% static 'js/socket_manager.js' %}"></script>
+ 
+ <!-- end socket  -->
+  <script>
+    // تشغيل السوكيت مرة واحدة عند فتح الموقع
+    document.addEventListener('DOMContentLoaded', function() {
+        ChatSocket.init('global_room'); 
+    
+    });
+ 
+
+    window.currentChannelId = '{{ initial_channel_id }}' 
+</script>
+
+   <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+  
+ 
+
+
+<script src="{% static 'js/script2.js' %}" ></script>
+<script src="{% static 'js/script1.js' %}" ></script>
+
+<script src="{% static 'js/ajax.js' %}" ></script>
+ 
+
+<script>
+    (function() {
+        var root = document.documentElement;
+        try {
+            var saved = localStorage.getItem('theme');
+            var useDark = saved ? saved === 'dark' : true;
+            root.classList.toggle('dark', useDark);
+            root.setAttribute('data-bs-theme', useDark ? 'dark' : 'light');
+            if (!saved) localStorage.setItem('theme', 'dark');
+        } catch (e) {
+            root.classList.add('dark');
+            root.setAttribute('data-bs-theme', 'dark');
+        }
+    })();
+</script>
+
+  <style>
+
+        /* Theme tokens (light by default, dark via html.dark) */
+        :root {
+            --bs-secondary-color: rgba(71, 85, 105, 0.75)!important;
+            --background-primary: #f8fafc;
+            --text-light: #0b1020;
+            --text-muted: #334155;
+            --accent-color: #00E676;
+            --accent-color-transparent: rgba(0, 230, 118, 0.15);
+
+            /* Theme-aware surfaces */
+            --surface-soft: rgba(15, 23, 42, 0.04);
+            --surface-soft-hover: rgba(15, 23, 42, 0.08);
+            --surface-card: #ffffff;
+            --input-bg: #ffffff;
+            --input-text: #0f172a;
+            --shadow-elev: 0 2px 10px rgba(15, 23, 42, 0.08);
+            --panel-gradient: linear-gradient(180deg, #f8fafc 0%, #eef2f7 100%);
+
+            /* Bridge tokens used by whatssap.html */
+            --bg-primary: #ffffff;
+            --bg-secondary: #f8fafc;
+            --bg-tertiary: #f1f5f9;
+            --bg-hover: #e2e8f0;
+            --text-primary: #0b1020;
+            --text-secondary: #1e3a5f;
+            --border-color: rgba(15, 23, 42, 0.14);
+            --border-light: rgba(15, 23, 42, 0.24);
+            --accent: var(--accent-color);
+
+            /* Borders */
+            --border-card: rgba(15, 23, 42, 0.14);
+            --border-hover: rgba(15, 23, 42, 0.26);
+            --border-width: 1px;
+            --border-width-focus: 0.5px;
+
+            --border-radius-sm: 0.25rem; /* 4px */
+            --border-radius-md: 0.5rem; /* 8px */
+            --border-radius-lg: 0.75rem; /* 12px */
+            --border-radius-input: 10px; /* Specific for search input */
+
+            /* Font Sizes from user specification */
+            --font-size-xl: 1rem; /* For main titles, card headers, table headers */
+            --line-height-xl: 1.75rem;
+            --letter-spacing-xl: -.005em;
+
+            --font-size-sm: .875rem; /* For ALL other text: table cells, inputs, buttons, descriptions */
+            --line-height-sm: 1.25rem;
+            --letter-spacing-sm: 0;
+
+            /* Status colors (from previous design, but text will be dark) */
+            --status-shipped-bg: #17a2b8; /* Info blue */
+            --status-delivered-bg: #28a745; /* Success green */
+            --status-returned-bg: #dc3545; /* Danger red */
+            --status-pending-bg: #ffc107; /* Warning yellow */
+            --status-text-dark: var(--background-primary);
+        }
+
+        html.dark {
+            --bs-secondary-color: rgba(133, 133, 133, 0.75)!important;
+            --background-primary: #121212;
+            --text-light: #E0E0E0;
+            --text-muted: #A0A0A0;
+            --surface-soft: rgba(255, 255, 255, 0.03);
+            --surface-soft-hover: rgba(255, 255, 255, 0.08);
+            --surface-card: #1b2230;
+            --input-bg: #101828;
+            --input-text: #e2e8f0;
+            --shadow-elev: 0 2px 10px rgba(0, 0, 0, 0.25);
+            --panel-gradient: linear-gradient(180deg, #0d0f14 0%, #13161d 100%);
+
+            /* Bridge tokens used by whatssap.html */
+            --bg-primary: #1a1a2e;
+            --bg-secondary: rgba(255, 255, 255, 0.04);
+            --bg-tertiary: rgba(255, 255, 255, 0.06);
+            --bg-hover: rgba(255, 255, 255, 0.08);
+            --text-primary: #e2e8f0;
+            --text-secondary: #94a3b8;
+            --border-color: rgba(241, 241, 255, 0.151);
+            --border-light: rgba(255, 255, 255, 0.28);
+            --accent: #4f46e5;
+            --border-card: rgba(241, 241, 255, 0.151);
+            --border-hover: hsla(0, 0%, 100%, 0.98);
+        }
+
+        /* Nuclear light-mode overrides for legacy hardcoded dark classes */
+        html:not(.dark) body,
+        html.light body {
+            background-color: #f8fafc !important;
+            color: #0f172a !important;
+        }
+
+        html:not(.dark) h1, html:not(.dark) h2, html:not(.dark) h3, html:not(.dark) h4, html:not(.dark) h5, html:not(.dark) h6, html:not(.dark) p, html:not(.dark) label, html:not(.dark) span, html:not(.dark) li,
+        html.light h1, html.light h2, html.light h3, html.light h4, html.light h5, html.light h6, html.light p, html.light label, html.light span, html.light li {
+            color: #0f172a !important;
+        }
+
+        html:not(.dark) .card,
+        html:not(.dark) .modal-content,
+        html:not(.dark) section > div,
+        html:not(.dark) .cls3741_dashboard > div,
+        html:not(.dark) .cls3741_panel_dashboard,
+        html:not(.dark) .cls3741_panel_orders,
+        html:not(.dark) .cls3741_panel_templates,
+        html:not(.dark) .cls3741_panel_clients,
+        html:not(.dark) .cls3741_panel_campaigns,
+        html.light .card,
+        html.light .modal-content,
+        html.light section > div,
+        html.light .cls3741_dashboard > div,
+        html.light .cls3741_panel_dashboard,
+        html.light .cls3741_panel_orders,
+        html.light .cls3741_panel_templates,
+        html.light .cls3741_panel_clients,
+        html.light .cls3741_panel_campaigns {
+            background: #ffffff !important;
+            border-color: #e2e8f0 !important;
+            color: #1e293b !important;
+        }
+
+        html:not(.dark) input,
+        html:not(.dark) textarea,
+        html:not(.dark) select,
+        html.light input,
+        html.light textarea,
+        html.light select {
+            background-color: #ffffff !important;
+            color: #0f172a !important;
+            border-color: #cbd5e1 !important;
+        }
+
+        html:not(.dark) [class*="bg-[#0f172a]"],
+        html:not(.dark) [class*="bg-[#111827]"],
+        html:not(.dark) [class*="bg-[#1e293b]"],
+        html:not(.dark) [class*="bg-slate-900"],
+        html:not(.dark) [class*="bg-slate-800"],
+        html:not(.dark) [class*="text-white"],
+        html.light [class*="bg-[#0f172a]"],
+        html.light [class*="bg-[#111827]"],
+        html.light [class*="bg-[#1e293b]"],
+        html.light [class*="bg-slate-900"],
+        html.light [class*="bg-slate-800"],
+        html.light [class*="text-white"] {
+            background-color: #ffffff !important;
+            color: #0f172a !important;
+            border-color: #e2e8f0 !important;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol';
+            background-color: var(--background-primary);
+            color: var(--text-light);
+            margin: 0;
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+            /* min-height: 100vh; */
+            height: 100vh;
+            overflow: hidden;
+        } 
+
+        /* Top Navigation Bar - Standard Bootstrap-like */
+        .top-navbar {
+            margin-bottom: 12px;
+            background-color: var(--background-primary);
+            padding: 1rem 2.5rem; /* Adjusted padding to be more compact */
+            border-bottom: var(--border-width) solid var(--border-card);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0px 2px 5px rgba(0, 0, 0, 0.2); /* Subtle shadow */
+            position: sticky;
+            top: 0;
+            z-index: 1000;
+        }
+
+        .top-navbar .logo {
+            font-size: 1.25rem; /* Smaller logo */
+            font-weight: 700;
+            color: var(--text-light); /* White logo */
+            text-decoration: none;
+        }
+
+        .top-navbar .nav-links .btn {
+            color: var(--text-muted); /* Muted color for non-active links */
+            border: none;
+            padding: 0.5rem 1rem; /* Smaller buttons */
+            border-radius: var(--border-radius-sm);
+            font-weight: 500;
+            transition: all 0.2s ease;
+            font-size: var(--font-size-sm); /* Text-sm for top nav */
+        }
+
+        .top-navbar .nav-links .btn:hover {
+            background-color: var(--surface-soft-hover);
+            color: var(--text-light);
+        }
+
+        .top-navbar .nav-links .btn.active {
+            background-color: transparent; /* No background for active */
+            color: var(--accent-color); /* Accent color for active */
+            border-bottom: 2px solid var(--accent-color); /* Underline active tab */
+            border-radius: 0; /* Remove border-radius for underline effect */
+        }
+
+.padding-section-content{
+    padding:0.1rem 2.5rem 2.5rem 2.5rem;
+
+}
+        /* Main Content Area */
+        .main-content-area {
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            max-width: 100%;
+            flex: 1;
+            min-height: 0;
+        }
+        @media (max-width: 767.98px) {
+            .main-content-area {
+                padding: 0.5rem;
+            }
+            #future-whatssap_API .cls3741_hamburger {
+                /* top: 4.5rem; */
+            }
+        }
+
+        /* Page Tabs (formerly dashboard-nav-buttons) */
+        .page-tabs-nav {
+            display: flex;
+            margin-bottom: 2rem;
+            border-bottom: var(--border-width) solid var(--border-card);
+            flex-shrink: 0;
+        }
+        @media (max-width: 767.98px) {
+            .page-tabs-nav {
+                margin-bottom: 0.75rem;
+                overflow-x: auto;
+                -webkit-overflow-scrolling: touch;
+                scrollbar-width: thin;
+            }
+            .page-tabs-nav .nav-link {
+                white-space: nowrap;
+            }
+        }
+
+        .page-tabs-nav .nav-link {
+            padding: 0.75rem 1.25rem;
+            color: var(--text-muted);
+            font-size: var(--font-size-sm); /* Text-sm for tabs */
+            font-weight: 500;
+            text-decoration: none;
+            border-bottom: 2px solid transparent; /* For active underline */
+            transition: color 0.2s ease, border-color 0.2s ease;
+            border-radius: var(--border-radius-sm) var(--border-radius-sm) 0 0; /* Rounded top corners */
+        }
+
+        .page-tabs-nav .nav-link:hover {
+            color: var(--text-light);
+            background-color: var(--surface-soft);
+        }
+
+        .page-tabs-nav .nav-link.active {
+            color: var(--text-light); /* Active text is light */
+            border-bottom-color: var(--accent-color); /* Accent underline */
+            background-color: var(--surface-soft-hover);
+        }
+
+        /* Main Page Title */
+        .page-main-title {
+            font-size: var(--font-size-xl);
+            line-height: var(--line-height-xl);
+            letter-spacing: var(--letter-spacing-xl);
+            font-weight: 700;
+            color: var(--text-light);
+            margin-bottom: 2rem; /* Space below title */
+        }
+
+        /* Card Styles - Unified */
+        .card {
+            border: var(--border-width) solid var(--border-card);
+            background-color: var(--background-primary);
+            border-radius: var(--border-radius-lg); /* Larger border-radius for overall cards */
+            color: var(--text-light);
+            margin-bottom: 2rem; /* Spacing between cards */
+            box-shadow: none;
+            width: 100%;
+        }
+
+        .card-header {
+            background-color: var(--background-primary);
+            border-bottom: var(--border-width) solid var(--border-card);
+            padding: 1.25rem 2rem; /* Reduced padding for header */
+            font-weight: 600;
+            font-size: var(--font-size-xl); /* Text-xl for card headers */
+            line-height: var(--line-height-xl);
+            letter-spacing: var(--letter-spacing-xl);
+            color: var(--text-light);
+            border-top-left-radius: var(--border-radius-lg);
+            border-top-right-radius: var(--border-radius-lg);
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .card-body {
+            padding: 1.3rem;
+            font-size: var(--font-size-sm); /* Text-sm for card body text */
+        }
+
+        /* Search Input Styling (Based on user provided class) */
+        .custom-search-input .form-control {
+            height: 36px; /* Equivalent to h-9 */
+            border-radius: var(--border-radius-input); /* 10px */
+            border: var(--border-width) solid var(--border-card); /* gray-alpha-200 */
+            background-color: transparent; /* bg-transparent */
+            padding: 0.25rem 0.75rem; /* px-3 py-1 */
+            font-size: var(--font-size-sm); /* text-sm */
+            box-shadow: none; /* shadow-none */
+            transition: border-color 0.2s ease, box-shadow 0.2s ease; /* transition-colors */
+            color: var(--text-light); /* Main text color */
+        }
+        .custom-search-input .form-control::placeholder {
+            color: var(--text-muted); /* placeholder:text-subtle */
+        }
+        .custom-search-input .form-control:focus {
+            border-color: var(--text-light); /* focus-visible:border-foreground */
+            box-shadow: 0 0 0 var(--border-width-focus) var(--border-hover);
+            outline: none;
+        }
+        .custom-search-input .form-control:disabled {
+            cursor: not-allowed; /* disabled:cursor-not-allowed */
+            opacity: 0.5; /* disabled:opacity-50 */
+        }
+        /* No specific autofill shadow, as it's for `inset_0_0_0px_1000px_rgb(255,255,255)]`, which implies white background for autofill */
+        /* For the search button */
+        .custom-search-input .btn {
+            height: 36px; /* Match input height */
+            border-radius: var(--border-radius-input);
+            font-size: var(--font-size-sm);
+            background-color: var(--surface-soft);
+            border: var(--border-width) solid var(--border-card);
+            color: var(--text-light);
+            margin-left: 0.5rem; /* Spacing between input and button */
+        }
+        .custom-search-input .btn:hover {
+            background-color: var(--surface-soft-hover);
+            border-color: var(--border-hover);
+            color: var(--text-light);
+        }
+
+        /* Orders List & Table Styles */
+        .orders-list-container {
+            background-color: var(--background-primary);
+            border-radius: var(--border-radius-md);
+            border: var(--border-width) solid var(--border-card);
+            overflow: hidden; /* Contains table's borders */
+            /* No overflow-x here, relying on column widths */
+        }
+        .orders-list-container.no-border-top { /* For when combined within a larger card */
+            border-top: none;
+            border-top-left-radius: 0;
+            border-top-right-radius: 0;
+        }
+
+        .custom-table {
+            width: 100%;
+            border-collapse: collapse; /* Use collapse for consistent borders */
+            color: var(--text-light);
+            margin-bottom: 0; /* Remove default table margin */
+        }
+
+        .custom-table thead th {
+            background-color: var(--background-primary);
+            color: var(--text-light);
+            font-weight: 600;
+            padding: 0.75rem 1.25rem; /* Slightly reduced padding for compactness */
+            text-align: left;
+            border-bottom: var(--border-width) solid var(--border-card);
+
+            font-size: var(--font-size-xl); /* Text-xl for table headers */
+            line-height: var(--line-height-xl);
+            letter-spacing: var(--letter-spacing-xl);
+        }
+        .custom-table thead th i {
+            font-size: 1rem; /* Keep icons proportional */
+            margin-right: 0.5rem;
+            color: var(--accent-color); /* Accent color for header icons */
+        }
+
+
+        .custom-table tbody tr {
+            background-color: var(--background-primary);
+            transition: background-color 0.2s ease;
+            border-bottom: var(--border-width) solid var(--border-card); /* Separator between rows */
+            cursor: pointer;
+        }
+
+        .custom-table tbody tr:hover {
+            background-color: rgba(255, 255, 255, 0.03); /* Subtle highlight on hover */
+        }
+        .custom-table tbody tr.active {
+            background-color: rgba(255, 255, 255, 0.08); /* More prominent highlight for active */
+        }
+        /* No left border on active row, border will be between table and iframe */
+
+
+        .custom-table tbody td {
+            padding: 0.75rem 1.25rem; /* Slightly reduced padding for compactness */
+            vertical-align: middle;
+            font-size: var(--font-size-sm); /* Text-sm for table cells */
+            line-height: var(--line-height-sm);
+            letter-spacing: var(--letter-spacing-sm);
+            color: var(--text-light);
+            /* No individual right border on table cells, column borders will handle separation */
+        }
+
+        .custom-table tbody tr:last-child {
+            border-bottom: none; /* No border for the last row */
+        }
+
+        .tracking-number {
+            font-family: 'SF Mono', monospace; /* Monospaced font */
+            font-weight: 500;
+            color: var(--accent-color); /* Accent color for tracking number */
+        }
+
+        .order-counter-badge {
+            background-color: transparent; /* No background */
+            color: var(--text-muted); /* Muted color */
+            font-size: var(--font-size-sm);
+            padding: 0.2em 0.5em;
+            border-radius: var(--border-radius-sm);
+            font-weight: 400;
+            flex-shrink: 0;
+            width: 28px; /* Fixed width for alignment */
+            text-align: center;
+        }
+
+        .copy-btn {
+            background: none;
+            border: none;
+            color: var(--text-muted);
+            font-size: var(--font-size-sm);
+            cursor: pointer;
+            transition: color 0.2s ease, opacity 0.2s ease;
+            padding: 0.2rem;
+            opacity: 0.8;
+            line-height: 1; /* Align icon better */
+        }
+        .copy-btn:hover {
+            color: var(--accent-color); /* Accent color on hover */
+            opacity: 1;
+        }
+
+        .status-badge {
+            font-weight: 500;
+            padding: 0.3em 0.7em;
+            border-radius: var(--border-radius-sm);
+            letter-spacing: 0.02em;
+            font-size: 0.7rem; /* Slightly smaller for badges, to keep within text-sm context */
+            opacity: 0.9;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.25rem;
+            color: var(--status-text-dark); /* Dark text on colored badges */
+        }
+        .status-badge.status-shipped { background-color: var(--status-shipped-bg); }
+        .status-badge.status-delivered { background-color: var(--status-delivered-bg); }
+        .status-badge.status-return { background-color: var(--status-returned-bg); }
+        .status-badge.status-pending { background-color: var(--status-pending-bg); }
+        .status-badge.status-new { background-color: rgb(4, 115, 167); }
+        .status-badge.status-assigned { background-color: rgb(158, 161, 162); }
+
+
+        .no-orders-message {
+            text-align: center;
+            padding: 2rem;
+            color: var(--text-muted);
+            font-size: var(--font-size-sm);
+        }
+        .no-orders-message i {
+            font-size: 3rem;
+            margin-bottom: 1rem;
+            color: var(--text-muted);
+        }
+        .no-orders-message h5 {
+            color: var(--text-light);
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+            font-size: 1.1rem; /* Slightly larger for emphasis, but within text-xl context */
+        }
+
+        /* Avatar for customer name initial */
+        .avatar {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            background-color: var(--accent-color-transparent);
+            color: var(--accent-color);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 0.9rem; /* Proportionate to text-sm */
+            flex-shrink: 0;
+        }
+        /* Iframe Container & Vertical Border */
+/*
+        .iframe-col {
+            border-left: var(--border-width) solid var(--border-card);
+            padding-left: 1.5rem;
+            padding-right: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-direction: column;
+            min-height: 450px;
+        }
+
+        .iframe-container {
+            position: relative;
+            padding: 1rem;
+            min-height: 400px;
+            width: 100%;
+            max-width: 400px;
+            margin: 0 auto;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .iframe-container iframe {
+            width: 100%;
+            height: 100%;
+            border: var(--border-width) solid var(--border-card);
+            border-radius: var(--border-radius-md);
+            background-color: var(--background-primary);
+            transition: opacity 0.3s ease;
+        } */
+/*
+        .iframe-loading {
+            position: relative;
+        }
+        .iframe-loading::after {
+            content: "Loading...";
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: var(--background-primary);
+            padding: 10px 20px;
+            border-radius: var(--border-radius-md);
+            z-index: 10;
+            color: var(--text-light);
+            font-size: var(--font-size-sm);
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            border: var(--border-width) solid var(--border-card);
+        }
+        .iframe-loading::before {
+            content: "";
+            border: 3px solid var(--accent-color);
+            border-top-color: transparent;
+            border-radius: 50%;
+            width: 20px;
+            height: 20px;
+            animation: spin 0.8s linear infinite;
+            margin-right: 0.5rem;
+        } */
+        /* @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .iframe-loading iframe {
+            opacity: 0.3;
+        }
+
+        .no-tracking-selected {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100%;
+            color: var(--text-muted);
+            font-size: var(--font-size-sm);
+            text-align: center;
+            padding: 2rem;
+        }
+        .no-tracking-selected i {
+            font-size: 3rem;
+            margin-bottom: 1.5rem;
+            color: var(--text-muted);
+        }
+        .no-tracking-selected p {
+            margin-bottom: 0;
+        } */
+
+
+
+/* Card Styles - Ensure full height for columns */
+.row > [class*="col-"] .card {
+    height: 100%; /* Make cards fill column height */
+}
+
+/* Specific border radius for side-by-side cards */
+.card.rounded-start-lg {
+    border-top-right-radius: 0 !important;
+    border-bottom-right-radius: 0 !important;
+    border-top-left-radius: var(--border-radius-lg) !important;
+    border-bottom-left-radius: var(--border-radius-lg) !important;
+}
+.card.rounded-end-lg {
+    border-top-left-radius: 0 !important;
+    border-bottom-left-radius: 0 !important;
+    border-top-right-radius: var(--border-radius-lg) !important;
+    border-bottom-right-radius: var(--border-radius-lg) !important;
+}
+
+/* Remove border-left for the iframe card as the column handles it */
+.card.border-start-0 {
+    border-left: none !important;
+}
+
+/* Column Border - The separator between the two cards */
+.row.g-0 > div[class*="col-"]:first-child {
+    /* This is the table column - no specific border-right here,
+       the next column's border-left will create the visual separation */
+}
+.row.g-0 > div[class*="col-"]:last-child {
+    border-left: var(--border-width) solid var(--border-card); /* Vertical border for iframe column */
+    padding-left: 0 !important; /* No padding from col, card takes care of it */
+    padding-right: 0 !important; /* No padding from col */
+}
+
+/* Adjusted padding for card-body inside the iframe card */
+.card-body.d-flex.flex-column {
+    padding: 1.5rem !important; /* Specific padding for the iframe card body */
+}
+
+/* Customer Info Display - for the new section */
+.customer-info-display {
+    font-size: var(--font-size-sm); /* All text inside is sm */
+    color: var(--text-light);
+}
+.customer-info-display h6 {
+    margin-bottom: 0.5rem; /* Space between lines */
+    color: var(--text-light) !important; /* Ensure headings are light */
+}
+.customer-info-display i {
+    color: var(--accent-color); /* Icons in customer info */
+}
+
+/* WhatsApp Button specific styling */
+.customer-info-display .btn-sm {
+    font-size: 0.75rem !important; /* Smaller text for button */
+    padding: 0.2rem 0.6rem !important; /* Smaller padding */
+    line-height: 1; /* Adjust line height for icon/text alignment */
+    vertical-align: middle; /* Align with text */
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+}
+.customer-info-display .btn-sm i {
+    font-size: 0.8rem; /* Icon size for button */
+    color: var(--background-primary); /* Dark icon on accent background */
+}
+.customer-info-display .btn-sm:hover {
+    opacity: 0.9;
+}
+
+/* Iframe Container & iframe - adjustments */
+.iframe-container {
+    position: relative;
+    padding: 1rem; /* Explicit padding for the container */
+    min-height: 400px; /* Ensure enough height for iframe */
+    width: 100%;
+    
+    margin: 0 auto; /* Center it */
+    display: flex; /* For internal loading/no-tracking message */
+    align-items: center;
+    justify-content: center;
+    flex-grow: 1; /* Allow it to grow in column flex */
+    /* Borders are now directly applied to the iframe-container itself as per user request */
+    border: var(--border-width) solid var(--border-card) !important; /* Override existing, apply border to container */
+    border-radius: var(--border-radius-md) !important;
+}
+.iframe-container iframe {
+    width: 100%;
+    height: 100%;
+    border: none !important; /* Remove individual iframe border as container has it */
+    border-radius: var(--border-radius-md) !important; /* Match container radius */
+    background-color: var(--background-primary);
+    transition: opacity 0.3s ease;
+}
+
+/* Responsive Adjustments for columns */
+@media (max-width: 991.98px) { /* Tablets and smaller */
+    /* Remove vertical border on small screens */
+    .row.g-0 > div[class*="col-"]:last-child {
+        border-left: none;
+        padding-left: 0.5rem !important; /* Default padding for columns */
+        padding-right: 0.5rem !important;
+        margin-top: 2rem; /* Add space between stacked table and iframe */
+    }
+    /* Ensure cards in columns have proper rounded corners when stacked */
+    .card.rounded-start-lg, .card.rounded-end-lg {
+        border-radius: var(--border-radius-lg) !important; /* Full rounded corners when stacked */
+    }
+    .card.border-start-0 {
+        border-left: var(--border-width) solid var(--border-card) !important; /* Re-add border-left if it was removed by class */
+    }
+    .customer-info-display {
+        padding: 1rem !important; /* Adjust padding for small screens */
+    }
+}
+
+
+
+
+
+
+
+
+        .section-content {
+            display: none;
+        }
+        .section-content.active {
+            display: flex;
+            flex-direction: column;
+            flex: 1;
+            min-height: 0;
+            overflow: hidden;
+        }
+        #future-whatssap_API .cls3741_container {
+            flex: 1;
+            min-height: 0;
+            display: flex;
+            width: 100%;
+            max-width: 100%;
+        }
+
+        .product-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0.75rem 1rem;
+            margin-bottom: 0.5rem;
+            background-color: var(--surface-soft);
+            border-radius: var(--border-radius-sm);
+            font-size: var(--font-size-sm);
+            color: var(--text-light);
+            border: 1px solid var(--border-card);
+        }
+        .product-item strong {
+            color: var(--text-light); /* Strong will be light text */
+        }
+        .last-update-info {
+            font-size: 0.8em; /* Slightly smaller for meta info */
+            color: var(--text-muted);
+            margin-top: 1rem;
+            padding: 0.5rem 1rem;
+            background-color: var(--surface-soft-hover);
+            border-radius: var(--border-radius-sm);
+            display: inline-block;
+            border: 1px solid var(--border-card);
+        }
+
+        .coming-soon-message {
+            text-align: center;
+            padding: 5rem;
+            color: var(--text-muted);
+        }
+        .coming-soon-message i {
+            font-size: 4rem;
+            margin-bottom: 1.5rem;
+            color: var(--text-muted);
+        }
+        .coming-soon-message h2 {
+            font-size: var(--font-size-xl); /* Text-xl for coming soon header */
+            color: var(--accent-color); /* Accent color for emphasis */
+            font-weight: 700;
+        }
+        .coming-soon-message p {
+            font-size: var(--font-size-sm); /* Text-sm for coming soon text */
+        }
+
+        /* Responsive Adjustments */
+        @media (max-width: 991.98px) { /* Tablets and smaller */
+            .top-navbar {
+                flex-direction: column;
+                align-items: flex-start;
+                padding: 1rem;
+            }
+            .top-navbar .nav-links {
+                margin-top: 1rem;
+                width: 100%;
+                display: flex;
+                flex-wrap: wrap;
+                justify-content: center;
+                gap: 0.5rem;
+            }
+            .top-navbar .nav-links .btn {
+                flex-grow: 1;
+            }
+
+            .iframe-col {
+                border-left: none; /* Remove vertical border on small screens */
+                padding-left: 1rem; /* Reset padding */
+                padding-right: 1rem;
+                margin-top: 2rem; /* Add space between table and iframe */
+            }
+        .card-body{
+            padding: 0.5rem;
+        }
+        .card-body.d-flex.flex-column{
+            padding: 0.5rem !important;
+        }
+         .card-header .row {
+        flex-wrap: wrap !important; /* اسمح للعناصر بالالتفاف */
+        gap: 1rem !important; /* مسافة بين الفلاتر عندما تتكدس */
+        margin-right: 0 !important; /* إزالة أي هوامش سلبية قد تسبب مشاكل */
+        margin-left: 0 !important;
+        /* تأكد أن هذا الصف يبدأ من سطر جديد ويدفع العنوان للأعلى إذا لزم الأمر */
+        width: 100%; /* تأكد من أن الصف يأخذ العرض الكامل */
+        display: flex;
+        flex-direction: column; /* جعل الفلاتر تتكدس عمودياً */
+        align-items: flex-start; /* محاذاة العناصر إلى اليسار */
+    }
+
+    /* جعل كل عنصر فلتر (select أو زر) يأخذ عرض 100% */
+    .card-header .row > [class*="col-"] {
+        flex: 0 0 100% !important;
+        max-width: 100% !important;
+        margin-bottom: 0.5rem !important; /* مسافة بين حقول الفلتر المكدسة */
+    }
+
+    /* لضمان أن زر "تطبيق التحديدات" يأخذ عرض 100% أيضًا */
+    #apply-filters-btn {
+        width: 100% !important;
+        margin-left: 0 !important; /* إزالة الهامش الأيسر الذي كان موجوداً في عرض سطح المكتب */
+    }
+
+
+        }
+            .table{
+background-color: transparent !important;
+--bs-table-bg:transparent !important;
+}
+.table .text-muted{
+color:#ede9e9 !important;
+}
+/* تصميم الترقيم (Pagination) */
+
+/* الحاوية الرئيسية للترقيم */
+.pagination {
+    padding-top: 18px; /* المسافة من أعلى كما طلبت */
+    margin-bottom: 0; /* لإزالة أي هامش سفلي افتراضي إذا كان موجودًا */
+    /* استخدام متغيرات Bootstrap للتحكم الشامل بالترقيم */
+    --bs-pagination-color: var(--text-muted); /* لون النص الافتراضي */
+    --bs-pagination-bg: transparent; /* خلفية شفافة للحاوية، الألوان للعناصر الفردية */
+    --bs-pagination-border-width: var(--border-width);
+    --bs-pagination-border-color: var(--border-card); /* لون الحدود الافتراضي */
+    --bs-pagination-border-radius: var(--border-radius-md); /* دائرية الحدود الكلية */
+
+    --bs-pagination-hover-color: var(--accent-color); /* لون النص عند التمرير */
+    --bs-pagination-hover-bg: rgba(255, 255, 255, 0.05); /* خلفية خفيفة عند التمرير */
+    --bs-pagination-hover-border-color: var(--accent-color); /* حدود عند التمرير */
+
+    --bs-pagination-focus-color: var(--accent-color);
+    --bs-pagination-focus-bg: rgba(255, 255, 255, 0.08);
+    --bs-pagination-focus-box-shadow: none; /* إزالة الظل عند التركيز */
+
+    --bs-pagination-active-color: var(--background-primary); /* لون النص للصفحة النشطة */
+    --bs-pagination-active-bg: var(--accent-color); /* خلفية الصفحة النشطة */
+    --bs-pagination-active-border-color: var(--accent-color); /* حدود الصفحة النشطة */
+
+    --bs-pagination-disabled-color: var(--text-muted); /* لون النص للصفحات المعطلة */
+    --bs-pagination-disabled-bg: var(--background-secondary); /* خلفية الصفحات المعطلة */
+    --bs-pagination-disabled-border-color: var(--border-card);
+}
+
+/* روابط صفحات الترقيم الفردية */
+.page-item .page-link {
+    font-size: var(--font-size-sm); /* حجم الخط */
+    padding: 0.5rem 0.75rem; /* مسافة داخلية (padding) */
+    transition: all 0.2s ease-in-out; /* انتقال سلس للحالات */
+    border-radius: var(--border-radius-sm); /* دائرية حدود العناصر الفردية */
+    margin: 0 0.2rem; /* مسافة صغيرة بين عناصر الترقيم */
+
+    /* تطبيق متغيرات Bootstrap المخصصة */
+    color: var(--bs-pagination-color);
+    background-color: var(--bs-pagination-bg);
+    border: var(--bs-pagination-border-width) solid var(--bs-pagination-border-color);
+}
+
+/* حالة الصفحة النشطة */
+.page-item.active .page-link {
+    z-index: 3; /* لجعل العنصر النشط يظهر فوق البقية */
+    color: var(--bs-pagination-active-color);
+    background-color: var(--bs-pagination-active-bg);
+    border-color: var(--bs-pagination-active-border-color);
+}
+
+/* حالة التمرير (Hover) والتركيز (Focus) */
+.page-item .page-link:hover,
+.page-item .page-link:focus {
+    color: var(--bs-pagination-hover-color);
+    background-color: var(--bs-pagination-hover-bg);
+    border-color: var(--bs-pagination-hover-border-color);
+    box-shadow: var(--bs-pagination-focus-box-shadow);
+}
+
+/* حالة العناصر المعطلة (مثل زر السابق/التالي في البداية/النهاية) */
+.page-item.disabled .page-link {
+    color: var(--bs-pagination-disabled-color);
+    background-color: var(--bs-pagination-disabled-bg);
+    border-color: var(--bs-pagination-disabled-border-color);
+    cursor: not-allowed; /* تغيير المؤشر */
+}
+
+/* إزالة تداخل الحدود الافتراضية لـ Bootstrap بين العناصر */
+.pagination .page-item:first-child .page-link {
+    border-top-left-radius: var(--border-radius-md);
+    border-bottom-left-radius: var(--border-radius-md);
+}
+.pagination .page-item:last-child .page-link {
+    border-top-right-radius: var(--border-radius-md);
+    border-bottom-right-radius: var(--border-radius-md);
+}
+
+/* إزالة الهامش الافتراضي من عناصر القائمة لكي تعمل مسافة الـ margin على page-link */
+.pagination li {
+    margin: 0;
+}
+    </style>
+
+</head>
+<body>
+    <nav class="top-navbar">
+        <a href="/" class="navbar-brand">
+            <img src="{% static 'img/logo.png' %}" alt="Logo" width="40" height="40" style="border-radius: 50%;">
+            <span class="fw-bold ms-2">Waselytics</span>
+        </a>
+
+        <!-- <a href="#" class="logo">Waselytics</a> -->
+        <div class="nav-links">
+           <a href="/tracking/" class="btn nav_link active" id="track1">Tracking</a>
+            <a href="{% url 'user' %}" class="btn nav_link">Account</a>
+            {% if request.user.is_superuser %}
+            <a href="/admin/" class="btn nav_link">Admin</a>
+            <a href="{% url 'analytics' %}" class="btn nav-link2">Analytics</a>
+            {% endif %}
+            <script>
+                (function() {
+                    var STORAGE_KEY = 'theme';
+                    var root = document.documentElement;
+
+                    function syncIcons(isDark) {
+                        var darkIcon = document.querySelector('.theme-icon-dark');
+                        var lightIcon = document.querySelector('.theme-icon-light');
+                        if (!darkIcon || !lightIcon) return;
+                        darkIcon.style.display = isDark ? 'none' : 'inline-block';
+                        lightIcon.style.display = isDark ? 'inline-block' : 'none';
+                    }
+
+                    function persistTheme() {
+                        var isDark = root.classList.contains('dark');
+                        root.setAttribute('data-bs-theme', isDark ? 'dark' : 'light');
+                        try {
+                            localStorage.setItem(STORAGE_KEY, isDark ? 'dark' : 'light');
+                        } catch (e) {}
+                    }
+
+                    document.addEventListener('DOMContentLoaded', function() {
+                        syncIcons(root.classList.contains('dark'));
+                        var btn = document.getElementById('theme-toggle');
+                        if (btn) {
+                            btn.addEventListener('click', function() {
+                                root.classList.toggle('dark');
+                                persistTheme();
+                                syncIcons(root.classList.contains('dark'));
+                            });
+                        }
+                    });
+                })();
+            </script>
+                <!-- <button type="button" id="theme-toggle" class="btn theme-toggle-btn" title="Toggle dark/light theme" aria-label="Toggle theme">
+                    <i class="fas fa-moon theme-icon-dark" aria-hidden="true"></i>
+                    <i class="fas fa-sun theme-icon-light" aria-hidden="true" style="display: none;"></i>
+                </button> -->
+        </div>
+    </nav>
+ 
+
+<div class="main-content-area">
+    {# Targets for marketing analytics script (fetchAndRenderRecommendations); hidden on WhatsApp-first layout #}
+    <div id="platformComparisons" style="display:none;" aria-hidden="true"></div>
+    <div id="recommendations" style="display:none;" aria-hidden="true"></div>
+    {% if request.user.is_superuser %}
+        <nav class="page-tabs-nav">
+            <a class="nav-link active" href="#" id="whatssap_API_cloud" class="btn nav-link2" data-section="future-whatssap_API">Whatssapp</a>
+            <a class="nav-link" href="#" data-section="order-tracking-section">Order tracking</a>
+            <a class="nav-link" href="#" data-section="leads-tracking-section">Lead Management</a>
+            <a class="nav-link" href="#" data-section="update-section">Inventory & Data Update</a>
+            <a class="nav-link" href="#" id="Codproduct" data-section="future-features-1-section">Product Hub</a>
+            
+{% if request.user.is_team_admin or user_permusstion.can_create_orders %}
+
+            <a class="nav-link" href="#" data-section="leads-created-section">Add Leads</a>
+
+           {% endif %}
+
+        </nav>
+        {% endif %}
+        
+        <div class="section-content active" id="future-whatssap_API">
+             
+            <script src="{% static 'js/script2.js' %}" ></script>
+            
+            {% include 'whatssap/whatssap.html' %}
+            <script src="{% static 'js/main.js' %}"></script>
+            </div>
+
+
+ 
+        
+         
+        
+         
+        
+        
+        
+        
+        
+        
+          <script>
+          // ---------- State ----------
+         // بدّل تعريف state الحالي إلى هذا
+        const state = {
+          data: {
+            kpis: { spend:0, total_orders:0, confirmation_rate:0, delivery_rate:0 },
+            orders: [],
+            campaigns: [],
+            visits: [],
+            last_update: new Date().toISOString()
+          },
+          selectedPlatform: 'all',
+          periodDays: 7,
+          charts: { main: null, donut: null }
+        };
+        
+        
+          // ---------- Helpers ----------
+          function safeNumber(v){ return (v === null || v === undefined || isNaN(Number(v))) ? 0 : Number(v); }
+          const safeNum = safeNumber;
+        
+          function formatPercent(x){
+            if (x === null || x === undefined || isNaN(Number(x))) return '—';
+            const n = Number(x);
+            const value = (n <= 1 ? n * 100 : n);
+            return value.toFixed(1) + '%';
+          }
+          // Conversion by visitors only when we have visits; otherwise show — to avoid misleading "100%"
+          function formatConvByVisits(confirmed, visits) {
+            var v = safeNumber(visits);
+            if (v === 0) return '—';
+            return formatPercent(safeNumber(confirmed) / v);
+          }
+          function formatConvByOrders(confirmed, orders) {
+            var o = safeNumber(orders);
+            if (o === 0) return '—';
+            return formatPercent(safeNumber(confirmed) / o);
+          }
+        
+          function escapeHtml(str){ if (str === null || str === undefined) return ''; return String(str).replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;').replaceAll('"','&quot;'); }
+        
+          // CSRF helper for Django POSTs
+          function getCookie(name) {
+            const v = document.cookie.match('(^|;)\\s*' + name + '\\s*=\\s*([^;]+)');
+            return v ? v.pop() : '';
+          }
+        
+          // ---------- Extract orders robustly from backend payload ----------
+          function extractOrdersFromPayload(payload){
+            if (!payload || typeof payload !== 'object') return [];
+            if (Array.isArray(payload.orders)) {  return payload.orders; }
+            for (const key of ['orders_data','items','rows','results','leads','data']){
+              if (Array.isArray(payload[key])) {  return payload[key]; }
+            }
+            if (Array.isArray(payload.data)) {  return payload.data; }
+            if (payload.data && Array.isArray(payload.data.orders)) {  return payload.data.orders; }
+            // fallback: find any array of objects that looks like orders
+            for (const k of Object.keys(payload)){
+              const v = payload[k];
+              if (Array.isArray(v) && v.length>0 && typeof v[0] === 'object'){
+                const sample = v[0];
+                if ('status' in sample || 'phone' in sample || 'phone_normalized' in sample || 'id' in sample || 'external_order_id' in sample || 'attribution_data__utm_campaign' in sample || 'matched_visit__utm_campaign' in sample) {
+                  
+                  return v;
+                }
+              }
+            }
+            return [];
+          }
+        
+          // ---------- Convert orders -> campaigns (flexible) ----------
+          function convertOrdersToCampaigns(orders, visitsMap = {}){
+            if (!Array.isArray(orders) || orders.length === 0) return [];
+            const campaignMap = {};
+            function pick(o, keys){
+              for (const k of keys){
+                if (k.includes('__')){ if (Object.prototype.hasOwnProperty.call(o,k) && o[k] !== undefined && o[k] !== null && o[k] !== '') return o[k]; }
+                else { if (Object.prototype.hasOwnProperty.call(o,k) && o[k] !== undefined && o[k] !== null && o[k] !== '') return o[k]; const parts = k.split('.'); if (parts.length>1){ let cur=o; let ok=true; for(const p of parts){ if (cur && Object.prototype.hasOwnProperty.call(cur,p)) cur=cur[p]; else { ok=false; break; } } if (ok && cur!==undefined && cur!==null && cur!=='') return cur; } }
+              }
+              return null;
+            }
+        
+            orders.forEach(order => {
+              const campaignKey = pick(order, ['attribution_data__utm_campaign','matched_visit__utm_campaign','utm_campaign','campaign_name','campaign']) || 'Unknown Campaign';
+              const platform = pick(order, ['attribution_data__utm_source','matched_visit__utm_source','platform','site_source_name','utm_source']) || 'unknown';
+              const campaignId = pick(order, ['attribution_data__ad_id','matched_visit__ad_id','campaign_id','ad_id','id']) || '';
+              if (!campaignMap[campaignKey]){
+                campaignMap[campaignKey] = { campaign_name: campaignKey, campaign_id: campaignId, platform: platform, platform_label: (typeof platform==='string' && platform.length)?(platform.charAt(0).toUpperCase()+platform.slice(1)):'Platform', total_orders:0, confirmed_orders:0, delivered_orders:0, cancelled_orders:0, meta_orders:[] };
+              }
+              const node = campaignMap[campaignKey];
+              node.total_orders += 1; node.meta_orders.push(order);
+              const status = (pick(order, ['status','order_status'])||'').toString().toLowerCase();
+              if (status==='confirmed') node.confirmed_orders +=1;
+              if (status==='delivered') node.delivered_orders +=1;
+              if (status==='cancelled' || status==='canceled') node.cancelled_orders +=1;
+            });
+        
+            const campaigns = Object.values(campaignMap).map(c => {
+              const t = safeNum(c.total_orders); const confirmed = safeNum(c.confirmed_orders); const delivered = safeNum(c.delivered_orders);
+              const confirmation_rate = t > 0 ? (confirmed / t) : 0;
+              const delivery_rate = confirmed > 0 ? (delivered / confirmed) : 0;
+              const visits = safeNum(visitsMap[c.campaign_name] || 0);
+              // Conversion = orders / visits (how many visits became orders)
+              const conversion_rate = visits > 0 ? (t / visits) : null;
+              return { campaign_name: c.campaign_name, campaign_id: c.campaign_id||'', platform: c.platform, platform_label: c.platform_label, total_orders: t, orders: t, confirmed_orders: confirmed, delivered_orders: delivered, cancelled_orders: safeNum(c.cancelled_orders), confirmation_rate: Number(confirmation_rate), delivery_rate: Number(delivery_rate), conversion_rate: conversion_rate !== null ? Number(conversion_rate) : null, visits: visits };
+            });
+            campaigns.sort((a,b)=> (b.orders||0)-(a.orders||0));
+            return campaigns;
+          }
+        
+         
+        
+        
+        
+        
+          // ---------- Renderers ----------
+          function renderKPIs(kpis){
+            var v = document.getElementById('kpiVisitors'); if (v) v.innerText = String(kpis.total_visits != null ? kpis.total_visits : (kpis.visits != null ? kpis.visits : 0));
+            var o = document.getElementById('kpiOrders'); if (o) o.innerText = String(kpis.total_orders != null ? kpis.total_orders : (kpis.orders != null ? kpis.orders : 0));
+            var c = document.getElementById('kpiConfirmed'); if (c) c.innerText = String(kpis.confirmed_orders != null ? kpis.confirmed_orders : 0);
+            var d = document.getElementById('kpiDelivered'); if (d) d.innerText = String(kpis.delivered_orders != null ? kpis.delivered_orders : 0);
+            var s = document.getElementById('kpiSpend'); if (s) s.innerText = '$' + (kpis.spend != null && Number(kpis.spend) !== 0 ? Number(kpis.spend).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2}) : '0.00');
+            var conv = document.getElementById('kpiConversion'); if (conv) conv.innerText = formatPercent(kpis.conversion_rate != null ? kpis.conversion_rate : 0);
+            var confRate = document.getElementById('kpiConfirmRate'); if (confRate) confRate.innerText = formatPercent(kpis.confirmation_rate != null ? kpis.confirmation_rate : 0);
+            var delRate = 0;
+            if (typeof kpis.delivery_rate !== 'undefined' && kpis.delivery_rate != null) delRate = kpis.delivery_rate;
+            else if (kpis.confirmed_orders && kpis.delivered_orders) delRate = (kpis.delivered_orders / kpis.confirmed_orders) || 0;
+            var delEl = document.getElementById('kpiDelivery'); if (delEl) delEl.innerText = formatPercent(delRate);
+          }
+        
+          function renderPlatformBadge(platformKey){ const el = document.getElementById('platformBadge'); if (!el) return; if (platformKey==='all'){ el.innerText='All Platforms'; el.className='badge-platform bg-blue-100 text-blue-800'; } else{ el.innerText = platformKey.charAt(0).toUpperCase()+platformKey.slice(1); el.className='badge-platform bg-gray-100 text-gray-800'; } }
+        
+          // Toggle a block element (div) - no table-row quirks
+          function setBlockVisible(el, visible) {
+            if (!el) return;
+            el.style.display = visible ? 'block' : 'none';
+          }
+          function isBlockHidden(el) {
+            if (!el) return true;
+            return el.style.display === 'none';
+          }
+          function setRowVisible(tr, visible) {
+            if (!tr) return;
+            if (visible) { tr.style.removeProperty ? tr.style.removeProperty('display') : (tr.style.display = 'table-row'); }
+            else { tr.style.display = 'none'; }
+          }
+          function isRowHidden(tr) {
+            if (!tr) return true;
+            return tr.style.display === 'none';
+          }
+          function makeToggleButton(targetId, isDiv) {
+            var b = document.createElement('button');
+            b.type = 'button';
+            b.className = 'px-2 py-1 mr-2 text-sm rounded bg-gray-100 hover:bg-gray-200';
+            b.innerText = '▶';
+            b.addEventListener('click', function(ev) {
+              ev.stopPropagation();
+              var el = document.getElementById(targetId);
+              if (!el) return;
+              var hidden = isDiv ? isBlockHidden(el) : isRowHidden(el);
+              if (isDiv) setBlockVisible(el, hidden); else setRowVisible(el, hidden);
+              b.innerText = hidden ? '▼' : '▶';
+            });
+            return b;
+          }
+        
+          // Backend may send adsets as flat list of ads (each with ad_adset_name). Group by ad_adset_name into adset -> ads.
+          function normalizeCampaignsAdsets(campaigns) {
+            if (!Array.isArray(campaigns)) return campaigns;
+            return campaigns.map(function(c) {
+              var adsetsRaw = c.adsets;
+              if (!Array.isArray(adsetsRaw) || adsetsRaw.length === 0) return c;
+              var first = adsetsRaw[0];
+              if (Array.isArray(first.ads)) return c;
+              var byAdset = {};
+              adsetsRaw.forEach(function(ad) {
+                var key = (ad.ad_adset_name || ad.ad_name || ad.ad_id || 'AdSet').toString();
+                if (!byAdset[key]) byAdset[key] = { name: key, id: ad.adset_id || ad.ad_id || '', ads: [], orders: 0, confirmed_orders: 0, visits: 0, placements: [] };
+                byAdset[key].ads.push(ad);
+                byAdset[key].orders += safeNumber(ad.orders || 0);
+                byAdset[key].confirmed_orders += safeNumber(ad.confirmed_orders || 0);
+                byAdset[key].visits += safeNumber(ad.visits || 0);
+                if (Array.isArray(ad.placements)) byAdset[key].placements = byAdset[key].placements.concat(ad.placements);
+              });
+              var adsets = Object.values(byAdset).map(function(g) { return { ad_adset_name: g.name, adset_id: g.id, orders: g.orders, confirmed_orders: g.confirmed_orders, visits: g.visits, placements: g.placements, ads: g.ads }; });
+              return Object.assign({}, c, { adsets: adsets });
+            });
+          }
+        
+          function renderTable(campaigns, visitsMap) {
+            visitsMap = visitsMap || {};
+            var tbody = document.getElementById('campaignTableBody');
+            if (!tbody) return;
+            tbody.innerHTML = '';
+            var rows = Array.isArray(campaigns) ? campaigns : [];
+            var normalized = normalizeCampaignsAdsets(rows);
+            if (normalized.length === 0) {
+              tbody.innerHTML = '<tr><td class="px-4 py-6 text-left tiny text-gray-500" colspan="7">No campaigns to show</td></tr>';
+              var infoEl = document.getElementById('tableInfo');
+              if (infoEl) infoEl.innerText = '0 campaigns';
+              return;
+            }
+            normalized.forEach(function(c, campaignIndex) {
+              var campaignDetailsId = 'campaign-details-' + campaignIndex;
+              var campaignName = c.campaign_name || c.name || 'Unknown Campaign';
+              var platformLabel = c.platform_label || c.platform || 'Platform';
+              var campaignId = c.campaign_id || c.id || '';
+              var orders = safeNumber(c.orders || 0);
+              var confirmedOrders = safeNumber(c.confirmed_orders || 0);
+              var deliveredOrders = safeNumber(c.delivered_orders || 0);
+              var deliveryRate = (confirmedOrders > 0 && deliveredOrders > 0) ? (deliveredOrders / confirmedOrders) : safeNumber(c.delivery_rate || 0);
+              var visits = safeNumber((typeof c.visits !== 'undefined') ? c.visits : (visitsMap[campaignName]) || 0);
+              // Conversion rate = orders / visits (what % of visits became orders)
+              var conversionRate = null;
+              if (visits > 0) conversionRate = (typeof c.conversion_by_visits !== 'undefined' && c.conversion_by_visits !== null) ? Number(c.conversion_by_visits) : (orders / visits);
+              else if (orders > 0 && visits === 0) conversionRate = null;
+        
+              var tr = document.createElement('tr');
+              tr.className = 'bg-white';
+              var firstTd = document.createElement('td');
+              firstTd.className = 'px-4 py-3 text-left';
+              var hasAdsets = Array.isArray(c.adsets) && c.adsets.length > 0;
+              if (hasAdsets) {
+                firstTd.appendChild(makeToggleButton(campaignDetailsId, false));
+                var sp = document.createElement('span');
+                sp.style.marginLeft = '8px';
+                firstTd.appendChild(sp);
+              } else {
+                var sp0 = document.createElement('span');
+                sp0.style.display = 'inline-block';
+                sp0.style.width = '22px';
+                firstTd.appendChild(sp0);
+              }
+              var campaignHtml = document.createElement('div');
+              campaignHtml.innerHTML = '<div class="font-medium">' + escapeHtml(campaignName) + '</div><div class="tiny text-gray-500">' + escapeHtml(platformLabel) + '</div>';
+              firstTd.appendChild(campaignHtml);
+              tr.appendChild(firstTd);
+              tr.appendChild((function(){ var td = document.createElement('td'); td.className = 'px-4 py-3 text-center tiny'; td.innerText = campaignId; return td; })());
+              tr.appendChild((function(){ var td = document.createElement('td'); td.className = 'px-4 py-3 text-center font-semibold'; td.innerText = String(orders); return td; })());
+              tr.appendChild((function(){ var td = document.createElement('td'); td.className = 'px-4 py-3 text-center'; td.innerText = String(confirmedOrders); return td; })());
+              tr.appendChild((function(){ var td = document.createElement('td'); td.className = 'px-4 py-3 text-center'; td.innerText = formatPercent(deliveryRate); return td; })());
+              tr.appendChild((function(){ var td = document.createElement('td'); td.className = 'px-4 py-3 text-center'; td.innerText = String(visits); return td; })());
+              tr.appendChild((function(){ var td = document.createElement('td'); td.className = 'px-4 py-3 text-center'; td.innerText = (conversionRate !== null ? formatPercent(conversionRate) : '—'); return td; })());
+              if (hasAdsets) {
+                tr.style.cursor = 'pointer';
+                tr.addEventListener('click', function(ev) {
+                  if (ev.target.tagName === 'BUTTON') return;
+                  var el = document.getElementById(campaignDetailsId);
+                  if (!el) return;
+                  var hidden = isRowHidden(el);
+                  setRowVisible(el, hidden);
+                  var btn = firstTd.querySelector('button');
+                  if (btn) btn.innerText = hidden ? '▼' : '▶';
+                });
+              }
+              tbody.appendChild(tr);
+        
+              var detailsTr = document.createElement('tr');
+              detailsTr.id = campaignDetailsId;
+              detailsTr.style.display = 'none';
+              detailsTr.className = 'bg-gray-50';
+              var detailsTd = document.createElement('td');
+              detailsTd.colSpan = 7;
+              var container = document.createElement('div');
+              container.className = 'analytics-campaign-details';
+              container.style.padding = '12px 16px';
+        
+              if (hasAdsets) {
+                c.adsets.forEach(function(as, adsetIndex) {
+                  var adsetDetailsId = campaignDetailsId + '-adset-' + adsetIndex + '-details';
+                  var adsetName = as.ad_adset_name || as.ad_name || as.ad_id || as.name || 'AdSet';
+                  var adsetId = as.adset_id || as.ad_id || as.id || '';
+                  var asOrders = safeNumber(as.orders || 0);
+                  var asConfirmed = safeNumber(as.confirmed_orders || 0);
+                  var asDelivered = safeNumber(as.delivered_orders || 0);
+                  var asDeliveryRate = asConfirmed > 0 ? (asDelivered / asConfirmed) : 0;
+                  var asVisits = safeNumber(as.visits || 0);
+                  var asConvVisits = asVisits > 0 ? (asConfirmed / asVisits) : null;
+                  var asConvOrders = asOrders > 0 ? (asConfirmed / asOrders) : null;
+                  var hasAds = Array.isArray(as.ads) && as.ads.length > 0;
+        
+                  var adsetBlock = document.createElement('div');
+                  adsetBlock.className = 'analytics-adset-card';
+                  var adsetHeader = document.createElement('div');
+                  adsetHeader.className = 'analytics-adset-header';
+                  adsetHeader.appendChild(makeToggleButton(adsetDetailsId, true));
+                  var adsetTitle = document.createElement('div');
+                  adsetTitle.className = 'analytics-adset-title';
+                  adsetTitle.innerHTML = escapeHtml(adsetName);
+                  adsetHeader.appendChild(adsetTitle);
+                  if (adsetId) {
+                    var adsetIdSpan = document.createElement('span');
+                    adsetIdSpan.className = 'analytics-adset-id';
+                    adsetIdSpan.textContent = 'ID: ' + adsetId;
+                    adsetHeader.appendChild(adsetIdSpan);
+                  }
+                  var adsetMetrics = document.createElement('div');
+                  adsetMetrics.className = 'analytics-metrics';
+                  function addMetric(parent, label, value, cssClass) {
+                    var m = document.createElement('span');
+                    m.className = 'analytics-metric ' + (cssClass || 'analytics-metric--muted');
+                    m.textContent = label + ': ' + value;
+                    parent.appendChild(m);
+                  }
+                  addMetric(adsetMetrics, 'Visitors', String(asVisits), 'analytics-metric--visitors');
+                  addMetric(adsetMetrics, 'Orders', String(asOrders), 'analytics-metric--orders');
+                  addMetric(adsetMetrics, 'Confirmed', String(asConfirmed), 'analytics-metric--confirmed');
+                  addMetric(adsetMetrics, 'Delivery', formatPercent(asDeliveryRate), 'analytics-metric--delivery');
+                  addMetric(adsetMetrics, 'Conv (visitors)', asVisits > 0 ? formatPercent(asConvVisits) : '—', 'analytics-metric--conv');
+                  if (asVisits === 0 && asOrders > 0) addMetric(adsetMetrics, 'Conv (orders)', formatPercent(asConvOrders), 'analytics-metric--muted');
+                  adsetHeader.appendChild(adsetMetrics);
+                  adsetBlock.appendChild(adsetHeader);
+        
+                  var adsetDetailsDiv = document.createElement('div');
+                  adsetDetailsDiv.id = adsetDetailsId;
+                  adsetDetailsDiv.className = 'analytics-ads-panel';
+                  adsetDetailsDiv.style.display = 'none';
+                  if (hasAds) {
+                    var adsList = document.createElement('div');
+                    as.ads.forEach(function(ad) {
+                      var adName = ad.ad_name || ad.name || '';
+                      var adId = ad.ad_id || ad.id || '';
+                      var adOrders = safeNumber(ad.orders || 0);
+                      var adConfirmed = safeNumber(ad.confirmed_orders || 0);
+                      var adDelivered = safeNumber(ad.delivered_orders || 0);
+                      var adDeliveryRate = adConfirmed > 0 ? (adDelivered / adConfirmed) : 0;
+                      var adVisits = safeNumber(ad.visits || 0);
+                      var adConvV = adVisits > 0 ? (adConfirmed / adVisits) : null;
+                      var adConvO = adOrders > 0 ? (adConfirmed / adOrders) : null;
+                      var adLine = document.createElement('div');
+                      adLine.className = 'analytics-ad-row';
+                      var adNameEl = document.createElement('div');
+                      adNameEl.innerHTML = '<span class="analytics-ad-name">' + escapeHtml(adName || adId || 'Ad') + '</span><span class="analytics-ad-id">ID: ' + escapeHtml(adId) + '</span>';
+                      adLine.appendChild(adNameEl);
+                      var adMetricsEl = document.createElement('div');
+                      adMetricsEl.className = 'analytics-ad-metrics';
+                      addMetric(adMetricsEl, 'Visitors', String(adVisits), 'analytics-metric--visitors');
+                      addMetric(adMetricsEl, 'Orders', String(adOrders), 'analytics-metric--orders');
+                      addMetric(adMetricsEl, 'Confirmed', String(adConfirmed), 'analytics-metric--confirmed');
+                      addMetric(adMetricsEl, 'Delivery', formatPercent(adDeliveryRate), 'analytics-metric--delivery');
+                      addMetric(adMetricsEl, 'Conv (visitors)', adVisits > 0 ? formatPercent(adConvV) : '—', 'analytics-metric--conv');
+                      if (adVisits === 0 && adOrders > 0) addMetric(adMetricsEl, 'Conv (orders)', formatPercent(adConvO), 'analytics-metric--muted');
+                      adLine.appendChild(adMetricsEl);
+                      if (Array.isArray(ad.placements) && ad.placements.length > 0) {
+                        var plDiv = document.createElement('div');
+                        plDiv.className = 'analytics-placements';
+                        var plText = ad.placements.map(function(pl) {
+                          var pLabel = pl.placement || pl.site_source_name || pl.platform || pl.name || 'placement';
+                          return pLabel + ': ' + safeNumber(pl.orders || 0) + ' orders';
+                        }).join(' · ');
+                        plDiv.textContent = 'Placements: ' + plText;
+                        adLine.appendChild(plDiv);
+                      }
+                      adsList.appendChild(adLine);
+                    });
+                    adsetDetailsDiv.appendChild(adsList);
+                  } else {
+                    adsetDetailsDiv.innerHTML = '<div class="tiny text-gray-500">No ads in this adset.</div>';
+                  }
+                  adsetBlock.appendChild(adsetDetailsDiv);
+                  adsetHeader.addEventListener('click', function(ev) {
+                    if (ev.target.tagName === 'BUTTON') return;
+                    var hidden = isBlockHidden(adsetDetailsDiv);
+                    setBlockVisible(adsetDetailsDiv, hidden);
+                    var btn = adsetHeader.querySelector('button');
+                    if (btn) btn.innerText = hidden ? '▼' : '▶';
+                  });
+                  container.appendChild(adsetBlock);
+                });
+              } else {
+                container.innerHTML = '<div class="tiny text-gray-500">No adsets for this campaign.</div>';
+              }
+              detailsTd.appendChild(container);
+              detailsTr.appendChild(detailsTd);
+              tbody.appendChild(detailsTr);
+            });
+            var infoEl2 = document.getElementById('tableInfo');
+            if (infoEl2) infoEl2.innerText = normalized.length + ' campaign' + (normalized.length !== 1 ? 's' : '');
+          }
+        
+          // ---------- charts helpers ----------
+          function destroyChartsIfExist(){ try{ if (typeof Chart !== 'undefined' && Chart.getChart){ const existingMain = Chart.getChart('mainChart'); if (existingMain) existingMain.destroy(); const existingDonut = Chart.getChart('smallDonut'); if (existingDonut) existingDonut.destroy(); } }catch(e){} if (state.charts.main){ try{ state.charts.main.destroy(); }catch(e){} state.charts.main=null;} if (state.charts.donut){ try{ state.charts.donut.destroy(); }catch(e){} state.charts.donut=null; }
+          }
+        
+          // Build timeseries for last N days from orders (orders must have created_at string)
+          function generateTimeSeriesFromOrders(orders, days = state.periodDays){
+            const labels = []; const dateCounts = {}; const convCounts = {};
+            const now = new Date(); for (let i = days-1; i>=0; i--){ const d = new Date(now); d.setDate(now.getDate()-i); const key = d.toISOString().slice(0,10); labels.push(key); dateCounts[key]=0; convCounts[key]=0; }
+            if (Array.isArray(orders)){
+              orders.forEach(o => {
+                const created = o.created_at || o.created || o.date;
+                if (!created) return;
+                const d = new Date(created);
+                if (isNaN(d)) return;
+                const k = d.toISOString().slice(0,10);
+                if (k in dateCounts) dateCounts[k] += 1;
+                // treat confirmed as conversion
+                const status = (o.status||'').toString().toLowerCase(); if (status==='confirmed') convCounts[k] += 1;
+              });
+            }
+            const ordersArr = labels.map(l => dateCounts[l] || 0); const convArr = labels.map(l => convCounts[l] || 0);
+            return { labels, orders: ordersArr, conversions: convArr };
+          }
+         
+          function initCharts(){ 
+        
+         destroyChartsIfExist(); const canvasMain = document.getElementById('mainChart'); if (canvasMain){ const ts = generateTimeSeriesFromOrders(state.data && state.data.orders ? state.data.orders : [], state.periodDays); state.charts.main = new Chart(canvasMain, { type:'line', data:{ labels: ts.labels, datasets:[ { label:'Orders', data: ts.orders, borderColor:'#3b82f6', backgroundColor:'#bfdbfe', tension:0.35 }, { label:'Conversions', data: ts.conversions, borderColor:'#10b981', backgroundColor:'#bbf7d0', tension:0.35 } ] }, options:{ responsive:true, maintainAspectRatio:false, scales:{ y:{ beginAtZero:true } }, plugins:{ legend:{ position:'top' } } } }); }
+            const canvasDonut = document.getElementById('smallDonut'); if (canvasDonut){ const k = state.data && state.data.kpis ? state.data.kpis : {}; const deliveryPct = (k.confirmed_orders && k.delivered_orders) ? (k.delivered_orders / k.confirmed_orders * 100) : 0; state.charts.donut = new Chart(canvasDonut, { type:'doughnut', data:{ labels:['Delivery','Remaining'], datasets:[{ data:[deliveryPct, Math.max(0,100-deliveryPct)], backgroundColor:['#6366f1','#e5e7eb'] }] }, options:{ responsive:true, maintainAspectRatio:false, plugins:{ legend:{ display:false }, tooltip:{ callbacks:{ label: (ctx)=> ctx.label + ': ' + Number(ctx.raw).toFixed(1) + '%' } } }} }); }
+          }
+        
+          function updateCharts(){ if (!state.charts.main && !state.charts.donut){ initCharts(); return; } const ts = generateTimeSeriesFromOrders(state.data && state.data.orders ? state.data.orders : [], state.periodDays); if (state.charts.main){ state.charts.main.data.labels = ts.labels; if (Array.isArray(state.charts.main.data.datasets) && state.charts.main.data.datasets.length>=2){ state.charts.main.data.datasets[0].data = ts.orders; state.charts.main.data.datasets[1].data = ts.conversions; } state.charts.main.update(); } if (state.charts.donut){ const k = state.data && state.data.kpis ? state.data.kpis : {}; const deliveryPct = (k.confirmed_orders && k.delivered_orders) ? (k.delivered_orders / k.confirmed_orders * 100) : 0; state.charts.donut.data.datasets[0].data = [deliveryPct, Math.max(0,100-deliveryPct)]; state.charts.donut.update(); } }
+        
+          // ---------- Network helpers ----------
+          async function fetchWithRetry(url, opts={}, retries=2, backoff=400){ for (let attempt=0; attempt<=retries; attempt++){ try{ const res = await fetch(url, opts); if (!res.ok){ if (res.status>=400 && res.status<500) throw new Error(`HTTP ${res.status}`); throw new Error('HTTP '+res.status); } return await res.json(); } catch(err){ if (attempt===retries) throw err; await new Promise(r=>setTimeout(r, backoff*Math.pow(2,attempt))); } } }
+        
+          async function fetchDashboardData(){ const platform = encodeURIComponent(state.selectedPlatform || 'all'); const period = encodeURIComponent(state.periodDays || 7); const url = `/discount/marketing/api/dashboard-data?platform=${platform}&period=${period}`; try{ const payload = await fetchWithRetry(url, { credentials:'same-origin' }, 2, 400);  return payload; } catch(e){ console.warn('fetchDashboardData failed, using empty mock', e); return { kpis:{spend:0,total_orders:0,confirmation_rate:0,delivery_rate:0}, orders:[], campaigns:[], visits:[], last_update: new Date().toISOString() }; } }
+        
+          async function ajaxFetchOrders(endpoint='/discount/marketing/api/fetch-orders/', body={}){
+            const btn = document.getElementById('refreshBtn'); if (btn){ btn.disabled = true; btn.dataset.prevText = btn.innerText; btn.innerText = '🔄 Refreshing...'; }
+            try{
+              const res = await fetch(endpoint, { method:'POST', credentials:'same-origin', headers:{ 'Content-Type':'application/json', 'X-CSRFToken': getCookie('csrftoken') }, body: JSON.stringify(body) });
+              const text = await res.text(); let json = null; try{ json = text ? JSON.parse(text) : null; }catch(e){ json = null; }
+              if (!res.ok) throw new Error(`HTTP ${res.status} ${res.statusText} — ${text}`);
+              return json;
+            } finally {
+              if (btn){ btn.disabled = false; btn.innerText = btn.dataset.prevText || '🔄 Refresh'; delete btn.dataset.prevText; }
+            initCharts();
+            }
+          }
+        
+          // ---------- Main refresh ----------
+          function prepareVisitsMap(payload){ const visitsMap = {}; if (payload.visits && Array.isArray(payload.visits)){ payload.visits.forEach(v => { const key = v.utm_campaign || v.campaign || v.campaign_name || ''; const cnt = v.count || v.visits || v.value || 0; if (key) visitsMap[key] = safeNum(cnt); }); } else if (payload.total_visits && typeof payload.total_visits === 'object'){ Object.assign(visitsMap, payload.total_visits); } return visitsMap; }
+        
+          async function refreshData(){ const btn = document.getElementById('refreshBtn'); if (btn){ btn.disabled = true; btn.dataset.prevText = btn.innerText; btn.innerText = '🔄 Refreshing...'; }
+            try{
+              const payload = await fetchDashboardData(); state.data = payload; 
+              const visitsMap = prepareVisitsMap(payload);
+              // extract orders or use campaigns directly
+              const ordersList = extractOrdersFromPayload(state.data);
+              let campaigns = [];
+              if (Array.isArray(state.data.campaigns) && state.data.campaigns.length>0){  campaigns = state.data.campaigns; }
+              else if (Array.isArray(ordersList) && ordersList.length>0){ campaigns = convertOrdersToCampaigns(ordersList, visitsMap); }
+              else { campaigns = []; }
+              // apply filter
+              // Backend already returns data for the selected platform/period; no client-side filter needed
+              renderKPIs(state.data.kpis || {}); renderPlatformBadge(state.selectedPlatform); renderTable(campaigns, visitsMap);
+              // charts
+              updateCharts();
+              const last = document.getElementById('lastUpdate'); if (last) last.innerText = 'Last update: ' + (state.data.last_update || new Date().toISOString());
+               
+            } catch(err){ console.error('خطأ في تحديث البيانات:', err); alert('Error fetching dashboard data: ' + (err.message || err)); }
+            finally{ if (btn){ btn.disabled = false; btn.innerText = btn.dataset.prevText || '🔄 Refresh'; delete btn.dataset.prevText; } }
+          }
+        
+          // ---------- Bind events ----------
+          function bindEvents(){
+            var refreshBtn = document.getElementById('refreshBtn');
+            if (refreshBtn) refreshBtn.addEventListener('click', async function(){ try{ await ajaxFetchOrders(); await refreshData(); } catch(e){ console.error('refresh click error', e); } });
+            var exportBtn = document.getElementById('exportBtn');
+            if (exportBtn) exportBtn.addEventListener('click', function(){ exportVisibleTableToCSV(); });
+            var platformSelect = document.getElementById('platformSelect');
+            if (platformSelect) {
+              platformSelect.addEventListener('change', function(e){
+                state.selectedPlatform = e.target.value || 'all';
+                refreshData().catch(function(err){ console.warn('Platform filter refresh failed:', err); });
+              });
+            }
+            var periodSelect = document.getElementById('periodSelect');
+            if (periodSelect) {
+              periodSelect.addEventListener('change', function(e){
+                state.periodDays = parseInt(e.target.value, 10) || 7;
+                refreshData().catch(function(err){ console.warn('Period filter refresh failed:', err); });
+              });
+            }
+            var refreshInline = document.getElementById('refreshBtnInline');
+            if (refreshInline) refreshInline.addEventListener('click', function(){ var r = document.getElementById('refreshBtn'); if (r) r.click(); });
+          }
+        
+          // ---------- Export CSV ----------
+          function exportVisibleTableToCSV(filename = 'campaigns.csv'){ const rows = [['Campaign Name','Campaign ID','Orders','Confirmed','Delivery Rate','Visitors','Conversion Rate']]; (state.data && state.data.campaigns ? state.data.campaigns : []).forEach(c => { rows.push([c.campaign_name||'', c.campaign_id||'', c.orders||0, c.confirmed_orders||0, formatPercent(c.delivery_rate||0), c.visits||0, (typeof c.conversion_by_visits!=='undefined' && c.conversion_by_visits!==null) ? formatPercent(c.conversion_by_visits) : (typeof c.conversion_by_orders!=='undefined' && c.conversion_by_orders!==null) ? formatPercent(c.conversion_by_orders) : '-']); }); const csv = rows.map(r => r.map(v => `"${String(v).replace(/"/g,'""')}"`).join(',')).join('\n'); const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' }); const link = document.createElement('a'); link.href = URL.createObjectURL(blob); link.download = filename; link.style.display = 'none'; document.body.appendChild(link); link.click(); document.body.removeChild(link); }
+        
+          // ---------- Init ----------
+          document.addEventListener('DOMContentLoaded', function(){ bindEvents(); // initial render (empty or mock)
+            renderKPIs({}); renderTable([]); initCharts(); // try to fetch real data
+            refreshData().catch(err=> console.warn('Initial refresh failed:', err)); });
+          </script>
+        
+        <!-- reccomondations script -->
+        
+        
+        <script>
+        (function(){
+          // ----------------- Helpers -----------------
+        function escapeHtml(str){
+          if (str === null || str === undefined) return '';
+          return String(str).replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;').replaceAll('"','&quot;');
+        }
+        
+        function formatPercent(x){
+          if (x === null || x === undefined || isNaN(Number(x))) return '-';
+          return (Number(x) * 100).toFixed(1) + '%';
+        }
+          function safeNum(v){ return Number(v || 0); }
+        
+          function getCookie(name) {
+            const v = document.cookie.match('(^|;)\\s*' + name + '\\s*=\\s*([^;]+)');
+            return v ? v.pop() : '';
+          }
+        
+          // ----------------- Renderers (must be defined BEFORE fetch) -----------------
+          function renderPlatformComparisons(platforms_summary) {
+            const container = document.getElementById('platformComparisons');
+            if (!container) return;
+            container.innerHTML = '';
+            const keys = Object.keys(platforms_summary || {});
+            if (keys.length === 0) {
+              container.innerHTML = '<div class="tiny text-gray-500">No platform data available.</div>';
+              return;
+            }
+        
+            const table = document.createElement('table');
+            table.className = 'min-w-full divide-y';
+            table.innerHTML = `<thead><tr class="tiny text-gray-600">
+                <th class="px-2 py-1 text-left">Platform</th>
+                <th class="px-2 py-1 text-center">Visits</th>
+                <th class="px-2 py-1 text-center">Confirmed</th>
+                <th class="px-2 py-1 text-center">Conv Rate</th>
+                <th class="px-2 py-1 text-center">Delivery Rate</th>
+                <th class="px-2 py-1 text-center">Avg CPA</th>
+              </tr></thead>`;
+            const tbody = document.createElement('tbody');
+            keys.forEach(k => {
+              const s = platforms_summary[k] || {};
+              const tr = document.createElement('tr');
+              tr.className = 'bg-white';
+              tr.innerHTML = `<td class="px-2 py-1 text-left font-medium">${escapeHtml(k)}</td>
+                <td class="px-2 py-1 text-center">${safeNum(s.visits)}</td>
+                <td class="px-2 py-1 text-center">${safeNum(s.confirmed)}</td>
+                <td class="px-2 py-1 text-center">${formatPercent(s.conversion_rate||0)}</td>
+                <td class="px-2 py-1 text-center">${formatPercent(s.delivery_rate||0)}</td>
+                <td class="px-2 py-1 text-center">${s.avg_cpa ? '$' + Number(s.avg_cpa).toFixed(2) : '-'}</td>`;
+              tbody.appendChild(tr);
+            });
+            table.appendChild(tbody);
+            container.appendChild(table);
+          }
+        
+          function renderGranularRecommendations(recs) {
+            const container = document.getElementById('recommendations');
+            if (!container) return;
+            container.innerHTML = '';
+            if (!Array.isArray(recs) || recs.length === 0) {
+              container.innerHTML = '<div class="tiny text-gray-500">No recommendations at this time (not enough signal).</div>';
+              return;
+            }
+            recs.forEach(r => {
+              const card = document.createElement('div');
+              card.className = 'bg-gray-50 p-3 rounded';
+              const title = document.createElement('div');
+              title.className = 'flex justify-between items-start';
+              const left = document.createElement('div');
+              left.innerHTML = `<div class="font-medium">${escapeHtml((r.type||'').replace(/_/g,' '))} ${r.platform ? ' — ' + escapeHtml(r.platform) : ''} ${r.campaign ? ' — ' + escapeHtml(r.campaign) : ''}</div>
+                                <div class="tiny text-gray-600 mt-1">${escapeHtml(r.reason || '')}</div>`;
+              const right = document.createElement('div');
+              right.className = 'tiny text-gray-500 text-right';
+              right.innerHTML = `Score: <strong>${Math.round(r.score||0)}</strong><br>Confidence: <strong>${Math.round((r.confidence||0)*100)}%</strong>`;
+              title.appendChild(left); title.appendChild(right);
+              card.appendChild(title);
+        
+              // actions
+              const actions = document.createElement('div');
+              actions.className = 'mt-2 flex gap-2';
+              const actBtn = document.createElement('button');
+              actBtn.className = 'px-3 py-1 bg-blue-600 text-white rounded text-sm';
+              actBtn.innerText = (r.suggested_action && r.suggested_action.action) ? 'Suggest Action' : 'Log';
+              actBtn.addEventListener('click', function(){ applyRecommendation(r.id, r); });
+              const detailsBtn = document.createElement('button');
+              detailsBtn.className = 'px-3 py-1 bg-gray-200 rounded text-sm';
+              detailsBtn.innerText = 'Details';
+              detailsBtn.addEventListener('click', function(){
+                let d = card.querySelector('.rec-details');
+                if (!d) {
+                  d = document.createElement('div');
+                  d.className = 'rec-details mt-3 tiny text-gray-700';
+                  d.innerHTML = '<pre>' + escapeHtml(JSON.stringify(r.explanation || r, null, 2)) + '</pre>';
+                  card.appendChild(d);
+                } else {
+                  d.style.display = d.style.display === 'none' ? 'block' : 'none';
+                }
+              });
+              actions.appendChild(actBtn); actions.appendChild(detailsBtn);
+              card.appendChild(actions);
+        
+              container.appendChild(card);
+            });
+          }
+        
+        
+        
+         /* Enhanced recommendation renderer — use instead of older renderGranularRecommendations.
+           يفترض وجود:
+           - عنصر DOM id="recommendations" (حاوية التوصيات)
+           - دالة applyRecommendation(id, payload) مُعرّفة (أو تُستخدم الدالة الموجودة)
+           - دالة ignoreRecommendation(id) مُعرّفة
+           - helper escapeHtml, formatPercent متاحة (أعد تعريفها إن لم تكن موجودة)
+        */
+         
+        
+        // small toast utility to show feedback to user
+        function createToast(message, type = 'info', timeout = 3500){
+          const wrapId = 'toast-wrap';
+          let wrap = document.getElementById(wrapId);
+          if (!wrap){
+            wrap = document.createElement('div');
+            wrap.id = wrapId;
+            wrap.style.position = 'fixed';
+            wrap.style.right = '20px';
+            wrap.style.bottom = '20px';
+            wrap.style.zIndex = 1200;
+            document.body.appendChild(wrap);
+          }
+          const colors = { info:'bg-blue-600', success:'bg-green-600', warn:'bg-yellow-600', error:'bg-red-600' };
+          const el = document.createElement('div');
+          el.className = `${colors[type] || colors.info} text-white px-4 py-2 rounded shadow mb-2 tiny`;
+          el.innerText = message;
+          wrap.appendChild(el);
+          setTimeout(()=> { el.style.opacity = '0'; setTimeout(()=> el.remove(), 300); }, timeout);
+          return el;
+        }
+        
+        // color mapping to visually distinguish types
+        const REC_TYPE_STYLE = {
+          platform_outperforming: { color: 'bg-gradient-to-r from-green-400 to-green-600', icon: '📈' },
+          reallocate_from_to: { color: 'bg-gradient-to-r from-yellow-400 to-yellow-600', icon: '🔁' },
+          placement_prefer: { color: 'bg-gradient-to-r from-indigo-400 to-indigo-600', icon: '📌' },
+          investigate_shipping: { color: 'bg-gradient-to-r from-red-400 to-red-600', icon: '🚚' },
+          scale_campaign_on_platform: { color: 'bg-gradient-to-r from-purple-400 to-purple-600', icon: '🚀' },
+          debug_sample: { color: 'bg-gradient-to-r from-gray-400 to-gray-600', icon: '🧪' }
+        };
+        function renderGranularRecommendationsPro(recs) {
+          const container = document.getElementById('recommendations');
+          if (!container) return;
+          container.innerHTML = '';
+        
+          if (!Array.isArray(recs) || recs.length === 0) {
+            container.innerHTML = `<div class="p-4 tiny text-gray-600">No recommendations at this time (not enough signal).</div>`;
+            return;
+          }
+        
+          const grid = document.createElement('div');
+          grid.className = 'rec-grid';
+        
+          recs.forEach((r, idx) => {
+            const style = REC_TYPE_STYLE[r.type] || { color: 'bg-gray-400', icon: '💡' };
+        
+            const card = document.createElement('article');
+            card.className = 'rec-card';
+            card.setAttribute('role','article');
+            card.setAttribute('aria-labelledby', `rec-title-${idx}`);
+        
+            // header row
+            const header = document.createElement('div');
+            header.className = 'rec-header';
+        
+            const accent = document.createElement('div');
+            accent.className = 'rec-accent';
+            // use provided color class if present, else fallback solid color
+            if (style.color && style.color.startsWith('bg-')) {
+              accent.className = 'rec-accent ' + style.color;
+            } else {
+              accent.style.background = style.color || '#6b7280';
+            }
+            accent.innerText = style.icon || '💡';
+            header.appendChild(accent);
+        
+            const meta = document.createElement('div');
+            meta.className = 'rec-meta';
+            const title = document.createElement('h4');
+            title.id = `rec-title-${idx}`;
+            title.className = 'rec-title';
+            const platformPart = r.platform ? ` — ${escapeHtml(r.platform)}` : '';
+            const campaignPart = r.campaign ? ` — ${escapeHtml(r.campaign)}` : '';
+            title.innerText = `${(r.type||'Recommendation').replace(/_/g,' ')}${platformPart}${campaignPart}`;
+            meta.appendChild(title);
+        
+            const sub = document.createElement('div');
+            sub.className = 'rec-sub';
+            sub.innerText = r.reason || (r.explanation && r.explanation.summary) || '';
+            meta.appendChild(sub);
+        
+            // badges: sample size, score, suggested action summary
+            const badges = document.createElement('div');
+            badges.className = 'rec-badges';
+            const scoreBadge = document.createElement('div');
+            scoreBadge.className = 'rec-badge';
+            scoreBadge.innerText = `Score ${Math.round(r.score||0)}`;
+            badges.appendChild(scoreBadge);
+        
+            if (r.explanation && r.explanation.platform_stats && r.explanation.platform_stats.visits){
+              const sampleBadge = document.createElement('div');
+              sampleBadge.className = 'rec-badge';
+              sampleBadge.innerText = `Sample ${r.explanation.platform_stats.visits} visits`;
+              badges.appendChild(sampleBadge);
+            }
+            if (r.suggested_action && r.suggested_action.action){
+              const actionBadge = document.createElement('div');
+              actionBadge.className = 'rec-badge';
+              actionBadge.innerText = r.suggested_action.action + (r.suggested_action.by_percent ? ` • ${r.suggested_action.by_percent}%` : '');
+              badges.appendChild(actionBadge);
+            }
+            meta.appendChild(badges);
+        
+            header.appendChild(meta);
+            card.appendChild(header);
+        
+            // confidence bar row
+            const confWrap = document.createElement('div');
+            confWrap.className = 'conf-wrap';
+            const confPct = Math.round((r.confidence||0)*100);
+            const confPercent = document.createElement('div');
+            confPercent.className = 'conf-percent';
+            confPercent.innerText = `${confPct}%`;
+            const confBar = document.createElement('div');
+            confBar.className = 'conf-bar';
+            const confFill = document.createElement('div');
+            confFill.className = 'conf-fill';
+            // animate width after inserted
+            confFill.style.width = '0%';
+            confBar.appendChild(confFill);
+            confWrap.appendChild(confPercent);
+            confWrap.appendChild(confBar);
+            card.appendChild(confWrap);
+        
+            // suggested action text (small)
+            const actionText = document.createElement('div');
+            actionText.className = 'tiny text-gray-700';
+            if (r.suggested_action && r.suggested_action.action) {
+              actionText.innerHTML = `<strong>Action:</strong> ${escapeHtml(r.suggested_action.action)} ${r.suggested_action.by_percent ? `— ${r.suggested_action.by_percent}%` : ''}`;
+            } else {
+              actionText.innerHTML = `<span class="text-gray-400">No direct action suggested</span>`;
+            }
+            card.appendChild(actionText);
+        
+            // actions row (Apply / Ignore / Details)
+            const actions = document.createElement('div');
+            actions.className = 'rec-actions';
+            const applyBtn = document.createElement('button');
+            applyBtn.className = 'btn-rec btn-rec-apply';
+            applyBtn.innerText = 'Apply';
+            applyBtn.addEventListener('click', () => applyRecommendation(r.id || `rec-${idx}`, r));
+        
+            const ignoreBtn = document.createElement('button');
+            ignoreBtn.className = 'btn-rec btn-rec-ignore';
+            ignoreBtn.innerText = 'Ignore';
+            ignoreBtn.addEventListener('click', () => {
+              if (confirm('Ignore this recommendation?')) {
+                if (typeof ignoreRecommendation === 'function') ignoreRecommendation(r.id || `rec-${idx}`);
+                else createToast('Ignored (local)'); // fallback
+              }
+            });
+        
+            const detailsToggle = document.createElement('button');
+            detailsToggle.className = 'btn-rec btn-rec-details';
+            detailsToggle.innerText = 'Details';
+            detailsToggle.addEventListener('click', () => {
+              const open = detailsBlock.classList.toggle('rec-details-open');
+              if (open) detailsToggle.setAttribute('aria-expanded','true'); else detailsToggle.setAttribute('aria-expanded','false');
+            });
+        
+            actions.appendChild(applyBtn);
+            actions.appendChild(ignoreBtn);
+            actions.appendChild(detailsToggle);
+            card.appendChild(actions);
+        
+            // details block (calculation + explanation) — collapsed by default
+            const detailsBlock = document.createElement('div');
+            detailsBlock.className = 'rec-details-block';
+            // Build human-friendly explanation if exists
+            let explanationHtml = '';
+            if (r.explanation) {
+              // If platform_stats exist, show numbers
+              if (r.explanation.platform_stats) {
+                const ps = r.explanation.platform_stats;
+                explanationHtml += `<div><strong>Platform stats:</strong> visits: ${ps.visits||0}, confirmed: ${ps.confirmed||0}, delivered: ${ps.delivered||0}, conv_rate: ${formatPercent(ps.conversion_rate|| (ps.confirmed && ps.visits ? ps.confirmed/ps.visits : 0))}, delivery_rate: ${formatPercent(ps.delivery_rate|| (ps.delivered && ps.confirmed ? ps.delivered/ps.confirmed : 0))}</div>`;
+              }
+              // If campaign_raw or other calc steps exist, pretty-print them
+              if (r.explanation.campaign_raw) {
+                explanationHtml += `<div style="margin-top:8px;"><strong>Campaign breakdown:</strong><pre style="white-space:pre-wrap; margin:6px 0 0 0;">${escapeHtml(JSON.stringify(r.explanation.campaign_raw, null, 2))}</pre></div>`;
+              } else {
+                // fallback: full explanation object
+                explanationHtml += `<pre style="white-space:pre-wrap">${escapeHtml(JSON.stringify(r.explanation, null, 2))}</pre>`;
+              }
+            } else {
+              explanationHtml = '<div class="tiny text-gray-500">No detailed explanation available.</div>';
+            }
+            detailsBlock.innerHTML = explanationHtml;
+            card.appendChild(detailsBlock);
+        
+            // append card to grid
+            grid.appendChild(card);
+        
+            // small deferred animation: set width after appended
+            requestAnimationFrame(() => {
+              confFill.style.width = `${confPct}%`;
+            });
+          });
+        
+          container.appendChild(grid);
+        }
+        
+        
+        
+        
+          // ----------------- Actions (apply/ignore) -----------------
+          const RECOMMENDATION_ACTION_ENDPOINT = '/discount/marketing/api/recommendation-action/'; // عدّل إذا لزم
+        
+          async function applyRecommendation(recId, recPayload) {
+            if (!confirm(`Apply suggested action for rec ${recId}?`)) return;
+            try {
+              const res = await fetch(RECOMMENDATION_ACTION_ENDPOINT, {
+                method: 'POST',
+                credentials: 'same-origin',
+                headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCookie('csrftoken') },
+                body: JSON.stringify({ action: 'apply', id: recId, payload: recPayload })
+              });
+              if (!res.ok) throw new Error('HTTP ' + res.status);
+              const data = await res.json();
+              alert('Action applied: ' + (data.message || 'OK'));
+              fetchAndRenderRecommendations(); // refresh
+            } catch (err) {
+              console.error('applyRecommendation error', err);
+              alert('Failed to apply recommendation: ' + (err.message || err));
+            }
+          }
+        
+          async function ignoreRecommendation(recId) {
+            if (!confirm('Ignore this recommendation?')) return;
+            try {
+              const res = await fetch(RECOMMENDATION_ACTION_ENDPOINT, {
+                method: 'POST',
+                credentials: 'same-origin',
+                headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCookie('csrftoken') },
+                body: JSON.stringify({ action: 'ignore', id: recId })
+              });
+              if (!res.ok) throw new Error('HTTP ' + res.status);
+              const data = await res.json();
+              alert('Recommendation ignored');
+              fetchAndRenderRecommendations(); // refresh
+            } catch (err) {
+              console.error('ignoreRecommendation error', err);
+              alert('Failed to ignore recommendation: ' + (err.message || err));
+            }
+          }
+        
+          // ----------------- Fetch + render wrapper -----------------
+          const RECOMMENDATIONS_ENDPOINT_BASE = '/discount/marketing/api/analytics-with-recommendations';
+        
+          async function fetchAndRenderRecommendations(options = {}) {
+            const platform = encodeURIComponent(options.platform || (window.state && window.state.selectedPlatform) || 'all');
+            const period = encodeURIComponent(options.period || (window.state && window.state.periodDays) || 30);
+            const url = `${RECOMMENDATIONS_ENDPOINT_BASE}?platform=${platform}&period=${period}`;
+        
+            const containerPlatforms = document.getElementById('platformComparisons');
+            const containerRecs = document.getElementById('recommendations');
+            if (containerPlatforms) containerPlatforms.innerHTML = '<div class="tiny text-gray-500">Loading platform comparisons...</div>';
+            if (containerRecs) containerRecs.innerHTML = '<div class="tiny text-gray-500">Loading recommendations...</div>';
+        
+            try {
+              const res = await fetch(url, { credentials: 'same-origin' });
+              const txt = await res.text();
+              let payload;
+              try {
+                payload = JSON.parse(txt);
+              } catch (e) {
+                console.error('Response is not JSON', e);
+                throw new Error('Invalid JSON from server. See raw response in console.');
+              }
+        
+              const platforms_summary = payload.platforms_summary || payload.platforms || {};
+              const recs = payload.recommendations || [];
+        
+              renderPlatformComparisons(platforms_summary);
+              // renderGranularRecommendations(recs);
+              renderGranularRecommendationsPro(recs);
+        
+              // optional state update
+              if (!window.state) window.state = {};
+              window.state.platforms_summary = platforms_summary;
+              window.state.recommendations = recs;
+        
+            } catch (err) {
+              console.error('fetchAndRenderRecommendations error', err);
+              if (containerPlatforms) containerPlatforms.innerHTML = '<div class="tiny text-red-500">Failed to load platform data</div>';
+              if (containerRecs) containerRecs.innerHTML = '<div class="tiny text-red-500">Failed to load recommendations</div>';
+            }
+          }
+        
+          // ----------------- Init on DOM ready -----------------
+          document.addEventListener('DOMContentLoaded', function(){
+            // initial fetch (containers live in .main-content-area above)
+            fetchAndRenderRecommendations();
+        
+            // wire refresh button if exists
+            const refreshBtn = document.getElementById('refreshBtn');
+            if (refreshBtn) {
+              refreshBtn.addEventListener('click', function() {
+                fetchAndRenderRecommendations();
+              });
+            }
+          });
+        
+        })(); // end IIFE
+        </script>
+        
+      
+           <div class="section-content" id="order-tracking-section" style="overflow: auto; height: auto; ">
+            {% if orders %}
+            <div class="card">
+                <div class="card-header">
+                    <i class="fas fa-shipping-fast"></i> Order Tracking
+                </div>
+                <div class="card-body">
+
+                    <div class="search-box mb-4 custom-search-input">
+
+                     <div class="filters-container p-3" style="background: var(--surface-soft); border-radius: 10px; border: 1px solid var(--border-card);">
+
+    <!-- Search bar -->
+    <div class="d-flex mb-3 gap-2 flex-wrap">
+        <div class="flex-grow-1 position-relative">
+            <input type="text"
+                   id="live-search-input"
+                   class="form-control form-control-sm"
+                   placeholder="Search by phone, name, or tracking number..."
+                   autocomplete="off"
+                   style="border-radius: 6px; padding-left: 35px;">
+            <i class="fas fa-search position-absolute" style="top: 50%; left: 10px; transform: translateY(-50%); color: #aaa;"></i>
+        </div>
+
+
+    </div>
+
+    <!-- Filters row -->
+    <div class="row g-2 align-items-center w-100">
+        <div class="col-md-2 col-sm-6">
+            <select class="form-select form-select-sm" id="status-filter" style="border-radius: 6px;">
+                <option value="">All Statuses</option>
+                <option value="Pending">Pending</option>
+                <option value="Delivered">Delivered</option>
+                <option value="Return">Returned</option>
+            </select>
+        </div>
+
+        <div class="col-md-2 col-sm-6">
+            <select class="form-select form-select-sm" id="period-filter" style="border-radius: 6px;">
+                <option value="All">All time</option>
+                <option value="today">Today</option>
+                <option value="week">This week</option>
+                <option value="month">This month</option>
+                <option value="custom">Custom</option>
+            </select>
+        </div>
+
+        <div id="custom-date-range" class="col-md-6 col-sm-12 d-none d-flex gap-2 mt-2 mt-md-0">
+            <input type="text" class="form-control form-control-sm" id="start-date-filter" placeholder="Start Date" style="border-radius: 6px;">
+            <input type="text" class="form-control form-control-sm" id="end-date-filter" placeholder="End Date" style="border-radius: 6px;">
+        </div>
+
+        <div class="col-md-2 col-sm-6">
+            <select class="form-select form-select-sm" id="product-filter" style="border-radius: 6px;">
+                <option value="">All Products</option>
+                {% for product in productslist %}
+                <option value="{{ product.sku }}" data-product-id="{{ product.id }}">{{ product.name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="col-md-2 col-sm-6">
+           <select class="form-select form-select-sm" id="country-filter" style="border-radius: 6px;">
+    <option value="">All Country</option>
+    {% for country in countries %}
+        <option value="{{ country }}">{{ country }}</option>
+    {% endfor %}
+</select>
+
+        </div>
+
+        <div class="col-md-2 col-sm-6 d-flex justify-content-start mt-2 mt-md-0">
+            <button type="button" id="apply-filters-btn" class="btn btn-sm" style="color: white; background-color: #4CAF50; border-radius: 6px; padding: 5px 15px;">
+             <i class="fas fa-search"></i>    Search
+            </button>
+        </div>
+                <div class="col-md-2 col-sm-2 d-flex justify-content-start mt-2 mt-md-0 d-flex" style="flex-direction: row-reverse;">
+   <button type="button" id="refresh-orders-btn" class="btn btn-outline-secondary btn-sm" title="Refresh Orders" style="border-radius: 6px;">
+            <i class="fas fa-sync-alt" id="refresh-orders-icon"></i> Refresh
+        </button>
+    </div>
+    </div>
+
+</div>
+
+                    </div>
+
+
+
+
+
+ <div class="row g-0">
+    <div class="col-lg-8">
+
+                            <div id="search-results-container" class="card h-100 rounded-start-lg rounded-end-0">
+
+                                <div class="card-header">
+                                    <i class="fas fa-list me-2"></i> Orders List
+
+
+                                </div>
+
+
+                                <div class="card-body p-0" id="settablehere"> {% if orders %}
+                                    <div class="table-responsive">
+                                        <table class="table custom-table mb-0">
+                                            <thead>
+                                                <tr>
+                                                    <th width="18%" class="ps-3">
+                                                        <i class="fas fa-barcode me-1"></i>
+                                                        Tracking Number
+                                                    </th>
+                                                    <th width="22%" class="{% if not request.user.is_is_team_admin %}d-none{% endif %}">
+                                                        <i class="fas fa-user me-1"></i>
+                                                        Customer
+                                                    </th>
+
+                                                    <th width="18%">
+                                                        <i class="fas fa-phone me-1"></i>
+                                                        Phone
+                                                    </th>
+                                                    <th width="25%">
+                                                        <i class="fas fa-cube me-1"></i>
+                                                        Product
+                                                    </th>
+                                                    <th width="17%" class="text-center">
+                                                        <i class="fas fa-info-circle me-1"></i>
+                                                        Status
+                                                    </th>
+
+                                                    <th width="17%" class="text-center  {% if request.user.is_is_team_admin %}d-none{% endif %}">
+                                                        <i class="fas fa-info-circle me-1"></i>
+                                                        Price
+                                                    </th>
+
+                                                </tr>
+                                            </thead>
+                                            <script>
+                                         // دالة لتحديث جدول الطلبات عند وصول رسالة
+function highlightOrderRow(phone) {
+    if (!phone) return;
+    const normalizedPhone = phone.replace(/^\+/, '').replace(/\s+/g, '');
+
+    // البحث عن السطر في الصفحة الحالية
+    const rows = document.querySelectorAll(`tr[data-customer-phone*="${normalizedPhone}"]`);
+    
+    let rowFound = false;
+
+    rows.forEach(row => {
+        const rowPhone = row.getAttribute('data-customer-phone').replace(/^\+/, '').replace(/\s+/g, '');
+        if (!rowPhone) return;
+        if (rowPhone === normalizedPhone) {
+            const badge = row.querySelector('.order-msg-badge');
+            if (badge) {
+                badge.style.display = 'inline-block';
+                rowFound = true; // وجدنا السطر!
+                
+                // حركة جمالية: وميض السطر بالكامل ليعرف الموظف مكانه
+                row.style.backgroundColor = '#f0fdf4';
+                setTimeout(() => row.style.backgroundColor = '', 1000);
+            }
+            else{
+               rowFound = false;
+            }
+        }
+    });
+
+    // 🔥 إذا لم نجد السطر (لأنه في صفحة أخرى)، نظهر تنبيهاً عاماً 🔥
+ 
+}
+
+
+// دالة بسيطة لإظهار تنبيه في زاوية الشاشة
+
+// CSS Animation للتنبيه
+const style = document.createElement('style');
+style.innerHTML = `
+@keyframes slideIn {
+    from { transform: translateX(100%); opacity: 0; }
+    to { transform: translateX(0); opacity: 1; }
+}`;
+document.head.appendChild(style);
+                                            </script>
+                                            <style>
+                                                /* تنسيق نقطة الإشعار في جدول الطلبات */
+.order-msg-badge {
+    display: none; /* مخفية افتراضياً */
+    width: 10px;
+    height: 10px;
+    background-color: #ef4444; /* لون أحمر */
+    border-radius: 50%;
+    margin-left: 8px;
+    box-shadow: 0 0 0 2px rgba(239, 68, 68, 0.2); /* هالة خفيفة */
+    animation: pulse-red 2s infinite;
+    vertical-align: middle;
+}
+
+@keyframes pulse-red {
+    0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7); }
+    70% { box-shadow: 0 0 0 6px rgba(239, 68, 68, 0); }
+    100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
+}
+                                            </style>
+                                            <tbody>
+                                                {% for order in orders %}
+                                                <tr class="order-row align-middle"  id="setfiltertable"
+                                                    data-tracking="{{ order.tracking_number }}"
+                                                    data-status="{{ order.status }}"
+data-company="{% if order.tracking_number|slice:":2" == "60" %}imile{% elif order.tracking_number|slice:":5" == "INJAZ" %}injaz{% else %}unknown{% endif %}"
+
+
+
+data-customer-name="{{ order.customer_name }}"
+                                                    data-customer-phone="{{ order.customer_phone }}"
+                                                    data-product-name="{{ order.product.name }}" 
+                                                    
+                                                    onclick="openChat('{{ order.customer_phone }}', '{{ order.customer_name }}' ,'{{ order.product.name }}' ,'{{ order.tracking_number }}' , '{{ order.sku }}' , '{{ order.price }}')">
+                                                   
+                                                    <td class="ps-3 tracking-number-cell" data-label="Tracking Number">
+                                                        <div class="d-flex align-items-center">
+                                                            <span class="order-counter-badge me-2">
+                                                                {{ forloop.counter }}
+                                                            </span>
+                                                            <span class="tracking-number">
+                                                                {{ order.tracking_number }}
+                                                            </span>
+                                                            <button class="copy-btn ms-2"
+                                                                    data-tracking="{{ order.tracking_number }}"
+                                                                    title="Copy Number">
+                                                                <i class="far fa-copy"></i>
+                                                            </button>
+                                                        </div>
+                                                    </td>
+                                                   <td class="customer-name-cell  {% if not request.user.is_is_team_admin %}d-none{% endif %}" data-label="Customer">
+    <div class="d-flex align-items-center">
+        <div class="avatar me-2">
+            {{ order.customer_name|slice:":1"|upper }}
+        </div>
+        {{ order.customer_name|truncatechars:20 }}
+    </div>
+</td>
+
+
+                                                    <td class="font-monospace"  data-label="Phone">
+                                                        {{ order.customer_phone }}
+                                                       <script>
+                                                       </script>
+                                                        <span class="order-msg-badge"></span>
+
+                                                    </td>
+                                                    <td data-label="Product">
+                                                        <div class="d-flex align-items-center">
+                                                            <div>
+                                                                <div class="fw-bold">{{ order.product_name|truncatechars:25 }}</div>
+                                                                <small class="text-muted">SKU: {{ order.sku }}</small>
+                                                            </div>
+                                                        </div>
+                                                    </td>
+                                                    <td class="text-center" data-label="Status">
+                                                        <span class="status-badge status-{{ order.status|lower }}">
+                                                            {{ order.status }}
+                                                        </span>
+                                                    </td>
+                                                    <td class="text-center {% if request.user.is_is_team_admin %}d-none{% endif %}  " data-label="Status">
+                                                        <span class="white-badge">
+                                                            {{ order.price }} <span class="text-muted">{{order.currency}}</span>
+                                                        </span>
+                                                    </td>
+
+
+
+
+                                                </tr>
+
+
+
+                                                {% endfor %}
+                                            </tbody>
+ 
+                                        </table>
+       <nav aria-label="Page navigation" style="padding-top: 18px;">
+    <ul class="pagination justify-content-center">
+        {# زر السابق #}
+        {% if orders.has_previous %}
+        <li class="page-item">
+            <a class="page-link"
+               href="#" {# نستخدم # لأن JS سيتعامل مع النقر #}
+               data-order-page="{{ orders.previous_page_number }}" {# نحفظ رقم الصفحة في data-page #}
+               aria-label="Previous">
+                &laquo;
+            </a>
+        </li>
+        {% endif %}
+
+        {# أرقام الصفحات #}
+        {% for num in orders.paginator.page_range %}
+            {% if num >= orders.number|add:-2 and num <= orders.number|add:2 %} {# عرض الصفحات القريبة من الحالية فقط #}
+                <li class="page-item {% if num == orders.number %}active{% endif %}">
+                    <a class="page-link"
+                       href="#" {# نستخدم # لأن JS سيتعامل مع النقر #}
+                       data-order-page="{{ num }}" {# نحفظ رقم الصفحة في data-page #}
+                       aria-label="Page {{ num }}">
+                       {{ num }}
+                    </a>
+                </li>
+            {% elif num == orders.paginator.page_range.0 and num != orders.number|add:-2 %} {# عرض الصفحة الأولى إذا كانت بعيدة #}
+                <li class="page-item">
+                    <a class="page-link" href="#" data-order-page="{{ num }}">{{ num }}</a>
+                </li>
+                {% if orders.number|add:-2 > orders.paginator.page_range.0|add:1 %}
+                    <li class="page-item disabled"><span class="page-link">...</span></li>
+                {% endif %}
+            {% elif num == orders.paginator.page_range|last and num != orders.number|add:2 %} {# عرض الصفحة الأخيرة إذا كانت بعيدة #}
+                {% if orders.number|add:2 < orders.paginator.page_range|last|add:-1 %}
+                    <li class="page-item disabled"><span class="page-link">...</span></li>
+                {% endif %}
+                <li class="page-item">
+                    <a class="page-link" href="#" data-order-page="{{ num }}">{{ num }}</a>
+                </li>
+            {% endif %}
+        {% endfor %}
+
+        {# زر التالي #}
+        {% if orders.has_next %}
+        <li class="page-item">
+            <a class="page-link"
+               href="#" {# نستخدم # لأن JS سيتعامل مع النقر #}
+               data-order-page="{{ orders.next_page_number }}" {# نحفظ رقم الصفحة في data-page #}
+               aria-label="Next">
+                &raquo;
+            </a>
+        </li>
+        {% endif %}
+    </ul>
+</nav>
+
+                                    </div>
+                                     {% else %}
+
+
+                                        <div class="no-orders-message" id="initial-orders-message">
+                                            <!-- <div> -->
+                                            <i class="fas fa-info-circle"></i>
+                                            <h5>No Orders Found---</h5>
+                                            <p>Start by searching or click an item to view details.</p>
+                                        <!-- </div> -->
+
+
+                                    {% endif %}
+
+                                <!-- </div> -->
+
+                            </div>
+
+
+
+
+
+
+                            </div>
+
+
+
+                        </div>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+                        <div class="col-lg-4 d-flex"> <div class="card flex-grow-1 rounded-end-lg rounded-start-0 border-start-0"> <div class="card-header">
+                                    <i class="fas fa-map-marked-alt me-2"></i> Tracking Details
+                                </div>
+<div class="d-flex gap-2 mb-3">
+    <button id="tracking-comp-btn" class="btn btn-sm activecard comp-btn" style="border-radius: 0px;
+    border: none;
+    border-bottom: 1px solid #343436;
+    color: #9d9d9d;
+">
+        Tracking
+    </button>
+    <button id="comp-analytics-btn" class="btn btn-sm comp-btn" style="border-radius: 0px;
+    border: none;
+    border-bottom: 1px solid #343436;
+    color: #9d9d9d;
+">
+        Analytics
+    </button>
+
+        <button id="chat-btn" class="btn btn-sm comp-btn" style="border-radius: 0px;border: none;border-bottom: 1px solid #343436;color: #9d9d9d;">
+        Chat
+    </button>
+</div>
+<div id="tracking-info-section">
+    <!-- معلومات الشحن الأصلية ستبقى هنا (كل ما بعد هذا العنصر) -->
+</div>
+<div id="chat-card-section" class="d-none comp-card chatcardup" >
+    <div class="card mt-3" style="padding:10px;">
+    {% include 'whatssap/chat.html' %}
+    </div>
+</div>
+
+<div id="analytics-card-section" class="d-none comp-card analyticscomp">
+    <div class="card mt-3">
+        <div class="card-header">
+            <i class="fas fa-chart-bar me-2"></i> Analytics Table
+        </div>
+        <div class="p-1">
+            <!-- هنا سيتم وضع جدول التحليلات لاحقاً -->
+            <!-- <div class="text-center text-muted py-4">
+
+                Analytics table will appear here.
+            </div> -->
+
+            <div class="shipping_table">
+
+            </div>
+        </div>
+    </div>
+</div>
+<style>
+    .dsfs32£:hover{
+text-decoration: underline ;
+    }
+    .activecard{
+
+    color: var(--text-light) !important;
+    border-bottom-color: var(--accent-color) !important;
+    background-color: rgba(255, 255, 255, 0.05);
+
+    }
+</style>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+
+     const comp_btn = document.querySelectorAll('.comp-btn');
+    const trackingBtn = document.getElementById('tracking-comp-btn');
+    const analyticsBtn = document.getElementById('comp-analytics-btn');
+    const trackingInfo = document.getElementById('tracking-info-section');
+    const analyticsCard = document.getElementById('analytics-card-section');
+
+    trackingBtn.addEventListener('click', function() {
+        trackingBtn.classList.add('active');
+        analyticsBtn.classList.remove('active');
+        trackingInfo.classList.remove('d-none');
+        analyticsCard.classList.add('d-none');
+    });
+
+    analyticsBtn.addEventListener('click', function() {
+        analyticsBtn.classList.add('active');
+        trackingBtn.classList.remove('active');
+        trackingInfo.classList.add('d-none');
+        analyticsCard.classList.remove('d-none');
+    });
+
+comp_btn.forEach(function(btn) {
+    btn.addEventListener('click', function() {
+        comp_btn.forEach(function(b) {
+            b.classList.remove('activecard');
+            // إخفاء جميع البطاقات
+            const comp_cards = document.querySelectorAll('.comp-card');
+            comp_cards.forEach(function(card) {
+                card.classList.add('d-none');
+            });
+        });
+        this.classList.add('activecard');
+        // إظهار البطاقة المرتبطة بالزر
+        if (this.id === 'tracking-comp-btn') {
+            document.querySelector('.analytics_sesty').classList.remove('d-none');
+
+        } else if (this.id === 'comp-analytics-btn') {
+            document.querySelector('.analyticscomp').classList.remove('d-none');
+        } else if (this.id == 'chat-btn')
+        document.querySelector('.chatcardup').classList.remove('d-none')
+    });
+
+    // Open chat from URL (e.g. from orders page: ?openChat=1&phone=...&name=...)
+    var urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.get('openChat') === '1') {
+      var phone = urlParams.get('phone') || '';
+      var name = urlParams.get('name') || '';
+      if (phone) {
+        var chatBtn = document.getElementById('chat-btn');
+        if (chatBtn) { chatBtn.classList.add('activecard'); chatBtn.click(); }
+        var chatCard = document.querySelector('.chatcardup');
+        if (chatCard) chatCard.classList.remove('d-none');
+        function tryOpenChat() {
+          if (typeof window.openChat === 'function') {
+            window.openChat(phone, name);
+            var inp = document.querySelector('.cls9999_chat_input_container');
+            if (inp && inp.classList.contains('d-none')) inp.classList.remove('d-none');
+            return;
+          }
+          setTimeout(tryOpenChat, 100);
+        }
+        setTimeout(tryOpenChat, 150);
+        try { history.replaceState({}, '', window.location.pathname); } catch (e) {}
+      }
+    }
+});
+
+});
+</script>
+
+
+<!-- set tracking compny data on the table -->
+<script>
+ document.addEventListener('DOMContentLoaded', function () {
+
+
+
+    function trackCompanyData(period , product  , country) {
+
+    var table;
+    let startDate = '';
+    let endDate = '';
+
+    if (period === 'custom') {
+    startDate = document.getElementById('start-date-filter').value;
+    endDate = document.getElementById('end-date-filter').value;
+    }
+
+
+    fetch('{% url "get_tracking_company_data" %}', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({period : period ,startDate:startDate , endDate:endDate , product : product , country : country})
+    })
+    .then(response => response.json())
+    .then(data => {
+        table = document.querySelector('.shipping_table');
+        const orders = data.orders || [];
+
+        function getCompany(tracking_number) {
+            if (!tracking_number) return { company: 'Progress', site: '' };
+            if (tracking_number.startsWith('60')) return { company: 'imile', site: 'https://www.imile.com/track/' };
+            if (tracking_number.startsWith('INJAZ')) return { company: 'injaz', site: 'https://injaz-express.com/' };
+            if (/^\d{7}$/.test(tracking_number)) return { company: 'bosta', site: 'https://bosta.co/tracking-shipments' };
+            if (tracking_number.startsWith('JTE')) return { company: 'jtexpress', site: 'https://www.jtexpress-sa.com/' };
+            if (tracking_number.startsWith('IQFTMM')) return { company: 'iqfulfillment', site: 'https://track.iqfulfillment.com/' };
+            if (tracking_number.startsWith('EDCO')) return { company: 'chronodiali', site: 'https://www.chronodiali.ma/' };
+            if (/^\d{11}$/.test(tracking_number)) return { company: 'aramex', site: 'https://www.aramex.com/' };
+            if (tracking_number.startsWith('YCST')) return { company: 'youcan', site: 'https://ship.youcan.shop/en/' };
+            if (tracking_number.startsWith('S')) return { company: 'starlinks', site: 'https://www.starlinks-me.com/' };
+            if (tracking_number.startsWith('CRDSAL')) return { company: 'spl', site: 'https://splonline.com.sa/en/' };
+            if (tracking_number.startsWith('SD')) return { company: 'shipa', site: 'https://shipa.com/track/' };
+            if (tracking_number.startsWith('ALSASAF')) return { company: 'logistiq', site: 'https://logistiq.io/delivery-services/' };
+            if (tracking_number.startsWith('FXP')) return { company: 'flowpl', site: 'https://www.flowpl.com/ship-portal/' };
+            if (tracking_number.startsWith('812')) return { company: 'tawssil', site: 'https://tracking.tawssil.ma/' };
+            if (tracking_number.startsWith('3')) return { company: 'naqel', site: 'https://new.naqelksa.com/en/sa/tracking/' };
+            return { company: 'unknown', site: '' };
+        }
+
+        const companyNames = {
+            imile: 'Imile',
+            injaz: 'Injaz Express',
+            bosta: 'Bosta',
+            jtexpress: 'J&T Express',
+            iqfulfillment: 'IQ Fulfillment',
+            chronodiali: 'Chrono Diali',
+            aramex: 'Aramex',
+            youcan: 'YouCan Ship',
+            starlinks: 'Starlinks',
+            spl: 'Saudi Post SPL',
+            shipa: 'Shipa Delivery',
+            logistiq: 'Logistiq',
+            flowpl: 'Flow PL',
+            tawssil: 'Tawssil',
+            naqel: 'Naqel Express' ,
+            Progress:'Progress'
+        };
+
+        const stats = {};
+        orders.forEach(order => {
+            const compData = getCompany(order.tracking_number);
+            if (!stats[compData.company]) {
+                stats[compData.company] = { name: compData.company, total: 0, delivered: 0, site: compData.site };
+            }
+            stats[compData.company].total += 1;
+            if (order.status && order.status.toLowerCase() === 'delivered') {
+                stats[compData.company].delivered += 1;
+            }
+        });
+
+        const companies = Object.values(stats).sort((a, b) => b.total - a.total);
+
+
+
+// Header
+let html = `<div class="shipping-stats-list" style="width:100%;margin-top:1rem;">`;
+
+// Header
+html += `
+    <div class="shipping-stat-header d-flex align-items-center justify-content-between py-2 px-3" style="
+        border-bottom: 2px solid var(--border-card);
+        background: rgba(255,255,255,0.04);
+        font-size: var(--font-size-sm);
+        color: #9d9d9d;
+        font-weight: 600;">
+        <div style="min-width: 110px;">Company</div>
+        <div style="min-width: 80px;">Total Orders</div>
+        <div style="min-width: 80px;">Delivery Rate</div>
+    </div>
+`;
+
+// Rows per company
+companies.forEach(comp => {
+    const rate = comp.total > 0 ? Math.round((comp.delivered / comp.total) * 100) : 0;
+    html += `
+        <div class="shipping-stat-row d-flex align-items-center justify-content-between py-3 px-3" style="
+            border-bottom: 1.5px solid var(--border-card);
+            background: rgba(255,255,255,0.02);
+            border-radius: 0;
+            font-size: var(--font-size-sm);
+            color: var(--text-light);
+            transition: background 0.2s;">
+            <div class="fw-bold" style="color: #e0e0e0; min-width: 110px;">
+                <a style="color: ${companyNames[comp.name] == 'Progress' ? '#00E676':'#e0e0e0'}; text-decoration:none;" href="${comp.site}" target="_blank">
+                    ${companyNames[comp.name] || comp.name}
+                </a>
+            </div>
+            <div style="font-weight: 500; color: var(--text-light); min-width: 80px;">
+                ${comp.total}
+            </div>
+            <div style="font-weight: 600; color: ${rate > 70 ? '#00E676' : '#ffc107'}; min-width: 80px;">
+                ${rate}%
+            </div>
+        </div>
+    `;
+});
+
+// إجمالي الكل
+let grandTotal = 0;
+let grandDelivered = 0;
+companies.forEach(comp => {
+    grandTotal += comp.total;
+    grandDelivered += comp.delivered;
+});
+const grandRate = grandTotal > 0 ? Math.round((grandDelivered / grandTotal) * 100) : 0;
+
+// صف الإجمالي
+html += `
+    <div class="shipping-stat-footer d-flex align-items-center justify-content-between py-3 px-3" style="
+        border-top: 2px solid var(--border-card);
+        background: rgba(255,255,255,0.08);
+        font-size: var(--font-size-sm);
+        font-weight: 700;
+        color: #ffffff;">
+        <div style="min-width: 110px;">Total</div>
+        <div style="min-width: 80px;">${grandTotal}</div>
+        <div style="min-width: 80px; color: ${grandRate > 70 ? '#00E676' : '#ffc107'};">${grandRate}%</div>
+    </div>
+`;
+
+html += `</div>`;
+table.innerHTML = html;
+
+    });
+
+
+
+
+// عند تحميل الصفحة
+  };
+   // ربط زر التحديث
+    document.getElementById('apply-filters-btn').addEventListener('click', function () {
+        // قراءة قيمة الفلتر الخاص بالفترة
+        const period = document.getElementById('period-filter').value || 'all';
+
+        // قراءة المنتج المحدد
+const productSelect = document.getElementById('product-filter');
+const selectedOption = productSelect.options[productSelect.selectedIndex];
+const productId = selectedOption.getAttribute('data-product-id') || 'all';
+if(productId == ''){
+    productId = 'all';
+}
+
+        // قراءة الدولة إذا كان عندك فلتر دولة
+const country = document.getElementById('country-filter').value || 'all';
+        // const country = countrySelect ? (countrySelect.value || 'all') : 'all';
+         // استدعاء الدالة مع القيم التي حددها المستخدم
+        trackCompanyData(period, productId, country);
+    });
+
+        trackCompanyData(period = 'all', productId='all', country = 'all');
+});
+
+
+
+</script>
+
+
+                                <div class="card-body d-flex flex-column comp-card analytics_sesty" style="padding: 2px !important;"> 
+                                    <div class="customer-info-display mb-4 p-3 rounded d-none" style="border: var(--border-width) solid var(--border-card); background-color: var(--surface-soft);">
+                                        <h6 class="mb-2 text-light" style="font-size: var(--font-size-sm);"><i class="fas fa-user me-2"></i>Customer: <span id="customer-name-display" class="fw-bold">Not Selected</span></h6>
+                                        <h6 class="mb-2 text-light" style="font-size: var(--font-size-sm);"><i class="fas fa-phone me-2"></i>Phone: <span id="customer-phone-display" class="font-monospace">Not Selected</span>
+                                            <a id="whatsapp-link" href="#" target="_blank" class="btn btn-sm ms-2" style="background-color: var(--accent-color); color: var(--background-primary); border-radius: var(--border-radius-sm); font-size: 0.75rem; padding: 0.2rem 0.6rem; line-height: 1;">
+                                                <i class="fab fa-whatsapp me-1"></i> WhatsApp
+                                            </a>
+                                        </h6>
+                                        <h6 class="mb-0 text-light" style="font-size: var(--font-size-sm);"><i class="fas fa-box-open me-2"></i>Product: <span id="product-name-display" class="fw-bold">Not Selected</span></h6>
+                                        <div class="tracking-number-display mt-2 ms-auto text-muted" style="font-size: var(--font-size-sm);">
+                                            Current ID: <span id="current-tracking-number" class="text-light">Not Selected</span>
+                                        </div>
+                                    </div>
+
+                                    <div class="iframe-container flex-grow-1 d-flex flex-column" id="tracking_info" style="padding: 1rem; border: var(--border-width) solid var(--border-card); border-radius: var(--border-radius-md); overflow:auto; height: 10px;">
+                                        <div class="showInjazresult  flex-grow-1 d-none"> </div>
+                                        <div class="no-tracking-selected text-center" id="initial-iframe-message">
+                                            <i class="fas fa-hand-pointer"></i>
+                                            <p>Select an order from the list to view its tracking information.</p>
+                                        </div>
+
+
+                                        <iframe id="tracking-iframe"
+                                                src=""
+                                                frameborder="0"
+                                                allowfullscreen
+                                                class="rounded d-none flex-grow-1"></iframe>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+
+
+
+                    </div>
+                </div>
+            </div>
+            {% else %}
+            <div class="empty-state-wrapper">
+                <div class="empty-state-card">
+                    <div class="empty-icon-container">
+                        <i class="fas fa-box-open"></i>
+                        <span class="notification-dot"></span>
+                    </div>
+            
+                    <h3 class="empty-headline">Ready to start shipping?</h3>
+                    <p class="empty-subheadline">
+                        You don't have any orders yet. Integrate your store API to sync orders automatically, or upload your list manually to get started.
+                    </p>
+            
+                    <div class="empty-actions">
+                        <div class="action-btn primary-action" onclick="openApiModal()">
+                            <div class="btn-icon">
+                                <i class="fas fa-plug"></i>
+                            </div>
+                            <div class="btn-text" onclick="window.location.href = '/tracking/user/';">
+                                <span>Connect Store API</span>
+                                <small>Auto-sync orders</small>
+                            </div>
+                        </div>
+            
+                        <div class="action-btn secondary-action" onclick="openUploadListModal()">
+                            <div class="btn-icon">
+                                <i class="fas fa-file-upload"></i>
+                            </div>
+                            <div class="btn-text">
+                                <span>Upload Order List</span>
+                                <small>Import CSV / Excel</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+    <style>
+        /* Container Layout */
+.empty-state-wrapper {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 450px;
+    width: 100%;
+    padding: 2rem;
+}
+
+/* Main Card Style */
+.empty-state-card {
+    background: rgba(255, 255, 255, 0.02);
+    border: 1px dashed var(--border-card);
+    border-radius: 24px;
+    padding: 3.5rem 2.5rem;
+    max-width: 600px;
+    width: 100%;
+    text-align: center;
+    transition: all 0.3s ease;
+}
+
+.empty-state-card:hover {
+    border-color: rgba(255, 255, 255, 0.2);
+    background: rgba(255, 255, 255, 0.04);
+}
+
+/* Icon Styling */
+.empty-icon-container {
+    position: relative;
+    display: inline-block;
+    margin-bottom: 2rem;
+}
+
+.empty-icon-container i {
+    font-size: 4.5rem;
+    color: var(--text-muted);
+    opacity: 0.4;
+}
+
+.notification-dot {
+    position: absolute;
+    top: 0;
+    right: -5px;
+    width: 18px;
+    height: 18px;
+    background-color: var(--accent-color); /* Neon Green */
+    border: 4px solid var(--background-primary);
+    border-radius: 50%;
+    box-shadow: 0 0 10px var(--accent-color-transparent);
+}
+
+/* Typography */
+.empty-headline {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: var(--text-light);
+    margin-bottom: 0.75rem;
+    letter-spacing: -0.5px;
+}
+
+.empty-subheadline {
+    font-size: 0.95rem;
+    color: var(--text-muted);
+    line-height: 1.6;
+    margin-bottom: 2.5rem;
+    max-width: 80%;
+    margin-left: auto;
+    margin-right: auto;
+}
+
+/* Action Buttons Container */
+.empty-actions {
+    display: flex;
+    justify-content: center;
+    gap: 1.5rem;
+    flex-wrap: wrap;
+}
+
+/* General Button Style */
+.action-btn {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding: 0.8rem 1.5rem;
+    border-radius: 16px;
+    cursor: pointer;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    min-width: 200px;
+    text-align: left;
+    border: 1px solid transparent;
+}
+
+/* Button 1: Primary (API) */
+.primary-action {
+    background: var(--accent-color);
+    color: var(--background-primary);
+    box-shadow: 0 4px 20px rgba(0, 230, 118, 0.25);
+}
+
+.primary-action:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 8px 25px rgba(0, 230, 118, 0.4);
+}
+
+.primary-action .btn-icon {
+    font-size: 1.2rem;
+    background: rgba(0, 0, 0, 0.1);
+    width: 40px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 12px;
+}
+
+/* Button 2: Secondary (Upload) */
+.secondary-action {
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid var(--border-card);
+    color: var(--text-light);
+}
+
+.secondary-action:hover {
+    transform: translateY(-4px);
+    background: rgba(255, 255, 255, 0.1);
+    border-color: var(--text-light);
+}
+
+.secondary-action .btn-icon {
+    font-size: 1.2rem;
+    color: var(--text-muted);
+    background: rgba(255, 255, 255, 0.05);
+    width: 40px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 12px;
+}
+
+.secondary-action:hover .btn-icon {
+    color: var(--text-light);
+}
+
+/* Text inside buttons */
+.btn-text {
+    display: flex;
+    flex-direction: column;
+}
+
+.btn-text span {
+    font-weight: 700;
+    font-size: 0.95rem;
+}
+
+.btn-text small {
+    font-size: 0.75rem;
+    opacity: 0.8;
+    font-weight: 400;
+}
+
+/* Responsive adjustments */
+@media (max-width: 576px) {
+    .empty-actions {
+        flex-direction: column;
+    }
+    .action-btn {
+        width: 100%;
+        justify-content: center;
+    }
+    .empty-state-card {
+        padding: 2rem 1.5rem;
+    }
+}
+    </style>
+            {% endif %}
+        </div>
+
+
+
+
+
+
+ 
+    <div class="section-content padding-section-content" id="leads-created-section" style="overflow: auto; height: auto; ">
+       
+       {% include 'creatl.html' %}
+    </div>
+
+ 
+
+
+
+
+
+
+
+
+
+
+        <div class="section-content padding-section-content" id="leads-tracking-section" style="overflow: auto; height: auto; ">
+            <div class="card">
+                <div class="card-header">
+                    <i class="fas fa-user-friends"></i> Leads Tracking
+                </div>
+                     <div class="card-body">
+
+       <div class="search-box mb-4 custom-search-input">
+
+                     <div class="filters-container p-3" style="background: var(--surface-soft); border-radius: 10px; border: 1px solid var(--border-card);">
+
+    <!-- Search bar -->
+    <div class="d-flex mb-3 gap-2 flex-wrap">
+        <div class="flex-grow-1 position-relative">
+            <input type="text"
+                   id="live-search-leads"
+                   class="form-control form-control-sm"
+                   placeholder="Search by phone, name, or tracking number..."
+                   autocomplete="off"
+                   style="border-radius: 6px; padding-left: 35px;">
+            <i class="fas fa-search position-absolute" style="top: 50%; left: 10px; transform: translateY(-50%); color: #aaa;"></i>
+        </div>
+
+        <!-- <button type="button" id="refresh-orders-btn" class="btn btn-outline-secondary btn-sm" title="Refresh Orders" style="border-radius: 6px;">
+            <i class="fas fa-sync-alt" id="refresh-leads-icon">-</i>
+        </button> -->
+    </div>
+
+    <!-- Filters row -->
+    <div class="row g-2 align-items-center w-100">
+        <div class="col-md-2 col-sm-6">
+            <select class="form-select form-select-sm" id="status-leads-filter" style="border-radius: 6px;">
+                <option value="">All Statuses</option>
+                <option value="confirmed">confirmed</option>
+                <option value="cancelled">cancelled</option>
+                <option value="wrong">wrong</option>
+                <option value="cancelled price">cancelled price</option>
+            </select>
+        </div>
+
+        <div class="col-md-2 col-sm-6">
+            <select class="form-select form-select-sm" id="period-leads-filter" style="border-radius: 6px;">
+                <option value="All">All time</option>
+                <option value="today">Today</option>
+                <option value="week">This week</option>
+                <option value="month">This month</option>
+                <option value="custom">Custom</option>
+            </select>
+        </div>
+
+        <div id="custom-date-range" class="col-md-6 col-sm-12 d-none d-flex gap-2 mt-2 mt-md-0">
+            <input type="text" class="form-control form-control-sm" id="start-date-filter" placeholder="Start Date" style="border-radius: 6px;">
+            <input type="text" class="form-control form-control-sm" id="end-date-filter" placeholder="End Date" style="border-radius: 6px;">
+        </div>
+
+        <div class="col-md-2 col-sm-6">
+            <select class="form-select form-select-sm" id="product-leads-filter" style="border-radius: 6px;">
+                <option value="">All Products</option>
+                {% for product in productslist %}
+                <option value="{{ product.sku }}" data-product-id="{{ product.id }}">{{ product.name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="col-md-2 col-sm-6">
+           <select class="form-select form-select-sm" id="country-leads-filter" style="border-radius: 6px;">
+    <option value="">All Country</option>
+    {% for country in countries %}
+        <option value="{{ country }}">{{ country }}</option>
+    {% endfor %}
+</select>
+
+        </div>
+
+        <div class="col-md-2 col-sm-6 d-flex justify-content-start mt-2 mt-md-0">
+            <button type="button" id="apply-leads-filters-btn" class="btn btn-sm" style="color: white; background-color: #4CAF50; border-radius: 6px; padding: 5px 15px;">
+             <i class="fas fa-search"></i>    Search
+            </button>
+
+              
+        </div>
+        <div class="col-md-2 col-sm-2 d-flex justify-content-start mt-2 mt-md-0 d-flex" style="flex-direction: row-reverse;
+">
+
+         <button type="button" id="refresh-leads-btn" class="btn btn-outline-secondary btn-sm" title="Refresh Orders" style="border-radius: 6px;">
+            <i class="fas fa-sync-alt" id="refresh-leads-icon"></i> Refresh
+        </button>
+    </div> 
+    </div>
+
+</div>
+
+                    </div>
+        <div id="leads-container">
+            {% include "leads.html" %}
+        </div>
+       
+
+ </div>
+
+ <script>
+    
+(function(){
+  const debug = false;
+  const log = () => {};
+
+  // تحقق إن المودال مفتوح
+  function isModalOpen(modal) {
+    if (!modal) return false;
+    return getComputedStyle(modal).display !== 'none';
+  }
+
+  // افتح مودال (يمكن تمرير العنصر مباشرة)
+  function openModal(modal) {
+    if (!modal) return console.error('❌ modal not found');
+    if (isModalOpen(modal)) return;
+    modal.style.display = 'flex';
+    modal.setAttribute('aria-hidden', 'false');
+    log('modal opened', modal);
+  }
+
+  // اغلق مودال
+  function closeModal(modal) {
+    if (!modal) return;
+    modal.style.display = 'none';
+    modal.setAttribute('aria-hidden', 'true');
+    log('modal closed', modal);
+  }
+
+  // المعالج الرئيسي للأحداث
+  function delegatedHandler(e) {
+    try {
+      // 1) زر فتح المودال داخل الجدول
+      const openBtn = e.target.closest('.show-order-btn');
+      if (openBtn) {
+        // البحث عن المودال في نفس الصف
+        const row = openBtn.closest('tr');
+        const modal = row ? row.querySelector('.order-Modal') : null;
+        openModal(modal);
+        return;
+      }
+
+      // 2) زر إغلاق المودال
+      const closeBtn = e.target.closest('.close2, .close, [data-modal-close]');
+      if (closeBtn) {
+        const modalParent = closeBtn.closest('.order-Modal');
+        closeModal(modalParent);
+        return;
+      }
+
+      // 3) الضغط على الخلفية (المنطقة الخارجية داخل المودال)
+      if (e.target.classList.contains('order-Modal')) {
+        closeModal(e.target);
+        return;
+      }
+    } catch(err) {
+      console.error(err);
+    }
+  }
+
+  // إضافة المستمع على document
+  document.addEventListener('click', delegatedHandler, true);
+
+  // غلق بالمفتاح ESC
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' || e.key === 'Esc') {
+      document.querySelectorAll('.order-modal').forEach(modal => {
+        if (isModalOpen(modal)) closeModal(modal);
+      });
+    }
+  });
+
+  log('delegatedHandler initialized');
+})();
+</script>
+
+
+
+ 
+<script>
+
+    document.addEventListener("DOMContentLoaded", function() { 
+ 
+
+function initLeads() {
+    
+ 
+    
+  const container = document.getElementById("leads-container");
+
+  // ✅ ميثود عامة تجلب البيانات من السيرفر
+  function fetchLeads(url) {
+    fetch(url, { headers: { "X-Requested-With": "XMLHttpRequest" } })
+      .then((res) => res.json())
+      .then((data) => {
+        container.innerHTML = data.html ;
+        attachPaginationEvents(); // إعادة تفعيل pagination بعد تحميل جديد
+      })
+      .catch((err) => console.error("Error fetching leads:", err));
+  }
+
+  // ✅ جمع كل قيم الفلاتر
+  function getFilterParams() {
+    const statusEl = document.getElementById("status-leads-filter");
+    const periodEl = document.getElementById("period-leads-filter");
+    const startDateEl = document.getElementById("start-date-filter");
+    const endDateEl = document.getElementById("end-date-filter");
+    const productEl = document.getElementById("product-leads-filter");
+    const countryEl = document.getElementById("country-leads-filter");
+    const searchEl = document.getElementById("live-search-leads");
+
+    const params = new URLSearchParams();
+
+    if (statusEl?.value) params.append("status", statusEl.value);
+    if (periodEl?.value && periodEl.value !== "All") {
+      params.append("period", periodEl.value);
+      if (periodEl.value === "custom") {
+        if (startDateEl?.value) params.append("start_date", startDateEl.value);
+        if (endDateEl?.value) params.append("end_date", endDateEl.value);
+      }
+    }
+    if (productEl?.value) params.append("product_sku", productEl.value);
+    if (countryEl?.value) params.append("country", countryEl.value);
+    if (searchEl?.value) params.append("search", searchEl.value);
+
+    return params;
+  }
+
+  // ✅ تشغيل الفلاتر
+  function attachFilters() {
+    const applyBtn = document.getElementById("apply-leads-filters-btn");
+    const periodEl = document.getElementById("period-leads-filter");
+
+    if (!applyBtn) return;
+
+    // toggle custom date inputs
+    periodEl?.addEventListener("change", () => {
+      const customRange = document.getElementById("custom-date-range");
+      if (customRange) {
+        customRange.classList.toggle("d-none", periodEl.value !== "custom");
+      }
+    });
+
+    applyBtn.addEventListener("click", () => {
+      const params = getFilterParams();
+      params.append("page", 1); // ابدأ من الصفحة الأولى
+      fetchLeads(`{% url 'filter_leads_api' %}?${params.toString()}`);
+    });
+  }
+ 
+  // ✅ pagination
+  function attachPaginationEvents() {
+    document.querySelectorAll(".leads-page-link").forEach((link) => {
+      link.addEventListener("click", function (e) {
+        e.preventDefault();
+        const page = this.getAttribute("data-page");
+        const params = getFilterParams();
+        params.append("page", page);
+        fetchLeads(`{% url 'filter_leads_api' %}?${params.toString()}`);
+      });
+    });
+  }
+
+  // ✅ تشغيل أول مرة
+  attachFilters();
+  attachPaginationEvents();
+  popup();
+ 
+ 
+}
+
+document.addEventListener("DOMContentLoaded", initLeads);
+
+
+function inistail_popup() {
+  const container = document.getElementById("leads-container");
+
+  container.addEventListener("click", function(event) {
+    const btn = event.target.closest(".openPopupBtn");
+    const closeBtn = event.target.closest(".close");
+
+    if (btn) {
+      const item = btn.closest(".lead-item");
+      const popup = item.querySelector(".popup");
+      popup.style.display = "block";
+    }
+
+    if (closeBtn) {
+      const popup = closeBtn.closest(".popup");
+      popup.style.display = "none";
+    }
+
+    // اغلاق عند الضغط خارج البوب أب
+    if (!event.target.closest(".popup") && !event.target.closest(".openPopupBtn")) {
+      document.querySelectorAll(".popup").forEach(p => p.style.display = "none");
+    }
+  });
+}
+
+document.addEventListener("DOMContentLoaded", inistail_popup);
+ });
+
+</script>
+ 
+ 
+</div>
+        </div>
+
+
+
+
+
+
+
+
+
+        <div class="section-content padding-section-content" id="update-section" style="overflow: auto; height: auto; ">
+            <div class="card">
+                <div class="card-header">
+                    <i class="fas fa-tools"></i> Product Data Update
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                         
+                          <div class="col-md-6">
+                            <h5 class="mb-3 text-light" style="font-size: var(--font-size-sm);">Product List</h5> 
+                            
+                            <div class="product-list-container mb-4" style="max-height: 300px; overflow-y: auto;">
+                                {% if productslist %}
+                                {% for product in productslist %}
+
+                                <div class="product-item">
+                                    <div class="product-info">
+                                        <div><strong>{{product.name}}</strong> (SKU: {{product.sku}})</div>
+                                        <small class="o" style="color:#a5a3af;">Available: <strong> {{product.stock}}  units</strong> Project : <strong> {{product.project}} </strong> </small>
+                                    </div>
+                         
+                                </div>
+                                {% endfor %}
+                                {% else %}
+                                        <div class="col-12">
+            <div class="text-center py-5" style="background: rgba(255,255,255,0.05); border-radius: 12px; border: 1px solid rgba(255,255,255,0.15); min-height: 140px;">
+                <i class="fas fa-box-open mb-3" style="font-size: 3rem; color: var(--accent-color);"></i>
+                <h6 class="fw-bold text-light mb-2">No Products Available</h6>
+                <p class="mb-3 text-muted">Your inventory is currently empty. Add new products to get started.</p>
+                <a href="#update-section" id="proupdate" class="btn btn-sm" style="background-color: var(--accent-color); color: var(--background-primary); border-radius: 0.375rem; font-size: 0.9rem; padding: 0.4rem 1.4rem;">
+                    <i class="fas fa-plus me-1"></i> Add Product
+                </a>
+            </div>
+        </div>
+    {% endif %}
+
+                               
+                                </div>
+                            <div class="last-update-info">
+                                Last Updated: <span id="last-update-date">June 6, 2025 - 10:30 PM</span>
+                            </div>
+                        </div>
+
+                        <div class="col-md-6">
+                                                        
+
+                                
+
+                            <h5 class="mb-3 text-light" style="font-size: var(--font-size-sm);">Update Data</h5>
+                            <form method="post" id="update-sku-form">
+                                {% csrf_token %} <div class="mb-3">
+                                    <label for="sku-input" class="form-label" style="font-size: var(--font-size-sm);">Product SKU</label>
+                                    <input type="text" class="form-control"
+                                           name="sku"
+                                           id="sku-input"
+                                           placeholder="e.g., PRODX"
+                                           required style="font-size: var(--font-size-sm);">
+                                </div>
+                                <div class="mb-3">
+                                    <label for="new-stock-input" class="form-label" style="font-size: var(--font-size-sm);">New Stock Quantity (Optional)</label>
+                                    <input type="number" class="form-control"
+                                           name="new_stock"
+                                           id="new-stock-input"
+                                           placeholder="e.g., 200" style="font-size: var(--font-size-sm);">
+                                </div>
+                                {% if productslist %}
+                         
+                                <button type="submit"  id="proupdate" class="btn btn-primary w-100" style="font-size: var(--font-size-sm); background-color: var(--accent-color); border-color: var(--accent-color); color: var(--background-primary);">
+                                    <i class="fas fa-sync-alt me-2"></i> Update 
+                                </button>
+                                {% else %}
+                                <button type="submit" class="btn btn-primary w-100" style="font-size: var(--font-size-sm); background-color: var(--accent-color); border-color: var(--accent-color); color: var(--background-primary);">
+                                    <i class="fas fa-sync-alt me-2"></i> Update Data
+                                </button>
+                                {% endif %}
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="section-content padding-section-content" id="future-features-1-section" style="overflow: auto; padding: 5px; ">
+            <div class="card" style="margin-bottom: 3px;">
+                <div class="card-header">
+                    <i class="fas fa-chart-line"></i> Drop Products
+                </div>
+    <div class="card-body" style="overflow:hidden;">
+
+<div class="search-filter-container" style="margin-bottom: 1rem;">
+    <!-- قسم البحث -->
+    <div class="search-section">
+        <form method="POST" class="search-form">
+            {% csrf_token %}
+            <div class="search-box-container">
+                <span class="search-icon">
+                    <i class="fas fa-search"></i>
+                </span>
+                <input 
+                    type="text" 
+                    id="searchInput"
+                    name="search" 
+                    class="search-input"
+                    placeholder="ابحث بالاسم، SKU أو الكود..." 
+                    aria-label="Search"
+                    autocomplete="off"
+                >
+                <button type="submit" id="searchBtnfilter" class="search-button" aria-label="Submit search">
+                    <i class="fas fa-arrow-left"></i>
+                </button>
+            </div>
+        </form>
+    </div>
+
+    <!-- أزرار التصفية -->
+    <div class="filter-section">
+        <div class="filter-buttons">
+            <div class="dropdown">
+                <button class="filter-btn" type="button" 
+                    id="countryFilter" data-bs-toggle="dropdown" aria-expanded="false">
+                    <span id="selectedCountryText"><i class="fas fa-globe me-1"></i>كل الدول</span>
+                    <i class="fas fa-chevron-down ms-2"></i>
+                </button>
+                <ul class="dropdown-menu" aria-labelledby="countryFilter">
+                    <li><a class="dropdown-item country-option" href="#" data-country="">كل الدول</a></li>
+                    {% for country in countries %}
+                    <li><a class="dropdown-item country-option" href="#" data-country="{{ country }}">{{ country }}</a></li>
+                    {% endfor %}
+                </ul>
+            </div>
+            <div class="dropdown" style="visibility:visible !important; opacity:1 !important;">
+                <button class="filter-btn" type="button" 
+                    id="projectFilter" data-bs-toggle="dropdown" aria-expanded="false">
+                    <span id="selectedProjectText"><i class="fas fa-project-diagram me-1"></i>All projects</span>
+                    <i class="fas fa-chevron-down ms-2"></i>
+                </button>
+                <ul class="dropdown-menu" aria-labelledby="projectFilter">
+                    <li><a class="dropdown-item project-option" href="#" data-project="">All projects</a></li>
+                    {% for project in projects %}
+                    <li><a class="dropdown-item project-option" href="#" data-project="{{ project }}">{{ project }}</a></li>
+                    {% endfor %}
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <!-- قسم التحكم والتحديث -->
+    <div class="control-section">
+        <div class="control-elements">
+            <!-- أزرار العرض -->
+            <div class="view-toggle btn-group" role="group" aria-label="Toggle view">
+                <button class="view-btn" onclick="toggleView('grid')" title="عرض شبكي">
+                    <i class="fas fa-th-large"></i>
+                </button>
+                <button class="view-btn" onclick="toggleView('list')" title="عرض قائمة">
+                    <i class="fas fa-list"></i>
+                </button>
+            </div>
+   <div class="update-info">
+                    <small class="text-light">Last update</small>
+                    <span class="badge last-update" id="last-update" data-datetime="{{ last_update }}"></span>
+                </div>
+            <!-- زر التحديث الرئيسي -->
+            <div class="update-container">
+               
+                <button 
+                    type="button"
+                    id="updatethis"
+                    class="update-btn"
+                    title="تحديث المنتجات"
+                >
+                    <i class="fas fa-sync-alt"></i>
+                    <span> Update list</span>
+                </button>
+                <!-- معلومات التحديث -->
+                
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    /* التنسيق العام */
+    .search-filter-container {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 1rem;
+        flex-wrap: wrap;
+    }
+
+    .search-section, .filter-section, .control-section {
+        flex: 1;
+        min-width: 250px;
+    }
+
+    /* مربع البحث */
+    .search-box-container {
+        display: flex;
+        align-items: center;
+        background: var(--surface-card);
+        border-radius: 10px;
+        overflow: hidden;
+        box-shadow: var(--shadow-elev);
+        border: 1px solid var(--border-card);
+        transition: all 0.3s ease;
+    }
+
+    .search-box-container:hover {
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        border-color: var(--accent-color);
+    }
+
+    .search-icon {
+        padding: 0.5rem 1rem;
+        color: var(--accent-color);
+        background: transparent;
+        border-right: 1px solid var(--border-card);
+    }
+
+    .search-input {
+        flex: 1;
+        border: none;
+        padding: 0.75rem;
+        font-size: 0.95rem;
+        color: var(--input-text);
+        background: var(--input-bg);
+        min-width: 200px;
+    }
+
+    .search-input:focus {
+        outline: none;
+        box-shadow: none;
+    }
+
+    .search-button {
+        padding: 0.75rem 1.25rem;
+        background: var(--accent-color);
+        color: white;
+        border: none;
+        cursor: pointer;
+        transition: background 0.3s;
+    }
+
+    .search-button:hover {
+        background: #00c853;
+    }
+
+    /* أزرار التصفية */
+    .filter-buttons {
+        display: flex;
+        gap: 0.75rem;
+    }
+
+    .filter-dropdown {
+        flex: 1;
+    }
+
+    .filter-btn {
+        width: 100%;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 0.75rem 1rem;
+        background: var(--surface-card);
+        border: 1px solid var(--border-card);
+        border-radius: 8px;
+        color: var(--text-light);
+        font-size: 0.9rem;
+        transition: all 0.3s;
+    }
+
+    .filter-btn:hover {
+        border-color: var(--accent-color);
+        color: var(--accent-color);
+    }
+
+    /* قسم التحكم */
+    .control-elements {
+        display: flex;
+        align-items: center;
+        justify-content: flex-end;
+        gap: 1rem;
+    }
+
+    .view-toggle {
+        display: flex;
+    }
+
+    .view-btn {
+        padding: 0.65rem 1rem;
+        background: var(--surface-card);
+        border: 1px solid var(--border-card);
+        color: var(--text-light);
+        transition: all 0.3s;
+    }
+
+    .view-btn:first-child {
+        border-radius: 8px 0 0 8px;
+    }
+
+    .view-btn:last-child {
+        border-radius: 0 8px 8px 0;
+    }
+
+    .view-btn:hover, .view-btn.active {
+        background: var(--accent-color);
+        color: white;
+        border-color: var(--accent-color);
+    }
+
+    /* زر التحديث */
+    .update-container {
+        display: flex;
+        flex-direction: column;
+        align-items: flex-end;
+        gap: 0.25rem;
+    }
+
+    .update-btn {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.5rem;
+        padding: 0.65rem 1.25rem;
+        background: var(--accent-color);
+        color: white;
+        border: none;
+        border-radius: 8px;
+        font-size: 0.9rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.3s;
+        box-shadow: 0 2px 8px rgba(0, 230, 118, 0.2);
+    }
+
+    .update-btn:hover {
+        background: #00c853;
+        box-shadow: 0 4px 12px rgba(0, 230, 118, 0.3);
+        transform: translateY(-1px);
+    }
+
+    .update-btn i {
+        font-size: 0.95rem;
+    }
+
+    /* معلومات التحديث */
+    .update-info {
+        text-align: right;
+    }
+
+    .last-update {
+        background: var(--surface-soft);
+        color: var(--text-muted);
+        padding: 0.25rem 0.5rem;
+        border-radius: 4px;
+        font-size: 0.8rem;
+        font-weight: normal;
+    }
+
+    /* التكيف مع الشاشات الصغيرة */
+    @media (max-width: 992px) {
+        .search-filter-container {
+            flex-direction: column;
+            gap: 1rem;
+        }
+        
+        .search-section, .filter-section, .control-section {
+            width: 100%;
+        }
+        
+        .control-elements {
+            justify-content: space-between;
+        }
+    }
+
+    @media (max-width: 576px) {
+        .filter-buttons {
+            flex-direction: column;
+        }
+        
+        .search-input {
+            min-width: 150px;
+        }
+    }
+</style>
+
+<script>
+   
+
+
+    document.addEventListener('DOMContentLoaded', function () {
+        const el = document.getElementById('last-update');
+        if (el && el.dataset.datetime) {
+            try {
+                const isoString = el.dataset.datetime;
+                const date = new Date(isoString);
+
+                // استخراج اليوم والشهر والساعة والدقيقة
+                const day = date.getDate().toString().padStart(2, '0');
+                const month = (date.getMonth() + 1).toString().padStart(2, '0');
+                const hours = date.getHours().toString().padStart(2, '0');
+                const minutes = date.getMinutes().toString().padStart(2, '0');
+
+                // التنسيق النهائي
+                const formatted = `${day}/${month} ${hours}:${minutes}`;
+                el.textContent = formatted;
+            } catch (e) {
+                el.textContent = '';
+            }
+        }
+    });
+</script>
+
+
+
+
+
+
+         
+
+ 
+
+
+
+    <!-- عرض المنتجات -->
+  <div id="setproductlisther" style="overflow: auto; height: 100%;">
+
+</div>
+
+
+
+<script>
+    document.addEventListener('click', async (e) => {
+  const btn = e.target.closest('#Codproduct');
+  if (!btn) return;
+
+  // المكان الذي سيظهر فيه partial
+  const setproductlisther = document.getElementById('setproductlisther');
+  if (!setproductlisther) return;
+
+  try {
+    const response = await fetch("{% url 'load_products' %} "); 
+    if (!response.ok) throw new Error('خطأ في التحميل');
+    const html = await response.text();
+
+    setproductlisther.innerHTML = html; // إدخال partial في الصفحة
+  } catch (err) {
+    console.error(err);
+  }
+});
+
+</script>
+
+
+            </div>
+        </div>
+
+
+ 
+    </div> 
+ 
+ 
+
+
+ 
+ <div id="update-success-message" class="alert alert-success d-none"  role="alert" style="     width: 232px;
+    position: fixed;
+    z-index: 12232321;
+    bottom: 14px; background-color: var(--accent-color); color: var(--background-primary); border-radius: var(--border-radius-md); font-size: var(--font-size-sm); margin-top: 1rem;">
+    Data updated seccessfully !
+</div>
+ 
+   <div id="update-lead-progr" class="alert alert-success d-none"  role="alert" style="     width: 232px;
+    position: fixed;
+    z-index: 12232321;
+    bottom: 14px; background-color: var(--accent-color); color: var(--background-primary); border-radius: var(--border-radius-md); font-size: var(--font-size-sm); margin-top: 1rem;">
+    Data updated seccessfully !
+</div>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+const refresh_leads = document.getElementById('refresh-leads-btn');
+refresh_leads.addEventListener('click', function() {
+   setprog = document.getElementById('update-lead-progr');
+   setprog.innerHTML = '<i class="fas fa-sync-alt fa-spin"></i> Updating...';
+
+   setprog.classList.remove('d-none');
+    document.getElementById('refresh-leads-icon').classList.add('fa-spin');
+const productsku = document.getElementById('product-leads-filter').value;
+fetch("{% url 'leadstracking' %}" , {
+    method: 'POST',
+    headers: {
+        'Content-Type': 'application/x-www-form-urlencoded'
+    } ,
+    body: new URLSearchParams({
+         'productsku': productsku
+     })
+})
+.then(response => response.json())
+.then(response => {
+    setprog.classList.add('d-none');
+    setprog.innerHTML = 'Data updated seccessfully !';
+    document.getElementById('refresh-leads-icon').classList.remove('fa-spin');
+    if (response.status === 'success') {
+        // Update the UI with the new leads data
+        document.getElementById('update-success-message').textContent = response.data;
+        setprog.classList.remove('d-none');
+
+        setInterval(function() {
+            setprog.classList.add('d-none');
+
+        }, 5000);
+
+    } else {
+        // Handle error case
+        console.error('Error fetching leads:', response.message);
+    }
+}); 
+}); 
+}); 
+
+</script>
+
+
+ 
+
+<div id="wa-connection-success-modal" class="wa-success-modal-overlay" aria-hidden="true">
+  <div class="wa-success-modal-card" role="dialog" aria-modal="true" aria-labelledby="wa-success-title">
+    <button type="button" class="wa-success-close-icon" id="wa-success-close-icon" aria-label="Close">×</button>
+
+    <canvas id="wa-success-confetti" class="wa-success-confetti" aria-hidden="true"></canvas>
+
+    <div class="wa-success-check">✓</div>
+    <h2 id="wa-success-title" class="wa-success-title">🎉 Congratulations! Your store is now connected to WhatsApp.</h2>
+    <p class="wa-success-subtitle">Your AI agent is ready to receive the first message and save hundreds of negotiation hours.</p>
+
+    <div class="wa-success-meta">
+      <div id="wa-success-qr" class="wa-success-qr"></div>
+      <div class="wa-success-phone-wrap">
+        <div class="wa-success-phone-label">Connected WhatsApp Number</div>
+        <div id="wa-success-phone" class="wa-success-phone">-</div>
+      </div>
+    </div>
+
+    <a id="wa-success-cta" class="wa-success-cta" href="#" target="_blank" rel="noopener noreferrer">
+      <i class="fab fa-whatsapp"></i>
+      <span>💬 Try the bot now</span>
+    </a>
+
+    <button type="button" id="wa-success-close-btn" class="wa-success-close-btn">Close</button>
+  </div>
+</div>
+
+<style>
+  .wa-success-modal-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 200000;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    background: rgba(2, 6, 23, 0.58);
+    backdrop-filter: blur(8px);
+  }
+  .wa-success-modal-overlay.is-open {
+    display: flex;
+    animation: waFadeIn 0.24s ease;
+  }
+  .wa-success-modal-card {
+    width: min(680px, 96vw);
+    background: linear-gradient(180deg, #0f172a 0%, #111827 100%);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 20px;
+    padding: 28px 24px 20px;
+    position: relative;
+    box-shadow: 0 30px 80px rgba(0, 0, 0, 0.45);
+    color: #e5e7eb;
+    text-align: center;
+    overflow: hidden;
+    animation: waModalUp 0.28s ease;
+  }
+  .wa-success-close-icon {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    border: none;
+    width: 34px;
+    height: 34px;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.08);
+    color: #e5e7eb;
+    cursor: pointer;
+    font-size: 20px;
+    line-height: 1;
+  }
+  .wa-success-confetti {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+  }
+  .wa-success-check {
+    width: 78px;
+    height: 78px;
+    margin: 6px auto 14px;
+    border-radius: 999px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 40px;
+    font-weight: 800;
+    color: #16a34a;
+    background: radial-gradient(circle at 30% 20%, #ecfdf5 0%, #d1fae5 35%, #bbf7d0 100%);
+    box-shadow: 0 8px 28px rgba(16, 185, 129, 0.3);
+  }
+  .wa-success-title {
+    margin: 0 0 10px;
+    font-size: clamp(20px, 2.2vw, 30px);
+    color: #f8fafc;
+    letter-spacing: -0.02em;
+    font-weight: 800;
+  }
+  .wa-success-subtitle {
+    margin: 0 auto 18px;
+    max-width: 560px;
+    color: #cbd5e1;
+    font-size: 15px;
+    line-height: 1.7;
+  }
+  .wa-success-meta {
+    display: flex;
+    gap: 14px;
+    align-items: center;
+    justify-content: center;
+    flex-wrap: wrap;
+    margin-bottom: 18px;
+  }
+  .wa-success-qr {
+    width: 126px;
+    height: 126px;
+    background: #fff;
+    border-radius: 14px;
+    padding: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 12px 24px rgba(0, 0, 0, 0.25);
+  }
+  .wa-success-phone-wrap {
+    min-width: 220px;
+    text-align: right;
+  }
+  .wa-success-phone-label {
+    color: #94a3b8;
+    font-size: 12px;
+    margin-bottom: 6px;
+  }
+  .wa-success-phone {
+    color: #f8fafc;
+    font-size: 20px;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+  }
+  .wa-success-cta {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    width: min(92%, 420px);
+    padding: 14px 18px;
+    border-radius: 14px;
+    background: linear-gradient(135deg, #16a34a 0%, #15803d 100%);
+    color: #fff;
+    font-weight: 700;
+    font-size: 17px;
+    text-decoration: none;
+    box-shadow: 0 10px 28px rgba(22, 163, 74, 0.35);
+    transition: transform 0.15s ease;
+  }
+  .wa-success-cta:hover { transform: translateY(-1px); color: #fff; }
+  .wa-success-close-btn {
+    margin-top: 12px;
+    background: transparent;
+    color: #9ca3af;
+    border: 1px solid rgba(148, 163, 184, 0.3);
+    border-radius: 10px;
+    padding: 8px 14px;
+    font-size: 13px;
+    cursor: pointer;
+  }
+  .wa-success-close-btn:hover { color: #e2e8f0; border-color: rgba(226, 232, 240, 0.5); }
+  @keyframes waFadeIn { from { opacity: 0; } to { opacity: 1; } }
+  @keyframes waModalUp { from { transform: translateY(12px); opacity: 0.8; } to { transform: translateY(0); opacity: 1; } }
+</style>
+
+<script>
+  (function () {
+    function cleanupSetupParam() {
+      const url = new URL(window.location.href);
+      if (!url.searchParams.has('setup')) return;
+      url.searchParams.delete('setup');
+      const cleanUrl = url.pathname + (url.search ? url.search : '') + url.hash;
+      window.history.replaceState({}, '', cleanUrl);
+    }
+
+    function normalizePhone(raw) {
+      return (raw || '').toString().replace(/\D/g, '');
+    }
+
+    function runConfettiBurst(canvas) {
+      if (!canvas) return;
+      const rect = canvas.getBoundingClientRect();
+      canvas.width = Math.max(1, Math.floor(rect.width));
+      canvas.height = Math.max(1, Math.floor(rect.height));
+      const ctx = canvas.getContext('2d');
+      if (!ctx) return;
+
+      const colors = ['#22c55e', '#60a5fa', '#f59e0b', '#a78bfa', '#f43f5e'];
+      const pieces = Array.from({ length: 120 }).map(() => ({
+        x: Math.random() * canvas.width,
+        y: -10 - Math.random() * 80,
+        size: 4 + Math.random() * 5,
+        vx: -2 + Math.random() * 4,
+        vy: 1 + Math.random() * 3,
+        g: 0.08 + Math.random() * 0.08,
+        rot: Math.random() * Math.PI,
+        vr: -0.15 + Math.random() * 0.3,
+        color: colors[Math.floor(Math.random() * colors.length)]
+      }));
+
+      const start = performance.now();
+      function frame(t) {
+        const elapsed = t - start;
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        pieces.forEach((p) => {
+          p.vy += p.g;
+          p.x += p.vx;
+          p.y += p.vy;
+          p.rot += p.vr;
+          ctx.save();
+          ctx.translate(p.x, p.y);
+          ctx.rotate(p.rot);
+          ctx.fillStyle = p.color;
+          ctx.fillRect(-p.size / 2, -p.size / 2, p.size, p.size * 0.6);
+          ctx.restore();
+        });
+        if (elapsed < 1000) {
+          requestAnimationFrame(frame);
+        } else {
+          ctx.clearRect(0, 0, canvas.width, canvas.height);
+        }
+      }
+      requestAnimationFrame(frame);
+    }
+
+    function renderQr(targetEl, waLink) {
+      if (!targetEl) return;
+      targetEl.innerHTML = '';
+      if (window.QRCode) {
+        new QRCode(targetEl, {
+          text: waLink,
+          width: 110,
+          height: 110,
+          colorDark: '#000000',
+          colorLight: '#ffffff',
+          correctLevel: QRCode.CorrectLevel.H
+        });
+        return;
+      }
+      const img = document.createElement('img');
+      img.alt = 'WhatsApp QR';
+      img.width = 110;
+      img.height = 110;
+      img.src = 'https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=' + encodeURIComponent(waLink);
+      targetEl.appendChild(img);
+    }
+
+    document.addEventListener('DOMContentLoaded', function () {
+      const fromUrl = new URL(window.location.href).searchParams.get('setup') === 'success';
+      const fromContext = document.documentElement.dataset.setupSuccess === '1';
+      if (!fromUrl && !fromContext) return;
+
+      const modal = document.getElementById('wa-connection-success-modal');
+      const closeIcon = document.getElementById('wa-success-close-icon');
+      const closeBtn = document.getElementById('wa-success-close-btn');
+      const phoneEl = document.getElementById('wa-success-phone');
+      const qrEl = document.getElementById('wa-success-qr');
+      const cta = document.getElementById('wa-success-cta');
+      const confetti = document.getElementById('wa-success-confetti');
+      if (!modal || !cta || !phoneEl || !qrEl) return;
+
+      const rawPhone = "{{ active_channel.phone_number|default:''|escapejs }}";
+      const normalizedPhone = normalizePhone(rawPhone);
+      if (!normalizedPhone) {
+        cleanupSetupParam();
+        return;
+      }
+
+      const waLink = 'https://wa.me/' + normalizedPhone;
+      const testLink = waLink + '?text=' + encodeURIComponent('سلام');
+
+      phoneEl.textContent = rawPhone || ('+' + normalizedPhone);
+      cta.href = testLink;
+      renderQr(qrEl, waLink);
+      modal.classList.add('is-open');
+      modal.setAttribute('aria-hidden', 'false');
+      runConfettiBurst(confetti);
+      cleanupSetupParam();
+
+      function closeModal() {
+        modal.classList.remove('is-open');
+        modal.setAttribute('aria-hidden', 'true');
+      }
+      closeIcon && closeIcon.addEventListener('click', closeModal);
+      closeBtn && closeBtn.addEventListener('click', closeModal);
+      modal.addEventListener('click', function (e) {
+        if (e.target === modal) closeModal();
+      });
+      document.addEventListener('keydown', function (e) {
+        if (e.key === 'Escape') closeModal();
+      });
+    });
+  })();
+</script>
+
+</body>
+</html>

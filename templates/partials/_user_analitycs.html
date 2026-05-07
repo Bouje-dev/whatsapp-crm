@@ -1,0 +1,2830 @@
+{% extends 'userBase.html' %}
+{% load static %}
+{% block content %}
+<!-- .script_sections{font-family:Inter,system-ui,Arial;margin:0;background:linear-gradient(180deg,#071427 0%, #0b1220 60%);color:#e6f3f7;} -->
+ 
+  <!-- <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script> -->
+    <!-- <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script> -->
+    <!-- <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet"> -->
+
+    <!-- <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script> -->
+
+
+<style>
+    .text-left{
+        display: flex;
+            align-items: flex-start;
+
+    }
+    #campaignChart {
+  width: 800px;
+  height: 400px;
+
+}
+
+        .main-container {
+            padding: 0px !important;
+        }
+       /* Cards within content sections */
+    .card {
+        border: 1px solid var(--border-color-light); /* Very light border */
+        background-color: var(--background-tertiary); /* Lighter dark for cards */
+        border-radius: var(--border-radius-md);
+        box-shadow: none; /* No strong shadows as per ElevenLabs */
+        margin-bottom: 1.5rem; /* Space between cards */
+        color: var(--text-light);
+    }
+
+    .card-header {
+        background-color: transparent; /* No distinct background */
+        border-bottom: 1px solid var(--border-color); /* Subtle divider */
+        padding: 1rem 1.5rem;
+        font-weight: 600;
+        font-size: .875rem; /* User specified font size */
+        color: var(--text-light);
+        border-radius: var(--border-radius-md) var(--border-radius-md) 0 0;
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+    }
+    .card-header i {
+        color: var(--text-muted); /* Muted icons in header */
+    }
+
+    .card-body {
+        padding: 1.5rem;
+    }
+    /* Import Google Fonts - Inter for general use */
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+    
+  
+
+    :root {
+        /* ElevenLabs inspired Dark Palette */
+        --background-primary: #1A1A1A; /* Deepest black for overall body background */
+        --background-secondary: #2B2B2B; /* Dark grey for sidebar, main content panels, and default buttons */
+        --background-tertiary: #3A3A3A; /* Slightly lighter dark grey for nested cards and input backgrounds */
+        
+        --text-light: hsl(0, 0%, 100%); /* Pure white for main headings and text */
+        --text-muted: rgba(255, 255, 255, 0.5) !important; /* White with transparency for secondary/muted text */
+        
+        --accent-color: #00E676; /* Neon Green (vibrant) */
+        --accent-color-hover: rgb(140, 200, 0); /* Slightly darker accent on hover */
+        --accent-color-transparent: rgba(182, 255, 0, 0.15); /* Accent with transparency for active states */
+        
+        --border-color: rgba(255, 255, 255, 0.1); /* Subtle white-transparent border */
+        --border-color-light: rgba(255, 255, 255, 0.05); /* Even lighter border for some elements */
+        
+        /* Specific status colors, adjusted for dark theme readability */
+        --status-success: #34C759; /* Green */
+        --status-warning: #FF9500; /* Orange */
+        --status-danger: #FF3B30; /* Red */
+        --status-info: #5AC8FA; /* Light Blue */
+
+        /* Border Radii */
+        --border-radius-lg: 12px; /* For main panels */
+        --border-radius-md: 8px; /* For cards */
+        --border-radius-sm: 4px; /* For buttons, inputs, badges */
+
+        /* Shadows */
+        --shadow-dark: 0 4px 15px rgba(0, 0, 0, 0.4); /* Deeper, subtle shadows */
+    }
+
+    body {
+        font-family: 'SF Pro Display', 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+        background-color: var(--background-primary);
+        color: var(--text-light);
+        line-height: 1.6;
+        margin: 0;
+        direction: ltr;
+        padding: 0;
+        overflow: hidden;
+        height: 100vh;
+        display: flex;
+        flex-direction: column;
+    }
+    .main-container {
+        flex: 1;
+        min-height: 0;
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
+    }
+
+   
+
+     
+ 
+ 
+
+ 
+ 
+   
+
+    
+
+    /* Buttons - Shopify/ElevenLabs style */
+    .btn {
+        border-radius: var(--border-radius-sm); /* Small radius for buttons */
+        padding: 0.75rem 1.25rem;
+        font-weight: 500;
+        font-size: .875rem; /* User specified font size */
+        transition: all 0.15s ease-in-out;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.5rem;
+        text-decoration: none;
+        cursor: pointer;
+        line-height: 1; /* Ensure consistent height */
+    } 
+
+    .btn-primary {
+        background-color: var(--text-light); /* White background for primary CTAs */
+        border: 1px solid var(--text-light);
+        color: var(--background-primary); /* Dark text on white */
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3); /* Subtle shadow */
+    }
+    .btn-primary:hover {
+        background-color: var(--background-secondary); /* Dark background on hover */
+        border-color: var(--text-light);
+        color: var(--text-light); /* White text on hover */
+        transform: translateY(-1px);
+        box-shadow: 0 4px 10px rgba(0, 0, 0, 0.4);
+    }
+
+    /* Secondary/Outline Buttons */
+    .btn-secondary,
+    .btn-outline-dark { /* Used for generic secondary actions like cancel */
+        background-color: transparent;
+        border: 1px solid var(--border-color);
+        color: var(--text-light);
+    }
+    .btn-secondary:hover,
+    .btn-outline-dark:hover {
+        background-color: rgba(255, 255, 255, 0.1); /* Subtle dark hover */
+        border-color: rgba(255, 255, 255, 0.2);
+        color: var(--text-light);
+        transform: translateY(-1px);
+    }
+
+    @media (max-width: 991.98px) { /* Tablets and smaller */
+        .dashboard-layout {
+            flex-direction: column;
+            padding: 1rem;
+            gap: 1rem;
+        }
+        .sidebar {
+            width: 100%;
+            flex: none;
+            position: relative;
+            top: auto;
+            padding: 1rem;
+            height: auto; /* Allow sidebar to adjust height */
+        }
+        .sidebar .logo {
+            margin-bottom: 1.5rem;
+        }
+        .sidebar .nav-group-title {
+            margin-top: 1rem;
+            margin-bottom: 0.5rem;
+        }
+        .sidebar .nav-menu {
+            flex-grow: 0; /* Don't grow on small screens */
+        }
+        .main-content {
+            padding: 1.5rem;
+        }
+        .section-header-container {
+            padding-bottom: 1rem;
+            margin-bottom: 1.5rem;
+        }
+        .section-header {
+            font-size: 1.1rem;
+        }
+        .section-description {
+            font-size: 0.8rem;
+        }
+        .nav-tabs-custom {
+            margin-bottom: 0rem;
+        }
+        .card-body {
+            padding: 1rem;
+        }
+        .btn {
+            padding: 0.6rem 1rem;
+            font-size: 0.8rem;
+        }
+    }
+    .table-responsive {
+            max-height: 247px !important;
+
+    }
+
+    @media (max-width: 575.98px) { /* Mobile phones */
+        .dashboard-layout {
+            padding: 0.5rem;
+            gap: 0.5rem;
+        }
+        .sidebar {
+            padding: 0.75rem;
+            border-radius: var(--border-radius-md);
+        }
+        .sidebar .logo {
+            font-size: 1.3rem;
+            margin-bottom: 1rem;
+        }
+        .sidebar .nav-link {
+            padding: 0.6rem 0.75rem;
+            font-size: 0.8rem;
+        }
+        .main-content {
+            padding: 1rem;
+            border-radius: var(--border-radius-md);
+        }
+        .section-header {
+            font-size: 1rem;
+        }
+        .nav-tabs-custom .nav-link {
+            padding: 0.6rem 0.8rem;
+            font-size: 0.75rem;
+        }
+        .card-header {
+            padding: 0.8rem 1rem;
+        }
+        .card-body {
+            padding: 0.8rem;
+        }
+        .empty-state {
+            padding: 1.5rem;
+            min-height: 200px;
+        }
+        .empty-state-icon {
+            font-size: 2.5rem;
+        }
+    }
+    .btn-primary i{
+        color: color(srgb 0.2274 0.2275 0.2274) !important;
+    }
+    .btn-group {
+direction: rtl;
+}
+</style>
+ 
+
+ 
+
+
+ 
+  
+  <!-- Tailwind Play CDN - good for prototypes (no build step). Replace with compiled Tailwind in production. -->
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+  <style>
+    /* small custom tweaks */
+    .card-shadow { box-shadow: 0 6px 18px rgba(15, 23, 42, 0.08); }
+    .badge-platform { font-weight: 600; padding: 0.25rem 0.6rem; border-radius: 9999px; }
+    .tiny { font-size: 0.78rem; color: #6b7280; } /* gray-500 */
+    table thead th { font-weight: 700; }
+   /* small transition for collapsing details */
+   
+ 
+ 
+  </style>
+  
+  <style>
+    /* Recommendation card — updated, place in your existing styles */
+.rec-grid {
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: 1fr;
+}
+@media(min-width:768px){ .rec-grid { grid-template-columns: repeat(2, 1fr); } }
+@media(min-width:1200px){ .rec-grid { grid-template-columns: repeat(3, 1fr); } }
+
+.rec-card {
+  background: linear-gradient(180deg,#ffffff,#fbfdff);
+  border-radius: 12px;
+  padding: 14px;
+  box-shadow: 0 12px 30px rgba(11, 22, 39, 0.06);
+  border: 1px solid rgba(15,23,42,0.04);
+  display:flex; flex-direction:column; gap:10px;
+  transition: transform .12s ease, box-shadow .12s ease;
+}
+.rec-card:hover { transform: translateY(-6px); box-shadow: 0 18px 40px rgba(11,22,39,0.09); }
+
+.rec-header { display:flex; gap:12px; align-items:flex-start; }
+.rec-accent {
+  min-width:52px; min-height:52px; border-radius:10px;
+  display:flex; align-items:center; justify-content:center; color:#fff; font-weight:700;
+  flex-shrink:0; font-size:1.05rem;
+}
+.rec-meta { flex:1; }
+.rec-title { font-size:1rem; font-weight:600; color:#0f172a; margin:0; }
+.rec-sub { color:#6b7280; font-size:.88rem; margin-top:6px; }
+
+.rec-badges { display:flex; gap:8px; margin-top:10px; flex-wrap:wrap; }
+.rec-badge {
+  background: rgba(15,23,42,0.04);
+  color:#0f172a;
+  padding:6px 8px;
+  border-radius:999px;
+  font-weight:600;
+  font-size:.78rem;
+}
+
+/* confidence progress */
+.conf-wrap { margin-top:10px; display:flex; gap:12px; align-items:center; }
+.conf-percent { font-weight:700; color:#0f172a; font-size:.95rem; min-width:44px; text-align:right; }
+.conf-bar { height:10px; background:#eef2ff; border-radius:999px; overflow:hidden; flex:1; }
+.conf-fill { height:100%; background: linear-gradient(90deg,#34d399,#60a5fa); width:0%; transition: width .6s cubic-bezier(.2,.9,.2,1); }
+
+/* actions */
+.rec-actions { display:flex; gap:8px; justify-content:flex-end; margin-top:8px; }
+.btn-rec { padding:8px 12px; border-radius:8px; font-weight:700; font-size:.9rem; cursor:pointer; border:none; }
+.btn-rec-apply { background: linear-gradient(90deg,#06b6d4,#3b82f6); color:#fff; box-shadow: 0 6px 18px rgba(59,130,246,0.12); }
+.btn-rec-ignore { background: transparent; border:1px solid rgba(15,23,42,0.06); color:#0f172a; }
+.btn-rec-details { background:#f8fafc; border:1px solid rgba(15,23,42,0.03); color:#374151; }
+
+/* details collapsed / open */
+.rec-details-block { max-height:0; overflow:hidden; transition: max-height .28s ease; border-top:1px dashed rgba(15,23,42,0.04); padding-top:0; margin-top:8px; color:#334155; font-size:.9rem; white-space:pre-wrap; }
+.rec-details-open { max-height: 640px; padding-top:10px; }
+
+
+
+
+
+
+
+
+
+/* ============================
+   Responsive base container
+   ============================ */
+.container {
+  width: 100%;
+  margin-left: auto;
+  margin-right: auto;
+  padding-left: 16px;
+  padding-right: 16px;
+  box-sizing: border-box;
+}
+/* breakpoints: adjust max-width per viewport */
+@media (min-width: 640px) {
+  .container { max-width: 640px; }
+}
+@media (min-width: 768px) {
+  .container { max-width: 768px; padding-left: 20px; padding-right: 20px; }
+}
+@media (min-width: 1024px) {
+  .container { max-width: 1024px; padding-left: 24px; padding-right: 24px; }
+}
+@media (min-width: 1280px) {
+  .container { max-width: 1280px; padding-left: 28px; padding-right: 28px; }
+}
+@media (min-width: 1536px) {
+  .container { max-width: 1536px; padding-left: 32px; padding-right: 32px; }
+}
+
+/* ============================
+   Global typography + small helpers
+   ============================ */
+.tiny { font-size: .82rem; color: #6b7280; }
+.font-medium { font-weight: 600; color: #0f172a; }
+.card-shadow { box-shadow: 0 8px 30px rgba(11,22,39,0.06); border-radius: 12px; }
+
+/* ============================
+   Recommendation grid & cards
+   - grid is responsive: 1 column mobile, 2 tablet, 3 desktop
+   ============================ */
+.rec-grid {
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: 1fr;
+}
+@media (min-width: 768px) { /* md */
+  .rec-grid { grid-template-columns: repeat(2, 1fr); }
+}
+@media (min-width: 1200px) { /* lg+ */
+  .rec-grid { grid-template-columns: repeat(3, 1fr); }
+}
+
+.rec-card {
+  background: linear-gradient(180deg,#ffffff,#fbfdff);
+  border-radius: 12px;
+  padding: 14px;
+  display:flex;
+  flex-direction:column;
+  gap:10px;
+  border: 1px solid rgba(15,23,42,0.04);
+  transition: transform .12s ease, box-shadow .12s ease;
+}
+.rec-card:hover { transform: translateY(-6px); box-shadow: 0 18px 40px rgba(11,22,39,0.08); }
+
+.rec-header { display:flex; gap:12px; align-items:flex-start; }
+.rec-accent { min-width:52px; min-height:52px; border-radius:10px; display:flex; align-items:center; justify-content:center; color:#fff; font-weight:700; flex-shrink:0; font-size:1.05rem; }
+.rec-meta { flex:1; }
+.rec-title { font-size:1rem; font-weight:600; margin:0; color:#0f172a; }
+.rec-sub { color:#6b7280; font-size:.88rem; margin-top:6px; }
+.rec-badges { display:flex; gap:8px; margin-top:10px; flex-wrap:wrap; }
+.rec-badge { background: rgba(15,23,42,0.04); color:#0f172a; padding:6px 8px; border-radius:999px; font-weight:600; font-size:.78rem; }
+
+/* confidence bar */
+.conf-wrap { margin-top:10px; display:flex; gap:12px; align-items:center; }
+.conf-percent { font-weight:700; color:#0f172a; font-size:.95rem; min-width:44px; text-align:right; }
+.conf-bar { height:10px; background:#eef2ff; border-radius:999px; overflow:hidden; flex:1; }
+.conf-fill { height:100%; background: linear-gradient(90deg,#34d399,#60a5fa); width:0%; transition: width .6s cubic-bezier(.2,.9,.2,1); }
+
+/* actions */
+.rec-actions { display:flex; gap:8px; justify-content:flex-end; margin-top:8px; flex-wrap:wrap; }
+.btn-rec { padding:8px 12px; border-radius:8px; font-weight:700; font-size:.9rem; cursor:pointer; border:none; }
+.btn-rec-apply { background: linear-gradient(90deg,#06b6d4,#3b82f6); color:#fff; box-shadow: 0 6px 18px rgba(59,130,246,0.12); }
+.btn-rec-ignore { background: transparent; border:1px solid rgba(15,23,42,0.06); color:#0f172a; }
+.btn-rec-details { background:#f8fafc; border:1px solid rgba(15,23,42,0.03); color:#374151; }
+
+/* details */
+.rec-details-block { max-height:0; overflow:hidden; transition: max-height .28s ease; border-top:1px dashed rgba(15,23,42,0.04); padding-top:0; margin-top:8px; color:#334155; font-size:.9rem; white-space:pre-wrap; }
+.rec-details-open { max-height: 640px; padding-top:10px; }
+
+/* ============================
+   Table responsive tweaks
+   - make table scroll horizontally on small screens
+   ============================ */
+.table-wrap { width:100%; overflow-x:auto; -webkit-overflow-scrolling:touch; }
+.table { width:100%; border-collapse:collapse; min-width:720px; } /* min-width to keep columns readable */
+.table th, .table td { padding:10px 12px; text-align:left; border-bottom: 1px solid rgba(15,23,42,0.03); font-size:.92rem; color:#0f172a; }
+.table thead th { font-weight:700; background: #fbfdff; }
+
+/* smaller screens: tighten paddings */
+@media (max-width:520px) {
+  .table th, .table td { padding:8px 10px; font-size:.85rem; }
+  .rec-accent { min-width:44px; min-height:44px; }
+  .rec-card { padding:10px; }
+}
+
+/* ============================
+   Chart canvas responsiveness
+   - ensures charts resize nicely inside grid/cards
+   ============================ */
+.chart-card { position:relative; width:100%; display:block; }
+.chart-card canvas { width:100% !important; height: 260px; } /* default height, can be overridden */
+@media (min-width:1280px) {
+  .chart-card canvas { height: 320px; }
+}
+
+/* ============================
+   Small utilities
+   ============================ */
+.text-right { text-align:right; }
+.text-center { text-align:center; }
+.muted { color:#6b7280; font-size:.88rem; }
+
+/* ============================
+   Accessibility / focus ring for keyboard users
+   ============================ */
+.focus-ring:focus { outline: none; box-shadow: 0 0 0 4px rgba(59,130,246,0.12); border-radius: 8px; }
+
+/* ============================
+   Print friendly adjustments (optional)
+   ============================ */
+@media print {
+  .rec-actions, .btn-rec, .refresh-controls { display:none !important; }
+  .container { padding-left:4px; padding-right:4px; max-width:100% !important; }
+}
+
+  </style>
+
+<!-- 
+<style>
+
+        /* Top Navigation Bar - Standard Bootstrap-like */
+        .top-navbar {
+            background-color: var(--background-primary);
+            padding: 1rem 2.5rem; /* Adjusted padding to be more compact */
+            border-bottom: var(--border-width) solid var(--border-card);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0px 2px 5px rgba(0, 0, 0, 0.2); /* Subtle shadow */
+            position: sticky;
+            top: 0;
+            z-index: 1000;
+        }
+
+        .top-navbar .logo {
+            font-size: 1.25rem; /* Smaller logo */
+            font-weight: 700;
+            color: var(--text-light); /* White logo */
+            text-decoration: none;
+        }
+
+        .top-navbar .nav-links .btn {
+            color: var(--text-muted); /* Muted color for non-active links */
+            border: none;
+            padding: 0.5rem 1rem; /* Smaller buttons */
+            border-radius: var(--border-radius-sm);
+            font-weight: 500;
+            transition: all 0.2s ease;
+            font-size: var(--font-size-sm); /* Text-sm for top nav */
+        }
+
+        .top-navbar .nav-links .btn:hover {
+            background-color: rgba(255, 255, 255, 0.05); /* Subtle hover */
+            color: var(--text-light);
+        }
+
+        .top-navbar .nav-links .btn.active {
+            background-color: transparent; /* No background for active */
+            color: var(--accent-color); /* Accent color for active */
+            border-bottom: 2px solid var(--accent-color); /* Underline active tab */
+            border-radius: 0; /* Remove border-radius for underline effect */
+        }
+
+.padding-section-content{
+    padding:0.1rem 2.5rem 2.5rem 2.5rem;
+
+}
+</style> -->
+</head>
+<div class="analytics-page-root bg-gray-50 text-gray-800">
+
+     <nav class="analytyc-tabs-nav">
+  <a class="nav-link active" href="#" data-section="Performance-data">Performance</a>
+
+  <a class="nav-link" href="#" data-section="script-setting-up">Set Up Script</a>
+  <!-- <a class="nav-link" href="#" data-section="facebook-data">Facebook Ads Data</a> -->
+  <a class="nav-link" href="#" data-section="order-manaagement">Order Management</a>
+   
+</nav>
+<style>
+  .analytyc-tabs-nav {
+    background-color: #121212;
+            display: flex;
+            /* margin-bottom: 2rem; Space below tabs */
+            border-bottom: var(--border-width)
+ solid rgb(52 52 54); /* Separator below tabs */
+        }
+        .analytyc-tabs-nav .nav-link.active {
+    color: #e0e0e0;
+    border-bottom-color: #00e677;
+    background-color: rgba(255, 255, 255, 0.05);
+}
+
+.analytyc-tabs-nav .nav-link {
+    padding: 0.60rem 1.25rem;
+    color: var(--text-muted);
+    font-size: .875rem;
+    font-weight: 500;
+    text-decoration: none;
+    border-bottom: 2px solid transparent;
+    transition: color 0.2s ease, border-color 0.2s ease;
+    border-radius: 0.25rem 0.25rem 0 0;
+}
+
+.analytics-page-root {
+    flex: 1;
+    min-height: 0;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+}
+.analytyc-tabs-nav {
+    flex-shrink: 0;
+}
+.tab-section {
+    flex: 1 1 0;
+    min-height: 0;
+    overflow-y: auto;
+    overflow-x: hidden;
+}
+.tab-section[style*="display: none"] {
+    display: none !important;
+}
+</style>
+<!-- script for capturing visit  -->
+<div id="script-setting-up" class="tab-section script_sections" style="display: none;"> 
+
+
+
+<style>
+/* Professional UI (compact) - classes end with -S to avoid conflicts */
+:root{--bg:#071427;--muted:#94a3b8;--accent:#06b6d4;--accent-2:#0ea5a4;--success:#16a34a;--danger:#ef4444;--radius:12px;}
+.script_sections{font-family:Inter,system-ui,Arial;margin:0;background:linear-gradient(180deg,#071427 0%, #0b1220 60%);color:#e6f3f7;padding:28px 0;box-sizing:border-box;}
+.container-S{max-width:1100px;margin:0 auto;}
+.header-S{display:flex;align-items:center;justify-content:space-between;margin-bottom:18px;}
+.h-title-S{font-size:20px;font-weight:700;}
+.h-sub-S{color:var(--muted);font-size:13px;}
+.btn-S{border:0;padding:10px 14px;border-radius:10px;cursor:pointer;font-weight:600;font-size:14px;}
+.btn-primary-S{background:linear-gradient(90deg,var(--accent-2),var(--accent));color:#02121a;}
+.dashboard-wrap-S{display:grid;grid-template-columns:1fr 360px;gap:18px;}
+.list-col-S{background:linear-gradient(180deg, rgba(255,255,255,0.02), transparent);border-radius:var(--radius);padding:18px;border:1px solid rgba(255,255,255,0.03);}
+.empty-S{display:flex;align-items:center;justify-content:center;gap:18px;flex-direction:column;padding:40px;color:var(--muted);border:1px dashed rgba(255,255,255,0.03);border-radius:10px;}
+.scripts-grid-S{display:flex;flex-direction:column;gap:12px;}
+.script-card-S{background:linear-gradient(90deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));border-radius:10px;padding:12px;display:flex;align-items:center;justify-content:space-between;gap:12px;border:1px solid rgba(255,255,255,0.03);}
+.script-meta-S{flex:1 1 auto;display:flex;flex-direction:column;gap:6px;text-align:right;}
+.script-title-S{font-weight:700;font-size:15px;}
+.script-sub-S{color:var(--muted);font-size:13px;}
+.status-dot-S{width:12px;height:12px;border-radius:50%;display:inline-block;margin-left:8px;}
+.dot-on-S{background:var(--success);}
+.dot-off-S{background:var(--danger);}
+.card-actions-S{display:flex;gap:8px;align-items:center;}
+.icon-btn-S{background:transparent;color:var(--muted);border:1px solid rgba(255,255,255,0.02);padding:8px;border-radius:8px;cursor:pointer;font-weight:700;}
+.preview-S{background:#020617;color:#bfeef6;padding:8px;border-radius:8px;font-family:monospace;font-size:12px;max-width:240px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;}
+.side-col-S{background:linear-gradient(180deg, rgba(255,255,255,0.015), transparent);border-radius:var(--radius);padding:14px;border:1px solid rgba(255,255,255,0.03);height:fit-content;}
+.flow-form-inline-S{display:none;margin-bottom:24px;padding:20px;background:linear-gradient(180deg,rgba(255,255,255,0.03),transparent);border-radius:var(--radius);border:1px solid rgba(255,255,255,0.06);}
+.flow-form-inline-S.visible{display:block;}
+.flow-form-header-S{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;padding-bottom:12px;border-bottom:1px solid rgba(255,255,255,0.06);}
+.flow-form-body-S{display:grid;gap:12px;}
+.field-S{display:flex;flex-direction:column;gap:6px;}
+.input-S{padding:10px 12px;border-radius:8px;border:1px solid rgba(255,255,255,0.04);background:transparent;color:#e6f3f7;outline:none;}
+.select-S{padding:10px 12px;border-radius:8px;border:1px solid rgba(255,255,255,0.04);background:transparent;color:#e6f3f7;}
+.small-muted-S{color:var(--muted);font-size:13px;}
+.form-row-S{display:flex;gap:12px;align-items:center;flex-wrap:wrap;}
+.col-half-S{flex:1 1 48%;min-width:140px;}
+.col-full-S{flex:1 1 100%;}
+.coupon-row-S{display:flex;gap:8px;align-items:center;}
+.generated-area-S{background:#02101a;border-radius:8px;padding:10px;color:#9fe8ef;font-family:monospace;font-size:12px;max-height:240px;overflow:auto;white-space:pre-wrap;}
+.kv-S{display:flex;gap:8px;color:var(--muted);font-size:13px;align-items:center;}
+.radio-group-S{display:flex;flex-wrap:wrap;}
+.radio-option-S{display:flex;align-items:center;gap:8px;cursor:pointer;color:#e6f3f7;font-size:14px;}
+.radio-option-S input[type="radio"]{accent-color:var(--accent);cursor:pointer;}
+@media(max-width:980px){.dashboard-wrap-S{grid-template-columns:1fr;} }
+</style>
+
+<!-- <div class="container-all">  -->
+<div class="container-S">
+  <div class="header-S">
+    <div>
+      <div class="h-title-S">Flows Dashboard</div>
+      <div class="h-sub-S">Server-backed flows: create, edit, deploy scripts</div>
+    </div>
+    <div>
+      <button id="addBtn-S" class="btn-S btn-primary-S">Add Script</button>
+    </div>
+  </div>
+
+  <!-- Inline create/edit form (same page, not modal) -->
+  <div id="flowFormInline-S" class="flow-form-inline-S" aria-hidden="true">
+    <div class="flow-form-header-S">
+      <div id="panelTitle-S" style="font-weight:700;">Create Flow</div>
+      <button id="closePanel-S" class="icon-btn-S" type="button">Close</button>
+    </div>
+    <div class="flow-form-body-S">
+      <div class="field-S col-full-S">
+        <label class="small-muted-S">Flow name</label>
+        <input id="flowName-S" class="input-S" placeholder="Internal name" />
+      </div>
+      <div class="field-S col-full-S">
+        <label class="small-muted-S">Allowed domains (comma separated)</label>
+        <input id="allowedDomains-S" class="input-S" placeholder="yourstore.com, shop.other.com" />
+        <div class="small-muted-S">Server will validate request origin if API key omitted.</div>
+      </div>
+      <div class="field-S col-full-S">
+        <label class="small-muted-S">Description</label>
+        <textarea id="flowDescription-S" class="input-S" rows="3" placeholder="Optional description for this flow"></textarea>
+      </div>
+      <div class="field-S col-full-S">
+        <label class="small-muted-S">Block double customers</label>
+        <div class="form-row-S radio-group-S" style="gap:16px;margin-top:6px;">
+          <label class="radio-option-S">
+            <input type="radio" name="blockDouble-S" value="yes" id="blockDoubleYes-S" />
+            <span>Yes – block duplicate customers</span>
+          </label>
+          <label class="radio-option-S">
+            <input type="radio" name="blockDouble-S" value="no" id="blockDoubleNo-S" checked />
+            <span>No</span>
+          </label>
+        </div>
+        <div class="small-muted-S">Prevent the same visitor/customer from being counted or rewarded twice.</div>
+      </div>
+      <!-- <div class="field-S col-full-S">
+        <label class="small-muted-S">Store URL (merchant)</label>
+        <input id="storeUrl-S" class="input-S" placeholder="https://merchant.example" />
+      </div>
+      <div class="form-row-S">
+        <div class="field-S col-half-S">
+          <label class="small-muted-S">Enable Smart Discount</label>
+          <select id="enableDiscount-S" class="select-S"><option value="no">No</option><option value="yes">Yes</option></select>
+        </div>
+      </div> -->
+      <!-- <div id="discountBlock-S" style="display:none;">
+        <div class="form-row-S">
+          <div class="field-S col-half-S"><label class="small-muted-S">Show after visits</label><input id="visitsThreshold-S" class="input-S" type="number" min="1" value="2" /></div>
+          <div class="field-S col-half-S"><label class="small-muted-S">Coupon mode</label><select id="couponMode-S" class="select-S"><option value="show">Show only</option><option value="auto">Auto-apply</option></select></div>
+        </div>
+        <div class="form-row-S">
+          <div class="field-S col-half-S"><label class="small-muted-S">Discount (%)</label><input id="discountPercent-S" class="input-S" type="number" min="0" max="100" value="10" /></div>
+          <div class="field-S col-half-S"><label class="small-muted-S">Tiers (visit:percent)</label><input id="tiers-S" class="input-S" placeholder="2:10,3:15" /></div>
+        </div>
+        <div class="form-row-S">
+          <div class="field-S col-half-S"><label class="small-muted-S">Alternate product page?</label><select id="alternatePage-S" class="select-S"><option value="no">No</option><option value="yes">Yes</option></select></div>
+          <div class="field-S col-half-S" id="altWrap-S" style="display:none;"><label class="small-muted-S">Alternate Page URL</label><input id="altUrl-S" class="input-S" placeholder="https://merchant.example/alt" /></div>
+        </div>
+        <div class="field-S col-full-S">
+          <label class="small-muted-S">Coupon code (leave empty to auto-generate)</label>
+          <div style="display:flex;gap:8px;">
+            <input id="couponCode-S" class="input-S" placeholder="AUTO-XXXX" />
+            <button id="genCoupon-S" class="btn-S" type="button">Generate</button>
+          </div>
+        </div>
+      </div> -->
+
+
+      <!-- <div class="form-row-S"> -->
+        <!-- <div class="field-S col-half-S"><label class="small-muted-S">Visitor Source</label><select id="visitorSource-S" class="select-S"><option value="all">All</option><option value="tiktok">TikTok</option><option value="facebook">Facebook</option></select></div> -->
+        <!-- <div class="field-S col-half-S"><label class="small-muted-S">Audience</label><select id="audience-S" class="select-S"><option value="public">Public</option><option value="tiktok">TikTok only</option><option value="facebook">Facebook only</option></select></div> -->
+      <!-- </div> -->
+      <!-- <div class="field-S col-full-S"><label class="small-muted-S">Add-ons (notes)</label><textarea id="addons-S" class="input-S" rows="3" placeholder="e.g. SMS notify"></textarea></div> -->
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+        <button id="createBtn-S" class="btn-S btn-primary-S" type="button">Create Script (Save Flow)</button>
+        <!-- <label style="display:flex;align-items:center;gap:8px;color:var(--muted);font-size:13px;">
+          <input id="includeKey-S" type="checkbox" /> Include API key in script
+        </label> -->
+      </div>
+
+
+      <div style="height:8px;"></div>
+      <div style="font-weight:700;margin-bottom:6px;">Generated Script</div>
+      <div id="generated-S" class="generated-area-S">// Script will appear here after create</div>
+      <div style="display:flex;gap:8px;margin-top:10px;">
+        <button id="copyBtn-S" class="btn-S btn-primary-S" type="button">Copy Script</button>
+        <!-- <button id="saveBtn-S" class="btn-S" type="button">Save script to flow</button> -->
+      </div>
+    </div>
+  </div>
+
+  <div class="dashboard-wrap-S">
+    <div class="list-col-S">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+        <div style="font-weight:800;">Your Flows</div>
+        <div style="color:var(--muted);font-size:13px;">Manage server flows</div>
+      </div>
+      <div id="scriptsArea-S" style="height: 429px; overflow: auto;" class="scripts-grid-S"></div>
+    </div>
+
+    
+    <aside class="side-col-S">
+      <div style="font-weight:800;margin-bottom:8px;">Quick Info</div>
+      <div class="kv-S"><strong>•</strong> Flows are stored on server and belong to your account.</div>
+      <div class="kv-S"><strong>•</strong> The generated script contains  flow_id . Optionally include API key.</div>
+      <div class="kv-S"><strong>•</strong> Only visits from your allowed domains are tracked, with no duplicates for repeated visits from the same user.</div>
+      <div class="kv-S"><strong>•</strong> Visits are tracked from allowed domains only.   </div>
+      <div class="kv-S"><strong>•</strong> Each visitor gets a unique ID stored in their browser to avoid duplicates, even if they revisit the same page.  </div>
+      <div class="kv-S"> <strong>•</strong> This ensures accurate tracking of real user activity.</div>
+
+      <div style="height:10px;"></div>
+      <div style="font-weight:700;margin-bottom:8px;">Saved Flows</div>
+      <div id="count-S" class="kv-S">0 flows</div>
+    </aside>
+  </div>
+</div>
+
+<script>
+(function(){
+  var flowForm = document.getElementById('flowFormInline-S');
+  var addBtn = document.getElementById('addBtn-S');
+  var closeBtn = document.getElementById('closePanel-S');
+  if (addBtn && flowForm) {
+    addBtn.addEventListener('click', function(){
+      window._editingFlowId = null;
+      if (document.getElementById('panelTitle-S')) document.getElementById('panelTitle-S').textContent = 'Create Flow';
+      if (flowNameEl) flowNameEl.value = '';
+      if (allowedDomainsEl) allowedDomainsEl.value = '';
+      if (flowDescriptionEl) flowDescriptionEl.value = '';
+      var blockNo = document.getElementById('blockDoubleNo-S');
+      var blockYes = document.getElementById('blockDoubleYes-S');
+      if (blockNo) blockNo.checked = true;
+      if (blockYes) blockYes.checked = false;
+      if (generatedDiv) generatedDiv.textContent = '// Script will appear here after create';
+      flowForm.classList.add('visible');
+      flowForm.setAttribute('aria-hidden', 'false');
+      flowForm.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+  }
+  if (closeBtn && flowForm) {
+    closeBtn.addEventListener('click', function(){
+      flowForm.classList.remove('visible');
+      flowForm.setAttribute('aria-hidden', 'true');
+    });
+  }
+  var enableDiscount = document.getElementById('enableDiscount-S');
+  var discountBlock = document.getElementById('discountBlock-S');
+  var alternatePage = document.getElementById('alternatePage-S');
+  var altWrap = document.getElementById('altWrap-S');
+  if (enableDiscount && discountBlock) {
+    enableDiscount.addEventListener('change', function(){
+      discountBlock.style.display = enableDiscount.value === 'yes' ? 'block' : 'none';
+    });
+  }
+  if (alternatePage && altWrap) {
+    alternatePage.addEventListener('change', function(){
+      altWrap.style.display = alternatePage.value === 'yes' ? 'block' : 'none';
+    });
+  }
+  var genCoupon = document.getElementById('genCoupon-S');
+  var couponCode = document.getElementById('couponCode-S');
+  if (genCoupon && couponCode) {
+    genCoupon.addEventListener('click', function(e){
+      e.preventDefault();
+      couponCode.value = 'AUTO-' + Math.random().toString(36).slice(2, 7).toUpperCase();
+    });
+  }
+  window.getFlowFormConfigS = function(){
+    var flowDescriptionEl = document.getElementById('flowDescription-S');
+    var blockDoubleEl = document.querySelector('input[name="blockDouble-S"]:checked');
+    return {
+      description: flowDescriptionEl ? (flowDescriptionEl.value || '').trim() : '',
+      blockRepeat: blockDoubleEl ? (blockDoubleEl.value === 'yes') : false
+    };
+  };
+
+  var createBtn = document.getElementById('createBtn-S');
+  var generatedDiv = document.getElementById('generated-S');
+  var flowNameEl = document.getElementById('flowName-S');
+  var allowedDomainsEl = document.getElementById('allowedDomains-S');
+  var flowDescriptionEl = document.getElementById('flowDescription-S');
+
+  function getCookie(name) {
+    var m = document.cookie.match('(^|;)\\s*' + name + '\\s*=\\s*([^;]+)');
+    return m ? m.pop() : '';
+  }
+
+  function stripHtmlAndScript(str) {
+    if (typeof str !== 'string') return '';
+    return str
+      .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '')
+      .replace(/<[^>]+>/g, '')
+      .replace(/javascript:/gi, '')
+      .replace(/on\w+\s*=/gi, '')
+      .replace(/&lt;/g, '')
+      .replace(/&gt;/g, '')
+      .replace(/&#x?[0-9a-f]+;/gi, '');
+  }
+  function sanitizeFlowName(name) {
+    var s = stripHtmlAndScript(String(name || '').trim());
+    s = s.replace(/[<>\"'&\\]/g, '').substring(0, 200);
+    return s;
+  }
+  function sanitizeAllowedDomains(domains) {
+    var s = stripHtmlAndScript(String(domains || '').trim());
+    s = s.replace(/[<>\"'\\;]/g, '').replace(/\s*,\s*/g, ',').substring(0, 1000);
+    return s;
+  }
+  function sanitizeDescription(desc) {
+    var s = stripHtmlAndScript(String(desc || '').trim());
+    s = s.replace(/[<>\"'\\]/g, '').substring(0, 2000);
+    return s;
+  }
+  function sanitizeFlowFormData(name, allowed_domains, config) {
+    return {
+      name: sanitizeFlowName(name),
+      allowed_domains: sanitizeAllowedDomains(allowed_domains),
+      config: {
+        description: config && config.description !== undefined ? sanitizeDescription(config.description) : '',
+        blockRepeat: !!(config && config.blockRepeat)
+      }
+    };
+  }
+  function isDuplicateFlow(existingFlows, name, allowed_domains) {
+    var n = (name || '').toLowerCase().trim();
+    var d = (allowed_domains || '').toLowerCase().replace(/\s*,\s*/g, ',').trim();
+    if (!n && !d) return false;
+    for (var i = 0; i < existingFlows.length; i++) {
+      var f = existingFlows[i];
+      var fn = (f.name || '').toLowerCase().trim();
+      var fd = (f.allowed_domains || '').toLowerCase().replace(/\s*,\s*/g, ',').trim();
+      if (fn === n && fd === d) return f;
+    }
+    return null;
+  }
+
+  if (createBtn && generatedDiv) {
+    createBtn.addEventListener('click', function(){
+      var editingId = window._editingFlowId;
+      var rawName = (flowNameEl && flowNameEl.value) ? flowNameEl.value : '';
+      var rawAllowed = (allowedDomainsEl && allowedDomainsEl.value) ? allowedDomainsEl.value : '';
+      var extra = getFlowFormConfigS();
+      var sanitized = sanitizeFlowFormData(rawName, rawAllowed, { description: extra.description, blockRepeat: extra.blockRepeat });
+      var name = sanitized.name;
+      var allowed_domains = sanitized.allowed_domains;
+      var config = sanitized.config;
+
+      if (!editingId && !name) {
+        alert('Flow name is required.');
+        return;
+      }
+
+      createBtn.disabled = true;
+      createBtn.textContent = editingId ? 'Saving...' : 'Creating...';
+      generatedDiv.textContent = '// Validating...';
+
+      var csrf = getCookie('csrftoken');
+
+      if (editingId) {
+        fetch('/discount/marketing/api/flows/' + editingId + '/', {
+          method: 'PATCH',
+          credentials: 'include',
+          headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrf, 'Accept': 'application/json' },
+          body: JSON.stringify({ name: name, allowed_domains: allowed_domains, config: config })
+        })
+          .then(function(res){ return res.json().then(function(data){ return { ok: res.ok, data: data }; }); })
+          .then(function(result){
+            if (result.ok) {
+              window._editingFlowId = null;
+              if (document.getElementById('panelTitle-S')) document.getElementById('panelTitle-S').textContent = 'Create Flow';
+              flowForm.classList.remove('visible');
+              flowForm.setAttribute('aria-hidden', 'true');
+              renderFlows();
+              generatedDiv.textContent = '// Flow updated. Open Edit again to see script.';
+            } else {
+              generatedDiv.textContent = '// Error: ' + (result.data.error || 'Update failed');
+              if (result.data.error) alert('Error: ' + result.data.error);
+            }
+          })
+          .catch(function(err){
+            generatedDiv.textContent = '// Network error';
+            console.error(err);
+            alert('Request failed.');
+          })
+          .finally(function(){ createBtn.disabled = false; createBtn.textContent = 'Create Script (Save Flow)'; });
+        return;
+      }
+
+      generatedDiv.textContent = '// Checking for duplicate...';
+      fetch('/discount/marketing/api/flows/', { method: 'GET', credentials: 'include', headers: { 'Accept': 'application/json' } })
+        .then(function(r){ return r.json(); })
+        .then(function(listData){
+          var flows = listData.flows || [];
+          var duplicate = isDuplicateFlow(flows, name, allowed_domains);
+          if (duplicate) {
+            createBtn.disabled = false;
+            createBtn.textContent = 'Create Script (Save Flow)';
+            generatedDiv.textContent = '// A flow with this name and allowed domains already exists. Use Edit instead.';
+            alert('A flow with the same name and allowed domains already exists. Please use Edit on the existing flow or change the name/domains.');
+            return;
+          }
+          generatedDiv.textContent = '// Sending to server...';
+          return fetch('/discount/marketing/api/flows/create/', {
+            method: 'POST',
+            credentials: 'include',
+            headers: {
+              'Content-Type': 'application/json',
+              'X-CSRFToken': csrf,
+              'Accept': 'application/json'
+            },
+            body: JSON.stringify({ name: name, allowed_domains: allowed_domains, config: config })
+          })
+            .then(function(res){ return res.json().then(function(data){ return { ok: res.ok, data: data }; }); })
+            .then(function(result){
+              if (result.ok && result.data.script) {
+                generatedDiv.textContent = result.data.script;
+                createBtn.textContent = 'Create Script (Save Flow)';
+                if (typeof renderFlows === 'function') renderFlows();
+              } else {
+                generatedDiv.textContent = '// Error: ' + (result.data.error || 'Failed to create flow');
+                createBtn.textContent = 'Create Script (Save Flow)';
+                if (result.data.error) alert('Error: ' + result.data.error);
+              }
+            });
+        })
+        .catch(function(err){
+          generatedDiv.textContent = '// Network error: ' + (err.message || 'Request failed');
+          createBtn.textContent = 'Create Script (Save Flow)';
+          console.error(err);
+          alert('Request failed. Check console.');
+        })
+        .finally(function(){
+          createBtn.disabled = false;
+        });
+    });
+  }
+
+  var copyBtn = document.getElementById('copyBtn-S');
+  if (copyBtn && generatedDiv) {
+    copyBtn.addEventListener('click', function(){
+      var txt = generatedDiv.textContent || '';
+      if (!txt || txt.indexOf('//') === 0 && txt.indexOf('Script will appear') !== -1) {
+        alert('No script to copy. Create a flow first.');
+        return;
+      }
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(txt).then(function(){ alert('Copied to clipboard'); }).catch(function(){ fallbackCopy(txt); });
+      } else {
+        fallbackCopy(txt);
+      }
+    });
+  }
+  function fallbackCopy(txt) {
+    var ta = document.createElement('textarea');
+    ta.value = txt;
+    document.body.appendChild(ta);
+    ta.select();
+    try { document.execCommand('copy'); alert('Copied'); } catch(e) { alert('Copy failed'); }
+    ta.remove();
+  }
+
+  function esc(s) { return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+  window.renderFlows = function() {
+    var scriptsArea = document.getElementById('scriptsArea-S');
+    var countBox = document.getElementById('count-S');
+    if (!scriptsArea) return;
+    fetch('/discount/marketing/api/flows/', { method: 'GET', credentials: 'include', headers: { 'Accept': 'application/json' } })
+      .then(function(r){ return r.json(); })
+      .then(function(data){
+        var flows = data.flows || [];
+        if (countBox) countBox.textContent = flows.length + ' flow' + (flows.length !== 1 ? 's' : '');
+        if (flows.length === 0) {
+          scriptsArea.innerHTML = '<div class="empty-S"><div style="font-weight:700;color:#cfeff3">No flows yet</div><div style="color:var(--muted);max-width:320px;text-align:center;">Create your first flow — click "Add Script".</div></div>';
+          return;
+        }
+        scriptsArea.innerHTML = '';
+        flows.forEach(function(f){
+          var card = document.createElement('div');
+          card.className = 'script-card-S';
+          var createdStr = f.createdAt ? new Date(f.createdAt).toLocaleDateString() : '—';
+          var usedStr = (f.visits_count !== undefined && f.visits_count !== null) ? (f.visits_count + ' visit' + (f.visits_count !== 1 ? 's' : '')) : '—';
+          card.innerHTML =
+            '<div class="script-meta-S"><div style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;">' +
+              '<div style="flex:1;min-width:0;">' +
+                '<div class="script-title-S">' + esc(f.name || 'Untitled') + '</div>' +
+                '<div class="script-sub-S">Created: ' + esc(createdStr) + ' &middot; Used: ' + esc(usedStr) + '</div>' +
+                '<div class="script-sub-S">' + (f.active ? '<span style="color:var(--success);">Active</span>' : '<span style="color:var(--danger);">Disabled</span>') + '</div>' +
+              '</div>' +
+              '<div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;">' +
+                '<button type="button" class="icon-btn-S btn-toggle-S" data-id="' + esc(f.flow_id) + '" data-active="' + (f.active ? '1' : '0') + '">' + (f.active ? 'Disable' : 'Enable') + '</button>' +
+                '<button type="button" class="icon-btn-S btn-edit-S" data-id="' + esc(f.flow_id) + '">Edit</button>' +
+              '</div>' +
+            '</div></div>';
+          scriptsArea.appendChild(card);
+        });
+
+        scriptsArea.querySelectorAll('.btn-toggle-S').forEach(function(btn){
+          btn.addEventListener('click', function(){
+            var id = btn.getAttribute('data-id');
+            var active = btn.getAttribute('data-active') === '1';
+            var newActive = !active;
+            var csrf = getCookie('csrftoken');
+            fetch('/discount/marketing/api/flows/' + id + '/', {
+              method: 'PATCH',
+              credentials: 'include',
+              headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrf },
+              body: JSON.stringify({ active: newActive })
+            })
+              .then(function(r){ return r.json(); })
+              .then(function(){
+                renderFlows();
+              })
+              .catch(function(err){ console.error(err); alert('Failed to update flow'); });
+          });
+        });
+
+        scriptsArea.querySelectorAll('.btn-edit-S').forEach(function(btn){
+          btn.addEventListener('click', function(){
+            var id = btn.getAttribute('data-id');
+            var flow = flows.find(function(x){ return x.flow_id === id; });
+            if (!flow) return;
+            if (flowNameEl) flowNameEl.value = flow.name || '';
+            if (allowedDomainsEl) allowedDomainsEl.value = flow.allowed_domains || '';
+            if (flowDescriptionEl) flowDescriptionEl.value = (flow.config && flow.config.description) || '';
+            var blockYes = document.getElementById('blockDoubleYes-S');
+            var blockNo = document.getElementById('blockDoubleNo-S');
+            var blockRepeat = !!(flow.config && flow.config.blockRepeat);
+            if (blockYes) blockYes.checked = blockRepeat;
+            if (blockNo) blockNo.checked = !blockRepeat;
+            if (generatedDiv) generatedDiv.textContent = flow.script || '// Script for this flow';
+            window._editingFlowId = id;
+            if (document.getElementById('panelTitle-S')) document.getElementById('panelTitle-S').textContent = 'Edit Flow';
+            flowForm.classList.add('visible');
+            flowForm.setAttribute('aria-hidden', 'false');
+            flowForm.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          });
+        });
+      })
+      .catch(function(err){
+        console.error('load flows', err);
+        scriptsArea.innerHTML = '<div class="empty-S"><div style="font-weight:700;color:#fca5a5">Error loading flows</div></div>';
+      });
+  };
+
+  document.addEventListener('DOMContentLoaded', function(){ renderFlows(); });
+})();
+</script>
+
+ 
+ 
+  
+ 
+
+
+</div>
+
+<div id="order-manaagement" class="tab-section" style="display: none;">
+  {% include "orders/order_list.html" %}
+</div>
+ 
+
+
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+  const links = document.querySelectorAll(".analytyc-tabs-nav .nav-link");
+  const sections = document.querySelectorAll(".tab-section");
+
+  links.forEach(link => {
+    link.addEventListener("click", function (e) {
+      e.preventDefault();
+      this.classList.add("active");
+      links.forEach(link => {
+        if (link !== this) {
+          link.classList.remove("active");
+        }
+      });
+      
+      // Hide all tab sections
+      sections.forEach(section => { section.style.display = "none"; });
+
+      const targetId = this.getAttribute("data-section");
+      const targetSection = document.getElementById(targetId);
+
+      if (targetSection) {
+        targetSection.style.display = "block"; // visible section gets flex space and scrolls inside
+      }
+    });
+  });
+});
+</script>
+
+<div id="Performance-data" class="tab-section" >
+
+  <div class="max-w-7xl mx-auto p-6">
+    <!-- HEADER -->
+    <header class="flex items-center justify-between mb-6">
+      <div>
+        <h1 class="text-2xl font-semibold">Ad Campaigns Performance</h1>
+        <p class="tiny mt-1">Real-time insights to spot winning and losing campaigns</p>
+      </div>
+
+      <div class="flex items-center gap-3">
+        <!-- Platform badge (changes when filter selected) -->
+        <div id="platformBadge" class="badge-platform bg-blue-100 text-blue-800">All Platforms</div>
+
+        <!-- Refresh button -->
+        <button id="refreshBtn" class="inline-flex items-center gap-2 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded card-shadow">
+          🔄 Refresh
+        </button>
+
+        <!-- Export CSV -->
+        <button id="exportBtn" class="px-3 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded card-shadow">Export CSV</button>
+      </div>
+    </header>
+
+    <!-- KPI Cards -->
+    <style>
+      .kpi-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; margin-bottom: 24px; }
+      @media (min-width: 768px) { .kpi-grid { grid-template-columns: repeat(4, 1fr); } }
+      .kpi-card { background: #fff; padding: 16px 18px; border-radius: 12px; box-shadow: 0 1px 4px rgba(0,0,0,0.06); border: 1px solid #f0f0f0; position: relative; transition: border-color .15s, box-shadow .15s; }
+      .kpi-card:hover { border-color: #e0e0e0; box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
+      .kpi-label { font-size: 12px; color: #6b7280; font-weight: 500; margin-bottom: 4px; }
+      .kpi-value { font-size: 22px; font-weight: 700; color: #111827; line-height: 1.2; }
+      .kpi-sub { font-size: 11px; color: #9ca3af; margin-top: 4px; }
+      .kpi-rate { display: inline-block; font-size: 12px; font-weight: 600; padding: 2px 8px; border-radius: 6px; margin-top: 6px; }
+      .kpi-rate--blue { background: #dbeafe; color: #1d4ed8; }
+      .kpi-rate--green { background: #d1fae5; color: #047857; }
+      .kpi-rate--purple { background: #f3e8ff; color: #6b21a8; }
+      .kpi-rate--amber { background: #fef3c7; color: #b45309; }
+      /* Source dropup */
+      .kpi-visitors-wrap { position: relative; }
+      .kpi-source-dropup { display: none; position: absolute; bottom: calc(100% + 8px); left: 0; right: 0; min-width: 280px; background: #fff; border-radius: 12px; box-shadow: 0 8px 24px rgba(0,0,0,0.14); border: 1px solid #e5e7eb; z-index: 50; padding: 0; overflow: hidden; }
+      .kpi-visitors-wrap:hover .kpi-source-dropup { display: block; }
+      .kpi-source-dropup::after { content: ''; position: absolute; bottom: -6px; left: 24px; width: 12px; height: 12px; background: #fff; border-right: 1px solid #e5e7eb; border-bottom: 1px solid #e5e7eb; transform: rotate(45deg); }
+      .kpi-src-header { display: grid; grid-template-columns: 1fr 70px 70px; padding: 10px 14px; background: #f8fafc; font-size: 11px; font-weight: 600; color: #6b7280; text-transform: uppercase; letter-spacing: .03em; border-bottom: 1px solid #f0f0f0; }
+      .kpi-src-row { display: grid; grid-template-columns: 1fr 70px 70px; padding: 9px 14px; font-size: 13px; color: #374151; border-bottom: 1px solid #f8f8f8; transition: background .1s; }
+      .kpi-src-row:last-child { border-bottom: none; }
+      .kpi-src-row:hover { background: #f8fafc; }
+      .kpi-src-name { font-weight: 600; display: flex; align-items: center; gap: 6px; }
+      .kpi-src-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+      .kpi-src-num { text-align: center; font-variant-numeric: tabular-nums; }
+      .kpi-src-empty { padding: 16px 14px; text-align: center; font-size: 12px; color: #9ca3af; }
+    </style>
+
+    <section class="kpi-grid">
+      <!-- 1. Total Spend -->
+      <div class="kpi-card">
+        <div class="kpi-label">Total Spend</div>
+        <div id="kpiSpend" class="kpi-value">$0</div>
+        <div class="kpi-sub">Ad budget spent</div>
+      </div>
+
+      <!-- 2. Total Visitors (with source dropup) -->
+      <div class="kpi-card kpi-visitors-wrap">
+        <div class="kpi-label">Total Visitors</div>
+        <div id="kpiVisitors" class="kpi-value">0</div>
+        <div class="kpi-sub">Hover for source breakdown</div>
+        <!-- Dropup card -->
+        <div class="kpi-source-dropup" id="kpiSourceDropup">
+          <div class="kpi-src-header">
+            <span>Source</span>
+            <span style="text-align:center">Visitors</span>
+            <span style="text-align:center">Orders</span>
+          </div>
+          <div id="kpiSourceBody">
+            <div class="kpi-src-empty">No data yet</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 3. Total Orders + Conversion Rate -->
+      <div class="kpi-card">
+        <div class="kpi-label">Total Orders</div>
+        <div id="kpiOrders" class="kpi-value">0</div>
+        <div class="kpi-rate kpi-rate--purple"><span id="kpiConversion">0%</span> conversion</div>
+        <div class="kpi-sub">Visitors &rarr; Orders</div>
+      </div>
+
+      <!-- 4. Confirmed + Confirmation Rate -->
+      <div class="kpi-card">
+        <div class="kpi-label">Confirmed</div>
+        <div id="kpiConfirmed" class="kpi-value">0</div>
+        <div class="kpi-rate kpi-rate--blue"><span id="kpiConfirmRate">0%</span> confirmation</div>
+        <div class="kpi-sub">Orders &rarr; Confirmed</div>
+      </div>
+
+      <!-- 5. Shipped -->
+      <div class="kpi-card">
+        <div class="kpi-label">Shipped</div>
+        <div id="kpiShipped" class="kpi-value">0</div>
+        <div class="kpi-sub">In transit</div>
+      </div>
+
+      <!-- 6. Delivered + Delivery Rate -->
+      <div class="kpi-card">
+        <div class="kpi-label">Delivered</div>
+        <div id="kpiDelivered" class="kpi-value">0</div>
+        <div class="kpi-rate kpi-rate--green"><span id="kpiDelivery">0%</span> delivery</div>
+        <div class="kpi-sub">Confirmed &rarr; Delivered</div>
+      </div>
+
+      <!-- 7. Cancelled -->
+      <div class="kpi-card">
+        <div class="kpi-label">Cancelled</div>
+        <div id="kpiCancelled" class="kpi-value">0</div>
+        <div class="kpi-rate kpi-rate--amber"><span id="kpiCancelRate">0%</span> cancel</div>
+        <div class="kpi-sub">Orders cancelled</div>
+      </div>
+
+      <!-- 8. Matched Visits -->
+      <div class="kpi-card">
+        <div class="kpi-label">Matched Visits</div>
+        <div id="kpiMatched" class="kpi-value">0</div>
+        <div class="kpi-sub">Orders linked to ads</div>
+      </div>
+    </section>
+
+    <!-- Controls -->
+    <section class="flex flex-col md:flex-row items-start md:items-center gap-3 mb-6">
+      <div class="flex items-center gap-3">
+        <label class="tiny">Platform:</label>
+        <select id="platformSelect" class="px-3 py-2 rounded border">
+          <option value="all">All Platforms</option>
+          <option value="facebook">Facebook</option>
+          <option value="google">Google</option>
+          <option value="tiktok">TikTok</option>
+          <option value="snapchat">Snapchat</option>
+        </select>
+      </div>
+
+      <div class="flex items-center gap-3">
+        <label class="tiny">Period:</label>
+        <select id="periodSelect" class="px-3 py-2 rounded border">
+          <option value="7">Last 7 days</option>
+          <option value="30">Last 30 days</option>
+          <option value="90">Last 90 days</option>
+        </select>
+      </div>
+
+      <div class="ml-auto tiny text-gray-600">
+        <span id="lastUpdate">Last update: --</span>
+      </div>
+    </section>
+
+    <!-- CHARTS -->
+    <section class="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-6">
+      <div class="col-span-2 bg-white p-4 rounded-lg card-shadow">
+        <div class="flex items-center justify-between mb-2">
+          <h3 class="font-semibold">Conversions & Orders Over Time</h3>
+          <div class="tiny text-gray-500">Trend</div>
+        </div>
+        <div style="height: 340px;">
+          <canvas id="mainChart" style="height: 100%; width: 100%;"></canvas>
+        </div>
+      </div>
+
+      <div class="bg-white p-4 rounded-lg card-shadow">
+        <h3 class="font-semibold mb-3">Recommendations</h3>
+        <div style="height: 260px;">
+ 
+
+</div>
+        <p class="tiny mt-3 text-gray-500">Shows ratio of delivery rate vs confirmation rate for selected platform</p>
+      </div>
+
+      <!-- Recommendations panel -->
+  
+
+    </section>
+<!-- Recommendations panel -->
+<!-- Recommendations panel (enhanced) -->
+<div id="platformComparisons" class="mb-4"></div>
+<!-- Recommendations area (place inside dashboard) -->
+<div id="recommendations">
+  <div>
+    <div style="display:flex; gap:12px; align-items:flex-start;">
+      <div class="rec-accent" style="background:linear-gradient(90deg,#34d399,#10b981)">FB</div>
+      <div style="flex:1;">
+        <h4 class="font-medium">Platform outperforming — Facebook • Summer Promo</h4>
+        <div class="tiny text-gray-600">Facebook brings higher confirmations and delivery — suggest scaling 15% budget.</div>
+        <div class="meta-row" style="margin-top:8px;">
+          <div class="badge">Score 85</div>
+          <div class="badge">Sample: 1,240 visits</div>
+          <div class="badge">Confirmed: 312</div>
+        </div>
+        <div style="margin-top:12px;">
+          <div class="conf-label">Confidence</div>
+          <div class="conf-bar"><div class="conf-fill" style="width:84%"></div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="actions">
+      <button class="btn btn-details">Details</button>
+      <button class="btn btn-ignore">Ignore</button>
+      <button class="btn btn-apply">Apply</button>
+    </div>
+
+    <div class="rec-details" style="display:none;">
+      Example details: platform_stats: { visits:1240, confirmed:312, delivery_rate:0.76, conversion_rate:0.25 }
+    </div>
+  </div>
+</div>
+
+    <!-- TABLE -->
+  <!-- TABLE -->
+<section class="bg-white p-4 rounded-lg card-shadow">
+  <style>
+  .analytics-campaign-details { background: #f8fafc; border-radius: 10px; }
+  .analytics-adset-card { border: 1px solid #e2e8f0; border-radius: 10px; margin-bottom: 12px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.06); }
+  .analytics-adset-card:hover { border-color: #cbd5e1; }
+  .analytics-adset-header { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; padding: 12px 16px; background: #fff; cursor: pointer; transition: background 0.15s; }
+  .analytics-adset-header:hover { background: #f8fafc; }
+  .analytics-adset-title { font-weight: 600; color: #1e293b; }
+  .analytics-adset-id { font-size: 12px; color: #64748b; }
+  .analytics-metrics { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+  .analytics-metric { display: inline-flex; align-items: center; padding: 4px 10px; border-radius: 6px; font-size: 12px; font-weight: 500; }
+  .analytics-metric--visitors { background: #dbeafe; color: #1d4ed8; }
+  .analytics-metric--orders { background: #fef3c7; color: #b45309; }
+  .analytics-metric--confirmed { background: #d1fae5; color: #047857; }
+  .analytics-metric--delivery { background: #e0e7ff; color: #4338ca; }
+  .analytics-metric--conv { background: #f3e8ff; color: #6b21a8; }
+  .analytics-metric--muted { background: #f1f5f9; color: #64748b; }
+  .analytics-ads-panel { padding: 12px 16px; background: #f1f5f9; border-top: 1px solid #e2e8f0; }
+  .analytics-ad-row { padding: 10px 14px; background: #fff; border-radius: 8px; margin-bottom: 8px; border: 1px solid #e2e8f0; }
+  .analytics-ad-row:last-child { margin-bottom: 0; }
+  .analytics-ad-name { font-weight: 600; color: #334155; font-size: 14px; }
+  .analytics-ad-id { font-size: 12px; color: #64748b; margin-left: 8px; }
+  .analytics-ad-metrics { margin-top: 6px; display: flex; flex-wrap: wrap; gap: 6px; }
+  .analytics-placements { font-size: 11px; color: #64748b; margin-top: 6px; }
+  </style>
+
+  <div class="flex items-center justify-between mb-3">
+    <h3 class="font-semibold">Campaigns</h3>
+    <div class="tiny text-gray-500">Showing top campaigns by orders</div>
+  </div>
+
+  <div class="overflow-x-auto">
+    <table class="min-w-full divide-y" role="table" aria-live="polite">
+      <thead class="bg-gray-50">
+        <tr>
+          <!-- adjusted header to match renderTable output -->
+          <th class="px-4 py-3 text-left tiny">Campaign Name</th>
+          <th class="px-4 py-3 text-center tiny">Campaign ID</th>
+          <th class="px-4 py-3 text-center tiny">Orders</th>
+          <th class="px-4 py-3 text-center tiny">Confirmed</th>
+          <th class="px-4 py-3 text-center tiny">Delivery Rate</th>
+          <th class="px-4 py-3 text-center tiny">Visitors</th>
+          <th class="px-4 py-3 text-center tiny">Conversion Rate</th>
+        </tr>
+      </thead>
+
+      <!-- tbody will be populated by renderTable(campaigns, visitsMap) -->
+      <tbody id="campaignTableBody" class="bg-white divide-y">
+        <!-- empty state row (will be removed when JS fills rows) -->
+        <tr id="noCampaignsRow">
+          <td class="px-4 py-6 text-left tiny text-gray-500" colspan="7">No campaigns to show — click <button id="refreshBtnInline" class="underline">Refresh</button> to load data.</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="mt-4 flex justify-end tiny text-gray-600">
+    <span id="tableInfo">0 campaigns</span>
+  </div>
+</section>
+
+    <!-- FOOTER / small note -->
+    <footer class="mt-6 tiny text-gray-500">
+      <p>Prototype dashboard — connect <code>/api/dashboard-data</code> to supply live data. See comments in JS for expected JSON shape.</p>
+    </footer>
+  </div>
+  </div>
+
+ 
+
+ 
+
+
+
+
+
+
+  <script>
+  // ---------- State ----------
+ // بدّل تعريف state الحالي إلى هذا
+const state = {
+  data: {
+    kpis: { spend:0, total_orders:0, confirmation_rate:0, delivery_rate:0 },
+    orders: [],
+    campaigns: [],
+    visits: [],
+    last_update: new Date().toISOString()
+  },
+  selectedPlatform: 'all',
+  periodDays: 7,
+  charts: { main: null, donut: null }
+};
+
+
+  // ---------- Helpers ----------
+  function safeNumber(v){ return (v === null || v === undefined || isNaN(Number(v))) ? 0 : Number(v); }
+  const safeNum = safeNumber;
+
+  function formatPercent(x){
+    if (x === null || x === undefined || isNaN(Number(x))) return '—';
+    const n = Number(x);
+    const value = (n <= 1 ? n * 100 : n);
+    return value.toFixed(1) + '%';
+  }
+  // Conversion by visitors only when we have visits; otherwise show — to avoid misleading "100%"
+  function formatConvByVisits(confirmed, visits) {
+    var v = safeNumber(visits);
+    if (v === 0) return '—';
+    return formatPercent(safeNumber(confirmed) / v);
+  }
+  function formatConvByOrders(confirmed, orders) {
+    var o = safeNumber(orders);
+    if (o === 0) return '—';
+    return formatPercent(safeNumber(confirmed) / o);
+  }
+
+  function escapeHtml(str){ if (str === null || str === undefined) return ''; return String(str).replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;').replaceAll('"','&quot;'); }
+
+  // CSRF helper for Django POSTs
+  function getCookie(name) {
+    const v = document.cookie.match('(^|;)\\s*' + name + '\\s*=\\s*([^;]+)');
+    return v ? v.pop() : '';
+  }
+
+  // ---------- Extract orders robustly from backend payload ----------
+  function extractOrdersFromPayload(payload){
+    if (!payload || typeof payload !== 'object') return [];
+    if (Array.isArray(payload.orders)) {  return payload.orders; }
+    for (const key of ['orders_data','items','rows','results','leads','data']){
+      if (Array.isArray(payload[key])) {  return payload[key]; }
+    }
+    if (Array.isArray(payload.data)) {  return payload.data; }
+    if (payload.data && Array.isArray(payload.data.orders)) {  return payload.data.orders; }
+    // fallback: find any array of objects that looks like orders
+    for (const k of Object.keys(payload)){
+      const v = payload[k];
+      if (Array.isArray(v) && v.length>0 && typeof v[0] === 'object'){
+        const sample = v[0];
+        if ('status' in sample || 'phone_normalized' in sample || 'external_order_id' in sample || 'matched_visit__utm_campaign' in sample) {
+          
+          return v;
+        }
+      }
+    }
+    return [];
+  }
+
+  // ---------- Convert orders -> campaigns (flexible) ----------
+  function convertOrdersToCampaigns(orders, visitsMap = {}){
+    if (!Array.isArray(orders) || orders.length === 0) return [];
+    const campaignMap = {};
+    function pick(o, keys){
+      for (const k of keys){
+        if (k.includes('__')){ if (Object.prototype.hasOwnProperty.call(o,k) && o[k] !== undefined && o[k] !== null && o[k] !== '') return o[k]; }
+        else { if (Object.prototype.hasOwnProperty.call(o,k) && o[k] !== undefined && o[k] !== null && o[k] !== '') return o[k]; const parts = k.split('.'); if (parts.length>1){ let cur=o; let ok=true; for(const p of parts){ if (cur && Object.prototype.hasOwnProperty.call(cur,p)) cur=cur[p]; else { ok=false; break; } } if (ok && cur!==undefined && cur!==null && cur!=='') return cur; } }
+      }
+      return null;
+    }
+
+    orders.forEach(order => {
+      const campaignKey = pick(order, ['matched_visit__utm_campaign','matched_visit__campaign','utm_campaign','campaign_name','matched_visit.utm_campaign','campaign']) || 'Unknown Campaign';
+      const platform = pick(order, ['platform','matched_visit__utm_source','site_source_name','utm_source']) || 'unknown';
+      const campaignId = pick(order, ['matched_visit__ad_id','campaign_id','matched_visit__campaign_id','ad_id','id']) || '';
+      if (!campaignMap[campaignKey]){
+        campaignMap[campaignKey] = { campaign_name: campaignKey, campaign_id: campaignId, platform: platform, platform_label: (typeof platform==='string' && platform.length)?(platform.charAt(0).toUpperCase()+platform.slice(1)):'Platform', total_orders:0, confirmed_orders:0, delivered_orders:0, cancelled_orders:0, meta_orders:[] };
+      }
+      const node = campaignMap[campaignKey];
+      node.total_orders += 1; node.meta_orders.push(order);
+      const status = (pick(order, ['status','order_status'])||'').toString().toLowerCase();
+      if (status==='confirmed') node.confirmed_orders +=1;
+      if (status==='delivered') node.delivered_orders +=1;
+      if (status==='cancelled' || status==='canceled') node.cancelled_orders +=1;
+    });
+
+    const campaigns = Object.values(campaignMap).map(c => {
+      const t = safeNum(c.total_orders); const confirmed = safeNum(c.confirmed_orders); const delivered = safeNum(c.delivered_orders);
+      const confirmation_rate = t>0 ? (confirmed / t) : 0; const delivery_rate = confirmed>0 ? (delivered / confirmed) : 0; const visits = safeNum(visitsMap[c.campaign_name]||0);
+      let conversion_rate = null; if (visits>0) conversion_rate = confirmed / visits; else conversion_rate = (t>0? (confirmed / t) : 0);
+      return { campaign_name: c.campaign_name, campaign_id: c.campaign_id||'', platform: c.platform, platform_label: c.platform_label, total_orders: t, orders: t, confirmed_orders: confirmed, delivered_orders: delivered, cancelled_orders: safeNum(c.cancelled_orders), confirmation_rate: Number(confirmation_rate), delivery_rate: Number(delivery_rate), conversion_rate: Number(conversion_rate), visits: visits };
+    });
+    campaigns.sort((a,b)=> (b.orders||0)-(a.orders||0));
+    return campaigns;
+  }
+
+ 
+
+
+
+
+  // ---------- Renderers ----------
+  var SOURCE_COLORS = { facebook:'#1877f2', fb:'#1877f2', meta:'#1877f2', instagram:'#e1306c', google:'#4285f4', tiktok:'#000000', snapchat:'#fffc00', direct:'#6b7280' };
+  function srcColor(name){ var k = (name||'').toLowerCase().replace(/\s+/g,''); for (var s in SOURCE_COLORS){ if (k.indexOf(s)!==-1) return SOURCE_COLORS[s]; } return '#6b7280'; }
+
+  function renderKPIs(kpis){
+    var totalOrders = kpis.total_orders || kpis.orders || 0;
+    var confirmed = kpis.confirmed_orders || 0;
+    var shipped = kpis.shipped_orders || 0;
+    var delivered = kpis.delivered_orders || 0;
+    var cancelled = kpis.cancelled_orders || 0;
+    var visitors = kpis.total_visits || kpis.visits || 0;
+    var matched = kpis.matched_visits || 0;
+
+    // Values
+    var el;
+    el = document.getElementById('kpiSpend'); if (el) el.innerText = '$' + (kpis.spend ? Number(kpis.spend).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2}) : '0.00');
+    el = document.getElementById('kpiVisitors'); if (el) el.innerText = String(visitors);
+    el = document.getElementById('kpiOrders'); if (el) el.innerText = String(totalOrders);
+    el = document.getElementById('kpiConfirmed'); if (el) el.innerText = String(confirmed);
+    el = document.getElementById('kpiShipped'); if (el) el.innerText = String(shipped);
+    el = document.getElementById('kpiDelivered'); if (el) el.innerText = String(delivered);
+    el = document.getElementById('kpiCancelled'); if (el) el.innerText = String(cancelled);
+    el = document.getElementById('kpiMatched'); if (el) el.innerText = String(matched);
+
+    // Rates
+    var convRate = visitors > 0 ? (totalOrders / visitors) : 0;
+    var confRate = totalOrders > 0 ? (confirmed / totalOrders) : 0;
+    var delRate = confirmed > 0 ? (delivered / confirmed) : 0;
+    var cancelRate = totalOrders > 0 ? (cancelled / totalOrders) : 0;
+
+    el = document.getElementById('kpiConversion'); if (el) el.innerText = formatPercent(convRate);
+    el = document.getElementById('kpiConfirmRate'); if (el) el.innerText = formatPercent(confRate);
+    el = document.getElementById('kpiDelivery'); if (el) el.innerText = formatPercent(delRate);
+    el = document.getElementById('kpiCancelRate'); if (el) el.innerText = formatPercent(cancelRate);
+
+    // Source breakdown dropup
+    var body = document.getElementById('kpiSourceBody');
+    if (body) {
+      var sources = kpis.source_breakdown || [];
+      if (sources.length === 0) {
+        body.innerHTML = '<div class="kpi-src-empty">No visitor data yet</div>';
+      } else {
+        var html = '';
+        sources.forEach(function(s) {
+          var name = s.source || 'Direct';
+          var color = srcColor(name);
+          html += '<div class="kpi-src-row">'
+            + '<div class="kpi-src-name"><span class="kpi-src-dot" style="background:' + color + '"></span>' + escapeHtml(name) + '</div>'
+            + '<div class="kpi-src-num">' + s.visitors + '</div>'
+            + '<div class="kpi-src-num">' + s.orders + '</div>'
+            + '</div>';
+        });
+        body.innerHTML = html;
+      }
+    }
+  }
+
+  function renderPlatformBadge(platformKey){ const el = document.getElementById('platformBadge'); if (!el) return; if (platformKey==='all'){ el.innerText='All Platforms'; el.className='badge-platform bg-blue-100 text-blue-800'; } else{ el.innerText = platformKey.charAt(0).toUpperCase()+platformKey.slice(1); el.className='badge-platform bg-gray-100 text-gray-800'; } }
+
+  // Toggle a block element (div) - no table-row quirks
+  function setBlockVisible(el, visible) {
+    if (!el) return;
+    el.style.display = visible ? 'block' : 'none';
+  }
+  function isBlockHidden(el) {
+    if (!el) return true;
+    return el.style.display === 'none';
+  }
+  function setRowVisible(tr, visible) {
+    if (!tr) return;
+    if (visible) { tr.style.removeProperty ? tr.style.removeProperty('display') : (tr.style.display = 'table-row'); }
+    else { tr.style.display = 'none'; }
+  }
+  function isRowHidden(tr) {
+    if (!tr) return true;
+    return tr.style.display === 'none';
+  }
+  function makeToggleButton(targetId, isDiv) {
+    var b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'px-2 py-1 mr-2 text-sm rounded bg-gray-100 hover:bg-gray-200';
+    b.innerText = '▶';
+    b.addEventListener('click', function(ev) {
+      ev.stopPropagation();
+      var el = document.getElementById(targetId);
+      if (!el) return;
+      var hidden = isDiv ? isBlockHidden(el) : isRowHidden(el);
+      if (isDiv) setBlockVisible(el, hidden); else setRowVisible(el, hidden);
+      b.innerText = hidden ? '▼' : '▶';
+    });
+    return b;
+  }
+
+  // Backend may send adsets as flat list of ads (each with ad_adset_name). Group by ad_adset_name into adset -> ads.
+  function normalizeCampaignsAdsets(campaigns) {
+    if (!Array.isArray(campaigns)) return campaigns;
+    return campaigns.map(function(c) {
+      var adsetsRaw = c.adsets;
+      if (!Array.isArray(adsetsRaw) || adsetsRaw.length === 0) return c;
+      var first = adsetsRaw[0];
+      if (Array.isArray(first.ads)) return c;
+      var byAdset = {};
+      adsetsRaw.forEach(function(ad) {
+        var key = (ad.ad_adset_name || ad.ad_name || ad.ad_id || 'AdSet').toString();
+        if (!byAdset[key]) byAdset[key] = { name: key, id: ad.adset_id || ad.ad_id || '', ads: [], orders: 0, confirmed_orders: 0, visits: 0, placements: [] };
+        byAdset[key].ads.push(ad);
+        byAdset[key].orders += safeNumber(ad.orders || 0);
+        byAdset[key].confirmed_orders += safeNumber(ad.confirmed_orders || 0);
+        byAdset[key].visits += safeNumber(ad.visits || 0);
+        if (Array.isArray(ad.placements)) byAdset[key].placements = byAdset[key].placements.concat(ad.placements);
+      });
+      var adsets = Object.values(byAdset).map(function(g) { return { ad_adset_name: g.name, adset_id: g.id, orders: g.orders, confirmed_orders: g.confirmed_orders, visits: g.visits, placements: g.placements, ads: g.ads }; });
+      return Object.assign({}, c, { adsets: adsets });
+    });
+  }
+
+  function renderTable(campaigns, visitsMap) {
+    visitsMap = visitsMap || {};
+    var tbody = document.getElementById('campaignTableBody');
+    if (!tbody) return;
+    tbody.innerHTML = '';
+    var rows = Array.isArray(campaigns) ? campaigns : [];
+    var normalized = normalizeCampaignsAdsets(rows);
+    if (normalized.length === 0) {
+      tbody.innerHTML = '<tr><td class="px-4 py-6 text-left tiny text-gray-500" colspan="7">No campaigns to show</td></tr>';
+      var infoEl = document.getElementById('tableInfo');
+      if (infoEl) infoEl.innerText = '0 campaigns';
+      return;
+    }
+    normalized.forEach(function(c, campaignIndex) {
+      var campaignDetailsId = 'campaign-details-' + campaignIndex;
+      var campaignName = c.campaign_name || c.name || 'Unknown Campaign';
+      var platformLabel = c.platform_label || c.platform || 'Platform';
+      var campaignId = c.campaign_id || c.id || '';
+      var orders = safeNumber(c.orders || 0);
+      var confirmedOrders = safeNumber(c.confirmed_orders || 0);
+      var deliveredOrders = safeNumber(c.delivered_orders || 0);
+      var deliveryRate = (confirmedOrders > 0 && deliveredOrders > 0) ? (deliveredOrders / confirmedOrders) : safeNumber(c.delivery_rate || 0);
+      var visits = safeNumber((typeof c.visits !== 'undefined') ? c.visits : (visitsMap[campaignName]) || 0);
+      var conversionRate = null;
+      if (visits > 0) conversionRate = (typeof c.conversion_by_visits !== 'undefined' && c.conversion_by_visits !== null) ? Number(c.conversion_by_visits) : (confirmedOrders / visits);
+      else if (orders > 0 && visits === 0) conversionRate = null;
+
+      var tr = document.createElement('tr');
+      tr.className = 'bg-white';
+      var firstTd = document.createElement('td');
+      firstTd.className = 'px-4 py-3 text-left';
+      var hasAdsets = Array.isArray(c.adsets) && c.adsets.length > 0;
+      if (hasAdsets) {
+        firstTd.appendChild(makeToggleButton(campaignDetailsId, false));
+        var sp = document.createElement('span');
+        sp.style.marginLeft = '8px';
+        firstTd.appendChild(sp);
+      } else {
+        var sp0 = document.createElement('span');
+        sp0.style.display = 'inline-block';
+        sp0.style.width = '22px';
+        firstTd.appendChild(sp0);
+      }
+      var campaignHtml = document.createElement('div');
+      campaignHtml.innerHTML = '<div class="font-medium">' + escapeHtml(campaignName) + '</div><div class="tiny text-gray-500">' + escapeHtml(platformLabel) + '</div>';
+      firstTd.appendChild(campaignHtml);
+      tr.appendChild(firstTd);
+      tr.appendChild((function(){ var td = document.createElement('td'); td.className = 'px-4 py-3 text-center tiny'; td.innerText = campaignId; return td; })());
+      tr.appendChild((function(){ var td = document.createElement('td'); td.className = 'px-4 py-3 text-center font-semibold'; td.innerText = String(orders); return td; })());
+      tr.appendChild((function(){ var td = document.createElement('td'); td.className = 'px-4 py-3 text-center'; td.innerText = String(confirmedOrders); return td; })());
+      tr.appendChild((function(){ var td = document.createElement('td'); td.className = 'px-4 py-3 text-center'; td.innerText = formatPercent(deliveryRate); return td; })());
+      tr.appendChild((function(){ var td = document.createElement('td'); td.className = 'px-4 py-3 text-center'; td.innerText = String(visits); return td; })());
+      tr.appendChild((function(){ var td = document.createElement('td'); td.className = 'px-4 py-3 text-center'; td.innerText = (conversionRate !== null ? formatPercent(conversionRate) : '—'); return td; })());
+      if (hasAdsets) {
+        tr.style.cursor = 'pointer';
+        tr.addEventListener('click', function(ev) {
+          if (ev.target.tagName === 'BUTTON') return;
+          var el = document.getElementById(campaignDetailsId);
+          if (!el) return;
+          var hidden = isRowHidden(el);
+          setRowVisible(el, hidden);
+          var btn = firstTd.querySelector('button');
+          if (btn) btn.innerText = hidden ? '▼' : '▶';
+        });
+      }
+      tbody.appendChild(tr);
+
+      var detailsTr = document.createElement('tr');
+      detailsTr.id = campaignDetailsId;
+      detailsTr.style.display = 'none';
+      detailsTr.className = 'bg-gray-50';
+      var detailsTd = document.createElement('td');
+      detailsTd.colSpan = 7;
+      var container = document.createElement('div');
+      container.className = 'analytics-campaign-details';
+      container.style.padding = '12px 16px';
+
+      if (hasAdsets) {
+        c.adsets.forEach(function(as, adsetIndex) {
+          var adsetDetailsId = campaignDetailsId + '-adset-' + adsetIndex + '-details';
+          var adsetName = as.ad_adset_name || as.ad_name || as.ad_id || as.name || 'AdSet';
+          var adsetId = as.adset_id || as.ad_id || as.id || '';
+          var asOrders = safeNumber(as.orders || 0);
+          var asConfirmed = safeNumber(as.confirmed_orders || 0);
+          var asDelivered = safeNumber(as.delivered_orders || 0);
+          var asDeliveryRate = asConfirmed > 0 ? (asDelivered / asConfirmed) : 0;
+          var asVisits = safeNumber(as.visits || 0);
+          var asConvVisits = asVisits > 0 ? (asConfirmed / asVisits) : null;
+          var asConvOrders = asOrders > 0 ? (asConfirmed / asOrders) : null;
+          var hasAds = Array.isArray(as.ads) && as.ads.length > 0;
+
+          var adsetBlock = document.createElement('div');
+          adsetBlock.className = 'analytics-adset-card';
+          var adsetHeader = document.createElement('div');
+          adsetHeader.className = 'analytics-adset-header';
+          adsetHeader.appendChild(makeToggleButton(adsetDetailsId, true));
+          var adsetTitle = document.createElement('div');
+          adsetTitle.className = 'analytics-adset-title';
+          adsetTitle.innerHTML = escapeHtml(adsetName);
+          adsetHeader.appendChild(adsetTitle);
+          if (adsetId) {
+            var adsetIdSpan = document.createElement('span');
+            adsetIdSpan.className = 'analytics-adset-id';
+            adsetIdSpan.textContent = 'ID: ' + adsetId;
+            adsetHeader.appendChild(adsetIdSpan);
+          }
+          var adsetMetrics = document.createElement('div');
+          adsetMetrics.className = 'analytics-metrics';
+          function addMetric(parent, label, value, cssClass) {
+            var m = document.createElement('span');
+            m.className = 'analytics-metric ' + (cssClass || 'analytics-metric--muted');
+            m.textContent = label + ': ' + value;
+            parent.appendChild(m);
+          }
+          addMetric(adsetMetrics, 'Visitors', String(asVisits), 'analytics-metric--visitors');
+          addMetric(adsetMetrics, 'Orders', String(asOrders), 'analytics-metric--orders');
+          addMetric(adsetMetrics, 'Confirmed', String(asConfirmed), 'analytics-metric--confirmed');
+          addMetric(adsetMetrics, 'Delivery', formatPercent(asDeliveryRate), 'analytics-metric--delivery');
+          addMetric(adsetMetrics, 'Conv (visitors)', asVisits > 0 ? formatPercent(asConvVisits) : '—', 'analytics-metric--conv');
+          if (asVisits === 0 && asOrders > 0) addMetric(adsetMetrics, 'Conv (orders)', formatPercent(asConvOrders), 'analytics-metric--muted');
+          adsetHeader.appendChild(adsetMetrics);
+          adsetBlock.appendChild(adsetHeader);
+
+          var adsetDetailsDiv = document.createElement('div');
+          adsetDetailsDiv.id = adsetDetailsId;
+          adsetDetailsDiv.className = 'analytics-ads-panel';
+          adsetDetailsDiv.style.display = 'none';
+          if (hasAds) {
+            var adsList = document.createElement('div');
+            as.ads.forEach(function(ad) {
+              var adName = ad.ad_name || ad.name || '';
+              var adId = ad.ad_id || ad.id || '';
+              var adOrders = safeNumber(ad.orders || 0);
+              var adConfirmed = safeNumber(ad.confirmed_orders || 0);
+              var adDelivered = safeNumber(ad.delivered_orders || 0);
+              var adDeliveryRate = adConfirmed > 0 ? (adDelivered / adConfirmed) : 0;
+              var adVisits = safeNumber(ad.visits || 0);
+              var adConvV = adVisits > 0 ? (adConfirmed / adVisits) : null;
+              var adConvO = adOrders > 0 ? (adConfirmed / adOrders) : null;
+              var adLine = document.createElement('div');
+              adLine.className = 'analytics-ad-row';
+              var adNameEl = document.createElement('div');
+              adNameEl.innerHTML = '<span class="analytics-ad-name">' + escapeHtml(adName || adId || 'Ad') + '</span><span class="analytics-ad-id">ID: ' + escapeHtml(adId) + '</span>';
+              adLine.appendChild(adNameEl);
+              var adMetricsEl = document.createElement('div');
+              adMetricsEl.className = 'analytics-ad-metrics';
+              addMetric(adMetricsEl, 'Visitors', String(adVisits), 'analytics-metric--visitors');
+              addMetric(adMetricsEl, 'Orders', String(adOrders), 'analytics-metric--orders');
+              addMetric(adMetricsEl, 'Confirmed', String(adConfirmed), 'analytics-metric--confirmed');
+              addMetric(adMetricsEl, 'Delivery', formatPercent(adDeliveryRate), 'analytics-metric--delivery');
+              addMetric(adMetricsEl, 'Conv (visitors)', adVisits > 0 ? formatPercent(adConvV) : '—', 'analytics-metric--conv');
+              if (adVisits === 0 && adOrders > 0) addMetric(adMetricsEl, 'Conv (orders)', formatPercent(adConvO), 'analytics-metric--muted');
+              adLine.appendChild(adMetricsEl);
+              if (Array.isArray(ad.placements) && ad.placements.length > 0) {
+                var plDiv = document.createElement('div');
+                plDiv.className = 'analytics-placements';
+                var plText = ad.placements.map(function(pl) {
+                  var pLabel = pl.placement || pl.site_source_name || pl.platform || pl.name || 'placement';
+                  return pLabel + ': ' + safeNumber(pl.orders || 0) + ' orders';
+                }).join(' · ');
+                plDiv.textContent = 'Placements: ' + plText;
+                adLine.appendChild(plDiv);
+              }
+              adsList.appendChild(adLine);
+            });
+            adsetDetailsDiv.appendChild(adsList);
+          } else {
+            adsetDetailsDiv.innerHTML = '<div class="tiny text-gray-500">No ads in this adset.</div>';
+          }
+          adsetBlock.appendChild(adsetDetailsDiv);
+          adsetHeader.addEventListener('click', function(ev) {
+            if (ev.target.tagName === 'BUTTON') return;
+            var hidden = isBlockHidden(adsetDetailsDiv);
+            setBlockVisible(adsetDetailsDiv, hidden);
+            var btn = adsetHeader.querySelector('button');
+            if (btn) btn.innerText = hidden ? '▼' : '▶';
+          });
+          container.appendChild(adsetBlock);
+        });
+      } else {
+        container.innerHTML = '<div class="tiny text-gray-500">No adsets for this campaign.</div>';
+      }
+      detailsTd.appendChild(container);
+      detailsTr.appendChild(detailsTd);
+      tbody.appendChild(detailsTr);
+    });
+    var infoEl2 = document.getElementById('tableInfo');
+    if (infoEl2) infoEl2.innerText = normalized.length + ' campaign' + (normalized.length !== 1 ? 's' : '');
+  }
+
+  // ---------- charts helpers ----------
+  function destroyChartsIfExist(){ try{ if (typeof Chart !== 'undefined' && Chart.getChart){ const existingMain = Chart.getChart('mainChart'); if (existingMain) existingMain.destroy(); const existingDonut = Chart.getChart('smallDonut'); if (existingDonut) existingDonut.destroy(); } }catch(e){} if (state.charts.main){ try{ state.charts.main.destroy(); }catch(e){} state.charts.main=null;} if (state.charts.donut){ try{ state.charts.donut.destroy(); }catch(e){} state.charts.donut=null; }
+  }
+
+  // Build timeseries for last N days from orders (orders must have created_at string)
+  function generateTimeSeriesFromOrders(orders, days = state.periodDays){
+    const labels = []; const dateCounts = {}; const convCounts = {};
+    const now = new Date(); for (let i = days-1; i>=0; i--){ const d = new Date(now); d.setDate(now.getDate()-i); const key = d.toISOString().slice(0,10); labels.push(key); dateCounts[key]=0; convCounts[key]=0; }
+    if (Array.isArray(orders)){
+      orders.forEach(o => {
+        const created = o.created_at || o.created || o.date;
+        if (!created) return;
+        const d = new Date(created);
+        if (isNaN(d)) return;
+        const k = d.toISOString().slice(0,10);
+        if (k in dateCounts) dateCounts[k] += 1;
+        // treat confirmed as conversion
+        const status = (o.status||'').toString().toLowerCase(); if (status==='confirmed') convCounts[k] += 1;
+      });
+    }
+    const ordersArr = labels.map(l => dateCounts[l] || 0); const convArr = labels.map(l => convCounts[l] || 0);
+    return { labels, orders: ordersArr, conversions: convArr };
+  }
+ 
+  function initCharts(){ 
+
+ destroyChartsIfExist(); const canvasMain = document.getElementById('mainChart'); if (canvasMain){ const ts = generateTimeSeriesFromOrders(state.data && state.data.orders ? state.data.orders : [], state.periodDays); state.charts.main = new Chart(canvasMain, { type:'line', data:{ labels: ts.labels, datasets:[ { label:'Orders', data: ts.orders, borderColor:'#3b82f6', backgroundColor:'#bfdbfe', tension:0.35 }, { label:'Conversions', data: ts.conversions, borderColor:'#10b981', backgroundColor:'#bbf7d0', tension:0.35 } ] }, options:{ responsive:true, maintainAspectRatio:false, scales:{ y:{ beginAtZero:true } }, plugins:{ legend:{ position:'top' } } } }); }
+    const canvasDonut = document.getElementById('smallDonut'); if (canvasDonut){ const k = state.data && state.data.kpis ? state.data.kpis : {}; const deliveryPct = (k.confirmed_orders && k.delivered_orders) ? (k.delivered_orders / k.confirmed_orders * 100) : 0; state.charts.donut = new Chart(canvasDonut, { type:'doughnut', data:{ labels:['Delivery','Remaining'], datasets:[{ data:[deliveryPct, Math.max(0,100-deliveryPct)], backgroundColor:['#6366f1','#e5e7eb'] }] }, options:{ responsive:true, maintainAspectRatio:false, plugins:{ legend:{ display:false }, tooltip:{ callbacks:{ label: (ctx)=> ctx.label + ': ' + Number(ctx.raw).toFixed(1) + '%' } } }} }); }
+  }
+
+  function updateCharts(){ if (!state.charts.main && !state.charts.donut){ initCharts(); return; } const ts = generateTimeSeriesFromOrders(state.data && state.data.orders ? state.data.orders : [], state.periodDays); if (state.charts.main){ state.charts.main.data.labels = ts.labels; if (Array.isArray(state.charts.main.data.datasets) && state.charts.main.data.datasets.length>=2){ state.charts.main.data.datasets[0].data = ts.orders; state.charts.main.data.datasets[1].data = ts.conversions; } state.charts.main.update(); } if (state.charts.donut){ const k = state.data && state.data.kpis ? state.data.kpis : {}; const deliveryPct = (k.confirmed_orders && k.delivered_orders) ? (k.delivered_orders / k.confirmed_orders * 100) : 0; state.charts.donut.data.datasets[0].data = [deliveryPct, Math.max(0,100-deliveryPct)]; state.charts.donut.update(); } }
+
+  // ---------- Network helpers ----------
+  async function fetchWithRetry(url, opts={}, retries=2, backoff=400){ for (let attempt=0; attempt<=retries; attempt++){ try{ const res = await fetch(url, opts); if (!res.ok){ if (res.status>=400 && res.status<500) throw new Error(`HTTP ${res.status}`); throw new Error('HTTP '+res.status); } return await res.json(); } catch(err){ if (attempt===retries) throw err; await new Promise(r=>setTimeout(r, backoff*Math.pow(2,attempt))); } } }
+
+  async function fetchDashboardData(){ const platform = encodeURIComponent(state.selectedPlatform || 'all'); const period = encodeURIComponent(state.periodDays || 7); const url = `/discount/marketing/api/dashboard-data?platform=${platform}&period=${period}`; try{ const payload = await fetchWithRetry(url, { credentials:'same-origin' }, 2, 400);  return payload; } catch(e){ console.warn('fetchDashboardData failed, using empty mock', e); return { kpis:{spend:0,total_orders:0,confirmation_rate:0,delivery_rate:0}, orders:[], campaigns:[], visits:[], last_update: new Date().toISOString() }; } }
+
+  async function ajaxFetchOrders(endpoint='/discount/marketing/api/fetch-orders/', body={}){
+    const btn = document.getElementById('refreshBtn'); if (btn){ btn.disabled = true; btn.dataset.prevText = btn.innerText; btn.innerText = '🔄 Refreshing...'; }
+    try{
+      const res = await fetch(endpoint, { method:'POST', credentials:'same-origin', headers:{ 'Content-Type':'application/json', 'X-CSRFToken': getCookie('csrftoken') }, body: JSON.stringify(body) });
+      const text = await res.text(); let json = null; try{ json = text ? JSON.parse(text) : null; }catch(e){ json = null; }
+      if (!res.ok) throw new Error(`HTTP ${res.status} ${res.statusText} — ${text}`);
+      return json;
+    } finally {
+      if (btn){ btn.disabled = false; btn.innerText = btn.dataset.prevText || '🔄 Refresh'; delete btn.dataset.prevText; }
+    initCharts();
+    }
+  }
+
+  // ---------- Main refresh ----------
+  function prepareVisitsMap(payload){ const visitsMap = {}; if (payload.visits && Array.isArray(payload.visits)){ payload.visits.forEach(v => { const key = v.utm_campaign || v.campaign || v.campaign_name || ''; const cnt = v.count || v.visits || v.value || 0; if (key) visitsMap[key] = safeNum(cnt); }); } else if (payload.total_visits && typeof payload.total_visits === 'object'){ Object.assign(visitsMap, payload.total_visits); } return visitsMap; }
+
+  async function refreshData(){ const btn = document.getElementById('refreshBtn'); if (btn){ btn.disabled = true; btn.dataset.prevText = btn.innerText; btn.innerText = '🔄 Refreshing...'; }
+    try{
+      const payload = await fetchDashboardData(); state.data = payload; 
+      const visitsMap = prepareVisitsMap(payload);
+      // extract orders or use campaigns directly
+      const ordersList = extractOrdersFromPayload(state.data);
+      let campaigns = [];
+      if (Array.isArray(state.data.campaigns) && state.data.campaigns.length>0){  campaigns = state.data.campaigns; }
+      else if (Array.isArray(ordersList) && ordersList.length>0){ campaigns = convertOrdersToCampaigns(ordersList, visitsMap); }
+      else { campaigns = []; }
+      // apply filter
+      // Backend already returns data for the selected platform/period; no client-side filter needed
+      renderKPIs(state.data.kpis || {}); renderPlatformBadge(state.selectedPlatform); renderTable(campaigns, visitsMap);
+      // charts
+      updateCharts();
+      const last = document.getElementById('lastUpdate'); if (last) last.innerText = 'Last update: ' + (state.data.last_update || new Date().toISOString());
+       
+    } catch(err){ console.error('خطأ في تحديث البيانات:', err); alert('Error fetching dashboard data: ' + (err.message || err)); }
+    finally{ if (btn){ btn.disabled = false; btn.innerText = btn.dataset.prevText || '🔄 Refresh'; delete btn.dataset.prevText; } }
+  }
+
+  // ---------- Bind events ----------
+  function bindEvents(){
+    var refreshBtn = document.getElementById('refreshBtn');
+    if (refreshBtn) refreshBtn.addEventListener('click', async function(){ try{ await ajaxFetchOrders(); await refreshData(); } catch(e){ console.error('refresh click error', e); } });
+    var exportBtn = document.getElementById('exportBtn');
+    if (exportBtn) exportBtn.addEventListener('click', function(){ exportVisibleTableToCSV(); });
+    var platformSelect = document.getElementById('platformSelect');
+    if (platformSelect) {
+      platformSelect.addEventListener('change', function(e){
+        state.selectedPlatform = e.target.value || 'all';
+        refreshData().catch(function(err){ console.warn('Platform filter refresh failed:', err); });
+      });
+    }
+    var periodSelect = document.getElementById('periodSelect');
+    if (periodSelect) {
+      periodSelect.addEventListener('change', function(e){
+        state.periodDays = parseInt(e.target.value, 10) || 7;
+        refreshData().catch(function(err){ console.warn('Period filter refresh failed:', err); });
+      });
+    }
+    var refreshInline = document.getElementById('refreshBtnInline');
+    if (refreshInline) refreshInline.addEventListener('click', function(){ var r = document.getElementById('refreshBtn'); if (r) r.click(); });
+  }
+
+  // ---------- Export CSV ----------
+  function exportVisibleTableToCSV(filename = 'campaigns.csv'){ const rows = [['Campaign Name','Campaign ID','Orders','Confirmed','Delivery Rate','Visitors','Conversion Rate']]; (state.data && state.data.campaigns ? state.data.campaigns : []).forEach(c => { rows.push([c.campaign_name||'', c.campaign_id||'', c.orders||0, c.confirmed_orders||0, formatPercent(c.delivery_rate||0), c.visits||0, (typeof c.conversion_by_visits!=='undefined' && c.conversion_by_visits!==null) ? formatPercent(c.conversion_by_visits) : (typeof c.conversion_by_orders!=='undefined' && c.conversion_by_orders!==null) ? formatPercent(c.conversion_by_orders) : '-']); }); const csv = rows.map(r => r.map(v => `"${String(v).replace(/"/g,'""')}"`).join(',')).join('\n'); const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' }); const link = document.createElement('a'); link.href = URL.createObjectURL(blob); link.download = filename; link.style.display = 'none'; document.body.appendChild(link); link.click(); document.body.removeChild(link); }
+
+  // ---------- Init ----------
+  document.addEventListener('DOMContentLoaded', function(){ bindEvents(); // initial render (empty or mock)
+    renderKPIs({}); renderTable([]); initCharts(); // try to fetch real data
+    refreshData().catch(err=> console.warn('Initial refresh failed:', err)); });
+  </script>
+
+<!-- reccomondations script -->
+
+
+<script>
+(function(){
+  // ----------------- Helpers -----------------
+function escapeHtml(str){
+  if (str === null || str === undefined) return '';
+  return String(str).replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;').replaceAll('"','&quot;');
+}
+
+function formatPercent(x){
+  if (x === null || x === undefined || isNaN(Number(x))) return '-';
+  return (Number(x) * 100).toFixed(1) + '%';
+}
+  function safeNum(v){ return Number(v || 0); }
+
+  function getCookie(name) {
+    const v = document.cookie.match('(^|;)\\s*' + name + '\\s*=\\s*([^;]+)');
+    return v ? v.pop() : '';
+  }
+
+  // ----------------- Renderers (must be defined BEFORE fetch) -----------------
+  function renderPlatformComparisons(platforms_summary) {
+    const container = document.getElementById('platformComparisons');
+    if (!container) return;
+    container.innerHTML = '';
+    const keys = Object.keys(platforms_summary || {});
+    if (keys.length === 0) {
+      container.innerHTML = '<div class="tiny text-gray-500">No platform data available.</div>';
+      return;
+    }
+
+    const table = document.createElement('table');
+    table.className = 'min-w-full divide-y';
+    table.innerHTML = `<thead><tr class="tiny text-gray-600">
+        <th class="px-2 py-1 text-left">Platform</th>
+        <th class="px-2 py-1 text-center">Visits</th>
+        <th class="px-2 py-1 text-center">Confirmed</th>
+        <th class="px-2 py-1 text-center">Conv Rate</th>
+        <th class="px-2 py-1 text-center">Delivery Rate</th>
+        <th class="px-2 py-1 text-center">Avg CPA</th>
+      </tr></thead>`;
+    const tbody = document.createElement('tbody');
+    keys.forEach(k => {
+      const s = platforms_summary[k] || {};
+      const tr = document.createElement('tr');
+      tr.className = 'bg-white';
+      tr.innerHTML = `<td class="px-2 py-1 text-left font-medium">${escapeHtml(k)}</td>
+        <td class="px-2 py-1 text-center">${safeNum(s.visits)}</td>
+        <td class="px-2 py-1 text-center">${safeNum(s.confirmed)}</td>
+        <td class="px-2 py-1 text-center">${formatPercent(s.conversion_rate||0)}</td>
+        <td class="px-2 py-1 text-center">${formatPercent(s.delivery_rate||0)}</td>
+        <td class="px-2 py-1 text-center">${s.avg_cpa ? '$' + Number(s.avg_cpa).toFixed(2) : '-'}</td>`;
+      tbody.appendChild(tr);
+    });
+    table.appendChild(tbody);
+    container.appendChild(table);
+  }
+
+  function renderGranularRecommendations(recs) {
+    const container = document.getElementById('recommendations');
+    if (!container) return;
+    container.innerHTML = '';
+    if (!Array.isArray(recs) || recs.length === 0) {
+      container.innerHTML = '<div class="tiny text-gray-500">No recommendations at this time (not enough signal).</div>';
+      return;
+    }
+    recs.forEach(r => {
+      const card = document.createElement('div');
+      card.className = 'bg-gray-50 p-3 rounded';
+      const title = document.createElement('div');
+      title.className = 'flex justify-between items-start';
+      const left = document.createElement('div');
+      left.innerHTML = `<div class="font-medium">${escapeHtml((r.type||'').replace(/_/g,' '))} ${r.platform ? ' — ' + escapeHtml(r.platform) : ''} ${r.campaign ? ' — ' + escapeHtml(r.campaign) : ''}</div>
+                        <div class="tiny text-gray-600 mt-1">${escapeHtml(r.reason || '')}</div>`;
+      const right = document.createElement('div');
+      right.className = 'tiny text-gray-500 text-right';
+      right.innerHTML = `Score: <strong>${Math.round(r.score||0)}</strong><br>Confidence: <strong>${Math.round((r.confidence||0)*100)}%</strong>`;
+      title.appendChild(left); title.appendChild(right);
+      card.appendChild(title);
+
+      // actions
+      const actions = document.createElement('div');
+      actions.className = 'mt-2 flex gap-2';
+      const actBtn = document.createElement('button');
+      actBtn.className = 'px-3 py-1 bg-blue-600 text-white rounded text-sm';
+      actBtn.innerText = (r.suggested_action && r.suggested_action.action) ? 'Suggest Action' : 'Log';
+      actBtn.addEventListener('click', function(){ applyRecommendation(r.id, r); });
+      const detailsBtn = document.createElement('button');
+      detailsBtn.className = 'px-3 py-1 bg-gray-200 rounded text-sm';
+      detailsBtn.innerText = 'Details';
+      detailsBtn.addEventListener('click', function(){
+        let d = card.querySelector('.rec-details');
+        if (!d) {
+          d = document.createElement('div');
+          d.className = 'rec-details mt-3 tiny text-gray-700';
+          d.innerHTML = '<pre>' + escapeHtml(JSON.stringify(r.explanation || r, null, 2)) + '</pre>';
+          card.appendChild(d);
+        } else {
+          d.style.display = d.style.display === 'none' ? 'block' : 'none';
+        }
+      });
+      actions.appendChild(actBtn); actions.appendChild(detailsBtn);
+      card.appendChild(actions);
+
+      container.appendChild(card);
+    });
+  }
+
+
+
+ /* Enhanced recommendation renderer — use instead of older renderGranularRecommendations.
+   يفترض وجود:
+   - عنصر DOM id="recommendations" (حاوية التوصيات)
+   - دالة applyRecommendation(id, payload) مُعرّفة (أو تُستخدم الدالة الموجودة)
+   - دالة ignoreRecommendation(id) مُعرّفة
+   - helper escapeHtml, formatPercent متاحة (أعد تعريفها إن لم تكن موجودة)
+*/
+ 
+
+// small toast utility to show feedback to user
+function createToast(message, type = 'info', timeout = 3500){
+  const wrapId = 'toast-wrap';
+  let wrap = document.getElementById(wrapId);
+  if (!wrap){
+    wrap = document.createElement('div');
+    wrap.id = wrapId;
+    wrap.style.position = 'fixed';
+    wrap.style.right = '20px';
+    wrap.style.bottom = '20px';
+    wrap.style.zIndex = 1200;
+    document.body.appendChild(wrap);
+  }
+  const colors = { info:'bg-blue-600', success:'bg-green-600', warn:'bg-yellow-600', error:'bg-red-600' };
+  const el = document.createElement('div');
+  el.className = `${colors[type] || colors.info} text-white px-4 py-2 rounded shadow mb-2 tiny`;
+  el.innerText = message;
+  wrap.appendChild(el);
+  setTimeout(()=> { el.style.opacity = '0'; setTimeout(()=> el.remove(), 300); }, timeout);
+  return el;
+}
+
+// color mapping to visually distinguish types
+const REC_TYPE_STYLE = {
+  platform_outperforming: { color: 'bg-gradient-to-r from-green-400 to-green-600', icon: '📈' },
+  reallocate_from_to: { color: 'bg-gradient-to-r from-yellow-400 to-yellow-600', icon: '🔁' },
+  placement_prefer: { color: 'bg-gradient-to-r from-indigo-400 to-indigo-600', icon: '📌' },
+  investigate_shipping: { color: 'bg-gradient-to-r from-red-400 to-red-600', icon: '🚚' },
+  scale_campaign_on_platform: { color: 'bg-gradient-to-r from-purple-400 to-purple-600', icon: '🚀' },
+  debug_sample: { color: 'bg-gradient-to-r from-gray-400 to-gray-600', icon: '🧪' }
+};
+function renderGranularRecommendationsPro(recs) {
+  const container = document.getElementById('recommendations');
+  if (!container) return;
+  container.innerHTML = '';
+
+  if (!Array.isArray(recs) || recs.length === 0) {
+    container.innerHTML = `<div class="p-4 tiny text-gray-600">No recommendations at this time (not enough signal).</div>`;
+    return;
+  }
+
+  const grid = document.createElement('div');
+  grid.className = 'rec-grid';
+
+  recs.forEach((r, idx) => {
+    const style = REC_TYPE_STYLE[r.type] || { color: 'bg-gray-400', icon: '💡' };
+
+    const card = document.createElement('article');
+    card.className = 'rec-card';
+    card.setAttribute('role','article');
+    card.setAttribute('aria-labelledby', `rec-title-${idx}`);
+
+    // header row
+    const header = document.createElement('div');
+    header.className = 'rec-header';
+
+    const accent = document.createElement('div');
+    accent.className = 'rec-accent';
+    // use provided color class if present, else fallback solid color
+    if (style.color && style.color.startsWith('bg-')) {
+      accent.className = 'rec-accent ' + style.color;
+    } else {
+      accent.style.background = style.color || '#6b7280';
+    }
+    accent.innerText = style.icon || '💡';
+    header.appendChild(accent);
+
+    const meta = document.createElement('div');
+    meta.className = 'rec-meta';
+    const title = document.createElement('h4');
+    title.id = `rec-title-${idx}`;
+    title.className = 'rec-title';
+    const platformPart = r.platform ? ` — ${escapeHtml(r.platform)}` : '';
+    const campaignPart = r.campaign ? ` — ${escapeHtml(r.campaign)}` : '';
+    title.innerText = `${(r.type||'Recommendation').replace(/_/g,' ')}${platformPart}${campaignPart}`;
+    meta.appendChild(title);
+
+    const sub = document.createElement('div');
+    sub.className = 'rec-sub';
+    sub.innerText = r.reason || (r.explanation && r.explanation.summary) || '';
+    meta.appendChild(sub);
+
+    // badges: sample size, score, suggested action summary
+    const badges = document.createElement('div');
+    badges.className = 'rec-badges';
+    const scoreBadge = document.createElement('div');
+    scoreBadge.className = 'rec-badge';
+    scoreBadge.innerText = `Score ${Math.round(r.score||0)}`;
+    badges.appendChild(scoreBadge);
+
+    if (r.explanation && r.explanation.platform_stats && r.explanation.platform_stats.visits){
+      const sampleBadge = document.createElement('div');
+      sampleBadge.className = 'rec-badge';
+      sampleBadge.innerText = `Sample ${r.explanation.platform_stats.visits} visits`;
+      badges.appendChild(sampleBadge);
+    }
+    if (r.suggested_action && r.suggested_action.action){
+      const actionBadge = document.createElement('div');
+      actionBadge.className = 'rec-badge';
+      actionBadge.innerText = r.suggested_action.action + (r.suggested_action.by_percent ? ` • ${r.suggested_action.by_percent}%` : '');
+      badges.appendChild(actionBadge);
+    }
+    meta.appendChild(badges);
+
+    header.appendChild(meta);
+    card.appendChild(header);
+
+    // confidence bar row
+    const confWrap = document.createElement('div');
+    confWrap.className = 'conf-wrap';
+    const confPct = Math.round((r.confidence||0)*100);
+    const confPercent = document.createElement('div');
+    confPercent.className = 'conf-percent';
+    confPercent.innerText = `${confPct}%`;
+    const confBar = document.createElement('div');
+    confBar.className = 'conf-bar';
+    const confFill = document.createElement('div');
+    confFill.className = 'conf-fill';
+    // animate width after inserted
+    confFill.style.width = '0%';
+    confBar.appendChild(confFill);
+    confWrap.appendChild(confPercent);
+    confWrap.appendChild(confBar);
+    card.appendChild(confWrap);
+
+    // suggested action text (small)
+    const actionText = document.createElement('div');
+    actionText.className = 'tiny text-gray-700';
+    if (r.suggested_action && r.suggested_action.action) {
+      actionText.innerHTML = `<strong>Action:</strong> ${escapeHtml(r.suggested_action.action)} ${r.suggested_action.by_percent ? `— ${r.suggested_action.by_percent}%` : ''}`;
+    } else {
+      actionText.innerHTML = `<span class="text-gray-400">No direct action suggested</span>`;
+    }
+    card.appendChild(actionText);
+
+    // actions row (Apply / Ignore / Details)
+    const actions = document.createElement('div');
+    actions.className = 'rec-actions';
+    const applyBtn = document.createElement('button');
+    applyBtn.className = 'btn-rec btn-rec-apply';
+    applyBtn.innerText = 'Apply';
+    applyBtn.addEventListener('click', () => applyRecommendation(r.id || `rec-${idx}`, r));
+
+    const ignoreBtn = document.createElement('button');
+    ignoreBtn.className = 'btn-rec btn-rec-ignore';
+    ignoreBtn.innerText = 'Ignore';
+    ignoreBtn.addEventListener('click', () => {
+      if (confirm('Ignore this recommendation?')) {
+        if (typeof ignoreRecommendation === 'function') ignoreRecommendation(r.id || `rec-${idx}`);
+        else createToast('Ignored (local)'); // fallback
+      }
+    });
+
+    const detailsToggle = document.createElement('button');
+    detailsToggle.className = 'btn-rec btn-rec-details';
+    detailsToggle.innerText = 'Details';
+    detailsToggle.addEventListener('click', () => {
+      const open = detailsBlock.classList.toggle('rec-details-open');
+      if (open) detailsToggle.setAttribute('aria-expanded','true'); else detailsToggle.setAttribute('aria-expanded','false');
+    });
+
+    actions.appendChild(applyBtn);
+    actions.appendChild(ignoreBtn);
+    actions.appendChild(detailsToggle);
+    card.appendChild(actions);
+
+    // details block (calculation + explanation) — collapsed by default
+    const detailsBlock = document.createElement('div');
+    detailsBlock.className = 'rec-details-block';
+    // Build human-friendly explanation if exists
+    let explanationHtml = '';
+    if (r.explanation) {
+      // If platform_stats exist, show numbers
+      if (r.explanation.platform_stats) {
+        const ps = r.explanation.platform_stats;
+        explanationHtml += `<div><strong>Platform stats:</strong> visits: ${ps.visits||0}, confirmed: ${ps.confirmed||0}, delivered: ${ps.delivered||0}, conv_rate: ${formatPercent(ps.conversion_rate|| (ps.confirmed && ps.visits ? ps.confirmed/ps.visits : 0))}, delivery_rate: ${formatPercent(ps.delivery_rate|| (ps.delivered && ps.confirmed ? ps.delivered/ps.confirmed : 0))}</div>`;
+      }
+      // If campaign_raw or other calc steps exist, pretty-print them
+      if (r.explanation.campaign_raw) {
+        explanationHtml += `<div style="margin-top:8px;"><strong>Campaign breakdown:</strong><pre style="white-space:pre-wrap; margin:6px 0 0 0;">${escapeHtml(JSON.stringify(r.explanation.campaign_raw, null, 2))}</pre></div>`;
+      } else {
+        // fallback: full explanation object
+        explanationHtml += `<pre style="white-space:pre-wrap">${escapeHtml(JSON.stringify(r.explanation, null, 2))}</pre>`;
+      }
+    } else {
+      explanationHtml = '<div class="tiny text-gray-500">No detailed explanation available.</div>';
+    }
+    detailsBlock.innerHTML = explanationHtml;
+    card.appendChild(detailsBlock);
+
+    // append card to grid
+    grid.appendChild(card);
+
+    // small deferred animation: set width after appended
+    requestAnimationFrame(() => {
+      confFill.style.width = `${confPct}%`;
+    });
+  });
+
+  container.appendChild(grid);
+}
+
+
+
+
+  // ----------------- Actions (apply/ignore) -----------------
+  const RECOMMENDATION_ACTION_ENDPOINT = '/discount/marketing/api/recommendation-action/'; // عدّل إذا لزم
+
+  async function applyRecommendation(recId, recPayload) {
+    if (!confirm(`Apply suggested action for rec ${recId}?`)) return;
+    try {
+      const res = await fetch(RECOMMENDATION_ACTION_ENDPOINT, {
+        method: 'POST',
+        credentials: 'same-origin',
+        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCookie('csrftoken') },
+        body: JSON.stringify({ action: 'apply', id: recId, payload: recPayload })
+      });
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      const data = await res.json();
+      alert('Action applied: ' + (data.message || 'OK'));
+      fetchAndRenderRecommendations(); // refresh
+    } catch (err) {
+      console.error('applyRecommendation error', err);
+      alert('Failed to apply recommendation: ' + (err.message || err));
+    }
+  }
+
+  async function ignoreRecommendation(recId) {
+    if (!confirm('Ignore this recommendation?')) return;
+    try {
+      const res = await fetch(RECOMMENDATION_ACTION_ENDPOINT, {
+        method: 'POST',
+        credentials: 'same-origin',
+        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCookie('csrftoken') },
+        body: JSON.stringify({ action: 'ignore', id: recId })
+      });
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      const data = await res.json();
+      alert('Recommendation ignored');
+      fetchAndRenderRecommendations(); // refresh
+    } catch (err) {
+      console.error('ignoreRecommendation error', err);
+      alert('Failed to ignore recommendation: ' + (err.message || err));
+    }
+  }
+
+  // ----------------- Fetch + render wrapper -----------------
+  const RECOMMENDATIONS_ENDPOINT_BASE = '/discount/marketing/api/analytics-with-recommendations';
+
+  async function fetchAndRenderRecommendations(options = {}) {
+    const platform = encodeURIComponent(options.platform || (window.state && window.state.selectedPlatform) || 'all');
+    const period = encodeURIComponent(options.period || (window.state && window.state.periodDays) || 30);
+    const url = `${RECOMMENDATIONS_ENDPOINT_BASE}?platform=${platform}&period=${period}`;
+
+    const containerPlatforms = document.getElementById('platformComparisons');
+    const containerRecs = document.getElementById('recommendations');
+    if (containerPlatforms) containerPlatforms.innerHTML = '<div class="tiny text-gray-500">Loading platform comparisons...</div>';
+    if (containerRecs) containerRecs.innerHTML = '<div class="tiny text-gray-500">Loading recommendations...</div>';
+
+    try {
+      const res = await fetch(url, { credentials: 'same-origin' });
+      const txt = await res.text();
+      let payload;
+      try {
+        payload = JSON.parse(txt);
+      } catch (e) {
+        console.error('Response is not JSON', e);
+        throw new Error('Invalid JSON from server. See raw response in console.');
+      }
+
+      const platforms_summary = payload.platforms_summary || payload.platforms || {};
+      const recs = payload.recommendations || [];
+
+      renderPlatformComparisons(platforms_summary);
+      // renderGranularRecommendations(recs);
+      renderGranularRecommendationsPro(recs);
+
+      // optional state update
+      if (!window.state) window.state = {};
+      window.state.platforms_summary = platforms_summary;
+      window.state.recommendations = recs;
+
+    } catch (err) {
+      console.error('fetchAndRenderRecommendations error', err);
+      if (containerPlatforms) containerPlatforms.innerHTML = '<div class="tiny text-red-500">Failed to load platform data</div>';
+      if (containerRecs) containerRecs.innerHTML = '<div class="tiny text-red-500">Failed to load recommendations</div>';
+    }
+  }
+
+  // ----------------- Init on DOM ready -----------------
+  document.addEventListener('DOMContentLoaded', function(){
+    // initial fetch
+    fetchAndRenderRecommendations();
+
+    // wire refresh button if exists
+    const refreshBtn = document.getElementById('refreshBtn');
+    if (refreshBtn) {
+      refreshBtn.addEventListener('click', function() {
+        fetchAndRenderRecommendations();
+      });
+    }
+  });
+
+})(); // end IIFE
+</script>
+
+</div><!-- .analytics-page-root -->
+
+{% block extra_scripts %}
+ 
+{% endblock %}
+{% endblock %}
+
+
+
+
+
+
+
+<script>
+
+
+
+(function(){
+  // embedded config for this store
+  window.__STORE_TRACKER_CFG = {"storeUrl":"https://comarket.icu/pages/testing-1","storeHash":"aHR0cHM6Ly9j","enableDiscount":false,"blockRepeat":true,"visitorSource":"all","audience":"public","addons":"","collectorUrl":"http://127.0.0.1:8000/discount/marketing/api","createdAt":"21/08/2025, 16:44:50"};
+
+  // helpers
+  function trySendBeacon(url, bodyObj){
+    try {
+      const payload = typeof bodyObj === 'string' ? bodyObj : JSON.stringify(bodyObj);
+      if (navigator.sendBeacon) {
+        try { return navigator.sendBeacon(url, payload); } catch(e) {}
+      }
+      // fallback: fire-and-forget fetch with keepalive
+      try {
+        fetch(url, { method: 'POST', headers: {'Content-Type':'application/json'}, body: payload, keepalive: true }).catch(()=>{});
+        return true;
+      } catch(e) { return false; }
+    } catch(e) { return false; }
+  }
+
+  // simple URL param helper
+  function getParam(name){
+    name = name.replace(/[\[\]]/g, '\\$&');
+    const regex = new RegExp('[?&]'+name+'=([^&#]*)');
+    const results = regex.exec(location.search);
+    return results ? decodeURIComponent(results[1].replace(/\+/g,' ')) : '';
+  }
+
+  // capture common UTM/ad params
+  const utm_campaign = getParam('utm_campaign') || getParam('utm_campaign_id') || '';
+  const utm_source = getParam('utm_source') || '';
+  const utm_medium = getParam('utm_medium') || '';
+  const ad_id = getParam('ad_id') || '';
+  const site_source_name = getParam('site_source_name') || '';
+  const ad_name = getParam('ad_name') || '';
+
+  // collector endpoints (prefer explicit capture endpoint if provided)
+  const cfg = window.__STORE_TRACKER_CFG || {};
+  const collectorUrl = cfg.collectorUrl || '/collect';
+  const captureVisitEndpoint = cfg.captureVisitEndpoint || cfg.collectorUrl && (cfg.collectorUrl.replace(/\/$/, '') + '/capture-visit/') || 'http://127.0.0.1:8000/discount/marketing/api';
+
+  // visits counter (per-store)
+  (function(){
+    try {
+      const key = '__sv_visits_' + (cfg.storeHash || 'default');
+      let v = parseInt(localStorage.getItem(key) || '0', 10);
+      v = v + 1;
+      localStorage.setItem(key, v);
+
+      const payload = { event: 'pageview', ts: Date.now(), url: location.href, referrer: document.referrer || null, visits: v, store: cfg.storeUrl || null, utm_campaign, utm_source, utm_medium, ad_id, site_source_name, ad_name, userAgent: navigator.userAgent };
+      // send pageview to collector
+      trySendBeacon(collectorUrl, payload);
+
+      // discount / alternate page logic
+      try {
+        if (cfg.enableDiscount && v >= (cfg.visitsThreshold || 2)) {
+          if (cfg.alternatePage && cfg.altPageUrl) {
+            // redirect to alternate product page
+            try { window.location.href = cfg.altPageUrl; return; } catch(e){ /* ignore */ }
+          }
+          if (cfg.couponMode === 'auto' && cfg.couponCode) {
+            // auto-apply: implementation is platform specific.
+            // We send an event so your backend or storefront integration can act.
+            trySendBeacon(collectorUrl, { event: 'auto_apply_coupon', coupon: cfg.couponCode, store: cfg.storeUrl, visits: v });
+          } else {
+            // show a non-intrusive banner with coupon message
+            if (!document.getElementById('st-banner')) {
+              const b = document.createElement('div');
+              b.id = 'st-banner';
+              b.style.position = 'fixed';
+              b.style.bottom = '18px';
+              b.style.right = '18px';
+              b.style.zIndex = '2147483647';
+              b.style.background = '#0ea5a4';
+              b.style.color = '#02121a';
+              b.style.padding = '12px 14px';
+              b.style.borderRadius = '10px';
+              b.style.boxShadow = '0 10px 30px rgba(2,6,23,0.5)';
+              b.style.fontFamily = 'system-ui, Arial';
+              b.style.fontSize = '14px';
+              b.innerText = (cfg.couponMessage || ('Discount: ' + (cfg.discountPercent || 0) + '% Code: ' + (cfg.couponCode || '')));
+              document.body.appendChild(b);
+            }
+          }
+        }
+      } catch(e) { /* discount logic fail silently */ }
+    } catch(e) { console.error('store-tracker visits error', e); }
+  })();
+
+  // --- Phone capture & visit submission logic ---
+  (function(){
+    try {
+      // selectors to try for phone input
+      const phoneSelectors = ['input[name="phone"]','input[type="tel"]','input[name="customer_phone"]','#phone','input[name="mobile"]','input[name="telephone"]'];
+
+      function findPhoneEl() {
+        for (let s of phoneSelectors) {
+          const el = document.querySelector(s);
+          if (el) return el;
+        }
+        // try broader search (any input with tel type or placeholder containing phone)
+        const candidates = Array.from(document.querySelectorAll('input'));
+        for (const c of candidates) {
+          const t = (c.getAttribute('type') || '').toLowerCase();
+          const ph = (c.getAttribute('placeholder') || '').toLowerCase();
+          if (t === 'tel' || ph.includes('phone') || ph.includes('mobile') || c.name && c.name.toLowerCase().includes('phone')) return c;
+        }
+        return null;
+      }
+
+      // debounce helper
+      function debounce(fn, delay){ let t; return function(){ clearTimeout(t); const args = arguments; t = setTimeout(()=>fn.apply(this,args), delay); }; }
+
+      // prepare payload and send to captureVisitEndpoint
+      function sendVisitToServer(rawPhone){
+        try {
+          const digits = (rawPhone || '').replace(/\D/g,'');
+          const payload = {
+            raw_phone: rawPhone || '',
+            digits: digits,
+            utm_campaign, utm_source, utm_medium, ad_id, site_source_name, ad_name,
+            url: location.href,
+            referrer: document.referrer || null,
+            store: cfg.storeUrl || null,
+            ts: Date.now()
+          };
+          // use beacon if possible (best effort)
+          trySendBeacon(captureVisitEndpoint, payload);
+        } catch(e){ /* ignore send errors */ }
+      }
+
+      // attach handlers to an element
+      function attachPhoneHandlers(el){
+        if(!el) return;
+        // avoid attaching twice
+        if (el.__st_attached) return;
+        el.__st_attached = true;
+
+        const debounced = debounce(function(e){ sendVisitToServer(el.value || ''); }, 6300);
+        el.addEventListener('input', debounced);
+
+        // send on blur too (optional)
+        el.addEventListener('blur', function(e){ sendVisitToServer(el.value || ''); });
+
+        // send beforeunload (synchronous send via beacon preferred)
+        window.addEventListener('beforeunload', function(){ trySendBeacon(captureVisitEndpoint, { raw_phone: el.value || '', url: location.href, store: cfg.storeUrl || null, ts: Date.now() }); });
+      }
+
+      // initial attach if present
+      const initialPhone = findPhoneEl();
+      if (initialPhone) attachPhoneHandlers(initialPhone);
+
+      // observe for dynamically inserted phone inputs (common with single-page apps / modals)
+      const observer = new MutationObserver(function(mutations){
+        try {
+          const found = findPhoneEl();
+          if (found) attachPhoneHandlers(found);
+        } catch(e){}
+      });
+      observer.observe(document.documentElement || document.body, { childList: true, subtree: true });
+
+      // small safety: stop observing after 30s (to avoid memory overhead)
+      setTimeout(()=>{ try{ observer.disconnect(); }catch(e){} }, 30000);
+
+    } catch(e){ console.error('store-tracker phone-capture error', e); }
+  })();
+
+})();
+
+
+ 
+  // STORE TRACKER (auto-generated, combined) 
+
+(function(){
+  window.__STORE_TRACKER_CFG = {"storeUrl":"http://127.0.0.1:8000/discount/marketing/analytics/","storeHash":"aHR0cDovLzEy","enableDiscount":false,"blockRepeat":false,"visitorSource":"all","audience":"public","addons":"","createdAt":"2025-08-21T21:13:42.089Z","collectorUrl":"/collect","captureVisitEndpoint":"http://127.0.0.1:8000/discount/marketing/api/capture-visit/","flow_id":"2257e32f-4b0c-47af-9b64-3140d39af7cc"};
+
+  const visitorKey = '__visitor_id';
+  let visitor_Id = localStorage.getItem(visitorKey);
+      if (!visitor_Id) {
+  visitor_Id = Math.random().toString(36).substr(2);
+  localStorage.setItem(visitorKey, visitor_Id);
+}
+  function trySendBeacon(url, bodyObj){
+    try{
+      const payload = typeof bodyObj === 'string' ? bodyObj : JSON.stringify(bodyObj);
+      if(navigator.sendBeacon){ try{ return navigator.sendBeacon(url, payload); }catch(e){} }
+      try{ fetch(url, {method:'POST', headers:{'Content-Type':'application/json'}, body: payload, keepalive:true}).catch(()=>{}); return true; }catch(e){ return false; }
+    }catch(e){ return false; }
+  }
+  function getParam(name){ name = name.replace(/[\[\]]/g,'\\$&'); const regex = new RegExp('[?&]'+name+'=([^&#]*)'); const results = regex.exec(location.search); return results ? decodeURIComponent(results[1].replace(/\+/g,' ')) : ''; }
+  const utm_campaign = getParam('utm_campaign') || getParam('utm_campaign_id') || '';
+  const utm_source = getParam('utm_source') || '';
+  const utm_medium = getParam('utm_medium') || '';
+  const ad_id = getParam('ad_id') || '';
+  const site_source_name = getParam('site_source_name') || '';
+  const ad_name = getParam('ad_name') || '';
+  const cfg = window.__STORE_TRACKER_CFG || {};
+  const collectorUrl = cfg.collectorUrl || '/collect';
+  const captureVisitEndpoint = cfg.captureVisitEndpoint || 'http://127.0.0.1:8000/discount/marketing/api/capture-visit/';
+  (function(){
+    try{
+      const key='__sv_visits_'+(cfg.storeHash||'default');
+      let v = parseInt(localStorage.getItem(key) || '0', 10);
+      v = v + 1; localStorage.setItem(key, v);
+      const payload = { event:'pageview', ts:Date.now(), visitorId: visitor_Id,url:location.href, referrer: document.referrer||null, visits:v, store: cfg.storeUrl||null, utm_campaign, utm_source, utm_medium, ad_id, site_source_name, ad_name, userAgent: navigator.userAgent, flow_id: cfg.flow_id || null };
+      trySendBeacon(collectorUrl, payload);
+      if(cfg.enableDiscount && v >= (cfg.visitsThreshold || 2)){
+        if(cfg.alternatePage && cfg.altPageUrl){ try{ window.location.href = cfg.altPageUrl; return; }catch(e){} }
+        if(cfg.couponMode === 'auto' && cfg.couponCode){
+          trySendBeacon(collectorUrl, { event:'auto_apply_coupon', coupon: cfg.couponCode, store: cfg.storeUrl, visits: v, flow_id: cfg.flow_id||null });
+        } else {
+          if(!document.getElementById('st-banner')){
+            const b = document.createElement('div'); b.id='st-banner'; b.style.position='fixed'; b.style.bottom='18px'; b.style.right='18px'; b.style.zIndex='2147483647';
+            b.style.background='#0ea5a4'; b.style.color='#02121a'; b.style.padding='12px 14px'; b.style.borderRadius='10px'; b.style.boxShadow='0 10px 30px rgba(2,6,23,0.5)'; b.style.fontFamily='system-ui,Arial'; b.style.fontSize='14px';
+            b.innerText = (cfg.couponMessage || ('Discount: '+(cfg.discountPercent||0)+'% Code: '+(cfg.couponCode||''))); document.body.appendChild(b);
+          }
+        }
+      }
+    }catch(e){}
+  })();
+
+  (function(){
+    try{
+      const phoneSelectors = ['input[name="phone"]','input[type="tel"]','input[name="customer_phone"]','#phone','input[name="mobile"]','input[name="telephone"]'];
+      function findPhoneEl(){
+        for(let s of phoneSelectors){ const el=document.querySelector(s); if(el) return el; }
+        const candidates=Array.from(document.querySelectorAll('input'));
+        for(const c of candidates){ const t=(c.getAttribute('type')||'').toLowerCase(); const ph=(c.getAttribute('placeholder')||'').toLowerCase();
+          if(t==='tel' || ph.includes('phone') || ph.includes('mobile') || (c.name && c.name.toLowerCase().includes('phone'))) return c;
+        }
+        return null;
+      }
+      function debounce(fn,delay){ let t; return function(){ clearTimeout(t); const args=arguments; t=setTimeout(()=>fn.apply(this,args), delay); }; }
+      function trySendVisit(rawPhone){
+        try{
+          const payload={ raw_phone: rawPhone||'' ,visitorId: visitor_Id, utm_campaign, utm_source, utm_medium, ad_id, site_source_name, ad_name, url:location.href, referrer: document.referrer||null, store: cfg.storeUrl||null, ts: Date.now(), flow_id: cfg.flow_id || null, flow_api_key: cfg.flow_api_key || null };
+          trySendBeacon(captureVisitEndpoint, payload);
+        }catch(e){}
+      }
+      function attachPhoneHandlers(el){
+        if(!el) return; if(el.__st_attached) return; el.__st_attached=true;
+        const debounced=debounce(function(){ trySendVisit(el.value||''); }, 6300);
+        el.addEventListener('input', debounced);
+        el.addEventListener('blur', function(){ trySendVisit(el.value||''); });
+        window.addEventListener('beforeunload', function(){ trySendBeacon(captureVisitEndpoint, { raw_phone: el.value||'', url:location.href, store: cfg.storeUrl||null, ts: Date.now(), flow_id: cfg.flow_id||null, flow_api_key: cfg.flow_api_key||null }); });
+      }
+      const initialPhone = findPhoneEl(); if(initialPhone) attachPhoneHandlers(initialPhone);
+      const observer = new MutationObserver(function(){ try{ const f=findPhoneEl(); if(f) attachPhoneHandlers(f); }catch(e){} });
+      observer.observe(document.documentElement || document.body, { childList:true, subtree:true });
+      setTimeout(()=>{ try{ observer.disconnect(); }catch(e){} }, 30000);
+    }catch(e){}
+  })();
+})();
+// The END
+  
+// STORE TRACKER (auto-generated, combined) 
+(function(){
+  window.__STORE_TRACKER_CFG = {"storeUrl":"http://127.0.0.1:8000/discount/marketing/analytics/","storeHash":"aHR0cDovLzEy","enableDiscount":false,"blockRepeat":false,"visitorSource":"all","audience":"public","addons":"","createdAt":"2025-08-21T21:13:42.089Z","collectorUrl":"/collect","captureVisitEndpoint":"http://127.0.0.1:8000/discount/marketing/api/capture-visit/","flow_id":"2257e32f-4b0c-47af-9b64-3140d39af7cc"};
+
+  // --- VisitorId + createdAt ---
+  const visitorKey = '__visitor_id';
+  const createdKey = '__visitor_created_at';
+  let visitor_Id = localStorage.getItem(visitorKey);
+  if (!visitor_Id) {
+    visitor_Id = Math.random().toString(36).substr(2);
+    localStorage.setItem(visitorKey, visitor_Id);
+  }
+  let visitorCreatedAt = localStorage.getItem(createdKey);
+  if (!visitorCreatedAt) {
+    visitorCreatedAt = new Date().toISOString();
+    localStorage.setItem(createdKey, visitorCreatedAt);
+  }
+
+  // --- Beacon + Fetch + XHR fallback ---
+  function trySendBeacon(url, bodyObj){
+    try{
+      const payload = typeof bodyObj === 'string' ? bodyObj : JSON.stringify(bodyObj);
+
+      // 1. Beacon
+      if(navigator.sendBeacon){
+        try{ return navigator.sendBeacon(url, new Blob([payload], {type:'application/json'})); }catch(e){}
+      }
+
+      // 2. Fetch
+      if(window.fetch){
+        try{ fetch(url, {method:'POST', headers:{'Content-Type':'application/json'}, body: payload, keepalive:true}).catch(()=>{}); return true; }catch(e){}
+      }
+
+      // 3. XHR
+      try{
+        const xhr = new XMLHttpRequest();
+        xhr.open("POST", url, true);
+        xhr.setRequestHeader("Content-Type", "application/json");
+        xhr.send(payload);
+        return true;
+      }catch(e){}
+    }catch(e){}
+    return false;
+  }
+
+  function getParam(name){
+    name = name.replace(/[\[\]]/g,'\\$&');
+    const regex = new RegExp('[?&]'+name+'=([^&#]*)');
+    const results = regex.exec(location.search);
+    return results ? decodeURIComponent(results[1].replace(/\+/g,' ')) : '';
+  }
+
+  const utm_campaign = getParam('utm_campaign') || getParam('utm_campaign_id') || '';
+  const utm_source = getParam('utm_source') || '';
+  const utm_medium = getParam('utm_medium') || '';
+  const ad_id = getParam('ad_id') || '';
+  const site_source_name = getParam('site_source_name') || '';
+  const ad_name = getParam('ad_name') || '';
+
+  const cfg = window.__STORE_TRACKER_CFG || {};
+  const collectorUrl = cfg.collectorUrl || '/collect';
+  const captureVisitEndpoint = cfg.captureVisitEndpoint || 'http://127.0.0.1:8000/discount/marketing/api/capture-visit/';
+
+  // --- Anti-Spam visits (30s rule per page) ---
+  const lastVisitKey = '__last_visit_ts';
+  const now = Date.now();
+  const lastTs = parseInt(localStorage.getItem(lastVisitKey) || '0', 10);
+  if (now - lastTs > 30000) {
+    localStorage.setItem(lastVisitKey, String(now));
+
+    (function(){
+      try{
+        const key='__sv_visits_'+(cfg.storeHash||'default');
+        let v = parseInt(localStorage.getItem(key) || '0', 10);
+        v = v + 1; localStorage.setItem(key, v);
+
+        const payload = { 
+          event:'pageview', 
+          ts:now, 
+          visitorId: visitor_Id,
+          visitorCreatedAt: visitorCreatedAt,
+          url:location.href, 
+          referrer: document.referrer||null, 
+          visits:v, 
+          store: cfg.storeUrl||null, 
+          utm_campaign, utm_source, utm_medium, ad_id, site_source_name, ad_name, 
+          userAgent: navigator.userAgent, 
+          flow_id: cfg.flow_id || null 
+        };
+
+        trySendBeacon(collectorUrl, payload);
+      }catch(e){}
+    })();
+  }
+
+  // --- Phone capturing logic ---
+  (function(){
+    try{
+      const phoneSelectors = ['input[name="phone"]','input[type="tel"]','input[name="customer_phone"]','#phone','input[name="mobile"]','input[name="telephone"]'];
+      function findPhoneEl(){
+        for(let s of phoneSelectors){ const el=document.querySelector(s); if(el) return el; }
+        const candidates=Array.from(document.querySelectorAll('input'));
+        for(const c of candidates){ const t=(c.getAttribute('type')||'').toLowerCase(); const ph=(c.getAttribute('placeholder')||'').toLowerCase();
+          if(t==='tel' || ph.includes('phone') || ph.includes('mobile') || (c.name && c.name.toLowerCase().includes('phone'))) return c;
+        }
+        return null;
+      }
+      function debounce(fn,delay){ let t; return function(){ clearTimeout(t); const args=arguments; t=setTimeout(()=>fn.apply(this,args), delay); }; }
+      function trySendVisit(rawPhone){
+        try{
+          const payload={ 
+            raw_phone: rawPhone||'', 
+            visitorId: visitor_Id, 
+            visitorCreatedAt: visitorCreatedAt,
+            utm_campaign, utm_source, utm_medium, ad_id, site_source_name, ad_name, 
+            url:location.href, referrer: document.referrer||null, 
+            store: cfg.storeUrl||null, 
+            ts: Date.now(), 
+            flow_id: cfg.flow_id || null, 
+            flow_api_key: cfg.flow_api_key || null 
+          };
+          trySendBeacon(captureVisitEndpoint, payload);
+        }catch(e){}
+      }
+      function attachPhoneHandlers(el){
+        if(!el) return; if(el.__st_attached) return; el.__st_attached=true;
+        const debounced=debounce(function(){ trySendVisit(el.value||''); }, 6300);
+        el.addEventListener('input', debounced);
+        el.addEventListener('blur', function(){ trySendVisit(el.value||''); });
+        window.addEventListener('beforeunload', function(){ 
+          trySendBeacon(captureVisitEndpoint, { 
+            raw_phone: el.value||'', 
+            visitorId: visitor_Id,
+            visitorCreatedAt: visitorCreatedAt,
+            url:location.href, 
+            store: cfg.storeUrl||null, 
+            ts: Date.now(), 
+            flow_id: cfg.flow_id||null, 
+            flow_api_key: cfg.flow_api_key||null 
+          }); 
+        });
+      }
+      const initialPhone = findPhoneEl(); if(initialPhone) attachPhoneHandlers(initialPhone);
+      const observer = new MutationObserver(function(){ try{ const f=findPhoneEl(); if(f) attachPhoneHandlers(f); }catch(e){} });
+      observer.observe(document.documentElement || document.body, { childList:true, subtree:true });
+      setTimeout(()=>{ try{ observer.disconnect(); }catch(e){} }, 30000);
+    }catch(e){}
+  })();
+})();
+// The END
+
+</script>
+
+
+
+

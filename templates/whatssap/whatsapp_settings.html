@@ -1,0 +1,2709 @@
+<style>
+    .loading-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(22, 27, 34, 0.85); /* لون داكن شفاف */
+    backdrop-filter: blur(4px); /* تأثير الزجاج الضبابي */
+    z-index: 100; /* لتكون فوق كل الحقول */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 16px; /* نفس انحناء البطاقة */
+    transition: all 0.3s ease;
+}
+    /* --- صورة البروفايل --- */
+.profile-upload-wrapper {
+    position: relative;
+    /* width: 80px; */
+    /* height: 80px; */
+}
+
+.profile-img-lg {
+    width: 80px;
+    height: 80px;
+    object-fit: cover;
+    border: 2px solid #30363d;
+}
+
+.upload-overlay {
+    position: absolute;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(0, 0, 0, 0.5);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    cursor: pointer;
+    transition: opacity 0.2s;
+}
+
+.profile-upload-wrapper:hover .upload-overlay {
+    opacity: 1;
+}
+
+/* --- Phone style profile preview --- */
+.wa-phone-preview {
+    width: 100%;
+    max-width: 280px;
+    border-radius: 24px;
+    border: 1px solid #2f3a45;
+    background: #0d1117;
+    box-shadow: 0 16px 32px rgba(0, 0, 0, 0.35);
+    overflow: hidden;
+}
+.wa-phone-preview .wa-phone-topbar {
+    background: #1f2c34;
+    color: #e6edf3;
+    padding: 10px 14px;
+    font-size: 12px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+.wa-phone-preview .wa-phone-body {
+    background: #111b21;
+    min-height: 280px;
+    padding: 16px 14px 18px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+.wa-phone-preview .wa-profile-circle {
+    width: 124px;
+    height: 124px;
+    border-radius: 50%;
+    position: relative;
+    overflow: hidden;
+    border: 3px solid #2a3942;
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.35);
+}
+.wa-phone-preview .wa-profile-circle img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+.wa-phone-preview .wa-edit-badge {
+    position: absolute;
+    right: 2px;
+    bottom: 2px;
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    border: 2px solid #111b21;
+    background: #25d366;
+    color: #0d1117;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+}
+.wa-phone-preview .wa-name {
+    margin-top: 14px;
+    color: #e6edf3;
+    font-weight: 700;
+    font-size: 15px;
+    text-align: center;
+}
+.wa-phone-preview .wa-number {
+    margin-top: 4px;
+    color: #8b949e;
+    font-size: 12px;
+}
+.wa-phone-preview .wa-chip {
+    margin-top: 12px;
+    background: rgba(37, 211, 102, 0.14);
+    color: #74f0a5;
+    border: 1px solid rgba(37, 211, 102, 0.35);
+    border-radius: 999px;
+    padding: 4px 10px;
+    font-size: 11px;
+    font-weight: 600;
+}
+.wa-phone-preview .wa-upload-hint {
+    margin-top: 14px;
+    color: #8b949e;
+    font-size: 12px;
+    text-align: center;
+    line-height: 1.4;
+}
+.wa-phone-preview .wa-upload-btn {
+    margin-top: 10px;
+    border: 1px solid #2f3a45;
+    color: #dce3ea;
+    background: rgba(255, 255, 255, 0.04);
+    border-radius: 8px;
+    padding: 7px 12px;
+    font-size: 12px;
+    cursor: pointer;
+}
+.wa-phone-preview .wa-upload-btn:hover {
+    background: rgba(255, 255, 255, 0.08);
+}
+
+/* --- مودال الخطر --- */
+.letter-spacing-2 {
+    letter-spacing: 5px;
+}
+    /* --- إعدادات الحاوية العامة --- */
+.settings-card {
+    background: #161b22; /* لون داكن أقل حدة من الأسود */
+    border: 1px solid #30363d;
+    border-radius: 16px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
+    overflow: hidden; /* لضمان عدم خروج العناصر عن الحواف */
+}
+
+/* --- تصميم التبويبات العصري (Tabs) --- */
+.settings-tabs .nav-link {
+    color: #8b949e;
+    background: transparent !important;
+    border: none !important;
+    border-bottom: 2px solid transparent !important;
+    padding: 1rem 1.5rem;
+    font-weight: 500;
+    transition: all 0.3s ease;
+}
+
+.settings-tabs .nav-link:hover {
+    color: #e6edf3;
+    background: rgba(255, 255, 255, 0.02) !important;
+}
+
+.settings-tabs .nav-link.active {
+    color: #58a6ff; /* أزرق سماوي مضيء */
+    border-bottom-color: #58a6ff !important;
+    background: linear-gradient(to top, rgba(88, 166, 255, 0.1), transparent) !important;
+}
+
+.settings-tabs .nav-link i {
+    opacity: 0.7;
+}
+.settings-tabs .nav-link.active i {
+    opacity: 1;
+}
+
+/* --- حقول الإدخال (Inputs) --- */
+.modern-input {
+    background-color: #0d1117 !important; /* خلفية أغمق من الكارد للعمق */
+    border: 1px solid #30363d !important;
+    color: #e6edf3 !important;
+    padding: 12px 15px;
+    border-radius: 8px !important;
+    transition: all 0.2s ease-in-out;
+}
+
+.modern-input:focus {
+    border-color: #58a6ff !important;
+    box-shadow: 0 0 0 3px rgba(88, 166, 255, 0.15) !important;
+    background-color: #10151c !important;
+}
+
+/* --- Plan paywall: disabled / locked states --- */
+.feature-locked {
+    opacity: 0.5;
+    pointer-events: none;
+    cursor: not-allowed;
+    position: relative;
+}
+.feature-locked .form-check-input,
+.feature-locked .form-select,
+.feature-locked .form-range,
+.feature-locked input {
+    cursor: not-allowed;
+}
+.pro-badge {
+    display: inline-block;
+    padding: 2px 8px;
+    font-size: 0.7rem;
+    font-weight: 600;
+    color: #1a1a1a;
+    background: linear-gradient(135deg, #f5c518, #d4a012);
+    border-radius: 6px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+}
+
+.input-group-text.modern-addon {
+    background-color: #161b22;
+    border: 1px solid #30363d;
+    border-right: none;
+    color: #8b949e;
+}
+
+/* --- النصوص (Labels) --- */
+.form-label-modern {
+    color: #8b949e;
+    font-size: 0.85rem;
+    font-weight: 600;
+    margin-bottom: 8px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+/* --- التنبيهات (Alerts) --- */
+.alert-glass {
+    background: rgba(56, 189, 248, 0.1);
+    border: 1px solid rgba(56, 189, 248, 0.2);
+    color: #7dd3fc;
+    border-radius: 8px;
+    backdrop-filter: blur(5px);
+}
+
+/* --- البطاقات الداخلية (Inner Cards) --- */
+.inner-card {
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    border-radius: 12px;
+    transition: transform 0.2s;
+}
+.inner-card:hover {
+    border-color: rgba(255, 255, 255, 0.1);
+}
+
+/* Google Sheets drag-and-drop mapping */
+.gs-drag-list .gs-item { padding: 8px 10px; margin-bottom: 6px; border-radius: 8px; background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.1); cursor: grab; display: flex; align-items: center; gap: 8px; }
+.gs-drag-list .gs-item:active { cursor: grabbing; }
+.gs-drag-list .gs-item.sortable-ghost { opacity: 0.5; }
+.gs-drag-list .gs-active-item .gs-header-input { flex: 1; min-width: 0; padding: 4px 8px; font-size: 0.875rem; background: #0d1117; border: 1px solid #30363d; color: #e6edf3; border-radius: 6px; }
+.gs-drag-list .gs-active-item .gs-field-label { font-size: 0.8rem; color: #8b949e; min-width: 100px; }
+.gs-app-tile {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 12px;
+    padding: 12px 14px;
+}
+.gs-app-left { display: flex; align-items: center; gap: 12px; min-width: 0; }
+.gs-app-icon {
+    width: 38px;
+    height: 38px;
+    border-radius: 10px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    color: #4ade80;
+    background: rgba(74, 222, 128, 0.12);
+    border: 1px solid rgba(74, 222, 128, 0.25);
+}
+.gs-app-name { color: #e6edf3; font-weight: 600; }
+.gs-app-desc { color: #8b949e; font-size: 0.8rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 520px; }
+.gs-app-toggle i { transition: transform .2s ease; }
+.gs-app-toggle[aria-expanded="true"] i { transform: rotate(180deg); }
+
+/* --- زر الحفظ --- */
+.btn-save-glow {
+    background: linear-gradient(135deg, #6366f1 0%, #a855f7 100%); /* تدرج بنفسجي يناسب السايدبار */
+    border: none;
+    color: white;
+    padding: 10px 30px;
+    border-radius: 8px;
+    font-weight: 600;
+    box-shadow: 0 4px 15px rgba(168, 85, 247, 0.4);
+    transition: all 0.3s;
+}
+
+.btn-save-glow:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(168, 85, 247, 0.6);
+    color: white;
+}
+
+/* ----- Modern Settings Layout: Left Sidebar + Content ----- */
+.settings-wrap { display: flex; min-height: 400px; }
+.settings-sidebar {
+    width: 220px;
+    flex-shrink: 0;
+    border-right: 1px solid #30363d;
+    background: rgba(13, 17, 23, 0.5);
+    padding: 1rem 0.5rem;
+}
+.settings-sidebar .nav-item { margin-bottom: 2px; }
+.settings-sidebar .nav-link {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 14px;
+    border-radius: 8px;
+    color: #8b949e;
+    border: none !important;
+    border-bottom: none !important;
+    background: transparent !important;
+    font-weight: 500;
+    transition: background 0.2s, color 0.2s;
+}
+.settings-sidebar .nav-link:hover { color: #e6edf3; background: rgba(255,255,255,0.06) !important; }
+.settings-sidebar .nav-link.active {
+    color: #6366f1;
+    background: rgba(99, 102, 241, 0.15) !important;
+}
+.settings-sidebar .nav-link i { width: 20px; text-align: center; }
+.settings-content { flex: 1; min-width: 0; padding: 1.5rem 1.75rem; }
+.settings-content .tab-pane { display: none; }
+.settings-content .tab-pane.active { display: block; }
+
+/* ----- Team & Routing: Toggles ----- */
+.routing-toggle-wrap {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: 0.75rem 0;
+}
+.routing-toggle-label { display: flex; align-items: center; gap: 8px; font-weight: 500; color: #e6edf3; }
+.routing-toggle-switch {
+    position: relative;
+    width: 44px;
+    height: 24px;
+    flex-shrink: 0;
+    border-radius: 12px;
+    background: #30363d;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+.routing-toggle-switch.on { background: #6366f1; }
+.routing-toggle-switch::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 2px;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background: #fff;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+    transition: transform 0.2s;
+}
+.routing-toggle-switch.on::after { transform: translateX(20px); }
+.routing-tooltip-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    color: #8b949e;
+    background: transparent;
+    border: none;
+    cursor: help;
+    padding: 0;
+    transition: color 0.2s;
+}
+.routing-tooltip-btn:hover { color: #58a6ff; }
+.routing-tooltip-box {
+    position: absolute;
+    left: 100%;
+    top: 50%;
+    transform: translateY(-50%);
+    margin-left: 10px;
+    width: 260px;
+    padding: 10px 12px;
+    font-size: 12px;
+    line-height: 1.45;
+    color: #e6edf3;
+    background: #161b22;
+    border: 1px solid #30363d;
+    border-radius: 8px;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+    z-index: 100;
+    pointer-events: none;
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.15s, visibility 0.15s;
+}
+.routing-tooltip-wrap:hover .routing-tooltip-box,
+.routing-tooltip-btn:focus + .routing-tooltip-box { opacity: 1; visibility: visible; }
+.routing-tooltip-wrap { position: relative; display: inline-flex; }
+
+/* ----- Team & Routing: Member cards ----- */
+.routing-member-card {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding: 1rem 1.25rem;
+    background: rgba(255,255,255,0.03);
+    border: 1px solid #30363d;
+    border-radius: 12px;
+    margin-bottom: 10px;
+    transition: border-color 0.2s, opacity 0.2s;
+}
+.routing-member-card.disabled { opacity: 0.65; pointer-events: none; }
+.routing-member-avatar {
+    width: 40px;
+    height: 40px;
+    flex-shrink: 0;
+    border-radius: 50%;
+    background: rgba(99, 102, 241, 0.2);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #6366f1;
+}
+.routing-member-card:not([data-ai]) .routing-member-avatar { background: rgba(255,255,255,0.08); color: #8b949e; }
+.routing-member-info { flex: 1; min-width: 0; }
+.routing-member-name { font-weight: 500; color: #e6edf3; }
+.routing-member-status {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
+    margin-left: 8px;
+}
+.routing-member-status.online { background: #22c55e; }
+.routing-member-status.offline { background: #6b7280; }
+.routing-member-controls { display: flex; align-items: center; gap: 12px; }
+.routing-slider {
+    width: 140px;
+    height: 6px;
+    -webkit-appearance: none;
+    appearance: none;
+    background: #30363d;
+    border-radius: 3px;
+}
+.routing-slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    background: #6366f1;
+    cursor: pointer;
+    transition: transform 0.15s;
+}
+.routing-slider::-webkit-slider-thumb:hover { transform: scale(1.1); }
+.routing-slider::-moz-range-thumb {
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    background: #6366f1;
+    cursor: pointer;
+    border: none;
+}
+.routing-pct-input {
+    width: 56px;
+    padding: 6px 8px;
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+    background: #0d1117;
+    border: 1px solid #30363d;
+    color: #e6edf3;
+    border-radius: 6px;
+    font-size: 14px;
+}
+.routing-pct-input:focus { outline: none; border-color: #6366f1; box-shadow: 0 0 0 2px rgba(99,102,241,0.2); }
+
+/* ----- Sticky total bar ----- */
+.routing-total-bar {
+    position: sticky;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: 1rem 1.25rem;
+    background: #161b22;
+    border: 1px solid #30363d;
+    border-radius: 12px;
+    margin-top: 1.5rem;
+    box-shadow: 0 -4px 20px rgba(0,0,0,0.2);
+}
+.routing-total-bar .total-valid { color: #22c55e; font-weight: 600; }
+.routing-total-bar .total-invalid { color: #ef4444; font-weight: 600; }
+.routing-save-btn { transition: opacity 0.2s; }
+.routing-save-btn:disabled { opacity: 0.5; cursor: not-allowed !important; }
+
+/* Voice Gallery modal (ElevenLabs) */
+#voiceGalleryModal .voice-gallery-modal-body { max-height: min(70vh, 720px); overflow-y: auto; }
+#voiceGalleryModal .vg-voice-card {
+    background: #161b22;
+    border: 2px solid #30363d;
+    border-radius: 12px;
+    padding: 1rem;
+    height: 100%;
+    cursor: pointer;
+    transition: border-color 0.2s, box-shadow 0.2s;
+}
+#voiceGalleryModal .vg-voice-card:hover { border-color: #8b949e; }
+#voiceGalleryModal .vg-voice-card.vg-selected {
+    border-color: #58a6ff;
+    box-shadow: 0 0 0 1px #58a6ff;
+}
+#voiceGalleryModal .vg-voice-card .vg-name { font-weight: 600; color: #e6edf3; margin-bottom: 0.35rem; }
+#voiceGalleryModal .vg-voice-card .vg-tags { font-size: 0.75rem; color: #8b949e; margin-bottom: 0.65rem; }
+#voiceGalleryModal .vg-voice-card .vg-tags span { margin-right: 0.35rem; }
+#voiceGalleryModal .badge-vg-native { background: linear-gradient(135deg, #238636, #2ea043); color: #fff; font-size: 0.7rem; }
+</style>
+<div class="container-fluid p-4">
+    <div class="mb-4">
+        <h4 class="text-white fw-bold mb-1">
+            <i class="fab fa-whatsapp text-success me-2"></i> Channel Configuration
+        </h4>
+        <p class="text-muted small">Manage your WhatsApp Business Profile, Automation, and Team preferences.</p>
+    </div>
+
+    <div class="card settings-card" style="position: relative;">
+       
+            <div id="settings_loader" class="loading-overlay d-none">
+                <div class="text-center">
+                    <div class="spinner-border text-primary mb-3" style="width: 3rem; height: 3rem;" role="status"></div>
+                    <h6 class="text-white mt-2">Loading Configurations...</h6>
+                </div>
+            </div>
+        
+          
+        <!-- Old horizontal tabs replaced by settings-sidebar -->
+            <ul class="nav nav-tabs settings-tabs nav-fill d-none" id="settingsTabs" role="tablist">
+                
+                {% if user.is_team_admin or user.is_superuser %}
+                
+            
+
+                <li class="nav-item">
+                    <button class="nav-link active" data-bs-toggle="tab" data-bs-target="#content-profile">
+                        <i class="fas fa-store me-2"></i> Business Profile
+                    </button>
+                </li>
+                <li class="nav-item">
+                    <button class="nav-link" data-bs-toggle="tab" data-bs-target="#content-automation">
+                        <i class="fas fa-robot me-2"></i> Automation
+                    </button>
+                </li>
+                <li class="nav-item">
+                    <button class="nav-link" data-bs-toggle="tab" data-bs-target="#content-routing">
+                        <i class="fas fa-random me-2"></i> Routing
+                    </button>
+                </li>
+                {% endif %}
+
+                <li class="nav-item">
+                    <button class="nav-link" data-bs-toggle="tab" data-bs-target="#content-integrations">
+                        <i class="fas fa-plug me-2"></i> Integrations
+                    </button>
+                </li>
+                <li class="nav-item">
+                    <button class="nav-link {% if not user.is_team_admin %}active{% endif %}" data-bs-toggle="tab" data-bs-target="#content-personal">
+                        <i class="fas fa-user-cog me-2"></i> Preferences
+                    </button>
+                </li>
+            </ul>
+        <div class="card-body p-0" id="whatsapp-settings-card-body" data-google-sheets-api-base="{% url 'api_google_sheets_config' %}">
+            <div class="settings-wrap">
+                <aside class="settings-sidebar">
+                    <ul class="nav flex-column" id="settingsSidebarNav" role="tablist">
+                        <li class="nav-item">
+                            <button type="button" class="nav-link active" data-bs-toggle="tab" data-bs-target="#content-profile" role="tab"><i class="fas fa-store"></i> General</button>
+                        </li>
+                        {% if user.is_team_admin or user.is_superuser %}
+                        <li class="nav-item">
+                            <button type="button" class="nav-link" data-bs-toggle="tab" data-bs-target="#content-automation" role="tab"><i class="fas fa-robot"></i> AI Assistant</button>
+                        </li>
+                        <li class="nav-item">
+                            <button type="button" class="nav-link" data-bs-toggle="tab" data-bs-target="#content-routing" role="tab"><i class="fas fa-random"></i> Team &amp; Routing</button>
+                        </li>
+                        <li class="nav-item">
+                            <button type="button" class="nav-link" data-bs-toggle="tab" data-bs-target="#content-integrations" role="tab"><i class="fas fa-plug"></i> Integrations</button>
+                        </li>
+                        {% else %}
+                        <li class="nav-item">
+                            <button type="button" class="nav-link" data-bs-toggle="tab" data-bs-target="#content-integrations" role="tab"><i class="fas fa-plug"></i> Integrations</button>
+                        </li>
+                        {% endif %}
+                        <li class="nav-item">
+                            <button type="button" class="nav-link {% if not user.is_team_admin %}active{% endif %}" data-bs-toggle="tab" data-bs-target="#content-personal" role="tab"><i class="fas fa-user-cog"></i> Preferences</button>
+                        </li>
+                    </ul>
+                </aside>
+                <div class="settings-content">
+            <form id="whatsappSettingsForm">
+                <div class="tab-content">
+                    
+                    <div class="tab-pane fade show active" id="content-profile">
+                        <div class="border-bottom border-secondary" style="margin-bottom: 9px;" > 
+                            <h4 class="text-white fw-bold mb-1">
+                                <i class="fab fa-whatsapp text-success me-2"></i> Channel Name 
+                            </h4>
+                           <div class="alert alert-glass d-flex align-items-center mb-4" role="alert">
+                            <input type="text" name="channel_name" class="form-control modern-input" style="background-color: transparent;" id="channel_name" value="{{ channel.channel_name }}" placeholder="Channel Name">
+                           </div>
+                        
+                           
+                        </div>
+                        <div class="alert alert-glass d-flex align-items-center mb-4" role="alert">
+                            <i class="fas fa-info-circle me-3 fs-5"></i>
+                            <div>
+                                Changes here will be <strong class="text-white">synced with WhatsApp directly</strong>. Please update carefully.
+                            </div>
+                        </div>
+                        
+                        <div class="cls3741_account_card mb-4">
+                            <div class="account_qr_section">
+                                <div id="qrcode_container" class="qr_img_wrapper" style="width: 120px; height: 120px; background: white; padding: 8px; border-radius: 12px; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 12px rgba(0,0,0,0.1);"></div>
+                                <div class="scan_hint">Scan to conntact</div>
+                            </div>
+                            <div class="account_info_grid">
+                                <div class="info_item">
+                                    <label>Display Name</label>
+                                    <div class="val" id="dash_display_name"> </div>
+                                </div>
+                                <div class="info_item">
+                                    <label>Connected Number</label>
+                                    <div class="val highlight" id="dash_phone_number">+{{ active_channel.phone_number }}</div>
+                                </div>
+                                <div class="info_item">
+                                    <label>WABA ID</label>
+                                    <div class="val mono" id="dash_waba_id">{{ active_channel.business_account_id }}</div>
+                                </div>
+                                <div class="info_item">
+                                    <label>Messaging Limit</label>
+                                    <div class="val" id="dash_messaging_limit">TIER_250</div>
+                                </div>
+                                <div class="info_item">
+                                    <label>Quality Rating</label>
+                                    <div class="val text-green" id="dash_quality_rating">GREEN ●</div>
+                                </div>
+                                <div class="info_item">
+                                    <label>Account Status</label>
+                                    <div class="val status_tag" id="dash_account_status">APPROVED</div>
+                                </div>
+                            </div>
+                        </div>
+                    
+                        <div class="row g-4">
+                            
+                            <div class="col-lg-8 order-2 order-lg-1">
+                                <div class="row g-4">
+                                    <div class="col-12">
+                                        <label class="form-label-modern">Business Description</label>
+                                        <textarea name="business_description" class="form-control modern-input" id="business_description" rows="4" placeholder="Tell customers about your business...">{{ channel.business_description }}</textarea>
+                                    </div>
+                    
+                                    <div class="col-md-6">
+                                        <label class="form-label-modern">Address</label>
+                                        <div class="input-group">
+                                            <span class="input-group-text modern-addon"><i class="fas fa-map-marker-alt"></i></span>
+                                            <input type="text" name="business_address"  id="business_address" class="form-control modern-input" value="{{ channel.business_address }}">
+                                        </div>
+                                    </div>
+                    
+                                    <div class="col-md-6">
+                                        <label class="form-label-modern">Email Contact</label>
+                                        <div class="input-group">
+                                            <span class="input-group-text modern-addon"><i class="fas fa-envelope"></i></span>
+                                            <input type="email"  id="business_email" name="business_email" class="form-control modern-input" value="{{ channel.business_email }}">
+                                        </div>
+                                    </div>
+                    
+                                    <div class="col-md-6">
+                                        <label class="form-label-modern">Website</label>
+                                        <div class="input-group">
+                                            <span class="input-group-text modern-addon"><i class="fas fa-globe"></i></span>
+                                            <input type="url" id="business_website" name="business_website" class="form-control modern-input" value="{{ channel.business_website }}">
+                                        </div>
+                                    </div>
+                    
+                                    <div class="col-md-6">
+                                        <label class="form-label-modern">Status (About Info)</label>
+                                        <input type="text" id="business_about" name="business_about" class="form-control modern-input" value="{{ channel.business_about }}" placeholder="e.g. Available 9AM - 5PM">
+                                    </div>
+                                </div>
+                            </div>
+                    
+                            <div class="col-lg-4 order-1 order-lg-2 d-flex flex-column align-items-center justify-content-start pt-lg-2">
+                                <div class="w-100 h-100 d-flex flex-column align-items-center justify-content-center" style="min-height: 250px;">
+                                    <div class="wa-phone-preview">
+                                        <div class="wa-phone-topbar">
+                                            <span>WhatsApp</span>
+                                            <span><i class="fas fa-signal me-1"></i><i class="fas fa-battery-three-quarters"></i></span>
+                                        </div>
+                                        <div class="wa-phone-body">
+                                            <div class="wa-profile-circle profile-upload-wrapper">
+                                                <img id="profile_preview" src="{% if channel.profile_image %}{{ channel.profile_image.url }}{% else %}/static/img/default-wa.png{% endif %}" alt="Profile Preview">
+                                                <label for="profile_image_input" class="wa-edit-badge" title="Update profile photo">
+                                                    <i class="fas fa-camera"></i>
+                                                </label>
+                                            </div>
+                                            <input type="file" id="profile_image_input" name="profile_image" class="d-none" accept="image/*">
+                                            <div class="wa-name" id="wa_cloud_display_name">Loading Meta name...</div>
+                                            <div class="wa-number">{{ active_channel.phone_number }}</div>
+                                            <div class="wa-chip">Business Account</div>
+                                            <div class="wa-upload-hint">This is how your profile photo looks in phone app.</div>
+                                            <label for="profile_image_input" class="wa-upload-btn">Upload / Update Photo</label>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                    
+                        </div>
+                    
+                        <div class="mt-5 pt-4 border-top border-secondary">
+                            <h6 class="text-danger text-uppercase fw-bold small ls-1 mb-3">Danger Zone</h6>
+                            <div class="card border-danger bg-danger bg-opacity-10">
+                                <div class="card-body d-flex justify-content-between align-items-center flex-wrap gap-3">
+                                    <div>
+                                        <h6 class="text-danger mb-1 fw-bold">Delete this Channel</h6>
+                                        <p class="text-danger text-opacity-75 small mb-0">
+                                            Once deleted, there is no going back. All messages and configurations will be permanently removed.
+                                        </p>
+                                    </div>
+                                    <button type="button" class="btn btn-outline-danger" onclick="openDeleteModal()">
+                                        <i class="fas fa-trash-alt me-2"></i> Delete Channel
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    
+                        <div class="modal fade" id="deleteOtpModal" tabindex="-1" data-bs-backdrop="static">
+                            <div class="modal-dialog modal-dialog-centered">
+                                <div class="modal-content bg-dark border-secondary">
+                                    <div class="modal-header border-bottom border-secondary">
+                                        <h5 class="modal-title text-danger"><i class="fas fa-exclamation-triangle me-2"></i> Confirm Deletion</h5>
+                                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                                    </div>
+                                    <div class="modal-body">
+                                        <p class="text-white">To permanently delete <strong>{{ channel.name }}</strong>, we need to verify your identity.</p>
+                                        <p class="text-muted small">We will send a verification code to <strong>{{ request.user.email }}</strong>.</p>
+                                        
+                                        <div id="step_request_otp" class="text-center py-3">
+                                            <button type="button" class="btn btn-primary" onclick="requestDeleteOtp()">
+                                                <i class="fas fa-paper-plane me-2"></i> Send Verification Code
+                                            </button>
+                                        </div>
+                        
+                                        <div id="step_verify_otp" class="d-none">
+                                            <div class="alert alert-info small py-2"><i class="fas fa-envelope-open me-2"></i> Code sent! Check your email.</div>
+                                            <label class="form-label text-secondary small">Enter 6-Digit Code</label>
+                                            <input type="text" id="otp_input" class="form-control modern-input text-center fs-4 letter-spacing-2" maxlength="6" placeholder="000000">
+                                            <div class="d-grid mt-3">
+                                                <button type="button" class="btn btn-danger" onclick="confirmFinalDelete()">
+                                                    Confirm Permanent Deletion
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    
+                    </div>
+
+                    <div class="tab-pane fade" id="content-automation">
+                        <div class="automation-tab">
+                            <!-- Row 1: Welcome + Workflow
+                            <div class="row g-4 mb-4">
+                                <div class="col-md-6">
+                                    <div class="automation-card automation-card-welcome">
+                                        <div class="automation-card-head">
+                                            <span class="automation-card-icon bg-warning bg-opacity-25 text-warning"><i class="fas fa-hand-sparkles"></i></span>
+                                            <div>
+                                                <h6 class="automation-card-title mb-0">Welcome Message</h6>
+                                                <p class="automation-card-desc mb-0">Auto-greet new contacts</p>
+                                            </div>
+                                        </div>
+                                        <div class="automation-card-body">
+                                            <div class="form-check form-switch mb-3">
+                                                <input class="form-check-input" type="checkbox" name="enable_welcome_msg" id="switch_welcome" {% if channel.enable_welcome_msg %}checked{% endif %}>
+                                                <label class="form-check-label text-muted" for="switch_welcome">Enable auto-greeting</label>
+                                            </div>
+                                            <div id="welcome_config_area" class="{% if not channel.enable_welcome_msg %}d-none{% endif %}">
+                                                <label class="form-label text-muted small">Message</label>
+                                                <textarea name="welcome_msg_body" class="form-control modern-input" rows="3" placeholder="Hi! How can we help?">{{ channel.welcome_msg_body }}</textarea>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="automation-card automation-card-workflow">
+                                        <div class="automation-card-head">
+                                            <span class="automation-card-icon bg-info bg-opacity-25 text-info"><i class="fas fa-cogs"></i></span>
+                                            <div>
+                                                <h6 class="automation-card-title mb-0">Workflow</h6>
+                                                <p class="automation-card-desc mb-0">Agent &amp; team behavior</p>
+                                            </div>
+                                        </div>
+                                        <div class="automation-card-body">
+                                            <div class="automation-setting-row">
+                                                <div>
+                                                    <span class="text-white fw-semibold d-block">Collision Detection</span>
+                                                    <small class="text-muted">Alert when multiple agents reply to the same chat.</small>
+                                                </div>
+                                                <div class="form-check form-switch mb-0">
+                                                    <input class="form-check-input" type="checkbox" name="enable_collision_detection" {% if channel.enable_collision_detection %}checked{% endif %}>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div> -->
+
+                            <!-- AI Sales Voice Orchestrator -->
+                            {% if plan_can_ai_assistant %}
+                            <div class="automation-ai-section">
+                                <div class="automation-ai-header">
+                                    <span class="automation-ai-badge"><i class="fas fa-robot me-1"></i> AI Sales Voice</span>
+                                    <p class="automation-ai-subtitle mb-0">Autopilot, voice identity, and order capture</p>
+                                </div>
+                                <div class="row g-4">
+                                    <div class="col-lg-4" style="width: 50%;" id="ai_autopilot_card" title="">
+                                        <div class="automation-card h-100">
+                                            <div class="automation-card-head">
+                                                <span class="automation-card-icon bg-primary bg-opacity-25 text-primary"><i class="fas fa-rocket"></i></span>
+                                                <h6 class="automation-card-title mb-0">Automation</h6>
+                                            </div>
+                                            <div class="automation-card-body">
+                                                <div class="form-check form-switch mb-4">
+                                                    <input class="form-check-input" type="checkbox" name="ai_auto_reply" id="switch_ai_autopilot" {% if channel.ai_auto_reply %}checked{% endif %}>
+                                                    <label class="form-check-label text-muted" for="switch_ai_autopilot">Full Autopilot</label>
+                                                </div>
+                                                <label class="form-label text-muted small d-flex justify-content-between">
+                                                    <span>Response delay</span>
+                                                    <span id="voice_delay_value" class="text-white">20</span>s
+                                                </label>
+                                                <input type="range" class="form-range" name="voice_delay_seconds" id="voice_delay_slider" min="10" max="30" value="{{ channel.voice_delay_seconds|default:20 }}">
+                                            </div>
+                                        
+                                        <div class="automation-card h-100">
+                                            <div class="automation-card-head">
+                                                <span class="automation-card-icon bg-warning bg-opacity-25 text-warning"><i class="fas fa-shopping-cart"></i></span>
+                                                <h6 class="automation-card-title mb-0">Sales Intelligence</h6>
+                                            </div>
+                                            <div class="automation-card-body">
+                                                <div class="form-check form-switch mb-2">
+                                                    <input class="form-check-input" type="checkbox" name="ai_order_capture" id="switch_ai_order_capture" {% if channel.ai_order_capture %}checked{% endif %}>
+                                                    <label class="form-check-label text-muted" for="switch_ai_order_capture">Automatic Order Extraction</label>
+                                                </div>
+                                                <p class="text-muted small mb-0">Extract name, city &amp; address from chat and create orders.</p>
+                                                <div class="automation-block mt-3 pt-3 {% if not channel.ai_order_capture %}d-none{% endif %}" id="order_notify_wrap">
+                                                    <label class="form-label text-muted small mb-2">Notify when AI creates an order</label>
+                                                    <select name="order_notify_method" id="order_notify_method" class="form-select form-select-sm modern-input mb-2">
+                                                        <option value="" {% if not channel.order_notify_method %}selected{% endif %}>Off</option>
+                                                        <option value="EMAIL" {% if channel.order_notify_method == 'EMAIL' %}selected{% endif %}>Email</option>
+                                                        <option value="WHATSAPP" {% if channel.order_notify_method == 'WHATSAPP' %}selected{% endif %}>WhatsApp</option>
+                                                    </select>
+                                                    <div id="order_notify_email_row" class="mb-2 {% if channel.order_notify_method != 'EMAIL' %}d-none{% endif %}">
+                                                        <input type="email" name="order_notify_email" id="order_notify_email" class="form-control form-control-sm modern-input" placeholder="your@email.com" value="{{ channel.order_notify_email|default:'' }}">
+                                                    </div>
+                                                    <div id="order_notify_whatsapp_row" class="mb-2 {% if channel.order_notify_method != 'WHATSAPP' %}d-none{% endif %}">
+                                                        <input type="text" name="order_notify_whatsapp_phone" id="order_notify_whatsapp_phone" class="form-control form-control-sm modern-input" placeholder="+1234567890" value="{{ channel.order_notify_whatsapp_phone|default:'' }}">
+                                                        <small class="text-muted" style="font-size: 0.7rem;">With country code (e.g. +212...)</small>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    </div>
+
+                                    <div class="col-lg-4" style="width: 50%;" id="ai_voice_identity_card" title="">
+                                        <div class="automation-card automation-card-voice h-100">
+                                            <div class="automation-card-head">
+                                                <span class="automation-card-icon bg-success bg-opacity-25 text-success"><i class="fas fa-microphone-alt"></i></span>
+                                                <h6 class="automation-card-title mb-0">Voice Identity</h6>
+                                            </div>
+                                            <div class="automation-card-body">
+                                                <div class="mb-3">
+                                                    <label class="form-label text-muted small mb-1">AI chat model</label>
+                                                    <select name="ai_llm_engine" id="channel_ai_llm_engine" class="form-select form-select-sm modern-input">
+                                                        <option value="AUTO" {% if channel.ai_llm_engine == 'AUTO' or not channel.ai_llm_engine %}selected{% endif %}>Auto (dialect-based)</option>
+                                                        <option value="GPT_4O" {% if channel.ai_llm_engine == 'GPT_4O' %}selected{% endif %}>GPT-4o (OpenAI)</option>
+                                                        <option value="CLAUDE_3_5" {% if channel.ai_llm_engine == 'CLAUDE_3_5' %}selected{% endif %}>Claude 3.5 (Cloud)</option>
+                                                    </select>
+                                                    <small class="text-muted d-block mt-1" style="font-size: 0.7rem;">Default model for AI conversations on this number. A specific choice on an <strong>AI Agent flow node</strong> overrides this.</small>
+                                                </div>
+                                                <div class="row g-2 mb-3">
+                                                    <div class="col-6">
+                                                        <label class="form-label text-muted small mb-1">Provider</label>
+                                                        <select name="voice_provider" class="form-select form-select-sm modern-input">
+                                                            <option value="OPENAI" {% if channel.voice_provider == 'OPENAI' %}selected{% endif %}>OpenAI TTS</option>
+                                                            <option value="ELEVENLABS" {% if channel.voice_provider == 'ELEVENLABS' %}selected{% endif %}>ElevenLabs</option>
+                                                        </select>
+                                                    </div>
+                                                    <div class="col-6">
+                                                        <label class="form-label text-muted small mb-1">Gender</label>
+                                                        <select name="voice_gender" class="form-select form-select-sm modern-input">
+                                                            <option value="FEMALE" {% if channel.voice_gender == 'FEMALE' %}selected{% endif %}>Female</option>
+                                                            <option value="MALE" {% if channel.voice_gender == 'MALE' %}selected{% endif %}>Male</option>
+                                                        </select>
+                                                    </div>
+                                                </div>
+                                                <div class="mb-3">
+                                                    <label class="form-label text-muted small mb-1">Language</label>
+                                                    <select name="voice_language" class="form-select form-select-sm modern-input" id="voice_language_select">
+                                                        <option value="AUTO" {% if channel.voice_language == 'AUTO' %}selected{% endif %}>Auto-Detect</option>
+                                                        <option value="AR_MA" {% if channel.voice_language == 'AR_MA' %}selected{% endif %}>Arabic (Morocco)</option>
+                                                        <option value="AR_SA" {% if channel.voice_language == 'AR_SA' %}selected{% endif %}>Arabic (Saudi)</option>
+                                                        <option value="FR_FR" {% if channel.voice_language == 'FR_FR' %}selected{% endif %}>French (France)</option>
+                                                        <option value="EN_US" {% if channel.voice_language == 'EN_US' %}selected{% endif %}>English (US)</option>
+                                                    </select>
+                                                    <span class="d-inline-block mt-1" data-bs-toggle="tooltip" title="Auto-Detect: AI responds in the customer's language. French (France) locks replies to formal French and skips Arabic dialect prompts."><i class="fas fa-info-circle text-muted small"></i></span>
+                                                </div>
+                                                <div class="automation-voice-switches">
+                                                    <div class="form-check form-switch mb-2">
+                                                        <input class="form-check-input" type="checkbox" name="ai_voice_enabled" id="switch_ai_voice" {% if channel.ai_voice_enabled %}checked{% endif %}>
+                                                        <label class="form-check-label text-muted" for="switch_ai_voice">Send as voice</label>
+                                                    </div>
+                                                    <div id="voice_cloning_row" class="form-check form-switch mb-2 {% if channel.voice_provider != 'ELEVENLABS' %}d-none{% endif %}" title="">
+                                                        <input class="form-check-input" type="checkbox" name="voice_cloning_enabled" id="switch_voice_cloning" {% if channel.voice_cloning_enabled %}checked{% endif %}>
+                                                        <label class="form-check-label text-muted" for="switch_voice_cloning">Voice Cloning <span class="pro-badge ms-1">👑 PRO</span></label>
+                                                        <span class="ms-1" data-bs-toggle="tooltip" title="Clone your own voice. Premium only."><i class="fas fa-info-circle text-muted small"></i></span>
+                                                    </div>
+                                                </div>
+                                                <div class="mt-2">
+                                                    <button type="button" id="btn_voice_gallery" class="btn btn-outline-info btn-sm w-100"><i class="fas fa-th-large me-1"></i> Voice Gallery</button>
+                                                    <small class="text-muted d-block mt-1 small">Lists OpenAI or ElevenLabs voices to match the Provider above.</small>
+                                                </div>
+                                                <div class="automation-block mt-3 pt-3" id="tone_control_card" title="">
+                                                    <h6 class="text-white mb-2 small">Tone <span class="pro-badge ms-1">👑 PRO</span></h6>
+                                                    <label class="form-label text-muted small d-flex justify-content-between mb-1">Stability <span id="voice_stability_value" class="text-white">0.5</span></label>
+                                                    <input type="range" class="form-range mb-2" name="voice_stability" id="voice_stability_slider" min="0" max="1" step="0.05" value="{{ channel.voice_stability|default:0.5 }}">
+                                                    <label class="form-label text-muted small d-flex justify-content-between mb-1">Similarity <span id="voice_similarity_value" class="text-white">0.75</span></label>
+                                                    <input type="range" class="form-range" name="voice_similarity" id="voice_similarity_slider" min="0" max="1" step="0.05" value="{{ channel.voice_similarity|default:0.75 }}">
+                                                </div>
+                                                {% if user.is_superuser %}
+                                                <div id="voice_clone_section" class="automation-block mt-3 pt-3 {% if channel.voice_provider != 'ELEVENLABS' %}d-none{% endif %}">
+                                                    <h6 class="text-white mb-2 small">Clone <span class="pro-badge ms-1">👑 PRO</span></h6>
+                                                    <p class="text-muted small mb-2">Upload your own voice only. Celebrity/news/public figure voices are strictly forbidden.</p>
+                                                    <label class="form-label text-muted small mb-1" for="clone_audio_input">Voice sample (required)</label>
+                                                    <input type="file" id="clone_audio_input" class="form-control form-control-sm modern-input mb-2" accept=".mp3,.wav,.m4a,.ogg,.webm,audio/*">
+                                                    <label class="form-label text-muted small mb-1" for="clone_dialect_select">What dialect is this voice speaking? <span class="text-danger">*</span></label>
+                                                    <select id="clone_dialect_select" class="form-select form-select-sm modern-input mb-2">
+                                                        <option value="">Select dialect…</option>
+                                                        <option value="MA_DARIJA">Moroccan Darija</option>
+                                                        <option value="SA_ARABIC">Saudi Arabic</option>
+                                                        <option value="EG_ARABIC">Egyptian Arabic</option>
+                                                        <option value="MSA">Modern Standard Arabic</option>
+                                                        <option value="LEV_ARABIC">Levantine Arabic</option>
+                                                        <option value="GULF_ARABIC">Gulf Arabic</option>
+                                                        <option value="OTHER">Other / Multilingual</option>
+                                                    </select>
+                                                    <div class="form-check mb-2">
+                                                        <input class="form-check-input" type="checkbox" id="clone_consent_checkbox">
+                                                        <label class="form-check-label text-muted small" for="clone_consent_checkbox">
+                                                            I confirm this is my own voice (or I have explicit legal authorization), and I accept full responsibility for misuse.
+                                                        </label>
+                                                    </div>
+                                                    <button type="button" class="btn btn-outline-primary btn-sm w-100 mb-2" id="btn_process_clone">
+                                                        <i class="fas fa-cog fa-spin d-none" id="clone_spinner"></i>
+                                                        <i class="fas fa-upload me-1" id="clone_icon"></i> Submit for Review
+                                                    </button>
+                                                    <span class="badge bg-secondary" id="clone_status_badge">Not Set</span>
+                                                </div>
+                                                {% else %}
+                                                <div id="voice_clone_section" class="automation-block mt-3 pt-3 {% if channel.voice_provider != 'ELEVENLABS' %}d-none{% endif %}">
+                                                    <h6 class="text-white mb-2 small">Clone <span class="pro-badge ms-1">👑 PRO</span></h6>
+                                                    <div class="alert alert-secondary mb-0 py-2 px-3">
+                                                        <i class="fas fa-hourglass-half me-2"></i>
+                                                        Coming soon.
+                                                    </div>
+                                                </div>
+                                                {% endif %}
+                                               
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <!-- <div class="col-lg-4">
+                                        <div class="automation-card h-100">
+                                            <div class="automation-card-head">
+                                                <span class="automation-card-icon bg-warning bg-opacity-25 text-warning"><i class="fas fa-shopping-cart"></i></span>
+                                                <h6 class="automation-card-title mb-0">Sales Intelligence</h6>
+                                            </div>
+                                            <div class="automation-card-body">
+                                                <div class="form-check form-switch mb-2">
+                                                    <input class="form-check-input" type="checkbox" name="ai_order_capture" id="switch_ai_order_capture" {% if channel.ai_order_capture %}checked{% endif %}>
+                                                    <label class="form-check-label text-muted" for="switch_ai_order_capture">Automatic Order Extraction</label>
+                                                </div>
+                                                <p class="text-muted small mb-0">Extract name, city &amp; address from chat and create orders.</p>
+                                                <div class="automation-block mt-3 pt-3 {% if not channel.ai_order_capture %}d-none{% endif %}" id="order_notify_wrap">
+                                                    <label class="form-label text-muted small mb-2">Notify when AI creates an order</label>
+                                                    <select name="order_notify_method" id="order_notify_method" class="form-select form-select-sm modern-input mb-2">
+                                                        <option value="" {% if not channel.order_notify_method %}selected{% endif %}>Off</option>
+                                                        <option value="EMAIL" {% if channel.order_notify_method == 'EMAIL' %}selected{% endif %}>Email</option>
+                                                        <option value="WHATSAPP" {% if channel.order_notify_method == 'WHATSAPP' %}selected{% endif %}>WhatsApp</option>
+                                                    </select>
+                                                    <div id="order_notify_email_row" class="mb-2 {% if channel.order_notify_method != 'EMAIL' %}d-none{% endif %}">
+                                                        <input type="email" name="order_notify_email" id="order_notify_email" class="form-control form-control-sm modern-input" placeholder="your@email.com" value="{{ channel.order_notify_email|default:'' }}">
+                                                    </div>
+                                                    <div id="order_notify_whatsapp_row" class="mb-2 {% if channel.order_notify_method != 'WHATSAPP' %}d-none{% endif %}">
+                                                        <input type="text" name="order_notify_whatsapp_phone" id="order_notify_whatsapp_phone" class="form-control form-control-sm modern-input" placeholder="+1234567890" value="{{ channel.order_notify_whatsapp_phone|default:'' }}">
+                                                        <small class="text-muted" style="font-size: 0.7rem;">With country code (e.g. +212...)</small>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div> -->
+                                </div>
+                            </div>
+                            {% else %}
+                            <div class="automation-ai-section ai-assistant-plan-locked">
+                                <div class="automation-ai-header">
+                                    <span class="automation-ai-badge"><i class="fas fa-robot me-1"></i> AI Assistant</span>
+                                    <p class="automation-ai-subtitle mb-0">Plan upgrade required</p>
+                                </div>
+                                <div class="row g-4">
+                                    <div class="col-12">
+                                        <div class="automation-card" style="border: 1px dashed rgba(248, 180, 113, 0.35); background: rgba(248, 180, 113, 0.06);">
+                                            <div class="automation-card-head border-0 pb-0">
+                                                <span class="automation-card-icon bg-warning bg-opacity-10 text-warning"><i class="fas fa-lock"></i></span>
+                                                <div>
+                                                    <h6 class="automation-card-title mb-0">AI agents aren’t included in your current plan</h6>
+                                                    <p class="automation-card-desc mb-0 mt-1">You can’t use AI Sales agents on this channel until you move to a plan that includes AI automation.</p>
+                                                </div>
+                                            </div>
+                                            <div class="automation-card-body pt-3">
+                                                <p class="text-muted small mb-4 mb-lg-3">Open Stripe’s customer portal to change your plan, payment method, and invoices—same place as “Manage subscription &amp; billing”.</p>
+                                                {% if can_open_stripe_portal %}
+                                                <button type="button" class="btn btn-primary w-100 py-2 fw-semibold rounded-3" id="btn_open_stripe_portal_ai">
+                                                    <i class="fas fa-external-link-alt me-2"></i> Manage subscription &amp; billing
+                                                </button>
+                                                {% else %}
+                                                <p class="text-secondary small mb-0"><i class="fas fa-info-circle me-1"></i> Only the workspace owner can open billing. Ask them to upgrade the plan.</p>
+                                                {% endif %}
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            {% endif %}
+                        </div>
+                        <style>
+                        .automation-tab { padding: 0 2px; }
+                        .automation-card { background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); border-radius: 14px; overflow: hidden; transition: border-color .2s, box-shadow .2s; }
+                        .automation-card:hover { border-color: rgba(255,255,255,0.12); box-shadow: 0 4px 20px rgba(0,0,0,0.15); }
+                        .automation-card-head { display: flex; align-items: center; gap: 12px; padding: 1rem 1.25rem; border-bottom: 1px solid rgba(255,255,255,0.06); }
+                        .automation-card-icon { width: 40px; height: 40px; border-radius: 10px; display: inline-flex; align-items: center; justify-content: center; font-size: 1rem; flex-shrink: 0; }
+                        .automation-card-title { font-size: 0.95rem; font-weight: 600; color: #e6edf3; }
+                        .automation-card-desc { font-size: 0.75rem; color: #8b949e; margin-top: 2px; }
+                        .automation-card-body { padding: 1.25rem; }
+                        .automation-setting-row { display: flex; justify-content: space-between; align-items: center; gap: 1rem; flex-wrap: wrap; }
+                        .automation-ai-section { background: linear-gradient(180deg, rgba(88,166,255,0.06) 0%, transparent 100%); border: 1px solid rgba(88,166,255,0.12); border-radius: 16px; padding: 1.5rem; margin-top: 0.5rem; }
+                        .automation-ai-header { margin-bottom: 1.25rem; }
+                        .automation-ai-badge { display: inline-flex; align-items: center; font-size: 0.85rem; font-weight: 600; color: #58a6ff; background: rgba(88,166,255,0.12); padding: 6px 12px; border-radius: 8px; }
+                        .automation-ai-subtitle { font-size: 0.8rem; color: #8b949e; margin-top: 8px; }
+                        .automation-block { border-top: 1px solid rgba(255,255,255,0.08); }
+                        .automation-voice-switches { padding: 8px 0; }
+                        @media (max-width: 991px) { .automation-ai-section { padding: 1rem; } .automation-card-body { padding: 1rem; } }
+                        </style>
+                    </div>
+
+                    <!-- Team & Routing: modern card UI with toggles, sliders, total bar -->
+                    <div class="tab-pane fade" id="content-routing">
+                        <div id="routing_settings_section">
+                            <h4 class="text-white fw-semibold mb-1">Team &amp; Routing</h4>
+                            <p class="text-muted small mb-4">Control who receives new chats and how allocation is distributed.</p>
+
+                            <div class="rounded-3 border border-secondary p-4 mb-4" style="background: rgba(255,255,255,0.02);">
+                                <h6 class="text-white mb-3">Behavior</h6>
+                                {% if plan_can_ai_assistant %}
+                                <div class="routing-toggle-wrap">
+                                    <div class="routing-toggle-label">
+                                        Full AI Autopilot
+                                        <span class="routing-tooltip-wrap">
+                                            <button type="button" class="routing-tooltip-btn" aria-label="Help"><i class="fas fa-question-circle"></i></button>
+                                            <span class="routing-tooltip-box">When enabled, the AI Sales Agent can receive new incoming chats. When disabled, AI share is 0% and 100% is split among team members only.</span>
+                                        </span>
+                                    </div>
+                                    <button type="button" class="routing-toggle-switch on" id="routing_toggle_autopilot" aria-pressed="true"></button>
+                                </div>
+                                {% endif %}
+                                <div class="routing-toggle-wrap">
+                                    <div class="routing-toggle-label">
+                                        Dynamic Offline Redistribution
+                                        <span class="routing-tooltip-wrap">
+                                            <button type="button" class="routing-tooltip-btn" aria-label="Help"><i class="fas fa-question-circle"></i></button>
+                                            <span class="routing-tooltip-box">When enabled, offline agents are excluded and their share is redistributed among online agents (and the AI if Autopilot is on).</span>
+                                        </span>
+                                    </div>
+                                    <button type="button" class="routing-toggle-switch" id="routing_toggle_dynamic" aria-pressed="false"></button>
+                                </div>
+                            </div>
+
+                            <div class="rounded-3 border border-secondary p-4 mb-4" style="background: rgba(255,255,255,0.02);">
+                                <h6 class="text-white mb-1">Weighted distribution</h6>
+                                <p class="text-muted small mb-4">Set each member’s share of new chats (0–100%). Total must equal 100%.</p>
+                                <div id="routing_member_list">
+                                    <!-- AI row (always first) -->
+                                    <div class="routing-member-card" id="routing_row_ai" data-id="ai">
+                                        <div class="routing-member-avatar"><i class="fas fa-robot"></i></div>
+                                        <div class="routing-member-info d-flex align-items-center">
+                                            <span class="routing-member-name">AI Sales Agent</span>
+                                        </div>
+                                        <div class="routing-member-controls">
+                                            <input type="range" class="routing-slider" id="routing_slider_ai" min="0" max="100" value="20">
+                                            <input type="number" class="routing-pct-input" id="routing_input_ai" min="0" max="100" value="20">
+                                            <span class="text-muted">%</span>
+                                        </div>
+                                    </div>
+                                    <!-- Team rows: only users with access to this channel (filled by JS from data.routing) -->
+                                    <p class="text-muted small mb-2 mt-2" id="routing_team_note">Only agents with access to this channel are shown.</p>
+                                    <div id="routing_team_rows"></div>
+                                </div>
+                            </div>
+
+                            <div class="routing-total-bar" id="routing_total_bar">
+                                <div class="d-flex align-items-center gap-2">
+                                    <span class="text-muted me-1">Total allocation:</span>                                    <span id="routing_total_display" class="total-invalid">0</span><span class="text-muted">%</span>
+
+                                    <span class="routing-tooltip-wrap">
+                                        <span class="routing-tooltip-btn" style="cursor: help;" aria-label="Help"><i class="fas fa-question-circle text-muted"></i></span>
+                                        <span class="routing-tooltip-box">The sum of all routing percentages must equal 100% to save. {% if plan_can_ai_assistant %}When Full AI Autopilot is on, the AI share is included; when it is off, only team members' percentages count.{% else %}Only team members' percentages count (AI routing is not on your plan).{% endif %}</span>
+                                    </span>
+                                </div>
+                                <button type="button" class="btn btn-save-glow routing-save-btn" id="btn_save_routing" disabled><i class="fas fa-save me-1"></i> Save changes</button>
+                            </div>
+                            <span id="routing_save_status" class="d-block mt-2 small text-muted"></span>
+                        </div>
+                    </div>
+
+                    <!-- Integrations: Google Sheets (Global Service Account) -->
+                    <div class="tab-pane fade" id="content-integrations">
+                        <div class="row">
+                            <div class="col-lg-8">
+                                <h5 class="text-white mb-3"><i class="fas fa-table text-success me-2"></i> Google Sheets</h5>
+                                <p class="text-muted small mb-4">Export order data (Name, Phone, Address, etc.) to a Google Sheet when a flow reaches the Google Sheets node. Connection uses a global service account—no per-user credentials.</p>
+                                <div class="gs-app-tile mb-3">
+                                    <div class="gs-app-left">
+                                        <span class="gs-app-icon"><i class="fas fa-table"></i></span>
+                                        <div class="min-w-0">
+                                            <div class="gs-app-name">Google Sheets App</div>
+                                            <div class="gs-app-desc">Click to configure connection, sheet mapping, and export fields.</div>
+                                        </div>
+                                    </div>
+                                    <button type="button" class="btn btn-outline-light btn-sm gs-app-toggle" id="gs-app-toggle-btn" aria-expanded="false" aria-controls="gs-app-content">
+                                        Open <i class="fas fa-chevron-down ms-1"></i>
+                                    </button>
+                                </div>
+                                <div id="gs-app-content" class="d-none">
+
+                                <!-- Connection Box -->
+                                <div class="inner-card p-4 mb-4 border border-secondary">
+                                    <h6 class="text-white mb-3">Connection</h6>
+                                    <p class="text-muted small mb-3"><strong class="text-white">1.</strong> Share your spreadsheet with this email (as Editor).</p>
+                                    <div class="d-flex align-items-center gap-2 flex-wrap mb-4">
+                                        <code id="gs-service-account-email" class="modern-input flex-grow-1 p-2 rounded" style="font-size:0.85rem; word-break:break-all;">—</code>
+                                        <button type="button" class="btn btn-outline-light btn-sm" id="gs-copy-email" title="Copy">
+                                            <i class="fas fa-copy"></i> Copy
+                                        </button>
+                                    </div>
+                                    <p class="text-muted small mb-2"><strong class="text-white">2.</strong> Paste your Spreadsheet ID below.</p>
+                                    <div class="mb-3">
+                                        <input type="text" id="gs-spreadsheet-id" class="form-control modern-input" placeholder="e.g. 1abc123xyz..." maxlength="128">
+                                        <small class="text-muted">From the sheet URL: docs.google.com/spreadsheets/d/<strong>SPREADSHEET_ID</strong>/edit</small>
+                                    </div>
+                                    <div class="d-flex align-items-center gap-3 flex-wrap">
+                                        <button type="button" class="btn btn-save-glow" id="gs-test-connection"><i class="fas fa-plug me-1"></i> Test connection</button>
+                                        <span id="gs-connection-status" class="badge bg-secondary">—</span>
+                                    </div>
+                                    <p class="text-muted small mt-2 mb-0">On success, your Spreadsheet ID is saved to your profile. If you see a permission error, share the sheet with the email above as Editor.</p>
+                                </div>
+
+                                <!-- Sheet name + Save (optional) -->
+                                <div class="inner-card p-4 mb-4">
+                                    <h6 class="text-white mb-3">Sheet & mapping</h6>
+                                    <div class="mb-3">
+                                        <label class="form-label-modern">Default Sheet Name</label>
+                                        <input type="text" id="gs-sheet-name" class="form-control modern-input" value="Orders" placeholder="Orders" maxlength="128">
+                                    </div>
+                                    <button type="button" class="btn btn-outline-light btn-sm" id="gs-save-config">Save sheet name & mapping</button>
+                                </div>
+
+                                <!-- Drag-and-Drop Field Mapping -->
+                                <div class="inner-card p-4 mb-4">
+                                    <h6 class="text-white mb-2"><i class="fas fa-arrows-alt me-2 text-info"></i> Drag-and-Drop Field Mapping</h6>
+                                    <p class="text-muted small mb-3">Drag fields from <strong>Available</strong> into <strong>Active Sheet Columns</strong>. Set the header name for each. Order = column order in the sheet.</p>
+                                    <div class="row g-3">
+                                        <div class="col-md-5">
+                                            <label class="form-label-modern small text-muted">Available Database Fields</label>
+                                            <div id="gs-available-fields" class="gs-drag-list border rounded p-2" style="min-height:200px;background:rgba(0,0,0,0.2);">
+                                            </div>
+                                        </div>
+                                        <div class="col-md-7">
+                                            <label class="form-label-modern small text-muted">Active Sheet Columns <span class="text-info">(drag to reorder)</span></label>
+                                            <div id="gs-active-columns" class="gs-drag-list border rounded p-2" style="min-height:200px;background:rgba(0,0,0,0.2);">
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="mt-3">
+                                        <button type="button" class="btn btn-save-glow btn-sm" id="gs-save-sheets-mapping">
+                                            <i class="fas fa-save me-1"></i> Save Mapping
+                                        </button>
+                                    </div>
+                                </div>
+
+                                <!-- Legacy Field Mapping (Column → Variable) -->
+                                <div class="inner-card p-4 mb-4">
+                                    <h6 class="text-white mb-2">Legacy field mapping</h6>
+                                    <p class="text-muted small mb-3">If you don't use drag-and-drop above, map columns (A, B, C…) to variables here.</p>
+                                    <div class="table-responsive">
+                                        <table class="table table-dark table-borderless" id="gs-mapping-table">
+                                            <thead><tr><th>Column</th><th>Variable</th><th></th></tr></thead>
+                                            <tbody id="gs-mapping-tbody"></tbody>
+                                        </table>
+                                    </div>
+                                    <button type="button" class="btn btn-outline-secondary btn-sm" id="gs-add-mapping-row"><i class="fas fa-plus me-1"></i> Add row</button>
+                                </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="tab-pane fade" id="content-personal">
+                        <div class="row">
+                            <div class="col-md-8 mx-auto">
+                                <div class="inner-card p-0 overflow-hidden">
+                                    <div class="p-3 border-bottom border-secondary d-flex justify-content-between align-items-center">
+                                        <div class="d-flex align-items-center">
+                                            <div class="bg-dark p-2 rounded me-3 text-warning"><i class="fas fa-volume-up"></i></div>
+                                            <div>
+                                                <h6 class="mb-0 text-white">Sound Notifications</h6>
+                                                <p class="text-muted small mb-0 mt-1">Play a sound when a new customer message arrives (toast / background tab).</p>
+                                            </div>
+                                        </div>
+                                        <div class="form-check form-switch">
+                                            <input class="form-check-input" type="checkbox" id="personal_sound_toggle" name="wa_sound_notifications" aria-label="Enable sound for new message notifications">
+                                        </div>
+                                    </div>
+                                    </div>
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
+
+                {% if user.is_team_admin or user.is_superuser %}
+                <div class="mt-5 pt-3 border-top border-secondary d-flex justify-content-end">
+                    <button type="button" class="btn btn-save-glow" id="btn_save_settings" onclick="submitChannelSettings()">
+                        <i class="fas fa-save me-2"></i> Save Changes
+                    </button>
+                </div>
+                {% endif %}
+
+            </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal fade" id="voiceGalleryModal" tabindex="-1" aria-labelledby="voiceGalleryModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-xl modal-dialog-scrollable modal-dialog-centered">
+            <div class="modal-content bg-dark border-secondary text-white" style="max-width: 100%; overflow-y: auto;">
+                <div class="modal-header border-secondary">
+                    <h5 class="modal-title" id="voiceGalleryModalLabel"><i class="fas fa-th-large me-2 text-info"></i> Voice Gallery</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body voice-gallery-modal-body pt-0">
+                    <p class="text-muted small mb-3" id="voice_gallery_modal_intro">
+                        <i class="fas fa-info-circle me-1"></i>
+                        <span id="voice_gallery_modal_intro_text">Voices match your selected Provider (OpenAI TTS or ElevenLabs).</span>
+                    </p>
+                    <div class="alert alert-secondary py-2 small mb-3" role="alert">
+                        <i class="fas fa-headphones me-2"></i>
+                        <span id="voice_gallery_modal_banner_text">Open this gallery after choosing Provider in Voice Identity.</span>
+                    </div>
+                    <div class="row g-2 mb-3">
+                        <div class="col-auto">
+                            <label class="form-label small text-muted mb-0">Gender</label>
+                            <select id="voice_gallery_filter_gender" class="form-select form-select-sm modern-input">
+                                <option value="">All</option>
+                                <option value="MALE">Male</option>
+                                <option value="FEMALE">Female</option>
+                            </select>
+                        </div>
+                        <div class="col-auto">
+                            <label class="form-label small text-muted mb-0">Language</label>
+                            <select id="voice_gallery_filter_lang" class="form-select form-select-sm modern-input">
+                                <option value="">All languages</option>
+                                <option value="AR_MA">Arabic (Morocco)</option>
+                                <option value="AR_SA">Arabic (Saudi Arabia)</option>
+                                <option value="AR_AE">Arabic (UAE)</option>
+                                <option value="AR_EG">Arabic (Egypt)</option>
+                                <option value="FR_FR">French (France)</option>
+                                <option value="FR_MA">French (Morocco)</option>
+                                <option value="EN_US">English (US)</option>
+                                <option value="EN_GB">English (UK)</option>
+                                <option value="ES_ES">Spanish (Spain)</option>
+                                <option value="DE_DE">German (Germany)</option>
+                                <option value="IT_IT">Italian (Italy)</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div id="voice_gallery_cards" class="row g-3">
+                        <div class="col-12 text-muted small">Open this gallery from channel settings with a channel selected.</div>
+                    </div>
+                    <p class="text-muted small mt-3 mb-0">
+                        <i class="fas fa-headphones me-1"></i> Click <strong>Play Sample</strong> to preview. Click a card to select that voice for this channel.
+                    </p>
+                </div>
+                <div class="modal-footer border-secondary">
+                    <div class="alert alert-secondary py-2 small mb-3 " role="alert">
+                        <i class="fas fa-headphones me-2"></i>
+                       This voice you select here will be used for reponse on chats out of context / out of <strong >Flow</strong>, you can still select spicific voice for each flow / <strong>Product</strong> in the <strong>Flow Builder</strong>
+                   </div>
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Done</button> 
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
+<script>
+    // ----- Sidebar: keep active state in sync with visible tab -----
+    $(document).on('shown.bs.tab', '[data-bs-toggle="tab"]', function (e) {
+        var target = e.target.getAttribute('data-bs-target');
+        if (!target) return;
+        $('#settingsSidebarNav .nav-link').removeClass('active');
+        $('#settingsSidebarNav .nav-link[data-bs-target="' + target + '"]').addClass('active');
+    });
+
+    // ----- Team & Routing: toggles (Full AI Autopilot, Dynamic Offline) -----
+    window._planCanAiAssistant = {% if plan_can_ai_assistant %}true{% else %}false{% endif %};
+    function routingAutopilotEffectiveOn() {
+        if (window._planCanAiAssistant === false) return false;
+        var t = document.getElementById('routing_toggle_autopilot');
+        if (t && $(t).hasClass('on')) return true;
+        if ($('#switch_ai_autopilot').length && $('#switch_ai_autopilot').is(':checked')) return true;
+        return false;
+    }
+    function routingToggleState(btn) {
+        return $(btn).hasClass('on');
+    }
+    function routingToggleSet(btn, on) {
+        $(btn).toggleClass('on', !!on).attr('aria-pressed', !!on);
+    }
+    /** Apply Full AI Autopilot state to the AI row (toggle + inputs + disabled class). Call whenever autopilot state may have changed. */
+    function applyRoutingAutopilotUI(on) {
+        if (window._planCanAiAssistant === false) on = false;
+        var toggleEl = document.getElementById('routing_toggle_autopilot');
+        var rowEl = document.getElementById('routing_row_ai');
+        if (!rowEl) return;
+        if (toggleEl) {
+            routingToggleSet(toggleEl, !!on);
+        }
+        if (!on) {
+            $('#routing_slider_ai, #routing_input_ai').val(0).prop('disabled', true);
+            $(rowEl).addClass('disabled');
+        } else {
+            $(rowEl).removeClass('disabled');
+            $('#routing_slider_ai, #routing_input_ai').prop('disabled', false);
+            var pct = parseInt($('#routing_input_ai').data('last'), 10);
+            if (isNaN(pct)) pct = parseInt(window._aiRoutingPct, 10) || 20;
+            pct = Math.min(100, Math.max(0, pct));
+            $('#routing_slider_ai').val(pct);
+            $('#routing_input_ai').val(pct).data('last', pct);
+        }
+    }
+    $('#routing_toggle_autopilot').on('click', function () {
+        var on = !routingToggleState(this);
+        applyRoutingAutopilotUI(on);
+        if ($('#switch_ai_autopilot').length) $('#switch_ai_autopilot').prop('checked', on);
+        _updateRoutingTotal();
+    });
+    // AI row slider + input: bind once via delegation so they work even before _renderRoutingTable runs
+    $(document).on('input change', '#routing_slider_ai, #routing_input_ai', function () {
+        var $sl = $('#routing_slider_ai'), $inp = $('#routing_input_ai');
+        if ($inp.prop('disabled')) return;
+        var v = $(this).is('#routing_slider_ai') ? parseInt($sl.val(), 10) : parseInt($inp.val(), 10);
+        if (isNaN(v)) v = 0;
+        v = Math.min(100, Math.max(0, v));
+        $sl.val(v);
+        $inp.val(v).data('last', v);
+        if (typeof _updateRoutingTotal === 'function') _updateRoutingTotal();
+    });
+    $('#routing_toggle_dynamic').on('click', function () {
+        routingToggleSet(this, !routingToggleState(this));
+    });
+
+    // ----- Routing: render team rows from _routingData -----
+    window._renderRoutingTable = function () {
+        var list = window._routingData || [];
+        // Derive autopilot from both toggles so AI row stays in sync (backend / Automation tab / Routing tab)
+        var fullAutopilot = routingAutopilotEffectiveOn();
+        var aiPct = Math.min(100, Math.max(0, parseInt(window._aiRoutingPct, 10) || 0));
+        $('#routing_input_ai').data('last', aiPct);
+        applyRoutingAutopilotUI(fullAutopilot);
+        var dynamicOn = !!window._dynamicOfflineRedistribution;
+        routingToggleSet(document.getElementById('routing_toggle_dynamic'), dynamicOn);
+        var container = $('#routing_team_rows');
+        container.empty();
+        list.forEach(function (row) {
+            var card = $('<div class="routing-member-card" data-agent-id="' + row.agent_id + '" data-accepting="' + (row.is_accepting_chats !== false ? '1' : '0') + '">');
+            card.append('<div class="routing-member-avatar"><i class="fas fa-user"></i></div>');
+            var statusClass = row.is_online ? 'online' : 'offline';
+            card.append('<div class="routing-member-info d-flex align-items-center"><span class="routing-member-name">' + (row.agent_name || ('Agent ' + row.agent_id)) + '</span><span class="routing-member-status ' + statusClass + '" title="' + (row.is_online ? 'Online' : 'Offline') + '"></span></div>');
+            var pct = Math.min(100, Math.max(0, parseInt(row.routing_percentage, 10) || 0));
+            card.append('<div class="routing-member-controls"><input type="range" class="routing-slider" min="0" max="100" value="' + pct + '"><input type="number" class="routing-pct-input" min="0" max="100" value="' + pct + '"><span class="text-muted">%</span></div>');
+            container.append(card);
+        });
+        // Team member rows only (AI row has its own delegated handler)
+        $('#routing_team_rows .routing-slider, #routing_team_rows .routing-pct-input').off('input change').on('input change', function () {
+            var card = $(this).closest('.routing-member-card');
+            var inp = card.find('.routing-pct-input')[0];
+            var sl = card.find('.routing-slider')[0];
+            if (this === sl) { var v = parseInt(sl.value, 10); inp.value = isNaN(v) ? 0 : Math.min(100, Math.max(0, v)); }
+            else { var v = parseInt(inp.value, 10); sl.value = isNaN(v) ? 0 : Math.min(100, Math.max(0, v)); }
+            _updateRoutingTotal();
+        });
+        // Re-apply AI row state so it stays correct after DOM/event setup
+        applyRoutingAutopilotUI(routingAutopilotEffectiveOn());
+        _updateRoutingTotal();
+    };
+    function _updateRoutingTotal() {
+        var total = 0;
+        var autopilotOn = routingAutopilotEffectiveOn();
+        if (autopilotOn) {
+            var ai = parseInt($('#routing_input_ai').val(), 10);
+            if (!isNaN(ai)) total += ai;
+        }
+        $('#routing_team_rows .routing-member-card').each(function () {
+            var v = parseInt($(this).find('.routing-pct-input').val(), 10);
+            if (!isNaN(v)) total += v;
+        });
+        var el = document.getElementById('routing_total_display');
+        if (el) {
+            el.textContent = total;
+            el.classList.toggle('total-valid', total === 100);
+            el.classList.toggle('total-invalid', total !== 100);
+        }
+        var btn = document.getElementById('btn_save_routing');
+        if (btn) { btn.disabled = total !== 100; }
+    }
+    window._updateRoutingTotal = _updateRoutingTotal;
+
+    function toggleOrderNotifyWrap() {
+        if ($('#switch_ai_order_capture').is(':checked')) {
+            $('#order_notify_wrap').removeClass('d-none');
+        } else {
+            $('#order_notify_wrap').addClass('d-none');
+        }
+    }
+    function toggleOrderNotifyInputs() {
+        var m = $('#order_notify_method').val();
+        $('#order_notify_email_row').toggleClass('d-none', m !== 'EMAIL');
+        $('#order_notify_whatsapp_row').toggleClass('d-none', m !== 'WHATSAPP');
+    }
+
+    /** Voice Gallery modal: same APIs as standalone `voice_gallery.html`. */
+    (function voiceGalleryModalInit() {
+        var vgVoices = [];
+        var vgSelectedId = '';
+        var vgGalleryAudio = null;
+        var vgGalleryAudioBtn = null;
+        var vgListUrl = '{% url "voice_gallery_list" %}';
+        var vgPreviewUrl = '{% url "voice_gallery_preview" %}';
+        var vgSelectUrl = '{% url "voice_gallery_select" %}';
+        var vgCsrf = '{{ csrf_token }}';
+
+        function vgChannelId() {
+            return window._settingsChannelId || window._activeChannelId || window.currentChannelId || '';
+        }
+
+        function vgStopAudio(resetBtn) {
+            if (vgGalleryAudio) {
+                try { vgGalleryAudio.pause(); } catch (e) {}
+                vgGalleryAudio.currentTime = 0;
+                vgGalleryAudio = null;
+            }
+            if (resetBtn && vgGalleryAudioBtn) {
+                var ib = vgGalleryAudioBtn.querySelector('i');
+                if (ib) ib.className = 'fas fa-play me-1';
+                vgGalleryAudioBtn.disabled = false;
+                vgGalleryAudioBtn = null;
+            }
+        }
+        window._vgStopVoiceGalleryAudio = vgStopAudio;
+
+        /** Match Voice Gallery row to locale filter; uses Admin `language_code` when set. */
+        function vgLangMatch(v, selectedNorm) {
+            if (!selectedNorm) return true;
+            var lc = (v.language_code || '').trim().replace(/-/g, '_').toUpperCase();
+            var sel = String(selectedNorm).trim().replace(/-/g, '_').toUpperCase();
+            if (lc) {
+                if (lc === 'MULTILINGUAL') return true;
+                if (lc === sel) return true;
+                var a = lc.split('_'), b = sel.split('_');
+                if (a[0] && b[0] && a[0] === b[0]) return true;
+                return false;
+            }
+            if (sel.indexOf('AR_') === 0) return !!(v.native_arabic) || (v.tags || []).join(' ').toLowerCase().indexOf('arabic') !== -1;
+            if (sel.indexOf('FR_') === 0) {
+                var tj = (v.tags || []).join(' ').toLowerCase();
+                return tj.indexOf('french') !== -1 || tj.indexOf('multilingual') !== -1;
+            }
+            if (sel.indexOf('EN_') === 0) {
+                var te = (v.tags || []).join(' ').toLowerCase();
+                return te.indexOf('english') !== -1 || te.indexOf('multilingual') !== -1;
+            }
+            if (sel.indexOf('ES_') === 0) {
+                var ts = (v.tags || []).join(' ').toLowerCase();
+                return ts.indexOf('spanish') !== -1 || ts.indexOf('multilingual') !== -1;
+            }
+            if (sel.indexOf('DE_') === 0) {
+                var td = (v.tags || []).join(' ').toLowerCase();
+                return td.indexOf('german') !== -1 || td.indexOf('multilingual') !== -1;
+            }
+            if (sel.indexOf('IT_') === 0) {
+                var ti = (v.tags || []).join(' ').toLowerCase();
+                return ti.indexOf('italian') !== -1 || ti.indexOf('multilingual') !== -1;
+            }
+            return true;
+        }
+
+        function vgRenderCards() {
+            var genderEl = document.getElementById('voice_gallery_filter_gender');
+            var langEl = document.getElementById('voice_gallery_filter_lang');
+            var gender = genderEl ? genderEl.value : '';
+            var lang = langEl ? langEl.value : '';
+            var list = vgVoices.filter(function(v) {
+                if (gender && v.gender !== gender) return false;
+                return vgLangMatch(v, lang);
+            });
+            var html = '';
+            list.forEach(function(v) {
+                var tagsHtml = (v.tags || []).map(function(t) { return '<span>' + t + '</span>'; }).join('');
+                if (v.native_arabic) tagsHtml += ' <span class="badge badge-vg-native">👑 Native Support</span>';
+                if (v.dialect_display) {
+                    tagsHtml += ' <span class="badge bg-dark border border-secondary">' + String(v.dialect_display).replace(/</g, '&lt;') + '</span>';
+                }
+                var selected = (v.id === vgSelectedId) ? ' vg-selected' : '';
+                var pv = (v.preview_audio_url || '').replace(/"/g, '&quot;');
+                var nm = String(v.label || v.name || '');
+                var nmAttr = nm.replace(/"/g, '&quot;');
+                html += '<div class="col-12 col-sm-6 col-lg-4">' +
+                    '<div class="vg-voice-card' + selected + '" data-voice-id="' + String(v.id).replace(/"/g, '') + '" data-voice-label="' + nmAttr + '">' +
+                    '<div class="vg-name">' + nm + '</div>' +
+                    '<div class="vg-tags">' + tagsHtml + '</div>' +
+                    '<button type="button" class="btn btn-outline-primary btn-sm btn-vg-play" data-voice-id="' + String(v.id).replace(/"/g, '') + '" data-preview-url="' + pv + '">' +
+                    '<i class="fas fa-play me-1"></i> Play Sample</button>' +
+                    '</div></div>';
+            });
+            var wrap = document.getElementById('voice_gallery_cards');
+            if (wrap) wrap.innerHTML = html || '<div class="col-12 text-muted">No voices match the filters.</div>';
+            document.querySelectorAll('#voice_gallery_cards .vg-voice-card').forEach(function(el) {
+                el.onclick = function(e) {
+                    if (e.target.closest('.btn-vg-play')) return;
+                    vgSelectVoice(el.getAttribute('data-voice-id'), el.getAttribute('data-voice-label'));
+                };
+            });
+            document.querySelectorAll('#voice_gallery_cards .btn-vg-play').forEach(function(btn) {
+                btn.onclick = function(e) {
+                    e.stopPropagation();
+                    vgPlaySample(btn.getAttribute('data-voice-id'), btn);
+                };
+            });
+        }
+
+        function vgPlaySample(voiceId, btnEl) {
+            var channelId = vgChannelId();
+            if (!channelId) { alert('Channel not selected.'); return; }
+            var previewUrl = (btnEl.getAttribute('data-preview-url') || '').trim();
+            if (previewUrl) {
+                if (vgGalleryAudioBtn === btnEl && vgGalleryAudio && !vgGalleryAudio.paused) {
+                    vgStopAudio(true);
+                    return;
+                }
+                vgStopAudio(true);
+                vgGalleryAudioBtn = btnEl;
+                var iconS = btnEl.querySelector('i');
+                iconS.className = 'fas fa-pause me-1';
+                vgGalleryAudio = new Audio(previewUrl);
+                vgGalleryAudio.onended = function() { vgStopAudio(true); };
+                vgGalleryAudio.onerror = function() {
+                    vgStopAudio(true);
+                    alert('Preview MP3 missing. Add files under static/audio/voice-previews/ (see README there).');
+                };
+                vgGalleryAudio.play().catch(function() { vgStopAudio(true); });
+                return;
+            }
+            vgStopAudio(true);
+            var formData = new FormData();
+            formData.append('channel_id', channelId);
+            formData.append('voice_id', voiceId);
+            formData.append('csrfmiddlewaretoken', vgCsrf);
+            formData.append('text', 'مرحبا كيف اساعدك ');
+            var icon = btnEl.querySelector('i');
+            icon.className = 'fas fa-circle-notch fa-spin me-1';
+            btnEl.disabled = true;
+            fetch(vgPreviewUrl, { method: 'POST', body: formData, credentials: 'same-origin' })
+                .then(function(r) {
+                    if (!r.ok) return r.json().then(function(j) { throw new Error(j.message || 'Preview failed'); });
+                    return r.blob();
+                })
+                .then(function(blob) {
+                    var url = URL.createObjectURL(blob);
+                    var audio = new Audio(url);
+                    audio.onended = function() { URL.revokeObjectURL(url); };
+                    audio.onerror = function() { URL.revokeObjectURL(url); };
+                    audio.play().catch(function() {});
+                })
+                .catch(function(err) { alert(err.message || 'Could not play sample.'); })
+                .finally(function() {
+                    icon.className = 'fas fa-play me-1';
+                    btnEl.disabled = false;
+                });
+        }
+
+        function vgSelectVoice(voiceId, label) {
+            vgSelectedId = voiceId;
+            vgRenderCards();
+            var channelId = vgChannelId();
+            if (!channelId) return;
+            var previewUrl = '';
+            for (var i = 0; i < vgVoices.length; i++) {
+                if (vgVoices[i].id === voiceId || vgVoices[i].voice_id === voiceId) {
+                    previewUrl = vgVoices[i].preview_audio_url || '';
+                    break;
+                }
+            }
+            var formData = new FormData();
+            formData.append('channel_id', channelId);
+            formData.append('voice_id', voiceId);
+            formData.append('voice_preview_url', previewUrl);
+            formData.append('csrfmiddlewaretoken', vgCsrf);
+            var provSel2 = document.querySelector('select[name="voice_provider"]');
+            if (provSel2 && provSel2.value) {
+                formData.append('voice_provider', provSel2.value);
+            }
+            fetch(vgSelectUrl, { method: 'POST', body: formData, credentials: 'same-origin' })
+                .then(function(r) { return r.json(); })
+                .then(function(data) {
+                    if (data.status === 'success') {
+                        if (typeof showToast === 'function') showToast('Voice selected: ' + (label || voiceId), 'success');
+                    } else {
+                        alert(data.message || 'Selection failed');
+                    }
+                })
+                .catch(function() { alert('Request failed'); });
+        }
+
+        function vgLoadList() {
+            var channelId = vgChannelId();
+            var wrap = document.getElementById('voice_gallery_cards');
+            if (!wrap) return;
+            if (!channelId) {
+                wrap.innerHTML = '<div class="col-12 text-warning">Select a channel first.</div>';
+                return;
+            }
+            wrap.innerHTML = '<div class="col-12 text-muted"><i class="fas fa-circle-notch fa-spin me-2"></i>Loading voices…</div>';
+            var formData = new FormData();
+            formData.append('channel_id', channelId);
+            formData.append('csrfmiddlewaretoken', vgCsrf);
+            var provSel = document.querySelector('select[name="voice_provider"]');
+            if (provSel && provSel.value) {
+                formData.append('voice_provider', provSel.value);
+            }
+            fetch(vgListUrl, { method: 'POST', body: formData, credentials: 'same-origin' })
+                .then(function(r) { return r.json(); })
+                .then(function(data) {
+                    if (data.status === 'success') {
+                        vgVoices = data.voices || [];
+                        vgSelectedId = data.selected_voice_id || '';
+                        var provBanner = (data.tts_provider || '').toUpperCase();
+                        var bt = document.getElementById('voice_gallery_modal_banner_text');
+                        if (bt) {
+                            bt.textContent = provBanner === 'OPENAI'
+                                ? 'Showing OpenAI TTS voices (alloy, nova, …). ElevenLabs voices are hidden while Provider is OpenAI.'
+                                : 'Showing ElevenLabs voices only. OpenAI voices are hidden while Provider is ElevenLabs.';
+                        }
+                        var it = document.getElementById('voice_gallery_modal_intro_text');
+                        if (it) {
+                            it.textContent = provBanner === 'OPENAI'
+                                ? 'Pick an OpenAI voice for Text-to-Speech.'
+                                : 'Pick an ElevenLabs voice (requires API key for synthesis).';
+                        }
+                        vgRenderCards();
+                    } else {
+                        wrap.innerHTML = '<div class="col-12 text-danger">' + (data.message || 'Could not load voices.') + '</div>';
+                    }
+                })
+                .catch(function() {
+                    wrap.innerHTML = '<div class="col-12 text-danger">Could not load voices.</div>';
+                });
+        }
+
+        $(function() {
+            $(document).on('click', '#btn_voice_gallery', function() {
+                var el = document.getElementById('voiceGalleryModal');
+                if (el && typeof bootstrap !== 'undefined' && bootstrap.Modal) {
+                    bootstrap.Modal.getOrCreateInstance(el).show();
+                }
+            });
+            $('#voiceGalleryModal').on('shown.bs.modal', function() {
+                vgLoadList();
+                document.querySelectorAll('#voiceGalleryModal [data-bs-toggle="tooltip"]').forEach(function(el) {
+                    if (typeof bootstrap !== 'undefined' && bootstrap.Tooltip) {
+                        try { new bootstrap.Tooltip(el); } catch (e) {}
+                    }
+                });
+            });
+            $('#voiceGalleryModal').on('hidden.bs.modal', function() { vgStopAudio(true); });
+            $(document).on('change', '#voice_gallery_filter_gender, #voice_gallery_filter_lang', function() { vgRenderCards(); });
+        });
+    })();
+
+    window.loadSetting = function (channel_id){
+    window._settingsChannelId = channel_id;
+
+    const loader = $('#settings_loader');
+    loader.removeClass('d-none'); 
+    
+    // إظهار لودينج بسيط إن أردت
+    $('#settings_modal').modal('show'); 
+    $.ajax({
+        url: '{% url "get_channel_settings" %}',  
+        type: 'POST',
+        dataType: 'json',
+        data: {
+            csrfmiddlewaretoken: '{{ csrf_token }}',
+            channel_id: channel_id 
+        },
+        success: function(response) {
+            if (response.status === 'success') {
+                const data = response.data;
+
+                // 1. ملء حقول النصوص (نستخدم .val للحقول)
+                $('textarea[name="business_description"]').val(data.b_descr);
+                $('input[name="business_address"]').val(data.b_address);
+                $('input[name="business_email"]').val(data.b_email);
+                $('input[name="business_website"]').val(data.b_website);
+                $('input[name="business_about"]').val(data.b_about);
+                
+                // 2. تحديث الصورة
+                $('#profile_preview').attr('src', data.b_img);
+
+                // 3. تحديث السويتش (الترحيب)
+                $('input[name="enable_welcome_msg"]').prop('checked', data.b_welcom_enable);
+                $('textarea[name="welcome_msg_body"]').val(data.b_welcom_body);
+                $('input[name="channel_name"]').val(data.channel_name);
+                var metaName = (data.meta_display_name || '').toString().trim();
+                $('#wa_cloud_display_name').text(metaName || 'Meta name unavailable');
+                $('#dash_display_name').text(metaName || '—');
+                var metaPhone = (data.meta_connected_number || data.phone_number || '').toString().trim();
+                if (metaPhone && metaPhone.charAt(0) !== '+') metaPhone = '+' + metaPhone;
+                $('#dash_phone_number').text(metaPhone || '—');
+                $('#dash_waba_id').text((data.meta_waba_id || '').toString().trim() || '—');
+                $('#dash_messaging_limit').text((data.meta_messaging_limit || '').toString().trim() || 'UNKNOWN');
+                $('#dash_account_status').text((data.meta_account_status || '').toString().trim() || 'UNKNOWN');
+                var qr = ((data.meta_quality_rating || '').toString().trim() || 'UNKNOWN').toUpperCase();
+                var qrDot = (qr === 'GREEN') ? 'GREEN ●' : (qr === 'YELLOW') ? 'YELLOW ●' : (qr === 'RED') ? 'RED ●' : 'UNKNOWN';
+                var $qrEl = $('#dash_quality_rating');
+                $qrEl.text(qrDot);
+                $qrEl.removeClass('text-green text-warning text-danger');
+                if (qr === 'GREEN') $qrEl.addClass('text-green');
+                else if (qr === 'YELLOW') $qrEl.addClass('text-warning');
+                else if (qr === 'RED') $qrEl.addClass('text-danger');
+
+                // التحكم في ظهور منطقة نص الترحيب
+                if(data.b_welcom_enable) {
+                    $('#welcome_config_area').removeClass('d-none');
+                } else {
+                    $('#welcome_config_area').addClass('d-none');
+                }
+
+                // AI Voice & Sales Orchestrator
+                $('#voice_delay_slider').val(data.voice_delay_seconds || 20);
+                $('#voice_delay_value').text(data.voice_delay_seconds || 20);
+                $('input[name="ai_auto_reply"]').prop('checked', !!data.ai_auto_reply);
+                $('input[name="ai_voice_enabled"]').prop('checked', !!data.ai_voice_enabled);
+                $('select[name="voice_provider"]').val(data.voice_provider || 'OPENAI');
+                $('select[name="voice_gender"]').val(data.voice_gender || 'FEMALE');
+                $('input[name="ai_order_capture"]').prop('checked', data.ai_order_capture !== false);
+                $('select[name="order_notify_method"]').val(data.order_notify_method || '');
+                $('input[name="order_notify_email"]').val(data.order_notify_email || '');
+                $('input[name="order_notify_whatsapp_phone"]').val(data.order_notify_whatsapp_phone || '');
+                toggleOrderNotifyWrap();
+                toggleOrderNotifyInputs();
+                $('input[name="voice_cloning_enabled"]').prop('checked', !!data.voice_cloning_enabled);
+                $('#switch_voice_cloning').prop('disabled', !data.is_premium);
+                $('#btn_voice_gallery').removeClass('d-none');
+                if (data.voice_provider === 'ELEVENLABS') {
+                    $('#elevenlabs_key_wrap').removeClass('d-none');
+                    $('#voice_cloning_row').removeClass('d-none');
+                    $('#voice_clone_section').removeClass('d-none');
+                } else {
+                    $('#elevenlabs_key_wrap').addClass('d-none');
+                    $('#voice_cloning_row').addClass('d-none');
+                    $('#voice_clone_section').addClass('d-none');
+                }
+                // When not premium, ensure we don't submit voice_cloning (backend will set false)
+                if (!data.is_premium) { $('input[name="voice_cloning_enabled"]').prop('checked', false); }
+
+                // Plan paywall: apply .feature-locked and tooltip when plan does not allow feature
+                var lockTip = 'This feature is locked. Upgrade to Premium to unlock.';
+                $('#ai_autopilot_card').removeClass('feature-locked').attr('title', '');
+                $('#ai_autopilot_card').find('input, select').prop('disabled', false);
+                if (!data.plan_can_auto_reply) {
+                    $('#ai_autopilot_card').addClass('feature-locked').attr('title', lockTip);
+                    $('#ai_autopilot_card').find('input, select').prop('disabled', true);
+                }
+                $('#ai_voice_identity_card').removeClass('feature-locked').attr('title', '');
+                $('#ai_voice_identity_card').find('input, select').prop('disabled', false);
+                if (!data.plan_can_ai_voice) {
+                    $('#ai_voice_identity_card').addClass('feature-locked').attr('title', lockTip);
+                    $('#ai_voice_identity_card').find('input, select').prop('disabled', true);
+                }
+                $('#voice_cloning_row').removeClass('feature-locked').attr('title', '');
+                $('#switch_voice_cloning').prop('disabled', false);
+                if (!data.plan_can_voice_cloning) {
+                    $('#voice_cloning_row').addClass('feature-locked').attr('title', lockTip);
+                    $('#switch_voice_cloning').prop('disabled', true);
+                }
+                // Voice Studio: language, tone sliders, clone status
+                $('select[name="voice_language"]').val(data.voice_language || 'AUTO');
+                $('select[name="ai_llm_engine"]').val(data.ai_llm_engine || 'AUTO');
+                var stab = parseFloat(data.voice_stability);
+                var sim = parseFloat(data.voice_similarity);
+                if (!isNaN(stab)) { $('#voice_stability_slider').val(stab); $('#voice_stability_value').text(stab); }
+                if (!isNaN(sim)) { $('#voice_similarity_slider').val(sim); $('#voice_similarity_value').text(sim); }
+                $('#tone_control_card').removeClass('feature-locked').attr('title', '');
+                $('#tone_control_card').find('input').prop('disabled', false);
+                if (!data.plan_can_advanced_tones) {
+                    $('#tone_control_card').addClass('feature-locked').attr('title', lockTip);
+                    $('#tone_control_card').find('input').prop('disabled', true);
+                }
+                if (data.clone_request_status === 'pending') {
+                    $('#clone_status_badge').removeClass('bg-success bg-secondary bg-danger').addClass('bg-warning text-dark').text('Under Review');
+                } else if (data.clone_request_status === 'rejected') {
+                    $('#clone_status_badge').removeClass('bg-success bg-secondary bg-warning text-dark').addClass('bg-danger').text('Rejected');
+                } else {
+                    $('#clone_status_badge').removeClass('bg-warning text-dark bg-danger').toggleClass('bg-success', !!data.cloned_voice_id).toggleClass('bg-secondary', !data.cloned_voice_id).text(data.cloned_voice_id ? 'Ready' : 'Not Set');
+                }
+                $('#voice_clone_section').find('#clone_audio_input, #btn_process_clone, #clone_consent_checkbox, #clone_dialect_select').prop('disabled', !data.plan_can_voice_cloning);
+                var defaultPreview = 'مرحبا كيف اساعدك ';
+                if (!$('#preview_text_input').val()) { $('#preview_text_input').attr('placeholder', defaultPreview); }
+
+                // Routing Settings: sync from backend (team + AI row, Full AI Autopilot, dynamic redistribution)
+                window._routingData = data.routing || [];
+                window._aiRoutingPct = typeof data.ai_routing_percentage !== 'undefined' ? data.ai_routing_percentage : 0;
+                window._dynamicOfflineRedistribution = !!data.dynamic_offline_redistribution;
+                if (document.getElementById('routing_dynamic_offline')) $('#routing_dynamic_offline').prop('checked', !!data.dynamic_offline_redistribution);
+                window._planCanAiAssistant = !!data.plan_can_auto_reply;
+                // Full AI Autopilot in Team & Routing: keep in sync with backend (data.ai_auto_reply)
+                if (typeof applyRoutingAutopilotUI === 'function') {
+                    $('#routing_input_ai').data('last', window._aiRoutingPct || 0);
+                    var wantOn = !!data.ai_auto_reply && window._planCanAiAssistant !== false;
+                    applyRoutingAutopilotUI(wantOn);
+                }
+                window._renderRoutingTable();
+                window._updateRoutingTotal();
+
+            } else {
+                console.error('Server returned error:', response.message);
+            }
+        },
+        error: function(xhr, status, error) {
+            console.error('AJAX Error:', error);
+        },
+        complete: function() {
+            // 2. 🔥 إخفاء طبقة التحميل بعد انتهاء الجلب (بنجاح أو فشل) 🔥
+            // نستخدم fadeOut لتأثير ناعم
+            loader.fadeOut(300, function() {
+                $(this).addClass('d-none').removeAttr('style'); // إعادة الكلاس d-none وتنظيف الستايل الذي يضيفه fadeOut
+            });
+        }
+    });
+};
+
+$('#btn_open_settings').on('click', function() {
+  loadSetting(window.currentChannelId);
+});
+
+
+// window.loadSetting = loadSetting(window.currentChannelId);
+
+    $(document).ready(function() {
+
+        $(document).on('click', '#btn_open_stripe_portal_ai', function () {
+            var $btn = $(this);
+            var csrfToken = ($('input[name="csrfmiddlewaretoken"]').val() || '{{ csrf_token }}').toString();
+            $btn.prop('disabled', true);
+            fetch('{% url "create_portal_session" %}', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': csrfToken
+                },
+                body: '{}',
+                credentials: 'same-origin'
+            })
+                .then(function (r) { return r.json(); })
+                .then(function (data) {
+                    if (data.url) {
+                        window.location.href = data.url;
+                    } else {
+                        alert(data.error || 'Could not open the billing portal. Try again later.');
+                    }
+                })
+                .catch(function () {
+                    alert('Network error. Please try again.');
+                })
+                .finally(function () {
+                    $btn.prop('disabled', false);
+                });
+        });
+  
+        $('#profile_image_input').change(function(){
+    const file = this.files[0];
+    if (file){
+        let reader = new FileReader();
+        reader.onload = function(event){
+            $('#profile_preview').attr('src', event.target.result);
+        }
+        reader.readAsDataURL(file);
+    }
+});  
+
+
+    // --- Sound Notifications (same audio as incoming-message toast; see playIncomingMessageSound in whatssap.html) ---
+    (function initSoundNotificationsPref() {
+        var soundToggle = $('#personal_sound_toggle');
+        if (!soundToggle.length) return;
+        var storedSound = localStorage.getItem('wa_sound_enabled');
+        var isSoundEnabled = storedSound === null ? true : (storedSound === 'true');
+        soundToggle.prop('checked', isSoundEnabled);
+        window.soundEnabled = isSoundEnabled;
+
+        soundToggle.on('change', function () {
+            var isChecked = $(this).is(':checked');
+            localStorage.setItem('wa_sound_enabled', isChecked);
+            window.soundEnabled = isChecked;
+            if (isChecked && typeof window.playIncomingMessageSound === 'function') {
+                var a = document.getElementById('notification_sound');
+                var prev = a ? a.volume : 1;
+                if (a) a.volume = 0.5;
+                window.playIncomingMessageSound();
+                if (a) setTimeout(function () { a.volume = prev; }, 900);
+            }
+        });
+    })();
+
+    // --- Enter to send (optional UI; keep if #personal_enter_send is added later) ---
+    (function initEnterToSendPref() {
+        var enterToggle = $('#personal_enter_send');
+        if (!enterToggle.length) return;
+        var storedEnter = localStorage.getItem('wa_enter_to_send');
+        var isEnterEnabled = storedEnter === null ? true : (storedEnter === 'true');
+        enterToggle.prop('checked', isEnterEnabled);
+        window.enterToSend = isEnterEnabled;
+        enterToggle.on('change', function () {
+            var isChecked = $(this).is(':checked');
+            localStorage.setItem('wa_enter_to_send', isChecked);
+            window.enterToSend = isChecked;
+        });
+    })();
+
+    // ==========================================
+    // 2. Admin UI Logic (UX) 🔒
+    // ==========================================
+    
+    // إظهار/إخفاء منطقة نص الترحيب عند تفعيل السويتش
+    $('#switch_welcome').on('change', function() {
+        if ($(this).is(':checked')) {
+            $('#welcome_config_area').removeClass('d-none').hide().slideDown(200);
+        } else {
+            $('#welcome_config_area').slideUp(200);
+        }
+    });
+
+    // AI Voice: delay slider live value
+    $('#voice_delay_slider').on('input', function() {
+        $('#voice_delay_value').text($(this).val());
+    });
+
+    // Tone Control sliders (Stability / Similarity)
+    $('#voice_stability_slider').on('input', function() {
+        $('#voice_stability_value').text($(this).val());
+    });
+    $('#voice_similarity_slider').on('input', function() {
+        $('#voice_similarity_value').text($(this).val());
+    });
+
+    // AI Voice: show ElevenLabs-only controls when provider is ELEVENLABS (Voice Gallery stays visible for both)
+    $('select[name="voice_provider"]').on('change', function() {
+        $('#btn_voice_gallery').removeClass('d-none');
+        if ($(this).val() === 'ELEVENLABS') {
+            $('#elevenlabs_key_wrap').removeClass('d-none');
+            $('#voice_cloning_row').removeClass('d-none');
+            $('#voice_clone_section').removeClass('d-none');
+        } else {
+            $('#elevenlabs_key_wrap').addClass('d-none');
+            $('#voice_cloning_row').addClass('d-none');
+            $('#voice_clone_section').addClass('d-none');
+        }
+    });
+
+   
+  
+    $('#switch_ai_order_capture').on('change', toggleOrderNotifyWrap);
+    $('#order_notify_method').on('change', toggleOrderNotifyInputs);
+
+    // Full Autopilot: when OFF, disable AI routing % and set to 0; when ON, enable. Update routing total.
+    $('#switch_ai_autopilot').on('change', function () {
+        var on = $(this).is(':checked');
+        if (typeof applyRoutingAutopilotUI === 'function') applyRoutingAutopilotUI(on);
+        if (typeof window._updateRoutingTotal === 'function') window._updateRoutingTotal();
+    });
+
+    // Save Routing: use delegation so click works when button is in modal/dynamic content
+    $(document).on('click', '#btn_save_routing', function () {
+        var btn = $('#btn_save_routing');
+        var statusEl = $('#routing_save_status');
+        if (btn.prop('disabled')) {
+            statusEl.removeClass('text-success').addClass('text-danger').text('Total must equal 100% to save.');
+            if (typeof showToast === 'function') showToast('Total must equal 100%', 'warning');
+            return;
+        }
+        var channelId = window.currentChannelId;
+        if (!channelId) {
+            statusEl.removeClass('text-success').addClass('text-danger').text('Please select a channel first.');
+            if (typeof showToast === 'function') showToast('Channel not selected', 'warning');
+            return;
+        }
+        var routing = [];
+        $('#routing_team_rows .routing-member-card[data-agent-id]').each(function () {
+            var agentId = parseInt($(this).attr('data-agent-id'), 10);
+            if (isNaN(agentId)) return;
+            var pct = parseInt($(this).find('.routing-pct-input').val(), 10);
+            if (isNaN(pct)) pct = 0;
+            routing.push({
+                agent_id: agentId,
+                routing_percentage: Math.max(0, Math.min(100, pct)),
+                is_accepting_chats: $(this).attr('data-accepting') === '1'
+            });
+        });
+        var aiPct = 0;
+        if (typeof routingAutopilotEffectiveOn === 'function' && routingAutopilotEffectiveOn()) {
+            aiPct = parseInt($('#routing_input_ai').val(), 10);
+            if (isNaN(aiPct)) aiPct = 0;
+            aiPct = Math.max(0, Math.min(100, aiPct));
+        }
+        var payload = {
+            channel_id: channelId,
+            routing: routing,
+            ai_routing_percentage: aiPct,
+            dynamic_offline_redistribution: $('#routing_toggle_dynamic').hasClass('on') || ($('#routing_dynamic_offline').length && $('#routing_dynamic_offline').is(':checked'))
+        };
+        var csrfToken = ($('input[name="csrfmiddlewaretoken"]').val() || '{{ csrf_token }}').toString();
+        btn.prop('disabled', true);
+        statusEl.text('Saving…').removeClass('text-success text-danger').addClass('text-muted');
+        $.ajax({
+            url: '{% url "api_update_routing_settings" %}',
+            type: 'POST',
+            contentType: 'application/json',
+            headers: { 'X-CSRFToken': csrfToken, 'Content-Type': 'application/json' },
+            data: JSON.stringify(payload),
+            dataType: 'json',
+            success: function (res) {
+                if (res.status === 'success') {
+                    statusEl.removeClass('text-muted').addClass('text-success').text('Saved.');
+                    if (typeof showToast === 'function') showToast('Routing saved', 'success');
+                } else {
+                    statusEl.removeClass('text-muted').addClass('text-danger').text(res.message || 'Error');
+                    if (typeof showToast === 'function') showToast(res.message || 'Save failed', 'error');
+                }
+            },
+            error: function (xhr) {
+                var msg = 'Request failed';
+                try { var j = JSON.parse(xhr.responseText); if (j.message) msg = j.message; } catch (e) {}
+                if (xhr.status === 403) msg = 'Session expired or forbidden. Please refresh and try again.';
+                statusEl.removeClass('text-muted').addClass('text-danger').text(msg);
+                if (typeof showToast === 'function') showToast(msg, 'error');
+            },
+            complete: function () {
+                if (typeof window._updateRoutingTotal === 'function') window._updateRoutingTotal();
+            }
+        });
+    });
+
+    // Process & Clone: upload file and call clone API
+    $('#btn_process_clone').on('click', function() {
+        var fileInput = $('#clone_audio_input')[0];
+        if (!fileInput || !fileInput.files || !fileInput.files.length) {
+            if (typeof showToast === 'function') showToast('Please select an audio file first', 'warning');
+            return;
+        }
+        if (!$('#clone_consent_checkbox').is(':checked')) {
+            if (typeof showToast === 'function') showToast('You must confirm legal voice ownership before submitting.', 'warning');
+            return;
+        }
+        var cloneDialect = ($('#clone_dialect_select').val() || '').trim();
+        if (!cloneDialect) {
+            if (typeof showToast === 'function') showToast('Please select the dialect this voice is speaking.', 'warning');
+            return;
+        }
+        var channelId = window.currentChannelId;
+        if (!channelId) {
+            if (typeof showToast === 'function') showToast('Channel not selected', 'warning');
+            return;
+        }
+        var formData = new FormData();
+        formData.append('csrfmiddlewaretoken', '{{ csrf_token }}');
+        formData.append('channel_id', channelId);
+        formData.append('file', fileInput.files[0]);
+        formData.append('consent_agreed', '1');
+        formData.append('dialect', cloneDialect);
+        var btn = $('#btn_process_clone');
+        var spinner = $('#clone_spinner');
+        var icon = $('#clone_icon');
+        btn.prop('disabled', true);
+        spinner.removeClass('d-none');
+        icon.addClass('d-none');
+        $.ajax({
+            url: '{% url "voice_request_clone" %}',
+            type: 'POST',
+            data: formData,
+            processData: false,
+            contentType: false,
+            dataType: 'json',
+            success: function(res) {
+                if (res.status === 'success') {
+                    $('#clone_status_badge').removeClass('bg-success bg-danger').addClass('bg-warning text-dark').text('Under Review');
+                    if (typeof showToast === 'function') {
+                        showToast(
+                            'Your voice is under review by our team for security purposes. It will be activated within 24 hours.',
+                            'success'
+                        );
+                    }
+                    $('#clone_audio_input').val('');
+                    $('#clone_consent_checkbox').prop('checked', false);
+                } else {
+                    if (typeof showToast === 'function') showToast(res.message || 'Clone failed', 'error');
+                }
+            },
+            error: function(xhr) {
+                var msg = 'Clone request failed';
+                try { var j = JSON.parse(xhr.responseText); if (j.message) msg = j.message; } catch(e) {}
+                if (typeof showToast === 'function') showToast(msg, 'error');
+            },
+            complete: function() {
+                btn.prop('disabled', false);
+                spinner.addClass('d-none');
+                icon.removeClass('d-none');
+            }
+        });
+    });
+
+    // Play Preview: fetch MP3 and play
+    $('#btn_play_preview').on('click', function() {
+        var channelId = window.currentChannelId;
+        if (!channelId) {
+            if (typeof showToast === 'function') showToast('Channel not selected', 'warning');
+            return;
+        }
+        var text = $('#preview_text_input').val() || $('#preview_text_input').attr('placeholder') || 'مرحبا كيف اساعدك ';
+        var formData = new FormData();
+        formData.append('csrfmiddlewaretoken', '{{ csrf_token }}');
+        formData.append('channel_id', channelId);
+        formData.append('text', text);
+        var btn = $('#btn_play_preview');
+        btn.prop('disabled', true);
+        fetch('{% url "voice_preview" %}', {
+            method: 'POST',
+            body: formData,
+            credentials: 'same-origin'
+        }).then(function(r) {
+            if (!r.ok) return r.json().then(function(j) { throw new Error(j.message || 'Preview failed'); });
+            return r.blob();
+        }).then(function(blob) {
+            var url = URL.createObjectURL(blob);
+            var audio = new Audio(url);
+            audio.onended = function() { URL.revokeObjectURL(url); };
+            audio.onerror = function() { URL.revokeObjectURL(url); };
+            audio.play().catch(function(e) {
+                if (typeof showToast === 'function') showToast('Could not play audio', 'warning');
+            });
+        }).catch(function(err) {
+            if (typeof showToast === 'function') showToast(err.message || 'Preview failed', 'error');
+        }).finally(function() {
+            btn.prop('disabled', false);
+        });
+    });
+
+    // Tooltip for Voice Cloning PRO
+    var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+    tooltipTriggerList.map(function (el) { return new bootstrap.Tooltip(el); });
+});
+
+// ==========================================
+// 3. Admin Save Logic (AJAX) 💾
+// ==========================================
+
+function submitChannelSettings() {
+    const btn = $('#btn_save_settings');
+    const statusMsg = $('#save_status_msg');
+    // const form = $('#whatsappSettingsForm');
+    const formData = new FormData($('#whatsappSettingsForm')[0]);
+    const originalBtnContent = btn.html();
+    formData.append('csrfmiddlewaretoken', '{{ csrf_token }}');
+    formData.append('channel_id' , currentChannelId)
+     
+
+    // 1. حالة التحميل
+    btn.prop('disabled', true).html('<i class="fas fa-circle-notch fa-spin me-2"></i> Saving...');
+    statusMsg.text('Syncing with Server...').addClass('show');
+
+    // 2. إرسال الطلب
+    $.ajax({
+        url: '/discount/whatssapAPI/api/update-channel-settings/', // تأكد من تطابق الرابط مع urls.py
+        method: 'POST',
+        // data: form.serialize(),
+        data: formData,
+        processData: false, // مهم جداً لرفع الملفات
+        contentType: false, // مهم جداً لرفع الملفات
+        dataType: 'json',
+       
+        success: function(response) {
+            
+            if (response.status === 'success') {
+                
+                // التحقق من حالة المزامنة مع ميتا
+                if (response.meta_sync && response.meta_sync.status === 'failed') {
+                    // حالة نجاح جزئي (حفظ محلي + فشل ميتا)
+                    btn.removeClass('btn-primary').addClass('btn-warning text-dark')
+                       .html('<i class="fas fa-exclamation-triangle me-2"></i> Saved (Local Only)');
+                    
+                    showToast("Settings saved locally, but WhatsApp Sync failed: " + response.meta_sync.error, "warning");
+                } else {
+                    // نجاح كامل
+                    btn.removeClass('btn-primary').addClass('btn-success')
+                       .html('<i class="fas fa-check-circle me-2"></i> Saved & Synced');
+                    
+                    showToast("Settings updated successfully!", "success");
+                }
+
+                // تحديث المتغيرات العامة للتطبيق فوراً (Live Update)
+                if (response.config) {
+                    window.collisionEnabled = response.config.enable_collision_detection;
+                    if (typeof response.config.ai_llm_engine === 'string') {
+                        $('select[name="ai_llm_engine"]').val(response.config.ai_llm_engine);
+                    }
+                }
+
+                // Team & Routing: keep Full AI Autopilot toggle in sync after main settings save
+                if (typeof applyRoutingAutopilotUI === 'function') {
+                    applyRoutingAutopilotUI(typeof routingAutopilotEffectiveOn === 'function' ? routingAutopilotEffectiveOn() : false);
+                    if (typeof window._updateRoutingTotal === 'function') window._updateRoutingTotal();
+                }
+
+            } else {
+                // خطأ من السيرفر (منطقي)
+                btn.removeClass('btn-primary').addClass('btn-danger')
+                   .html('<i class="fas fa-times me-2"></i> Error');
+                showToast(response.message || "Unknown error occurred", "error");
+            }
+        },
+        error: function(xhr) {
+            // خطأ في الشبكة أو 500
+            btn.removeClass('btn-primary').addClass('btn-danger')
+               .html('<i class="fas fa-bomb me-2"></i> Server Error');
+            showToast("Critical server error. Check console.", "error");
+            console.error(xhr.responseText);
+        },
+        complete: function() {
+            // 3. إعادة تعيين الزر بعد 3 ثواني
+            setTimeout(() => {
+                btn.prop('disabled', false)
+                   .removeClass('btn-success btn-danger btn-warning text-dark')
+                   .addClass('btn-primary')
+                   .html(originalBtnContent);
+                statusMsg.removeClass('show').text('');
+            }, 3000);
+        }
+    });
+}
+// ==========================================
+// 3. Delete Channel Logic (Secure Flow) 🗑️
+// ==========================================
+
+function openDeleteModal() {
+    // إعادة تعيين حالة المودال
+    $('#step_request_otp').removeClass('d-none');
+    $('#step_verify_otp').addClass('d-none');
+    $('#otp_input').val('');
+    $('#deleteOtpModal').modal('show');
+}
+
+function requestDeleteOtp() {
+    const channelId =  currentChannelId;
+    const btn = $('#step_request_otp button');
+    
+    btn.prop('disabled', true).html('<i class="fas fa-spinner fa-spin"></i> Sending...');
+
+    $.ajax({
+        url: '/discount/whatssapAPI/api/trigger-delete-otp/', // أنشئ هذا الرابط
+        method: 'POST',
+        data: {
+            'channel_id': channelId,
+            'csrfmiddlewaretoken': $('input[name="csrfmiddlewaretoken"]').val()
+        },
+        success: function(res) {
+            // الانتقال للخطوة الثانية
+            $('#step_request_otp').addClass('d-none');
+            $('#step_verify_otp').removeClass('d-none');
+        },
+        error: function(xhr) {
+            alert("Error sending email: " + xhr.responseJSON.message);
+            btn.prop('disabled', false).html('Try Again');
+        }
+    });
+}
+
+function confirmFinalDelete() {
+    const channelId = currentChannelId;
+    const code = $('#otp_input').val();
+    const btn = $('#step_verify_otp button');
+
+    if (code.length < 6) {
+        alert("Please enter the 6-digit code.");
+        return;
+    }
+
+    btn.prop('disabled', true).html('<i class="fas fa-skull-crossbones me-2"></i> Deleting...');
+
+    $.ajax({
+        url: '/discount/whatssapAPI/api/confirm-delete-channel/', // أنشئ هذا الرابط
+        method: 'POST',
+        data: {
+            'channel_id': channelId,
+            'otp_code': code,
+            'csrfmiddlewaretoken': $('input[name="csrfmiddlewaretoken"]').val()
+        },
+        success: function(res) {
+            if (res.status === 'success') {
+               
+                $('#deleteOtpModal').modal('hide');
+                showToast(res.message, "success");
+                setInterval(() => {
+                    window.location.reload();
+                } , 7000)
+               
+
+
+                // window.location.href = res.redirect_url; 
+            }
+        },
+        error: function(xhr) {
+            alert("Delete Failed: " + xhr.responseJSON.message);
+            btn.prop('disabled', false).html('Confirm Permanent Deletion');
+        }
+    });
+}
+
+// دالة مساعدة بسيطة لعرض التنبيهات (استخدم مكتبة Toastr إذا كانت لديك، وإلا هذا بديل بسيط)
+function showToast(message, type) {
+    // يمكنك استبدال هذا بـ alert بسيطة أو SweetAlert
+    // alert(message); 
+    
+    // مثال لاستخدام SweetAlert2 إذا كانت متوفرة (شكل احترافي)
+    if (typeof Swal !== 'undefined') {
+        Swal.fire({
+            icon: type,
+            title: type === 'success' ? 'Saved' : 'Notice',
+            text: message,
+            timer: 3000,
+            showConfirmButton: false,
+            background: '#1e293b',
+            color: '#fff'
+        });
+    } else {
+    }
+}
+
+// ——— Google Sheets Integrations tab ———
+(function() {
+    var _card = document.getElementById('whatsapp-settings-card-body');
+    var _base = (_card && _card.getAttribute('data-google-sheets-api-base')) || '';
+    var API_BASE = _base ? _base.replace(/\/config\/?$/, '') : '/discount/whatssapAPI/api/google-sheets';
+    var COLS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
+    var availableFieldsList = [];
+    var sortableAvailable = null;
+    var sortableActive = null;
+    function setGsPanelOpen(open) {
+        var content = document.getElementById('gs-app-content');
+        var btn = document.getElementById('gs-app-toggle-btn');
+        if (!content || !btn) return;
+        content.classList.toggle('d-none', !open);
+        btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+        btn.innerHTML = (open ? 'Hide' : 'Open') + ' <i class="fas fa-chevron-down ms-1"></i>';
+        if (open) loadGoogleSheetsConfig();
+    }
+
+    function getCsrfHeaders() {
+        var tok = document.querySelector('input[name="csrfmiddlewaretoken"]');
+        return { 'X-CSRFToken': tok ? tok.value : '', 'Content-Type': 'application/json' };
+    }
+    function setServiceAccountEmail(email) {
+        var el = document.getElementById('gs-service-account-email');
+        if (el) el.textContent = (email && String(email).trim()) ? String(email).trim() : '—';
+    }
+
+    function renderAvailableFields(available) {
+        var el = document.getElementById('gs-available-fields');
+        if (!el) return;
+        el.innerHTML = '';
+        (available || []).forEach(function(f) {
+            var field = (f.field || f.key || '').trim();
+            var label = (f.label || f.field || field).trim();
+            if (!field) return;
+            var div = document.createElement('div');
+            div.className = 'gs-item gs-available-item';
+            div.setAttribute('data-field', field);
+            div.setAttribute('data-label', label);
+            div.textContent = label;
+            el.appendChild(div);
+        });
+    }
+    function renderActiveColumns(mapping) {
+        var el = document.getElementById('gs-active-columns');
+        if (!el) return;
+        el.innerHTML = '';
+        (mapping || []).forEach(function(m) {
+            var field = (m.field || m.key || '').trim();
+            var header = (m.header || m.label || m.field || field).trim();
+            var div = document.createElement('div');
+            div.className = 'gs-item gs-active-item';
+            div.setAttribute('data-field', field);
+            div.setAttribute('data-label', header);
+            var labelSpan = document.createElement('span');
+            labelSpan.className = 'gs-field-label';
+            labelSpan.textContent = field;
+            var input = document.createElement('input');
+            input.type = 'text';
+            input.className = 'gs-header-input';
+            input.placeholder = 'Header name';
+            input.value = header;
+            div.appendChild(labelSpan);
+            div.appendChild(input);
+            el.appendChild(div);
+        });
+    }
+    function initSortable() {
+        var availableEl = document.getElementById('gs-available-fields');
+        var activeEl = document.getElementById('gs-active-columns');
+        if (!availableEl || !activeEl || typeof Sortable === 'undefined') return;
+        if (sortableAvailable) sortableAvailable.destroy();
+        if (sortableActive) sortableActive.destroy();
+        sortableAvailable = new Sortable(availableEl, {
+            group: { name: 'gs-mapping', pull: true, put: true },
+            sort: false,
+            ghostClass: 'sortable-ghost',
+            onAdd: function(ev) {
+                var el = ev.item;
+                el.classList.remove('gs-active-item');
+                el.classList.add('gs-available-item');
+                var input = el.querySelector('.gs-header-input');
+                if (input && input.value.trim()) el.setAttribute('data-label', input.value.trim());
+                var label = el.getAttribute('data-label') || el.getAttribute('data-field') || '';
+                el.innerHTML = '';
+                el.textContent = label;
+            }
+        });
+        sortableActive = new Sortable(activeEl, {
+            group: { name: 'gs-mapping', pull: true, put: true },
+            ghostClass: 'sortable-ghost',
+            onAdd: function(ev) {
+                var el = ev.item;
+                el.classList.add('gs-active-item');
+                if (el.querySelector('.gs-header-input')) return;
+                var field = el.getAttribute('data-field');
+                var label = el.getAttribute('data-label') || field || '';
+                el.textContent = '';
+                var labelSpan = document.createElement('span');
+                labelSpan.className = 'gs-field-label';
+                labelSpan.textContent = field || '';
+                var input = document.createElement('input');
+                input.type = 'text';
+                input.className = 'gs-header-input';
+                input.placeholder = 'Header name';
+                input.value = label;
+                el.appendChild(labelSpan);
+                el.appendChild(input);
+            }
+        });
+    }
+    function getSheetsMappingFromActive() {
+        var out = [];
+        document.querySelectorAll('#gs-active-columns .gs-active-item').forEach(function(el) {
+            var field = (el.getAttribute('data-field') || '').trim();
+            if (!field) return;
+            var input = el.querySelector('.gs-header-input');
+            var header = (input && input.value) ? input.value.trim() : field;
+            out.push({ field: field, header: header || field });
+        });
+        return out;
+    }
+
+    function loadGoogleSheetsConfig() {
+        fetch(API_BASE + '/config/', { method: 'GET', credentials: 'same-origin' })
+            .then(function(r) { return r.json(); })
+            .then(function(data) {
+                document.getElementById('gs-spreadsheet-id').value = data.spreadsheet_id || '';
+                document.getElementById('gs-sheet-name').value = data.sheet_name || 'Orders';
+                setServiceAccountEmail(data.service_account_email);
+                var statusEl = document.getElementById('gs-connection-status');
+                statusEl.textContent = data.configured ? 'Not tested' : 'Not connected';
+                statusEl.className = 'badge ' + (data.configured ? 'bg-secondary' : 'bg-secondary');
+                renderMappingTable(data.column_mapping || {});
+                availableFieldsList = data.available_fields || [];
+                renderAvailableFields(availableFieldsList);
+                renderActiveColumns(data.sheets_mapping || []);
+                initSortable();
+                if (!data.service_account_email || !String(data.service_account_email).trim()) {
+                    fetch(API_BASE + '/service-email/', { method: 'GET', credentials: 'same-origin' })
+                        .then(function(r2) { return r2.json(); })
+                        .then(function(data2) {
+                            if (data2.service_account_email) setServiceAccountEmail(data2.service_account_email);
+                        })
+                        .catch(function() {});
+                }
+            })
+            .catch(function() {
+                var statusEl = document.getElementById('gs-connection-status');
+                if (statusEl) statusEl.textContent = 'Error loading';
+                renderAvailableFields([]);
+                renderActiveColumns([]);
+                initSortable();
+            });
+    }
+    function renderMappingTable(columnMapping) {
+        var tbody = document.getElementById('gs-mapping-tbody');
+        tbody.innerHTML = '';
+        var keys = Object.keys(columnMapping).sort(function(a, b) { return (a.length - b.length) || a.localeCompare(b); });
+        keys.forEach(function(col) {
+            addMappingRow(tbody, col, columnMapping[col]);
+        });
+        if (keys.length === 0) addMappingRow(tbody, 'A', 'customer_name');
+    }
+    function addMappingRow(tbody, col, variable) {
+        var tr = document.createElement('tr');
+        var colSelect = document.createElement('select');
+        colSelect.className = 'form-select form-select-sm modern-input';
+        COLS.forEach(function(c) {
+            var opt = document.createElement('option');
+            opt.value = c; opt.textContent = c;
+            if (c === (col || 'A')) opt.selected = true;
+            colSelect.appendChild(opt);
+        });
+        var varInput = document.createElement('input');
+        varInput.type = 'text';
+        varInput.className = 'form-control form-control-sm modern-input';
+        varInput.placeholder = 'e.g. customer_name, phone, city';
+        varInput.value = variable || '';
+        var delBtn = document.createElement('button');
+        delBtn.type = 'button';
+        delBtn.className = 'btn btn-outline-danger btn-sm';
+        delBtn.innerHTML = '<i class="fas fa-times"></i>';
+        delBtn.onclick = function() { tr.remove(); };
+        tr.appendChild(document.createElement('td')).appendChild(colSelect);
+        tr.appendChild(document.createElement('td')).appendChild(varInput);
+        tr.appendChild(document.createElement('td')).appendChild(delBtn);
+        tbody.appendChild(tr);
+    }
+    function getColumnMappingFromTable() {
+        var out = {};
+        document.querySelectorAll('#gs-mapping-tbody tr').forEach(function(tr) {
+            var col = tr.querySelector('select');
+            var variable = (tr.querySelector('input[type="text"]') || {}).value;
+            if (col && variable && variable.trim()) out[col.value] = variable.trim();
+        });
+        return out;
+    }
+    var addRowBtn = document.getElementById('gs-add-mapping-row');
+    if (addRowBtn) addRowBtn.onclick = function() {
+        addMappingRow(document.getElementById('gs-mapping-tbody'), 'A', '');
+    };
+    document.getElementById('gs-copy-email').onclick = function() {
+        var el = document.getElementById('gs-service-account-email');
+        var text = el.textContent;
+        if (text && text !== '—') {
+            navigator.clipboard.writeText(text).then(function() { showToast('Email copied', 'success'); });
+        }
+    };
+    document.getElementById('gs-save-config').onclick = function() {
+        var spreadsheetId = document.getElementById('gs-spreadsheet-id').value.trim();
+        var sheetName = document.getElementById('gs-sheet-name').value.trim() || 'Orders';
+        var payload = {
+            spreadsheet_id: spreadsheetId,
+            sheet_name: sheetName,
+            column_mapping: getColumnMappingFromTable(),
+            sheets_mapping: getSheetsMappingFromActive()
+        };
+        fetch(API_BASE + '/config/', {
+            method: 'POST',
+            credentials: 'same-origin',
+            headers: getCsrfHeaders(),
+            body: JSON.stringify(payload)
+        }).then(function(r) { return r.json(); })
+          .then(function(data) {
+              if (data.error) { showToast(data.error, 'error'); return; }
+              showToast('Settings saved', 'success');
+              loadGoogleSheetsConfig();
+          })
+          .catch(function() { showToast('Failed to save', 'error'); });
+    };
+    var saveSheetsMappingBtn = document.getElementById('gs-save-sheets-mapping');
+    if (saveSheetsMappingBtn) {
+        saveSheetsMappingBtn.onclick = function() {
+            var mapping = getSheetsMappingFromActive();
+            fetch(API_BASE + '/config/', {
+                method: 'POST',
+                credentials: 'same-origin',
+                headers: getCsrfHeaders(),
+                body: JSON.stringify({ sheets_mapping: mapping })
+            }).then(function(r) { return r.json(); })
+              .then(function(data) {
+                  if (data.error) { showToast(data.error, 'error'); return; }
+                  showToast('Mapping saved. Sheet columns will use this order and headers.', 'success');
+                  loadGoogleSheetsConfig();
+              })
+              .catch(function() { showToast('Failed to save', 'error'); });
+        };
+    }
+    document.getElementById('gs-test-connection').onclick = function() {
+        var statusEl = document.getElementById('gs-connection-status');
+        var spreadsheetId = document.getElementById('gs-spreadsheet-id').value.trim();
+        if (!spreadsheetId) {
+            showToast('Enter a Spreadsheet ID first', 'error');
+            return;
+        }
+        statusEl.textContent = 'Testing...';
+        statusEl.className = 'badge bg-secondary';
+        fetch(API_BASE + '/test-connection/', {
+            method: 'POST',
+            credentials: 'same-origin',
+            headers: getCsrfHeaders(),
+            body: JSON.stringify({ spreadsheet_id: spreadsheetId })
+        }).then(function(r) { return r.json(); })
+          .then(function(data) {
+              statusEl.textContent = data.success ? 'Connected' : (data.message || 'Failed');
+              statusEl.className = 'badge ' + (data.success ? 'bg-success' : 'bg-danger');
+              if (data.success) showToast('Connection successful. Spreadsheet ID saved.', 'success');
+          })
+          .catch(function() { statusEl.textContent = 'Error'; statusEl.className = 'badge bg-danger'; });
+    };
+    if (typeof $ !== 'undefined') {
+        $('#content-integrations').on('show.bs.tab', function() { loadGoogleSheetsConfig(); });
+    }
+    var tabEl = document.querySelector('[data-bs-target="#content-integrations"]');
+    if (tabEl) tabEl.addEventListener('shown.bs.tab', function() { loadGoogleSheetsConfig(); });
+    document.addEventListener('DOMContentLoaded', function() {
+        var emailEl = document.getElementById('gs-service-account-email');
+        var toggleBtn = document.getElementById('gs-app-toggle-btn');
+        if (toggleBtn) {
+            toggleBtn.addEventListener('click', function() {
+                var isOpen = toggleBtn.getAttribute('aria-expanded') === 'true';
+                setGsPanelOpen(!isOpen);
+            });
+        }
+        if (emailEl) setTimeout(loadGoogleSheetsConfig, 150);
+    });
+    if (document.readyState === 'complete' || document.readyState === 'interactive') {
+        var emailEl = document.getElementById('gs-service-account-email');
+        if (emailEl) setTimeout(loadGoogleSheetsConfig, 200);
+    }
+})();
+</script>

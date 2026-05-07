@@ -1,0 +1,219 @@
+{% extends "base.html" %}
+{% load static %}
+{% block title %}AI Sales Agent Analytics{% endblock %}
+{% block content %}
+<div class="container-fluid py-3 py-md-4">
+    <div class="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center gap-2 mb-4">
+        <h2 class="mb-0 h4 h5-md">📊 AI Sales Agent Analytics</h2>
+        <div class="d-flex flex-wrap gap-2 align-items-center">
+            <div class="dropdown">
+                <button class="btn btn-outline-primary dropdown-toggle" type="button" id="rangeDropdown" data-bs-toggle="dropdown" aria-expanded="false">
+                    <i class="fas fa-calendar-alt me-1"></i> <span id="rangeLabel">This Month</span>
+                </button>
+                <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="rangeDropdown">
+                    <li><a class="dropdown-item range-option" href="#" data-range="today">Today</a></li>
+                    <li><a class="dropdown-item range-option" href="#" data-range="7d">Last 7 Days</a></li>
+                    <li><a class="dropdown-item range-option" href="#" data-range="month">This Month</a></li>
+                </ul>
+            </div>
+            <a id="exportCsvBtn" class="btn btn-outline-success" href="#" download><i class="fas fa-file-csv me-1"></i> Export to CSV</a>
+        </div>
+    </div>
+
+    {% if not channel %}
+    <div class="alert alert-warning">Select a channel to view analytics.</div>
+    {% else %}
+    <div id="analyticsLoader" class="text-center py-5 d-none">
+        <div class="spinner-border text-primary" role="status"></div>
+        <p class="mt-2 text-muted">Loading analytics...</p>
+    </div>
+    <div id="analyticsContent">
+        <!-- Top Row: Stat Cards -->
+        <div class="row g-3 g-md-4 mb-4">
+            <div class="col-12 col-sm-6 col-lg-4">
+                <div class="card border-0 shadow-sm h-100 bg-success bg-opacity-10 border-success">
+                    <div class="card-body">
+                        <h6 class="text-muted text-uppercase small mb-2">Orders Closed by AI</h6>
+                        <h2 class="mb-0 text-success" id="statOrders">0</h2>
+                        <small class="text-muted">[ORDER_DATA] triggered</small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-12 col-sm-6 col-lg-4">
+                <div class="card border-0 shadow-sm h-100 bg-primary bg-opacity-10 border-primary">
+                    <div class="card-body">
+                        <h6 class="text-muted text-uppercase small mb-2">Time Saved</h6>
+                        <h2 class="mb-0 text-primary" id="statTimeSaved">0h</h2>
+                        <small class="text-muted" id="statTimeSavedSub">—</small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-12 col-sm-6 col-lg-4">
+                <div class="card border-0 shadow-sm h-100 bg-info bg-opacity-10 border-info">
+                    <div class="card-body">
+                        <h6 class="text-muted text-uppercase small mb-2">AI Success Rate</h6>
+                        <h2 class="mb-0 text-info" id="statRate">0%</h2>
+                        <small class="text-muted">Conversions / Chats</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Middle Row: Charts -->
+        <div class="row g-3 g-md-4 mb-4">
+            <div class="col-12 col-lg-8">
+                <div class="card border-0 shadow-sm h-100">
+                    <div class="card-header bg-white border-bottom"><h6 class="mb-0">AI Sales vs Manual Sales (Last 30 days)</h6></div>
+                    <div class="card-body">
+                        <canvas id="chartAiVsManual" height="220"></canvas>
+                    </div>
+                </div>
+            </div>
+            <div class="col-12 col-lg-4">
+                <div class="card border-0 shadow-sm h-100">
+                    <div class="card-header bg-white border-bottom"><h6 class="mb-0">Top Products (AI)</h6></div>
+                    <div class="card-body">
+                        <canvas id="chartTopProducts" height="220"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Bottom: API Usage -->
+        <div class="row">
+            <div class="col-12">
+                <div class="card border-0 shadow-sm">
+                    <div class="card-header bg-white border-bottom"><h6 class="mb-0">API Usage (Characters)</h6></div>
+                    <div class="card-body">
+                        <p class="text-muted small mb-2">ElevenLabs &amp; Whisper character count in selected period</p>
+                        <div class="progress" style="height: 24px;">
+                            <div class="progress-bar bg-secondary" id="apiProgressBar" role="progressbar" style="width: 0%;" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100">0</div>
+                        </div>
+                        <div class="d-flex justify-content-between mt-2 small text-muted">
+                            <span id="apiUsedLabel">0 characters used</span>
+                            <span id="apiRemainingLabel">—</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
+<script>
+(function() {
+    const channelId = '{{ channel_id|default:"" }}';
+    if (!channelId) return;
+
+    let currentRange = 'month';
+    const rangeLabels = { today: 'Today', '7d': 'Last 7 Days', month: 'This Month' };
+    let chartAiVsManual = null;
+    let chartTopProducts = null;
+
+    const baseUrl = '{% url "api_ai_analytics" %}'.replace(/\/$/, '');
+    const exportBaseUrl = '{% url "api_ai_analytics_export_csv" %}'.replace(/\/$/, '');
+
+    function apiUrl(range) {
+        return baseUrl + '?channel_id=' + encodeURIComponent(channelId) + '&range=' + encodeURIComponent(range);
+    }
+    function exportUrl(range) {
+        return exportBaseUrl + '?channel_id=' + encodeURIComponent(channelId) + '&range=' + encodeURIComponent(range);
+    }
+
+    function setLoading(show) {
+        document.getElementById('analyticsLoader').classList.toggle('d-none', !show);
+        document.getElementById('analyticsContent').classList.toggle('d-none', show);
+    }
+
+    function applyData(data) {
+        document.getElementById('statOrders').textContent = data.total_ai_orders || 0;
+        document.getElementById('statTimeSaved').textContent = data.hours_saved_label || '0h';
+        document.getElementById('statTimeSavedSub').textContent = data.total_ai_messages
+            ? 'Your AI has done the work of a full-time employee for ' + (data.hours_saved || 0) + ' hours this period.'
+            : '—';
+        document.getElementById('statRate').textContent = (data.ai_conversion_rate || 0) + '%';
+
+        const used = data.api_characters_used || 0;
+        const maxVal = 500000;
+        const pct = Math.min(100, Math.round((used / maxVal) * 100));
+        const bar = document.getElementById('apiProgressBar');
+        bar.style.width = pct + '%';
+        bar.setAttribute('aria-valuenow', used);
+        bar.textContent = pct + '%';
+        document.getElementById('apiUsedLabel').textContent = used.toLocaleString() + ' characters used';
+        document.getElementById('apiRemainingLabel').textContent = data.api_credits_remaining != null ? (data.api_credits_remaining + ' remaining') : '—';
+
+        const chartData = data.chart_ai_vs_manual || [];
+        const labels = chartData.map(function(d) { return d.date ? d.date.slice(5) : ''; });
+        if (chartAiVsManual) {
+            chartAiVsManual.data.labels = labels;
+            chartAiVsManual.data.datasets[0].data = chartData.map(function(d) { return d.ai_orders; });
+            chartAiVsManual.data.datasets[1].data = chartData.map(function(d) { return d.manual_orders; });
+            chartAiVsManual.update();
+        } else {
+            const ctx = document.getElementById('chartAiVsManual').getContext('2d');
+            chartAiVsManual = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [
+                        { label: 'AI Orders', data: chartData.map(d => d.ai_orders), borderColor: '#198754', backgroundColor: 'rgba(25,135,84,0.1)', fill: true, tension: 0.3 },
+                        { label: 'Manual Orders', data: chartData.map(d => d.manual_orders), borderColor: '#0d6efd', backgroundColor: 'rgba(13,110,253,0.1)', fill: true, tension: 0.3 }
+                    ]
+                },
+                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'top' } }, scales: { y: { beginAtZero: true } } }
+            });
+        }
+
+        const top = data.top_products || [];
+        if (chartTopProducts) {
+            chartTopProducts.data.labels = top.map(p => p.product_name);
+            chartTopProducts.data.datasets[0].data = top.map(p => p.count);
+            chartTopProducts.update();
+        } else {
+            const ctx2 = document.getElementById('chartTopProducts').getContext('2d');
+            chartTopProducts = new Chart(ctx2, {
+                type: 'bar',
+                data: {
+                    labels: top.map(p => p.product_name),
+                    datasets: [{ label: 'Orders', data: top.map(p => p.count), backgroundColor: 'rgba(25,135,84,0.7)' }]
+                },
+                options: { indexAxis: 'y', responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { x: { beginAtZero: true } } }
+            });
+        }
+    }
+
+    function load(range) {
+        currentRange = range || currentRange;
+        document.getElementById('rangeLabel').textContent = rangeLabels[currentRange] || currentRange;
+        document.getElementById('exportCsvBtn').href = exportUrl(currentRange);
+        setLoading(true);
+        fetch(apiUrl(currentRange))
+            .then(function(r) { return r.json(); })
+            .then(function(res) {
+                setLoading(false);
+                if (res.success && res.data) applyData(res.data);
+                else console.error(res.error || 'Failed to load');
+            })
+            .catch(function(e) {
+                setLoading(false);
+                console.error(e);
+            });
+    }
+
+    document.querySelectorAll('.range-option').forEach(function(el) {
+        el.addEventListener('click', function(e) {
+            e.preventDefault();
+            load(el.getAttribute('data-range'));
+        });
+    });
+    document.getElementById('exportCsvBtn').addEventListener('click', function(e) {
+        this.href = exportUrl(currentRange);
+    });
+
+    load('month');
+})();
+</script>
+{% endblock %}

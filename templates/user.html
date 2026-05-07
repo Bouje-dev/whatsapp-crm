@@ -1,0 +1,62 @@
+<!-- templates/connect_external.html -->
+{% extends 'userBase.html' %}
+
+
+
+{% block content %}
+<div class="token-form">
+    <h2>ربط حساب خارجي</h2>
+    <form id="connectForm" method="post">
+        {% csrf_token %}
+        <div class="form-group">
+            <label for="platform">المنصة</label>
+            <select id="platform" name="external_platform" required>
+                <option value="shopify">Shopify</option>
+                <option value="woocommerce">WooCommerce</option>
+                <option value="custom">منصة أخرى</option>
+            </select>
+        </div>
+        <div class="form-group">
+            <label for="token">Access Token</label>
+            <input type="password" id="token" name="external_access_token" required>
+            <small>لن يتم عرض هذا التوكن مرة أخرى وسيتم تخزينه بشكل مشفر</small>
+        </div>
+        <button type="submit" class="btn btn-primary">حفظ التوكن</button>
+    </form>
+</div>
+
+<script>
+document.getElementById('connectForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const formData = new FormData(e.target);
+    
+    try {
+        const response = await fetch('/api/auth/connect-external/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': formData.get('csrfmiddlewaretoken')
+            },
+            body: JSON.stringify({
+                external_platform: formData.get('external_platform'),
+                external_access_token: formData.get('external_access_token')
+            })
+        });
+        
+        const data = await response.json();
+        
+        if (response.ok) {
+            alert('تم ربط الحساب الخارجي بنجاح');
+            window.location.href = '/dashboard/';
+        } else {
+            alert(data.error || 'فشل ربط الحساب');
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        alert('حدث خطأ أثناء ربط الحساب');
+    }
+});
+</script>
+
+
+{% endblock %}

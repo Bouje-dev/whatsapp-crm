@@ -1,0 +1,329 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Voice Gallery – AI agent voice</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <style>
+        :root {
+            --bg: #0c0f14;
+            --surface: #141922;
+            --border: #2a3344;
+            --text: #e8ecf3;
+            --muted: #8b95a8;
+            --accent: #6366f1;
+            --accent-dim: rgba(99, 102, 241, 0.15);
+            --success: #22c55e;
+            --radius: 14px;
+        }
+        * { box-sizing: border-box; }
+        body {
+            margin: 0;
+            min-height: 100vh;
+            font-family: "DM Sans", system-ui, sans-serif;
+            background: radial-gradient(1200px 600px at 10% -10%, rgba(99, 102, 241, 0.12), transparent),
+                        radial-gradient(800px 400px at 100% 0%, rgba(34, 197, 94, 0.06), transparent),
+                        var(--bg);
+            color: var(--text);
+        }
+        .wrap { max-width: 1120px; margin: 0 auto; padding: 2rem 1.25rem 3rem; }
+        .head { margin-bottom: 1.75rem; }
+        .head h1 { font-size: 1.5rem; font-weight: 700; letter-spacing: -0.02em; margin: 0 0 0.35rem; }
+        .head p { margin: 0; color: var(--muted); font-size: 0.95rem; max-width: 52ch; line-height: 1.5; }
+        .toolbar {
+            display: flex; flex-wrap: wrap; gap: 1rem; align-items: flex-end; margin-bottom: 1.5rem;
+            padding: 1rem 1.1rem; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+        }
+        .field label { display: block; font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); margin-bottom: 0.35rem; }
+        .field select {
+            min-width: 220px; padding: 0.55rem 0.75rem; border-radius: 10px; border: 1px solid var(--border);
+            background: var(--bg); color: var(--text); font-family: inherit; font-size: 0.9rem;
+        }
+        .filters { display: flex; flex-wrap: wrap; gap: 0.75rem; }
+        .filters select { min-width: 140px; }
+        .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 1rem; }
+        .card {
+            background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+            padding: 1.15rem 1.2rem; transition: border-color 0.2s, box-shadow 0.2s;
+        }
+        .card:hover { border-color: #3d4a63; }
+        .card.selected { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); background: linear-gradient(145deg, var(--accent-dim), var(--surface)); }
+        .card h3 { font-size: 1rem; font-weight: 600; margin: 0 0 0.5rem; line-height: 1.35; }
+        .tags { font-size: 0.75rem; color: var(--muted); margin-bottom: 0.85rem; line-height: 1.4; }
+        .tags span { display: inline-block; margin-right: 0.35rem; margin-bottom: 0.2rem; }
+        .badge-ar { font-size: 0.65rem; font-weight: 600; color: #fff; background: linear-gradient(135deg, #15803d, #22c55e); padding: 0.15rem 0.45rem; border-radius: 6px; vertical-align: middle; }
+        .row { display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap; }
+        .btn {
+            display: inline-flex; align-items: center; gap: 0.45rem; padding: 0.5rem 0.85rem; border-radius: 10px;
+            font-size: 0.85rem; font-weight: 600; font-family: inherit; cursor: pointer; border: none; transition: opacity 0.15s;
+        }
+        .btn:disabled { opacity: 0.45; cursor: not-allowed; }
+        .btn-play { background: var(--accent); color: #fff; }
+        .btn-play.playing { background: #4f46e5; }
+        .btn-ghost { background: transparent; color: var(--muted); border: 1px solid var(--border); }
+        .btn-ghost:hover { color: var(--text); border-color: #3d4a63; }
+        .hint { margin-top: 1.5rem; padding: 1rem 1.1rem; border-radius: var(--radius); border: 1px dashed var(--border); color: var(--muted); font-size: 0.85rem; line-height: 1.5; }
+        .empty { text-align: center; padding: 3rem 1rem; color: var(--muted); }
+        .back { margin-top: 1rem; }
+        a.link { color: var(--accent); text-decoration: none; font-size: 0.9rem; }
+        a.link:hover { text-decoration: underline; }
+    </style>
+</head>
+<body>
+<div class="wrap">
+    <div class="head">
+        <h1>Voice gallery</h1>
+        <p>Choose the ElevenLabs voice for your AI agent. Previews use static MP3 files—no API calls, instant playback.</p>
+    </div>
+
+    {% if not channel_id %}
+    <div class="empty">
+        <p>No WhatsApp channel found for your account. Connect a channel first, then return here.</p>
+        <a class="link" href="{% url 'user' %}">Back to dashboard</a>
+    </div>
+    {% else %}
+
+    <div class="toolbar">
+        <div class="field">
+            <label for="channel_select">Channel</label>
+            <select id="channel_select" name="channel_id">
+                {% for ch in channels %}
+                <option value="{{ ch.id }}" {% if ch.id == channel_id %}selected{% endif %}>{{ ch.name|default:ch.phone_number }} — #{{ ch.id }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="filters">
+            <div class="field">
+                <label for="filter_gender">Gender</label>
+                <select id="filter_gender">
+                    <option value="">All</option>
+                    <option value="MALE">Male</option>
+                    <option value="FEMALE">Female</option>
+                </select>
+            </div>
+            <div class="field">
+                <label for="filter_lang">Focus</label>
+                <select id="filter_lang">
+                    <option value="">All languages</option>
+                    <option value="AR_MA">Arabic (Morocco)</option>
+                    <option value="AR_SA">Arabic (Saudi Arabia)</option>
+                    <option value="AR_AE">Arabic (UAE)</option>
+                    <option value="AR_EG">Arabic (Egypt)</option>
+                    <option value="FR_FR">French (France)</option>
+                    <option value="FR_MA">French (Morocco)</option>
+                    <option value="EN_US">English (US)</option>
+                    <option value="EN_GB">English (UK)</option>
+                    <option value="ES_ES">Spanish (Spain)</option>
+                    <option value="DE_DE">German (Germany)</option>
+                    <option value="IT_IT">Italian (Italy)</option>
+                </select>
+            </div>
+        </div>
+    </div>
+
+    <div id="voice_cards" class="grid"></div>
+
+    <p class="hint">
+        <strong>Static files:</strong> add MP3s under <code>static/audio/voice-previews/</code>
+        (see <code>README.txt</code> there for filenames). URLs look like
+        <code>/static/audio/voice-previews/rachel.mp3</code>.
+    </p>
+    <div class="back">
+        <a class="link" href="{% url 'user' %}">← Back to dashboard</a>
+    </div>
+    {% endif %}
+</div>
+
+{% if channel_id %}
+<script>
+(function() {
+    var channelId = {{ channel_id }};
+    var voices = [];
+    var selectedVoiceId = '';
+    var csrfToken = '{{ csrf_token }}';
+    var listUrl = '{% url "voice_gallery_list" %}';
+    var selectUrl = '{% url "voice_gallery_select" %}';
+
+    var currentAudio = null;
+    var currentPlayBtn = null;
+
+    function iconFor(btn, name) {
+        var i = btn.querySelector('i');
+        if (i) i.className = name;
+    }
+
+    function stopPreview(resetIcon) {
+        if (currentAudio) {
+            currentAudio.pause();
+            currentAudio.currentTime = 0;
+            currentAudio = null;
+        }
+        if (resetIcon && currentPlayBtn) {
+            currentPlayBtn.classList.remove('playing');
+            iconFor(currentPlayBtn, 'fas fa-play');
+            currentPlayBtn = null;
+        }
+    }
+
+    function langMatchVoiceSettings(v, selectedNorm) {
+        if (!selectedNorm) return true;
+        var lc = (v.language_code || '').trim().replace(/-/g, '_').toUpperCase();
+        var sel = String(selectedNorm).trim().replace(/-/g, '_').toUpperCase();
+        if (lc) {
+            if (lc === sel) return true;
+            var a = lc.split('_'), b = sel.split('_');
+            if (a[0] && b[0] && a[0] === b[0]) return true;
+            return false;
+        }
+        if (sel.indexOf('AR_') === 0) return !!(v.native_arabic) || (v.tags || []).join(' ').toLowerCase().indexOf('arabic') !== -1;
+        if (sel.indexOf('FR_') === 0) {
+            var tj = (v.tags || []).join(' ').toLowerCase();
+            return tj.indexOf('french') !== -1 || tj.indexOf('multilingual') !== -1;
+        }
+        if (sel.indexOf('EN_') === 0) {
+            var te = (v.tags || []).join(' ').toLowerCase();
+            return te.indexOf('english') !== -1 || te.indexOf('multilingual') !== -1;
+        }
+        if (sel.indexOf('ES_') === 0) {
+            var ts = (v.tags || []).join(' ').toLowerCase();
+            return ts.indexOf('spanish') !== -1 || ts.indexOf('multilingual') !== -1;
+        }
+        if (sel.indexOf('DE_') === 0) {
+            var td = (v.tags || []).join(' ').toLowerCase();
+            return td.indexOf('german') !== -1 || td.indexOf('multilingual') !== -1;
+        }
+        if (sel.indexOf('IT_') === 0) {
+            var ti = (v.tags || []).join(' ').toLowerCase();
+            return ti.indexOf('italian') !== -1 || ti.indexOf('multilingual') !== -1;
+        }
+        return true;
+    }
+
+    function renderCards() {
+        var gender = document.getElementById('filter_gender').value;
+        var lang = document.getElementById('filter_lang').value;
+        var list = voices.filter(function(v) {
+            if (gender && v.gender !== gender) return false;
+            return langMatchVoiceSettings(v, lang);
+        });
+        var root = document.getElementById('voice_cards');
+        stopPreview(true);
+        if (!list.length) {
+            root.innerHTML = '<div class="empty" style="grid-column:1/-1;">No voices match these filters.</div>';
+            return;
+        }
+        root.innerHTML = '';
+        list.forEach(function(v) {
+            var vid = v.voice_id || v.id;
+            var name = v.name || v.label || vid;
+            var previewUrl = v.preview_audio_url || '';
+            var sel = vid === selectedVoiceId;
+            var card = document.createElement('div');
+            card.className = 'card' + (sel ? ' selected' : '');
+            card.setAttribute('data-voice-id', vid);
+            card.setAttribute('data-preview-url', previewUrl);
+            var tags = (v.tags || []).map(function(t) { return '<span>' + t + '</span>'; }).join('');
+            if (v.native_arabic) tags += ' <span class="badge-ar">Arabic</span>';
+            if (v.dialect_display) tags += ' <span class="badge-ar">' + String(v.dialect_display).replace(/</g, '&lt;') + '</span>';
+            var playDisabled = !previewUrl;
+            card.innerHTML =
+                '<h3>' + name + '</h3>' +
+                '<div class="tags">' + tags + '</div>' +
+                '<div class="row">' +
+                '<button type="button" class="btn btn-play" data-action="play" ' + (playDisabled ? 'disabled title="Add the MP3 under static/audio/voice-previews/"' : '') + '>' +
+                '<i class="fas fa-play"></i> Play preview</button>' +
+                '<button type="button" class="btn btn-ghost" data-action="select">Use this voice</button>' +
+                '</div>';
+            card.querySelector('[data-action="play"]').addEventListener('click', function(e) {
+                e.stopPropagation();
+                onPlayClick(previewUrl, this);
+            });
+            card.querySelector('[data-action="select"]').addEventListener('click', function(e) {
+                e.stopPropagation();
+                selectVoice(vid, name, previewUrl);
+            });
+            root.appendChild(card);
+        });
+    }
+
+    function onPlayClick(url, btn) {
+        if (!url) return;
+        if (currentPlayBtn === btn && currentAudio && !currentAudio.paused) {
+            stopPreview(true);
+            return;
+        }
+        stopPreview(true);
+        currentPlayBtn = btn;
+        btn.classList.add('playing');
+        iconFor(btn, 'fas fa-pause');
+        currentAudio = new Audio(url);
+        currentAudio.onended = function() { stopPreview(true); };
+        currentAudio.onerror = function() {
+            stopPreview(true);
+            alert('Could not load preview. Ensure the MP3 exists at static/audio/voice-previews/ (see README.txt).');
+        };
+        currentAudio.play().catch(function() { stopPreview(true); });
+    }
+
+    function selectVoice(voiceId, displayName, previewUrl) {
+        selectedVoiceId = voiceId;
+        renderCards();
+        var formData = new FormData();
+        formData.append('channel_id', channelId);
+        formData.append('voice_id', voiceId);
+        formData.append('voice_preview_url', previewUrl || '');
+        formData.append('csrfmiddlewaretoken', csrfToken);
+        fetch(selectUrl, { method: 'POST', body: formData, credentials: 'same-origin' })
+            .then(function(r) { return r.json(); })
+            .then(function(data) {
+                if (data.status === 'success') {
+                    if (typeof window.showToast === 'function') {
+                        window.showToast('Voice saved: ' + displayName, 'success');
+                    }
+                } else {
+                    alert(data.message || 'Could not save voice');
+                }
+            })
+            .catch(function() { alert('Request failed'); });
+    }
+
+    function loadVoices() {
+        var formData = new FormData();
+        formData.append('channel_id', channelId);
+        formData.append('csrfmiddlewaretoken', csrfToken);
+        fetch(listUrl, { method: 'POST', body: formData, credentials: 'same-origin' })
+            .then(function(r) { return r.json(); })
+            .then(function(data) {
+                if (data.status === 'success') {
+                    voices = data.voices || [];
+                    selectedVoiceId = data.selected_voice_id || '';
+                    renderCards();
+                } else {
+                    document.getElementById('voice_cards').innerHTML =
+                        '<div class="empty" style="grid-column:1/-1;">Could not load voices.</div>';
+                }
+            })
+            .catch(function() {
+                document.getElementById('voice_cards').innerHTML =
+                    '<div class="empty" style="grid-column:1/-1;">Could not load voices.</div>';
+            });
+    }
+
+    document.getElementById('filter_gender').onchange = renderCards;
+    document.getElementById('filter_lang').onchange = renderCards;
+    document.getElementById('channel_select').onchange = function() {
+        var v = this.value;
+        if (v) window.location.href = '{% url "voice_settings" %}?channel_id=' + encodeURIComponent(v);
+    };
+
+    loadVoices();
+})();
+</script>
+{% endif %}
+</body>
+</html>

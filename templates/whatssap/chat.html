@@ -1,0 +1,1794 @@
+
+<style>
+/* ---------- عام - حاوية المحادثة ---------- */
+.cls9999_chat_col {
+    width: 100%;
+    min-height: 550px;
+    max-height: 600px;
+    background-color: white;
+    border-radius: 10px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+/* ---------- رأس المحادثة ---------- */
+.cls9999_chat_header {
+    background-color: #075e54;
+    color: white;
+    padding: 15px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.cls9999_contact_avatar {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background-color: #128c7e;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: bold;
+    color: #fff;
+}
+
+.cls9999_chat_header > div > .cls9999_active_name_title,
+.cls9999_chat_header > div > .cls9999_active_name_title * {
+    color: white;
+}
+
+.cls9999_active_name_title {
+    font-weight: bold;
+    font-size: 16px;
+}
+
+.cls9999_active_lastseen {
+    font-size: 12px;
+    opacity: 0.9;
+}
+
+/* أيقونات اليمين */
+.cls9999_chat_header .cls9999_action_btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    background: transparent;
+    border: none;
+    color: white;
+    cursor: pointer;
+}
+
+/* ---------- منطقة الرسائل ---------- */
+.cls9999_messages_area {
+    flex: 1;
+    padding: 15px;
+    overflow-y: auto;
+    background-image: url("data:image/svg+xml,%3Csvg width='100' height='100' viewBox='0 0 100 100' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M11 18c3.866 0 7-3.134 7-7s-3.134-7-7-7-7 3.134-7 7 3.134 7 7 7zm48 25c3.866 0 7-3.134 7-7s-3.134-7-7-7-7 3.134-7 7 3.134 7 7 7zm-43-7c1.657 0 3-1.343 3-3s-1.343-3-3-3-3 1.343-3 3 1.343 3 3 3zm63 31c1.657 0 3-1.343 3-3s-1.343-3-3-3-3 1.343-3 3 1.343 3 3 3zM34 90c1.657 0 3-1.343 3-3s-1.343-3-3-3-3 1.343-3 3 1.343 3 3 3zm56-76c1.657 0 3-1.343 3-3s-1.343-3-3-3-3 1.343-3 3 1.343 3 3 3zM12 86c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm28-65c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm23-11c2.76 0 5-2.24 5-5s-2.24-5-5-5-5 2.24-5 5 2.24 5 5 5zm-6 60c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm29 22c2.76 0 5-2.24 5-5s-2.24-5-5-5-5 2.24-5 5 2.24 5 5 5zM32 63c2.76 0 5-2.24 5-5s-2.24-5-5-5-5 2.24-5 5 2.24 5 5 5zm57-13c2.76 0 5-2.24 5-5s-2.24-5-5-5-5 2.24-5 5 2.24 5 5 5zm-9-21c1.105 0 2-.895 2-2s-.895-2-2-2-2 .895-2 2 .895 2 2 2zM60 91c1.105 0 2-.895 2-2s-.895-2-2-2-2 .895-2 2 .895 2 2 2zM35 41c1.105 0 2-.895 2-2s-.895-2-2-2-2 .895-2 2 .895 2 2 2zM12 60c1.105 0 2-.895 2-2s-.895-2-2-2-2 .895-2 2 .895 2 2 2z' fill='%23e6e6e6' fill-opacity='0.2' fill-rule='evenodd'/%3E%3C/svg%3E");
+}
+
+/* ---------- فقرة الرسالة (فقاعة) ---------- */
+.cls9999_msg_bubble {
+    max-width: 80%;
+    margin-bottom: 15px;
+    padding: 10px 15px;
+    border-radius: 10px;
+    position: relative;
+    clear: both;
+    background-color: #ffffff;
+    border: 1px solid #e0e0e0;
+    float: left;
+    margin-left: auto;
+    transition: all .18s ease;
+    opacity: 0;
+    transform: translateY(8px);
+}
+
+.cls9999_msg_bubble.me {
+    background-color: #dcf8c6;
+    float: right;
+    margin-right: auto;
+}
+
+/* وقت الرسالة */
+.cls9999_msg_time {
+    font-size: 10px;
+    color: #888;
+    display: block;
+    margin-top: 6px;
+    text-align: left;
+}
+
+.cls9999_msg_bubble.me .cls9999_msg_time {
+    text-align: right;
+}
+
+/* ---------- مدخل النص وواجهة الإدخال ---------- */
+.cls9999_chat_input_wrapper {
+    padding: 10px;
+    background-color: #f0f0f0;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.cls9999_chat_input_container {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+/* أزرار المرفقات */
+.cls9999_input_actions { display:flex; gap:8px; align-items:center; }
+.cls9999_icon_btn {
+    background: none;
+    border: none;
+    font-size: 18px;
+    color: #54656f;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* حقل النص */
+.cls9999_chat_textarea {
+    flex: 1;
+    padding: 10px 15px;
+    border: none;
+    border-radius: 20px;
+    outline: none;
+    resize: none;
+    min-height: 40px;
+    font-size: 14px;
+}
+
+/* زر الإرسال */
+.cls9999_send_btn {
+    background: #128c7e;
+    color: white;
+    border: none;
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+}
+
+/* عناصر الإدخال المخفية */
+.cls9999_hidden_input { display: none; }
+
+/* ---------- معاينة الوسائط وملفات المرفقات ---------- */
+.cls9999_preview_item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px;
+    background: #f1f3f4;
+    border-radius: 12px;
+    margin: 8px 0;
+    border: 1px solid #e5e7eb;
+}
+
+.cls9999_preview_remove {
+    background: none;
+    border: none;
+    color: #6b7280;
+    cursor: pointer;
+    padding: 8px;
+}
+.cls9999_text{
+    color: rgb(37, 37, 37);
+font-weight: bold;
+
+}
+/* ---------- وسائط الرسائل ---------- */
+.cls9999_media_image { max-width: 100%; border-radius: 5px; margin-bottom: 6px; }
+.cls9999_media_video { max-width: 100%; border-radius: 6px; margin-bottom: 6px; }
+
+/* مشغل الصوت */
+.cls9999_audio_wrapper {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px;
+    background-color: #f0f0f0;
+    border-radius: 20px;
+}
+
+.cls9999_audio_play {
+    background: #075e54;
+    color: white;
+    border: none;
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+}
+
+/* تقدم التشغيل */
+.cls9999_audio_progress {
+    flex: 1;
+    height: 4px;
+    background-color: #ddd;
+    border-radius: 2px;
+    position: relative;
+}
+
+.cls9999_audio_progress_bar {
+    position: absolute;
+    height: 100%;
+    background-color: #075e54;
+    border-radius: 2px;
+    width: 30%;
+}
+
+/* Transcribed text below incoming audio (what the AI heard) */
+.cls9999_audio_transcription {
+    margin-top: 8px;
+    padding: 6px 10px;
+    font-size: 12px;
+    color: #555;
+    background: rgba(0,0,0,0.05);
+    border-radius: 8px;
+    border-left: 3px solid #075e54;
+    line-height: 1.4;
+}
+
+/* ---------- keyframes (الدوّارة) ---------- */
+@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+
+/* ---------- Mobile responsive ---------- */
+@media (max-width: 768px) {
+  .cls9999_chat_col {
+    min-height: 100vh;
+    max-height: none;
+  }
+  .cls9999_chat_header {
+    padding: 10px 12px;
+    min-height: 48px;
+  }
+  .cls9999_active_name_title { font-size: 15px; }
+  .cls9999_active_lastseen { font-size: 12px; }
+  .cls9999_contact_avatar {
+    width: 36px;
+    height: 36px;
+    font-size: 14px;
+  }
+  .cls9999_messages_area {
+    padding: 12px 14px 100px;
+  }
+  .cls9999_msg_bubble {
+    max-width: 85%;
+    padding: 10px 14px;
+    font-size: 15px;
+  }
+  .cls9999_chat_input_wrapper {
+    padding: 10px 12px;
+    padding-bottom: max(10px, env(safe-area-inset-bottom));
+    position: sticky;
+    bottom: 0;
+    background: #f0f0f0;
+  }
+  .cls9999_chat_textarea {
+    font-size: 16px;
+    min-height: 22px;
+  }
+}
+</style>
+
+
+
+
+<!-- BEGIN isolated chat (cls9999) -->
+<div class="cls9999_chat_col" id="cls9999_chat_col" aria-live="polite">
+
+  <div class="cls9999_chat_header">
+    <div style="display:flex;align-items:center;gap:10px">
+      <div class="cls9999_contact_avatar" id="cls9999_active_avatar">C</div>
+      <div>
+        <div class="cls9999_active_name_title" id="cls9999_active_name">Chose conversation</div>
+        <div class="cls9999_active_lastseen" id="cls9999_active_lastseen" style="font-size:13px;color:var(--muted)">آخر تواجد: —</div>
+      </div>
+    </div>
+
+    <div style="margin-left:auto;display:flex;gap:8px">
+      <span id="cls9999_open_info" class="cls9999_action_btn" title="Open contact info"></span>
+    </div>
+  </div>
+
+  <div class="cls9999_messages_area" id="cls9999_messages_area" tabindex="0">
+    <button id="scrollDownBtn" style="
+position: absolute;
+    bottom: 154px;
+    right: 19px;
+    /* display: none; */
+    padding: 7px 14px;
+    border-radius: 50%;
+    border: none;
+    background: #4caf51;
+    color: #fff;
+    font-size: 16px;
+    cursor: pointer;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2); z-index: 100;" onclick="document.getElementById('cls9999_messages_area').scrollTop = document.getElementById('cls9999_messages_area').scrollHeight;">
+  ↓
+</button>
+
+    <!-- سيتم حشو الرسائل هنا بواسطة السكريبت -->
+  </div>
+
+  <div class="cls9999_chat_input_wrapper">
+    <div class="cls9999_media_preview" id="cls9999_media_preview"></div>
+
+    <div class="cls9999_chat_input_container">
+
+      <div class="cls9999_input_actions">
+        <button type="button" class="cls9999_icon_btn" id="cls9999_image_btn" title="رفع صورة">📷</button>
+        <button type="button" class="cls9999_icon_btn" id="cls9999_video_btn" title="رفع فيديو">🎬</button>
+        <button type="button" class="cls9999_icon_btn" id="cls9999_audio_btn" title="تسجيل صوتي">🎤</button>
+      </div>
+
+      <textarea class="cls9999_chat_textarea" id="cls9999_message_input" placeholder="اكتب رسالة..." rows="1"></textarea>
+
+      <button class="cls9999_send_btn" id="cls9999_send_btn" title="إرسال"><i class="fas fa-paper-plane"></i></button>
+    </div>
+  </div>
+
+  <input type="file" id="cls9999_image_input" class="cls9999_hidden_input" accept="image/*" style="display:none">
+  <input type="file" id="cls9999_video_input" class="cls9999_hidden_input" accept="video/*" style="display:none">
+
+</div>
+<!-- END isolated chat (cls9999) -->
+
+<!-- ضع هذا الـ CSS مرة واحدة في صفحة الـ chat (داخل <style> في head أو ملف CSS مشترك) -->
+<style>
+/* متغيرات الألوان — يمكنك تعديلها بسهولة */
+.error-banner {
+  --bg: #fff6f6;
+  --border: #ff4d4d;
+  --accent: #b30000;
+  --muted: #6b2020;
+  --btn-bg: #fff;
+  --btn-border: #ffd6d6;
+  --radius: 10px;
+  --font-family: "Inter", "Arial", sans-serif;
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  padding: 12px;
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  background: linear-gradient(180deg, var(--bg), #fff0f0);
+  color: var(--accent);
+  box-shadow: 0 6px 18px rgba(179, 0, 0, 0.08);
+  font-family: var(--font-family);
+  font-size: 14px;
+  line-height: 1.3;
+  position: relative;
+  overflow: hidden;
+  margin: 6px 0;
+  animation: slideUpFade 260ms ease;
+}
+
+/* أيقونة اليسار */
+.error-banner .icon {
+  flex: 0 0 36px;
+  width: 36px;
+  height: 36px;
+  display: grid;
+  place-items: center;
+  background: rgba(179,0,0,0.08);
+  border-radius: 8px;
+  color: var(--accent);
+  font-size: 18px;
+}
+
+/* النصوص */
+.error-banner .texts {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+.error-banner .title {
+  font-weight: 700;
+  color: var(--accent);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.error-banner .reason {
+  color: var(--muted);
+  font-size: 13px;
+  word-break: break-word;
+}
+
+/* أزرار الإجراءات */
+.error-banner .actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+}
+.error-banner button.action-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  border-radius: 8px;
+  border: 1px solid var(--btn-border);
+  background: var(--btn-bg);
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 13px;
+  color: var(--accent);
+}
+.error-banner button.action-btn.secondary {
+  background: transparent;
+  border: 1px dashed rgba(179,0,0,0.12);
+}
+
+/* زر إغلاق */
+.error-banner .close-btn {
+  position: absolute;
+  top: 6px;
+  right: 8px;
+  width: 28px;
+  height: 28px;
+  border: none;
+  background: transparent;
+  color: var(--accent);
+  cursor: pointer;
+  font-size: 18px;
+  display: grid;
+  place-items: center;
+  line-height: 1;
+}
+
+/* تلميح عند hover على زر القالب */
+.error-banner .template-hint {
+  font-size: 12px;
+  color: #7a1b1b;
+  margin-left: 6px;
+  display: none;
+}
+.error-banner .tpl-wrap:hover .template-hint { display: inline-block; }
+
+/* أنيميشن */
+@keyframes slideUpFade {
+  from { transform: translateY(6px); opacity: 0; }
+  to   { transform: translateY(0);   opacity: 1; }
+}
+
+/* وضعيّة داكنة تعتمد على prefers-color-scheme */
+@media (prefers-color-scheme: dark) {
+  .error-banner {
+    --bg: #2a1111;
+    --border: rgba(255,77,77,0.18);
+    --accent: #ffb3b3;
+    --muted: #f4dede;
+    --btn-bg: rgba(255,255,255,0.03);
+    --btn-border: rgba(255,255,255,0.04);
+    background: linear-gradient(180deg, #2f1111, #260a0a);
+    box-shadow: 0 6px 20px rgba(0,0,0,0.5);
+  }
+}
+
+/* قابلية الاستجابة لهواتف صغيرة */
+@media (max-width:420px) {
+  .error-banner { font-size: 13px; padding: 10px; gap: 8px; }
+  .error-banner .icon { width: 34px; height: 34px; font-size: 16px; }
+  .error-banner .actions { flex-wrap: wrap; gap: 6px; }
+}
+
+
+/* أزرار الاقتراحات الذكية */
+.chips-container {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-top: 6px;
+}
+
+.var-chip {
+    background-color: #334155;
+    border: 1px solid #475569;
+    color: #cbd5e1;
+    font-size: 0.75rem;
+    padding: 2px 8px;
+    border-radius: 12px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    user-select: none;
+}
+
+.var-chip:hover {
+    background-color: #10b981;
+    color: white;
+    border-color: #10b981;
+    transform: translateY(-1px);
+}
+
+.var-chip:active {
+    transform: translateY(0);
+}
+</style>
+
+
+
+
+<!--start  Template Modal -->
+
+<div id="template-modal" class="tpl-modal-overlay d-none">
+    <div class="tpl-modal-container">
+        <div class="tpl-header">
+            <h3>Select a Template</h3>
+            <button class="tpl-close-btn">&times;</button>
+        </div>
+        
+        <div class="tpl-body">
+            <div class="tpl-list-wrapper">
+                <div class="search-box">
+                    <input type="text" id="tpl-search" placeholder="Search templates...">
+                </div>
+                <div id="tpl-list" class="tpl-list">
+                    <div class="loading-spinner">Loading templates...</div>
+                </div>
+            </div>
+
+            <div class="tpl-preview-wrapper">
+                <div id="tpl-preview-content" class="empty-select">
+                    <p>Please select a template from the list</p>
+                </div>
+                
+                <div id="tpl-variables-form" class="d-none">
+                    <hr>
+                    <h4>Fill Variables</h4>
+                    <div id="vars-inputs-container"></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="tpl-footer">
+            <button id="btn-send-template" class="btn btn-primary" disabled>
+                Send Template <i class="fas fa-paper-plane"></i>
+            </button>
+        </div>
+    </div>
+</div>
+
+<style>
+    /* Styles for the Template Modal */
+    .tpl-close-btn {
+        background: transparent; border: none; font-size: 1.5rem; cursor: pointer; color: #fff;
+    }
+    .search-box { padding: 10px;  
+    }
+    #tpl-search {
+        width: 100%; padding: 8px; border: 1px solid #475569; border-radius: 6px;
+        background: #334155; color: white;
+    }
+    .tpl-modal-overlay {
+        position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+        background: rgba(0, 0, 0, 0.7); z-index: 9999;
+        display: flex; align-items: center; justify-content: center;
+        backdrop-filter: blur(4px);
+    }
+    .tpl-modal-container {
+        background: #1e293b; color: #fff; width: 800px; max-width: 95%; height: 600px;
+        border-radius: 12px; display: flex; flex-direction: column;
+        box-shadow: 0 20px 50px rgba(0,0,0,0.5); border: 1px solid #334155;
+    }
+    .tpl-header {
+        padding: 15px 20px; border-bottom: 1px solid #334155;
+        display: flex; justify-content: space-between; align-items: center;
+    }
+    .tpl-body {
+        flex: 1; display: flex; overflow: hidden;
+    }
+    .tpl-list-wrapper {
+        width: 40%; border-right: 1px solid #334155; display: flex; flex-direction: column;
+    }
+    .tpl-list { flex: 1; overflow-y: auto; }
+    .tpl-item {
+        padding: 12px 15px; cursor: pointer; border-bottom: 1px solid #334155; transition: 0.2s;
+    }
+    .tpl-item:hover, .tpl-item.active { background: #334155; }
+    .tpl-item .name { font-weight: bold; font-size: 0.9rem; }
+    .tpl-item .status { font-size: 0.7rem; color: #10b981; }
+    
+    .tpl-preview-wrapper {
+        width: 60%; padding: 20px; overflow-y: auto; background: #0f172a;
+    }
+    .tpl-text-display {
+        white-space: pre-wrap; background: #1e293b; padding: 15px; 
+        border-radius: 8px; border: 1px dashed #475569; margin-bottom: 15px;
+    }
+    
+    .var-input-group { margin-bottom: 10px; }
+    .var-input-group label { display: block; font-size: 0.8rem; color: #94a3b8; margin-bottom: 5px; }
+    .var-input-group input {
+        width: 100%; padding: 8px; background: #334155; border: 1px solid #475569;
+        color: white; border-radius: 4px;
+    }
+    
+    .tpl-footer {
+        padding: 15px; border-top: 1px solid #334155; text-align: right;
+    }
+    .d-none { display: none !important; }
+</style>
+
+<script>
+// استخدام verbatim لمنع تداخل Django
+{% verbatim %}
+
+// ==========================================
+// متغيرات عامة لإدارة القوالب
+// ==========================================
+let _tplModal = null;
+let _tplListContainer = null;
+let _tplPreviewContainer = null;
+let _tplVarsForm = null;
+let _tplVarsContainer = null;
+let _tplSendBtn = null;
+let _tplSelectedTemplate = null;
+let _tplRecipientPhone = null;
+
+// ==========================================
+// دالة التهيئة (تعمل مرة واحدة عند تحميل الصفحة)
+// ==========================================
+document.addEventListener('DOMContentLoaded', () => {
+    _tplModal = document.getElementById('template-modal');
+    _tplListContainer = document.getElementById('tpl-list');
+    _tplPreviewContainer = document.getElementById('tpl-preview-content');
+    _tplVarsForm = document.getElementById('tpl-variables-form');
+    _tplVarsContainer = document.getElementById('vars-inputs-container');
+    _tplSendBtn = document.getElementById('btn-send-template');
+
+    if (!_tplModal) return; // حماية في حال عدم وجود المودال
+
+    // ربط أزرار الإغلاق والإرسال
+    const closeBtn = _tplModal.querySelector('.tpl-close-btn');
+    if(closeBtn) closeBtn.onclick = closeTemplateModal;
+    
+    if(_tplSendBtn) _tplSendBtn.onclick = sendCurrentTemplate;
+
+    // البحث
+    const searchInput = document.getElementById('tpl-search');
+    if(searchInput) {
+        searchInput.addEventListener('input', (e) => {
+            const term = e.target.value.toLowerCase();
+            document.querySelectorAll('.tpl-item').forEach(item => {
+                const name = item.dataset.name.toLowerCase();
+                item.style.display = name.includes(term) ? 'block' : 'none';
+            });
+        });
+    }
+});
+
+// ==========================================
+// الدالة الرئيسية: فتح النافذة
+// ==========================================
+function showTemplateModal(phone, contextData = {}) {
+    // التأكد من تهيئة العناصر في حال استدعاء الدالة قبل DOMContentLoaded
+    if (!_tplModal) {
+        _tplModal = document.getElementById('template-modal');
+        _tplListContainer = document.getElementById('tpl-list');
+        _tplPreviewContainer = document.getElementById('tpl-preview-content');
+        _tplVarsForm = document.getElementById('tpl-variables-form');
+        _tplVarsContainer = document.getElementById('vars-inputs-container');
+        _tplSendBtn = document.getElementById('btn-send-template');
+        // إعادة ربط الأزرار بسرعة
+        _tplModal.querySelector('.tpl-close-btn').onclick = closeTemplateModal;
+        _tplSendBtn.onclick = sendCurrentTemplate;
+    }
+    
+    
+    // دمج البيانات الجديدة مع أي بيانات محفوظة سابقاً
+    _tplContextData = contextData || {}; 
+    _tplRecipientPhone = phone;
+    _tplModal.classList.remove('d-none');
+    fetchTemplates();
+}
+
+// ==========================================
+// وظائف إدارة الواجهة
+// ==========================================
+function closeTemplateModal() {
+    if(_tplModal) _tplModal.classList.add('d-none');
+    resetTemplateUI();
+}
+
+function resetTemplateUI() {
+    _tplSelectedTemplate = null;
+    if(_tplPreviewContainer) _tplPreviewContainer.innerHTML = '<p class="text-muted">Select a template...</p>';
+    if(_tplVarsForm) _tplVarsForm.classList.add('d-none');
+    if(_tplSendBtn) _tplSendBtn.disabled = true;
+}
+
+// ==========================================
+// جلب وعرض القوالب
+// ==========================================
+async function fetchTemplates() {
+    if(!_tplListContainer) return;
+    _tplListContainer.innerHTML = '<div class="loading-spinner">Loading...</div>';
+    const activeChannel = window.currentChannelId || '{{ initial_channel_id|default:"null" }}';
+    
+        if (!activeChannel || activeChannel === 'null') {
+            listContainer.innerHTML = '<div style="padding:20px;text-align:center;color:gray;">لا توجد قناة محددة</div>';
+            return;
+        }
+    
+    try {
+            // const url = `{% url 'api_get_templates' %}?channel_id=${activeChannel}` ;
+            const res = await fetch(`/discount/whatssapAPI/api/get_templates/?channel_id=${activeChannel}`, { headers: { 'Accept': 'application/json' } });
+            const data = await res.json();
+        
+        if (data.templates) {
+            renderTemplateList(data.templates);
+        } else {
+            _tplListContainer.innerHTML = `<div style="padding:10px;">No templates found</div>`;
+        }
+    } catch (e) {
+        console.error(e);
+        _tplListContainer.innerHTML = `<div style="color:red; padding:10px;">Failed to load templates</div>`;
+    }
+}
+
+function renderTemplateList(templates) {
+    _tplListContainer.innerHTML = '';
+    templates.forEach(tpl => {
+        const el = document.createElement('div');
+        el.className = 'tpl-item';
+        el.dataset.name = tpl.name;
+        el.innerHTML = `
+            <div class="name">${tpl.name}</div>
+            <div class="status">${tpl.language} • ${tpl.status}</div>
+        `;
+        el.onclick = () => selectTemplate(tpl, el);
+        _tplListContainer.appendChild(el);
+    });
+}
+
+function selectTemplate(tpl, el) {
+    document.querySelectorAll('.tpl-item').forEach(i => i.classList.remove('active'));
+    el.classList.add('active');
+    
+    _tplSelectedTemplate = tpl;
+    _tplSendBtn.disabled = false;
+
+    _tplPreviewContainer.innerHTML = `
+        <div class="tpl-text-display">${highlightVariables(tpl.body)}</div>
+    `;
+
+    generateVariableInputs(tpl.body);
+}
+
+// ==========================================
+// معالجة المتغيرات
+// ==========================================
+function highlightVariables(text) {
+    return text.replace(/{{(\d+)}}/g, '<span style="color:#10b981; font-weight:bold;">{{$1}}</span>');
+}
+
+function generateVariableInputs(text) {
+    _tplVarsContainer.innerHTML = '';
+    const regex = /{{(\d+)}}/g;
+    let match;
+    const foundVars = new Set();
+
+    while ((match = regex.exec(text)) !== null) {
+        foundVars.add(match[1]);
+    }
+
+    if (foundVars.size > 0) {
+        _tplVarsForm.classList.remove('d-none');
+        const sortedVars = Array.from(foundVars).sort((a, b) => a - b);
+        
+        sortedVars.forEach(num => {
+            const div = document.createElement('div');
+            div.className = 'var-input-group';
+            
+            // الحقل الأساسي
+            const label = document.createElement('label');
+            label.textContent = `Variable {{${num}}}`;
+            
+            const input = document.createElement('input');
+            input.type = "text";
+            input.className = "tpl-var-input";
+            input.dataset.index = num;
+            input.placeholder = `Value for {{${num}}}`;
+            
+            // --- [الإضافة الجديدة] منطقة الاقتراحات الذكية ---
+            const chipsContainer = document.createElement('div');
+            chipsContainer.className = 'chips-container';
+            
+            // التحقق من وجود بيانات العميل
+            if (Object.keys(_tplContextData).length > 0) {
+                for (const [key, value] of Object.entries(_tplContextData)) {
+                    if (value && value !== 'None' && value !== '') { // عرض القيم الموجودة فقط
+                        const chip = document.createElement('span');
+                        chip.className = 'var-chip';
+                        chip.textContent = key; // اسم الخاصية (مثل Customer Name)
+                        chip.title = value;     // القيمة تظهر عند التحويم
+                        
+                        // عند الضغط، نملأ الحقل بالقيمة
+                        chip.onclick = () => {
+                            input.value = value;
+                            // تأثير بصري بسيط
+                            input.style.borderColor = '#10b981';
+                            setTimeout(() => input.style.borderColor = '#475569', 500);
+                        };
+                        chipsContainer.appendChild(chip);
+                    }
+                }
+            }
+            // --------------------------------------------------
+
+            div.appendChild(label);
+            div.appendChild(input);
+            div.appendChild(chipsContainer); // إضافة الاقتراحات
+            _tplVarsContainer.appendChild(div);
+        });
+    } else {
+        _tplVarsForm.classList.add('d-none');
+    }
+}
+
+// ==========================================
+// الإرسال
+// ==========================================
+async function sendCurrentTemplate() {
+    if (!_tplSelectedTemplate || !_tplRecipientPhone) return;
+
+    const inputs = document.querySelectorAll('.tpl-var-input');
+    const parameters = [];
+
+    inputs.forEach(input => {
+        parameters.push({
+            "type": "text",
+            "text": input.value || " "
+        });
+    });
+
+    const payload = {
+        "to": _tplRecipientPhone,
+        "media_type": "template",
+        "template": {
+            "name": _tplSelectedTemplate.name,
+            "language": _tplSelectedTemplate.language,
+            "components": [
+                {
+                    "type": "body",
+                    "parameters": parameters
+                }
+            ]
+        }
+    };
+
+    const originalBtnText = _tplSendBtn.innerHTML;
+    _tplSendBtn.innerHTML = 'Sending...';
+    _tplSendBtn.disabled = true;
+
+    try {
+        // دالة مساعدة لجلب التوكن (إذا كانت متوفرة في الصفحة)
+        const csrf = getCookie('csrftoken'); 
+        
+        const res = await fetch('/discount/whatssapAPI/send/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': csrf
+            },
+            body: JSON.stringify(payload)
+        });
+        
+        const json = await res.json();
+
+        if (res.ok) {
+            alert('Template Sent Successfully');
+            closeTemplateModal();
+            // يمكن إضافة تحديث للشات هنا
+        } else {
+            alert('Failed: ' + (json.error || json.details || 'Unknown error'));
+        }
+    } catch(e) {
+        console.error(e);
+        alert('Error sending template');
+    } finally {
+        _tplSendBtn.innerHTML = originalBtnText;
+        _tplSendBtn.disabled = false;
+    }
+}
+
+// Helper for CSRF
+function getCookie(name) {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+        const cookies = document.cookie.split(';');
+        for (let i = 0; i < cookies.length; i++) {
+            const cookie = cookies[i].trim();
+            if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                break;
+            }
+        }
+    }
+    return cookieValue;
+}
+
+{% endverbatim %}
+</script>
+ 
+<!-- end temmplaite modal -->
+
+
+<!-- socket conne  -->
+<script>
+   
+
+//     const websocket_protocol = window.location.protocol === 'https:' ? 'wss' : 'ws';
+//     const roomName =  '{{ chat_name.group_name }}';
+//     const set_interval = 5000 
+//     function connectWebSocket(){
+
+ 
+//     const Socket = new WebSocket(
+//         websocket_protocol + '://'
+//         + window.location.host
+//         + '/chat/stream/'
+//     );
+
+//     Socket.onopen = function(e) {
+//     };
+
+// Socket.onclose = () => { 
+//     setTimeout(connectWebSocket() , set_interval);
+//     retryInterval = Math.min(retryInterval * 2, 10000);
+// }; 
+//     }
+
+
+
+// connectWebSocket() 
+    
+
+
+
+</script>
+
+
+
+<script>
+ 
+function showSendError(resData = {}, options = {} , phone=null) {
+  const {
+    wrapperSelector = '.cls9999_chat_input_wrapper',
+    onRetry = null,
+    onSelectTemplate = null,
+    autoDismissMs = 8000
+  } = options;
+
+  const wrapper = document.querySelector(wrapperSelector);
+  if (!wrapper) return console.warn('showSendError: wrapper not found:', wrapperSelector);
+
+  // نصوص آمنة
+  const title = (resData.error && String(resData.error).trim()) || 'حدث خطأ أثناء الإرسال';
+  const reason = (resData.reason && String(resData.reason).trim()) || (resData.details && String(resData.details).trim()) || '';
+
+  // احذف أي بانر قديم
+  const existing = wrapper.querySelector('.error-banner');
+  if (existing) existing.remove();
+
+  // بناء العنصر
+
+  const el = document.createElement('div');
+  el.className = 'error-banner';
+  el.setAttribute('role', 'alert');
+  el.innerHTML = `
+    <div class="icon" aria-hidden="true">⚠️</div>
+    <div class="texts">
+      <div class="title">${escapeHtml(title)}</div>
+      <div class="reason">${escapeHtml(reason)}</div>
+      <div class="actions">
+        <button class="action-btn retry-btn" type="button"> Try again</button>
+        <span class="tpl-wrap">
+          <button class="action-btn secondary select-tpl-btn" type="button" onclick.open(${phone})> Select Templaite</button>
+          <span class="template-hint">مرّر هنا لإرسال قالب جاهز</span>
+        </span>
+      </div>
+    </div>
+    <button class="close-btn" aria-label="إغلاق">✕</button>
+  `;
+
+  // إدراج في DOM (نضعه أعلى المحتوى داخل wrapper)
+  wrapper.prepend(el);
+document.querySelector('.cls9999_chat_input_container').classList.add('d-none')
+  // أحداث الأزرار
+  const retryBtn = el.querySelector('.retry-btn');
+  const tplBtn = el.querySelector('.select-tpl-btn');
+  const closeBtn = el.querySelector('.close-btn');
+
+  let dismissTimer = null;
+  const startAutoDismiss = () => {
+    if (!autoDismissMs) return;
+    clearTimeout(dismissTimer);
+    dismissTimer = setTimeout(() => fadeOutAndRemove(el), autoDismissMs);
+  };
+  const stopAutoDismiss = () => clearTimeout(dismissTimer);
+
+//   el.addEventListener('mouseenter', stopAutoDismiss);
+//   el.addEventListener('mouseleave', startAutoDismiss);
+
+//   startAutoDismiss();
+
+  // Retry callback (اترك الفعل لك لربطه بدالتك)
+  retryBtn.addEventListener('click', (ev) => {
+    ev.preventDefault();
+    fadeOutAndRemove(el);
+    if (typeof onRetry === 'function') {
+      try { onRetry(); } catch (e) { console.error('onRetry failed', e); }
+    } else {
+      // إذا لم توفّر onRetry، نطلق حدثًا يمكن التقاطه من قِبل كود آخر
+      wrapper.dispatchEvent(new CustomEvent('chat9999:retry-send', { detail: { resData } }));
+    }
+  });
+
+  // Select template callback
+  tplBtn.addEventListener('click', (ev) => {
+    ev.preventDefault();
+    if (typeof onSelectTemplate === 'function') {
+      try { onSelectTemplate(); } catch (e) { console.error('onSelectTemplate failed', e); }
+    } else {
+      wrapper.dispatchEvent(new CustomEvent('chat9999:open-template', { detail: { resData } }));
+    }
+  });
+
+  // Close button
+  closeBtn.addEventListener('click', () => fadeOutAndRemove(el));
+
+  // helper functions
+  function fadeOutAndRemove(node) {
+    node.style.transition = 'opacity 220ms ease, transform 220ms ease';
+    node.style.opacity = '0';
+    node.style.transform = 'translateY(6px)';
+    setTimeout(() => { if (node && node.parentNode) node.parentNode.removeChild(node); }, 240);
+  }
+
+  // escaping (safety)
+  function escapeHtml(str) {
+    return String(str || '').replace(/[&<>"'`=\/]/g, function(s){
+      return ({
+        '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;','/':'&#x2F;','`':'&#x60;','=':'&#x3D;'
+      })[s];
+    });
+  }
+}
+</script>
+
+ 
+<script>
+(function(){
+
+  // حماية من التشغيل المزدوج
+  if (window.__chat9999Loaded) return;
+  window.__chat9999Loaded = true;
+
+  // تهيئة نقاط الـ API (استخدم ما لديك أو قيم Django template)
+  const API_URLS_9999 = window.API_URLS || {
+    send: "{% url 'send_message' %}",
+    upload: "{% url 'upload_media' %}",
+    messages: "{% url 'get_messages' %}",
+    lastmsg:"{% url 'get_last_message' %}"
+  };
+
+  // عناصر DOM المحلية
+  const messagesArea = document.getElementById('cls9999_messages_area');
+  const messageInput = document.getElementById('cls9999_message_input');
+  const sendBtn = document.getElementById('cls9999_send_btn');
+  const imageBtn = document.getElementById('cls9999_image_btn');
+  const videoBtn = document.getElementById('cls9999_video_btn');
+  const audioBtn = document.getElementById('cls9999_audio_btn');
+  const mediaPreview = document.getElementById('cls9999_media_preview');
+  const imageInput = document.getElementById('cls9999_image_input');
+  const videoInput = document.getElementById('cls9999_video_input');
+  const activeAvatar = document.getElementById('cls9999_active_avatar');
+  const activeNameEl = document.getElementById('cls9999_active_name');
+  const activeLastSeen = document.getElementById('cls9999_active_lastseen');
+  const set_phone = document.getElementById('cls9999_open_info');
+
+  // حالة محلية
+  let currentPhone = null;
+  let lastMessageId = 0;
+  let queuedFile = null;
+  let queuedFileType = null;
+  let mediaRecorder = null;
+  let audioBlobs = [];
+  let isRecording = false;
+  let pollTimer = null;
+  let POLL_INTERVAL = null;
+
+document.addEventListener('DOMContentLoaded', function () {
+  const messagesArea = document.querySelector('.cls9999_messages_area');
+  const scrollBtn = document.getElementById('scrollDownBtn');
+
+  if (!messagesArea) return;
+
+  function scrollToBottom() {
+    messagesArea.scrollTop = messagesArea.scrollHeight;
+  }
+
+  function checkScroll() {
+    const isAtBottom =
+      messagesArea.scrollHeight - messagesArea.scrollTop - messagesArea.clientHeight < 50;
+
+    if (isAtBottom) {
+      scrollBtn.style.display = 'none';
+    } else {
+      scrollBtn.style.display = 'block';
+    }
+  }
+
+  scrollToBottom();
+  checkScroll();
+
+  messagesArea.addEventListener('scroll', checkScroll);
+
+  scrollBtn.addEventListener('click', function () {
+    scrollToBottom();
+    scrollBtn.style.display = 'none';
+  });
+
+  const observer = new MutationObserver(function () {
+    const isNearBottom =
+      messagesArea.scrollHeight - messagesArea.scrollTop - messagesArea.clientHeight < 100;
+
+    if (isNearBottom) {
+      scrollToBottom();
+    }
+    checkScroll();
+  });
+
+  observer.observe(messagesArea, { childList: true, subtree: true });
+});
+
+
+
+  const track1 = document.getElementById('track1')
+
+  if (track1.classList.contains('active')) POLL_INTERVAL = 4000
+  else { POLL_INTERVAL = 500000}
+
+   
+
+  // مرجع عنصر التحميل (loader)
+  let loadingEl = null;
+
+  // دوال مساعدة
+  function escapeHtml(s){ return (s||'').toString().replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#039;'); }
+  function getCsrfToken(){ const t = document.querySelector('[name=csrfmiddlewaretoken]'); return t ? t.value : ''; }
+  function nowTime(){ const d=new Date(); return `${d.getHours()}:${d.getMinutes().toString().padStart(2,'0')}`; }
+  function scrollBottom(force=false){
+    if(!messagesArea) return;
+    const nearBottom = messagesArea.scrollTop + messagesArea.clientHeight >= messagesArea.scrollHeight - 80;
+    if(force || nearBottom) messagesArea.scrollTop = messagesArea.scrollHeight;
+  }
+
+  function createLoadingMessage(text='جاري تحميل المحادثة...'){
+    const c = document.createElement('div');
+    c.className = 'cls9999_loading';
+    c.style.cssText = "display:flex;flex-direction:column;align-items:center;padding:20px;color:var(--muted)";
+    c.innerHTML = `<div style="width:32px;height:32px;border:3px solid #eee;border-top:3px solid #333;border-radius:50%;animation:spin 1s linear infinite;margin-bottom:12px"></div><div>${escapeHtml(text)}</div>`;
+    if(!document.getElementById('chat9999_keyframes')){
+      const k = document.createElement('style'); k.id='chat9999_keyframes';
+      k.textContent = "@keyframes spin{from{transform:rotate(0)}to{transform:rotate(360deg)}}";
+      document.head.appendChild(k);
+    }
+    return c;
+  }
+
+  function removeLoadingIfExists(){
+    if(loadingEl && loadingEl.parentNode) {
+      loadingEl.parentNode.removeChild(loadingEl);
+      loadingEl = null;
+    } else {
+      // محاولة إزالة أي عنصر يحمل الكلاس في حال لم نحتفظ بالمراجع
+      const existing = messagesArea ? messagesArea.querySelector('.cls9999_loading') : null;
+      if (existing && existing.parentNode) existing.parentNode.removeChild(existing);
+    }
+  }
+
+  // رسالة "لا توجد رسائل"
+  function showEmptyMessage(text='لا توجد رسائل.'){
+    removeEmptyMessage();
+    const d = document.createElement('div');
+    d.className = 'cls9999_empty_state';
+    d.style.cssText = "text-align:center;padding:20px;color:var(--muted)";
+    d.textContent = text;
+    messagesArea.appendChild(d);
+  }
+  function removeEmptyMessage(){
+    const ex = messagesArea ? messagesArea.querySelector('.cls9999_empty_state') : null;
+    if(ex && ex.parentNode) ex.parentNode.removeChild(ex);
+  }
+
+  // إنشاء عنصر رسالة بسيط
+  function makeMessageNode(m){
+    const isMe = !!m.fromMe;
+    const wrapper = document.createElement('div');
+    wrapper.className = 'cls9999_msg_bubble' + (isMe ? ' me' : '');
+    if(m.id) wrapper.dataset.msgId = m.id;
+      const timeHtml = `<span class="cls3741_msg_time">${escapeHtml(m.time)}</span>`;
+      const msg_status = isMe ? `<span class="cls3741_msg_status" style="z-index:123; color:var(--wa-msg-muted); margin-top: 6px;">${escapeHtml(m.status || '')}</span>` : '';
+
+
+    // const timeHtml = `<span class="cls9999_msg_time">${escapeHtml(m.time || nowTime())}</span>`;
+    if (m.type === 'image') {
+      wrapper.innerHTML = `<img src="${escapeHtml(m.url||'')}" class="cls9999_media_image"/><div class="cls9999_msg_footer">${timeHtml}</div>`;
+    } else if (m.type === 'video') {
+      wrapper.innerHTML = `<video controls class="cls9999_media_video"><source src="${escapeHtml(m.url||'')}" type="${escapeHtml(m.mime||'video/mp4')}"></video><div class="cls9999_msg_footer">${timeHtml}</div>`;
+    } else if (m.type === 'audio') {
+        const transcriptionHtml = (!isMe && m.body) ? `<div class="cls9999_audio_transcription" title="Transcribed text (what the AI heard)">${escapeHtml(m.body)}</div>` : '';
+        wrapper.innerHTML = `
+          <div class="audio-message ${isMe ? 'fromMe' : 'fromThem'}" role="group" aria-label="audio message">
+            <button class="audio-play" type="button" aria-label="Play audio">▶</button>
+            <div class="audio-progress"><div class="bar"></div></div>
+            <span class="audio-time">0:00</span>
+            <audio preload="metadata" style="display: none;">
+              <source src="${escapeHtml(m.url || '')}" type="audio/ogg">
+              <source src="${escapeHtml(m.url || '')}" type="audio/mpeg">
+              <source src="${escapeHtml(m.url || '')}" type="audio/webm">
+              متصفحك لا يدعم تشغيل الصوت.
+            </audio>
+          </div>
+          ${transcriptionHtml}
+          <div class="cls3741_msg_footer" style="display:flex; justify-content:flex-end; 
+    gap: 5px;">
+            ${timeHtml}
+            ${msg_status}
+          </div>
+        `;
+
+        // تهيئة مشغل الصوت بعد إضافة العنصر إلى DOM
+        setTimeout(() => {
+          const audioElement = wrapper.querySelector('audio');
+          if (audioElement) {
+            initializeAudioPlay(audioElement);
+          }
+        }, 100);
+      }  else {
+      wrapper.innerHTML = `<div class="cls9999_text">${escapeHtml(m.body||'')}</div><div class="cls9999_msg_footer">${timeHtml}</div>`;
+    }
+
+    // إزالة رسالة الفارغ إن كانت موجودة
+    removeEmptyMessage();
+
+    setTimeout(()=>{ wrapper.style.opacity='1'; wrapper.style.transform='translateY(0)'; }, 20);
+    return wrapper;
+  }
+    function formatTim(sec) {
+      if (isNaN(sec)) return '0:00';
+      const minutes = Math.floor(sec / 60);
+      const seconds = Math.floor(sec % 60);
+      return `${minutes}:${seconds < 10 ? '0' : ''}${seconds}`;
+    }
+    function initializeAudioPlay(audio) {
+      const playBtn = audio.closest('.audio-message').querySelector('.audio-play');
+      const progressBar = audio.closest('.audio-message').querySelector('.bar');
+      const timeDisplay = audio.closest('.audio-message').querySelector('.audio-time');
+
+      audio.addEventListener('timeupdate', () => {
+        const current = formatTim(audio.currentTime);
+        const duration = formatTim(audio.duration);
+        timeDisplay.textContent = `${current} / ${duration || '0:00'}`;
+        if (!isNaN(audio.duration)) {
+          const percent = (audio.currentTime / audio.duration) * 100;
+          progressBar.style.width = percent + '%';
+        }
+      });
+
+      audio.addEventListener('ended', () => {
+        playBtn.textContent = '▶';
+        progressBar.style.width = '0%';
+      });
+
+      playBtn.addEventListener('click', () => {
+        if (audio.paused) {
+          audio.play();
+          playBtn.textContent = '⏸';
+        } else {
+          audio.pause();
+          playBtn.textContent = '▶';
+        }
+      });
+    }
+
+  function existsMsgId(id){
+    if(!id) return false;
+    if (typeof id === 'string' && id.startsWith('temp_')) return false;
+    return !!messagesArea.querySelector(`[data-msg-id="${id}"]`);
+  }
+
+  function appendMessages(msgs){
+    if(!Array.isArray(msgs) || !messagesArea) return;
+    // قبل الإضافة نزيل الـ loader إن وجد
+    removeLoadingIfExists();
+
+    msgs.sort((a,b)=> (a.id||0) - (b.id||0));
+    let added=false;
+    for(const m of msgs){
+      if(m.id && existsMsgId(m.id)){
+        if (m.id > (lastMessageId||0)) lastMessageId = m.id;
+        continue;
+      }
+      const node = makeMessageNode(m);
+      messagesArea.appendChild(node);
+      // ربط تشغيل الصوت إن وجد
+      const audioBtn = node.querySelector('.cls9999_audio_play');
+      const audioEl = node.querySelector('audio');
+      if (audioBtn && audioEl){
+        audioBtn.addEventListener('click', ()=>{ audioEl.play(); audioBtn.style.display='none'; });
+        audioEl.addEventListener('ended', ()=>{ if(audioBtn) audioBtn.style.display='inline-block'; });
+      }
+      if (m.id && m.id > (lastMessageId||0)) lastMessageId = m.id;
+      added = true;
+    }
+    if(added) scrollBottom(true);
+  }
+
+  // جلب الرسائل من الخادم لرقم currentPhone
+  async function fetchMessagesForCurrent(){
+    if(!currentPhone) return;
+
+    // const url = `${API_URLS_9999.messages}?phone=${encodeURIComponent(currentPhone)}&since_id=${encodeURIComponent(lastMessageId||0)}`;
+    const url = `${window.API_URLS.messages}?phone=${encodeURIComponent(currentPhone)}&since_id=${encodeURIComponent(lastMessageId||0)}&channel_id=${currentChannelId}&tracking=true`;
+     
+    try{
+      const res = await fetch(url, { cache:'no-store', headers: { 'Accept':'application/json' }});
+  
+ 
+      if(!res.ok) {
+        // ازالة loader حتى في حالة فشل الشبكة
+        removeLoadingIfExists();
+        console.error('chat9999.fetchMessagesForCurrent - non-ok response', res.status);
+        return;
+      }
+
+ 
+      const data = await res.json();
+      const msgs = data.messages || [];
+
+      // ازالة loader دائمًا عندما نستلم الرد
+      removeLoadingIfExists();
+
+      if(Array.isArray(msgs) && msgs.length) {
+        appendMessages(msgs);
+      } else {
+        // لا توجد رسائل -> أظهر رسالة فارغة
+        showEmptyMessage();
+      }
+    }catch(e){
+      removeLoadingIfExists();
+      console.error('chat9999.fetchMessagesForCurrent', e);
+      // اختياري: عرض رسالة خطأ داخل الواجهة
+      const errEl = document.createElement('div');
+      errEl.style.cssText = "color:#b91c1c;text-align:center;padding:12px";
+      errEl.textContent = 'فشل في تحميل الرسائل';
+      messagesArea.appendChild(errEl);
+    }
+  }
+
+      async function lastmsg(){
+      const url = `${window.API_URLS.lastmsg}?phone=${encodeURIComponent(currentPhone)}&since_id=${encodeURIComponent(lastMessageId||0)}`;
+      try{
+        const res = await fetch(url, { 
+          cache: 'no-store', 
+          headers: { 'Accept': 'application/json' }
+        });
+         if (res.status == 400) {
+  const resData = await res.json();
+
+  showSendError(resData, {
+    phone: currentPhone, 
+    onRetry: () => {
+      sendMessageLocal();
+    },
+    onSelectTemplate: () => {
+      showTemplateModal(currentPhone  , currentCustomerData)
+
+      document.dispatchEvent(new CustomEvent('openTemplatePanel'));
+    },
+    autoDismissMs: 9000
+  });
+ 
+  return;
+}
+          if (res.status == 200) {
+            const cls9999 = document.querySelector('.cls9999_chat_input_wrapper');
+            const bannerer = cls9999.querySelector('.error-banner');
+            if (bannerer) {
+              bannerer.remove();
+            document.querySelector('.cls9999_chat_input_container').classList.remove('d-none')
+            }
+          }
+
+}catch(e){console.error('fetchMessagesForCurrent', e);} 
+
+        if(!res.ok) return;
+      
+    }
+
+ 
+ 
+
+    
+// ====== إنشاء WS مع تسجيل و queue للإرسال إذا لم يفتح بعد ======
+const websocket_protocol = window.location.protocol === 'https:' ? 'wss' : 'ws';
+const WS_PATH = websocket_protocol + '://' + window.location.host + '/chat/stream/'; 
+
+let ws = null;
+let wsSendQueue = [];
+let wsIsReady = false;
+
+function initWebSocket() {
+  if (ws) {
+    try { ws.close(); } catch(e){ }
+  }
+  ws = new WebSocket(WS_PATH);
+
+  ws.onopen = function() {
+    wsIsReady = true;
+    // أفرغ الطابور
+    while (wsSendQueue.length) {
+      const msg = wsSendQueue.shift();
+      try { ws.send(msg); } catch(e) { console.error('ws.send failed from queue', e); break; }
+    }
+  };
+
+  ws.onmessage = async function(event) {
+    // انتبه: هذه الدالة كانت لديك مسبقًا؛ أبقِ المنطق هنا كما هو
+    try {
+      const data = JSON.parse(event.data);
+      if (data.status === 400) {
+        showSendError(data, { phone: currentPhone, onRetry: () => sendMessageLocal(), onSelectTemplate: () => { showTemplateModal(currentPhone); document.dispatchEvent(new CustomEvent('openTemplatePanel')); }, autoDismissMs: 9000 });
+        return;
+      }
+      if (data.status === 200) {
+        queuedFile = null;
+        queuedFileType = null;
+        if (mediaPreview) mediaPreview.innerHTML = '';
+        await fetchMessagesForCurrent();
+      }
+    } catch (e) {
+      console.error('Invalid WS message', e, event.data);
+    }
+  };
+
+  ws.onclose = function(evt) {
+    console.warn('WebSocket CLOSED', evt);
+    wsIsReady = false;
+ 
+    setTimeout(initWebSocket, 2000);
+  };
+
+  ws.onerror = function(err) {
+    console.error('WebSocket ERROR', err);
+  };
+}
+
+// بدء الاتصال
+initWebSocket();
+
+
+// ====== دالة مساعدة: إرسال JSON عبر WS مع انتظار الفتح ======
+function wsSendJson(obj) {
+  const text = JSON.stringify(obj);
+  if (wsIsReady && ws && ws.readyState === WebSocket.OPEN) {
+    ws.send(text);
+    return Promise.resolve();
+  }
+
+
+  // إذا ما زال يغربل: ضعها في طابور وسيتم إرسالها عند الفتح
+  return new Promise((resolve, reject) => {
+    wsSendQueue.push(text);
+    // إن لم تُفتح بعد خلال 6 ثوانٍ، نفرِض فشل
+    const to = setTimeout(() => {
+      // نحاول إخبار المستدعي أن الإرسال فشل
+      const i = wsSendQueue.indexOf(text);
+      if (i !== -1) wsSendQueue.splice(i, 1);
+      reject(new Error('WebSocket did not open in time'));
+    }, 6000);
+
+    // إذا فُرغ الطابور (تم الإرسال) نحل الـ promise
+    // لأن الطابور لا يعرف بالـ resolve نربط عبر مراقب صغير:
+    const checkInterval = setInterval(() => {
+      const i = wsSendQueue.indexOf(text);
+      if (i === -1) {
+        clearTimeout(to);
+        clearInterval(checkInterval);
+        resolve();
+      }
+    }, 200);
+  });
+}
+
+
+// ====== تحويل الملف إلى base64 (كما عندك) ======
+function fileToBase64(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const result = reader.result.split(",")[1];
+      resolve(result);
+    };
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+
+
+// ====== sendMessageLocal مُحسّنة لتعمل فوق WS ======
+async function sendMessageLocal(fileObj = null, fileType = null) {
+  if (!currentPhone) { alert('يرجى اختيار محادثة أولاً'); return; }
+
+  if (fileObj instanceof Event) { fileObj = null; fileType = null; }
+  const fileToSend = fileObj || queuedFile;
+  const typeToSend = fileType || queuedFileType;
+
+  const activeChannelId = window.currentChannelId;
+  if (fileToSend && typeToSend === 'audio') {
+    if (!activeChannelId || activeChannelId === 'null') {
+      alert('خطأ: القناة غير محددة.');
+      return;
+    }
+    if (sendBtn) sendBtn.disabled = true;
+    try {
+      const fd = new FormData();
+      fd.append('audio', fileToSend, fileToSend.name || 'recording.webm');
+      fd.append('channel_id', String(activeChannelId));
+      fd.append('to', currentPhone);
+      const cap = messageInput ? messageInput.value : '';
+      if (cap) fd.append('body', cap);
+      const resp = await fetch('/discount/whatssapAPI/api/live-chat/audio/', {
+        method: 'POST',
+        body: fd,
+        credentials: 'same-origin',
+      });
+      let data = {};
+      try { data = await resp.json(); } catch (_) {}
+      if (!resp.ok || !data.ok) {
+        const msg = (data && (data.details || data.error)) || resp.statusText || 'خطأ غير معروف';
+        throw new Error(typeof msg === 'string' ? msg : JSON.stringify(msg));
+      }
+      if (messageInput) messageInput.value = '';
+      queuedFile = null;
+      queuedFileType = null;
+      if (mediaPreview) mediaPreview.innerHTML = '';
+    } catch (err) {
+      console.error('chat9999.sendMessageLocal audio:', err);
+      alert('فشل إرسال الصوت: ' + (err.message || err));
+    } finally {
+      if (sendBtn) sendBtn.disabled = false;
+    }
+    return;
+  }
+
+  if (sendBtn) sendBtn.disabled = true;
+
+  try {
+    // بناء الحمولة التي سيرسلها الـ consumer
+    const payload = {
+      // استخدم حقل "type" أو "action" حسب ما يتوقعه consumer
+      // في الكود السابق consumer يتحقّق data.get("type") أو data.get("action")
+      // نضع هنا type أصغر تعقيداً:
+      type: fileToSend ? 'media_upload' : 'text',
+      to: currentPhone,
+      body: '',
+      channel_id: window.currentChannelId
+    };
+
+    if (fileToSend && typeToSend) {
+      const base64 = await fileToBase64(fileToSend);
+
+      payload.type = typeToSend; 
+      payload.file = base64;
+       
+       payload.mime = fileToSend.type || ( typeToSend === 'image' ? 'image/jpeg' :
+        typeToSend === 'video' ? 'video/mp4' :
+         typeToSend === 'audio' ? 'audio/ogg' : 'application/octet-stream' );
+
+      payload.msg_type ='media_upload'; }  
+       
+    else {
+      const text = messageInput ? messageInput.value.trim() : '';
+      if (!text) { if (sendBtn) sendBtn.disabled = false; alert('اكتب رسالة'); return; }
+      if (messageInput) messageInput.value = '';
+      payload.body = text;
+      payload.type = 'text';
+    }
+
+    // فحص سريع لحالة websocket (نطبع الحالة في الكونسول لمساعدة التشخيص)
+
+    // أرسل عبر wsSendJson - هذه الدالة تضع الرسالة في طابور إذا لم يكن الاتصال مفتوحاً
+    // await wsSendJson({
+    //   action: 'send_message', // optional، consumer يقرأ type أو action
+    //   ...payload
+    // });
+
+    await ChatSocket.send(
+     'send_message', 
+     payload 
+    );
+
+    // عند النجاح نترك انتظار الرد عبر ws.onmessage لمعالجة حالة 200/400
+  } catch (err) {
+    console.error('chat9999.sendMessageLocal(ws) error:', err);
+    alert('فشل الإرسال: ' + (err.message || err));
+  } finally {
+    if (sendBtn) sendBtn.disabled = false;
+  }
+}
+
+
+
+
+
+ 
+ 
+  // معاينة الوسائط
+  function renderMediaPreview(file, type){
+    if (!mediaPreview) return;
+    mediaPreview.innerHTML = '';
+    const wrapper = document.createElement('div');
+    wrapper.style.cssText = "display:flex;align-items:center;gap:10px;padding:10px;border:1px solid #eee;border-radius:10px";
+    let inner = '';
+    if (type === 'image') inner = `<img src="${URL.createObjectURL(file)}" style="width:60px;height:60px;object-fit:cover;border-radius:6px"/><div>${escapeHtml(file.name)}</div>`;
+    else if (type === 'video') inner = `<div style="width:60px;height:60px;border-radius:6px;display:flex;align-items:center;justify-content:center">🎬</div><div>${escapeHtml(file.name)}</div>`;
+    else if (type === 'audio') inner = `<div style="width:60px;height:60px;border-radius:6px;display:flex;align-items:center;justify-content:center">🎵</div><div>${Math.round(file.size/1024)} KB</div>`;
+    wrapper.innerHTML = inner + `<button class="cls9999_preview_remove" style="margin-left:auto;background:none;border:none;cursor:pointer">✕</button>`;
+    wrapper.querySelector('.cls9999_preview_remove').addEventListener('click', ()=>{ queuedFile=null; queuedFileType=null; mediaPreview.innerHTML=''; });
+    mediaPreview.appendChild(wrapper);
+  }
+
+  // ربط أزرار ملفات الإدخال
+  if (imageBtn && imageInput){
+    imageBtn.addEventListener('click', ()=> imageInput.click());
+    imageInput.addEventListener('change', e=>{
+      const f = e.target.files[0];
+      if (f){ queuedFile = f; queuedFileType = 'image'; renderMediaPreview(f,'image'); }
+      imageInput.value='';
+    });
+  }
+  if (videoBtn && videoInput){
+    videoBtn.addEventListener('click', ()=> videoInput.click());
+    videoInput.addEventListener('change', e=>{
+      const f = e.target.files[0];
+      if (f){ queuedFile = f; queuedFileType = 'video'; renderMediaPreview(f,'video'); }
+      videoInput.value='';
+    });
+  }
+
+  // تسجيل صوتي بسيط
+  if (audioBtn){
+    audioBtn.addEventListener('click', async ()=>{
+      try {
+        if (!isRecording){
+          const stream = await navigator.mediaDevices.getUserMedia({ audio:true });
+          mediaRecorder = new MediaRecorder(stream);
+          audioBlobs = [];
+          mediaRecorder.ondataavailable = ev => audioBlobs.push(ev.data);
+          mediaRecorder.onstop = () => {
+            const blob = new Blob(audioBlobs, { type:'audio/webm' });
+            queuedFile = new File([blob], `voice_${Date.now()}.webm`, { type:'audio/webm' });
+            queuedFileType = 'audio';
+            renderMediaPreview(queuedFile,'audio');
+            stream.getTracks().forEach(t=>t.stop());
+          };
+          mediaRecorder.start();
+          isRecording = true;
+          audioBtn.classList.add('recording');
+        } else {
+          mediaRecorder.stop();
+          isRecording = false;
+          audioBtn.classList.remove('recording');
+        }
+      } catch(e){
+        console.error('chat9999.record', e);
+        alert('لا يمكن الوصول إلى الميكروفون.');
+      }
+    });
+  }
+
+  // زر الإرسال والحقل
+  if (sendBtn) sendBtn.addEventListener('click', e => { e.preventDefault(); if (queuedFile && queuedFileType) sendMessageLocal(queuedFile, queuedFileType); else sendMessageLocal(); });
+  if (messageInput) messageInput.addEventListener('keydown', e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); if (queuedFile && queuedFileType) sendMessageLocal(queuedFile, queuedFileType); else sendMessageLocal(); } });
+
+  // وظيفة poll بسيطة لقراءة الرسائل الجديدة
+  async function pollLoop(){
+    try{ await fetchMessagesForCurrent(); } catch(e){ /* ignore */ }
+    finally { pollTimer = setTimeout(pollLoop, POLL_INTERVAL); }
+  }
+
+  // الدالة التي ستستدعيها عن طريق openChat(phone, name)
+  function openChatLocal(phone, name){
+    // normalize phone
+    const normalized = (phone||'').toString().replace(/^\+/, '').replace(/\s+/g,'');
+    currentPhone = normalized;
+    lastMessageId = 0;
+
+    if (activeAvatar) activeAvatar.textContent = (name||normalized).toString().trim().charAt(0).toUpperCase();
+    if (activeNameEl) activeNameEl.textContent = name || normalized;
+    if(set_phone) set_phone.textContent = currentPhone
+    if (activeLastSeen) activeLastSeen.textContent = 'متصل الآن';
+
+    if (messagesArea) {
+      messagesArea.innerHTML = '';
+      loadingEl = createLoadingMessage();
+      messagesArea.appendChild(loadingEl);
+    }
+
+    // مزامنة مع السكريبت العام إن وُجد
+    if (window.__chatInput && typeof window.__chatInput.setCurrentPhone === 'function') {
+      try { window.__chatInput.setCurrentPhone(normalized); } catch(e){ /* ignore */ }
+    } else if (window.__chatSelectPhone && typeof window.__chatSelectPhone === 'function') {
+      try { window.__chatSelectPhone(normalized, name); } catch(e){ /* ignore */ }
+    }
+
+    // جلب الرسائل مباشرة
+    fetchMessagesForCurrent();
+    lastmsg();
+  }
+
+  // تعريض دوال خارجية للاستخدام
+  window.__chat9999 = window.__chat9999 || {};
+  window.__chat9999.openChat = openChatLocal;
+  window.__chat9999.setCurrentPhone = function(phone){ currentPhone = (phone||'').toString().replace(/^\+/, '').replace(/\s+/g,''); };
+
+  // تعريف openChat العام لينادي الوحدة المعزولة (يفضل أن يستخدم هذا النداء)
+  window.openChat = function(phone, name , product , tracking, sku , price){
+    currentCustomerData = {
+        "Customer Name": name,
+        "Product Name": product,
+        "Tracking Num": tracking,
+        "SKU": sku,
+        "Price": price
+    };
+    const normalizedPhone = phone.replace(/^\+/, '').replace(/\s+/g, '');
+    const rows = document.querySelectorAll(`tr[data-customer-phone*="${normalizedPhone}"]`);
+    
+    rows.forEach(row => {
+        const badge = row.querySelector('.order-msg-badge');
+        if (badge) {
+            badge.style.display = 'none'; // إخفاء النقطة
+        }
+    });
+    
+    if (window.__chat9999 && typeof window.__chat9999.openChat === 'function') {
+      window.__chat9999.openChat(phone, name);
+      if(document.querySelector('.cls9999_chat_input_container').classList.contains('d-none')) document.querySelector('.cls9999_chat_input_container').classList.remove('d-none') 
+      if(document.querySelector('.error-banner')) document.querySelector('.error-banner').classList.add('d-none')
+    } else {
+      console.warn('openChat called but chat9999 not initialized');
+    }
+  };
+
+  // بدء التكرار
+  pollLoop();
+
+})();
+</script>
+
+
+ 
+
+
+ 

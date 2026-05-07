@@ -1,0 +1,597 @@
+/* حاوية الملاحظات التي ستغطي الحقل الأصلي */
+.cls3741_note_overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: #fffbeb; /* أصفر فاتح جداً */
+    border-radius: 12px;
+    z-index: 50; /* لتظهر فوق كل شيء */
+    padding: 12px 16px;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    border: 2px solid #fbbf24; /* حدود صفراء واضحة */
+}
+
+/* هيدر صغير للتوضيح */
+.cls3741_note_header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 8px;
+}
+
+.note_badge {
+    background: #fbbf24;
+    color: #78350f;
+    font-size: 11px;
+    font-weight: bold;
+    padding: 2px 8px;
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.note_info {
+    font-size: 11px;
+    color: #b45309;
+}
+
+/* حقل الكتابة الخاص بالملاحظة */
+.cls3741_chat_textarea.note_mode {
+    background: transparent;
+    color: #451a03;
+}
+.cls3741_chat_textarea.note_mode::placeholder {
+    color: #d97706;
+}
+
+/* أزرار التحكم */
+.cls3741_btn_save_note {
+    background-color: #f59e0b; /* برتقالي/أصفر */
+    color: white;
+    border: none;
+    padding: 6px 16px;
+    border-radius: 6px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    margin-left: auto; /* دفع لليمين */
+}
+.cls3741_btn_save_note:hover {
+    background-color: #d97706;
+}
+
+.cls3741_btn_cancel {
+    background: transparent;
+    border: 1px solid #d1d5db;
+    color: #64748b;
+    padding: 6px 12px;
+    border-radius: 6px;
+    font-size: 13px;
+    cursor: pointer;
+}
+.cls3741_btn_cancel:hover {
+    background: #f1f5f9;
+}
+
+
+
+
+
+
+
+
+/* حاوية الرسالة لتوسيطها */
+.cls3741_internal_note_wrapper {
+    display: flex;
+    justify-content: center;
+    margin: 16px 0;
+    width: 100%;
+}
+
+/* بطاقة الملاحظة نفسها */
+.cls3741_note_card {
+    background-color: #fffbeb; /* أصفر فاتح جداً (Creamy) */
+    border: 1px solid #fcd34d; /* حدود صفراء ذهبية */
+    border-radius: 8px;
+    padding: 12px 16px;
+    max-width: 80%; /* لا تأخذ العرض كاملاً */
+    min-width: 300px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.02);
+    position: relative;
+}
+
+/* الشريط الجانبي للزينة (اختياري) */
+.cls3741_note_card::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 4px;
+    background-color: #f59e0b; /* برتقالي */
+    border-top-left-radius: 8px;
+    border-bottom-left-radius: 8px;
+}
+
+/* الهيدر (الأيقونة واسم الموظف) */
+.note_header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 6px;
+    font-size: 12px;
+    color: #92400e; /* بني غامق */
+}
+
+.note_icon {
+    font-size: 12px;
+}
+
+.note_author {
+    font-weight: 700;
+}
+
+.note_time {
+    margin-left: auto; /* دفع الوقت لليمين */
+    color: #b45309;
+    font-size: 11px;
+}
+
+/* نص الملاحظة */
+.note_body {
+    font-size: 14px;
+    color: #451a03; /* بني غامق جداً للقراءة */
+    line-height: 1.5;
+    padding: 4px;
+    font-weight: bold;
+    padding-left: 40px;
+    font-family: 'Tajawal';
+}
+
+
+
+.cls3741_collision_bar {
+    background-color: #fff3cd; /* أصفر فاتح */
+    border-bottom: 1px solid #ffecb5;
+    color: #856404;
+    padding: 8px 16px;
+    font-size: 13px;
+    font-weight: 600;
+    width: 100%;
+    z-index: 90;
+    border-radius: 14px;
+    animation: slideDown 0.3s ease;
+}
+
+.pulse-icon {
+    width: 8px;
+    height: 8px;
+    background-color: #dc3545; /* أحمر */
+    border-radius: 50%;
+    box-shadow: 0 0 0 rgba(220, 53, 69, 0.4);
+    animation: pulse-red 2s infinite;
+}
+
+@keyframes pulse-red {
+    0% { box-shadow: 0 0 0 0 rgba(220, 53, 69, 0.4); }
+    70% { box-shadow: 0 0 0 6px rgba(220, 53, 69, 0); }
+    100% { box-shadow: 0 0 0 0 rgba(220, 53, 69, 0); }
+}
+
+@keyframes slideDown {
+    from { transform: translateY(-100%); opacity: 0; }
+    to { transform: translateY(0); opacity: 1; }
+}
+
+
+
+
+
+/* quick replay  */
+.cls3741_slash_menu {
+    /* position: absolute; */
+    bottom: 100%; /* تظهر فوق الحقل */
+    left: 0;
+
+    width: 100%; /* أو 100% حسب الرغبة */
+    background: white;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    box-shadow: 0 -4px 6px -1px rgba(0, 0, 0, 0.1);
+    z-index: 100;
+    overflow: hidden;
+    margin-bottom: 8px; /* مسافة صغيرة عن الحقل */
+    display: none; /* مخفية افتراضياً */
+}
+
+.slash_header {
+    background: #f8fafc;
+    padding: 8px 12px;
+    font-size: 11px;
+    font-weight: bold;
+    color: #64748b;
+    border-bottom: 1px solid #e2e8f0;
+}
+
+.slash_list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    max-height: 200px;
+    overflow-y: auto;
+}
+
+.slash_item {
+    padding: 10px 12px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    border-bottom: 1px solid #f1f5f9;
+    transition: background 0.1s;
+}
+
+.slash_item:hover, .slash_item.active {
+    background-color: #f0f9ff; /* أزرق فاتح جداً */
+}
+
+.cmd_badge {
+    background: #e0f2fe;
+    color: #0369a1;
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-size: 12px;
+    font-family: monospace;
+    font-weight: bold;
+}
+
+.cmd_text {
+    font-size: 13px;
+    color: #334155;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* =========================
+   Nuclear Light Mode Override
+   Forces light UI when html.dark is absent (or html.light is present)
+   ========================= */
+html:not(.dark) body,
+html.light body {
+    background-color: #f8fafc !important;
+    color: #0f172a !important;
+}
+
+html:not(.dark) h1, html:not(.dark) h2, html:not(.dark) h3, html:not(.dark) h4, html:not(.dark) h5, html:not(.dark) h6, html:not(.dark) p, html:not(.dark) label, html:not(.dark) span, html:not(.dark) li,
+html.light h1, html.light h2, html.light h3, html.light h4, html.light h5, html.light h6, html.light p, html.light label, html.light span, html.light li {
+    color: #0f172a !important;
+}
+
+html:not(.dark) .card,
+html:not(.dark) .modal-content,
+html:not(.dark) section > div,
+html:not(.dark) .cls3741_dashboard > div,
+html:not(.dark) .cls3741_panel_dashboard,
+html:not(.dark) .cls3741_panel_orders,
+html:not(.dark) .cls3741_panel_templates,
+html:not(.dark) .cls3741_panel_clients,
+html:not(.dark) .cls3741_panel_campaigns,
+html.light .card,
+html.light .modal-content,
+html.light section > div,
+html.light .cls3741_dashboard > div,
+html.light .cls3741_panel_dashboard,
+html.light .cls3741_panel_orders,
+html.light .cls3741_panel_templates,
+html.light .cls3741_panel_clients,
+html.light .cls3741_panel_campaigns {
+    background: #ffffff !important;
+    border-color: #e2e8f0 !important;
+    color: #1e293b !important;
+}
+
+html:not(.dark) input,
+html:not(.dark) textarea,
+html:not(.dark) select,
+html.light input,
+html.light textarea,
+html.light select {
+    background-color: #ffffff !important;
+    color: #0f172a !important;
+    border-color: #cbd5e1 !important;
+}
+
+html:not(.dark) [class*="bg-[#0f172a]"],
+html:not(.dark) [class*="bg-[#111827]"],
+html:not(.dark) [class*="bg-[#1e293b]"],
+html:not(.dark) [class*="bg-slate-900"],
+html:not(.dark) [class*="bg-slate-800"],
+html:not(.dark) [class*="text-white"],
+html.light [class*="bg-[#0f172a]"],
+html.light [class*="bg-[#111827]"],
+html.light [class*="bg-[#1e293b]"],
+html.light [class*="bg-slate-900"],
+html.light [class*="bg-slate-800"],
+html.light [class*="text-white"] {
+    background-color: #ffffff !important;
+    color: #0f172a !important;
+    border-color: #e2e8f0 !important;
+}
+
+
+
+
+
+/* حاوية البطاقة */
+.cls3741_reply_card {
+    background-color: #1e293b; /* لون داكن عصري (Slate-800) */
+    border: 1px solid #334155;
+    border-radius: 12px;
+    overflow: hidden;
+    transition: all 0.3s ease;
+    position: relative;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+}
+
+.cls3741_reply_card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3);
+    border-color: #475569;
+}
+
+/* منطقة المعاينة (Media Preview) */
+.cls3741_media_preview {
+    width: 100%;
+    height: 140px; /* ارتفاع ثابت للمعاينة */
+    background-color: #0f172a; /* Slate-900 */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    overflow: hidden;
+}
+
+/* تنسيق الصورة */
+.cls3741_media_preview img {
+    width: 100%;
+    height: 299px;
+    object-fit: cover;
+    transition: transform 0.3s;
+}
+.cls3741_reply_card:hover .cls3741_media_preview img {
+    transform: scale(1.05); /* زووم خفيف عند التحويم */
+}
+
+/* أيقونات الوسط (Play, Audio) */
+.cls3741_overlay_icon {
+    width: 40px;
+    height: 40px;
+    background: rgba(0, 0, 0, 0.6);
+    backdrop-filter: blur(4px);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-size: 16px;
+    z-index: 2;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+/* جسم البطاقة */
+.cls3741_card_body {
+    padding: 12px;
+    flex-grow: 1;
+    display: flex;
+    flex-direction: column;
+}
+
+/* الشارة (Shortcut Badge) */
+.cls3741_shortcut_badge {
+    font-family: 'Courier New', monospace;
+    font-weight: bold;
+    font-size: 12px;
+    color: #38bdf8; /* سماوي */
+    background: rgba(56, 189, 248, 0.1);
+    padding: 4px 8px;
+    border-radius: 6px;
+    display: inline-block;
+    margin-bottom: 8px;
+}
+
+/* النص */
+.cls3741_card_text {
+    font-size: 13px;
+    color: #94a3b8;
+    line-height: 1.5;
+    
+    /* قص النص بعد 3 أسطر */
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    margin-bottom: 10px;
+}
+
+/* الفوتر (الأزرار والكاتب) */
+.cls3741_card_footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: auto;
+    padding-top: 10px;
+    border-top: 1px solid #334155;
+}
+
+/* أزرار التحكم الصغيرة */
+.cls3741_action_btn {
+    width: 28px;
+    height: 28px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 6px;
+    border: none;
+    background: transparent;
+    color: #64748b;
+    transition: all 0.2s;
+}
+
+.cls3741_action_btn:hover {
+    background: #334155;
+    color: white;
+}
+
+.cls3741_action_btn.delete:hover {
+    background: #450a0a;
+    color: #ef4444;
+}
+
+
+
+/* نجعل المؤشر يد يدل على النقر */
+.cls3741_media_preview {
+    cursor: pointer;
+    position: relative;
+}
+
+/* طبقة تظهر عند التحويم لتوضيح إمكانية التشغيل */
+/* .cls3741_media_preview::after {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(0,0,0,0);
+    transition: background 0.3s;
+    z-index: 1;
+} */
+
+ 
+
+/* تكبير الأيقونة قليلاً عند التحويم */
+.cls3741_reply_card:hover .cls3741_overlay_icon {
+    transform: scale(1.1);
+    background: rgba(56, 189, 248, 0.9); /* تتحول للأزرق عند التحويم */
+    border-color: transparent;
+}
+
+
+
+
+
+
+
+
+
+/* تنسيق أيقونة الإرسال المباشر */
+.direct-send-btn {
+    width: 30px;
+    height: 30px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    color: #0ea5e9; /* أزرق سماوي */
+    cursor: pointer;
+    transition: all 0.2s;
+    margin-left: auto; /* دفعها لليمين */
+    z-index: 10; /* لتكون فوق أي طبقة أخرى */
+}
+
+.direct-send-btn:hover {
+    background-color: #0284c7;
+    color: white;
+    transform: scale(1.1);
+}
+
+.slash_item {
+    /* تأكد من أن العنصر مرتب بشكل Flex */
+    display: flex;
+    align-items: center;
+    padding: 8px 12px;
+    cursor: pointer;
+}
+
+
+
+
+/* حاوية المعاينة فوق حقل الإدخال */
+.cls3741_attachment_preview {    background-color: #1e293b;
+    border: 1px solid #334155;
+    border-radius: 8px;
+    padding: 10px;
+    margin-bottom: 8px;
+    position: relative;
+    display: flex;
+    margin: 5px;
+    max-width: 100%;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.2);
+    /* width: 100%; */
+    height: auto;
+    flex-direction: column;
+    align-items: flex-start;
+    align-content: flex-start;
+}
+
+/* تنسيق الصور والفيديو المصغر */
+.cls3741_mini_media {
+    max-height: 300px; /* ارتفاع ثابت لعدم تخريب التصميم */
+    border-radius: 6px;
+    width: auto;
+    display: block;
+}
+
+/* زر الإغلاق (X) */
+.cls3741_close_preview {
+    position: absolute;
+    top: -8px;
+    right: -8px;
+    background: #ef4444; /* أحمر */
+    color: white;
+    border: 2px solid #1e293b; /* حدود بلون الخلفية للجمالية */
+    border-radius: 50%;
+    width: 24px;
+    height: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    font-size: 12px;
+    transition: transform 0.2s;
+    z-index: 10;
+}
+
+.cls3741_close_preview:hover {
+    transform: scale(1.1);
+    background: #dc2626;
+}
+
+/* تسمية الملف */
+.cls3741_preview_label {
+    font-size: 11px;
+    color: #94a3b8;
+    margin-top: 5px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 200px;
+}
+
+
+
+
+
+@media screen and (max-width: 1567px) {
+  
+    .cls3741_btn_label {
+        display: none;
+    }
+    
+}
