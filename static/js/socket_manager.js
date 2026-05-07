@@ -360,11 +360,18 @@ const ChatSocket = {
                 window.highlightOrderRow(payload.contact.phone);
             }
 
-            // Only update the sidebar contact list if the message is for the active channel
-            if (isCurrentChannel) {
-                if (typeof window.updateContactItemSingle === 'function') {
-                    window.updateContactItemSingle(payload.contact, payload.message);
-                }
+            // Always update sidebar contact state for this contact, even if another channel is open.
+            if (typeof window.updateContactItemSingle === 'function') {
+                const contactPatch = Object.assign({}, payload.contact || {}, {
+                    channel_id: payload.contact.channel_id || payload.message.channel_id || null,
+                    last_message: messageText || '',
+                    last_message_timestamp:
+                        payload.message.time ||
+                        payload.message.timestamp ||
+                        payload.message.created_at ||
+                        new Date().toISOString(),
+                });
+                window.updateContactItemSingle(contactPatch, payload.message);
             }
 
             const activePhone = (typeof window.getCurrentChatPhone === 'function') 

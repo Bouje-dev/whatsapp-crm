@@ -10548,6 +10548,14 @@ document.addEventListener("DOMContentLoaded", function() {
       return String(p || '').replace(/\D/g, '');
     }
 
+    function isLastMessageFromAgent(row) {
+      if (!row || typeof row !== 'object') return false;
+      if (row.fromMe === true || row.is_from_me === true) return true;
+      var senderType = String(row.sender_type || row.senderType || '').toLowerCase();
+      if (senderType === 'agent' || senderType === 'business' || senderType === 'system') return true;
+      return false;
+    }
+
     /** Same chat identity even if formats differ (06… vs +212… vs 212…). */
     function contactPhonesMatch(a, b) {
       var da = phoneDigitsOnly(a);
@@ -10626,12 +10634,15 @@ document.addEventListener("DOMContentLoaded", function() {
         item.setAttribute('timestamp_', c.timestamp || '');
         item.setAttribute('data-user-id', c.assigned_agent_id || '');
       }
-      const isUnread = c.unread && c.unread > 0;
-      const badge = isUnread ? `<div class="cls3741_contact_badge green">${c.unread}</div>` : '';
+      const fromAgent = isLastMessageFromAgent(c);
+      const unreadCount = Number(c.unread || 0);
+      // Strict policy: unread badge/highlight only when last unread comes from customer.
+      const isUnreadFromCustomer = !fromAgent && unreadCount > 0;
+      const badge = isUnreadFromCustomer ? `<div class="cls3741_contact_badge green">${unreadCount}</div>` : '';
       const needsHumanBadge = c.needs_human ? '<span class="hitl-contact-badge" title="Needs Human Action">Human</span>' : '';
-      const snippetClass = isUnread ? 'cls3741_contact_snippet green' : 'cls3741_contact_snippet';
+      const snippetClass = isUnreadFromCustomer ? 'cls3741_contact_snippet green' : 'cls3741_contact_snippet';
       let statusIconHTML = '';
-      if (c.fromMe) {
+      if (fromAgent) {
         statusIconHTML = `<span class="sidebar-status-icon">${getStatusIconHTML(c.last_status || 'pending')}</span>`;
       }
       const avatarSrc = c.profile_picture || 'https://cdn.pixabay.com/photo/2023/02/18/11/00/icon-7797704_640.png';
@@ -12976,6 +12987,11 @@ function applyContactItemSingleUpdate(contactData, messagePayload) {
   const listEl = document.getElementById('cls3741_contacts_list');
   if (!listEl || !contactData) return;
 
+  const incomingChannelId = String(
+    contactData.channel_id != null
+      ? contactData.channel_id
+      : (messagePayload && messagePayload.channel_id != null ? messagePayload.channel_id : '')
+  );
   const isChatActive = window.getCurrentChatPhone && contactPhonesMatch(window.getCurrentChatPhone(), contactData.phone || '');
 
   const merged = Object.assign({}, contactData);
@@ -12989,13 +13005,32 @@ function applyContactItemSingleUpdate(contactData, messagePayload) {
     else if (mt === 'document') sn = sn || '📎 Document';
     if (sn) merged.snippet = sn;
     if (messagePayload.id != null) merged.last_id = messagePayload.id;
-    if (messagePayload.time) merged.timestamp = messagePayload.time;
+    if (messagePayload.time || messagePayload.timestamp || messagePayload.created_at) {
+      merged.timestamp = messagePayload.time || messagePayload.timestamp || messagePayload.created_at;
+    }
     if (messagePayload.channel_id != null) merged.channel_id = messagePayload.channel_id;
     if (typeof messagePayload.fromMe === 'boolean') merged.fromMe = messagePayload.fromMe;
+    if (typeof messagePayload.is_from_me === 'boolean') merged.is_from_me = messagePayload.is_from_me;
+    if (messagePayload.sender_type != null) merged.sender_type = messagePayload.sender_type;
   }
-  if (isChatActive) merged.unread = 0;
+  // Canonical sidebar fields expected by newer UI contracts.
+  merged.last_message = merged.last_message || merged.snippet || '';
+  merged.last_message_timestamp = merged.last_message_timestamp || merged.timestamp || '';
+  // Keep legacy rendering fields in sync.
+  if (!merged.snippet && merged.last_message) merged.snippet = merged.last_message;
+  if (!merged.timestamp && merged.last_message_timestamp) merged.timestamp = merged.last_message_timestamp;
+  // Strict policy: our own messages must never contribute to unread/green state.
+  if (isLastMessageFromAgent(merged) || isChatActive) merged.unread = 0;
 
-  let idx = allContactsData.findIndex(c => contactPhonesMatch(c.phone, contactData.phone));
+  const sameThread = function (c) {
+    if (!c || !contactPhonesMatch(c.phone, contactData.phone)) return false;
+    const rowChannelId = String(c.channel_id != null ? c.channel_id : '');
+    // Prefer exact channel+phone match; fall back to phone-only when channel is absent.
+    if (!incomingChannelId || !rowChannelId) return true;
+    return rowChannelId === incomingChannelId;
+  };
+
+  let idx = allContactsData.findIndex(sameThread);
   if (idx >= 0) {
     allContactsData[idx] = Object.assign({}, allContactsData[idx], merged);
   } else {
@@ -13003,7 +13038,7 @@ function applyContactItemSingleUpdate(contactData, messagePayload) {
   }
   window.__allContactsData = allContactsData;
 
-  let sidx = sidebarState.contacts.findIndex(c => contactPhonesMatch(c.phone, contactData.phone));
+  let sidx = sidebarState.contacts.findIndex(sameThread);
   let base = sidx >= 0 ? sidebarState.contacts[sidx] : {};
   let row = Object.assign({}, base, merged);
   if (sidx >= 0) sidebarState.contacts.splice(sidx, 1);
