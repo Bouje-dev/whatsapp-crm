@@ -10673,7 +10673,12 @@ document.addEventListener("DOMContentLoaded", function() {
     }
 
     function __refreshContactsVirtualList() {
-      if (__contactsVirtualList) __contactsVirtualList.refresh();
+      if (__contactsVirtualList) {
+        __contactsVirtualList.refresh();
+      } else {
+        // Fallback for non-virtual mode: data changed but list was never re-rendered.
+        renderSidebarItems(false);
+      }
       syncSidebarActiveRowHighlight();
     }
     window.__refreshContactsVirtualList = __refreshContactsVirtualList;
