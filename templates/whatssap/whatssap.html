@@ -10346,6 +10346,20 @@ async function exchangeTokenForChannel(code, channelName, wabaId, phoneId) {
  
 
 document.addEventListener("DOMContentLoaded", function() {
+  // Ensure websocket is initialized even if parent page bootstrap did not run.
+  if (window.ChatSocket) {
+    const ws = window.ChatSocket.socket;
+    const closed =
+      !ws ||
+      ws.readyState === WebSocket.CLOSING ||
+      ws.readyState === WebSocket.CLOSED;
+    if (closed && typeof window.ChatSocket.init === 'function') {
+      window.ChatSocket.init('global_room');
+    }
+  } else {
+    console.warn('ChatSocket is missing; realtime contacts will not update.');
+  }
+
   window.API_URLS = {
     send: "{% url 'send_message' %}",
     upload: "{% url 'upload_media' %}",
