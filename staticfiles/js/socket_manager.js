@@ -333,18 +333,31 @@ const ChatSocket = {
 
             let messageText = "";
 
-            if (payload.message.type == 'text') {
-                messageText = payload.message.body;  
-            } else {
-                if (payload.message.type == 'image') {
-                    messageText = "Image";
-                }  
-                if (payload.message.type == 'video') {
-                    messageText = "Video";
-                }   
-                if (payload.message.type == 'audio') {
-                    messageText = "Audio";
-                }
+            const _msgType = String(payload.message.type || '').toLowerCase();
+            if (_msgType === 'text' || _msgType === 'chat' || _msgType === 'conversation') {
+                // Cover the most common text-type names across WhatsApp API providers.
+                messageText = payload.message.body || payload.message.text || payload.message.content || '';
+            } else if (_msgType === 'image') {
+                messageText = "📷 Image";
+            } else if (_msgType === 'video') {
+                messageText = "🎬 Video";
+            } else if (_msgType === 'audio' || _msgType === 'ptt' || _msgType === 'voice') {
+                messageText = "🎤 Audio";
+            } else if (_msgType === 'document' || _msgType === 'file') {
+                messageText = "📎 Document";
+            } else if (_msgType === 'sticker') {
+                messageText = "🎭 Sticker";
+            } else if (_msgType === 'location') {
+                messageText = "📍 Location";
+            }
+            // Ultimate fallback: scrape any text field on the message object regardless of type.
+            if (!messageText) {
+                messageText = payload.message.body
+                    || payload.message.text
+                    || payload.message.content
+                    || payload.message.caption
+                    || payload.message.message
+                    || '';
             }
 
             // Determine the currently active channel
@@ -380,9 +393,10 @@ const ChatSocket = {
             }
 
             // ── 2. Bulletproof direct DOM mutation ───────────────────────────────────
-            // Find the sidebar row by iterating all contact items and matching on
-            // last-9-digit phone suffix so format differences (+212… vs 212…) don't matter.
-            (function __sidebarDirectPatch() {
+            // Wrapped in requestAnimationFrame so it executes AFTER the virtual list's own
+            // RAF re-render (which was scheduled inside updateContactItemSingle above).
+            // This guarantees the patch overwrites whatever the re-render produced.
+            requestAnimationFrame(function __sidebarDirectPatch() {
                 var inDigits = String(incomingPhone || '').replace(/\D/g, '');
                 if (!inDigits) return;
 
@@ -461,7 +475,7 @@ const ChatSocket = {
                 if (listEl && listEl.firstChild !== targetRow) {
                     listEl.insertBefore(targetRow, listEl.firstChild);
                 }
-            })();
+            });
 
             const activePhone = (typeof window.getCurrentChatPhone === 'function') 
                                 ? window.getCurrentChatPhone() 
