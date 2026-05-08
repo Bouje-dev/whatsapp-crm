@@ -11,7 +11,7 @@ const ChatSocket = {
         this.socket.onopen = () => {};
         this.socket.onclose = () => {
             
-            setTimeout(() => ChatSocket.init(), 2000); // ✅ صحيح
+            setTimeout(() => ChatSocket.init(), 2000);  
                 
         }
         
@@ -19,6 +19,7 @@ const ChatSocket = {
         this.socket.onmessage = (e) => {
             const data = JSON.parse(e.data);
             this.handleIncomingMessage(data);
+            console.log('data from socket', data);
             
         };
     },
@@ -360,12 +361,103 @@ const ChatSocket = {
                 window.highlightOrderRow(payload.contact.phone);
             }
 
-            // Only update the sidebar contact list if the message is for the active channel
-            if (isCurrentChannel) {
-                if (typeof window.updateContactItemSingle === 'function') {
-                    window.updateContactItemSingle(payload.contact, payload.message);
-                }
+            // ── 1. State-layer update (drives virtual list / next full render) ──────────
+            if (typeof window.updateContactItemSingle === 'function') {
+                const contactPatch = Object.assign({}, payload.contact || {}, {
+                    channel_id: payload.contact.channel_id || payload.message.channel_id || null,
+                    last_message: messageText || '',
+                    last_message_timestamp:
+                        payload.message.time ||
+                        payload.message.timestamp ||
+                        payload.message.created_at ||
+                        new Date().toISOString(),
+                });
+                window.updateContactItemSingle(contactPatch, payload.message);
             }
+
+            // ── 2. Bulletproof direct DOM mutation ───────────────────────────────────
+            // Find the sidebar row by iterating all contact items and matching on
+            // last-9-digit phone suffix so format differences (+212… vs 212…) don't matter.
+            (function __sidebarDirectPatch() {
+                var inDigits = String(incomingPhone || '').replace(/\D/g, '');
+                if (!inDigits) return;
+
+                var rows = document.querySelectorAll('.cls3741_contact_item[data-phone]');
+                var targetRow = null;
+                for (var i = 0; i < rows.length; i++) {
+                    var rowDigits = String(rows[i].getAttribute('data-phone') || '').replace(/\D/g, '');
+                    if (!rowDigits) continue;
+                    // Match on full digits or last-9-digit suffix.
+                    if (rowDigits === inDigits ||
+                        (rowDigits.length >= 9 && inDigits.length >= 9 &&
+                         rowDigits.slice(-9) === inDigits.slice(-9))) {
+                        targetRow = rows[i];
+                        break;
+                    }
+                }
+                if (!targetRow) return;
+
+                var phone = targetRow.getAttribute('data-phone') || incomingPhone;
+                var fromAgent = payload.message.fromMe === true || payload.message.is_from_me === true;
+
+                // 2a. Snippet text
+                var snippetTextEl = targetRow.querySelector('[data-sidebar-snippet-text]');
+                if (snippetTextEl) {
+                    var raw = messageText || '';
+                    snippetTextEl.textContent = raw.length > 38 ? raw.substring(0, 38) + '…' : raw;
+                }
+
+                // 2b. Snippet container — green only for incoming customer messages
+                var snippetEl = targetRow.querySelector('[data-sidebar-snippet]');
+                if (snippetEl) {
+                    snippetEl.className = (!fromAgent) ? 'cls3741_contact_snippet green' : 'cls3741_contact_snippet';
+                }
+
+                // 2c. Status icon (checkmark for our own messages, nothing for inbound)
+                var statusIconEl = targetRow.querySelector('[data-sidebar-status-icon]');
+                if (statusIconEl) {
+                    statusIconEl.innerHTML = fromAgent
+                        ? (typeof window.getStatusIconHTML === 'function'
+                            ? '<span class="sidebar-status-icon">' + window.getStatusIconHTML('sent') + '</span>'
+                            : '')
+                        : '';
+                }
+
+                // 2d. Timestamp
+                var tsEl = targetRow.querySelector('[data-sidebar-ts]');
+                if (tsEl) {
+                    var ts = payload.message.time || payload.message.timestamp || '';
+                    if (!ts) {
+                        var now = new Date();
+                        ts = now.getHours().toString().padStart(2, '0') + ':' + now.getMinutes().toString().padStart(2, '0');
+                    }
+                    tsEl.textContent = ts;
+                }
+
+                // 2e. Unread badge — increment only for customer messages
+                var badgeWrapEl = targetRow.querySelector('[data-sidebar-badge-wrap]');
+                if (badgeWrapEl) {
+                    if (fromAgent) {
+                        // Our own message: clear unread badge entirely
+                        badgeWrapEl.innerHTML = '';
+                    } else {
+                        // Customer message: increment or create badge
+                        var existingBadge = badgeWrapEl.querySelector('.cls3741_contact_badge');
+                        if (existingBadge) {
+                            var cur = parseInt(existingBadge.textContent || '0', 10) || 0;
+                            existingBadge.textContent = String(cur + 1);
+                        } else {
+                            badgeWrapEl.innerHTML = '<div class="cls3741_contact_badge green">1</div>';
+                        }
+                    }
+                }
+
+                // 2f. Bubble this contact row to the very top of the sidebar list
+                var listEl = targetRow.parentElement;
+                if (listEl && listEl.firstChild !== targetRow) {
+                    listEl.insertBefore(targetRow, listEl.firstChild);
+                }
+            })();
 
             const activePhone = (typeof window.getCurrentChatPhone === 'function') 
                                 ? window.getCurrentChatPhone() 
