@@ -365,6 +365,10 @@ const ChatSocket = {
             if (typeof window.updateContactItemSingle === 'function') {
                 const contactPatch = Object.assign({}, payload.contact || {}, {
                     channel_id: payload.contact.channel_id || payload.message.channel_id || null,
+                    // Set both 'snippet' AND 'last_message' so buildContactItemElement always
+                    // renders the correct text whether the virtual list re-builds via the state
+                    // path or the direct DOM mutation path.
+                    snippet: messageText || '',
                     last_message: messageText || '',
                     last_message_timestamp:
                         payload.message.time ||
