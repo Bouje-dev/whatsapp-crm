@@ -11,7 +11,7 @@ const ChatSocket = {
         this.socket.onopen = () => {};
         this.socket.onclose = () => {
             
-            setTimeout(() => ChatSocket.init(), 2000); // ✅ صحيح
+            setTimeout(() => ChatSocket.init(), 2000);  
                 
         }
         
@@ -19,6 +19,7 @@ const ChatSocket = {
         this.socket.onmessage = (e) => {
             const data = JSON.parse(e.data);
             this.handleIncomingMessage(data);
+            console.log('data from socket', data);
             
         };
     },
