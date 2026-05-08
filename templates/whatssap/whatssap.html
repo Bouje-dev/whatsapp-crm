@@ -10653,14 +10653,14 @@ document.addEventListener("DOMContentLoaded", function() {
         </div>
         <div class="cls3741_contact_meta">
             <div class="cls3741_contact_name">${escapeHtml(c.name || c.phone)}</div>
-            <div class="${snippetClass}" style="font-family:'tajawal', sans-serif;">
-                ${statusIconHTML} ${escapeHtml(c.snippet || '')}
+            <div class="${snippetClass}" data-sidebar-snippet="${escapeHtml(phoneRaw)}" style="font-family:'tajawal', sans-serif;">
+                <span data-sidebar-status-icon="${escapeHtml(phoneRaw)}">${statusIconHTML}</span><span data-sidebar-snippet-text="${escapeHtml(phoneRaw)}">${escapeHtml(c.snippet || '')}</span>
             </div>
         </div>
-        <div style="display:flex; flex-direction:column; align-items:flex-end; gap:4px;">
-             <span class="cls3741_msg_time" style="font-size:10px; color:var(--text-secondary);">${ts}</span>
+        <div data-sidebar-meta-wrap="${escapeHtml(phoneRaw)}" style="display:flex; flex-direction:column; align-items:flex-end; gap:4px;">
+             <span data-sidebar-ts="${escapeHtml(phoneRaw)}" class="cls3741_msg_time" style="font-size:10px; color:var(--text-secondary);">${ts}</span>
              ${needsHumanBadge}
-             ${badge}
+             <span data-sidebar-badge-wrap="${escapeHtml(phoneRaw)}">${badge}</span>
         </div>
     `;
       return item;
