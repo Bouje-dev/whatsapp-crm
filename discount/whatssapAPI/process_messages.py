@@ -22,6 +22,110 @@ logger = logging.getLogger(__name__)
 VERIFY_TOKEN = getattr(settings, 'VERIFY_TOKEN', "token")
 
 
+# ──────────────────────────────────────────────────────────────────────────────
+# Reverse Geocoding — GPS coordinates → human-readable address
+# Uses Nominatim (OpenStreetMap) via geopy. No API key needed.
+# Rate limit: 1 req/sec — safe for per-message use (one location per customer).
+# ──────────────────────────────────────────────────────────────────────────────
+
+def _reverse_geocode_location(latitude, longitude, timeout: int = 5) -> dict | None:
+    """
+    Reverse geocode (lat, lon) → address dict using Nominatim (OpenStreetMap).
+
+    Returns a dict with keys: city, neighbourhood, state, country, raw_address.
+    Returns None on any failure (network error, timeout, no result).
+
+    Never raises — callers must treat None as "geocoding unavailable".
+    """
+    try:
+        from geopy.geocoders import Nominatim  # type: ignore[import-untyped]
+        from geopy.exc import GeocoderTimedOut, GeocoderUnavailable  # type: ignore[import-untyped]
+
+        geolocator = Nominatim(user_agent="disound-whatsapp-agent/1.0", timeout=timeout)
+        location = geolocator.reverse(
+            f"{latitude}, {longitude}",
+            exactly_one=True,
+            language="en",         # English for reliable field names
+        )
+        if not location:
+            return None
+
+        addr = location.raw.get("address", {})
+        city = (
+            addr.get("city")
+            or addr.get("town")
+            or addr.get("village")
+            or addr.get("municipality")
+            or ""
+        ).strip()
+        neighbourhood = (
+            addr.get("suburb")
+            or addr.get("neighbourhood")
+            or addr.get("quarter")
+            or addr.get("district")
+            or ""
+        ).strip()
+        state = (addr.get("state") or addr.get("region") or "").strip()
+        country = (addr.get("country") or "").strip()
+        raw_address = (location.address or "").strip()
+
+        return {
+            "city": city,
+            "neighbourhood": neighbourhood,
+            "state": state,
+            "country": country,
+            "raw_address": raw_address,
+            "latitude": latitude,
+            "longitude": longitude,
+        }
+    except Exception as _geo_err:
+        logger.warning(
+            "[Geocoding] reverse_geocode(%s, %s) failed: %s",
+            latitude, longitude, _geo_err,
+        )
+        return None
+
+
+def _build_location_body(latitude, longitude) -> str:
+    """
+    Reverse geocode the customer's shared GPS pin and return a
+    hidden system note for the AI to consume instead of raw coordinates.
+
+    The note instructs the AI to:
+      - Acknowledge the location naturally in the active dialect.
+      - Ask the customer to confirm it is the correct delivery address.
+    """
+    geo = _reverse_geocode_location(latitude, longitude)
+
+    if geo:
+        city = geo.get("city") or ""
+        neighbourhood = geo.get("neighbourhood") or ""
+        state = geo.get("state") or ""
+
+        # Build a readable location label, e.g. "Bourgogne, Casablanca"
+        parts = [p for p in [neighbourhood, city, state] if p]
+        readable = ", ".join(parts) if parts else geo.get("raw_address") or f"{latitude},{longitude}"
+
+        return (
+            f"[SYSTEM NOTE: The customer just shared their live GPS location. "
+            f"Reverse geocoding indicates they are near: {readable}. "
+            f"Raw address: {geo['raw_address'] or 'N/A'}. "
+            f"Coordinates: {latitude}, {longitude}. "
+            "Acknowledge receiving their location in a warm, natural way (in the dialect you are using). "
+            "Then ask them to CONFIRM whether this is the exact address they want their delivery sent to, "
+            "or if they would like to correct/add any detail (e.g. apartment number, street name). "
+            "DO NOT place the order yet — wait for confirmation.]"
+        )
+    else:
+        return (
+            f"[SYSTEM NOTE: The customer shared a GPS location pin "
+            f"(coordinates: {latitude}, {longitude}) but the address could not be automatically resolved. "
+            "Acknowledge receiving their location pin in a warm, natural way (in the dialect you are using). "
+            "Then ask them to type their City and Neighbourhood (and street if possible) so you can "
+            "register the correct delivery address. DO NOT place the order yet.]"
+        )
+
+
 ACCESS_TOKEN = getattr(settings, 'ACCESS_TOKEN', "EAALZBubBgmq0BP7ECHmEACY6YMB8nsV8MtxTQKwSexB3RqW9ZB3EkRdDp7MQnjuqCJHQ598lkQ9CQQmXTd2jZAI8NhGKyMLATmJgXbZAWKprwErSjANdMsTtduBBvqURZApEWlAqcYsgckaTLcWgYUHmzfFanu0oZANZC3H5zSj2fGjKZCm4oTTRpsjGbXy7zNwRbQZDZD")
 # ------------ test number --------------- 
 PHONE_NUMBER_ID = getattr(settings, 'PHONE_NUMBER_ID', "866281303235440")
@@ -38,6 +142,20 @@ from ..channel.socket_utils import send_socket
 from discount.whatssapAPI.wa_status import (
     normalize_whatsapp_delivery_status,
     status_timestamp_from_meta_webhook,
+)
+from discount.whatssapAPI.session_state import (
+    is_hard_reset_keyword,
+    get_active_node_fast,
+    set_session_cache,
+    clear_session_and_cache,
+    complete_session,
+    get_session_context_data,
+    get_reset_ack,
+    set_conversation_state,
+    get_conversation_state,
+    set_session_active_product,
+    clear_session_pricing_state,
+    STATE_AWAITING_PAYMENT_RECEIPT,
 )
 
 SESSION_TIMEOUT_HOURS = 24
@@ -431,6 +549,11 @@ def send_automated_response(recipient, responses, channel=None, user=None):
                             text = _RE_MARKDOWN_IMAGE.sub('', text)
                             text = _RE_BARE_IMAGE_URL.sub('', text)
                             text = text.strip()
+                            try:
+                                from discount.services.message_normalize import normalize_outbound_text
+                                text = normalize_outbound_text(text)
+                            except Exception:
+                                pass
                         if not text:
                             print("❌ نص فارغ")
                             continue
@@ -464,6 +587,11 @@ def send_automated_response(recipient, responses, channel=None, user=None):
 
                         caption = item.get("content", "").strip()
                         if caption:
+                            try:
+                                from discount.services.message_normalize import normalize_outbound_text
+                                caption = normalize_outbound_text(caption)
+                            except Exception:
+                                pass
                             data[msg_type]["caption"] = caption
 
                     # ------------------------
@@ -564,6 +692,19 @@ def send_automated_response(recipient, responses, channel=None, user=None):
                                 type = msg_type , 
                                  
                             )
+                            if msg_type == "text" and res.status_code == 200 and channel:
+                                try:
+                                    from discount.services.fulfillment_messages import (
+                                        save_payment_rejection_notice_from_outbound,
+                                    )
+                                    save_payment_rejection_notice_from_outbound(
+                                        channel, recipient, body,
+                                    )
+                                except Exception as _prn_err:
+                                    logger.debug(
+                                        "save_payment_rejection_notice_from_outbound: %s",
+                                        _prn_err,
+                                    )
                             snippet = body or ""
                             if msg_type == 'image': snippet = 'image'
                             elif msg_type == 'video': snippet = 'vedio'
@@ -806,8 +947,9 @@ def save_incoming_message(msg, message_type, sender=None, channel=None, name=Non
             loc = msg.get('location', {})
             latitude = loc.get('latitude')
             longitude = loc.get('longitude')
-            # حفظ الإحداثيات كنص
-            body = f"{latitude},{longitude}"
+            # Reverse-geocode the GPS pin → enrich with human-readable address.
+            # _build_location_body always returns a string (graceful fallback on error).
+            body = _build_location_body(latitude, longitude)
 
         # 7. الحفظ في قاعدة البيانات
         # تأكد من أن المودل Message لديك يحتوي على حقل لحفظ 'captions' إذا أردت فصله، أو استخدم body
@@ -832,67 +974,64 @@ def save_incoming_message(msg, message_type, sender=None, channel=None, name=Non
             access_token_to_use = ACCESS_TOKEN
             
         if media_id and access_token_to_use:
-            # دالة التحميل الخاصة بك
             media_content = download_whatsapp_media(media_id, access_token_to_use)
             if media_content:
                 filename = f"{media_id}_{media_type}.{get_media_extension(media_type)}"
-                # حفظ الملف في حقل media_file
                 message_obj.media_file.save(filename, ContentFile(media_content))
-                # تحديث رابط الميديا ليكون الرابط الداخلي بدلاً من ID واتساب
-                message_obj.media_url = message_obj.media_file.url 
+                message_obj.media_url = message_obj.media_file.url
                 message_obj.save()
-                
-        # return message_obj
 
-    
-
-
-
-
-# 1. تجهيز بيانات الرسالة (للعرض داخل الشات)
+        # Broadcast to WebSocket so the chat UI updates without a page reload.
+        display_type = message_obj.media_type or message_obj.type or message_type or "text"
+        msg_time = message_obj.created_at or message_obj.timestamp or timezone.now()
         msg_payload = {
             "id": message_obj.id,
             "body": message_obj.body,
-            "type": message_obj.media_type,
-            "url": message_obj.media_file.url if message_obj.media_file else None, # تأكد من الرابط
-            "time": message_obj.created_at.strftime("%H:%M"),
+            "type": display_type,
+            "url": message_obj.media_file.url if message_obj.media_file else None,
+            "time": msg_time.strftime("%H:%M"),
             "status": "received",
-            "fromMe": False ,
-            "channel_id": channel.id if channel else None, # هام للفرونت إند - مع التحقق من None
+            "fromMe": False,
+            "channel_id": channel.id if channel else None,
         }
 
-        # 2. تجهيز بيانات جهة الاتصال (للقائمة الجانبية)
-        snippet = ''
-        if message_obj.media_type == 'audio': snippet = '[صوت]'
-        elif message_obj.media_type == 'image': snippet = '[صورة]'
-        elif message_obj.media_type == 'video': snippet = '[فيديو]'
-        else: snippet = message_obj.body[:80] if message_obj.body else ''
+        if message_obj.media_type == "audio":
+            snippet = "[صوت]"
+        elif message_obj.media_type == "image":
+            snippet = "[صورة]"
+        elif message_obj.media_type == "video":
+            snippet = "[فيديو]"
+        else:
+            snippet = message_obj.body[:80] if message_obj.body else ""
 
-        unread_count = Message.objects.filter(sender=message_obj.sender, is_read=False, channel=channel).count() if channel else Message.objects.filter(sender=message_obj.sender, is_read=False).count()
+        if channel:
+            unread_count = Message.objects.filter(
+                sender=message_obj.sender, is_read=False, channel=channel
+            ).count()
+        else:
+            unread_count = Message.objects.filter(
+                sender=message_obj.sender, is_read=False
+            ).count()
 
         contact_payload = {
-            "channel_id": channel.id if channel else None, # هام للفرونت إند - مع التحقق من None
+            "channel_id": channel.id if channel else None,
             "phone": message_obj.sender,
-            "name": name if name else message_obj.sender, # أو الاسم المخزن في جدول Contact
+            "name": name if name else message_obj.sender,
             "snippet": snippet,
             "unread": unread_count,
             "last_id": message_obj.id,
-            "timestamp": message_obj.created_at.strftime("%H:%M") 
+            "timestamp": msg_time.strftime("%H:%M"),
         }
 
-        # 3. إرسال باكيج موحد يحتوي على الاثنين
-        full_payload = {
-            "contact": contact_payload,
-            "message": msg_payload
-        }
-        team_id = channel.owner.id 
-        dynamic_group_name = f"team_updates_{team_id}"
-
-        send_socket(
-            data_type="new_message_received", # اسم نوع جديد وواضح
-            payload=full_payload ,
-            group_name = dynamic_group_name
+        team_id = getattr(channel, "owner_id", None) or (
+            getattr(channel.owner, "id", None) if channel and getattr(channel, "owner", None) else None
         )
+        if team_id:
+            send_socket(
+                data_type="new_message_received",
+                payload={"contact": contact_payload, "message": msg_payload},
+                group_name=f"team_updates_{team_id}",
+            )
 
         return message_obj
 
@@ -1232,29 +1371,14 @@ def _send_catalog_reply(sender, catalog_products, channel):
 
 
 def update_chat_session_on_trigger(channel, customer_phone, active_node):
-    """On new trigger match: set or update ChatSession to this product (active_node)."""
+    """On new trigger match: sticky-bind session to this node + product (no re-trigger needed)."""
     if not channel or not customer_phone or not active_node:
         return
-    active_product = None
     try:
-        ai_cfg = getattr(active_node, "ai_model_config", None) or {}
-        pid = ai_cfg.get("product_id") if isinstance(ai_cfg, dict) else None
-        owner = getattr(channel, "owner", None)
-        if pid is not None and owner:
-            active_product = Products.objects.filter(id=int(pid), admin=owner).first()
-    except Exception as e:
-        logger.warning("update_chat_session_on_trigger resolve active_product: %s", e)
-    try:
-        ChatSession.objects.update_or_create(
-            channel=channel,
-            customer_phone=customer_phone,
-            defaults={
-                "active_node": active_node,
-                "active_product": active_product,
-                "is_expired": False,
-                "last_interaction": timezone.now(),
-            },
-        )
+        from discount.whatssapAPI.session_state import persist_sticky_sales_session
+
+        active_product = _get_node_bound_product(active_node, channel)
+        persist_sticky_sales_session(channel, customer_phone, active_node, active_product)
     except Exception as e:
         logger.warning("update_chat_session_on_trigger: %s", e)
 
@@ -1340,30 +1464,42 @@ def _resolve_pronoun_anchor_product_name(channel, customer_phone, session, curre
 
 
 def get_active_session(channel, customer_phone):
-    """Return active ChatSession for (channel, customer_phone) if not expired and within 24h."""
+    """
+    Return the active ChatSession for (channel, customer_phone).
+
+    Persistent sessions — NO time cutoff.  Sessions live until explicitly
+    resolved (order complete → is_completed=True, or reset → is_expired=True).
+    E-commerce customers return after 20-30 days and must resume seamlessly.
+    """
     if not channel or not customer_phone:
         return None
-    cutoff = timezone.now() - timedelta(hours=SESSION_TIMEOUT_HOURS)
     return (
         ChatSession.objects.filter(
             channel=channel,
             customer_phone=customer_phone,
             is_expired=False,
-            last_interaction__gte=cutoff,
+            is_completed=False,
         )
         .select_related("active_node", "active_product")
         .first()
     )
 
 
-def expire_chat_session(channel, customer_phone):
-    """Mark session as expired (e.g. after successful order)."""
+def expire_chat_session(channel, customer_phone, reason: str = "order_complete"):
+    """
+    Resolve the active session.
+
+    - reason="order_complete"  → sets is_completed=True  (goal achieved)
+    - any other reason         → sets is_expired=True    (cancelled / HITL)
+
+    Also evicts the cache layer so the next message sees no active session.
+    """
     if not channel or not customer_phone:
         return
-    try:
-        ChatSession.objects.filter(channel=channel, customer_phone=customer_phone).update(is_expired=True)
-    except Exception as e:
-        logger.warning("expire_chat_session: %s", e)
+    if reason == "order_complete":
+        complete_session(channel, customer_phone)
+    else:
+        clear_session_and_cache(channel, customer_phone, reason=reason)
 
 
 def _touch_session_last_interaction(channel, customer_phone):
@@ -1978,15 +2114,22 @@ def _resolve_node_product(current_node, channel):
 
 def _execute_apply_discount(channel, coupon_code, current_node=None):
     """Validate coupon using product config (coupon/backup price) and return negotiation guidance for the AI."""
+    from discount.services.pricing_prompt import (
+        build_dynamic_pricing_protocol,
+        negotiation_floor_is_valid,
+    )
+
     product = _resolve_node_product(current_node, channel) if current_node else None
     configured_coupon = ((getattr(product, "coupon_code", None) or "").strip().upper() if product else "")
-    backup_price = getattr(product, "backup_price", None) if product else None
     currency = (getattr(product, "currency", None) or "MAD").strip() if product else "MAD"
     product_name = (getattr(product, "name", None) or "the product").strip() if product else "the product"
+    can_negotiate = negotiation_floor_is_valid(product)
+    backup_price = getattr(product, "backup_price", None) if can_negotiate else None
+    official = getattr(product, "price", None) if product else None
 
     if not coupon_code or not str(coupon_code).strip():
         if configured_coupon:
-            if backup_price is not None:
+            if can_negotiate:
                 return (
                     f"No coupon code provided. Use configured coupon '{configured_coupon}' for {product_name}. "
                     f"If needed, your fallback negotiation price is {backup_price} {currency}. "
@@ -1994,36 +2137,53 @@ def _execute_apply_discount(channel, coupon_code, current_node=None):
                 )
             return (
                 f"No coupon code provided. Use configured coupon '{configured_coupon}' for {product_name}. "
-                "Offer a small discount only if needed and keep margin healthy."
+                f"Price is fixed at {official} {currency} — no further discount without a valid code."
             )
-        if backup_price is not None:
+        if can_negotiate:
             return (
                 f"No coupon code provided. For {product_name}, fallback negotiation price is {backup_price} {currency}. "
                 "Use it as the last acceptable offer and do not go below it."
             )
-        return "No coupon code provided."
+        return (
+            f"No coupon code provided. For {product_name}, the price is final at {official} {currency}. "
+            "Do not offer discounts or invent codes."
+        )
     code = str(coupon_code).strip().upper()
     if configured_coupon:
         if code != configured_coupon:
-            if backup_price is not None:
+            if can_negotiate:
                 return (
                     f"Coupon '{code}' is not valid for {product_name}. "
                     f"Only '{configured_coupon}' is allowed. "
                     f"You may still negotiate down to backup price {backup_price} {currency}, but not below it."
                 )
-            return f"Coupon '{code}' is not valid for {product_name}. Only '{configured_coupon}' is allowed."
-        if backup_price is not None:
+            return (
+                f"Coupon '{code}' is not valid for {product_name}. Only '{configured_coupon}' is allowed. "
+                f"Official price {official} {currency} is final — no negotiation."
+            )
+        if can_negotiate:
             return (
                 f"Coupon '{code}' is valid for {product_name}. "
                 f"Use discount messaging and keep final negotiated price at or above {backup_price} {currency}."
             )
         return f"Coupon '{code}' is valid for {product_name}. Offer the configured discount professionally."
 
-    # Optional: load from channel.context_data or Node config; for now use a small allowlist
-    allowed = getattr(settings, "AI_SALES_COUPON_CODES", None) or ["WELCOME10", "RAMADAN15", "FIRST10", "COD10"]
-    if code in [c.upper() for c in allowed]:
-        return f"Coupon '{code}' is valid. You can offer a limited-time discount (e.g. 10% off) to the customer. Tell them the code is valid for this order."
-    return f"Coupon '{code}' is not valid or expired. Suggest they contact support for a valid code, or emphasize product value instead."
+    floor_hint = ""
+    if can_negotiate:
+        floor_hint = (
+            f" Negotiate with real prices only; never go below {backup_price} {currency}. "
+            "Offer a gradual concession from official price — frame as a personal special today, not a coupon."
+        )
+    elif product and official is not None:
+        floor_hint = f" Price is final at {official} {currency} — do not negotiate lower."
+
+    return (
+        f"Coupon '{code}' is NOT valid for {product_name}. "
+        "Do NOT invent or offer discount codes. "
+        + (f"Configured coupon for this product: '{configured_coupon}'." if configured_coupon else "No coupon is configured for this product.")
+        + floor_hint
+        + (f" {build_dynamic_pricing_protocol(product)}" if product else "")
+    )
 
 
 def get_channel_catalog_context(channel, max_products=100, description_chars=200):
@@ -2085,52 +2245,60 @@ def get_channel_catalog_context(channel, max_products=100, description_chars=200
         return ""
 
 
-def search_channel_products(channel, query, top_n=5):
+def search_channel_products(channel, query, top_n=5, *, return_top_match=False):
     """
     Search the channel's products by query. Returns the closest matching products (by name, description, category).
     Used when the customer asks "do you have X?" — if we don't have X exactly, return the closest products we have.
     Returns a string for the AI (list of product names, prices, and why they're relevant).
+
+    When ``return_top_match=True``, returns ``(text, top_product, top_score)`` where ``top_score`` reflects
+    match strength (0 = no keyword hit). Used to sync ``ChatSession.active_product`` on product switches.
     """
+    empty_match = ("Store not configured.", None, 0)
     if not channel:
-        return "Store not configured."
+        return empty_match if return_top_match else empty_match[0]
     owner = getattr(channel, "owner", None)
     if not owner:
-        return "Store not configured."
+        return empty_match if return_top_match else empty_match[0]
     q = str(query or "").strip().lower()
+    top_product = None
+    top_score = 0
     try:
         products = list(Products.objects.filter(admin=owner).order_by("name")[:200])
         if not products:
-            return "The store has no products in the catalog."
+            msg = "The store has no products in the catalog."
+            return (msg, None, 0) if return_top_match else msg
+
+        def _format_line(p):
+            name = (getattr(p, "name", None) or "").strip() or "Unnamed"
+            price = getattr(p, "price", None)
+            currency = (getattr(p, "currency", None) or "MAD").strip() or "MAD"
+            price_str = f"{price} {currency}" if price is not None else "—"
+            category = (getattr(p, "category", None) or "").strip() or "general"
+            return (
+                f"- {name} | [DB_PRODUCT_ID: {p.id}] | Price: {price_str} | Category: {category}"
+            )
+
         # Empty query means customer asked generic catalog question ("what products do you have?")
         if not q:
             lines = ["Available products in the store catalog:\n"]
             for p in products[: max(1, int(top_n))]:
-                name = (getattr(p, "name", None) or "").strip() or "Unnamed"
-                price = getattr(p, "price", None)
-                currency = (getattr(p, "currency", None) or "MAD").strip() or "MAD"
-                price_str = f"{price} {currency}" if price is not None else "—"
-                category = (getattr(p, "category", None) or "").strip() or "general"
-                lines.append(f"- {name} | Price: {price_str} | Category: {category}")
-            return "\n".join(lines)
+                lines.append(_format_line(p))
+            text = "\n".join(lines)
+            return (text, None, 0) if return_top_match else text
         words = [w for w in re.split(r"\s+", q) if len(w) >= 2]
         if not words:
-            # Very short/single-token query: fallback to catalog list instead of hallucinating.
             lines = ["Available products in the store catalog:\n"]
             for p in products[: max(1, int(top_n))]:
-                name = (getattr(p, "name", None) or "").strip() or "Unnamed"
-                price = getattr(p, "price", None)
-                currency = (getattr(p, "currency", None) or "MAD").strip() or "MAD"
-                price_str = f"{price} {currency}" if price is not None else "—"
-                category = (getattr(p, "category", None) or "").strip() or "general"
-                lines.append(f"- {name} | Price: {price_str} | Category: {category}")
-            return "\n".join(lines)
+                lines.append(_format_line(p))
+            text = "\n".join(lines)
+            return (text, None, 0) if return_top_match else text
         scored = []
         for p in products:
             name = (getattr(p, "name", None) or "").strip().lower() or ""
             desc = (getattr(p, "description", None) or "").strip().lower() or ""
             category = (getattr(p, "category", None) or "").strip().lower() or ""
             sku = (getattr(p, "sku", None) or "").strip().lower() or ""
-            text = f"{name} {desc} {category} {sku}"
             score = 0
             for w in words:
                 if w in name:
@@ -2143,28 +2311,81 @@ def search_channel_products(channel, query, top_n=5):
                     score += 3
             scored.append((score, p))
         scored.sort(key=lambda x: -x[0])
-        top = [p for _, p in scored[: top_n] if scored[0][0] > 0 or _ == scored[0][0]]
+        top = [p for s, p in scored[: top_n] if s > 0]
         if not top and scored:
             top = [p for _, p in scored[: top_n]]
+        if scored:
+            top_score = scored[0][0]
+            top_product = scored[0][1] if top_score > 0 else None
         if not top:
-            return "No matching products. Use the full catalog below to suggest alternatives."
+            msg = "No matching products. Use the full catalog below to suggest alternatives."
+            return (msg, None, 0) if return_top_match else msg
         lines = ["Closest products matching the customer's request:\n"]
         for p in top:
-            name = (getattr(p, "name", None) or "").strip() or "Unnamed"
-            price = getattr(p, "price", None)
-            currency = (getattr(p, "currency", None) or "MAD").strip() or "MAD"
-            price_str = f"{price} {currency}" if price is not None else "—"
-            category = (getattr(p, "category", None) or "").strip() or "general"
-            lines.append(f"- {name} | Price: {price_str} | Category: {category}")
-        return "\n".join(lines)
+            lines.append(_format_line(p))
+        text = "\n".join(lines)
+        return (text, top_product, top_score) if return_top_match else text
     except Exception as e:
         logger.warning("search_channel_products: %s", e)
-        return "Search failed. Use the store catalog to suggest products."
+        msg = "Search failed. Use the store catalog to suggest products."
+        return (msg, None, 0) if return_top_match else msg
 
 
-def _execute_search_products(channel, query):
-    """Execute search_products tool: return closest products for the channel matching the query."""
-    return search_channel_products(channel, query or "", top_n=5)
+def _try_sync_active_product_from_message(channel, sender, body, current_node, session):
+    """
+    When the AI node is not catalog-locked, infer product switches from the customer's message
+    (e.g. moving from Netflix to IPTV in the same thread) and refresh session.active_product.
+    """
+    if not channel or not sender or not body or not session:
+        return None
+    ai_cfg = getattr(current_node, "ai_model_config", None) or {}
+    if isinstance(ai_cfg, dict) and ai_cfg.get("product_id"):
+        return None
+    q = str(body).strip()
+    if len(q) < 3:
+        return None
+    try:
+        _, top, score = search_channel_products(channel, q, top_n=3, return_top_match=True)
+        if not top or score < 8:
+            return None
+        set_session_active_product(channel, sender, top, reason="incoming_message")
+        return top
+    except Exception as exc:
+        logger.debug("_try_sync_active_product_from_message: %s", exc)
+        return None
+
+
+def _execute_search_products(channel, sender, query):
+    """Execute search_products tool: return matches and auto-sync active_product on exact/unique hit."""
+    from ai_assistant.tools import should_auto_sync_search_product
+
+    text, top, score = search_channel_products(channel, query or "", top_n=5, return_top_match=True)
+    q = str(query or "").strip()
+    if sender and q and top and should_auto_sync_search_product(q, top, score):
+        set_session_active_product(channel, sender, top, reason="search_products_auto_sync")
+        pname = (getattr(top, "name", None) or "").strip()
+        text += (
+            f"\n\n[SYSTEM: Active product auto-switched to \"{pname}\" "
+            f"(ID {top.id}). Backend pricing rules now match this product. "
+            "Use this product_id for submit_customer_order.]"
+        )
+    elif sender and q and top and score > 0:
+        set_session_active_product(channel, sender, top, reason="search_products")
+    return text
+
+
+def _execute_switch_active_product(channel, sender, args, current_node=None):
+    """Execute switch_active_product tool — DB session sync for product topic changes."""
+    from ai_assistant.tools import execute_switch_active_product, format_switch_active_product_tool_result
+
+    outcome = execute_switch_active_product(
+        channel,
+        sender,
+        product_id=args.get("product_id"),
+        product_name=args.get("product_name"),
+        current_node=current_node,
+    )
+    return format_switch_active_product_tool_result(outcome)
 
 
 def _execute_send_product_media(channel, sender, product_id, caption=""):
@@ -2179,10 +2400,34 @@ def _execute_send_product_media(channel, sender, product_id, caption=""):
         owner = getattr(channel, "owner", None)
         if not owner:
             return json.dumps({"status": "error", "message": "Channel owner missing."}, ensure_ascii=False)
-        pid = int(str(product_id).strip())
-        product = Products.objects.filter(id=pid, admin=owner).first()
+        # Resolve product — prefer numeric DB ID, fall back to name search when the
+        # AI mistakenly passes the product name instead of the integer ID.
+        raw_pid = str(product_id).strip()
+        product = None
+        try:
+            pid = int(raw_pid)
+            product = Products.objects.filter(id=pid, admin=owner).first()
+        except (ValueError, TypeError):
+            pass
+
         if not product:
-            return json.dumps({"status": "error", "message": "Product not found in this store."}, ensure_ascii=False)
+            # Graceful fallback: try exact name match (case-insensitive)
+            product = (
+                Products.objects
+                .filter(admin=owner, name__iexact=raw_pid)
+                .first()
+            )
+            if product:
+                logger.warning(
+                    "_execute_send_product_media: AI passed name '%s' instead of numeric ID — "
+                    "resolved to product id=%s. Fix the prompt.",
+                    raw_pid, product.id,
+                )
+
+        if not product:
+            return json.dumps({"status": "error", "message": f"Product '{raw_pid}' not found in this store."}, ensure_ascii=False)
+        if sender:
+            set_session_active_product(channel, sender, product, reason="send_product_media")
         first_img = ProductImage.objects.filter(product=product).order_by("order", "id").first()
         if not first_img or not getattr(first_img, "image", None):
             return json.dumps({"status": "error", "message": "No image found for this product."}, ensure_ascii=False)
@@ -2214,6 +2459,48 @@ def _execute_send_product_media(channel, sender, product_id, caption=""):
 
 # Transitional message sent to customer before submit_customer_order DB work (UX: no awkward silence)
 SUBMIT_ORDER_TRANSITIONAL_MESSAGE = "غادي نسجل الطلب ديالك دابا. لحظة واحدة..."
+
+
+def _is_direct_sale_digital_product(channel, current_node, tool_args):
+    """
+    Return True when the product targeted by `submit_customer_order` is a
+    DIGITAL product configured for instant submit (Direct Sale or
+    is_digital + collect_customer_info=False).
+
+    For those products we MUST NOT send `SUBMIT_ORDER_TRANSITIONAL_MESSAGE`
+    ("غادي نسجل الطلب…") because the AI is operating in SILENT MODE — the
+    customer expects the payment block to appear immediately, not a delay
+    notice.
+
+    Inputs are intentionally loose (any of channel, node, or args may be
+    missing); the function returns False on any uncertainty so we err on
+    the side of the legacy transitional message.
+    """
+    try:
+        from discount.models import Products as _PTrans
+        from discount.orders_ai import get_required_order_fields_for_product
+        _seller_id = (
+            getattr(channel, "owner_id", None)
+            or (getattr(getattr(channel, "owner", None), "id", None) if channel else None)
+        )
+        _ai_cfg = getattr(current_node, "ai_model_config", None) or {}
+        _pid = None
+        if isinstance(_ai_cfg, dict):
+            _pid = _ai_cfg.get("product_id")
+        if _pid is None and isinstance(tool_args, dict):
+            _pid = tool_args.get("product_id")
+        if not _pid or not _seller_id:
+            return False
+        _prod = _PTrans.objects.filter(id=int(_pid), admin_id=int(_seller_id)).first()
+        if not _prod:
+            return False
+        if not bool(getattr(_prod, "is_digital", False)):
+            return False
+        _req = get_required_order_fields_for_product(_prod)
+        return isinstance(_req, list) and len(_req) == 0
+    except Exception as _ds_err:
+        logger.debug("_is_direct_sale_digital_product: %s", _ds_err)
+        return False
 
 
 def _execute_submit_customer_order(channel, sender, arguments, current_node):
@@ -2268,16 +2555,16 @@ def _execute_submit_customer_order(channel, sender, arguments, current_node):
         }, ensure_ascii=False)
     except Exception as e:
         logger.exception("_execute_submit_customer_order: %s", e)
-        err_msg = str(e)[:200] if e else "unknown"
+        err_msg = f"Error creating order: {e}"
         return json.dumps({
             "status": "error",
             "reason": "Order could not be processed.",
             "instruction": (
-                "SYSTEM ERROR: Tool execution failed in the backend. Log: " + err_msg + ". "
-                "Apologize to the customer naturally (e.g. عندي مشكل تقني بسيط)، tell them a human agent will assist them shortly, and STOP attempting to call the tool."
+                f"SYSTEM ERROR: Tool execution failed in the backend. {err_msg}. "
+                "Apologize to the customer naturally and ask them to try again in a moment."
             ),
             "success": False,
-            "message": "SYSTEM ERROR: Order could not be processed. Please try again.",
+            "message": err_msg,
         }, ensure_ascii=False)
 
 
@@ -2407,13 +2694,46 @@ def _trigger_upsell_after_order(ai_agent_node, channel, sender, saved_order):
     )
 
 
-def run_ai_agent_node(current_node, sender, channel, state_header=None, skip_sentinel=False, incoming_body=None):
+def _incoming_message_has_payment_media(message_type) -> bool:
+    """True only when this turn includes an attached image/document (not text-only)."""
+    return (message_type or "").strip().lower() in ("image", "document")
+
+
+def _customer_in_payment_wait_phase(channel, sender) -> bool:
+    """True when chat is waiting for a digital payment receipt."""
+    if not channel or not (sender or "").strip():
+        return False
+    try:
+        from discount.whatssapAPI.session_state import get_conversation_state, STATE_AWAITING_PAYMENT_RECEIPT
+        from discount.services.fulfillment_messages import resolve_active_digital_payment_order
+
+        state = get_conversation_state(channel, sender)
+        if (state or "").strip().upper() == STATE_AWAITING_PAYMENT_RECEIPT:
+            return True
+        order = resolve_active_digital_payment_order(channel, sender, state)
+        return bool(order and getattr(order, "status", None) == "pending_payment")
+    except Exception:
+        return False
+
+
+def run_ai_agent_node(
+    current_node,
+    sender,
+    channel,
+    state_header=None,
+    skip_sentinel=False,
+    incoming_body=None,
+    incoming_message_type=None,
+    incoming_payment_receipt_valid=None,
+    incoming_media_vision_summary=None,
+):
     """
     Run the AI agent for one node (product context, GPT, media, voice). Returns list of message dicts.
     Goal-oriented: uses ChatSession.context_data for sales_stage and sentiment; runs check_stock, apply_discount, record_order.
     On successful order save, expires ChatSession for (channel, sender).
     skip_sentinel: when True, skip AI Sentinel counter/evaluator (e.g. after sentinel already ran in same turn).
     incoming_body: current user text (after debounce); passed to LLM context and Franco→Darija preprocessing.
+    incoming_message_type: webhook message type (image/document/text/…) for payment media validation prompts.
     """
     from django.conf import settings
 
@@ -2457,12 +2777,34 @@ def run_ai_agent_node(current_node, sender, channel, state_header=None, skip_sen
                     "active_node": current_node,
                     "active_product": _node_product,
                     "is_expired": False,
+                    "is_completed": False,
                     "ai_enabled": True,
                 },
             )
-        elif session and _node_product and getattr(session, "active_product_id", None) != getattr(_node_product, "id", None):
-            session.active_product = _node_product
-            session.save(update_fields=["active_product"])
+        elif session and _node_product:
+            _sess_ctx = getattr(session, "context_data", None) or {}
+            _customer_pivoted = bool(_sess_ctx.get("product_pivot_active"))
+            if (
+                not _customer_pivoted
+                and getattr(session, "active_product_id", None) != getattr(_node_product, "id", None)
+            ):
+                set_session_active_product(channel, sender, _node_product, reason="node_bound_product")
+                session.refresh_from_db(fields=["active_product", "context_data"])
+        if incoming_body and session and channel and sender:
+            _synced_prod = _try_sync_active_product_from_message(
+                channel, sender, incoming_body, current_node, session
+            )
+            if _synced_prod is not None:
+                session.refresh_from_db(fields=["active_product", "context_data"])
+        if current_node and channel and sender:
+            try:
+                from discount.whatssapAPI.session_state import persist_sticky_sales_session
+                _sticky_product = _node_product
+                if _sticky_product is None and session:
+                    _sticky_product = getattr(session, "active_product", None)
+                persist_sticky_sales_session(channel, sender, current_node, _sticky_product)
+            except Exception as _pst_err:
+                logger.debug("persist_sticky_sales_session in run_ai_agent_node: %s", _pst_err)
 
         # Cheap intent checkpoint before expensive Sales Agent (uses same channel+phone session row)
         if channel and sender and not skip_sentinel:
@@ -2474,6 +2816,50 @@ def run_ai_agent_node(current_node, sender, channel, state_header=None, skip_sen
         sales_stage = ctx.get("sales_stage")
         sentiment = ctx.get("sentiment")
         already_asked_for_sale = bool(ctx.get("has_asked_for_sale"))
+        # Read the FSM state once at the top of the turn so every downstream
+        # LLM call in this turn sees the same value. We prefer the
+        # session_state helper (cache-first) over the raw ctx dict so the
+        # router and the prompt builder cannot disagree.
+        try:
+            conversation_state = get_conversation_state(channel, sender) if (channel and sender) else None
+        except Exception as _cs_err:
+            logger.warning("get_conversation_state failed: %s", _cs_err)
+            conversation_state = ctx.get("conversation_state") if isinstance(ctx, dict) else None
+        post_sale_support_context = None
+        try:
+            from discount.services.post_sale_support import get_post_sale_support_context
+            post_sale_support_context = get_post_sale_support_context(
+                channel,
+                sender,
+                sender,
+                conversation_state or '',
+                incoming_body=(incoming_body or ''),
+            )
+        except Exception as _pss_err:
+            logger.warning("get_post_sale_support_context failed: %s", _pss_err)
+        payment_rejection_reason = None
+        order_payment_status = None
+        incoming_has_media = _incoming_message_has_payment_media(incoming_message_type)
+        try:
+            from discount.services.fulfillment_messages import (
+                resolve_payment_rejection_context_for_chat,
+                resolve_active_digital_payment_order,
+            )
+            pr_ctx = resolve_payment_rejection_context_for_chat(
+                channel, sender, conversation_state,
+            )
+            if pr_ctx:
+                reason = (pr_ctx.get("merchant_reason") or "").strip()
+                payment_rejection_reason = reason or None
+                order_payment_status = (pr_ctx.get("order_status") or "").strip() or None
+            elif (conversation_state or "").strip().upper() == STATE_AWAITING_PAYMENT_RECEIPT:
+                _pay_order = resolve_active_digital_payment_order(
+                    channel, sender, conversation_state,
+                )
+                if _pay_order:
+                    order_payment_status = (getattr(_pay_order, "status", None) or "").strip() or None
+        except Exception as _prr_err:
+            logger.debug("resolve_payment_rejection_context_for_chat: %s", _prr_err)
         if not sentiment and channel and sender:
             conversation_for_sentiment = get_conversation_history(sender, channel)
             inferred = _infer_sentiment_from_conversation(conversation_for_sentiment)
@@ -2568,9 +2954,9 @@ def run_ai_agent_node(current_node, sender, channel, state_header=None, skip_sen
                 inferred = infer_market_from_phone(sender)
                 market = inferred if inferred else node_market
         from discount.services.voice_dialect import (
-            merchant_voice_mode_enabled,
             resolve_dialect_for_llm_hierarchy,
             should_inject_tts_dialect_prompt,
+            node_reply_prefers_tts,
         )
         from discount.services.bot_language import effective_bot_language, effective_output_language_for_node
 
@@ -2581,8 +2967,9 @@ def run_ai_agent_node(current_node, sender, channel, state_header=None, skip_sen
         node_dialect_locked = bool((getattr(current_node, "node_language", None) or "").strip())
         voice_notes_mode = should_inject_tts_dialect_prompt(channel, current_node)
         voice_dialect_label = resolve_dialect_for_llm_hierarchy(channel, current_node, sender)
-        # AUDIO SCRIPT vs TEXT: merchant toggle (ai_voice_enabled), or flow/node TTS without toggle (AUDIO_ONLY, etc.)
-        voice_script_style = bool(merchant_voice_mode_enabled(channel) or voice_notes_mode)
+        # AUDIO SCRIPT vs TEXT: only AUDIO_ONLY (or legacy voice_enabled) spell in the LLM;
+        # AUTO_SMART keeps digits in the model and VoiceFormatterMiddleware spells at TTS send time.
+        voice_script_style = node_reply_prefers_tts(channel, current_node)
         if voice_notes_mode and output_language not in ("fr", "en"):
             from ai_assistant.services import market_from_resolved_dialect
 
@@ -2642,6 +3029,52 @@ def run_ai_agent_node(current_node, sender, channel, state_header=None, skip_sen
                     "- If the customer declines, thank them politely and confirm their original order."
                 )
                 custom_instruction = (custom_instruction or "") + upsell_instruction
+        # ── Returning-customer time-aware context injection ─────────────────────
+        # If the customer has been away for ≥3 days, inject a hidden system note
+        # so the AI greets them naturally and resumes from where they left off
+        # instead of re-pitching the product from scratch.
+        if session and getattr(session, "last_interaction", None):
+            try:
+                _gap_secs = (timezone.now() - session.last_interaction).total_seconds()
+                _gap_days = _gap_secs / 86400
+                if _gap_days >= 3:
+                    # Determine the product name from session or current node
+                    _ret_product_name = "the product you were interested in"
+                    _ret_obj = persistent_product or getattr(session, "active_product", None)
+                    if _ret_obj:
+                        _n = (getattr(_ret_obj, "name", None) or "").strip()
+                        if _n:
+                            _ret_product_name = _n
+                    _ret_days = max(3, int(_gap_days))
+                    _ret_note = (
+                        f"[RETURNING CUSTOMER — {_ret_days} day(s) gap]\n"
+                        f"This customer is resuming a conversation about [{_ret_product_name}] "
+                        f"after {_ret_days} day(s) away.\n"
+                        "INSTRUCTIONS (follow strictly, do NOT read these aloud):\n"
+                        "1. Open with ONE warm short sentence welcoming them back "
+                        "(e.g. 'أهلاً بيك مرة أخرى! 😊').\n"
+                        "2. Confirm the product and its price are still the same — "
+                        "do NOT re-pitch the product from scratch.\n"
+                        "3. Review the conversation history and identify the LAST unresolved detail "
+                        "(missing address / phone number / quantity / payment / confirmation) "
+                        "— ask ONLY for that one thing.\n"
+                        "4. NEVER ask 'Which product are you interested in?' — "
+                        "the product context is already established.\n"
+                        "5. Keep the tone light and natural, as if continuing a paused conversation."
+                    )
+                    custom_instruction = (
+                        (custom_instruction + "\n\n" + _ret_note)
+                        if custom_instruction
+                        else _ret_note
+                    )
+                    logger.info(
+                        "[run_ai_agent_node] Returning-customer note injected: "
+                        "phone=…%s gap_days=%.1f product=%s",
+                        (sender or "")[-4:], _gap_days, _ret_product_name,
+                    )
+            except Exception as _ret_err:
+                logger.debug("[run_ai_agent_node] returning-customer note skipped: %s", _ret_err)
+
         # Agent name: when voice reply is on use persona name or Chuck; when off use a random name (AI thinks as human)
         response_mode = getattr(current_node, "response_mode", None) or ""
         voice_enabled_legacy = getattr(current_node, "voice_enabled", False)
@@ -2686,8 +3119,10 @@ def run_ai_agent_node(current_node, sender, channel, state_header=None, skip_sen
         try:
             ai_cfg = getattr(current_node, "ai_model_config", None) or {}
             product_id = ai_cfg.get("product_id") if isinstance(ai_cfg, dict) else None
-            if product_id is None and session and getattr(session, "active_product_id", None):
-                product_id = int(session.active_product_id)
+            _sess_ctx_pid = getattr(session, "context_data", None) or {} if session else {}
+            if session and getattr(session, "active_product_id", None):
+                if _sess_ctx_pid.get("product_pivot_active") or product_id is None:
+                    product_id = int(session.active_product_id)
             if product_id is not None and store:
                 first_img = ProductImage.objects.filter(
                     product_id=int(product_id),
@@ -2699,14 +3134,7 @@ def run_ai_agent_node(current_node, sender, channel, state_header=None, skip_sen
                         "include [SEND_PRODUCT_IMAGE] in your reply to send it. You may add a short caption."
                     )
                     media_context = (media_context + "\n\n" + product_photo_line) if media_context else product_photo_line
-                # Inject category-based persona and seller_custom_persona into the sales prompt
-                try:
-                    from discount.product_sales_prompt import get_dynamic_persona_instruction
-                    persona_instruction = get_dynamic_persona_instruction(product_id, merchant=store)
-                    if persona_instruction:
-                        custom_instruction = (custom_instruction or "") + "\n\n" + persona_instruction
-                except Exception as persona_err:
-                    logger.debug("Dynamic persona for product_id=%s: %s", product_id, persona_err)
+                # Persona routing is handled in build_messages_payload_sales via _build_sales_persona_block.
         except (TypeError, ValueError, AttributeError):
             pass
 
@@ -2717,12 +3145,9 @@ def run_ai_agent_node(current_node, sender, channel, state_header=None, skip_sen
             if product_id is not None and store:
                 prod = Products.objects.filter(id=int(product_id), admin=store).first()
                 if prod:
-                    line = (
-                        f"You are selling '{(prod.name or '').strip()}' (ID: {prod.id}). "
-                        "When you call submit_customer_order, you MUST pass this exact product_id."
-                    )
-                    custom_instruction = (custom_instruction or "") + "\n\n" + line
-                    backup_price = getattr(prod, "backup_price", None)
+                    from ai_assistant.tools import build_product_lock_instruction
+
+                    custom_instruction = (custom_instruction or "") + build_product_lock_instruction(prod)
                     coupon_code = (getattr(prod, "coupon_code", None) or "").strip().upper()
                     tier_floor_parts = []
                     try:
@@ -2741,24 +3166,26 @@ def run_ai_agent_node(current_node, sender, channel, state_header=None, skip_sen
                                     tier_floor_parts.append(part)
                     except Exception:
                         tier_floor_parts = []
-                    if backup_price is not None or coupon_code or tier_floor_parts:
-                        negotiation_line = (
-                            "NEGOTIATION PRICING POLICY: "
-                            + (f"Primary price is {getattr(prod, 'price', '—')} {(getattr(prod, 'currency', 'MAD') or 'MAD').strip()}. " if getattr(prod, "price", None) is not None else "")
-                            + (f"Backup/floor price is {backup_price} {(getattr(prod, 'currency', 'MAD') or 'MAD').strip()}. Never go below this floor. " if backup_price is not None else "")
-                            + (f"Use coupon code '{coupon_code}' when discount is needed. " if coupon_code else "")
-                            + (f"Quantity offer tiers configured: {'; '.join(tier_floor_parts)}. " if tier_floor_parts else "")
-                            + "When the customer asks for offers, wants 2+ pieces, or after they commit to one unit, suggest matching bundle tiers and show savings vs single-unit (professional tone). "
-                            + "Keep negotiation confident, protect margin, and stay consistent with these numbers."
+                    try:
+                        from discount.services.pricing_prompt import build_context_isolation_rule
+
+                        isolation = build_context_isolation_rule(prod)
+                        if isolation:
+                            custom_instruction = (custom_instruction or "") + "\n\n" + isolation
+                        custom_instruction = (custom_instruction or "") + (
+                            "\n\nDo NOT end every message with 'واش نسجل ليك الطلبية دابا؟ "
+                            "— answer questions first (ANSWER ONLY)."
                         )
-                        custom_instruction = (custom_instruction or "") + "\n\n" + negotiation_line
+                    except Exception as _pp_err:
+                        logger.warning("build_context_isolation_rule: %s", _pp_err)
             elif store:
                 # Keep context lean: do NOT inject the full catalog into the prompt.
                 # Use tools to discover products on demand to reduce token usage.
                 line = (
-                    "You are a general store assistant. Do NOT assume a specific product unless the customer names one. "
+                    "You are a general store assistant for the full catalog — customers may switch products freely. "
                     "If customer asks generic catalog availability (e.g. what products do you have), call search_products with an empty query first to get real catalog items. "
                     "Use search_products(query) only when customer asks about a specific product by name/keyword. "
+                    "When the customer switches to a different product, call switch_active_product BEFORE negotiating or checkout — NEVER refuse a switch. "
                     "Never list product names unless they came from search_products tool results. "
                     "For images, use send_product_media(product_id) only after selecting the relevant product."
                 )
@@ -2849,6 +3276,13 @@ def run_ai_agent_node(current_node, sender, channel, state_header=None, skip_sen
                 },
                 channel=channel,
                 pronoun_anchor_product_name=pronoun_anchor_product_name,
+                conversation_state=conversation_state,
+                post_sale_support_context=post_sale_support_context,
+                payment_rejection_reason=payment_rejection_reason,
+                incoming_has_media=incoming_has_media,
+                order_payment_status=order_payment_status,
+                incoming_payment_receipt_valid=incoming_payment_receipt_valid,
+                incoming_media_vision_summary=incoming_media_vision_summary,
             )
             if store_owner:
                 chargeUserForAiUsage(
@@ -2856,10 +3290,14 @@ def run_ai_agent_node(current_node, sender, channel, state_header=None, skip_sen
                     result.get("prompt_tokens", 0),
                     result.get("completion_tokens", 0),
                 )
-        tool_calls_for_info = [tc for tc in (result.get("tool_calls") or []) if tc.get("name") in ("check_stock", "apply_discount", "track_order", "search_products", "send_product_media", "submit_customer_order", "save_order", "record_order", "update_lead_status", "add_upsell_to_existing_order", "update_order_notes")]
+        tool_calls_for_info = [tc for tc in (result.get("tool_calls") or []) if tc.get("name") in ("check_stock", "apply_discount", "track_order", "search_products", "switch_active_product", "send_product_media", "submit_customer_order", "register_support_complaint", "flag_order_for_review", "save_order", "record_order", "update_lead_status", "add_upsell_to_existing_order", "update_order_notes")]
         first_result_order_tools = [tc for tc in (result.get("tool_calls") or []) if tc.get("name") in ("save_order", "record_order")]
         submit_order_success_outcome = None
         save_order_result_order = None  # order from save_order/record_order when executed in loop
+        _product_state_tools = frozenset({
+            "switch_active_product", "search_products", "send_product_media", "submit_customer_order",
+        })
+        _product_state_changed = False
         if tool_calls_for_info and channel:
             raw_msg = result.get("raw_message") or {}
             tool_calls_from_api = raw_msg.get("tool_calls") or []
@@ -2904,7 +3342,8 @@ def run_ai_agent_node(current_node, sender, channel, state_header=None, skip_sen
                         author_name=agent_name,
                     )
                 elif name == "search_products":
-                    content = _execute_search_products(channel, args.get("query") or "")
+                    content = _execute_search_products(channel, sender, args.get("query") or "")
+                    _product_state_changed = True
                     tool_results.append({"tool_call_id": tcid, "content": content})
                     _add_ai_action_note(
                         channel,
@@ -2912,8 +3351,27 @@ def run_ai_agent_node(current_node, sender, channel, state_header=None, skip_sen
                         f"AI agent searched products: \"{args.get('query') or ''}\".",
                         author_name=agent_name,
                     )
+                elif name == "switch_active_product":
+                    content = _execute_switch_active_product(
+                        channel, sender, args, current_node=current_node
+                    )
+                    _product_state_changed = True
+                    tool_results.append({"tool_call_id": tcid, "content": content})
+                    try:
+                        _sw_out = json.loads(content)
+                        if _sw_out.get("success"):
+                            _add_ai_action_note(
+                                channel,
+                                sender,
+                                f"AI agent switched active product to "
+                                f"{_sw_out.get('product_name') or '—'} (id={_sw_out.get('product_id') or '—'}).",
+                                author_name=agent_name,
+                            )
+                    except Exception:
+                        pass
                 elif name == "send_product_media":
                     content = _execute_send_product_media(channel, sender, args.get("product_id"), caption=args.get("caption", ""))
+                    _product_state_changed = True
                     tool_results.append({"tool_call_id": tcid, "content": content})
                     _add_ai_action_note(
                         channel,
@@ -2922,12 +3380,37 @@ def run_ai_agent_node(current_node, sender, channel, state_header=None, skip_sen
                         author_name=agent_name,
                     )
                 elif name == "submit_customer_order":
-                    # Step 1: Transitional message (instant reply) before DB work — no awkward silence
-                    send_automated_response(
-                        sender,
-                        [{"type": "text", "content": SUBMIT_ORDER_TRANSITIONAL_MESSAGE, "delay": 0}],
-                        channel=channel,
-                    )
+                    _product_state_changed = True
+                    _submit_pid = args.get("product_id")
+                    if _submit_pid and channel and sender and store_owner:
+                        try:
+                            _submit_prod = Products.objects.filter(
+                                id=int(_submit_pid), admin=store_owner
+                            ).first()
+                            if _submit_prod:
+                                set_session_active_product(
+                                    channel, sender, _submit_prod, reason="submit_customer_order"
+                                )
+                        except Exception as _sp_err:
+                            logger.debug("active_product sync before submit: %s", _sp_err)
+                    # Step 1: Transitional message (instant reply) before DB work — no awkward silence.
+                    # SUPPRESSED for direct-sale digital products: the AI is in SILENT MODE for those
+                    # (see [TOOL EXECUTION RULE] in the Direct Sale prompt branch), so the only thing
+                    # the customer should see is the payment block from the tool result. A transitional
+                    # "غادي نسجل الطلب..." between "I want it" and the payment instructions creates the
+                    # exact narration loop the SILENT MODE rule was designed to eliminate.
+                    if not _is_direct_sale_digital_product(channel, current_node, args):
+                        send_automated_response(
+                            sender,
+                            [{"type": "text", "content": SUBMIT_ORDER_TRANSITIONAL_MESSAGE, "delay": 0}],
+                            channel=channel,
+                        )
+                    else:
+                        logger.info(
+                            "submit_customer_order: SILENT MODE — suppressed transitional message "
+                            "for direct-sale digital product (channel=%s, sender=%s).",
+                            getattr(channel, "id", None), sender,
+                        )
                     # Step 2 & 3: Execute tool and return descriptive feedback for the AI
                     content = _execute_submit_customer_order(channel, sender, args, current_node)
                     tool_results.append({"tool_call_id": tcid, "content": content})
@@ -3007,6 +3490,34 @@ def run_ai_agent_node(current_node, sender, channel, state_header=None, skip_sen
                             )
                     except Exception:
                         pass
+                elif name == "register_support_complaint":
+                    try:
+                        from discount.services.post_sale_support import register_support_complaint
+                        outcome = register_support_complaint(
+                            channel,
+                            sender,
+                            args.get("order_id") or "",
+                            args.get("complaint_summary") or "",
+                        )
+                        content = json.dumps(outcome, ensure_ascii=False)
+                    except Exception as e:
+                        logger.exception("register_support_complaint: %s", e)
+                        content = json.dumps({"success": False, "message": str(e)}, ensure_ascii=False)
+                    tool_results.append({"tool_call_id": tcid, "content": content})
+                elif name == "flag_order_for_review":
+                    try:
+                        from discount.services.post_sale_support import flag_order_for_review
+                        outcome = flag_order_for_review(
+                            channel,
+                            sender,
+                            args.get("order_id") or "",
+                            args.get("complaint_summary") or "",
+                        )
+                        content = json.dumps(outcome, ensure_ascii=False)
+                    except Exception as e:
+                        logger.exception("flag_order_for_review: %s", e)
+                        content = json.dumps({"success": False, "message": str(e)}, ensure_ascii=False)
+                    tool_results.append({"tool_call_id": tcid, "content": content})
                 elif name in ("save_order", "record_order") and getattr(channel, "ai_order_capture", True):
                     args["customer_phone"] = normalize_customer_phone_for_order(args.get("customer_phone"), sender)
                     if "address" in args and not args.get("customer_city"):
@@ -3027,6 +3538,31 @@ def run_ai_agent_node(current_node, sender, channel, state_header=None, skip_sen
                         content = json.dumps({"saved": False, "message": "Order not accepted (trust/stage)."})
                     tool_results.append({"tool_call_id": tcid, "content": content})
             if tool_results:
+                if _product_state_changed and channel and sender and store_owner:
+                    try:
+                        from ai_assistant.tools import (
+                            refresh_active_product_prompt_bindings,
+                            strip_product_lock_instruction,
+                        )
+
+                        refresh = refresh_active_product_prompt_bindings(
+                            channel,
+                            sender,
+                            store_owner,
+                            flow_notes=_flow_node_product_notes or "",
+                        )
+                        if refresh.get("product_id"):
+                            product_id = refresh["product_id"]
+                        if refresh.get("product_context"):
+                            product_context = refresh["product_context"]
+                        if refresh.get("pronoun_anchor_product_name"):
+                            pronoun_anchor_product_name = refresh["pronoun_anchor_product_name"]
+                        custom_instruction = strip_product_lock_instruction(custom_instruction)
+                        lock = refresh.get("product_lock_instruction") or ""
+                        if lock:
+                            custom_instruction = (custom_instruction or "") + lock
+                    except Exception as _ref_err:
+                        logger.warning("refresh active product after tools: %s", _ref_err)
                 try:
                     result = continue_after_tool_calls(
                         conversation,
@@ -3061,6 +3597,13 @@ def run_ai_agent_node(current_node, sender, channel, state_header=None, skip_sen
                         },
                         pronoun_anchor_product_name=pronoun_anchor_product_name,
                         channel=channel,
+                        conversation_state=conversation_state,
+                        post_sale_support_context=post_sale_support_context,
+                        payment_rejection_reason=payment_rejection_reason,
+                        incoming_has_media=incoming_has_media,
+                        order_payment_status=order_payment_status,
+                        incoming_payment_receipt_valid=incoming_payment_receipt_valid,
+                        incoming_media_vision_summary=incoming_media_vision_summary,
                     )
                     if store_owner:
                         chargeUserForAiUsage(
@@ -3076,6 +3619,14 @@ def run_ai_agent_node(current_node, sender, channel, state_header=None, skip_sen
         if submit_order_success_outcome and channel:
             order_was_saved = True
             oid = submit_order_success_outcome.get("order_id")
+            # ── State-machine transition ─────────────────────────────────
+            # Digital orders MUST keep the session alive in
+            # AWAITING_PAYMENT_RECEIPT so the AI can: (1) recognise the
+            # next screenshot/PDF as a payment receipt, and (2) refuse to
+            # re-collect name/address or call submit_customer_order again.
+            # Physical orders keep the legacy behaviour (session is
+            # completed and the COD confirmation paints downstream).
+            is_digital_outcome = bool(submit_order_success_outcome.get("is_digital", False))
             if oid:
                 saved_order = SimpleOrder.objects.filter(order_id=oid).first()
                 _add_ai_action_note(
@@ -3094,6 +3645,26 @@ def run_ai_agent_node(current_node, sender, channel, state_header=None, skip_sen
                         _session.save(update_fields=["context_data"])
                 except Exception as _sess_err:
                     logger.warning("Save order_id to session: %s", _sess_err)
+                # Digital → flip the FSM. We do this BEFORE the
+                # expire_chat_session block below so the cache write
+                # is not racing against a session-eviction.
+                if is_digital_outcome:
+                    try:
+                        set_conversation_state(
+                            channel,
+                            sender,
+                            STATE_AWAITING_PAYMENT_RECEIPT,
+                            last_order_id=str(oid),
+                            awaiting_receipt_for_product=str(
+                                submit_order_success_outcome.get("order_id") or oid
+                            ),
+                        )
+                    except Exception as _state_err:
+                        logger.warning(
+                            "Failed to set AWAITING_PAYMENT_RECEIPT state for "
+                            "channel=%s sender=%s: %s",
+                            getattr(channel, "id", None), sender, _state_err,
+                        )
         # If save_order/record_order succeeded in the tool loop, use that order
         if save_order_result_order and channel:
             order_was_saved = True
@@ -3189,7 +3760,11 @@ def run_ai_agent_node(current_node, sender, channel, state_header=None, skip_sen
         if current_stage and channel:
             cache.set(f"sales_stage:{channel.id}:{sender}", current_stage, timeout=3600)
 
-        saved_order = None
+        # Only reset saved_order if submit_customer_order hasn't already captured it.
+        # Resetting unconditionally was the root cause of digital orders getting the
+        # "لم نستلم تفاصيل التوصيل" message even after a successful tool-call order.
+        if not order_was_saved:
+            saved_order = None
         if channel and getattr(channel, "ai_order_capture", True):
             for tc in result.get("tool_calls") or []:
                 if tc.get("name") in ("save_order", "record_order"):
@@ -3252,7 +3827,7 @@ def run_ai_agent_node(current_node, sender, channel, state_header=None, skip_sen
                     trust_score,
                     current_stage,
                 )
-            elif looks_like_order_confirmation_without_data(reply_text):
+            elif not order_was_saved and looks_like_order_confirmation_without_data(reply_text):
                 # Fail-safe: AI said "order registered" but [ORDER_DATA] tag was missing or invalid — Incomplete Capture
                 logger.warning(
                     "Incomplete Capture: AI replied with order confirmation but no valid [ORDER_DATA] (channel=%s, sender=%s). Forcing retry.",
@@ -3264,13 +3839,39 @@ def run_ai_agent_node(current_node, sender, channel, state_header=None, skip_sen
                     " (Sorry, we didn’t get full delivery details. Please send full name, city, and address again.)"
                 )
 
+        # Detect digital-product orders so we DO NOT (a) expire the session
+        # — the customer still needs to send the payment receipt — and (b)
+        # overwrite the AI's reply with the COD/truck-emoji confirmation.
+        # We read both the outcome dict (authoritative) AND the saved_order
+        # row (defensive) so a future caller can omit `is_digital` without
+        # silently regressing the digital flow.
+        _is_digital_completed_order = bool(
+            (submit_order_success_outcome and submit_order_success_outcome.get("is_digital"))
+            or (saved_order and getattr(saved_order, "is_digital", False))
+        )
+        _skip_format_order_confirmation = bool(
+            submit_order_success_outcome
+            and submit_order_success_outcome.get("skip_format_order_confirmation")
+        ) or _is_digital_completed_order
         if channel:
             if order_was_saved:
                 reset_trust_score(channel.id, sender)
-                # Check if an upsell node is connected; if so, defer session expiry
+                # Session lifecycle:
+                #   • Physical + no upsell → expire (existing behaviour).
+                #   • Physical + upsell    → defer expiry (existing).
+                #   • Digital              → KEEP ALIVE in
+                #     AWAITING_PAYMENT_RECEIPT until the receipt is
+                #     processed; the FSM was already flipped above.
                 _has_upsell = _node_has_upsell_connection(current_node)
-                if not _has_upsell:
+                if not _has_upsell and not _is_digital_completed_order:
                     expire_chat_session(channel, sender)
+                elif _is_digital_completed_order:
+                    logger.info(
+                        "Digital order saved (order_id=%s, channel=%s, sender=%s) — "
+                        "session kept alive in AWAITING_PAYMENT_RECEIPT.",
+                        getattr(saved_order, "order_id", "—"),
+                        getattr(channel, "id", None), sender,
+                    )
                 # Trigger Google Sheets sync when order was saved via AI (uses channel.owner config; idempotent)
                 if saved_order and getattr(saved_order, "pk", None):
                     try:
@@ -3293,16 +3894,24 @@ def run_ai_agent_node(current_node, sender, channel, state_header=None, skip_sen
                         _run_google_sheets_export(current_node, flow, sender, channel, user)
                 except Exception as sheet_err:
                     logger.warning("Google Sheets export (flow) after AI order: %s", sheet_err)
-                # Post-purchase upsell: find on_order_success connection → upsell node → schedule pitch
-                try:
-                    _trigger_upsell_after_order(current_node, channel, sender, saved_order)
-                except Exception as upsell_err:
-                    logger.warning("Upsell trigger after order: %s", upsell_err)
+                # Post-purchase upsell: find on_order_success connection → upsell node → schedule pitch.
+                # Digital orders skip the upsell pitch — we MUST wait for the payment receipt first
+                # before pitching anything else, otherwise the customer loses the payment context.
+                if not _is_digital_completed_order:
+                    try:
+                        _trigger_upsell_after_order(current_node, channel, sender, saved_order)
+                    except Exception as upsell_err:
+                        logger.warning("Upsell trigger after order: %s", upsell_err)
             else:
                 increment_trust_score(channel.id, sender)
-        if order_was_saved and saved_order:
+        # Reply text override:
+        #   • Physical → keep legacy behaviour (truck-emoji COD confirmation).
+        #   • Digital  → DO NOT overwrite; the AI's reply already contains
+        #     the Darija payment block built from active StorePaymentMethods
+        #     and the receipt-screenshot request.
+        if order_was_saved and saved_order and not _skip_format_order_confirmation:
             reply_text = format_order_confirmation(saved_order)
-        if not reply_text and order_was_saved and saved_order:
+        if not reply_text and order_was_saved and saved_order and not _skip_format_order_confirmation:
             reply_text = get_order_confirmation_fallback(market)
         # When AI returns empty (e.g. API glitch, timeout), do NOT send a hardcoded fallback — it ruins UX.
         # Log only; caller may send nothing or handoff is triggered by the except block on real errors.
@@ -3364,6 +3973,34 @@ def run_ai_agent_node(current_node, sender, channel, state_header=None, skip_sen
             (response_mode not in ("TEXT_ONLY", "AUDIO_ONLY", "AUTO_SMART") and voice_enabled_legacy)
         )
 
+        # ── Force-text override for protected payloads ──────────────────────
+        # If the reply contains a [NO_TTS]…[/NO_TTS] sentinel (e.g. the
+        # digital-product payment block returned by submit_customer_order),
+        # we MUST send it as a WhatsApp text message — never as a voice note.
+        # Reason: TTS spelling would convert the RIB digits into Arabic words
+        # ("أربعة خمسة ستة …"), making the account number impossible to copy-
+        # paste. The sentinels are written by the tool, propagated verbatim
+        # by the LLM (per the Direct Sale + AWAITING_PAYMENT_RECEIPT prompt
+        # rules), and now consumed here to override response_mode by flipping
+        # `use_voice` to False; the existing `if use_voice and channel:`
+        # branch below then naturally takes the text path.
+        try:
+            from ai_assistant.services import (
+                contains_no_tts_marker,
+                strip_no_tts_markers,
+            )
+            if reply_text and contains_no_tts_marker(reply_text):
+                use_voice = False
+                reply_text = strip_no_tts_markers(reply_text).strip()
+                logger.info(
+                    "[NO_TTS] sentinel detected in AI reply (channel=%s, sender=%s) — "
+                    "forcing WhatsApp text delivery for this turn and bypassing "
+                    "VoiceFormatterMiddleware (preserves RIB / payment digits).",
+                    getattr(channel, "id", None), sender,
+                )
+        except Exception as _no_tts_err:
+            logger.warning("[NO_TTS] detection failed (non-fatal): %s", _no_tts_err)
+
         if reply_text:
             if use_voice and channel:
                 try:
@@ -3371,7 +4008,30 @@ def run_ai_agent_node(current_node, sender, channel, state_header=None, skip_sen
                     from django.core.files.storage import default_storage
                     import uuid
                     voice_settings = _voice_settings_for_node(channel, current_node)
-                    audio_path, tts_text_fallback = generate_audio_file_with_text_fallback(reply_text, voice_settings)
+                    # ── VoiceFormatterMiddleware injection ────────────────────
+                    # Reformat the primary agent's reply into natural spoken
+                    # dialect BEFORE handing it to the TTS engine. The
+                    # middleware has its OWN sentinel-aware bypass (see
+                    # VoiceFormatterMiddleware.format) so payment blocks are
+                    # double-protected — but at this point we've already
+                    # forced text-mode above, so this branch is unreachable
+                    # for [NO_TTS] payloads.
+                    try:
+                        from ai_assistant.services import VoiceFormatterMiddleware
+                        _node_dialect = getattr(current_node, "voice_dialect", None) or None
+                        tts_input_text = VoiceFormatterMiddleware.format(
+                            text=reply_text,
+                            customer_phone=sender,
+                            use_voice=True,
+                            dialect_override=_node_dialect,
+                        )
+                    except Exception as _vfm_err:
+                        logger.warning(
+                            "[VoiceFormatterMiddleware] skipped due to error: %s", _vfm_err
+                        )
+                        tts_input_text = reply_text
+                    # ── End middleware injection ──────────────────────────────
+                    audio_path, tts_text_fallback = generate_audio_file_with_text_fallback(tts_input_text, voice_settings)
                     if audio_path and os.path.exists(audio_path):
                         name = f"flow_audio/{uuid.uuid4().hex}.mp3"
                         with open(audio_path, "rb") as f:
@@ -3383,9 +4043,10 @@ def run_ai_agent_node(current_node, sender, channel, state_header=None, skip_sen
                         media_url = (base_url + default_storage.url(name).lstrip("/")) if base_url else default_storage.url(name)
                         output_messages.append({"type": "audio", "media_url": media_url, "content": "", "delay": current_node.delay or 0})
                     elif tts_text_fallback:
+                        # TTS failed — send the original LLM text (digits), not VFM spelled script.
                         output_messages.append({
                             "type": "text",
-                            "content": remove_arabic_diacritics(tts_text_fallback),
+                            "content": remove_arabic_diacritics(reply_text),
                             "delay": current_node.delay or 0,
                         })
                     else:
@@ -3394,6 +4055,10 @@ def run_ai_agent_node(current_node, sender, channel, state_header=None, skip_sen
                     print("AI_AGENT voice fallback: %s", ve)
                     output_messages.append({"type": "text", "content": reply_text, "delay": current_node.delay or 0})
             else:
+                # Text path — also covers the _force_text_for_this_turn case.
+                # We DO NOT call remove_arabic_diacritics() here so payment-block
+                # text reaches WhatsApp 100% byte-identical to what the tool
+                # produced (RIB digits intact, copy-pasteable).
                 output_messages.append({"type": "text", "content": reply_text, "delay": current_node.delay or 0})
     except Exception as e:
         print("run_ai_agent_node failed: %s", e)
@@ -3444,7 +4109,17 @@ def run_ai_agent_node(current_node, sender, channel, state_header=None, skip_sen
     return output_messages
 
 
-def execute_flow(flow, sender, channel=None, user=None, incoming_body=None, start_node_id=None):
+def execute_flow(
+    flow,
+    sender,
+    channel=None,
+    user=None,
+    incoming_body=None,
+    start_node_id=None,
+    incoming_message_type=None,
+    incoming_payment_receipt_valid=None,
+    incoming_media_vision_summary=None,
+):
     """
     Execute flow and return clean WhatsApp-ready messages
     
@@ -3454,6 +4129,7 @@ def execute_flow(flow, sender, channel=None, user=None, incoming_body=None, star
         channel: القناة (اختياري) - للتحقق من الصلاحيات
         user: المستخدم (اختياري) - للتحقق من الصلاحيات
         incoming_body: current user message text for AI agent nodes (Franco translation + LLM context).
+        incoming_message_type: webhook message type for payment media validation on AI nodes.
     """
     try:
         # التحقق من الصلاحيات إذا كان channel و user موجودين
@@ -3700,7 +4376,14 @@ def execute_flow(flow, sender, channel=None, user=None, incoming_body=None, star
             elif current_node.node_type == "ai-agent":
                 output_messages.extend(
                     run_ai_agent_node(
-                        current_node, sender, channel, state_header=None, incoming_body=incoming_body
+                        current_node,
+                        sender,
+                        channel,
+                        state_header=None,
+                        incoming_body=incoming_body,
+                        incoming_message_type=incoming_message_type,
+                        incoming_payment_receipt_valid=incoming_payment_receipt_valid,
+                        incoming_media_vision_summary=incoming_media_vision_summary,
                     )
                 )
 
@@ -3929,7 +4612,15 @@ def get_conversation_for_llm(sender, channel, incoming_body=None):
     return conversation
 
 
-def try_ai_voice_reply(sender, body, channel, skip_sentinel=False):
+def try_ai_voice_reply(
+    sender,
+    body,
+    channel,
+    skip_sentinel=False,
+    incoming_message_type=None,
+    incoming_payment_receipt_valid=None,
+    incoming_media_vision_summary=None,
+):
     """
     When no flow matches: if channel.ai_auto_reply is on, get GPT sales-agent reply
     (with optional save_order and [ORDER_DATA: ...] tag), then send as voice (with
@@ -3999,7 +4690,11 @@ def try_ai_voice_reply(sender, body, channel, skip_sentinel=False):
     if market not in ("MA", "SA", "GCC"):
         market = "MA"
 
-    from discount.services.voice_dialect import merchant_voice_mode_enabled, resolve_dialect_for_llm_hierarchy
+    from discount.services.voice_dialect import (
+        resolve_dialect_for_llm_hierarchy,
+        should_inject_tts_dialect_prompt,
+        node_reply_prefers_tts,
+    )
     from discount.services.bot_language import effective_bot_language, effective_output_language_for_node
     from ai_assistant.services import get_agent_name_for_node, market_from_resolved_dialect
 
@@ -4114,8 +4809,8 @@ def try_ai_voice_reply(sender, body, channel, skip_sentinel=False):
     )
 
     # voice_dialect_label_voice and market already aligned above (hierarchy + TTS market).
-    voice_notes_mode_voice = True
-    voice_script_for_voice = bool(merchant_voice_mode_enabled(channel) or voice_notes_mode_voice)
+    voice_notes_mode_voice = should_inject_tts_dialect_prompt(channel, _vd_node)
+    voice_script_for_voice = node_reply_prefers_tts(channel, _vd_node)
     memory_summary_voice = _maybe_build_memory_summary(channel, sender, conversation, recent_limit=6)
 
     try:
@@ -4130,6 +4825,59 @@ def try_ai_voice_reply(sender, body, channel, skip_sentinel=False):
         pass
 
     trust_score = get_trust_score(channel.id, sender)
+    # Voice path FSM read: same contract as the text path (single read,
+    # passed to both generate_reply_with_tools and continue_after_tool_calls).
+    try:
+        voice_conversation_state = (
+            get_conversation_state(channel, sender) if (channel and sender) else None
+        )
+    except Exception as _vcs_err:
+        logger.warning("voice path get_conversation_state failed: %s", _vcs_err)
+        voice_conversation_state = None
+    voice_post_sale_support_context = None
+    try:
+        from discount.services.post_sale_support import get_post_sale_support_context
+        voice_post_sale_support_context = get_post_sale_support_context(
+            channel,
+            sender,
+            sender,
+            voice_conversation_state or '',
+            incoming_body=(body or ''),
+        )
+    except Exception as _vpss_err:
+        logger.warning("voice get_post_sale_support_context failed: %s", _vpss_err)
+    voice_payment_rejection_reason = None
+    voice_order_payment_status = None
+    voice_incoming_has_media = _incoming_message_has_payment_media(incoming_message_type)
+    try:
+        from discount.services.fulfillment_messages import (
+            resolve_payment_rejection_context_for_chat,
+            resolve_active_digital_payment_order,
+        )
+        voice_pr_ctx = resolve_payment_rejection_context_for_chat(
+            channel, sender, voice_conversation_state,
+        )
+        if voice_pr_ctx:
+            _vr = (voice_pr_ctx.get("merchant_reason") or "").strip()
+            voice_payment_rejection_reason = _vr or None
+            voice_order_payment_status = (voice_pr_ctx.get("order_status") or "").strip() or None
+        elif (voice_conversation_state or "").strip().upper() == STATE_AWAITING_PAYMENT_RECEIPT:
+            _v_pay_order = resolve_active_digital_payment_order(
+                channel, sender, voice_conversation_state,
+            )
+            if _v_pay_order:
+                voice_order_payment_status = (getattr(_v_pay_order, "status", None) or "").strip() or None
+    except Exception as _vprr_err:
+        logger.debug("voice resolve_payment_rejection_context_for_chat: %s", _vprr_err)
+    if voice_post_sale_support_context:
+        custom_instruction = (
+            "POST-SALE TECH SUPPORT MODE. The customer already received their digital product. "
+            "Do NOT ask them to choose a product or re-collect checkout fields. "
+            "Use register_support_complaint when they report an issue; use flag_order_for_review "
+            "when they send screenshot proof. Never call submit_customer_order."
+        )
+        if persistent_line_voice:
+            custom_instruction = custom_instruction + "\n\n" + persistent_line_voice
     try:
         result = generate_reply_with_tools(
             conversation,
@@ -4155,6 +4903,13 @@ def try_ai_voice_reply(sender, body, channel, skip_sentinel=False):
             },
             channel=channel,
             pronoun_anchor_product_name=pronoun_anchor_product_name_voice,
+            conversation_state=voice_conversation_state,
+            post_sale_support_context=voice_post_sale_support_context,
+            payment_rejection_reason=voice_payment_rejection_reason,
+            incoming_has_media=voice_incoming_has_media,
+            order_payment_status=voice_order_payment_status,
+            incoming_payment_receipt_valid=incoming_payment_receipt_valid,
+            incoming_media_vision_summary=incoming_media_vision_summary,
         )
         if store:
             chargeUserForAiUsage(
@@ -4174,6 +4929,7 @@ def try_ai_voice_reply(sender, body, channel, skip_sentinel=False):
     saved_order_voice = None
     if channel and tool_calls_from_api:
         tool_results = []
+        _voice_product_state_changed = False
         for tc in tool_calls_from_api:
             tcid = tc.get("id")
             fn = tc.get("function", {})
@@ -4214,7 +4970,8 @@ def try_ai_voice_reply(sender, body, channel, skip_sentinel=False):
                     author_name=voice_path_agent_name,
                 )
             elif name == "search_products":
-                content = _execute_search_products(channel, args.get("query") or "")
+                content = _execute_search_products(channel, sender, args.get("query") or "")
+                _voice_product_state_changed = True
                 tool_results.append({"tool_call_id": tcid, "content": content})
                 _add_ai_action_note(
                     channel,
@@ -4222,8 +4979,18 @@ def try_ai_voice_reply(sender, body, channel, skip_sentinel=False):
                     f"AI agent searched products: \"{args.get('query') or ''}\".",
                     author_name=voice_path_agent_name,
                 )
+            elif name == "switch_active_product":
+                content = _execute_switch_active_product(
+                    channel,
+                    sender,
+                    args,
+                    current_node=(getattr(_voice_session, "active_node", None) if _voice_session else None),
+                )
+                _voice_product_state_changed = True
+                tool_results.append({"tool_call_id": tcid, "content": content})
             elif name == "send_product_media":
                 content = _execute_send_product_media(channel, sender, args.get("product_id"), caption=args.get("caption", ""))
+                _voice_product_state_changed = True
                 tool_results.append({"tool_call_id": tcid, "content": content})
                 _add_ai_action_note(
                     channel,
@@ -4285,12 +5052,50 @@ def try_ai_voice_reply(sender, body, channel, skip_sentinel=False):
                         )
                 except Exception:
                     pass
+            elif name == "register_support_complaint":
+                try:
+                    from discount.services.post_sale_support import register_support_complaint
+                    outcome = register_support_complaint(
+                        channel,
+                        sender,
+                        args.get("order_id") or "",
+                        args.get("complaint_summary") or "",
+                    )
+                    content = json.dumps(outcome, ensure_ascii=False)
+                except Exception as e:
+                    logger.exception("try_ai_voice_reply register_support_complaint: %s", e)
+                    content = json.dumps({"success": False, "message": str(e)}, ensure_ascii=False)
+                tool_results.append({"tool_call_id": tcid, "content": content})
+            elif name == "flag_order_for_review":
+                try:
+                    from discount.services.post_sale_support import flag_order_for_review
+                    outcome = flag_order_for_review(
+                        channel,
+                        sender,
+                        args.get("order_id") or "",
+                        args.get("complaint_summary") or "",
+                    )
+                    content = json.dumps(outcome, ensure_ascii=False)
+                except Exception as e:
+                    logger.exception("try_ai_voice_reply flag_order_for_review: %s", e)
+                    content = json.dumps({"success": False, "message": str(e)}, ensure_ascii=False)
+                tool_results.append({"tool_call_id": tcid, "content": content})
             elif name == "submit_customer_order":
-                send_automated_response(
-                    sender,
-                    [{"type": "text", "content": SUBMIT_ORDER_TRANSITIONAL_MESSAGE, "delay": 0}],
-                    channel=channel,
-                )
+                # Same SILENT MODE suppression as the text-flow path: no
+                # transitional message for direct-sale digital products.
+                if not _is_direct_sale_digital_product(channel, _vd_node, args):
+                    send_automated_response(
+                        sender,
+                        [{"type": "text", "content": SUBMIT_ORDER_TRANSITIONAL_MESSAGE, "delay": 0}],
+                        channel=channel,
+                    )
+                else:
+                    logger.info(
+                        "submit_customer_order (voice path): SILENT MODE — suppressed "
+                        "transitional message for direct-sale digital product "
+                        "(channel=%s, sender=%s).",
+                        getattr(channel, "id", None), sender,
+                    )
                 session_seller_id = getattr(channel, "owner_id", None) or (getattr(channel, "owner", None) and getattr(channel.owner, "id", None))
                 try:
                     from discount.orders_ai import handle_submit_order_tool
@@ -4306,7 +5111,7 @@ def try_ai_voice_reply(sender, body, channel, skip_sentinel=False):
                     content = json.dumps({
                         "status": "error",
                         "success": False,
-                        "message": "A technical error occurred. Ask the user to try again or wait for human support.",
+                        "message": f"Error creating order: {e}",
                     }, ensure_ascii=False)
                 tool_results.append({"tool_call_id": tcid, "content": content})
                 try:
@@ -4320,9 +5125,45 @@ def try_ai_voice_reply(sender, body, channel, skip_sentinel=False):
                             f"AI agent created order: {outcome['order_id']} (voice/fallback path) for customer {sender}.",
                             author_name=voice_path_agent_name,
                         )
+                        # Voice path: flip FSM to AWAITING_PAYMENT_RECEIPT
+                        # for digital orders, exactly like the text path.
+                        if outcome.get("is_digital"):
+                            try:
+                                set_conversation_state(
+                                    channel,
+                                    sender,
+                                    STATE_AWAITING_PAYMENT_RECEIPT,
+                                    last_order_id=str(outcome["order_id"]),
+                                )
+                            except Exception as _vs_err:
+                                logger.warning(
+                                    "Voice path: failed to set AWAITING_PAYMENT_RECEIPT "
+                                    "state for channel=%s sender=%s: %s",
+                                    getattr(channel, "id", None), sender, _vs_err,
+                                )
                 except Exception:
                     pass
         if tool_results:
+            if _voice_product_state_changed and channel and sender and store:
+                try:
+                    from ai_assistant.tools import (
+                        refresh_active_product_prompt_bindings,
+                        strip_product_lock_instruction,
+                    )
+
+                    refresh = refresh_active_product_prompt_bindings(channel, sender, store)
+                    if refresh.get("product_id"):
+                        voice_product_id = refresh["product_id"]
+                    if refresh.get("product_context"):
+                        product_context_for_reply = refresh["product_context"]
+                    if refresh.get("pronoun_anchor_product_name"):
+                        pronoun_anchor_product_name_voice = refresh["pronoun_anchor_product_name"]
+                    custom_instruction = strip_product_lock_instruction(custom_instruction)
+                    lock = refresh.get("product_lock_instruction") or ""
+                    if lock:
+                        custom_instruction = (custom_instruction or "") + lock
+                except Exception as _vref_err:
+                    logger.warning("voice refresh active product after tools: %s", _vref_err)
             try:
                 from ai_assistant.services import continue_after_tool_calls, get_agent_name_for_node
                 result = continue_after_tool_calls(
@@ -4354,6 +5195,13 @@ def try_ai_voice_reply(sender, body, channel, skip_sentinel=False):
                     },
                     pronoun_anchor_product_name=pronoun_anchor_product_name_voice,
                     channel=channel,
+                    conversation_state=voice_conversation_state,
+                    post_sale_support_context=voice_post_sale_support_context,
+                    payment_rejection_reason=voice_payment_rejection_reason,
+                    incoming_has_media=voice_incoming_has_media,
+                    order_payment_status=voice_order_payment_status,
+                    incoming_payment_receipt_valid=incoming_payment_receipt_valid,
+                    incoming_media_vision_summary=incoming_media_vision_summary,
                 )
                 if store:
                     chargeUserForAiUsage(
@@ -4396,15 +5244,27 @@ def try_ai_voice_reply(sender, body, channel, skip_sentinel=False):
     reply_text, order_data = extract_order_data_from_reply(reply_text)
     # Do NOT save from [ORDER_DATA] when out of context (no product selected) — would be wrong product / 0 price.
     # Orders are only saved when customer is in a product flow (run_ai_agent_node with product_context).
-    if looks_like_order_confirmation_without_data(reply_text):
+    if not order_was_saved and looks_like_order_confirmation_without_data(reply_text):
         reply_text = (
             "عذراً، لم نستلم تفاصيل التوصيل كاملة. من فضلك أرسل الاسم الكامل، المدينة، والعنوان مرة أخرى."
             " (Sorry, we didn't get full delivery details. Please send full name, city, and address again.)"
         )
 
+    # Same digital-aware fork as the text path. The voice path must NOT
+    # expire the session or overwrite reply_text with the COD confirmation
+    # for digital orders — the AI already produced the Darija payment block.
+    _voice_is_digital_order = bool(saved_order and getattr(saved_order, "is_digital", False))
     if order_was_saved:
         reset_trust_score(channel.id, sender)
-        expire_chat_session(channel, sender)
+        if not _voice_is_digital_order:
+            expire_chat_session(channel, sender)
+        else:
+            logger.info(
+                "Voice path: digital order saved (order_id=%s, channel=%s, sender=%s) — "
+                "session kept alive in AWAITING_PAYMENT_RECEIPT.",
+                getattr(saved_order, "order_id", "—"),
+                getattr(channel, "id", None), sender,
+            )
         if saved_order and getattr(saved_order, "pk", None):
             try:
                 from discount.services.google_sheets_service import sync_order_to_google_sheets
@@ -4420,9 +5280,9 @@ def try_ai_voice_reply(sender, body, channel, skip_sentinel=False):
     else:
         increment_trust_score(channel.id, sender)
 
-    if order_was_saved and saved_order:
+    if order_was_saved and saved_order and not _voice_is_digital_order:
         reply_text = format_order_confirmation(saved_order)
-    if not reply_text and order_was_saved and saved_order:
+    if not reply_text and order_was_saved and saved_order and not _voice_is_digital_order:
         try:
             from ai_assistant.services import get_order_confirmation_fallback
             reply_text = get_order_confirmation_fallback(market)
@@ -4434,12 +5294,26 @@ def try_ai_voice_reply(sender, body, channel, skip_sentinel=False):
             channel.id if channel else None,
             sender,
         )
-        # Never leave the user without a reply: send a friendly fallback (e.g. LLM returned empty or reply was stripped)
-        reply_text = (
-            "عذراً، ما قدرتش أكمل من هنا. من فضلك اختر منتجاً من القائمة أولاً، ثم أرسل اسمك ورقم هاتفك ونكمل تسجيل الطلب."
-            if market == "MA"
-            else "عذراً، لم أستطع إكمال الطلب من هنا. من فضلك اختر منتجاً من القائمة أولاً ثم أرسل اسمك ورقم هاتفك."
-        )
+        _post_sale_fallback = False
+        try:
+            from discount.services.post_sale_support import customer_has_post_sale_digital_order
+            _post_sale_fallback = bool(
+                channel and sender and customer_has_post_sale_digital_order(channel, sender, sender)
+            )
+        except Exception:
+            pass
+        if _post_sale_fallback:
+            reply_text = (
+                "شكراً على التصويرة. الفريق التقني كايراجعوها دابا وغادي نرجعو ليك قريباً."
+                if market == "MA"
+                else "شكراً على التصويرة. الفريق التقني يراجعها الآن وسنعود إليك قريباً."
+            )
+        else:
+            reply_text = (
+                "عذراً، ما قدرتش أكمل من هنا. من فضلك اختر منتجاً من القائمة أولاً، ثم أرسل اسمك ورقم هاتفك ونكمل تسجيل الطلب."
+                if market == "MA"
+                else "عذراً، لم أستطع إكمال الطلب من هنا. من فضلك اختر منتجاً من القائمة أولاً ثم أرسل اسمك ورقم هاتفك."
+            )
 
     if not reply_text:
         return
@@ -4450,19 +5324,63 @@ def try_ai_voice_reply(sender, body, channel, skip_sentinel=False):
             verify_plan_access(store, FEATURE_AI_VOICE)
         except PermissionDenied:
             use_voice = False
+
+    # ── Force-text override for protected payloads (voice path) ────────────
+    # Same contract as the flow-node path: a [NO_TTS] sentinel in the reply
+    # means "this turn carries copy-pasteable payment details — send as
+    # WhatsApp text, never as a voice note". We strip the sentinels but
+    # keep the message body byte-identical (RIB digits preserved).
+    try:
+        from ai_assistant.services import (
+            contains_no_tts_marker,
+            strip_no_tts_markers,
+        )
+        if contains_no_tts_marker(reply_text):
+            use_voice = False
+            reply_text = strip_no_tts_markers(reply_text).strip()
+            logger.info(
+                "[NO_TTS] sentinel detected in voice-path reply (channel=%s, sender=%s) — "
+                "forcing WhatsApp text delivery to preserve payment digits.",
+                getattr(channel, "id", None), sender,
+            )
+    except Exception as _no_tts_err:
+        logger.warning("[NO_TTS] detection (voice path) failed: %s", _no_tts_err)
+
     if use_voice:
         try:
             def _tts_text_fallback(recipient, script_text, ch):
-                clean = remove_arabic_diacritics(script_text)
+                # script_text may be VFM/TTS-formatted; send original reply with digits.
+                clean = remove_arabic_diacritics(reply_text)
                 send_automated_response(
                     recipient,
                     [{"type": "text", "content": clean, "delay": 0}],
                     channel=ch,
                 )
 
+            tts_payload = reply_text
+            try:
+                from ai_assistant.services import (
+                    VoiceFormatterMiddleware,
+                    contains_no_tts_marker,
+                )
+                if not contains_no_tts_marker(reply_text):
+                    _node_dialect_v = (
+                        getattr(_vd_node, "voice_dialect", None) if _vd_node else None
+                    )
+                    tts_payload = VoiceFormatterMiddleware.format(
+                        text=reply_text,
+                        customer_phone=sender,
+                        use_voice=True,
+                        dialect_override=_node_dialect_v,
+                    )
+            except Exception as _vfm_voice_err:
+                logger.warning(
+                    "[VoiceFormatterMiddleware] voice-path skipped: %s", _vfm_voice_err
+                )
+
             process_and_send_voice(
                 sender,
-                reply_text,
+                tts_payload,
                 channel,
                 send_whatsapp_audio_file,
                 text_fallback_callback=_tts_text_fallback,
@@ -4473,6 +5391,10 @@ def try_ai_voice_reply(sender, body, channel, skip_sentinel=False):
             clean_text = remove_arabic_diacritics(ai_generated_text)
             send_automated_response(sender, [{"type": "text", "content": clean_text}], channel=channel)
     else:
+        # Text path — DO NOT run remove_arabic_diacritics on payment-block
+        # text so the RIB / amount stay byte-identical to what the tool
+        # produced. (remove_arabic_diacritics is only relevant when we are
+        # about to speak the text via TTS.)
         send_automated_response(sender, [{"type": "text", "content": reply_text}], channel=channel)
 
 
@@ -4742,6 +5664,8 @@ def process_messages(
             transcription_failed = False
             stt_whisper_hallucination = False
             conversation_start_eligible = None
+            payment_media_receipt_valid = None
+            payment_media_vision_summary = None
 
             # --- AI Ears: Audio (STT) and Image (Vision) ---
             access_token = None
@@ -4816,18 +5740,48 @@ def process_messages(
                     if body_override is not None:
                         body = body_override
 
-            elif message_type == "image" and access_token:
-                media_id = (msg.get("image") or {}).get("id")
+            elif message_type in ("image", "document") and access_token:
+                # Extract the media_id from whichever key is present.
+                media_payload = msg.get("image") or msg.get("document") or {}
+                media_id = media_payload.get("id")
                 if media_id:
-                    media_content = download_whatsapp_media(media_id, access_token)
-                    if media_content:
-                        try:
-                            from ai_assistant.vision_service import analyze_image
-                            body_override = analyze_image(media_content)
-                        except Exception as e:
-                            logger.exception("Vision analyze_image: %s", e)
-                        if body_override:
-                            body = body_override
+                    if message_type == "image":
+                        media_content = download_whatsapp_media(media_id, access_token)
+                        if media_content:
+                            try:
+                                in_payment_wait = _customer_in_payment_wait_phase(channel, sender)
+                                if in_payment_wait:
+                                    from ai_assistant.vision_service import classify_payment_phase_media
+                                    _vision = classify_payment_phase_media(media_content)
+                                    if _vision:
+                                        body_override = _vision.get("context_line")
+                                        payment_media_receipt_valid = bool(
+                                            _vision.get("is_payment_receipt")
+                                        )
+                                        payment_media_vision_summary = (
+                                            _vision.get("summary") or ""
+                                        ).strip() or None
+                                    else:
+                                        body_override = (
+                                            "[SYSTEM VISION — PAYMENT PHASE]: Image received but "
+                                            "automatic classification failed. Treat as unverified — "
+                                            "do not assume it is a payment receipt."
+                                        )
+                                        payment_media_receipt_valid = False
+                                else:
+                                    from ai_assistant.vision_service import analyze_image
+                                    body_override = analyze_image(media_content)
+                            except Exception as e:
+                                logger.exception("Vision analyze_image: %s", e)
+                            if body_override:
+                                body = body_override
+                    else:
+                        # For document (PDF) receipts: no vision analysis.
+                        # Use caption if available, otherwise leave body empty so
+                        # the receipt detection block handles routing.
+                        doc_caption = media_payload.get("caption", "").strip()
+                        if doc_caption:
+                            body = doc_caption
 
             # --- استخراج محتوى الرسالة بذكاء ---
             
@@ -4887,11 +5841,93 @@ def process_messages(
                     conversation_start_eligible = base_eligible
 
             # حفظ الرسالة (مع نص من STT/Vision إن وجد)
+            _saved_msg_obj = None
             if not _skip_incoming_save:
-                save_incoming_message(
+                _saved_msg_obj = save_incoming_message(
                     msg, message_type=message_type, channel=channel, name=name,
                     body_override=body_override if body_override is not None else None,
                 )
+
+            # ── Payment Receipt Detection ─────────────────────────────────────
+            # If the customer sends an image or PDF document while their most
+            # recent order is in 'pending_payment', treat it as a payment receipt:
+            # flag the message and advance the order to 'pending_verification'.
+            if (
+                message_type in ('image', 'document')
+                and sender
+                and channel
+                and _saved_msg_obj is not None
+            ):
+                try:
+                    from discount.models import SimpleOrder as _SO
+                    _pending_order = (
+                        _SO.objects
+                        .filter(customer_phone=sender, channel=channel, status='pending_payment')
+                        .order_by('-created_at')
+                        .first()
+                    )
+                    if _pending_order:
+                        _accept_as_receipt = True
+                        if message_type == "image" and payment_media_receipt_valid is False:
+                            _accept_as_receipt = False
+                            logger.info(
+                                "Receipt NOT flagged for order %s — vision: unrelated image",
+                                _pending_order.order_id,
+                            )
+                        if _accept_as_receipt:
+                            _saved_msg_obj.is_payment_receipt = True
+                            _saved_msg_obj.receipt_status = 'pending_review'
+                            _saved_msg_obj.save(update_fields=['is_payment_receipt', 'receipt_status'])
+                            _pending_order.status = 'pending_verification'
+                            update_fields = ['status']
+                            if getattr(_pending_order, 'payment_rejection_reason', None):
+                                _pending_order.payment_rejection_reason = None
+                                update_fields.append('payment_rejection_reason')
+                            if getattr(_pending_order, 'payment_rejection_notice_text', None):
+                                _pending_order.payment_rejection_notice_text = None
+                                update_fields.append('payment_rejection_notice_text')
+                            _pending_order.save(update_fields=update_fields)
+                            logger.info(
+                                "Receipt flagged for order %s from %s — status → pending_verification",
+                                _pending_order.order_id, sender,
+                            )
+                except Exception as _re:
+                    logger.warning("Receipt detection error for sender=%s: %s", sender, _re)
+
+            # ── Post-sale support proof (screenshot after complaint) ─────────────
+            if (
+                message_type in ('image', 'document')
+                and sender
+                and channel
+            ):
+                try:
+                    from discount.services.post_sale_support import (
+                        latest_completed_digital_order,
+                        flag_order_for_review,
+                    )
+                    _support_order = latest_completed_digital_order(channel, sender, sender)
+                    if _support_order and _support_order.support_status == 'awaiting_proof':
+                        vision_hint = (body_override or body or '').strip()
+                        summary = (_support_order.complaint_summary or '').strip()
+                        if vision_hint:
+                            summary = (
+                                f"{summary} | Visual proof received: {vision_hint[:500]}"
+                                if summary else f"Visual proof received: {vision_hint[:500]}"
+                            )
+                        else:
+                            summary = summary or 'Customer submitted screenshot/document as proof.'
+                        flag_order_for_review(
+                            channel,
+                            sender,
+                            _support_order.order_id,
+                            summary,
+                        )
+                        logger.info(
+                            "Post-sale proof auto-flagged for order %s from %s",
+                            _support_order.order_id, sender,
+                        )
+                except Exception as _spe:
+                    logger.warning("Post-sale proof detection error for sender=%s: %s", sender, _spe)
 
             # Debounce only WhatsApp "text" messages (not buttons/lists/audio/image).
             # When buffered, we skip immediate LLM execution and wait for the timer flush.
@@ -5005,6 +6041,9 @@ def process_messages(
                                 channel=channel,
                                 incoming_body=body,
                                 start_node_id=selected_target_node_id,
+                                incoming_message_type=message_type,
+                                incoming_payment_receipt_valid=payment_media_receipt_valid,
+                                incoming_media_vision_summary=payment_media_vision_summary,
                             )
                             _clear_button_routing_pending(channel, sender)
                             if output_messages:
@@ -5014,6 +6053,44 @@ def process_messages(
                                 branch_flow.save()
                             continue
 
+            # ══════════════════════════════════════════════════════════════════
+            # PERSISTENT STATE ROUTING
+            # ══════════════════════════════════════════════════════════════════
+            #
+            # STEP 0 — Hard-reset keyword
+            #   Clears the session so next steps treat customer as fresh.
+            #
+            # STEP 1 — Trigger evaluation  (ALWAYS runs — Global Interrupts)
+            #   Trigger keywords are evaluated on EVERY message, even mid-session.
+            #   If a trigger matches a DIFFERENT flow/product than the current
+            #   session, it is a "Global Interrupt": the old session is replaced.
+            #   This lets a customer switch products naturally without cancelling.
+            #
+            # STEP 2 — Route
+            #   A) Trigger matched + SAME flow as current session  → continue.
+            #   B) Trigger matched + DIFFERENT flow                → global interrupt.
+            #   C) No trigger + active session                     → continue session
+            #      (time-aware returning-customer note injected if gap ≥ 3 days).
+            #   D) No trigger + no session                         → fallback.
+            # ══════════════════════════════════════════════════════════════════
+
+            # ── STEP 0: Hard-reset keyword ────────────────────────────────────
+            if body and channel and sender and is_hard_reset_keyword(body):
+                clear_session_and_cache(channel, sender, reason="reset_keyword")
+                conversation_start_eligible = True
+                _ack = get_reset_ack(channel)
+                if _ack:
+                    try:
+                        send_automated_response(
+                            sender,
+                            [{"type": "text", "content": _ack, "delay": 0}],
+                            channel=channel,
+                        )
+                    except Exception as _ack_err:
+                        logger.debug("[session_state] reset ack: %s", _ack_err)
+                # fall through — trigger evaluation below will find a greeting flow
+
+            # ── STEP 1: Trigger evaluation (Global Interrupts) ────────────────
             if is_referral:
                 flows_start = Flow.objects.filter(active=True, trigger_on_start=True)
                 if channel:
@@ -5034,58 +6111,94 @@ def process_messages(
                     conversation_start_eligible=conversation_start_eligible,
                 )
 
-            # Step A: If trigger matched, check for continuation (same flow already in session)
-            session = get_active_session(channel, sender) if (flow and channel) else None
-            same_flow_continuation = (
-                flow and channel and session and getattr(session, "active_node", None)
-                and getattr(session.active_node, "flow_id", None) == flow.id
-            )
+            # ── STEP 2: Route ─────────────────────────────────────────────────
+            # Fetch active session regardless of whether a trigger matched.
+            session = get_active_session(channel, sender) if channel else None
+            _active_node = getattr(session, "active_node", None) if session else None
 
-            if same_flow_continuation:
-                # User already in this flow — continue conversation (don't re-run from trigger)
-                try:
-                    session.last_interaction = timezone.now()
-                    session.save(update_fields=["last_interaction"])
-                except Exception:
-                    pass
-                ctx = getattr(session, "context_data", None) or {}
-                state_header = _build_state_header_from_product_context(
-                    getattr(session.active_node, "product_context", None),
-                    sales_stage=ctx.get("sales_stage"),
-                    sentiment=ctx.get("sentiment"),
+            if flow:
+                _same_flow = (
+                    _active_node is not None
+                    and getattr(_active_node, "flow_id", None) == flow.id
                 )
-                output_messages = run_ai_agent_node(
-                    session.active_node, sender, channel, state_header=state_header, incoming_body=body
-                )
-                if output_messages:
-                    send_automated_response(sender, output_messages, channel=channel)
-                    flow.usage_count += 1
-                    flow.last_used = timezone.now()
-                    flow.save()
+
+                if _same_flow:
+                    # ── A: Trigger matched, same flow — continue existing session ──
+                    try:
+                        session.last_interaction = timezone.now()
+                        session.save(update_fields=["last_interaction"])
+                    except Exception:
+                        pass
+                    ctx = getattr(session, "context_data", None) or {}
+                    state_header = _build_state_header_from_product_context(
+                        getattr(_active_node, "product_context", None),
+                        sales_stage=ctx.get("sales_stage"),
+                        sentiment=ctx.get("sentiment"),
+                    )
+                    output_messages = run_ai_agent_node(
+                        _active_node,
+                        sender,
+                        channel,
+                        state_header=state_header,
+                        incoming_body=body,
+                        incoming_message_type=message_type,
+                        incoming_payment_receipt_valid=payment_media_receipt_valid,
+                        incoming_media_vision_summary=payment_media_vision_summary,
+                    )
+                    if output_messages:
+                        send_automated_response(sender, output_messages, channel=channel)
+                        flow.usage_count += 1
+                        flow.last_used = timezone.now()
+                        flow.save()
+                        set_session_cache(channel, sender, _active_node, ctx)
+                    else:
+                        try_ai_voice_reply(
+                            sender, body, channel,
+                            skip_sentinel=True,
+                            incoming_message_type=message_type,
+                            incoming_payment_receipt_valid=payment_media_receipt_valid,
+                            incoming_media_vision_summary=payment_media_vision_summary,
+                        )
+
                 else:
-                    try_ai_voice_reply(sender, body, channel, skip_sentinel=True)
-            elif flow:
-                # New trigger or different flow: bind session and run full flow
-                if channel:
+                    # ── B: Global Interrupt — different flow triggered ────────────
+                    # Customer is switching products / entering a new flow.
+                    # Clear old session and start fresh with the new flow.
+                    if _active_node:
+                        logger.info(
+                            "[SessionState] GLOBAL INTERRUPT channel=%s phone=…%s "
+                            "old_node=%s new_flow=%s",
+                            getattr(channel, "id", "?"), (sender or "")[-4:],
+                            _active_node.pk, flow.id,
+                        )
+                        clear_session_and_cache(channel, sender, reason="global_interrupt")
+
                     ai_node = get_flow_first_ai_agent_node(flow)
-                    if ai_node:
+                    if ai_node and channel:
                         update_chat_session_on_trigger(channel, sender, ai_node)
-                print(f"🚀 Executing Flow: {flow.name}")
-                output_messages = execute_flow(flow, sender, channel=channel, incoming_body=body)
+                        set_session_cache(channel, sender, ai_node)
+                    print(f"🚀 Executing Flow: {flow.name}")
+                    output_messages = execute_flow(
+                        flow,
+                        sender,
+                        channel=channel,
+                        incoming_body=body,
+                        incoming_message_type=message_type,
+                        incoming_payment_receipt_valid=payment_media_receipt_valid,
+                        incoming_media_vision_summary=payment_media_vision_summary,
+                    )
+                    if output_messages:
+                        send_automated_response(sender, output_messages, channel=channel)
+                        flow.usage_count += 1
+                        flow.last_used = timezone.now()
+                        flow.save()
+                        if channel:
+                            _touch_session_last_interaction(channel, sender)
 
-                if output_messages:
-                    send_automated_response(sender, output_messages, channel=channel)
-                    flow.usage_count += 1
-                    flow.last_used = timezone.now()
-                    flow.save()
-                    # Keep session active (touch) so next message without trigger still finds it
-                    if channel:
-                        _touch_session_last_interaction(channel, sender)
             else:
-                # Step B: No trigger matched — catalog choice, active session, or fallback voice
-                session = get_active_session(channel, sender) if channel else None
+                # ── No trigger matched ────────────────────────────────────────
 
-                # B1: If we previously sent the catalog, try to resolve product choice
+                # C1: If we previously sent the catalog, try to resolve product choice
                 catalog_pending = _get_catalog_pending(channel, sender) if channel else None
                 if catalog_pending and body:
                     products_list = catalog_pending.get("products") or []
@@ -5096,56 +6209,110 @@ def process_messages(
                         _clear_catalog_pending(channel, sender)
                         if chosen_node:
                             update_chat_session_on_trigger(channel, sender, chosen_node)
+                            set_session_cache(channel, sender, chosen_node)
                             state_header = _build_state_header_from_product_context(
                                 getattr(chosen_node, "product_context", None),
                                 sales_stage=None,
                                 sentiment=None,
                             )
                             output_messages = run_ai_agent_node(
-                                chosen_node, sender, channel, state_header=state_header, incoming_body=body
+                                chosen_node,
+                                sender,
+                                channel,
+                                state_header=state_header,
+                                incoming_body=body,
+                                incoming_message_type=message_type,
+                                incoming_payment_receipt_valid=payment_media_receipt_valid,
+                                incoming_media_vision_summary=payment_media_vision_summary,
                             )
                             if output_messages:
                                 send_automated_response(sender, output_messages, channel=channel)
                             else:
-                                try_ai_voice_reply(sender, body, channel, skip_sentinel=True)
+                                try_ai_voice_reply(
+                                    sender, body, channel,
+                                    skip_sentinel=True,
+                                    incoming_message_type=message_type,
+                                    incoming_payment_receipt_valid=payment_media_receipt_valid,
+                                    incoming_media_vision_summary=payment_media_vision_summary,
+                                )
                         else:
-                            try_ai_voice_reply(sender, body, channel)
+                            try_ai_voice_reply(
+                                sender, body, channel,
+                                incoming_message_type=message_type,
+                                incoming_payment_receipt_valid=payment_media_receipt_valid,
+                                incoming_media_vision_summary=payment_media_vision_summary,
+                            )
                         continue
-                    # Not a clear choice — clear catalog pending and fall through
                     _clear_catalog_pending(channel, sender)
 
-                # B2: No session and user is asking for available products — send catalog and store state
-                if not (session and getattr(session, "active_node", None)) and body and _is_catalog_intent(body):
+                # C2: No session and user is asking for available products — send catalog
+                if not _active_node and body and _is_catalog_intent(body):
                     catalog_products = get_channel_products_with_nodes(channel) if channel else []
                     if catalog_products:
                         payload = [{"product_id": p["product_id"], "name": p["name"], "node_id": p["node_id"]} for p in catalog_products]
                         _set_catalog_pending(channel, sender, payload)
                         _send_catalog_reply(sender, catalog_products, channel)
                         continue
-                    # No products with nodes — fall through to voice reply
 
-                # B3: Active session — continue same product
-                if session and getattr(session, "active_node", None):
-                    try:
-                        session.last_interaction = timezone.now()
-                        session.save(update_fields=["last_interaction"])
-                    except Exception:
-                        pass
-                    ctx = getattr(session, "context_data", None) or {}
+                # C3: Sticky session — continue product flow WITHOUT re-triggering keyword
+                _sticky_node = _active_node
+                if not _sticky_node and channel and sender:
+                    _sticky_node = get_active_node_fast(channel, sender)
+                if _sticky_node:
+                    if not session and channel and sender:
+                        try:
+                            from discount.whatssapAPI.session_state import persist_sticky_sales_session
+                            _sp = _get_node_bound_product(_sticky_node, channel)
+                            persist_sticky_sales_session(channel, sender, _sticky_node, _sp)
+                            session = get_active_session(channel, sender)
+                        except Exception as _sticky_err:
+                            logger.debug("sticky session hydrate: %s", _sticky_err)
+                    ctx = getattr(session, "context_data", None) or {} if session else {}
                     state_header = _build_state_header_from_product_context(
-                        getattr(session.active_node, "product_context", None),
+                        getattr(_sticky_node, "product_context", None),
                         sales_stage=ctx.get("sales_stage"),
                         sentiment=ctx.get("sentiment"),
                     )
+                    try:
+                        if session:
+                            session.last_interaction = timezone.now()
+                            session.save(update_fields=["last_interaction"])
+                    except Exception:
+                        pass
                     output_messages = run_ai_agent_node(
-                        session.active_node, sender, channel, state_header=state_header, incoming_body=body
+                        _sticky_node,
+                        sender,
+                        channel,
+                        state_header=state_header,
+                        incoming_body=body,
+                        incoming_message_type=message_type,
+                        incoming_payment_receipt_valid=payment_media_receipt_valid,
+                        incoming_media_vision_summary=payment_media_vision_summary,
                     )
                     if output_messages:
                         send_automated_response(sender, output_messages, channel=channel)
+                        _sp_cache = _get_node_bound_product(_sticky_node, channel)
+                        set_session_cache(channel, sender, _sticky_node, ctx, active_product=_sp_cache)
                     else:
-                        try_ai_voice_reply(sender, body, channel, skip_sentinel=True)
+                        try_ai_voice_reply(
+                            sender, body, channel,
+                            skip_sentinel=True,
+                            incoming_message_type=message_type,
+                            incoming_payment_receipt_valid=payment_media_receipt_valid,
+                            incoming_media_vision_summary=payment_media_vision_summary,
+                        )
+                    continue
                 else:
-                    try_ai_voice_reply(sender, body, channel)
+                    # C4: No active session/node, no trigger — generic AI fallback.
+                    # Post-sale: completed digital orders still route here when
+                    # is_completed=True hid the session; get_post_sale_support_context
+                    # + flag_order_for_review handle support screenshots.
+                    try_ai_voice_reply(
+                        sender, body, channel,
+                        incoming_message_type=message_type,
+                        incoming_payment_receipt_valid=payment_media_receipt_valid,
+                        incoming_media_vision_summary=payment_media_vision_summary,
+                    )
                 
         except Exception as e:
             print(f"❌ Error in process_messages: {e}")

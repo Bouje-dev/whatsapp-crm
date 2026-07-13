@@ -609,9 +609,15 @@
                         <li class="nav-item">
                             <button type="button" class="nav-link" data-bs-toggle="tab" data-bs-target="#content-integrations" role="tab"><i class="fas fa-plug"></i> Integrations</button>
                         </li>
+                        <li class="nav-item">
+                            <button type="button" class="nav-link" data-bs-toggle="tab" data-bs-target="#content-payments" role="tab"><i class="fas fa-credit-card"></i> Payments</button>
+                        </li>
                         {% else %}
                         <li class="nav-item">
                             <button type="button" class="nav-link" data-bs-toggle="tab" data-bs-target="#content-integrations" role="tab"><i class="fas fa-plug"></i> Integrations</button>
+                        </li>
+                        <li class="nav-item">
+                            <button type="button" class="nav-link" data-bs-toggle="tab" data-bs-target="#content-payments" role="tab"><i class="fas fa-credit-card"></i> Payments</button>
                         </li>
                         {% endif %}
                         <li class="nav-item">
@@ -1250,6 +1256,90 @@
                             </div>
                         </div>
                     </div>
+
+                    <!-- ═══════════════════════════════════════════════════════════════ -->
+                    <!-- PAYMENTS TAB                                                     -->
+                    <!-- ═══════════════════════════════════════════════════════════════ -->
+                    <div class="tab-pane fade" id="content-payments">
+                        <div class="row">
+                            <div class="col-lg-9">
+                                <h5 class="text-white mb-1"><i class="fas fa-credit-card text-warning me-2"></i> Payment Methods</h5>
+                                <p class="text-muted small mb-4">These payment accounts are encrypted at rest. The AI uses them to guide customers through manual payment when they order a <strong class="text-white">Digital Products</strong>.</p>
+
+                                <!-- ── Add new method form ── -->
+                                <div class="inner-card p-4 mb-4">
+                                    <h6 class="text-white mb-3"><i class="fas fa-plus-circle text-success me-2"></i> Add Payment Method</h6>
+                                    <div class="row g-3">
+
+                                        <!-- Provider -->
+                                        <div class="col-md-6">
+                                            <label class="form-label text-muted small">Provider <span class="text-danger">*</span></label>
+                                            <select id="pm-provider" class="form-select modern-input bg-dark text-white border-secondary">
+                                                <!-- populated by JS after API load -->
+                                            </select>
+                                        </div>
+
+                                        <!-- Display name (optional) -->
+                                        <div class="col-md-6">
+                                            <label class="form-label text-muted small">Display Name <span class="text-muted">(optional)</span></label>
+                                            <input type="text" id="pm-display-name" class="form-control modern-input bg-dark text-white border-secondary" placeholder="e.g. My CIH Account">
+                                        </div>
+
+                                        <!-- Account holder name — shown only for banks -->
+                                        <div class="col-md-6" id="pm-holder-wrap">
+                                            <label class="form-label text-muted small">Account Holder Name</label>
+                                            <input type="text" id="pm-holder-name" class="form-control modern-input bg-dark text-white border-secondary" placeholder="Full name on the bank account">
+                                        </div>
+
+                                        <!-- Account identifier — label + type changes dynamically -->
+                                        <div class="col-md-6">
+                                            <label class="form-label text-muted small" id="pm-identifier-label">RIB (24 digits) <span class="text-danger">*</span></label>
+                                            <input type="text" id="pm-identifier" class="form-control modern-input bg-dark text-white border-secondary font-monospace" placeholder="e.g. 230 780 0000123456789012 80" autocomplete="off">
+                                            <div class="form-text text-muted" style="font-size:0.72rem;" id="pm-identifier-hint">Spaces are stripped automatically. Encrypted before saving.</div>
+                                        </div>
+
+                                        <!-- Instructions -->
+                                        <div class="col-12">
+                                            <label class="form-label text-muted small">Instructions <span class="text-muted">(optional)</span></label>
+                                            <input type="text" id="pm-instructions" class="form-control modern-input bg-dark text-white border-secondary" placeholder='e.g. "Include your order number in the transfer note"'>
+                                        </div>
+
+                                        <div class="col-12">
+                                            <button type="button" class="btn btn-success btn-sm px-4" id="pm-add-btn">
+                                                <i class="fas fa-lock me-1"></i> Save Encrypted
+                                            </button>
+                                            <span id="pm-add-feedback" class="ms-3 small"></span>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- ── Existing methods list ── -->
+                                <div class="inner-card p-4">
+                                    <h6 class="text-white mb-3"><i class="fas fa-list-ul me-2 text-info"></i> Configured Methods</h6>
+                                    <div id="pm-list-wrap">
+                                        <div class="text-muted small text-center py-3" id="pm-empty-state">Loading…</div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="col-lg-3 mt-4 mt-lg-0">
+                                <div class="inner-card p-3" style="border-left:3px solid var(--accent-warning,#f0b429);">
+                                    <h6 class="text-warning mb-2"><i class="fas fa-shield-alt me-1"></i> Security</h6>
+                                    <p class="text-muted small mb-2">RIBs and emails are encrypted with AES-256 (Fernet) before writing to the database. The server's secret key is required to decrypt them.</p>
+                                    <p class="text-muted small mb-0">The UI shows only a masked version — last 4 characters for RIBs, full domain for emails.</p>
+                                </div>
+                                <div class="inner-card p-3 mt-3" style="border-left:3px solid #3fb950;">
+                                    <h6 class="text-success mb-2"><i class="fas fa-robot me-1"></i> How the AI uses this</h6>
+                                    <p class="text-muted small mb-0">For <strong class="text-white">Digital Products</strong>, the AI lists your active methods, asks the customer to choose, shares that method's exact details, and requests a payment receipt screenshot — hands-free.</p>
+                                </div>
+                                <div class="inner-card p-3 mt-3" style="border-left:3px solid #58a6ff;">
+                                    <h6 class="text-info mb-2"><i class="fas fa-info-circle me-1"></i> Bank vs. Digital Wallet</h6>
+                                    <p class="text-muted small mb-0"><strong class="text-white">CIH / Attijariwafa / BOA</strong> — requires Account Holder Name + 24-digit RIB.<br><strong class="text-white">PayPal / Wise</strong> — requires only the account email.</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <!-- END PAYMENTS TAB -->
 
                     <div class="tab-pane fade" id="content-personal">
                         <div class="row">
@@ -2705,5 +2795,227 @@ function showToast(message, type) {
         var emailEl = document.getElementById('gs-service-account-email');
         if (emailEl) setTimeout(loadGoogleSheetsConfig, 200);
     }
+})();
+</script>
+
+<!-- ═══════════════════════════════════════════════════════════════════════ -->
+<!-- PAYMENT METHODS TAB — JavaScript                                        -->
+<!-- ═══════════════════════════════════════════════════════════════════════ -->
+<script>
+(function () {
+    'use strict';
+
+    var API_LIST   = '{% url "api_payment_methods_list" %}';
+    var API_CREATE = '{% url "api_payment_methods_create" %}';
+
+    /* Set of provider values that are bank accounts (need holder name + RIB).
+       Kept in sync with models.py StorePaymentMethod.BANK_PROVIDERS.         */
+    var BANK_PROVIDERS = { cih_bank: true, attijariwafa: true, boa: true };
+
+    /* ── Tiny helpers ── */
+    function el(id) { return document.getElementById(id); }
+    function getCsrf() {
+        var c = document.cookie.match(/csrftoken=([^;]+)/);
+        return c ? c[1] : '';
+    }
+    function escHtml(str) {
+        return String(str || '')
+            .replace(/&/g, '&amp;').replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    }
+    function showFeedback(msg, ok) {
+        var fb = el('pm-add-feedback');
+        if (!fb) return;
+        fb.textContent = msg;
+        fb.style.color = ok ? '#3fb950' : '#f85149';
+        setTimeout(function () { fb.textContent = ''; }, 4500);
+    }
+    function methodActionUrl(id, action) {
+        return API_LIST.replace(/\/?$/, '/') + id + '/' + action + '/';
+    }
+
+    /* ── Dynamic form: adapt fields to selected provider ── */
+    function applyProviderUI(providerValue) {
+        var isBank     = !!BANK_PROVIDERS[providerValue];
+        var holderWrap = el('pm-holder-wrap');
+        var holderInput= el('pm-holder-name');
+        var idLabel    = el('pm-identifier-label');
+        var idInput    = el('pm-identifier');
+        var idHint     = el('pm-identifier-hint');
+
+        if (!holderWrap || !idLabel || !idInput) return;
+
+        if (isBank) {
+            /* Show account holder name, require RIB */
+            holderWrap.style.display = '';
+            idLabel.innerHTML        = 'RIB (24 digits) <span class="text-danger">*</span>';
+            idInput.type             = 'text';
+            idInput.placeholder      = 'e.g. 230 780 0000123456789012 80';
+            idInput.classList.add('font-monospace');
+            if (idHint) idHint.textContent = 'Spaces are stripped automatically. Encrypted before saving.';
+        } else {
+            /* Hide account holder name, use email */
+            holderWrap.style.display = 'none';
+            if (holderInput) holderInput.value = '';
+            idLabel.innerHTML        = 'Account Email Address <span class="text-danger">*</span>';
+            idInput.type             = 'email';
+            idInput.placeholder      = 'paypal@example.com';
+            idInput.classList.remove('font-monospace');
+            if (idHint) idHint.textContent = 'Encrypted before saving — never stored in plain text.';
+        }
+    }
+
+    /* ── Populate provider <select> and wire change event ── */
+    function populateProviders(choices) {
+        var sel = el('pm-provider');
+        if (!sel || !choices) return;
+        sel.innerHTML = choices.map(function (c) {
+            return '<option value="' + escHtml(c.value) + '" data-is-bank="' + (c.is_bank ? '1' : '0') + '">'
+                 + escHtml(c.label) + '</option>';
+        }).join('');
+        applyProviderUI(sel.value);
+        sel.addEventListener('change', function () { applyProviderUI(sel.value); });
+    }
+
+    /* ── Render the saved-methods list ── */
+    function renderList(methods) {
+        var wrap = el('pm-list-wrap');
+        if (!wrap) return;
+        if (!methods || methods.length === 0) {
+            wrap.innerHTML = '<p class="text-muted small text-center py-3">No payment methods configured yet. Add one above.</p>';
+            return;
+        }
+        var html = '<div class="list-group list-group-flush">';
+        methods.forEach(function (m) {
+            var activeIcon = m.is_active ? 'fa-toggle-on text-success' : 'fa-toggle-off text-muted';
+            var activeTip  = m.is_active ? 'Disable' : 'Enable';
+            var masked     = escHtml(m.account_details_masked || '****');
+            var holderLine = (m.is_bank && m.account_holder_name)
+                ? '<div class="text-muted" style="font-size:0.78rem;">' + escHtml(m.account_holder_name) + '</div>'
+                : '';
+            var identLabel = m.is_bank ? 'RIB ' : 'Email ';
+            var instr      = m.instructions
+                ? '<div class="text-muted" style="font-size:0.72rem;margin-top:2px;">↳ ' + escHtml(m.instructions) + '</div>'
+                : '';
+            html +=
+                '<div class="list-group-item bg-transparent border-secondary d-flex justify-content-between align-items-start py-3" id="pm-row-' + m.id + '">' +
+                '  <div>' +
+                '    <div class="text-white fw-semibold">' + escHtml(m.label) +
+                '      <span class="badge bg-secondary ms-2" style="font-size:0.65rem;">' + escHtml(m.provider_label) + '</span>' +
+                '    </div>' +
+                    holderLine +
+                '    <div class="font-monospace text-warning" style="font-size:0.78rem;letter-spacing:1px;">' + identLabel + masked + '</div>' +
+                    instr +
+                '  </div>' +
+                '  <div class="d-flex gap-2 ms-3 flex-shrink-0">' +
+                '    <button type="button" class="btn btn-sm btn-outline-secondary pm-toggle-btn" data-pmid="' + m.id + '" title="' + activeTip + '">' +
+                '      <i class="fas ' + activeIcon + '"></i>' +
+                '    </button>' +
+                '    <button type="button" class="btn btn-sm btn-outline-danger pm-delete-btn" data-pmid="' + m.id + '" title="Delete">' +
+                '      <i class="fas fa-trash"></i>' +
+                '    </button>' +
+                '  </div>' +
+                '</div>';
+        });
+        html += '</div>';
+        wrap.innerHTML = html;
+        wrap.querySelectorAll('.pm-toggle-btn').forEach(function (btn) {
+            btn.addEventListener('click', function () { toggleMethod(btn.dataset.pmid); });
+        });
+        wrap.querySelectorAll('.pm-delete-btn').forEach(function (btn) {
+            btn.addEventListener('click', function () { deleteMethod(btn.dataset.pmid); });
+        });
+    }
+
+    /* ── Load from API ── */
+    function loadPaymentMethods() {
+        var wrap = el('pm-list-wrap');
+        if (!wrap) return;
+        wrap.innerHTML = '<p class="text-muted small text-center py-3">Loading…</p>';
+        fetch(API_LIST, { credentials: 'same-origin' })
+            .then(function (r) { return r.json(); })
+            .then(function (data) {
+                populateProviders(data.provider_choices);
+                renderList(data.methods);
+            })
+            .catch(function () {
+                wrap.innerHTML = '<p class="text-danger small text-center py-3">Failed to load — check connection.</p>';
+            });
+    }
+
+    /* ── Create ── */
+    function createMethod() {
+        var sel        = el('pm-provider');
+        var provider   = sel ? sel.value.trim() : '';
+        var isBank     = !!BANK_PROVIDERS[provider];
+        var holder     = isBank && el('pm-holder-name')  ? el('pm-holder-name').value.trim()  : '';
+        var identifier = el('pm-identifier')             ? el('pm-identifier').value.trim()   : '';
+        var display    = el('pm-display-name')           ? el('pm-display-name').value.trim() : '';
+        var instr      = el('pm-instructions')           ? el('pm-instructions').value.trim() : '';
+
+        if (!identifier) { showFeedback('Account identifier is required.', false); return; }
+
+        var addBtn = el('pm-add-btn');
+        if (addBtn) addBtn.disabled = true;
+
+        fetch(API_CREATE, {
+            method: 'POST',
+            credentials: 'same-origin',
+            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCsrf() },
+            body: JSON.stringify({
+                provider_name:      provider,
+                account_holder_name: holder,
+                account_identifier: identifier,
+                display_name:       display,
+                instructions:       instr,
+            }),
+        })
+        .then(function (r) { return r.json(); })
+        .then(function (data) {
+            if (data.success) {
+                showFeedback('Saved & encrypted successfully.', true);
+                ['pm-holder-name','pm-identifier','pm-display-name','pm-instructions'].forEach(function (id) {
+                    if (el(id)) el(id).value = '';
+                });
+                loadPaymentMethods();
+            } else {
+                showFeedback(data.error || 'Save failed.', false);
+            }
+        })
+        .catch(function () { showFeedback('Network error — try again.', false); })
+        .finally(function () { if (addBtn) addBtn.disabled = false; });
+    }
+
+    /* ── Toggle ── */
+    function toggleMethod(id) {
+        fetch(methodActionUrl(id, 'toggle'), {
+            method: 'POST', credentials: 'same-origin',
+            headers: { 'X-CSRFToken': getCsrf() },
+        })
+        .then(function (r) { return r.json(); })
+        .then(function (d) { if (d.success) loadPaymentMethods(); });
+    }
+
+    /* ── Delete ── */
+    function deleteMethod(id) {
+        if (!confirm('Delete this payment method? This cannot be undone.')) return;
+        fetch(methodActionUrl(id, 'delete'), {
+            method: 'POST', credentials: 'same-origin',
+            headers: { 'X-CSRFToken': getCsrf() },
+        })
+        .then(function (r) { return r.json(); })
+        .then(function (d) { if (d.success) loadPaymentMethods(); });
+    }
+
+    /* ── Boot ── */
+    document.addEventListener('DOMContentLoaded', function () {
+        var addBtn = el('pm-add-btn');
+        if (addBtn) addBtn.addEventListener('click', createMethod);
+
+        /* Lazy-load when the tab becomes visible */
+        var payTab = document.querySelector('[data-bs-target="#content-payments"]');
+        if (payTab) payTab.addEventListener('shown.bs.tab', loadPaymentMethods);
+    });
+
 })();
 </script>

@@ -66,7 +66,7 @@ GOOGLE_SHEETS_SERVICE_ACCOUNT_EMAIL = _gs_email or ""
 SECRET_KEY = 'django-insecure-8*lzwv5+jl80b65ev5=atx-bn2&-bf^jk7)y&886_xbf2)m_%('
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = False
+DEBUG = True
 
 # Default dialect label key when the LLM cannot resolve a voice-specific dialect (matches `discount.models.VOICE_DIALECT_DEFAULT`).
 DEFAULT_VOICE_DIALECT = os.environ.get("DEFAULT_VOICE_DIALECT", "MA_DARIJA").strip() or "MA_DARIJA"
@@ -359,7 +359,7 @@ STATICFILES_DIRS = [os.path.join(BASE_DIR, 'static')]
 AWS_ACCESS_KEY_ID = os.environ.get('AWS_ACCESS_KEY_ID')
 AWS_SECRET_ACCESS_KEY = os.environ.get('AWS_SECRET_ACCESS_KEY')
 AWS_STORAGE_BUCKET_NAME = os.environ.get('AWS_STORAGE_BUCKET_NAME')
-AWS_S3_REGION_NAME = 'eu-north-1' # تأكد أن المنطقة صحيحة
+AWS_S3_REGION_NAME = 'us-east-1' # تأكد أن المنطقة صحيحة
 AWS_S3_FILE_OVERWRITE = False
 AWS_DEFAULT_ACL = 'public-read'
 AWS_S3_VERIFY = True
@@ -414,3 +414,12 @@ META_API_VERSION = 'v24.0'
 
 import os
 GOOGLE_SHEETS_CREDENTIALS_JSON = os.environ.get("GOOGLE_SHEETS_CREDENTIALS_JSON", "")
+
+# Founder HQ — tenant risk alerts (email when complaints exceed threshold in 24h)
+FOUNDER_RISK_COMPLAINT_THRESHOLD_24H = int(os.environ.get("FOUNDER_RISK_COMPLAINT_THRESHOLD_24H", "5"))
+# Optional: ["founder@example.com"] — defaults to active superuser emails
+FOUNDER_RISK_ALERT_EMAILS = os.environ.get("FOUNDER_RISK_ALERT_EMAILS", "").strip()
+if FOUNDER_RISK_ALERT_EMAILS:
+    FOUNDER_RISK_ALERT_EMAILS = [e.strip() for e in FOUNDER_RISK_ALERT_EMAILS.split(",") if e.strip()]
+else:
+    FOUNDER_RISK_ALERT_EMAILS = []

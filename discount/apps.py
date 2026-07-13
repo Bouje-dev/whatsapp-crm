@@ -18,3 +18,4 @@ class DiscountConfig(AppConfig):
 
         # Connect signals (post_save SimpleOrder -> sync to Google Sheets)
         import discount.signals  # noqa: F401
+        import discount.signals_risk  # noqa: F401

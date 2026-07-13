@@ -14,6 +14,13 @@ _SPLIT_MARKERS = re.compile(
     re.IGNORECASE,
 )
 
+# Sentinel markers that wrap copy-pasteable blocks (payment RIB / amounts).
+# By contract these blocks should NEVER reach TTS — the WhatsApp router
+# (process_messages.py) detects them upstream and forces text delivery.
+# This regex is a safety net: if anything slips through, strip the
+# markers so they aren't read aloud as "no underscore t t s".
+_NO_TTS_MARKERS = re.compile(r"\[\s*/?\s*NO_TTS\s*\]", re.IGNORECASE)
+
 # Markdown: links ![alt](u) and [text](url) — keep visible text only
 _MD_IMAGE = re.compile(r"!\[([^\]]*)\]\([^)]*\)")
 _MD_LINK = re.compile(r"\[([^\]]*)\]\(([^)]*)\)")
@@ -58,6 +65,7 @@ def clean_text_for_tts(text: str) -> str:
         return ""
     s = str(text)
     s = _SPLIT_MARKERS.sub(" ", s)
+    s = _NO_TTS_MARKERS.sub(" ", s)
     s = _MD_IMAGE.sub(r"\1", s)
     s = _MD_LINK.sub(r"\1", s)
     s = _MD_HEADER.sub("", s)

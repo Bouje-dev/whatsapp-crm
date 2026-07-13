@@ -148,6 +148,30 @@ def merchant_voice_mode_enabled(channel) -> bool:
     return bool(channel and getattr(channel, "ai_voice_enabled", False))
 
 
+def node_reply_prefers_tts(channel, node=None) -> bool:
+    """
+    True when the primary LLM should use AUDIO SCRIPT rules (including spelled-out
+  numbers in the model output). False for TEXT_ONLY and AUTO_SMART nodes — those
+  replies keep numerals in the LLM text; VoiceFormatterMiddleware spells numbers
+  only when the send pipeline actually delivers a voice note.
+
+    Do NOT key this off channel-level ``ai_voice_enabled`` alone: a merchant can
+    have voice on the account while a flow node is TEXT_ONLY.
+    """
+    if node is not None:
+        rm = (getattr(node, "response_mode", None) or "").strip()
+        if rm == "TEXT_ONLY":
+            return False
+        if rm == "AUDIO_ONLY":
+            return True
+        if rm == "AUTO_SMART":
+            return False
+        if getattr(node, "voice_enabled", False):
+            return True
+        return False
+    return False
+
+
 def should_inject_tts_dialect_prompt(channel, node=None) -> bool:
     """
     True when assistant replies may be converted to speech — inject strict dialect

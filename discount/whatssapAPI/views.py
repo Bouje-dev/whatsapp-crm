@@ -8,14 +8,14 @@ import mimetypes
 from typing import Type
 import requests
 from django.shortcuts import render, get_object_or_404
-from django.http import JsonResponse, HttpResponse
+from django.http import JsonResponse, HttpResponse, HttpResponseForbidden
 from django.urls import reverse
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_http_methods, require_GET, require_POST
 from django.utils import timezone
 from django.core.files.base import ContentFile
 from django.conf import settings
-from django.db import IntegrityError
+from django.db import IntegrityError, transaction
 from django.db.models import Max, Q
 from django.core.paginator import Paginator
 from discount.models import Message, SimpleOrder, Template, Order , Contact, WhatsAppChannel, CustomUser, ChatSession
@@ -1753,6 +1753,17 @@ def _message_to_chat_dict(m, request):
     elif (getattr(m, "type", None) or "") == "note" and getattr(m, "name", None):
         note_author = (m.name or "").strip() or None
 
+    # ── Digital-delivery spoiler flags ────────────────────────────────────
+    # IMPORTANT: This serializer is the chat-LIST payload. We MUST emit
+    # only the boolean facts the bubble renderer needs to draw the blurred
+    # spoiler UI. The actual ciphertext (`encrypted_asset`) and any
+    # decrypted plaintext NEVER leave the server here — disclosure happens
+    # exclusively through the strict owner-gated reveal endpoint
+    # (`api_reveal_asset`). Leaking either field here would defeat the
+    # entire RBAC model.
+    is_digital_delivery = bool(getattr(m, 'is_digital_delivery', False))
+    has_protected_asset = bool(is_digital_delivery and getattr(m, 'encrypted_asset', None))
+
     return {
         "id": m.id,
         "body": m.body,
@@ -1764,6 +1775,8 @@ def _message_to_chat_dict(m, request):
         "user": note_author,
         "timestamp": m.created_at.strftime('%Y-%m-%d %H:%M'),
         "captions": m.captions,
+        "is_digital_delivery": is_digital_delivery,
+        "has_protected_asset": has_protected_asset,
     }
 
 
@@ -1814,6 +1827,185 @@ def _contact_for_channel_phone(channel, phone_param, resolved_sender):
         if _digits_only_phone(row.phone) == dq:
             return row
     return None
+
+
+# Statuses on a digital order that still need merchant action on a payment
+# receipt. `pending_payment`  = waiting for the customer to send a receipt.
+# `pending_verification`     = receipt received, merchant must approve/reject.
+_ACTIVE_DIGITAL_ORDER_STATUSES = ("pending_payment", "pending_verification")
+_SUPPORT_REVIEW_STATUS = "under_review"
+
+
+def _active_digital_order_for(channel, phone_param, resolved_sender):
+    """
+    Return the latest still-actionable digital order for the open chat
+    `(channel, customer_phone)`, or None.
+
+    "Actionable" = is_digital=True AND status in (pending_payment,
+    pending_verification). We try the resolved sender first (matches what
+    `submit_customer_order` saves), then fall back to a digits-only match
+    to be robust against legacy rows stored with/without `+` or spaces.
+    """
+    try:
+        from discount.models import SimpleOrder
+    except Exception:
+        return None
+
+    if not channel:
+        return None
+
+    candidates = []
+    if resolved_sender:
+        candidates.append(resolved_sender)
+    if phone_param and phone_param not in candidates:
+        candidates.append(phone_param)
+
+    base_qs = (
+        SimpleOrder.objects
+        .filter(
+            channel=channel,
+            is_digital=True,
+            status__in=_ACTIVE_DIGITAL_ORDER_STATUSES,
+        )
+        .select_related('product')
+        .order_by('-created_at')
+    )
+
+    for cand in candidates:
+        order = base_qs.filter(customer_phone=cand).first()
+        if order:
+            return order
+
+    # Fallback: digit-only suffix match (handles +212 vs 212 vs 0X formatting)
+    dq = _digits_only_phone(phone_param or resolved_sender or "")
+    if not dq or len(dq) < 9:
+        return None
+    tail = dq[-9:]
+    for order in base_qs.iterator(chunk_size=50):
+        if (_digits_only_phone(order.customer_phone or "") or "").endswith(tail):
+            return order
+    return None
+
+
+def _active_support_review_order_for(channel, phone_param, resolved_sender):
+    """Latest completed digital order awaiting merchant support review."""
+    try:
+        from discount.services.post_sale_support import active_support_review_order
+        return active_support_review_order(channel, phone_param, resolved_sender)
+    except Exception:
+        return None
+
+
+def _serialize_support_review_order(order):
+    try:
+        from discount.services.post_sale_support import serialize_support_review_order
+        return serialize_support_review_order(order)
+    except Exception:
+        return None
+
+
+# ══════════════════════════════════════════════════════════════════════════
+# Digital-delivery spoiler — labelled placeholder body builder
+# ══════════════════════════════════════════════════════════════════════════
+#
+# These helpers compose the `Message.body` HTML for an outgoing digital-
+# delivery fulfillment message. Labels are rendered as plaintext on the
+# row (everyone in the dashboard sees "Email:", "🔗 Link:", etc.) while
+# every sensitive value lives behind a CSS-blurred placeholder span that
+# only the strict owner can decrypt via `api_reveal_asset`.
+#
+# Field config keys must match the keys in the dict passed to
+# `Message.set_encrypted_asset(...)` so the JS reveal step can look up
+# each value by its `data-field` attribute.
+_SPOILER_FIELD_CONFIG = {
+    "link":     {"label": "🔗 Link:",          "mask": "*" * 24},
+    "email":    {"label": "📧 Email:",         "mask": "*" * 18},
+    "password": {"label": "🔑 Password:",      "mask": "*" * 14},
+    "username": {"label": "👤 Username:",      "mask": "*" * 14},
+    "license":  {"label": "🗝️ License key:",   "mask": "*" * 20},
+    "token":    {"label": "🪪 Token:",         "mask": "*" * 20},
+}
+_SPOILER_DEFAULT_FIELD = "link"
+
+
+def _render_spoiler_body_html(message_id, field_keys, public_body=""):
+    """
+    Compose the `Message.body` HTML used by the dashboard chat bubble.
+
+    Output shape (example, all server-controlled — safe to render via
+    innerHTML for digital-delivery messages):
+
+        شكراً على ثقتك فينا! 🎉<br>هاهو رابط تحميل المنتج ديالك:<br><br>
+        🔗 الرابط: <span class="spoiler-text trigger-decrypt"
+                          data-id="123" data-field="link"
+                          title="انقر لفك التشفير">************************</span>
+
+    `field_keys` is an iterable of field names; unknown keys fall back to
+    the default link config so the row always renders something.
+    """
+    import html as _html
+    parts = []
+    if public_body:
+        # Server-controlled message, but escape defensively in case a
+        # merchant ever lets customers craft these strings.
+        parts.append(_html.escape(public_body).replace("\n", "<br>"))
+        parts.append("<br><br>")
+    for key in field_keys:
+        cfg = _SPOILER_FIELD_CONFIG.get(key) or _SPOILER_FIELD_CONFIG[_SPOILER_DEFAULT_FIELD]
+        parts.append(_html.escape(cfg["label"]))
+        parts.append(" ")
+        parts.append(
+            '<span class="spoiler-text trigger-decrypt" '
+            'data-id="{mid}" data-field="{field}" '
+            'title="Click to reval">{mask}</span>'.format(
+                mid=int(message_id),
+                field=_html.escape(key),
+                mask=cfg["mask"],
+            )
+        )
+        parts.append("<br>")
+    # Drop the trailing <br> for a tidy bubble.
+    if parts and parts[-1] == "<br>":
+        parts.pop()
+    return "".join(parts)
+
+
+def _serialize_active_digital_order(order):
+    """Compact JSON payload consumed by the dashboard payment-banner UI."""
+    if not order:
+        return None
+    try:
+        price = float(order.price) if order.price is not None else 0.0
+    except (TypeError, ValueError):
+        price = 0.0
+    catalog_price = None
+    try:
+        prod = getattr(order, "product", None)
+        if prod is not None and getattr(prod, "price", None) is not None:
+            catalog_price = float(prod.price)
+    except (TypeError, ValueError):
+        catalog_price = None
+    is_negotiated = (
+        catalog_price is not None
+        and price > 0
+        and price < catalog_price - 0.001
+    )
+    return {
+        "id": order.order_id,
+        "status": order.status,
+        "total_price": price,
+        "catalog_price": catalog_price,
+        "is_negotiated": is_negotiated,
+        "currency": order.currency or "MAD",
+        "product_name": (
+            getattr(order, "product_name", None)
+            or (getattr(order.product, "name", "") if getattr(order, "product", None) else "")
+            or ""
+        ),
+        "customer_name": order.customer_name or "",
+        "customer_phone": order.customer_phone or "",
+        "created_at": order.created_at.isoformat() if order.created_at else None,
+    }
 
 
 @require_GET
@@ -1922,12 +2114,27 @@ def get_messages1(request):
             m.save(update_fields=['is_read'])
         messages.append(_message_to_chat_dict(m, request))
 
+    # Only attach the payment banner payload on the initial chat-open call
+    # (not on older-page scrolls). The polling branch above never hits this
+    # tail, so older pages keep the banner the dashboard already painted.
+    active_digital_order_payload = None
+    active_support_review_payload = None
+    if not load_older:
+        active_digital_order_payload = _serialize_active_digital_order(
+            _active_digital_order_for(channel, phone, resolved_sender)
+        )
+        active_support_review_payload = _serialize_support_review_order(
+            _active_support_review_order_for(channel, phone, resolved_sender)
+        )
+
     return JsonResponse({
         "messages": messages,
         "has_older_messages": has_older,
         "oldest_id": min_id,
         "newest_id": batch[-1].id if batch else None,
         "crm_data": contact_crm_data,
+        "active_digital_order": active_digital_order_payload,
+        "active_support_review": active_support_review_payload,
     })
 
 
@@ -2712,10 +2919,14 @@ def get_target_channel(user, channel_id_param):
         target_id = channel_id_param
 
     # 2. تحديد نطاق البحث (QuerySet) بناءً على الصلاحية
+    # Always include channels the user OWNS (owner FK) OR is assigned to as a team agent.
+    # Previously only assigned_agents was checked for non-superusers, which meant channel
+    # owners who were not also in assigned_agents got None back and saw empty data everywhere.
+    from django.db.models import Q as _Q
     if user.is_superuser or getattr(user, 'is_team_admin', False):
-        qs = WhatsAppChannel.objects.filter(owner=user)
+        qs = WhatsAppChannel.objects.filter(_Q(owner=user) | _Q(assigned_agents=user)).distinct()
     else:
-        qs = WhatsAppChannel.objects.filter(assigned_agents=user)
+        qs = WhatsAppChannel.objects.filter(_Q(owner=user) | _Q(assigned_agents=user)).distinct()
 
     channel = None
 
@@ -2824,8 +3035,10 @@ def api_orders(request):
         return JsonResponse({"orders": []})
 
     from discount.models import SimpleOrder
-    qs = None
-    if user.is_superuser or getattr(user, 'is_team_admin', False):
+    # Channel owners and admins see ALL orders (including AI-created ones whose agent=bot_user).
+    # Assigned team members who don't own the channel see only their own orders.
+    is_channel_owner = (getattr(target_channel, "owner_id", None) == user.pk)
+    if user.is_superuser or getattr(user, 'is_team_admin', False) or is_channel_owner:
         qs = SimpleOrder.objects.filter(channel=target_channel).order_by("-created_at")
     else:
         qs = SimpleOrder.objects.filter(channel=target_channel, agent=user).order_by("-created_at")
@@ -2851,13 +3064,25 @@ def api_orders(request):
         else:
             created_by_display = (getattr(agent, "agent_role", None) or created_by_username) if agent else "—"
 
+        # Smart customer display: Direct-Sale orders have no name — use phone or a clear label.
+        raw_name = (o.customer_name or "").strip()
+        if raw_name:
+            display_name = raw_name
+        elif o.customer_phone:
+            display_name = o.customer_phone          # e.g. "+212600001234"
+        else:
+            display_name = "Direct WhatsApp Customer"
+
         data.append({
             "id": o.id,
             "order_id": o.order_id,
-            "customer_name": o.customer_name or "Unknown",
+            "customer_name": display_name,
+            "customer_name_raw": raw_name,           # blank = direct-sale; use on frontend to style differently
+            "customer_email": (getattr(o, "customer_email", None) or ""),
             "total_amount": float(o.price) if o.price else 0.0,
             "customer_phone": o.customer_phone,
             "customer_city": o.customer_city,
+            "is_digital": bool(getattr(o, "is_digital", False)),
             "status": o.status,
             "product": product_name,
             "created_by": created_by_username,
@@ -2948,6 +3173,10 @@ def api_products_list(request):
             "testimonial_url": p.testimonial.url if p.testimonial else None,
             "images": image_urls,
             "videos": video_urls,
+            "is_digital": bool(
+                getattr(p, "is_digital", False)
+                or (getattr(p, "checkout_mode", None) or "") in ("digital", "direct_sale")
+            ),
         })
     return JsonResponse({"products": data})
 
@@ -2973,10 +3202,10 @@ ALLOWED_PRODUCT_CATEGORIES = frozenset(PRODUCT_CATEGORY_LABELS.keys())
 @require_http_methods(["POST"])
 def api_products_classify(request):
     """
-    Classify product category via AI when description has 200+ characters.
+    Classify product category via AI when name/description has minimal signal.
     POST JSON: {"title": "...", "description": "..."}.
-    Returns {"category": "beauty|electronics|fragrances|general", "label": "Beauty|..."}.
-    If description length < 200, returns category "general" without calling the API.
+    Returns {"category": "...", "label": "..."}.
+    Skips the LLM when input is too sparse; returns general_retail.
     """
     user = getattr(request, "user", None)
     if not user or not user.is_authenticated:
@@ -2987,19 +3216,111 @@ def api_products_classify(request):
         return JsonResponse({"error": "Invalid JSON"}, status=400)
     title = (body.get("title") or "").strip() or "Product"
     description = (body.get("description") or "").strip()
-    if len(description) < 200:
+    from ai_assistant.product_classifier import classify_product, should_classify_product
+    if not should_classify_product(title, description):
         return JsonResponse({
             "category": "general_retail",
             "label": PRODUCT_CATEGORY_LABELS.get("general_retail", "General"),
         })
     try:
-        from ai_assistant.product_classifier import classify_product
         category = classify_product(title, description)
     except Exception as e:
         logger.warning("api_products_classify: %s", e)
         category = "general_retail"
     label = PRODUCT_CATEGORY_LABELS.get(category, "General")
     return JsonResponse({"category": category, "label": label})
+
+
+# ══════════════════════════════════════════════════════════════════════════
+# Dynamic Digital Stock — bulk-paste parsing and FIFO bulk creation
+# ══════════════════════════════════════════════════════════════════════════
+#
+# Valid `stock_format` values, matching the radio toggle in the product form
+# (see `templates/whatssap/whatssap.html`):
+#
+#   'single' — one opaque value per non-empty line (license key, code).
+#   'combo'  — every non-empty line MUST contain exactly ONE ':' (email:password).
+#   'iptv'   — one opaque Xtream host:user:pass or M3U URL per line (no colon rules).
+_VALID_STOCK_FORMATS = ('single', 'combo', 'iptv')
+
+
+def _parse_bulk_stock_input(raw_text, stock_format):
+    """
+    Parse the bulk-paste textarea into a list of cleaned credential lines.
+
+    Returns a tuple `(lines, error_message)`:
+      - lines: list[str] of validated, ready-to-encrypt rows. Empty when
+        the input was blank (a legitimate "no new stock" case).
+      - error_message: human-readable Validation Error pointing at the
+        exact 1-based line number that broke the rule, or None on success.
+
+    The function is pure / side-effect free so it can be called from both
+    `api_products_create` and `api_products_update` (and unit-tested).
+    """
+    if stock_format not in _VALID_STOCK_FORMATS:
+        return [], (
+            'Validation Error: Unknown stock_format "%s" '
+            '(expected one of: %s).' % (stock_format, ', '.join(_VALID_STOCK_FORMATS))
+        )
+
+    text = (raw_text or '').replace('\r\n', '\n').replace('\r', '\n')
+    if not text.strip():
+        return [], None  # no new stock — not an error
+
+    cleaned = []
+    # Enumerate against the ORIGINAL line numbers (1-based) so the error
+    # message matches what the seller sees in the textarea. Blank lines
+    # are silently ignored per spec.
+    for lineno, raw_line in enumerate(text.split('\n'), start=1):
+        line = raw_line.strip()
+        if not line:
+            continue
+        if stock_format == 'combo':
+            colon_count = line.count(':')
+            if colon_count == 0:
+                return [], (
+                    "Validation Error: Line %d is missing the ':' separator. "
+                    "Combo format expects 'email:password' on every line." % lineno
+                )
+            if colon_count > 1:
+                # Strict per spec: "exactly one colon". This catches
+                # passwords that themselves contain ':' (e.g. "pa:ss")
+                # so the seller can re-escape before saving.
+                return [], (
+                    "Validation Error: Line %d contains %d ':' separators (expected exactly 1). "
+                    "Combo format expects 'email:password' with no extra colons." % (lineno, colon_count)
+                )
+            email_part, password_part = line.split(':', 1)
+            if not email_part.strip() or not password_part.strip():
+                return [], (
+                    "Validation Error: Line %d has an empty email or password "
+                    "around the ':' separator." % lineno
+                )
+        cleaned.append(line)
+    return cleaned, None
+
+
+def _bulk_create_digital_stock(product, lines):
+    """
+    Encrypt and bulk-insert `DigitalAssetStock` rows for `product`.
+    No-op when `lines` is empty.
+
+    We can't use `bulk_create` here because the Fernet encryption hook
+    runs in Python (`set_asset_content`) per-row. Wrapping the loop in
+    `transaction.atomic` keeps the inserts all-or-nothing so a mid-loop
+    failure doesn't leave half-loaded stock on the product.
+    """
+    if not lines:
+        return 0
+    from discount.models import DigitalAssetStock
+    created = 0
+    with transaction.atomic():
+        for raw in lines:
+            row = DigitalAssetStock(product=product, is_sold=False)
+            row.set_asset_content(raw)
+            row.save()
+            created += 1
+    return created
 
 
 @login_required
@@ -3010,6 +3331,10 @@ def api_products_create(request):
     Create product. Required: name, price, description, at least one image.
     Optional: how_to_use, offer, testimonial (file), category (from AI or manual).
     POST multipart: channel_id, name, price, description, how_to_use, offer, testimonial, images (multiple files).
+
+    Digital extras (when `is_digital=true`):
+      - `stock_format` ('single' | 'combo')
+      - `bulk_stock_input` (textarea: one credential per non-empty line)
     """
     from decimal import Decimal, InvalidOperation
     from discount.models import Products, ProductImage, ProductVideo
@@ -3032,6 +3357,7 @@ def api_products_create(request):
     delivery_options = (request.POST.get("delivery_options") or "").strip() or None
     if delivery_options and len(delivery_options) > 500:
         delivery_options = delivery_options[:500]
+    return_policy_val = (request.POST.get("return_policy") or "").strip() or None
 
     errors = []
     if not name:
@@ -3058,6 +3384,36 @@ def api_products_create(request):
     if coupon_code and len(coupon_code) > 64:
         coupon_code = coupon_code[:64]
 
+    checkout_mode_param = (request.POST.get("checkout_mode") or "").strip() or "standard_cod"
+    if checkout_mode_param not in ("quick_lead", "standard_cod", "strict_cod", "digital", "direct_sale"):
+        checkout_mode_param = "standard_cod"
+
+    is_digital_raw = (request.POST.get("is_digital") or "false").strip().lower()
+    is_digital_val = is_digital_raw in ("true", "1", "yes")
+    digital_url_val = (request.POST.get("digital_url") or "").strip() or None
+    fulfillment_message_val = (request.POST.get("fulfillment_message") or "").strip() or None
+    collect_info_raw = (request.POST.get("collect_customer_info") or "true").strip().lower()
+    collect_customer_info_val = collect_info_raw not in ("false", "0", "no")
+
+    # ── Dynamic digital stock (bulk-paste) ───────────────────────────────
+    stock_format_val = (request.POST.get("stock_format") or "single").strip().lower()
+    if stock_format_val not in _VALID_STOCK_FORMATS:
+        stock_format_val = "single"
+    bulk_stock_raw = request.POST.get("bulk_stock_input") or ""
+    parsed_stock_lines, parsed_stock_error = _parse_bulk_stock_input(
+        bulk_stock_raw, stock_format_val
+    )
+    if parsed_stock_error:
+        # Halt the save and surface the exact line number to the seller.
+        # The frontend renders this verbatim in the form's error banner.
+        return JsonResponse(
+            {"success": False, "error": parsed_stock_error, "errors": [parsed_stock_error]},
+            status=400,
+        )
+
+    if is_digital_val and checkout_mode_param not in ("digital", "direct_sale"):
+        checkout_mode_param = "digital"
+
     media_files = request.FILES.getlist("images") or request.FILES.getlist("image") or []
     image_urls_raw = request.POST.get("image_urls", "").strip()
     image_urls = []
@@ -3069,8 +3425,28 @@ def api_products_create(request):
             image_urls = [u for u in image_urls if u and isinstance(u, str) and u.startswith("http")][:10]
         except (ValueError, TypeError):
             image_urls = []
-    if not media_files and not image_urls:
+    digital_file_upload = request.FILES.get("digital_file")
+    if not media_files and not image_urls and not is_digital_val:
         errors.append("At least one product photo or video is required.")
+
+    # A digital product is valid if ANY of the three fulfillment sources
+    # is provided: static download URL, static file upload, OR dynamic
+    # bulk stock. Without one of these the AI has nothing to deliver.
+    if is_digital_val and not digital_url_val and not digital_file_upload and not parsed_stock_lines:
+        errors.append(
+            "Digital product requires a download URL, a file upload, "
+            "OR at least one bulk stock line."
+        )
+
+    digital_product_type_val = None
+    legal_consent_iptv_val = False
+    if is_digital_val:
+        from discount.services.digital_product_validation import parse_digital_product_fields
+        digital_product_type_val, legal_consent_iptv_val, digital_type_err = parse_digital_product_fields(
+            request.POST, is_digital=True
+        )
+        if digital_type_err:
+            errors.append(digital_type_err)
 
     if errors:
         return JsonResponse({"success": False, "error": " ".join(errors), "errors": errors}, status=400)
@@ -3092,10 +3468,6 @@ def api_products_create(request):
     if category_param not in ALLOWED_PRODUCT_CATEGORIES:
         category_param = None
 
-    checkout_mode_param = (request.POST.get("checkout_mode") or "").strip() or "standard_cod"
-    if checkout_mode_param not in ("quick_lead", "standard_cod", "strict_cod"):
-        checkout_mode_param = "standard_cod"
-
     product = Products.objects.create(
         admin_id=channel.owner_id,
         project=str(channel.id),
@@ -3109,21 +3481,40 @@ def api_products_create(request):
         backup_price=backup_price_val,
         coupon_code=(coupon_code.upper() if coupon_code else None),
         delivery_options=delivery_options,
+        return_policy=return_policy_val,
         seller_custom_persona=seller_custom_persona,
         stock=0,
         category=category_param or "general_retail",
         checkout_mode=checkout_mode_param,
+        is_digital=is_digital_val,
+        digital_url=digital_url_val,
+        fulfillment_message=fulfillment_message_val,
+        collect_customer_info=collect_customer_info_val,
+        stock_format=stock_format_val,
+        digital_product_type=digital_product_type_val if is_digital_val else None,
+        legal_consent_iptv=legal_consent_iptv_val,
     )
+    if digital_file_upload:
+        product.digital_file = digital_file_upload
+        product.save(update_fields=["digital_file"])
 
-    # AI product classification: only when not provided by form and description is long enough
-    if not category_param and len(description) >= 200:
-        try:
-            from ai_assistant.product_classifier import classify_product
-            category = classify_product(product.name, product.description)
-            product.category = category
-            product.save(update_fields=["category"])
-        except Exception as e:
-            logger.warning("Product classification failed for product_id=%s: %s", product.id, e)
+    # Bulk-load the seller's pasted credentials (only for digital products).
+    # The raw text never persists on `Products` itself — every row is
+    # Fernet-encrypted on `DigitalAssetStock.asset_content` so the digital
+    # inventory is consumed (and exhausted) atomically on each sale.
+    if is_digital_val and parsed_stock_lines:
+        _bulk_create_digital_stock(product, parsed_stock_lines)
+
+    # AI product classification — physical goods only; digital products use the Digital persona router.
+    if not category_param and not is_digital_val:
+        from ai_assistant.product_classifier import classify_product, should_classify_product
+        if should_classify_product(name, description):
+            try:
+                category = classify_product(product.name, product.description)
+                product.category = category
+                product.save(update_fields=["category"])
+            except Exception as e:
+                logger.warning("Product classification failed for product_id=%s: %s", product.id, e)
 
     testimonial_file = request.FILES.get("testimonial")
     if testimonial_file:
@@ -3164,6 +3555,39 @@ def api_products_create(request):
     })
 
 
+def _serialize_digital_stock_unsold(product, limit=200):
+    """
+    Decrypt unsold FIFO rows for the product-edit form (owner-only detail
+  endpoint). Returns [{id, line, content}, …] — never used in list APIs.
+    """
+    if not product or not bool(getattr(product, 'is_digital', False)):
+        return []
+    try:
+        from discount.models import DigitalAssetStock
+        rows = (
+            DigitalAssetStock.objects
+            .filter(product=product, is_sold=False)
+            .order_by('id')[:limit]
+        )
+        out = []
+        for idx, row in enumerate(rows, start=1):
+            content = row.get_asset_content()
+            if not content:
+                continue
+            out.append({
+                'id': row.id,
+                'line': idx,
+                'content': content,
+            })
+        return out
+    except Exception as exc:
+        logging.getLogger(__name__).warning(
+            'digital_stock_unsold serialize failed product_id=%s: %s',
+            getattr(product, 'id', None), exc,
+        )
+        return []
+
+
 @login_required
 @require_GET
 def api_products_detail(request, product_id):
@@ -3185,6 +3609,29 @@ def api_products_detail(request, product_id):
     vids = ProductVideo.objects.filter(product=product).order_by("order", "id")
     image_urls = [m.image.url for m in imgs if m.image]
     video_urls = [v.video.url for v in vids if v.video]
+    is_digital = bool(getattr(product, "is_digital", False))
+    checkout_mode = (getattr(product, "checkout_mode", None) or "standard_cod").strip() or "standard_cod"
+    # Treat checkout_mode as digital even if is_digital was not persisted (legacy rows).
+    if checkout_mode in ("digital", "direct_sale"):
+        is_digital = True
+    digital_file_name = ""
+    has_digital_file = False
+    digital_file_url = None
+    if getattr(product, "digital_file", None) and product.digital_file.name:
+        has_digital_file = True
+        digital_file_name = product.digital_file.name.split("/")[-1]
+        try:
+            digital_file_url = product.digital_file.url
+        except Exception:
+            digital_file_url = None
+    stock_available = 0
+    stock_sold = 0
+    if is_digital:
+        try:
+            stock_available = product.digital_stock.filter(is_sold=False).count()
+            stock_sold = product.digital_stock.filter(is_sold=True).count()
+        except Exception:
+            pass
     return JsonResponse({
         "id": product.id,
         "name": product.name or "",
@@ -3197,12 +3644,27 @@ def api_products_detail(request, product_id):
         "how_to_use": product.how_to_use or "",
         "offer": product.offer or "",
         "delivery_options": (product.delivery_options or "").strip() or "",
+        "return_policy": (getattr(product, "return_policy", None) or "").strip(),
         "category": (getattr(product, "category", None) or "general_retail").strip() or "general_retail",
         "seller_custom_persona": (getattr(product, "seller_custom_persona", None) or "").strip() or "",
-        "checkout_mode": (getattr(product, "checkout_mode", None) or "standard_cod").strip() or "standard_cod",
+        "checkout_mode": checkout_mode,
         "testimonial_url": product.testimonial.url if product.testimonial else None,
         "images": image_urls,
         "videos": video_urls,
+        "is_digital": is_digital,
+        "digital_url": (getattr(product, "digital_url", None) or "").strip(),
+        "has_digital_file": has_digital_file,
+        "digital_file_name": digital_file_name,
+        "digital_file_url": digital_file_url,
+        "fulfillment_message": (getattr(product, "fulfillment_message", None) or "").strip(),
+        "collect_customer_info": bool(getattr(product, "collect_customer_info", True)),
+        "stock_format": (getattr(product, "stock_format", None) or "single"),
+        "digital_stock_available": stock_available,
+        "digital_stock_sold": stock_sold,
+        # Owner-only: unsold credentials for the edit form (detail endpoint is gated).
+        "digital_stock_unsold": _serialize_digital_stock_unsold(product),
+        "digital_product_type": (getattr(product, "digital_product_type", None) or "").strip() or None,
+        "legal_consent_iptv": bool(getattr(product, "legal_consent_iptv", False)),
     })
 
 
@@ -3236,6 +3698,7 @@ def api_products_update(request, product_id):
     delivery_options = (request.POST.get("delivery_options") or "").strip() or None
     if delivery_options and len(delivery_options) > 500:
         delivery_options = delivery_options[:500]
+    return_policy_val = (request.POST.get("return_policy") or "").strip() or None
     seller_custom_persona = (request.POST.get("seller_custom_persona") or "").strip() or None
     if seller_custom_persona and len(seller_custom_persona) > 2000:
         seller_custom_persona = seller_custom_persona[:2000]
@@ -3243,8 +3706,34 @@ def api_products_update(request, product_id):
     if category_raw not in ALLOWED_PRODUCT_CATEGORIES:
         category_raw = getattr(product, "category", None) or "general_retail"
     checkout_mode_raw = (request.POST.get("checkout_mode") or "").strip() or "standard_cod"
-    if checkout_mode_raw not in ("quick_lead", "standard_cod", "strict_cod"):
+    if checkout_mode_raw not in ("quick_lead", "standard_cod", "strict_cod", "digital", "direct_sale"):
         checkout_mode_raw = getattr(product, "checkout_mode", None) or "standard_cod"
+    is_digital_raw = (request.POST.get("is_digital") or "false").strip().lower()
+    is_digital_val = is_digital_raw in ("true", "1", "yes")
+    digital_url_val = (request.POST.get("digital_url") or "").strip() or None
+    fulfillment_message_val = (request.POST.get("fulfillment_message") or "").strip() or None
+    collect_info_raw = (request.POST.get("collect_customer_info") or "true").strip().lower()
+    collect_customer_info_val = collect_info_raw not in ("false", "0", "no")
+    if is_digital_val and checkout_mode_raw not in ("digital", "direct_sale"):
+        checkout_mode_raw = "digital"
+
+    # ── Dynamic digital stock (bulk-paste, APPEND on update) ─────────────
+    # On UPDATE we only append rows; we never delete unsold rows because
+    # they may have been pasted by the seller across multiple edit
+    # sessions, and silently discarding them would lose inventory.
+    stock_format_val = (request.POST.get("stock_format") or product.stock_format or "single").strip().lower()
+    if stock_format_val not in _VALID_STOCK_FORMATS:
+        stock_format_val = product.stock_format or "single"
+    bulk_stock_raw = request.POST.get("bulk_stock_input") or ""
+    parsed_stock_lines, parsed_stock_error = _parse_bulk_stock_input(
+        bulk_stock_raw, stock_format_val
+    )
+    if parsed_stock_error:
+        return JsonResponse(
+            {"success": False, "error": parsed_stock_error, "errors": [parsed_stock_error]},
+            status=400,
+        )
+
     errors = []
     if not name:
         errors.append("Product name is required.")
@@ -3269,6 +3758,17 @@ def api_products_update(request, product_id):
             errors.append("Backup price must be a valid number.")
     if coupon_code and len(coupon_code) > 64:
         coupon_code = coupon_code[:64]
+
+    digital_product_type_val = None
+    legal_consent_iptv_val = False
+    if is_digital_val:
+        from discount.services.digital_product_validation import parse_digital_product_fields
+        digital_product_type_val, legal_consent_iptv_val, digital_type_err = parse_digital_product_fields(
+            request.POST, is_digital=True
+        )
+        if digital_type_err:
+            errors.append(digital_type_err)
+
     if errors:
         return JsonResponse({"success": False, "error": " ".join(errors), "errors": errors}, status=400)
     try:
@@ -3276,7 +3776,10 @@ def api_products_update(request, product_id):
     except (InvalidOperation, ValueError):
         return JsonResponse({"success": False, "error": "Invalid price"}, status=400)
     media_files = request.FILES.getlist("images") or request.FILES.getlist("image") or []
-    if not media_files and not ProductImage.objects.filter(product=product).exists() and not ProductVideo.objects.filter(product=product).exists():
+    digital_file_upload = request.FILES.get("digital_file")
+    if (not is_digital_val and not media_files
+            and not ProductImage.objects.filter(product=product).exists()
+            and not ProductVideo.objects.filter(product=product).exists()):
         errors.append("At least one product photo or video is required.")
         return JsonResponse({"success": False, "error": " ".join(errors), "errors": errors}, status=400)
     product.name = name
@@ -3288,10 +3791,30 @@ def api_products_update(request, product_id):
     product.backup_price = backup_price_val
     product.coupon_code = (coupon_code.upper() if coupon_code else None)
     product.delivery_options = delivery_options
+    product.return_policy = return_policy_val
     product.category = category_raw or "general_retail"
     product.seller_custom_persona = seller_custom_persona
     product.checkout_mode = checkout_mode_raw or "standard_cod"
-    product.save(update_fields=["name", "price", "currency", "description", "how_to_use", "offer", "backup_price", "coupon_code", "delivery_options", "category", "seller_custom_persona", "checkout_mode"])
+    product.is_digital = is_digital_val
+    product.digital_url = digital_url_val
+    product.fulfillment_message = fulfillment_message_val
+    product.collect_customer_info = collect_customer_info_val
+    product.stock_format = stock_format_val
+    product.digital_product_type = digital_product_type_val if is_digital_val else None
+    product.legal_consent_iptv = legal_consent_iptv_val
+    product.save(update_fields=["name", "price", "currency", "description", "how_to_use", "offer", "backup_price",
+                                "coupon_code", "delivery_options", "return_policy", "category", "seller_custom_persona",
+                                "checkout_mode", "is_digital", "digital_url", "fulfillment_message",
+                                "collect_customer_info", "stock_format", "digital_product_type", "legal_consent_iptv"])
+    if digital_file_upload:
+        product.digital_file = digital_file_upload
+        product.save(update_fields=["digital_file"])
+
+    # Append the new bulk-pasted rows to the existing FIFO inventory.
+    # Existing unsold rows are PRESERVED — sellers can top-up across
+    # multiple edit sessions without losing what they already pasted.
+    if is_digital_val and parsed_stock_lines:
+        _bulk_create_digital_stock(product, parsed_stock_lines)
     testimonial_file = request.FILES.get("testimonial")
     if testimonial_file:
         product.testimonial = testimonial_file
@@ -4695,3 +5218,920 @@ def stripe_webhook(request):
         return JsonResponse({"received": True})
     # Signature/config errors are critical; return 400 so Stripe flags invalid delivery.
     return JsonResponse({"received": False}, status=400)
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+#  Store Payment Methods  (encrypted at rest, used by AI for digital products)
+# ──────────────────────────────────────────────────────────────────────────────
+
+@login_required
+@require_GET
+def api_payment_methods_list(request):
+    """Return all payment methods for the authenticated merchant (masked details)."""
+    from discount.models import StorePaymentMethod
+    from discount.services.plan_limits import _resolve_admin_user
+    owner = _resolve_admin_user(request.user)
+    methods = StorePaymentMethod.objects.filter(owner=owner).order_by('provider_name', 'id')
+    data = [
+        {
+            'id': m.id,
+            'provider_name': m.provider_name,
+            'provider_label': m.get_provider_name_display(),
+            'display_name': m.display_name,
+            'label': m.label,
+            'is_bank': m.is_bank,
+            'account_holder_name': m.account_holder_name or '',
+            'account_details_masked': m.get_masked_details(),
+            'instructions': m.instructions,
+            'is_active': m.is_active,
+        }
+        for m in methods
+    ]
+    provider_choices = [
+        {'value': v, 'label': l, 'is_bank': v in StorePaymentMethod.BANK_PROVIDERS}
+        for v, l in StorePaymentMethod.PROVIDER_CHOICES
+    ]
+    return JsonResponse({'methods': data, 'provider_choices': provider_choices})
+
+
+@csrf_exempt
+@login_required
+@require_POST
+def api_payment_methods_create(request):
+    """Create a new payment method. Account details are encrypted before storage."""
+    from discount.models import StorePaymentMethod
+    from discount.services.plan_limits import _resolve_admin_user
+    owner = _resolve_admin_user(request.user)
+
+    try:
+        body = json.loads(request.body)
+    except (json.JSONDecodeError, ValueError):
+        return JsonResponse({'error': 'Invalid JSON body.'}, status=400)
+
+    provider = body.get('provider_name', '').strip()
+    raw_identifier = body.get('account_identifier', '').strip()
+    account_holder_name = body.get('account_holder_name', '').strip()
+    display_name = body.get('display_name', '').strip()
+    instructions = body.get('instructions', '').strip()
+
+    valid_providers = [v for v, _ in StorePaymentMethod.PROVIDER_CHOICES]
+    if provider not in valid_providers:
+        return JsonResponse({'error': 'Invalid provider_name.'}, status=400)
+    if not raw_identifier:
+        return JsonResponse({'error': 'account_identifier is required.'}, status=400)
+
+    is_bank = provider in StorePaymentMethod.BANK_PROVIDERS
+    # RIB must be exactly 24 digits for bank providers
+    if is_bank and not re.fullmatch(r'\d{24}', raw_identifier.replace(' ', '')):
+        return JsonResponse({'error': 'RIB must be exactly 24 digits.'}, status=400)
+
+    method = StorePaymentMethod(
+        owner=owner,
+        provider_name=provider,
+        display_name=display_name,
+        account_holder_name=account_holder_name if is_bank else '',
+        instructions=instructions,
+        is_active=True,
+    )
+    method.set_account_details(raw_identifier.replace(' ', '') if is_bank else raw_identifier)
+    method.save()
+
+    return JsonResponse({
+        'success': True,
+        'id': method.id,
+        'label': method.label,
+        'is_bank': method.is_bank,
+        'provider_label': method.get_provider_name_display(),
+        'account_holder_name': method.account_holder_name or '',
+        'account_details_masked': method.get_masked_details(),
+        'instructions': method.instructions,
+        'is_active': method.is_active,
+    })
+
+
+@csrf_exempt
+@login_required
+@require_POST
+def api_payment_methods_toggle(request, method_id: int):
+    """Toggle the is_active flag of a payment method."""
+    from discount.models import StorePaymentMethod
+    from discount.services.plan_limits import _resolve_admin_user
+    owner = _resolve_admin_user(request.user)
+
+    try:
+        method = StorePaymentMethod.objects.get(pk=method_id, owner=owner)
+    except StorePaymentMethod.DoesNotExist:
+        return JsonResponse({'error': 'Not found.'}, status=404)
+
+    method.is_active = not method.is_active
+    method.save(update_fields=['is_active'])
+    return JsonResponse({'success': True, 'is_active': method.is_active})
+
+
+@csrf_exempt
+@login_required
+@require_POST
+def api_payment_methods_delete(request, method_id: int):
+    """Permanently delete a payment method."""
+    from discount.models import StorePaymentMethod
+    from discount.services.plan_limits import _resolve_admin_user
+    owner = _resolve_admin_user(request.user)
+
+    deleted, _ = StorePaymentMethod.objects.filter(pk=method_id, owner=owner).delete()
+    if deleted:
+        return JsonResponse({'success': True})
+    return JsonResponse({'error': 'Not found.'}, status=404)
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+#  Digital-product fulfillment — receipt verification
+# ──────────────────────────────────────────────────────────────────────────────
+
+def _send_wa_text(channel, to: str, text: str):
+    """
+    Send a plain-text WhatsApp message via Meta Cloud API.
+    Returns (success: bool, wamid: str | None).
+    """
+    try:
+        from discount.services.message_normalize import normalize_outbound_text
+        text = normalize_outbound_text(text or "")
+    except Exception:
+        pass
+    access_token = getattr(channel, 'access_token', None)
+    phone_id     = getattr(channel, 'phone_number_id', None)
+    if not access_token or not phone_id:
+        logging.getLogger(__name__).warning(
+            "_send_wa_text: channel %s has no credentials", channel.pk
+        )
+        return False, None
+    api_version = getattr(channel, 'api_version', None) or 'v17.0'
+    url = f"https://graph.facebook.com/{api_version}/{phone_id}/messages"
+    payload = {
+        "messaging_product": "whatsapp",
+        "to": to,
+        "type": "text",
+        "text": {"body": text},
+    }
+    try:
+        resp = requests.post(
+            url,
+            json=payload,
+            headers={"Authorization": f"Bearer {access_token}", "Content-Type": "application/json"},
+            timeout=15,
+        )
+        if resp.status_code == 200:
+            wamid = None
+            try:
+                wamid = (resp.json().get('messages') or [{}])[0].get('id')
+            except Exception:
+                pass
+            return True, wamid
+        logging.getLogger(__name__).warning(
+            "_send_wa_text failed: %s %s", resp.status_code, resp.text[:300]
+        )
+        return False, None
+    except Exception as exc:
+        logging.getLogger(__name__).exception("_send_wa_text exception: %s", exc)
+        return False, None
+
+
+def _persist_outbound_chat_message(
+    channel,
+    customer_phone,
+    body,
+    *,
+    wa_sent=False,
+    wamid=None,
+    user=None,
+):
+    """
+    Save an outbound WhatsApp text to the dashboard chat history.
+    Used when `_send_wa_text` is called directly (receipt reject / fulfillment).
+    """
+    if not channel or not (customer_phone or '').strip():
+        return None
+    try:
+        from discount.models import Message as WaMessage
+
+        msg = WaMessage.objects.create(
+            channel=channel,
+            sender=(customer_phone or '').strip(),
+            body=(body or '')[:4096],
+            is_from_me=True,
+            status='sent' if wa_sent else 'failed',
+            type='text',
+            message_id=wamid or None,
+            user=user,
+        )
+        return msg.id
+    except Exception as exc:
+        logging.getLogger(__name__).warning(
+            "_persist_outbound_chat_message failed: %s", exc,
+        )
+        return None
+
+
+@csrf_exempt
+@login_required
+@require_POST
+def api_verify_receipt(request):
+    """
+    Merchant approves or rejects a payment receipt for a digital order.
+
+    POST body (JSON):
+        order_id   – SimpleOrder.order_id (string)
+        action     – "approve" | "reject"
+        reason     – required when action is "reject" (merchant explanation)
+
+    Approve flow:
+        1. Mark the receipt message as approved.
+        2. Build a fulfilment text (fulfillment_message + download link).
+        3. Send it to the customer via WhatsApp.
+        4. Set order.status = 'completed'.
+
+    Reject flow:
+        1. Mark the receipt message as rejected.
+        2. Revert order.status = 'pending_payment' and save payment_rejection_reason.
+        3. Restore FSM AWAITING_PAYMENT_RECEIPT for the AI agent.
+        4. Send a localized WhatsApp message (store/agent language + reason).
+    """
+    from discount.models import SimpleOrder, Message as WaMessage
+    from discount.services.plan_limits import _resolve_admin_user
+    from discount.services.fulfillment_messages import (
+        get_localized_rejection_message,
+        resolve_fulfillment_language_code,
+    )
+    from discount.whatssapAPI.session_state import (
+        STATE_AWAITING_PAYMENT_RECEIPT,
+        set_conversation_state,
+    )
+
+    owner = _resolve_admin_user(request.user)
+
+    try:
+        body = json.loads(request.body)
+    except (json.JSONDecodeError, ValueError):
+        return JsonResponse({'error': 'Invalid JSON body.'}, status=400)
+
+    order_id = (body.get('order_id') or '').strip()
+    action   = (body.get('action')   or '').strip().lower()
+    reason   = (body.get('reason')   or '').strip()
+
+    if not order_id:
+        return JsonResponse({'error': 'order_id is required.'}, status=400)
+    if action not in ('approve', 'reject'):
+        return JsonResponse({'error': 'action must be "approve" or "reject".'}, status=400)
+    if action == 'reject' and not reason:
+        return JsonResponse({'error': 'reason is required when rejecting a receipt.'}, status=400)
+
+    # Fetch the order — must belong to a channel owned by this merchant
+    try:
+        order = SimpleOrder.objects.select_related('product', 'channel').get(
+            order_id=order_id,
+            channel__owner=owner,
+        )
+    except SimpleOrder.DoesNotExist:
+        return JsonResponse({'error': 'Order not found or access denied.'}, status=404)
+
+    channel         = order.channel
+    customer_phone  = order.customer_phone
+
+    # Find the most recent pending-review receipt message for this customer+channel
+    receipt_msg = (
+        WaMessage.objects
+        .filter(
+            sender=customer_phone,
+            channel=channel,
+            is_payment_receipt=True,
+            receipt_status='pending_review',
+        )
+        .order_by('-created_at')
+        .first()
+    )
+
+    # ── REJECT ─────────────────────────────────────────────────────────────
+    if action == 'reject':
+        if receipt_msg:
+            receipt_msg.receipt_status = 'rejected'
+            receipt_msg.save(update_fields=['receipt_status'])
+
+        order.status = 'pending_payment'
+        order.payment_rejection_reason = reason[:255]
+        order.payment_rejection_notice_text = None
+        order.save(update_fields=[
+            'status',
+            'payment_rejection_reason',
+            'payment_rejection_notice_text',
+        ])
+
+        if customer_phone and channel:
+            try:
+                set_conversation_state(
+                    channel,
+                    customer_phone,
+                    STATE_AWAITING_PAYMENT_RECEIPT,
+                    order_id=order.order_id,
+                )
+            except Exception as _fsm_set_err:
+                logging.getLogger(__name__).warning(
+                    "api_verify_receipt: set AWAITING_PAYMENT_RECEIPT failed for %s: %s",
+                    order.order_id,
+                    _fsm_set_err,
+                )
+
+        lang_code = resolve_fulfillment_language_code(
+            order=order,
+            channel=channel,
+            customer_phone=customer_phone,
+        )
+        rejection_text = get_localized_rejection_message(lang_code, reason)
+        wa_sent = False
+        wamid = None
+        rejection_message_id = None
+        if channel and customer_phone:
+            wa_sent, wamid = _send_wa_text(channel, customer_phone, rejection_text)
+            if wa_sent:
+                order.payment_rejection_notice_text = rejection_text
+                order.save(update_fields=['payment_rejection_notice_text'])
+            rejection_message_id = _persist_outbound_chat_message(
+                channel,
+                customer_phone,
+                rejection_text,
+                wa_sent=wa_sent,
+                wamid=wamid,
+                user=request.user if getattr(request, 'user', None) and request.user.is_authenticated else None,
+            )
+
+        return JsonResponse({
+            'success': True,
+            'new_status': 'pending_payment',
+            'whatsapp_sent': wa_sent,
+            'rejection_message_id': rejection_message_id,
+        })
+
+    # ── APPROVE ────────────────────────────────────────────────────────────
+    if receipt_msg:
+        receipt_msg.receipt_status = 'approved'
+        receipt_msg.save(update_fields=['receipt_status'])
+
+    order.status = 'completed'
+    reject_fields_cleared = bool(
+        getattr(order, 'payment_rejection_reason', None)
+        or getattr(order, 'payment_rejection_notice_text', None)
+    )
+    if reject_fields_cleared:
+        order.payment_rejection_reason = None
+        order.payment_rejection_notice_text = None
+        order.save(update_fields=[
+            'status',
+            'payment_rejection_reason',
+            'payment_rejection_notice_text',
+        ])
+    else:
+        order.save(update_fields=['status'])
+
+    if customer_phone and channel:
+        try:
+            from discount.whatssapAPI.session_state import clear_conversation_state
+            clear_conversation_state(channel, customer_phone)
+        except Exception as _fsm_clear_err:
+            logging.getLogger(__name__).warning(
+                "api_verify_receipt: clear_conversation_state failed for order %s: %s",
+                order.order_id, _fsm_clear_err,
+            )
+
+    # ── Dynamic Digital Stock consumption (race-safe FIFO) ────────────────
+    # If the product has pre-loaded `DigitalAssetStock` rows we lock the
+    # oldest unsold one with `SELECT … FOR UPDATE`, mark it as sold, and
+    # link it to this order — all inside one transaction so two parallel
+    # approvals on the same product can never grab the same row.
+    #
+    # The static `digital_url` / `digital_file` flow further below is the
+    # fallback when no dynamic stock exists (legacy / one-off products).
+    #
+    # `consumed_stock_value` is the plaintext credential (single key OR
+    # "email:password"). `consumed_stock_format` is the product's
+    # `stock_format` at consume time. Both feed the WA text + spoiler
+    # `asset_fields` builders below.
+    product = order.product
+    consumed_stock_value = None
+    consumed_stock_format = None
+    consumed_stock_row_id = None
+    stock_depleted = False
+
+    if product and bool(getattr(product, 'is_digital', False)):
+        try:
+            from discount.models import DigitalAssetStock
+            with transaction.atomic():
+                stock_row = (
+                    DigitalAssetStock.objects
+                    .select_for_update()
+                    .filter(product=product, is_sold=False)
+                    .order_by('id')
+                    .first()
+                )
+                if stock_row:
+                    plaintext = stock_row.get_asset_content()
+                    if plaintext:
+                        stock_row.is_sold = True
+                        stock_row.order = order
+                        stock_row.sold_at = timezone.now()
+                        stock_row.save(update_fields=['is_sold', 'order', 'sold_at'])
+                        consumed_stock_value = plaintext
+                        consumed_stock_format = (
+                            getattr(product, 'stock_format', None) or 'single'
+                        )
+                        consumed_stock_row_id = stock_row.id
+                    else:
+                        # Corrupted ciphertext (key rotation?). Leave the
+                        # row available — don't consume something we
+                        # can't actually deliver.
+                        logging.getLogger(__name__).warning(
+                            "api_verify_receipt: stock row %s for product %s "
+                            "decrypted to empty — skipping consumption.",
+                            stock_row.id, product.id,
+                        )
+        except Exception as _stock_err:
+            logging.getLogger(__name__).warning(
+                "api_verify_receipt: digital-stock consume failed for "
+                "order %s product %s: %s — falling back to static URL.",
+                order.order_id, getattr(product, 'id', None), _stock_err,
+            )
+
+    # Build the (legacy) static download link — only used when no dynamic
+    # stock was consumed. NB: if dynamic stock IS in play, `download_url`
+    # stays empty and the static fallback is skipped.
+    download_url = ''
+    if not consumed_stock_value and product:
+        if (getattr(product, 'digital_url', None) or '').strip():
+            download_url = product.digital_url.strip()
+        elif getattr(product, 'digital_file', None) and product.digital_file.name:
+            try:
+                download_url = request.build_absolute_uri(product.digital_file.url)
+            except Exception:
+                download_url = product.digital_file.url
+
+    # If the seller enabled dynamic stock but the inventory is empty,
+    # flag it in the response so the dashboard can show a "stock depleted"
+    # warning. We still send the public thank-you text so the customer
+    # isn't left in silence.
+    if product and bool(getattr(product, 'is_digital', False)) \
+            and not consumed_stock_value and not download_url:
+        try:
+            from discount.models import DigitalAssetStock as _DS
+            if _DS.objects.filter(product=product).exists():
+                stock_depleted = True
+        except Exception:
+            pass
+
+    fulfillment_note = (getattr(product, 'fulfillment_message', None) or '').strip() if product else ''
+
+    # ── Split the fulfillment payload ─────────────────────────────────────
+    # `public_body`  — non-sensitive thank-you, stored plaintext on the
+    #                  Message row; visible to every employee in chat.
+    # `asset_fields` — `{label_key: plaintext}` dict encrypted on the
+    #                  Message row; revealed ONLY to the store owner via
+    #                  the gated reveal endpoint (Telegram-style spoiler).
+    # The WhatsApp customer ALWAYS receives the full text (public_body +
+    # the credentials), regardless of the dashboard RBAC.
+    from discount.services.fulfillment_messages import (
+        get_localized_fulfillment_message,
+        resolve_fulfillment_language_code,
+    )
+
+    has_asset = bool(consumed_stock_value or download_url)
+    if fulfillment_note:
+        public_body = fulfillment_note
+    else:
+        agent_language_code = resolve_fulfillment_language_code(
+            order=order,
+            channel=channel,
+            customer_phone=customer_phone,
+        )
+        public_body = get_localized_fulfillment_message(
+            agent_language_code,
+            has_asset=has_asset,
+        )
+
+    asset_fields = {}
+    fulfilment_text = public_body
+
+    if consumed_stock_value:
+        # Dynamic-stock path — branch on the product's stock_format.
+        if consumed_stock_format == 'combo':
+            # Split on the FIRST colon so passwords containing ':' still
+            # work for legacy rows that pre-date strict validation.
+            email_part, _, password_part = consumed_stock_value.partition(':')
+            email_part = email_part.strip()
+            password_part = password_part.strip()
+            asset_fields = {"email": email_part, "password": password_part}
+            fulfilment_text = (
+                f"{public_body}\n\n"
+                f"📧 {email_part}\n"
+                f"🔑 {password_part}"
+            )
+        elif consumed_stock_format == 'iptv':
+            val = consumed_stock_value.strip()
+            if val.lower().startswith('http'):
+                asset_fields = {"link": val, "iptv": val}
+                fulfilment_text = f"{public_body}\n\n📺 IPTV\n🔗 {val}"
+            else:
+                asset_fields = {"iptv": val}
+                fulfilment_text = f"{public_body}\n\n📺 IPTV\n{val}"
+        else:
+            # 'single' (or unknown → default) — one opaque credential.
+            asset_fields = {"license": consumed_stock_value}
+            fulfilment_text = f"{public_body}\n\n🔑 {consumed_stock_value}"
+    elif download_url:
+        # Legacy static-URL path.
+        asset_fields = {"link": download_url}
+        fulfilment_text = f"{public_body}\n\n🔗 {download_url}"
+
+    wa_sent = False
+    fulfilment_wamid = None
+    if channel and customer_phone:
+        wa_sent, fulfilment_wamid = _send_wa_text(channel, customer_phone, fulfilment_text)
+
+    # ── Persist the outgoing fulfillment message so the dashboard chat
+    # can render it as a Telegram-style spoiler bubble for non-owner
+    # employees. This persistence is NEW for this flow — `_send_wa_text`
+    # is wire-only, so historically these fulfillment messages never
+    # appeared in the dashboard history.
+    #
+    # The body is saved in two passes because the spoiler `<span>`
+    # placeholder needs `data-id="<msg.pk>"` baked in:
+    #   pass 1: save with the plain `public_body` to mint the row id.
+    #   pass 2: rebuild the body as labelled spoiler HTML with that id.
+    #
+    # Failures here do NOT break the API contract — the WA send has
+    # already completed before this point.
+    delivery_message_id = None
+    try:
+        from discount.models import Message as WaMessage
+
+        # `asset_fields` was built upstream (dynamic-stock OR static URL
+        # OR neither). Schema is `{field: value}` so the spoiler renderer
+        # can show one labelled placeholder per field — keys "license",
+        # "email" + "password", and "link" all have entries in
+        # `_SPOILER_FIELD_CONFIG`.
+
+        delivery_msg = WaMessage(
+            sender=customer_phone or '',
+            body=public_body,
+            channel=channel,
+            is_from_me=True,
+            status='sent' if wa_sent else 'failed',
+            type='text',
+        )
+        if asset_fields:
+            delivery_msg.is_digital_delivery = True
+            delivery_msg.set_encrypted_asset(asset_fields)
+        delivery_msg.save()
+        delivery_message_id = delivery_msg.id
+
+        # Second pass: rebuild `body` with the per-field spoiler spans
+        # now that we know the row id. The spans carry NO ciphertext and
+        # NO plaintext — only the redaction mask plus the `data-id` and
+        # `data-field` attributes the JS reveal needs.
+        if asset_fields:
+            delivery_msg.body = _render_spoiler_body_html(
+                delivery_msg.id,
+                list(asset_fields.keys()),
+                public_body=public_body,
+            )
+            delivery_msg.save(update_fields=['body'])
+    except Exception as _persist_err:
+        logging.getLogger(__name__).warning(
+            "api_verify_receipt: failed to persist fulfillment message for "
+            "order %s: %s", order.order_id, _persist_err,
+        )
+
+    # ── Asset disclosure gate for the approve response ────────────────────
+    # `_resolve_admin_user` walks the team_admin chain (so employees can
+    # approve on the owner's behalf), but the new spoiler RBAC says the
+    # download URL itself must reach ONLY the absolute store owner (or a
+    # superuser). Employees see `download_url: null` here — they can still
+    # confirm the approval succeeded, but the asset is only accessible via
+    # the dashboard's owner-gated reveal endpoint.
+    is_absolute_owner = bool(
+        getattr(request.user, 'is_superuser', False)
+        or (channel and getattr(channel, 'owner_id', None) == getattr(request.user, 'id', None))
+    )
+    response_payload = {
+        'success':    True,
+        'new_status': 'completed',
+        'wa_sent':    wa_sent,
+        'download_url': download_url if is_absolute_owner else None,
+        'delivery_message_id': delivery_message_id,
+        # Dynamic-stock telemetry for the dashboard (no plaintext leaks):
+        #   - `stock_consumed_row_id`: the just-consumed DigitalAssetStock id
+        #     (null if static-URL path was used).
+        #   - `stock_depleted`: True when the product had dynamic-stock
+        #     enabled but the inventory is now exhausted — the dashboard
+        #     should surface a "stock empty" warning to the seller.
+        'stock_consumed_row_id': consumed_stock_row_id,
+        'stock_depleted': stock_depleted,
+    }
+    return JsonResponse(response_payload)
+
+
+@csrf_exempt
+@login_required
+@require_POST
+def api_resolve_support(request):
+    """
+    Merchant resolves a post-sale support ticket (replacement approve / reject).
+
+    POST JSON: ``order_id``, ``action`` ∈ {``approve``, ``reject``}
+    """
+    from discount.models import SimpleOrder, Message as WaMessage
+    from discount.services.plan_limits import _resolve_admin_user
+    from discount.services.digital_fulfillment import (
+        consume_next_digital_stock,
+        resolve_static_download_url,
+        build_fulfillment_text,
+        build_public_body_for_delivery,
+    )
+    from discount.services.fulfillment_messages import get_localized_support_rejection_message
+    owner = _resolve_admin_user(request.user)
+
+    try:
+        body = json.loads(request.body)
+    except (json.JSONDecodeError, ValueError):
+        return JsonResponse({'error': 'Invalid JSON body.'}, status=400)
+
+    order_id = (body.get('order_id') or '').strip()
+    action = (body.get('action') or '').strip().lower()
+
+    if not order_id:
+        return JsonResponse({'error': 'order_id is required.'}, status=400)
+    if action not in ('approve', 'reject'):
+        return JsonResponse({'error': 'action must be "approve" or "reject".'}, status=400)
+
+    try:
+        order = SimpleOrder.objects.select_related('product', 'channel').get(
+            order_id=order_id,
+            channel__owner=owner,
+        )
+    except SimpleOrder.DoesNotExist:
+        return JsonResponse({'error': 'Order not found or access denied.'}, status=404)
+
+    if not order.is_digital or order.status != 'completed':
+        return JsonResponse({'error': 'Support resolution applies to completed digital orders only.'}, status=400)
+
+    if order.support_status != _SUPPORT_REVIEW_STATUS:
+        return JsonResponse({
+            'error': f'Order is not under review (current support_status={order.support_status}).',
+        }, status=400)
+
+    channel = order.channel
+    customer_phone = order.customer_phone
+    product = order.product
+
+    if action == 'reject':
+        order.support_status = 'rejected'
+        order.save(update_fields=['support_status'])
+        lang_code = None
+        try:
+            from discount.services.fulfillment_messages import resolve_fulfillment_language_code
+            lang_code = resolve_fulfillment_language_code(
+                order=order, channel=channel, customer_phone=customer_phone,
+            )
+        except Exception:
+            pass
+        rejection_text = get_localized_support_rejection_message(lang_code or 'ar')
+        wa_sent = False
+        if channel and customer_phone:
+            wa_sent, _wamid = _send_wa_text(channel, customer_phone, rejection_text)
+            _persist_outbound_chat_message(
+                channel,
+                customer_phone,
+                rejection_text,
+                wa_sent=wa_sent,
+                wamid=_wamid,
+                user=request.user if getattr(request, 'user', None) and request.user.is_authenticated else None,
+            )
+        return JsonResponse({
+            'success': True,
+            'support_status': 'rejected',
+            'wa_sent': wa_sent,
+        })
+
+    # ── APPROVE: send replacement (new stock row or static URL) ───────────
+    stock = consume_next_digital_stock(product, order)
+    consumed_stock_value = stock.get('consumed_value', '')
+    consumed_stock_format = stock.get('stock_format', 'single')
+    consumed_stock_row_id = stock.get('stock_row_id')
+    download_url = ''
+    if not consumed_stock_value:
+        download_url = resolve_static_download_url(product, request)
+
+    stock_depleted = False
+    if product and bool(getattr(product, 'is_digital', False)) \
+            and not consumed_stock_value and not download_url:
+        try:
+            from discount.models import DigitalAssetStock as _DS
+            if _DS.objects.filter(product=product).exists():
+                stock_depleted = True
+        except Exception:
+            pass
+
+    if stock_depleted:
+        return JsonResponse({
+            'error': 'No replacement stock available. Add more digital stock to this product.',
+            'stock_depleted': True,
+        }, status=409)
+
+    public_body = build_public_body_for_delivery(
+        order,
+        channel,
+        customer_phone,
+        is_replacement=True,
+        product=product,
+        consumed_value=consumed_stock_value,
+        download_url=download_url,
+    )
+    fulfilment_text, asset_fields = build_fulfillment_text(
+        public_body,
+        consumed_value=consumed_stock_value,
+        stock_format=consumed_stock_format,
+        download_url=download_url,
+    )
+
+    wa_sent = False
+    if channel and customer_phone:
+        wa_sent, _support_wamid = _send_wa_text(channel, customer_phone, fulfilment_text)
+
+    delivery_message_id = None
+    try:
+        delivery_msg = WaMessage(
+            sender=customer_phone or '',
+            body=public_body,
+            channel=channel,
+            is_from_me=True,
+            status='sent' if wa_sent else 'failed',
+            type='text',
+        )
+        if asset_fields:
+            delivery_msg.is_digital_delivery = True
+            delivery_msg.set_encrypted_asset(asset_fields)
+        delivery_msg.save()
+        delivery_message_id = delivery_msg.id
+        if asset_fields:
+            delivery_msg.body = _render_spoiler_body_html(
+                delivery_msg.id,
+                list(asset_fields.keys()),
+                public_body=public_body,
+            )
+            delivery_msg.save(update_fields=['body'])
+    except Exception as _persist_err:
+        logging.getLogger(__name__).warning(
+            'api_resolve_support: persist replacement message failed order=%s: %s',
+            order.order_id, _persist_err,
+        )
+
+    order.support_status = 'resolved'
+    order.save(update_fields=['support_status'])
+
+    return JsonResponse({
+        'success': True,
+        'support_status': 'resolved',
+        'wa_sent': wa_sent,
+        'delivery_message_id': delivery_message_id,
+        'stock_consumed_row_id': consumed_stock_row_id,
+        'stock_depleted': stock_depleted,
+    })
+
+
+# ══════════════════════════════════════════════════════════════════════════
+# Digital-delivery spoiler reveal — strict owner-only decryption gate
+# ══════════════════════════════════════════════════════════════════════════
+#
+# Security contract (do NOT loosen without a security review):
+#
+#   1. Authentication:   `@login_required` — anonymous requests get 302→login.
+#   2. CSRF:             `@csrf_exempt` (mirrors `api_verify_receipt`; the
+#                        frontend still sends `X-CSRFToken` for defense in
+#                        depth and the session cookie is `SameSite=Lax`).
+#   3. Method:           `@require_POST` — never GET, so the asset cannot be
+#                        prefetched / cached / linked.
+#   4. RBAC:             Plaintext disclosure is gated on
+#                            request.user.is_superuser
+#                          OR request.user.id == message.channel.owner_id
+#                        We deliberately do NOT use `_resolve_admin_user(...)`
+#                        here. That helper walks the `team_admin` chain so
+#                        employees inherit their admin's billing identity
+#                        — fine for plan limits, fatal for asset reveal,
+#                        because it would let any sub-agent decrypt the
+#                        owner's credentials.
+#   5. Failure mode:     Any negative branch returns 403 with the exact JSON
+#                        error string the spec mandates. We never reveal
+#                        whether the message exists, belongs to a different
+#                        channel, or has a corrupted ciphertext — all those
+#                        paths look identical to the client.
+#   6. Output:           Only `{ "asset": "<plaintext>" }` on success. We
+#                        never echo the message id, channel id, or any
+#                        sibling metadata that could help enumeration.
+@csrf_exempt
+@login_required
+@require_POST
+def api_reveal_asset(request):
+    """
+    POST /discount/whatssapAPI/api/messages/reveal-asset/
+
+    Body (JSON): { "message_id": <int> }
+
+    On success (HTTP 200):
+        { "fields": { "<field_name>": "<plaintext value>", ... } }
+
+        For legacy single-asset rows we synthesize `{"link": "<value>"}`
+        so the frontend can always iterate `data.fields` uniformly.
+
+    On any authorization or validation failure (HTTP 403):
+        { "error": "Access Denied: Insufficient permissions." }
+    """
+    from discount.models import Message as WaMessage
+
+    FORBIDDEN_PAYLOAD = {"error": "Access Denied: Insufficient permissions."}
+
+    # --- 1. Parse the body conservatively ------------------------------------
+    try:
+        body = json.loads(request.body or b'{}')
+    except (json.JSONDecodeError, ValueError):
+        return HttpResponseForbidden(
+            json.dumps(FORBIDDEN_PAYLOAD),
+            content_type='application/json',
+        )
+
+    raw_id = body.get('message_id')
+    try:
+        message_id = int(raw_id)
+    except (TypeError, ValueError):
+        return HttpResponseForbidden(
+            json.dumps(FORBIDDEN_PAYLOAD),
+            content_type='application/json',
+        )
+
+    # --- 2. Fetch with channel pre-joined for the RBAC check ----------------
+    # We do NOT 404 when the message is missing — that would leak existence.
+    # Both "missing" and "unauthorized" return the same 403 payload.
+    try:
+        message = (
+            WaMessage.objects
+            .select_related('channel')
+            .get(pk=message_id)
+        )
+    except WaMessage.DoesNotExist:
+        return HttpResponseForbidden(
+            json.dumps(FORBIDDEN_PAYLOAD),
+            content_type='application/json',
+        )
+
+    # --- 3. Validate the spoiler precondition --------------------------------
+    if not getattr(message, 'is_digital_delivery', False):
+        return HttpResponseForbidden(
+            json.dumps(FORBIDDEN_PAYLOAD),
+            content_type='application/json',
+        )
+    if not getattr(message, 'encrypted_asset', None):
+        return HttpResponseForbidden(
+            json.dumps(FORBIDDEN_PAYLOAD),
+            content_type='application/json',
+        )
+
+    # --- 4. Strict owner-only authorization ----------------------------------
+    # NB: superuser is a deliberate escape hatch for support; if you want a
+    # hard "owner only" policy, remove the `is_superuser` branch.
+    channel = message.channel
+    user = request.user
+    is_authorized = bool(
+        getattr(user, 'is_superuser', False)
+        or (channel and getattr(channel, 'owner_id', None) == getattr(user, 'id', None))
+    )
+    if not is_authorized:
+        logging.getLogger(__name__).info(
+            "api_reveal_asset: DENIED user=%s message=%s channel_owner=%s",
+            getattr(user, 'id', None),
+            message_id,
+            getattr(channel, 'owner_id', None),
+        )
+        return HttpResponseForbidden(
+            json.dumps(FORBIDDEN_PAYLOAD),
+            content_type='application/json',
+        )
+
+    # --- 5. Decrypt server-side and emit the structured field map ----------
+    # Returning a dict (rather than a single plaintext string) lets the
+    # Telegram-style spoiler renderer drop each value into the matching
+    # `<span data-field="...">` placeholder without any further parsing.
+    plaintext_fields = message.get_decrypted_asset_fields()
+    if not plaintext_fields:
+        # Corrupted ciphertext (e.g. key rotation). Treat as denial to avoid
+        # leaking storage state. The dashboard simply tells the seller to
+        # re-issue the asset.
+        return HttpResponseForbidden(
+            json.dumps(FORBIDDEN_PAYLOAD),
+            content_type='application/json',
+        )
+
+    return JsonResponse({"fields": plaintext_fields})

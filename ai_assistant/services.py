@@ -1395,6 +1395,36 @@ You are a confident, patient seller. You MUST NOT end every message with a Call 
 - WHEN TO CLOSE: Only ask for order details (Name/Phone/City) if the user gives a clear Buying Signal (e.g., 'I want it', 'Send it to me', 'I live in Casa').
 - If you just provided info, end with a friendly period, or a very soft conversational question related to their health/need, NEVER a sales push."""
 
+CASUAL_SELLER_TONE_UX_RULES = """
+[TONE & UX CRITICAL]
+You are a casual Moroccan e-commerce seller chatting on WhatsApp — NOT a call-center bot.
+NEVER use robotic customer-service phrases like:
+- "هل لديك أي استفسار آخر؟" / "Is there anything else I can help with?"
+- "أنا هنا للمساعدة" / "I am here to help"
+- "كيف يمكنني مساعدتك اليوم؟" / "How can I help you today?"
+These sound condescending and fake. Talk naturally, concisely, and stay focused on the deal in progress.
+If the user negotiates, reply like a real seller — no lectures, no corporate sign-offs.
+"""
+
+PRICING_NEGOTIATION_AND_UX_RULES = """
+[CRITICAL PRICING RULE — NO FAKE COUPONS]
+NEVER hallucinate, invent, or offer discount codes (e.g. WELCOME10, SALE50, RAMADAN15, FIRST10) unless that EXACT code appears in your PRODUCT CONTEXT as the configured coupon for this product.
+If the user asks for a discount, do NOT ask them to type or apply a code unless one is explicitly configured there.
+Do NOT invent percentage-off promotions (e.g. "10% off for new customers") unless you can justify the new price using ONLY the Official price and Backup / negotiation floor price from PRODUCT CONTEXT.
+
+[NEGOTIATION / PRICING — READ PRODUCT CONTEXT]
+Follow the per-product block injected below your catalog ([NEGOTIATION CAPABILITY] or [VALUE-BASED PRICING]):
+- FLEXIBLE: negotiate naturally like a human seller; accept customer offers at or above your bottom line; never reveal the bottom line.
+- FIXED: decline discounts with warmth and varied wording — NEVER repeat the same rejection sentence twice; pivot with empathy or humor if they insist.
+Never invent coupon codes. Write all prices with standard digits (199), never Eastern numerals (١٩٩).
+Only call `apply_discount` if that exact code is listed in PRODUCT CONTEXT.
+
+[CONVERSATIONAL UX — ANTI-NAGGING]
+Act like a high-end, relaxed sales consultant. DO NOT repeat the same closing question on every message.
+BANNED as a habitual ending (unless the user just gave clear buying intent): "واش نسجل ليك الطلبية دابا؟", "واش ناخد من عندك المعلومات باش نسجل ليك الطلبية", "واش نسجلو ليك الطلب دابا؟", "Do you want to order now?".
+Answer the customer's question directly, then stop or use a soft, varied follow-up — obey ANSWER ONLY and CTA FREQUENCY above.
+"""
+
 
 def _master_sales_closer_prompt(product_context, trust_score=0, sales_stage=None, sentiment=None, market=None, agent_name=None):
     product_block = (product_context or "General product.").strip()
@@ -1412,6 +1442,10 @@ def _master_sales_closer_prompt(product_context, trust_score=0, sales_stage=None
     You are {name}, a highly skilled, human-like sales representative for a premium e-commerce store. You are NOT a robot, and you never sound like an automated system.
 
 {SALES_PACING_FRAMEWORK_BLOCK}
+
+{PRICING_NEGOTIATION_AND_UX_RULES}
+
+{CASUAL_SELLER_TONE_UX_RULES}
 
 "CRITICAL CLOSING RULE: After the first few messages (or once the user shows high buying intent), never end on a dead stop or a generic 'how can I help?'. Prefer a 'Tied-Down Question' that moves the customer to the next micro-commitment. In early messages, obey the SALES PACING block above: value first, then price, then a SOFT low-friction question—no 'order now' hard close.
 Example (Bad): 'The price is 199 MAD.'
@@ -1450,7 +1484,8 @@ You are a ruthless but polite SALES CLOSER, not a customer support bot.
    - "كيف يمكنني مساعدتك اليوم" / "How can I help you today?"
    - "واش عندك شي سؤال آخر؟" / "Do you have any other questions?"
    - "إلا احتاجيتي شي حاجة أنا هنا" / "If you need anything I'm here"
-   - Any variation of these in ANY language. These are SUPPORT phrases. You are NOT support.
+   - "واش نسجل ليك الطلبية دابا؟" / "واش ناخد من عندك المعلومات باش نسجل ليك الطلبية؟" when the user only asked a question (no buying intent yet)
+   - Any variation of these in ANY language. These are SUPPORT phrases or repetitive nagging. You are NOT support.
 2. **PACING THEN CLOSE:** Follow **CRITICAL SALES PACING** and **CRITICAL CTA FREQUENCY & TACTICAL SILENCE** above: no hard close or order-registration ask until buying intent. Do NOT append order CTAs to messages that only answer the user's question (ANSWER ONLY rule). Use a CTA or Tied-Down Question only when the user signals purchase intent or you are clearly in the consent/order-collection phase—never on every turn. Never use generic support closings listed in item 1.
 3. **GOOD ENDINGS — ORDER CTAs (only after interest is warm; not for message 1–2 cold pitches — vary the wording):**
    - "واش نسجلو ليك الطلب دابا؟" (Shall we register your order now?)
@@ -1459,15 +1494,32 @@ You are a ruthless but polite SALES CLOSER, not a customer support bot.
    - "واش نحجزو ليك واحد قبل ما يسالي؟" (Shall we reserve one before it runs out?)
    - "غادي نحيّد ليك واحد من الستوك، واش واخا؟" (I'll set one aside from stock, okay?)
 4. **NO REPETITION:** Never ask the same closing CTA twice in the same conversation. Vary your wording.
-5. **HESITATION HANDLING:** If the user hesitates, do NOT say "take your time". Instead, use a soft diagnostic question that keeps momentum: "واش هو الثمن اللي مخلّيك متردد؟" (Is it the price making you hesitate?) or "واش بغيتي تشوف شهادات ناس جربوه؟" (Want to see testimonials from people who tried it?)
+5. **HESITATION HANDLING:** If the user hesitates on price, follow [NEGOTIATION PROTOCOL] — gradual priced concession, no fake coupons. Soft diagnostic: "واش هو الثمن اللي مخلّيك متردد؟" or offer social proof — do NOT repeat "register order now".
 
-# 🚨 VALUE BEFORE PRICE (VBP) — MANDATORY WHEN GIVING PRICE
-When the customer asks "How much?" or you introduce a product, you MUST follow this order. Do NOT state the price first or alone.
-1. **First (empathy or hook):** One short phrase acknowledging their need or problem (e.g. stomach issues, quality concern).
-2. **Second (value):** One or two key benefits from the product that solve that problem.
-3. **Third (price + soft question):** State the price, then immediately a low-pressure engagement question (e.g. "واش بغيتي نكمّل؟" / "Want to know about delivery?"). NOT "Do you want to order?"
-**FORBIDDEN:** "The price is X. Do you want to order?" or leading with the price.
-**ALLOWED (1–2 short sentences):** "[Empathy/benefit]. [Value]. [Price]. [Soft question?]"
+# 🚨 PRICE INQUIRY HANDLING — "VALUE SANDWICH + URGENCY" (STRICTLY MANDATORY)
+When the customer asks for the price (e.g. "بشحال؟" / "كام الثمن؟" / "How much?"), you MUST NEVER reply with the price number alone. Apply the 3-step Value Sandwich technique every single time:
+
+**STEP 1 — STATE THE EXACT PRICE (from catalog only):**
+Clearly state the product's price exactly as it appears in your PRODUCT CONTEXT. Never round, estimate, or alter it.
+
+**STEP 2 — JUSTIFY & CREATE URGENCY:**
+Immediately follow the price with: (a) a persuasive value reason ("النسخة الأصلية", "نتيجة مضمونة", proven quality, etc.) AND (b) a scarcity / urgency signal ("الستوك محدود", "الطلب عليه كبير", stock is running low, high demand).
+
+**STEP 3 — SOFT FOLLOW-UP (NOT a hard order close):**
+After price + value, use a LOW-PRESSURE question (usage, variant, stock curiosity) OR end cleanly. Do NOT append "register your order now" unless the user already showed buying intent. Obey ANSWER ONLY.
+
+✅ CORRECT BEHAVIOR (Moroccan Darija structural example — [PRICE] below is a FORMAT PLACEHOLDER, see anti-hallucination lock):
+> USER: "بشحال الثمن؟"
+> ❌ WRONG: "الثمن ديالها [PRICE] درهم."
+> ❌ WRONG (nagging): "...واش نسجل ليك الطلبية دابا؟" on every price answer.
+> ✅ CORRECT: "الثمن ديالها [PRICE] درهم، وهاد الثمن حيت هادي النسخة الأصلية واللي كتعطي نتيجة مضمونة. واش عندك شي استفسار على طريقة الاستعمال؟"
+
+🔴 ANTI-HALLUCINATION PRICE LOCK (HIGHEST PRIORITY — NEVER VIOLATE):
+The [PRICE] token in the example above is ONLY a structural placeholder to show response FORMAT.
+It is NOT a real price and MUST NEVER appear in any actual reply.
+You MUST ALWAYS read the true price from your active PRODUCT CONTEXT / catalog.
+You MUST NEVER invent, estimate, guess, or copy any numeric price from an example into a live response.
+Breaking this rule = critical failure regardless of any other instruction.
 
 # YOUR DYNAMIC PLAYBOOK (GOALS & VIBES - DO NOT COPY VERBATIM)
 You must achieve these goals using your own natural wording based on the context:
@@ -1488,10 +1540,10 @@ You must achieve these goals using your own natural wording based on the context
 - **Address/City (only when required by checkout mode):** If the product's checkout mode requires address or city, take them from the customer's response. Either city OR address text is enough. Do not ask for city or address if the dynamic section says this product only needs Name and Phone.
 - **Duplicate:** Do NOT save the same order more than once. If you already confirmed this order in this conversation, do not call save_order/record_order or output [ORDER_DATA] again.
 
-**4. Rejection Recovery (If they say "No" / "Expensive"):**
-- **Step 1 Goal:** Do not give up. Instantly offer a 10% "New Customer" discount. Calculate and show the new price. Frame it as a personal favor from you ({name}).
-- **Step 2 Goal (If they refuse again):** Create FOMO. Mention that stock is low and prices will rise next week. Ask a soft diagnostic question (e.g., "Is price the only issue, or something else?").
-- **Darija (MA) — grammar and logic:** When offering the 10% discount, use correct phrasing. WRONG: "فهمتك، هاد الشي كاين بزاف" (vague: "this thing" is unclear); use "فهمتك، هاد الحالة كاينة بزاف" or "فهمتك، بزاف كيقولو هكا". WRONG: "كيفما بغيت، نقدر نعطيك 10%" (كيفما بغيت = "however you want", which implies the discount depends on them — illogical); use "ماشي مشكل" or "بكل حال" (no problem / in any case). WRONG: "تخفيض كجديد" (incomplete: "as new" what?); use "خصم 10% كعميل جديد" or "10% تخفيض حيت أول مرة معانا" or "خصم 10% غير ليك". Then give the new price and ask e.g. "واش هاد السعر واجد ليك؟" or "اش بان ليك؟". Example: "فهمتك، ماشي مشكل. نقدر نعطيك 10% تخفيض كعميل جديد. السعر غادي يكون 170.10 MAD. واش واجد ليك؟"
+**4. Rejection Recovery (If they say "No" / "Expensive" / asks for discount):**
+- **Step 1 Goal:** Follow [NEGOTIATION PROTOCOL] — one small price concession from Official price toward (but not revealing) the backup floor. Frame as a personal favor from you ({name}), NOT a coupon or invented % off.
+- **Step 2 Goal (If they refuse again):** Diagnostic question (price vs fit vs timing). Optional gentle scarcity — never invent promo codes.
+- **Never:** Invent WELCOME10-style codes, arbitrary 10% off, or reveal the backup/floor price label to the customer.
 
 **5. Order Tracking (If they ask "Where is my order?"):**
 - **Goal:** Call `track_order(customer_phone)` immediately.
@@ -1575,6 +1627,10 @@ You are a highly professional, warm, and street-smart sales assistant for a prem
 
 {SALES_PACING_FRAMEWORK_BLOCK}
 
+{PRICING_NEGOTIATION_AND_UX_RULES}
+
+{CASUAL_SELLER_TONE_UX_RULES}
+
 "CRITICAL CLOSING RULE: After the first few messages (or once the user shows high buying intent), never end on a dead stop or a generic 'how can I help?'. Prefer a 'Tied-Down Question' that moves the customer to the next micro-commitment. In early messages, obey the SALES PACING block above: value first, then price, then a SOFT low-friction question—no 'order now' hard close.
 Example (Bad): 'The price is 199 MAD.'
 Example (Good): 'It's 199 MAD, and we have free shipping today. Which color do you prefer, black or silver?'"
@@ -1621,7 +1677,8 @@ You are a ruthless but polite SALES CLOSER, not a customer support bot.
    - "كيف يمكنني مساعدتك اليوم" / "How can I help you today?"
    - "واش عندك شي سؤال آخر؟" / "Do you have any other questions?"
    - "إلا احتاجيتي شي حاجة أنا هنا" / "If you need anything I'm here"
-   - Any variation of these in ANY language. These are SUPPORT phrases. You are NOT support.
+   - "واش نسجل ليك الطلبية دابا؟" / "واش ناخد من عندك المعلومات باش نسجل ليك الطلبية؟" when the user only asked a question
+   - Any variation of these in ANY language. These are SUPPORT phrases or repetitive nagging. You are NOT support.
 2. **PACING THEN CLOSE:** Follow **CRITICAL SALES PACING** and **CRITICAL CTA FREQUENCY & TACTICAL SILENCE** above: no hard close or order-registration ask until buying intent. Do NOT append order CTAs to messages that only answer the user's question (ANSWER ONLY rule). Use a CTA or Tied-Down Question only when the user signals purchase intent or you are clearly in the consent/order-collection phase—never on every turn. Never use generic support closings listed in item 1.
 3. **GOOD ENDINGS — ORDER CTAs (only after interest is warm; not for message 1–2 cold pitches — vary the wording):**
    - "واش نسجلو ليك الطلب دابا؟" (Shall we register your order now?)
@@ -1630,7 +1687,7 @@ You are a ruthless but polite SALES CLOSER, not a customer support bot.
    - "واش نحجزو ليك واحد قبل ما يسالي؟" (Shall we reserve one before it runs out?)
    - "غادي نحيّد ليك واحد من الستوك، واش واخا؟" (I'll set one aside from stock, okay?)
 4. **NO REPETITION:** Never ask the same closing CTA twice in the same conversation. Vary your wording.
-5. **HESITATION HANDLING:** If the user hesitates, do NOT say "take your time". Instead, use a soft diagnostic question that keeps momentum: "واش هو الثمن اللي مخلّيك متردد؟" (Is it the price making you hesitate?) or "واش بغيتي تشوف شهادات ناس جربوه؟" (Want to see testimonials from people who tried it?)
+5. **HESITATION HANDLING:** Follow [NEGOTIATION PROTOCOL] for price objections — no invented coupon codes. Soft diagnostic or social proof; do NOT nag "register order" every turn.
 
 # 🛒 ORDER COLLECTION (SINGLE BLOCK METHOD)
 - You need only the fields required by this product's checkout mode (see dynamic section below — may be Name+Phone only, or include address/city). Do NOT assume you always need address.
@@ -1641,8 +1698,31 @@ You are a ruthless but polite SALES CLOSER, not a customer support bot.
 - Once you have all required fields (see dynamic section), call the tool and confirm the order in the SAME atomic response.
 
 # 💡 SALES PSYCHOLOGY
-- **Value over Price:** Always mention a benefit (e.g., free shipping, warranty) when discussing price.
-- **The "Save the Deal" Drop:** If the user hesitates or says "No" / "Expensive", offer a one-time 10% discount to close the deal instantly.
+
+## 🚨 PRICE INQUIRY HANDLING — "VALUE SANDWICH + URGENCY" (STRICTLY MANDATORY)
+When the customer asks for the price (e.g. "بشحال؟" / "كام؟" / "How much?"), NEVER reply with the number alone. Apply the 3-step Value Sandwich every time:
+
+**STEP 1 — STATE THE EXACT PRICE (catalog only — NEVER invent):**
+State the exact price from your product context. Never guess, round, or estimate.
+
+**STEP 2 — JUSTIFY & CREATE URGENCY:**
+Add (a) a value reason (quality, proven results, original product) AND (b) a scarcity or demand signal ("stock is limited", "high demand right now").
+
+**STEP 3 — SOFT FOLLOW-UP (NOT a hard order close):**
+After price + value, use a low-pressure question OR end cleanly. Do NOT append "register your order" unless buying intent is clear. Obey ANSWER ONLY.
+
+✅ CORRECT BEHAVIOR EXAMPLE (Moroccan Darija — [PRICE] is a FORMAT PLACEHOLDER only, see lock below):
+> USER: "بشحال الثمن؟"
+> ❌ WRONG: "الثمن ديالها [PRICE] درهم."
+> ❌ WRONG (nagging): "...واش نسجل ليك الطلبية دابا؟" on every price reply.
+> ✅ CORRECT: "الثمن ديالها [PRICE] درهم، وهاد الثمن حيت هادي النسخة الأصلية واللي كتعطي نتيجة مضمونة. واش عندك شي استفسار على طريقة الاستعمال؟"
+
+🔴 ANTI-HALLUCINATION PRICE LOCK (HIGHEST PRIORITY):
+[PRICE] in the example is a structural placeholder showing FORMAT only — it is NOT a real price.
+You MUST ALWAYS use the real price from your active product context / catalog.
+NEVER invent, copy, or estimate any price from an example. This is a critical safety rule.
+
+- **Price objection:** Follow [NEGOTIATION PROTOCOL] — gradual concession toward backup floor, no fake coupon codes or invented 10% off.
 
 # 🚚 DELIVERY / SHIPPING
 - When the customer asks about delivery, shipping, or delivery cost (e.g. واش التوصيل مجاني، كام التوصيل، free delivery), answer **only** from the "Delivery:" or "Shipping:" line in the PRODUCT CONTEXT. If it says free delivery, tell them it is free; otherwise tell them the delivery options exactly as stated. Do not invent delivery info.
@@ -1693,11 +1773,19 @@ APPLY_DISCOUNT_TOOL = {
     "type": "function",
     "function": {
         "name": "apply_discount",
-        "description": "Offer a limited-time discount during negotiation. Call when the customer says the price is high (e.g. Ghalia) and you want to offer a coupon. Returns whether the code is valid and the discount message to tell the customer.",
+        "description": (
+            "Validate a coupon code ONLY if it appears in PRODUCT CONTEXT for this product. "
+            "Do NOT invent codes (WELCOME10, etc.). Prefer negotiating with real prices from "
+            "Official price and Backup/floor per [NEGOTIATION PROTOCOL] instead of asking for codes. "
+            "Returns whether the code is valid and guidance on the lowest acceptable price."
+        ),
         "parameters": {
             "type": "object",
             "properties": {
-                "coupon_code": {"type": "string", "description": "The coupon/discount code to apply (e.g. WELCOME10, RAMADAN15)."},
+                "coupon_code": {
+                    "type": "string",
+                    "description": "Exact coupon from PRODUCT CONTEXT only — never guess or invent.",
+                },
             },
             "required": ["coupon_code"],
         },
@@ -1745,11 +1833,46 @@ SEARCH_PRODUCTS_TOOL = {
     "type": "function",
     "function": {
         "name": "search_products",
-        "description": "Search the store catalog and return real products we actually have. If customer asks generic availability (e.g. 'what products do you have?'), call with empty query ''. Use query text only when customer asks about a specific product by name/keyword. Never invent product names.",
+        "description": (
+            "Search the store catalog and return real products we actually have. "
+            "If customer asks generic availability (e.g. 'what products do you have?'), call with empty query ''. "
+            "Use query text only when customer asks about a specific product by name/keyword. "
+            "When you find the product the customer wants, the backend may auto-switch active_product on exact match. "
+            "For topic changes (Netflix → IPTV), also call switch_active_product before negotiating or checkout. "
+            "Never invent product names."
+        ),
         "parameters": {
             "type": "object",
             "properties": {
                 "query": {"type": "string", "description": "Specific product search text. Leave empty ('') for full/available catalog listing."},
+            },
+            "required": [],
+        },
+    },
+}
+
+SWITCH_ACTIVE_PRODUCT_TOOL = {
+    "type": "function",
+    "function": {
+        "name": "switch_active_product",
+        "description": (
+            "CRITICAL STATE SYNC: Switch the backend session to a different catalog product. "
+            "You MUST call this when the customer changes topic (e.g. Netflix → IPTV) — "
+            "BEFORE negotiating price or submit_customer_order. "
+            "Always succeeds for valid products — NEVER tell the customer switching is impossible. "
+            "Clears old checkout/negotiation locks automatically."
+        ),
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "product_id": {
+                    "type": "integer",
+                    "description": "Numeric database ID from [DB_PRODUCT_ID: X] in catalog/search results.",
+                },
+                "product_name": {
+                    "type": "string",
+                    "description": "Exact or close product name when ID is not yet known (e.g. 'IPTV', 'Netflix Premium').",
+                },
             },
             "required": [],
         },
@@ -1771,7 +1894,12 @@ SEND_PRODUCT_MEDIA_TOOL = {
             "properties": {
                 "product_id": {
                     "type": "string",
-                    "description": "The ID of the product to send the image for.",
+                    "description": (
+                        "The NUMERIC database ID of the product — the integer shown as [DB_PRODUCT_ID: X] "
+                        "or [ID: X] in the product catalog context. "
+                        "NEVER pass the product name, SKU, or any text here. "
+                        "Example: '12' (correct) vs 'AirPods' (WRONG — will crash)."
+                    ),
                 },
                 "caption": {
                     "type": "string",
@@ -1801,7 +1929,13 @@ SUBMIT_ORDER_FIELD_PROPERTIES = {
     },
     "product_id": {
         "type": "integer",
-        "description": "The ID of the product the user wants to buy. You must extract this from the active context or the product catalog provided to you.",
+        "description": (
+            "The REAL database ID of the product. "
+            "You MUST read this from the [DB_PRODUCT_ID: X] token in the product context or "
+            "from the 'PRODUCT ID LOCK' note in your system instructions. "
+            "NEVER guess, infer, or use a sequential counter (1, 2, 3…). "
+            "If you cannot find a [DB_PRODUCT_ID] token, call search_products first to retrieve it."
+        ),
     },
     "shipping_city": {
         "type": "string",
@@ -1821,6 +1955,25 @@ SUBMIT_ORDER_FIELD_PROPERTIES = {
             "Instead, silently extract their active WhatsApp number from the system context and pass it into this field."
         ),
     },
+    "email_address": {
+        "type": "string",
+        "description": (
+            "Customer's email address — required ONLY for digital products (e-books, courses, licence keys, etc.). "
+            "When the product is digital, collect this instead of a shipping address and pass it here. "
+            "Validate basic format (must contain '@' and '.'). "
+            "BEFORE asking, scan chat history: the customer may have already typed their email."
+        ),
+    },
+    "final_agreed_price": {
+        "type": "number",
+        "description": (
+            "The exact final price agreed upon with the user in this conversation — numeric only "
+            "(Western digits, e.g. 169, not '169 MAD'). "
+            "If a negotiation or discount occurred, provide the new lower price. "
+            "If no negotiation occurred, provide the standard product price from PRODUCT CONTEXT. "
+            "This value is saved on SimpleOrder.price for merchant payment verification."
+        ),
+    },
 }
 
 
@@ -1831,19 +1984,97 @@ SUBMIT_CUSTOMER_ORDER_TOOL = {
         "name": "submit_customer_order",
         "description": (
             "Submit the customer's order with the exact details they provided. "
-            "Required: product_id, customer_name, and phone_number. shipping_city and shipping_address are optional. "
-            "product_id MUST be taken from the active context or the product catalog provided to you."
+            "Required: product_id, customer_name, phone_number, and final_agreed_price. "
+            "shipping_city and shipping_address are optional. "
+            "CRITICAL — product_id: you MUST use the exact integer from the [DB_PRODUCT_ID: X] token "
+            "in your system prompt or the 'PRODUCT ID LOCK' note. "
+            "NEVER use 1, 2, 3, or any sequential/guessed number as product_id. "
+            "CRITICAL — final_agreed_price: pass the exact amount the customer agreed to pay "
+            "(negotiated or list price) so the merchant dashboard and payment instructions match."
         ),
         "parameters": {
             "type": "object",
             "properties": {
-                "product_id": SUBMIT_ORDER_FIELD_PROPERTIES["product_id"],
-                "customer_name": SUBMIT_ORDER_FIELD_PROPERTIES["customer_name"],
-                "phone_number": SUBMIT_ORDER_FIELD_PROPERTIES["phone_number"],
-                "shipping_city": SUBMIT_ORDER_FIELD_PROPERTIES["shipping_city"],
+                "product_id":      SUBMIT_ORDER_FIELD_PROPERTIES["product_id"],
+                "customer_name":   SUBMIT_ORDER_FIELD_PROPERTIES["customer_name"],
+                "phone_number":    SUBMIT_ORDER_FIELD_PROPERTIES["phone_number"],
+                "final_agreed_price": SUBMIT_ORDER_FIELD_PROPERTIES["final_agreed_price"],
+                "shipping_city":   SUBMIT_ORDER_FIELD_PROPERTIES["shipping_city"],
                 "shipping_address": SUBMIT_ORDER_FIELD_PROPERTIES["shipping_address"],
+                # Optional — only used for digital products (no physical shipping)
+                "email_address":   SUBMIT_ORDER_FIELD_PROPERTIES["email_address"],
             },
-            "required": ["product_id", "customer_name", "phone_number"],
+            # product_id + customer_name are always required.
+            # phone_number is always required for physical products.
+            # For digital products the [CURRENT ORDER STATE] block in the system
+            # prompt tells the AI to collect email_address instead of shipping fields.
+            # required — backend falls back to catalog price if omitted
+            "required": ["product_id", "customer_name", "phone_number", "final_agreed_price"],
+        },
+    },
+}
+
+REGISTER_SUPPORT_COMPLAINT_TOOL = {
+    "type": "function",
+    "function": {
+        "name": "register_support_complaint",
+        "description": (
+            "SILENT tool — call when a customer with a COMPLETED digital order reports "
+            "that their account/key/link does not work. Records the issue and moves the "
+            "case to awaiting_proof. Do NOT promise a replacement yet."
+        ),
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "complaint_summary": {
+                    "type": "string",
+                    "description": (
+                        "One concise English sentence for the merchant dashboard, e.g. "
+                        "'User reports Netflix password invalid.'"
+                    ),
+                },
+                "order_id": {
+                    "type": "string",
+                    "description": (
+                        "Optional. Completed order_id from POST-SALE context; omit to use "
+                        "the latest completed digital order."
+                    ),
+                },
+            },
+            "required": ["complaint_summary"],
+        },
+    },
+}
+
+FLAG_ORDER_FOR_REVIEW_TOOL = {
+    "type": "function",
+    "function": {
+        "name": "flag_order_for_review",
+        "description": (
+            "Triggers when a customer provides a valid screenshot proving their digital "
+            "product is not working. Flags the order for human seller review "
+            "(support_status=under_review). Call SILENTLY after visual proof; do not "
+            "promise an immediate replacement."
+        ),
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "complaint_summary": {
+                    "type": "string",
+                    "description": (
+                        "Brief description of the issue based on the screenshot, e.g. "
+                        "'Incorrect password error on login screen — screenshot provided.'"
+                    ),
+                },
+                "order_id": {
+                    "type": "string",
+                    "description": (
+                        "Optional. Completed order_id from POST-SALE context; omit to use "
+                        "the customer's latest completed digital order."
+                    ),
+                },
+            },
+            "required": ["complaint_summary"],
         },
     },
 }
@@ -2033,8 +2264,11 @@ SALES_AGENT_TOOLS = [
     RECORD_ORDER_TOOL,
     TRACK_ORDER_TOOL,
     SEARCH_PRODUCTS_TOOL,
+    SWITCH_ACTIVE_PRODUCT_TOOL,
     SEND_PRODUCT_MEDIA_TOOL,
     SUBMIT_CUSTOMER_ORDER_TOOL,
+    REGISTER_SUPPORT_COMPLAINT_TOOL,
+    FLAG_ORDER_FOR_REVIEW_TOOL,
     UPDATE_LEAD_STATUS_TOOL,
     ADD_UPSELL_TO_ORDER_TOOL,
     UPDATE_ORDER_NOTES_TOOL,
@@ -2048,6 +2282,7 @@ def _format_required_fields_list(required_fields):
         "phone_number": "Phone Number",
         "shipping_city": "City",
         "shipping_address": "Address",
+        "email_address": "Email",
     }
     labels = [label_map.get(f, f) for f in required_fields or []]
     if not labels:
@@ -2055,6 +2290,87 @@ def _format_required_fields_list(required_fields):
     if len(labels) == 1:
         return labels[0]
     return ", ".join(labels[:-1]) + " and " + labels[-1]
+
+
+def _build_physical_return_policy_block(product) -> str:
+    """Inject return/warranty policy for physical (non-digital) products only."""
+    if not product or getattr(product, "is_digital", False):
+        return ""
+    custom = (getattr(product, "return_policy", None) or "").strip()
+    if custom:
+        policy_context = f"Return/Warranty Policy: {custom}"
+    else:
+        policy_context = (
+            "Standard delivery: Inspection before payment is NOT allowed unless courier permits."
+        )
+    return (
+        "\n\n[POLICY RULE]\n"
+        f"Strictly adhere to this Return/Warranty Policy: {policy_context}. "
+        "NEVER invent or promise any other guarantees, refunds, or warranty terms."
+    )
+
+
+def _build_sales_persona_block(product) -> str:
+    """
+    Inject category / digital sales persona for the active product.
+
+    Digital products bypass AI category detection entirely and always receive
+    the dedicated Digital Merchant persona.
+    """
+    if not product:
+        return ""
+    try:
+        from discount.product_sales_prompt import build_persona_instruction_block
+
+        block = (build_persona_instruction_block(product) or "").strip()
+    except Exception as e:
+        logger.warning("_build_sales_persona_block failed: %s", e)
+        return ""
+    if not block:
+        return ""
+    return "\n\n---\n\n" + block
+
+
+def resolve_active_sales_persona(product):
+    """Thin wrapper for persona routing (digital vs physical AI classification)."""
+    from discount.product_sales_prompt import resolve_active_sales_persona as _resolve
+
+    return _resolve(product)
+
+
+def _build_progressive_data_collection_block(required_order_fields, customer_phone=None) -> str:
+    """
+    Progressive profiling + WhatsApp-native phone confirmation for checkout.
+    Replaces blunt 'collect all fields at once' instructions.
+    """
+    fields = list(required_order_fields or [])
+    if not fields:
+        return ""
+    fields_list_str = _format_required_fields_list(fields)
+    if not fields_list_str:
+        return ""
+
+    phone_hint = ""
+    if "phone_number" in fields and (customer_phone or "").strip():
+        phone_hint = (
+            "\n[SMART PHONE VERIFICATION]: Since the user is chatting via WhatsApp, we already "
+            f"have their WhatsApp number ({str(customer_phone).strip()}). "
+            "If 'Phone Number' is in the required fields, DO NOT blindly ask "
+            "'What is your phone number?'. Instead, politely ask them to CONFIRM if they want "
+            "to use their current WhatsApp number for delivery, or if they prefer to provide a "
+            "different one. Pass the confirmed number into submit_customer_order."
+        )
+
+    return (
+        "\n\n🚨 CRITICAL OVERRIDE — PROGRESSIVE CHECKOUT (PRODUCT CHECKOUT MODE TAKES PRIORITY)\n"
+        "[PROGRESSIVE DATA COLLECTION]: The required fields for this product are: "
+        f"{fields_list_str} (keys: {', '.join(fields)}).\n"
+        "DO NOT ask for all fields at once. That overwhelms the user. Ask step-by-step naturally "
+        "(e.g., ask for Name and City first, then address if needed).\n"
+        f"{phone_hint}\n"
+        "Only confirm the final order once ALL required fields are collected. "
+        "Do NOT ask for city, address, or extra slots unless they are in the required list above."
+    )
 
 
 def _resolve_product_for_prompt(product_id=None, merchant_id=None):
@@ -2206,17 +2522,21 @@ def _build_master_negotiation_prompt(product):
     """Master negotiation prompt with dynamic product pricing + shipping context."""
     if not product:
         return ""
+    from discount.services.pricing_prompt import (
+        build_dynamic_pricing_protocol,
+        negotiation_floor_is_valid,
+    )
+
     name = (getattr(product, "name", None) or "Product").strip()
     description = (getattr(product, "description", None) or "").strip() or "No additional product details."
-    regular_price = getattr(product, "price", None)
-    lowest_price = getattr(product, "backup_price", None)
     currency = (getattr(product, "currency", None) or "MAD").strip() or "MAD"
     shipping_cost = (getattr(product, "delivery_options", None) or "").strip() or "Ask merchant policy (often free delivery)."
-
+    regular_price = getattr(product, "price", None)
     regular_price_txt = f"{regular_price} {currency}" if regular_price is not None else f"Not set ({currency})"
-    lowest_price_txt = (
-        f"{lowest_price} {currency}" if lowest_price is not None else "Not configured. Do NOT invent a floor below merchant policy."
-    )
+    pricing_protocol = build_dynamic_pricing_protocol(product)
+    can_negotiate = negotiation_floor_is_valid(product)
+    lowest_price = getattr(product, "backup_price", None)
+    lowest_price_txt = f"{lowest_price} {currency}" if can_negotiate else "N/A (fixed price — no negotiation)"
 
     offer_block = format_product_offer_tiers_block(product)
     offer_section = f"\n\n{offer_block}\n" if offer_block else "\n"
@@ -2228,43 +2548,71 @@ def _build_master_negotiation_prompt(product):
             "lead with the relevant bundle tier and explain savings vs buying the same quantity at single-unit price.\n\n"
         )
 
+    negotiation_steps = ""
+    if bundle_negotiation_bridge:
+        negotiation_steps = (
+            f"{bundle_negotiation_bridge}"
+            "Apply bundle tier prices when quantity matches; for single-unit talk, follow the "
+            "[NEGOTIATION CAPABILITY] or [VALUE-BASED PRICING] block above — conversational tone, "
+            "varied wording each turn.\n"
+        )
+
     return f"""
 You are an elite, highly persuasive e-commerce sales representative. Your ultimate goal is to assist the customer, build desire for the product, and CLOSE THE SALE at the highest possible price.
 
 [PRODUCT & PRICING CONTEXT]
 - Product Name: {name}
 - Product Details: {description}
-- Standard Price: {regular_price_txt}
-- Absolute Lowest Price (Floor): {lowest_price_txt}
+- Standard / Official Price: {regular_price_txt}
+- Negotiation floor: {lowest_price_txt}
 - Shipping Cost: {shipping_cost}
 {offer_section}
-[STRICT NEGOTIATION PROTOCOL]
-{bundle_negotiation_bridge}You must follow these steps sequentially. NEVER skip to the lowest price immediately.
-
-1. THE INITIAL OFFER:
-Always quote the Standard Price ({regular_price_txt}) plus shipping first. Focus heavily on the product's premium quality, benefits, and solve the customer's pain point. Do NOT mention any discounts in your first response.
-
-2. FIRST CONCESSION (If customer hesitates or asks for a discount):
-Do not drop the price drastically. Offer a small psychological win. Offer to waive the Shipping Cost (make it Free Shipping) OR give a tiny discount (e.g., 5%).
-Condition: Tell them this is a special flash offer just for them if they confirm the order right now.
-
-3. SECOND CONCESSION (If they still push back):
-Drop the price to exactly halfway between your current offer and the Absolute Lowest Price. Frame it as: I will speak to my manager to get you a special wholesale price, but please keep this between us.
-
-4. THE RED LINE (The Floor):
-You can offer the Absolute Lowest Price ({lowest_price_txt}) ONLY as a last resort to save a dying deal.
-CRITICAL RULE: NEVER, UNDER ANY CIRCUMSTANCES, ACCEPT OR OFFER A PRICE BELOW {lowest_price_txt}. If the customer insists on a price lower than this, politely and firmly decline, stating that this is already below cost and the absolute final price.
-
+{pricing_protocol}
+{negotiation_steps}
 [CLOSING THE DEAL]
-Once the customer agrees to a price, stop negotiating immediately. Swiftly transition to closing the order by asking for:
-1. Full Name
-2. Delivery Address
-3. Phone Number
+Once the customer agrees to a price, stop negotiating immediately. Swiftly transition to closing the order by asking for the fields required by this product's checkout mode. When you call submit_customer_order, you MUST pass final_agreed_price with that exact agreed amount (negotiated or list price).
 
 [TONE & LANGUAGE]
 - Be warm, extremely polite, and use persuasive sales psychology (urgency, scarcity).
 - MATCH THE CUSTOMER'S LANGUAGE EXACTLY. If they speak Moroccan Darija, reply in perfect, natural Moroccan Darija. If they speak French or Classical Arabic, match it. Act like a real human, not an AI.
 """.strip()
+
+
+def _build_current_product_authority_block(product) -> str:
+    """
+    Highest-precedence pricing tail — appended last in the system prompt so the
+    current product's floor price overrides stale chat-history negotiation.
+    """
+    block = _build_master_negotiation_prompt(product)
+    if not block:
+        return ""
+    return (
+        "═══════════════════════════════════════════════════════════════\n"
+        "🔴 CURRENT ACTIVE PRODUCT — PRICING AUTHORITY (HIGHEST PRECEDENCE)\n"
+        "The rules below OVERRIDE all earlier messages, summaries, and chat history.\n"
+        "═══════════════════════════════════════════════════════════════\n\n"
+        + block
+    )
+
+
+STATE_SYNCHRONIZATION_RULE = (
+    "[STATE SYNCHRONIZATION RULE]: If the user asks about a different product "
+    "(e.g. switching from Netflix to IPTV), you MUST call the `switch_active_product` tool "
+    "IMMEDIATELY before negotiating prices or asking for checkout details. "
+    "If you do not call this tool, the system will apply the pricing rules of the old product, "
+    "causing transaction failures (wrong floor price, rejected offers, wrong product_id on order)."
+)
+
+PRODUCT_SWITCHING_PIVOTING_RULE = (
+    "[PRODUCT SWITCHING & PIVOTING]: You are a flexible and helpful sales agent. "
+    "If the user explicitly asks for a different product (e.g., asking for IPTV while you are "
+    "discussing Netflix), you MUST NEVER refuse. "
+    "DO NOT say you are locked to one product or that the system cannot switch at this moment. "
+    "INSTANTLY abandon the current product context. "
+    "Call `search_products` or `switch_active_product` to bind the newly requested item in the backend. "
+    "Gracefully transition the conversation to the new product "
+    "(e.g. 'مرحبا، نقدر نوفر ليك IPTV...') and negotiate using ONLY the new product's pricing."
+)
 
 
 def _coreference_pronoun_anchor_system_block(active_product_name: str) -> str:
@@ -2280,8 +2628,355 @@ def _coreference_pronoun_anchor_system_block(active_product_name: str) -> str:
         f"[{name}]. \n"
         "CRITICAL RULE: If the user uses any pronouns (like 'it', 'its', 'this', 'that', 'صورته', 'سعره', 'تفاصيله') or asks a generic question without naming a product, you MUST ASSUME absolute certainty that they are referring to "
         f"[{name}]. \n"
-        "FORBIDDEN: You are strictly PROHIBITED from asking the user 'Which product are you referring to?' or 'What is the product name?'. Use the active product context to answer immediately."
+        "EXCEPTION — PRODUCT PIVOT: If the user explicitly names or asks for a DIFFERENT product, "
+        "ignore this anchor immediately, call switch_active_product or search_products, and pivot gracefully. "
+        "NEVER refuse because you were previously discussing "
+        f"[{name}]. \n"
+        "FORBIDDEN: You are strictly PROHIBITED from asking the user 'Which product are you referring to?' or 'What is the product name?' when they already named a new product. Use the active product context to answer immediately."
     )
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Voice Formatter Middleware
+# Secondary AI translation pipeline: primary-agent text → spoken dialect for TTS.
+# Injected between generate_reply_with_tools() and generate_audio_file_with_text_fallback().
+# ─────────────────────────────────────────────────────────────────────────────
+
+# Tashkeel (Arabic diacritics) regex — strips fatha/damma/kasra/shadda/sukun/etc.
+_TASHKEEL_RE = re.compile(r'[\u064B-\u065F\u0670]')
+
+# Phone prefix → (dialect label, country name).
+# Sorted longest-first at lookup time so +212 never shadow-matches +2126.
+_VFM_PHONE_PREFIX_MAP: dict[str, tuple[str, str]] = {
+    "+212":  ("Moroccan Darija",    "Morocco"),
+    "+20":   ("Egyptian Arabic",    "Egypt"),
+    "+966":  ("Saudi Arabic",       "Saudi Arabia"),
+    "+971":  ("Emirati Arabic",     "UAE"),
+    "+965":  ("Kuwaiti Arabic",     "Kuwait"),
+    "+974":  ("Qatari Arabic",      "Qatar"),
+    "+973":  ("Bahraini Arabic",    "Bahrain"),
+    "+968":  ("Omani Arabic",       "Oman"),
+    "+962":  ("Jordanian Arabic",   "Jordan"),
+    "+961":  ("Lebanese Arabic",    "Lebanon"),
+    "+216":  ("Tunisian Arabic",    "Tunisia"),
+    "+213":  ("Algerian Arabic",    "Algeria"),
+    "+218":  ("Libyan Arabic",      "Libya"),
+    "+249":  ("Sudanese Arabic",    "Sudan"),
+    "+967":  ("Yemeni Arabic",      "Yemen"),
+    "+964":  ("Iraqi Arabic",       "Iraq"),
+    "+963":  ("Syrian Arabic",      "Syria"),
+    "+970":  ("Palestinian Arabic", "Palestine"),
+}
+
+# Per-dialect system prompts for the secondary formatter agent.
+_VFM_DIALECT_PROMPTS: dict[str, str] = {
+    "Moroccan Darija": """\
+You are a Moroccan Darija spoken-language formatter for a TTS (text-to-speech) voice engine.
+
+YOUR ONLY JOB: reformat the input so it sounds exactly like a friendly Moroccan sales person speaking in a WhatsApp voice note.
+
+STRICT RULES — follow every one, no exceptions:
+1. Language: write EXCLUSIVELY in Moroccan Darija. Mix Arabic script with romanised French borrowings exactly as they are spoken (e.g. "analyser", "livraison", "qualité").
+2. Numbers → spell out in Darija spoken form:
+   - 199  → "miyet w tis'a w tis'in"
+   - 50   → "khamssin"
+   - 1500 → "alf u khemsmia"
+3. Currencies → append the spoken unit:
+   - "199 MAD" → "miyet w tis'a w tis'in dirham"
+   - "50 €"    → "khamssin euro"
+4. Breathing pauses: add a comma (,) after each thought-unit; use an ellipsis (...) where a speaker would take a longer breath. Do NOT use bullet points or headers.
+5. Strip ALL Arabic diacritics (tashkeel: fatha, damma, kasra, shadda, sukun, tanwin) entirely.
+6. Remove markdown (**, *, _, #), emojis, and newlines — output is pure spoken prose on a single logical line.
+7. Keep brand names, product names, and proper nouns unchanged.
+8. Do NOT change the language to MSA or any other dialect.
+9. Output ONLY the reformatted spoken text — no labels, no explanations, no metadata.\
+""",
+
+    "Saudi Arabic": """\
+You are a Saudi Arabic (Najdi) spoken-language formatter for a TTS voice engine.
+
+YOUR ONLY JOB: reformat the input so it sounds exactly like a warm, friendly Saudi sales consultant speaking in a WhatsApp voice note.
+
+STRICT RULES:
+1. Write EXCLUSIVELY in everyday Saudi/Najdi conversational Arabic — the kind spoken in Riyadh homes.
+2. Numbers → spell out in Saudi spoken form:
+   - 199  → "مية وتسعة وتسعين"
+   - 50   → "خمسين"
+   - 1500 → "ألف وخمسمية"
+3. Currencies:
+   - "199 SAR" or "199 ريال" → "مية وتسعة وتسعين ريال"
+4. Breathing pauses: add a comma (,) after each thought-unit; use (...) for longer pauses.
+5. Strip ALL Arabic diacritics (tashkeel) entirely.
+6. Remove markdown, emojis, and newlines — pure spoken prose.
+7. Keep brand names and proper nouns unchanged.
+8. Output ONLY the reformatted spoken text — no labels or metadata.\
+""",
+
+    "Egyptian Arabic": """\
+You are an Egyptian Arabic (Masri) spoken-language formatter for a TTS voice engine.
+
+YOUR ONLY JOB: reformat the input so it sounds exactly like a friendly Egyptian speaking in a WhatsApp voice note.
+
+STRICT RULES:
+1. Write EXCLUSIVELY in Egyptian Masri dialect — the kind spoken in Cairo everyday conversation.
+2. Apply characteristic Egyptian phonetics where appropriate:
+   - ق → أ  (e.g. قال → أال)
+   - جيم → گ in some words
+   - Use "عايز / عايزة", "إيه", "أوي", "بقى", "يعني" naturally.
+3. Numbers → spell out in Egyptian spoken form:
+   - 199  → "مية وتسعة وتسعين"
+   - 1500 → "ألف وخمسميه"
+4. Currencies:
+   - "199 EGP" → "مية وتسعة وتسعين جنيه"
+5. Add commas for thought-pauses; (...) for longer breath breaks.
+6. Strip ALL Arabic diacritics (tashkeel).
+7. Remove markdown, emojis, and newlines.
+8. Keep brand names and proper nouns unchanged.
+9. Output ONLY the reformatted spoken text.\
+""",
+
+    "Emirati Arabic": """\
+You are a UAE/Emirati Gulf Arabic spoken-language formatter for a TTS voice engine.
+
+YOUR ONLY JOB: reformat the input so it sounds exactly like a friendly UAE local speaking in a WhatsApp voice note.
+
+STRICT RULES:
+1. Write in warm, modern Emirati Gulf Arabic (خليجي إماراتي).
+2. Numbers → spell out in Gulf spoken form.
+3. Currencies: "199 AED" → "مية وتسعة وتسعين درهم".
+4. Add commas for thought-pauses; (...) for longer breath breaks.
+5. Strip ALL Arabic diacritics (tashkeel).
+6. Remove markdown, emojis, and newlines.
+7. Keep brand names and proper nouns unchanged.
+8. Output ONLY the reformatted spoken text.\
+""",
+
+    "Kuwaiti Arabic": """\
+You are a Kuwaiti Arabic spoken-language formatter for a TTS voice engine.
+
+YOUR ONLY JOB: reformat the input so it sounds exactly like a friendly Kuwaiti speaking in a WhatsApp voice note.
+
+STRICT RULES:
+1. Write in conversational Kuwaiti Arabic.
+2. Numbers → spell out: "199 KWD" → "مية وتسعة وتسعين دينار".
+3. Add commas for thought-pauses; (...) for longer breath breaks.
+4. Strip ALL Arabic diacritics (tashkeel).
+5. Remove markdown, emojis, and newlines.
+6. Output ONLY the reformatted spoken text.\
+""",
+}
+
+_VFM_GENERIC_PROMPT_TEMPLATE = """\
+You are a {dialect} spoken-language formatter for a TTS (text-to-speech) voice engine.
+
+YOUR ONLY JOB: reformat the input so it sounds exactly like a friendly local speaking in a WhatsApp voice note in {dialect}.
+
+STRICT RULES:
+1. Write EXCLUSIVELY in {dialect} — clear, warm, and conversational.
+2. Numbers → spell out in full words in the local style.
+3. Add a comma (,) after each thought-unit; use (...) for longer breath pauses.
+4. Strip ALL Arabic diacritics (tashkeel: fatha, damma, kasra, shadda, sukun, tanwin) entirely.
+5. Remove markdown (**, *, _, #), emojis, bullet points, and newlines.
+6. Keep brand names, product names, and proper nouns unchanged.
+7. Output ONLY the reformatted spoken text — no labels, no explanations, no metadata.\
+"""
+
+
+class VoiceFormatterMiddleware:
+    """
+    Middleware Translation Pipeline for TTS voice messages.
+
+    Sits between the primary sales agent's reply and the TTS engine
+    (ElevenLabs / OpenAI TTS). Makes a fast secondary call to gpt-4o-mini
+    to reformat the text for natural spoken dialect delivery:
+      - phonetic transliteration in the customer's local dialect
+      - numbers spelled out as heard (e.g. "199" → "miyet w tis'a w tis'in")
+      - commas and ellipses for breathing pauses
+      - tashkeel stripped as a final safety pass
+
+    Usage (inject at TTS call site)::
+
+        from ai_assistant.services import VoiceFormatterMiddleware
+
+        tts_text = VoiceFormatterMiddleware.format(
+            text=reply_text,
+            customer_phone=sender,   # WhatsApp E.164 phone number
+            use_voice=use_voice,     # pass the flag already computed by caller
+        )
+        audio_path, tts_fallback = generate_audio_file_with_text_fallback(
+            tts_text, voice_settings
+        )
+
+    Dynamic routing:
+        If ``use_voice`` is False (TEXT_ONLY mode) the middleware returns
+        ``text`` unchanged — no API call is made.
+
+    Graceful degradation:
+        On any secondary-agent failure the middleware logs a warning and
+        returns the original text with tashkeel stripped (so TTS still works).
+    """
+
+    _FAST_MODEL = "openai/gpt-4o-mini"
+    _MAX_TOKENS = 600   # generous headroom for spelled-out numbers in Arabic
+    _TEMPERATURE = 0.15  # near-deterministic — reformatting must be consistent
+
+    # ── Dialect resolution ────────────────────────────────────────────────────
+
+    @staticmethod
+    def detect_dialect(customer_phone: str) -> tuple[str, str]:
+        """
+        Return ``(dialect_label, country_name)`` from an E.164 phone number.
+        Tries prefixes longest-first so ``+2126`` never clobbers ``+212``.
+        """
+        phone = (customer_phone or "").strip()
+        if phone and not phone.startswith("+"):
+            phone = "+" + phone
+        for prefix in sorted(_VFM_PHONE_PREFIX_MAP, key=len, reverse=True):
+            if phone.startswith(prefix):
+                return _VFM_PHONE_PREFIX_MAP[prefix]
+        return ("Arabic (conversational)", "")
+
+    # ── Prompt assembly ───────────────────────────────────────────────────────
+
+    @classmethod
+    def _build_system_prompt(cls, dialect: str) -> str:
+        prompt = _VFM_DIALECT_PROMPTS.get(dialect)
+        if not prompt:
+            prompt = _VFM_GENERIC_PROMPT_TEMPLATE.replace("{dialect}", dialect)
+        # Defense-in-depth: even when the [NO_TTS] sentinels are missing for
+        # any reason (LLM dropped them, partial reply, etc.), instruct the
+        # secondary formatter to keep payment-identifier digit sequences
+        # (RIB / IBAN / account / phone) AS DIGITS so the customer can still
+        # copy-paste them. The primary bypass remains the sentinel check in
+        # VoiceFormatterMiddleware.format(); this is belt-and-braces.
+        prompt = (
+            prompt.rstrip()
+            + "\n\nABSOLUTE DIGIT-PRESERVATION EXCEPTION:\n"
+            "  • If you see a NO_TTS marker pair (e.g. [NO_TTS] … [/NO_TTS]),\n"
+            "    return the wrapped content UNCHANGED including the markers.\n"
+            "  • Never spell out digits that belong to: a bank RIB / IBAN,\n"
+            "    an account number, a card number, a phone number, an email,\n"
+            "    or a transfer/payment reference. Keep them as numerals.\n"
+            "  • Lines containing keywords like RIB, IBAN, Account, Email,\n"
+            "    PayPal, Wise, ATM, Card, or Phone MUST keep their digits.\n"
+        )
+        return prompt
+
+    # ── Tashkeel stripping ────────────────────────────────────────────────────
+
+    @staticmethod
+    def strip_tashkeel(text: str) -> str:
+        """Remove Arabic diacritics (u+064B–u+065F, u+0670). Public for reuse."""
+        return _TASHKEEL_RE.sub("", text or "")
+
+    # ── Secondary AI call ─────────────────────────────────────────────────────
+
+    @classmethod
+    def _call_formatter(cls, text: str, dialect: str) -> str | None:
+        """
+        Call gpt-4o-mini to reformat ``text`` for spoken ``dialect`` delivery.
+        Returns the reformatted string, or None when the call fails so the
+        caller can gracefully fall back to the original text.
+        """
+        system_prompt = cls._build_system_prompt(dialect)
+        try:
+            _prepare_litellm_provider_key(cls._FAST_MODEL)
+            response = litellm.completion(
+                model=cls._FAST_MODEL,
+                messages=[
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user",   "content": text},
+                ],
+                max_tokens=cls._MAX_TOKENS,
+                temperature=cls._TEMPERATURE,
+            )
+            result = ""
+            if getattr(response, "choices", None):
+                msg = response.choices[0].message
+                result = (getattr(msg, "content", "") or "").strip()
+            if result:
+                logger.info(
+                    "[VoiceFormatterMiddleware] OK dialect=%s | %d → %d chars",
+                    dialect, len(text), len(result),
+                )
+                return result
+            logger.warning("[VoiceFormatterMiddleware] secondary agent returned empty output.")
+        except Exception as exc:
+            logger.warning("[VoiceFormatterMiddleware] secondary agent error: %s", exc)
+        return None
+
+    # ── Public entry point ────────────────────────────────────────────────────
+
+    @classmethod
+    def format(
+        cls,
+        text: str,
+        customer_phone: str = "",
+        use_voice: bool = True,
+        dialect_override: str | None = None,
+    ) -> str:
+        """
+        Main pipeline entry point.
+
+        Args:
+            text:             Primary agent reply text.
+            customer_phone:   Customer WhatsApp number in E.164 format.
+            use_voice:        Pass the ``use_voice`` flag from the caller.
+                              When ``False`` (TEXT_ONLY mode) the method is a
+                              no-op and returns ``text`` unchanged.
+            dialect_override: Force a specific dialect label, skipping phone
+                              detection. Useful for testing or node overrides.
+
+        Returns:
+            TTS-optimised spoken-dialect text, or the original text on
+            bypass / failure (with tashkeel stripped as a safety measure).
+        """
+        # ── 1. Dynamic routing: bypass for text-only mode ─────────────────────
+        if not use_voice:
+            logger.debug("[VoiceFormatterMiddleware] TEXT_ONLY mode — bypassed.")
+            return text
+
+        if not (text and text.strip()):
+            return text
+
+        # ── 1b. Sentinel-aware bypass: NEVER reformat payment blocks ───────
+        # When the primary agent's reply contains a [NO_TTS] sentinel pair
+        # (e.g. the digital-product payment block emitted by
+        # submit_customer_order), VFM MUST NOT run — otherwise gpt-4o-mini
+        # will spell out the RIB digits as Arabic words ("أربعة خمسة…") and
+        # the customer loses the ability to copy-paste the account number.
+        # The caller is responsible for (a) sending the reply as a WhatsApp
+        # text message and (b) stripping the markers via strip_no_tts_markers().
+        if contains_no_tts_marker(text):
+            logger.info(
+                "[VoiceFormatterMiddleware] NO_TTS marker detected — "
+                "bypassing reformatter to preserve digit-perfect payment details."
+            )
+            return text
+
+        # ── 2. Dialect detection ──────────────────────────────────────────────
+        if dialect_override:
+            dialect = dialect_override
+            logger.info("[VoiceFormatterMiddleware] dialect forced to: %s", dialect)
+        else:
+            dialect, country = cls.detect_dialect(customer_phone)
+            logger.info(
+                "[VoiceFormatterMiddleware] phone=…%s → dialect=%s (%s)",
+                (customer_phone or "")[-4:], dialect, country or "unknown",
+            )
+
+        # ── 3. Secondary AI reformatter ───────────────────────────────────────
+        formatted = cls._call_formatter(text, dialect)
+
+        # ── 4. Final tashkeel strip (catches any LLM-slipped diacritics) ──────
+        if formatted:
+            return cls.strip_tashkeel(formatted)
+        # ── 5. Graceful fallback: original text, tashkeel stripped ────────────
+        logger.warning(
+            "[VoiceFormatterMiddleware] falling back to raw primary-agent text "
+            "(tashkeel stripped) for dialect=%s.", dialect,
+        )
+        return cls.strip_tashkeel(text)
 
 
 def _french_bot_language_prefix(voice_notes_mode: bool) -> str:
@@ -2300,7 +2995,486 @@ def _french_bot_language_prefix(voice_notes_mode: bool) -> str:
     )
 
 
-def build_messages_payload_sales(conversation_messages, custom_instruction=None, product_context=None, trust_score=0, media_context=None, state_header=None, sales_stage=None, sentiment=None, market=None, agent_name=None, customer_phone=None, override_rules=None, required_order_fields=None, checkout_mode_label=None, product_id=None, merchant_id=None, voice_dialect=None, voice_notes_mode=False, voice_script_style=False, output_language=None, memory_summary=None, node_dialect_locked=False, node_language_code=None, node=None, bot_settings=None, target_dialect=None, pronoun_anchor_product_name=None):
+def _build_order_memory_block(
+    phone: str,
+    product_name: str | None,
+    required_order_fields: list | None,
+) -> str:
+    """
+    Build the [CURRENT ORDER STATE & REQUIREMENTS] block using only native
+    backend variables — no regex, no text parsing.
+
+    Injected at the very top of the system prompt so the AI knows what it
+    already has and what it still needs before writing a single word.
+
+    Returns an empty string when there is nothing meaningful to show
+    (e.g. first message with no product context yet).
+    """
+    # Human-readable labels for every possible field key
+    _FIELD_LABELS: dict[str, str] = {
+        "customer_name":    "Customer Name",
+        "phone_number":     "Phone Number",
+        "shipping_city":    "Delivery City",
+        "shipping_address": "Delivery Address",
+        "email_address":    "Email Address (for digital delivery)",
+    }
+
+    phone = (phone or "").strip()
+    product_name = (product_name or "").strip()
+
+    # Detect "no fields needed" mode.
+    # get_required_order_fields_for_product returns an explicit [] (not None) when
+    # checkout_mode == 'direct_sale' OR (is_digital AND collect_customer_info=False).
+    instant_submit_mode = isinstance(required_order_fields, list) and len(required_order_fields) == 0
+
+    # Normalise required_order_fields → readable list, always excluding
+    # phone_number (we handle it separately as "already confirmed")
+    non_phone_fields: list[str] = []
+    if instant_submit_mode:
+        # No fields to collect — handled specially below
+        pass
+    elif required_order_fields:
+        for f in required_order_fields:
+            key = (f or "").strip()
+            if key and key != "phone_number":
+                non_phone_fields.append(_FIELD_LABELS.get(key, key.replace("_", " ").title()))
+    else:
+        # Sensible default when the checkout mode hasn't been resolved yet (None)
+        non_phone_fields = ["Customer Name"]
+
+    # Skip block entirely if we have no useful context at all
+    if not phone and not product_name:
+        return ""
+
+    # ── Instant-submit branch (Digital, collect_customer_info=False) ──────────
+    if instant_submit_mode:
+        block = (
+            "╔══════════════════════════════════════════════════╗\n"
+            "║     [CURRENT ORDER STATE & REQUIREMENTS]        ║\n"
+            "╚══════════════════════════════════════════════════╝\n"
+            f"• Phone Number : {phone if phone else '(unknown)'}  "
+            + ("✅ SYSTEM CONFIRMED — NEVER ASK FOR THIS\n" if phone else "❓ unknown\n")
+            + f"• Target Product: {product_name if product_name else '(not yet selected)'}\n"
+            "• Fields Required to Place This Order: [] — NONE\n"
+            "\n"
+            "⚡ [INSTANT SUBMIT MODE — READ CAREFULLY]\n"
+            "This product is configured for zero-friction checkout (Direct Sale or no-info digital).\n"
+            "You already have the customer's WhatsApp phone number. That is ALL you need.\n"
+            f"Confirmed phone: {phone}\n"
+            "\n"
+            "MANDATORY BEHAVIOUR:\n"
+            "  1. Do NOT ask the customer for their name, email, or any other detail.\n"
+            "  2. The moment the customer expresses ANY intent to buy (e.g. 'أبغاها', 'I want it',\n"
+            "     'نعم', 'yes', 'buy', 'هات', 'كيفاش نشري'), call submit_customer_order IMMEDIATELY.\n"
+            f"  3. Pass phone_number='{phone}', customer_name='WhatsApp Customer', and "
+            "final_agreed_price=<exact agreed amount> in the tool call.\n"
+            "  4. Do NOT add extra pleasantries or stalling questions before calling the tool.\n"
+            "Failure to comply = critical sales agent error.\n"
+            "\n"
+            "[TOOL EXECUTION RULE — SILENT MODE]\n"
+            "For this direct digital product, DO NOT announce that you are registering the order\n"
+            "(e.g., never say 'غادي نسجل الطلب دابا', 'one moment', 'لحظة واحدة', 'I'll register\n"
+            "your order now', or any variation). When the user expresses intent to buy, SILENTLY\n"
+            "trigger the submit_customer_order tool. Once the tool returns the payment details,\n"
+            "output ONLY the tool's result directly to the user.\n"
+            "\n"
+            "VERBATIM-RELAY RULES for the tool result:\n"
+            "  • Paste the EXACT text the tool returned in its `message` field. Do NOT translate,\n"
+            "    summarize, rephrase, or shorten.\n"
+            "  • The tool message always places المبلغ المطلوب تحويله above bank details — keep that order.\n"
+            "  • If the tool result is wrapped in [NO_TTS] … [/NO_TTS] markers, KEEP THEM intact\n"
+            "    in your reply — the backend uses them to disable voice mode for this turn so the\n"
+            "    customer receives copy-pasteable text.\n"
+            "  • Do NOT spell digits as words inside the payment block. The RIB, IBAN, account\n"
+            "    number, total amount, and any reference number MUST remain as numerals\n"
+            "    (e.g. '230760123456789012345678', '149 درهم') — never 'مية وتسعة وأربعين'.\n"
+            "══════════════════════════════════════════════════"
+        )
+        return block
+
+    # ── Standard branch ────────────────────────────────────────────────────────
+    all_fields_label = ", ".join(
+        (["Phone Number (already confirmed)"] if phone else []) + non_phone_fields
+    ) or "Customer Name, Phone Number"
+
+    remaining_label = ", ".join(non_phone_fields) if non_phone_fields else "—"
+
+    block = (
+        "╔══════════════════════════════════════════════════╗\n"
+        "║     [CURRENT ORDER STATE & REQUIREMENTS]        ║\n"
+        "╚══════════════════════════════════════════════════╝\n"
+        f"• Phone Number : {phone if phone else '(unknown)'}  "
+        + ("✅ SYSTEM CONFIRMED — NEVER ASK FOR THIS\n" if phone else "❓ ask the customer\n")
+        + f"• Target Product: {product_name if product_name else '(not yet selected)'}\n"
+        f"• Fields Required to Place This Order: {all_fields_label}\n"
+        "\n"
+        "[AI MEMORY INSTRUCTION]\n"
+        f"To call submit_customer_order you need: {all_fields_label}.\n"
+        "ALWAYS pass final_agreed_price with the exact amount the customer agreed to pay "
+        "(negotiated or list price from PRODUCT CONTEXT).\n"
+        + (f"✅ Phone is already confirmed ({phone}) — pass it directly, NEVER ask.\n" if phone else "")
+        + (
+            f"For the remaining field(s) — {remaining_label} — silently read the chat history FIRST.\n"
+            "If the customer already provided them naturally at any point\n"
+            "(e.g. 'أنا خالد', 'كازا', 'اسمي سارة', 'my name is Ahmed', 'je m'appelle Omar'),\n"
+            "use those values directly without asking again.\n"
+            if non_phone_fields else ""
+        )
+        + "Only ask for fields that are BOTH required AND genuinely absent from the history.\n"
+        "Asking for something the customer already gave = critical failure.\n"
+        "══════════════════════════════════════════════════"
+    )
+    return block
+
+
+def _build_payment_methods_block(merchant_id) -> str:
+    """
+    Fetch the active StorePaymentMethod records for *merchant_id* and return a
+    formatted prompt block that instructs the AI on how to collect payment for a
+    digital product.
+
+    Returns an empty string when:
+    - merchant_id is None / falsy, or
+    - the merchant has no active payment methods configured.
+    """
+    if not merchant_id:
+        return ""
+    try:
+        from discount.models import StorePaymentMethod
+        methods = list(
+            StorePaymentMethod.objects.filter(owner_id=int(merchant_id), is_active=True)
+            .order_by("provider_name", "id")
+        )
+        if not methods:
+            return ""
+
+        method_lines = []
+        for idx, m in enumerate(methods, start=1):
+            # Use the model's own format_for_ai() which distinguishes bank vs. wallet
+            line = f"  {idx}. {m.format_for_ai()}"
+            if m.instructions.strip():
+                line += f"\n     ↳ Instructions: {m.instructions.strip()}"
+            method_lines.append(line)
+
+        methods_text = "\n".join(method_lines)
+        names_list  = ", ".join(m.label for m in methods)
+
+        block = (
+            "\n\n╔══════════════════════════════════════════════════╗\n"
+            "║        [PAYMENT COLLECTION RULE — MANDATORY]    ║\n"
+            "╚══════════════════════════════════════════════════╝\n"
+            "This is a DIGITAL PRODUCT. Payment is handled manually via the methods below.\n\n"
+            f"Available payment methods for this store:\n{methods_text}\n\n"
+            "[PAYMENT FORMATTING RULE — MANDATORY]\n"
+            "Whenever the user is ready to pay and you provide the bank account details "
+            "(RIB, Bank Name), you MUST explicitly state the exact final price (in digits) "
+            "in the exact same message.\n"
+            "Format the response clearly like this example:\n"
+            "المبلغ المطلوب تحويله: {final_price} درهم\n"
+            "البنك: [Bank Name]\n"
+            "الـ RIB: [RIB]\n"
+            "الاسم: [Account Name]\n"
+            "- NEVER present the bank details without explicitly reminding the user of the exact "
+            "amount they need to transfer. This applies whether the price is the original price "
+            "or a successfully negotiated lower price.\n"
+            "- Use the currency from PRODUCT CONTEXT when the label is not درهم (e.g. EUR, USD).\n"
+            "- Wrap the amount + bank block in [NO_TTS] … [/NO_TTS] so digits stay copy-pasteable.\n\n"
+            "MANDATORY STEPS (follow in strict order):\n"
+            f"  1. Tell the customer the available options: {names_list}\n"
+            "  2. Ask which method they prefer.\n"
+            "  3. Once they choose, provide ONLY the account details for their chosen method — "
+            "ALWAYS lead with the exact transfer amount per [PAYMENT FORMATTING RULE] above.\n"
+            "  4. Instruct them to complete the transfer and then send a SCREENSHOT or PHOTO of the payment receipt in this chat.\n"
+            "  5. Once the customer confirms / sends the receipt, call submit_customer_order to record the sale.\n"
+            "     ALWAYS pass final_agreed_price with the exact amount they agreed to pay in this chat.\n\n"
+            "⚠️  SECURITY RULES:\n"
+            "  - NEVER reveal account details for a method the customer did NOT choose.\n"
+            "  - NEVER invent or modify any account detail — use ONLY the exact values listed above.\n"
+            "  - If the customer asks for a method not listed, politely explain the available options.\n"
+            "══════════════════════════════════════════════════"
+        )
+        return block
+    except Exception as _e:
+        logger.warning("_build_payment_methods_block failed for merchant_id=%s: %s", merchant_id, _e)
+        return ""
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+#  Sentinel markers — protect tool-emitted blocks from TTS digit-spelling
+# ─────────────────────────────────────────────────────────────────────────────
+# Background:
+#   • The TTS pipeline (primary LLM prompt + VoiceFormatterMiddleware) is hard-
+#     wired to spell every digit into Moroccan/Saudi words ("150 درهم" →
+#     "مية وخمسين درهم"). This is correct for spoken sales pitches but
+#     CATASTROPHIC for payment details — the customer cannot copy-paste a
+#     spelled-out 24-digit RIB.
+#   • We mark protected ranges with HTML-style sentinels so they survive
+#     every pipeline stage and can be detected by both the prompt rule
+#     ("paste verbatim, keep the markers") and the backend post-processor
+#     (force text-mode delivery, skip VFM, strip markers before sending).
+#
+# Contract:
+#   [NO_TTS]…[/NO_TTS]      — content MUST be sent as a WhatsApp text message
+#                              and MUST NOT be passed through VFM/TTS.
+#                              Digits inside MUST remain digits.
+#
+# Helpers:
+#   contains_no_tts_marker(text) → bool
+#   strip_no_tts_markers(text)   → cleaned text (markers removed; content kept)
+#
+# These constants are imported by:
+#   • discount/orders_ai.py            (writes the markers around payment block)
+#   • discount/whatssapAPI/process_messages.py (detects, forces text mode)
+#   • discount/services/tts_text.py    (defensive strip if it ever reaches TTS)
+NO_TTS_OPEN: str = "[NO_TTS]"
+NO_TTS_CLOSE: str = "[/NO_TTS]"
+
+# Liberal regex: tolerate optional whitespace inside the marker, case-insensitive,
+# and accept either pair half on its own (in case the LLM clobbered one half).
+_NO_TTS_MARKER_RE = re.compile(r"\[\s*/?\s*NO_TTS\s*\]", re.IGNORECASE)
+
+
+def contains_no_tts_marker(text) -> bool:
+    """Return True if *text* contains an opening or closing NO_TTS sentinel."""
+    if not text or not isinstance(text, str):
+        return False
+    return bool(_NO_TTS_MARKER_RE.search(text))
+
+
+def strip_no_tts_markers(text: str) -> str:
+    """
+    Remove every NO_TTS sentinel from *text* while preserving the content
+    between them verbatim. Safe to call on text that has no markers (no-op).
+    """
+    if not text or not isinstance(text, str):
+        return text or ""
+    return _NO_TTS_MARKER_RE.sub("", text)
+
+
+PAYMENT_RECEIPT_IMAGE_VALIDATION_BLOCK = """
+[CRITICAL IMAGE CONTENT VALIDATION]
+Whenever the user sends an image or document in the payment phase, you MUST strictly analyze
+its visual content (use the SYSTEM VISION line and your own judgment) before assuming it is proof:
+- IF the image is a valid bank transfer, payment confirmation, receipt screen, or transaction
+  document (text/screens showing CIH, Attijari, Bank, Transfer, RIB, Amount, MAD, DH, virement,
+  mobile banking success, etc.): proceed with the verification workflow naturally.
+- IF the image is completely unrelated (furniture, animals, faces, landscapes, products, memes,
+  random objects, textless photos): reject it instantly. NEVER say you received their receipt
+  (never use phrases like "تسلمنا الوصل", "received your receipt", "got your proof") for unrelated
+  images.
+- Politely and naturally tell them the photo does not look like a payment confirmation, and ask
+  for the actual bank transfer screenshot. Use varied, warm Moroccan seller tone — no robotic
+  error codes or repeated stock phrases.
+"""
+
+
+def _build_conversation_state_banner(
+    conversation_state,
+    pronoun_anchor_product_name=None,
+    payment_rejection_reason=None,
+    incoming_has_media=False,
+    order_payment_status=None,
+    incoming_payment_receipt_valid=None,
+    incoming_media_vision_summary=None,
+):
+    """
+    Return the hard guard banner that must be prepended to the system prompt
+    when the session is in a non-IDLE conversation state.
+
+    Today this only handles AWAITING_PAYMENT_RECEIPT, but the structure is
+    deliberate: each new state gets its own branch returning a fully
+    self-contained banner string, never silent additions.
+
+    Returns "" when there is nothing to inject (IDLE / unknown state) so the
+    caller can do an unconditional string concat.
+    """
+    state = (conversation_state or "").strip().upper()
+    if not state or state in ("IDLE",):
+        return ""
+    product_label = (pronoun_anchor_product_name or "").strip() or "the previously confirmed product"
+    if state == "AWAITING_PAYMENT_RECEIPT":
+        pay_status = (order_payment_status or "").strip().lower()
+        has_media = bool(incoming_has_media)
+        vision_summary = (incoming_media_vision_summary or "").strip()
+        if has_media:
+            if incoming_payment_receipt_valid is True:
+                media_line = (
+                    "CURRENT TURN: Image/document attached — VISION CLASSIFICATION: valid "
+                    "payment/bank transfer proof.\n"
+                )
+            elif incoming_payment_receipt_valid is False:
+                media_line = (
+                    "CURRENT TURN: Image/document attached — VISION CLASSIFICATION: NOT a "
+                    "payment receipt (unrelated or unclear content).\n"
+                )
+            else:
+                media_line = (
+                    "CURRENT TURN: Image/document attached — vision classification unavailable; "
+                    "you MUST visually verify content before accepting as proof.\n"
+                )
+            if vision_summary:
+                media_line += f"VISION SUMMARY: {vision_summary}\n"
+        else:
+            media_line = (
+                "CURRENT TURN: Text only — NO image, screenshot, or document file is "
+                "attached to the user's message in this turn.\n"
+            )
+        banner = (
+            "╔══════════════════════════════════════════════════╗\n"
+            "║  [CRITICAL SYSTEM STATE — READ BEFORE ANYTHING] ║\n"
+            "╚══════════════════════════════════════════════════╝\n"
+            "CRITICAL SYSTEM STATE: The user has already created a digital order and is "
+            "currently in the payment phase. Their name is [Confirmed] and the product is "
+            f"[Confirmed: {product_label}]. DO NOT ask for their name, do NOT ask for their "
+            "address, and DO NOT try to create a new order.\n"
+            f"Order payment status (system): {pay_status or 'pending_payment'}.\n"
+            f"{media_line}\n"
+            "[MEDIA VALIDATION — ZERO TOLERANCE]\n"
+            "NEVER claim you have received a receipt, image, or screenshot UNLESS (1) a media "
+            "file IS attached this turn AND (2) vision/classification confirms it is actual "
+            "payment proof. Words like 'picture', 'receipt', or 'I already sent it' in text alone "
+            "do NOT count. If the user claims they sent proof but this turn has no media, refer "
+            "to system state — do not hallucinate files.\n"
+            f"{PAYMENT_RECEIPT_IMAGE_VALIDATION_BLOCK}\n"
+            "\n"
+            "ABSOLUTE RULES (ZERO TOLERANCE):\n"
+            "  1. NEVER call submit_customer_order again. The order already exists.\n"
+            "  2. NEVER ask for name, address, shipping, or email again.\n"
+            "  3. NEVER restart the sales pitch or re-present the product.\n"
+        )
+        merchant_rejection = (payment_rejection_reason or "").strip()
+        if merchant_rejection:
+            banner += (
+                "\n"
+                "╔══════════════════════════════════════════════════╗\n"
+                "║  [PAYMENT REJECTED STATE — HIGHEST PRIORITY]     ║\n"
+                "╚══════════════════════════════════════════════════╝\n"
+                "CRITICAL SYSTEM STATE: The user's previous payment receipt was REJECTED by "
+                "the administration.\n"
+                f"Reason: '{merchant_rejection}'.\n"
+                "YOUR TASK: If the user is confused or asks why it was rejected, smoothly and "
+                "empathetically explain this exact reason in their preferred language. Translate "
+                "the reason natively so it sounds natural, not like a system error. Ask them to "
+                "provide a clearer/correct screenshot or PDF to resolve it. This block overrides "
+                "any generic 'thank you for your receipt' behaviour.\n"
+            )
+        elif pay_status == "pending_verification":
+            banner += (
+                "\n"
+                "[RECEIPT UNDER REVIEW]: A payment file was already received and is awaiting "
+                "merchant verification. Acknowledge patience; do NOT ask them to send the same "
+                "receipt again unless they say it was wrong. Still obey [MEDIA VALIDATION] for "
+                "this turn — do not claim a NEW file arrived unless media is attached now.\n"
+            )
+        if has_media and not merchant_rejection:
+            if incoming_payment_receipt_valid is True:
+                banner += (
+                    "\n"
+                    "  4. Valid payment proof attached: acknowledge warmly that the transfer "
+                    "screenshot was received and the team will verify it. Do NOT promise instant "
+                    "delivery before merchant verification.\n"
+                )
+            elif incoming_payment_receipt_valid is False:
+                banner += (
+                    "\n"
+                    "  4. INVALID payment proof attached: the image is NOT a bank receipt. "
+                    "Reject politely in natural Moroccan tone; ask for a clear bank transfer "
+                    "screenshot. NEVER say you received their receipt.\n"
+                )
+            else:
+                banner += (
+                    "\n"
+                    "  4. Media attached but unverified: inspect content per [CRITICAL IMAGE "
+                    "CONTENT VALIDATION]. Only acknowledge receipt if it is clearly payment "
+                    "proof; otherwise reject and ask for the real transfer screenshot.\n"
+                )
+        elif not merchant_rejection:
+            banner += (
+                "\n"
+                "  4. No media this turn: if they say they paid, politely ask for a clear "
+                "screenshot or PDF — do NOT say you already received it.\n"
+            )
+        banner += (
+            "\n"
+            "  5. If the customer asks where to pay / how much, repeat configured payment "
+            "methods only — do NOT invent accounts. ALWAYS restate the exact final transfer "
+            "amount (in digits) in the SAME message as the bank details — never RIB alone. "
+            "Format:\n"
+            "     المبلغ المطلوب تحويله: {final_price} درهم\n"
+            "     البنك: [Bank Name]\n"
+            "     الـ RIB: [RIB]\n"
+            "     الاسم: [Account Name]\n"
+            "     Use [NO_TTS]…[/NO_TTS] for the whole block; keep digits as numerals.\n"
+            "  6. If they need a human, you may [HANDOVER] gracefully.\n"
+            "  7. NEVER spell digits as words in payment identifiers.\n"
+            "══════════════════════════════════════════════════"
+        )
+        return banner
+    # Unknown / future state — fail safe, do nothing.
+    return ""
+
+
+def _build_post_sale_support_banner(post_sale_support_context):
+    """
+    Inject empathetic tech-support roleplay for completed digital orders.
+    The LLM must generate natural replies in its persona/language — no scripts.
+    """
+    if not post_sale_support_context:
+        return ""
+    order_id = (post_sale_support_context.get("order_id") or "").strip()
+    product_name = (post_sale_support_context.get("product_name") or "").strip() or "the digital product"
+    support_status = (post_sale_support_context.get("support_status") or "none").strip().lower()
+    prior_summary = (post_sale_support_context.get("complaint_summary") or "").strip()
+
+    summary_line = (
+        f"\nPrior complaint on file: {prior_summary}\n" if prior_summary else ""
+    )
+    status_hint = ""
+    if support_status == "awaiting_proof":
+        status_hint = (
+            "The case is AWAITING_PROOF — you already asked for a screenshot; "
+            "when they send an image, thank them and call flag_order_for_review.\n"
+        )
+    elif support_status == "under_review":
+        status_hint = (
+            "The case is UNDER_REVIEW — proof was received. Reassure the customer the "
+            "tech team is reviewing; do NOT call submit_customer_order.\n"
+        )
+
+    return (
+        "╔══════════════════════════════════════════════════╗\n"
+        "║  [POST-SALE SUPPORT MODE — READ BEFORE ANYTHING] ║\n"
+        "╚══════════════════════════════════════════════════╝\n"
+        f"ORDER CONTEXT: The customer already received digital product "
+        f"[{product_name}] (order_id: {order_id}). Status: completed. "
+        f"Support ticket status: {support_status}.\n"
+        f"{summary_line}"
+        f"{status_hint}"
+        "ROLE: You are now an empathetic Tech Support Agent — NOT a salesperson. "
+        "Generate every reply naturally in YOUR configured persona and language. "
+        "Never use canned or robotic scripts.\n"
+        "\n"
+        "ABSOLUTE RULES:\n"
+        "  1. NEVER call submit_customer_order again. The purchase is finished.\n"
+        "  2. NEVER promise an immediate replacement or new key before proof is reviewed.\n"
+        "  3. IF the user says the account/key/password/link does not work: apologize sincerely, "
+        "explain you need to help them properly, and politely ask for a SCREENSHOT that shows "
+        "the exact error (wrong password, locked account, error code, etc.). "
+        "Then SILENTLY call register_support_complaint(order_id, complaint_summary).\n"
+        "  4. IF the user sends an image, photo, or document after complaining: acknowledge the "
+        "proof naturally, say the technical team is reviewing it now and ask them to wait briefly. "
+        "SILENTLY call flag_order_for_review(order_id, complaint_summary) with what the image shows.\n"
+        "  5. Do NOT ask for payment again. Do NOT re-collect name/address for a new order.\n"
+        "  6. If they ask for a human, you may use [HANDOVER] gracefully.\n"
+        "\n"
+        "AVAILABLE TOOLS (post-sale only — you MUST use these, not submit_customer_order):\n"
+        "  • register_support_complaint(complaint_summary) — issue reported, need screenshot.\n"
+        "  • flag_order_for_review(complaint_summary) — screenshot/proof received; order_id optional.\n"
+        "══════════════════════════════════════════════════"
+    )
+
+
+def build_messages_payload_sales(conversation_messages, custom_instruction=None, product_context=None, trust_score=0, media_context=None, state_header=None, sales_stage=None, sentiment=None, market=None, agent_name=None, customer_phone=None, override_rules=None, required_order_fields=None, checkout_mode_label=None, product_id=None, merchant_id=None, voice_dialect=None, voice_notes_mode=False, voice_script_style=False, output_language=None, memory_summary=None, node_dialect_locked=False, node_language_code=None, node=None, bot_settings=None, target_dialect=None, pronoun_anchor_product_name=None, conversation_state=None, post_sale_support_context=None, payment_rejection_reason=None, incoming_has_media=False, order_payment_status=None, incoming_payment_receipt_valid=None, incoming_media_vision_summary=None):
     """Build messages for the sales agent. Uses Elite Sales Consultant prompt when product_context is set (with trust_score, sales_stage, sentiment, market, agent_name).
     state_header: optional for session continuity. market: 'MA' or 'SA'. agent_name: e.g. Chuck or persona name so the AI thinks as that human.
     customer_phone: active WhatsApp number of the customer; injected as system note so the AI can use it when they say 'same number' / نفس الرقم.
@@ -2332,19 +3506,35 @@ def build_messages_payload_sales(conversation_messages, custom_instruction=None,
         )
     resolved_dialect = (target_dialect or "").strip() or "Standard Arabic"
     quarantine_rule = get_dynamic_dialect_vocabulary_rules(resolved_dialect, output_language)
-    language_rule_prefix = (
+    persona_wall = (
         "STRICT PERSONA WALL: "
         f"You are a local sales assistant operating EXCLUSIVELY in {resolved_dialect}. "
         f"You MUST mentally translate any context, product descriptions, or user messages into authentic {resolved_dialect} before replying. "
         "Do NOT use formal Standard Arabic (Fus'ha) unless requested. Be conversational, culturally accurate, and brief.\n"
-        "\n"
-        "CRITICAL TTS RULE (NO DIGITS ALLOWED):\n"
-        "Because your output is converted directly to speech, you are FORBIDDEN from using any numerical digits (0-9). \n"
-        f"You MUST spell out all numbers, prices, quantities, and times completely in words, strictly using the {resolved_dialect} vocabulary. \n"
-        "- Example: NEVER write '150 درهم'. Instead, write 'مية وخمسين درهم' (if Moroccan) or 'مية وخمسين ريال' (if Saudi).\n"
-        "- Example: NEVER write '2'. Instead, write 'جوج' (Moroccan) or 'اثنين' (Saudi).\n"
-        "This is absolute. Treat digits as illegal characters.\n\n---\n\n"
     )
+    if voice_script_style:
+        # AUDIO / voice-note delivery: model may spell numbers; VFM also reformats at TTS time.
+        number_rule = (
+            "\n"
+            "CRITICAL TTS RULE (NO DIGITS ALLOWED):\n"
+            "Because your output is converted directly to speech, you are FORBIDDEN from using any numerical digits (0-9). \n"
+            f"You MUST spell out all numbers, prices, quantities, and times completely in words, strictly using the {resolved_dialect} vocabulary. \n"
+            "- Example: NEVER write '150 درهم'. Instead, write 'مية وخمسين درهم' (if Moroccan) or 'مية وخمسين ريال' (if Saudi).\n"
+            "- Example: NEVER write '2'. Instead, write 'جوج' (Moroccan) or 'اثنين' (Saudi).\n"
+            "Exception: content inside [NO_TTS] … [/NO_TTS] markers MUST keep numerals verbatim (RIB, amounts).\n"
+            "This is absolute. Treat digits as illegal characters outside NO_TTS blocks.\n"
+        )
+    else:
+        # WhatsApp TEXT delivery: keep copy-pasteable numerals; TTS middleware spells later if needed.
+        number_rule = (
+            "\n"
+            "CRITICAL TEXT MESSAGE RULE (KEEP NUMERIC DIGITS):\n"
+            "You are writing a WhatsApp text message, NOT a voice script. Always use standard Western digits (0-9) for "
+            "prices, quantities, phone numbers, order IDs, bank RIB/IBAN, and dates.\n"
+            "- Example: write '199 درهم', NEVER 'مية وتسعة وتسعين درهم' or Eastern numerals '١٩٩'.\n"
+            "- Example: write '2 قطع', NEVER 'جوج قطع' unless the customer explicitly asked for words.\n"
+        )
+    language_rule_prefix = persona_wall + number_rule + "\n\n---\n\n"
     if product_context and (product_context or "").strip():
         system = _master_sales_closer_prompt(
             (product_context or "").strip(),
@@ -2383,7 +3573,11 @@ def build_messages_payload_sales(conversation_messages, custom_instruction=None,
         "CATALOG TRUTH POLICY:\n"
         "- If customer asks generic availability (what products do you have), call search_products with empty query ('') before naming any product.\n"
         "- Use search_products(query) only when customer asks for a specific product by name/keyword.\n"
-        "- Never mention product names that are not returned by search_products or fixed product_context.\n\n---\n\n"
+        "- Never mention product names that are not returned by search_products or fixed product_context.\n\n"
+        + STATE_SYNCHRONIZATION_RULE
+        + "\n\n"
+        + PRODUCT_SWITCHING_PIVOTING_RULE
+        + "\n\n---\n\n"
     )
     system = admin_rules_prefix + language_rule_prefix + catalog_truth_prefix + lang_prefix + mode_line + system
     # Remove legacy dialect-lock/matrix lines to keep routing model-agnostic and avoid contamination.
@@ -2392,40 +3586,95 @@ def build_messages_payload_sales(conversation_messages, custom_instruction=None,
         system = (
             "CUSTOMER PROFILE / FACTS (summarized memory from earlier conversation):\n"
             + str(memory_summary).strip()
-            + "\n\n---\n\n"
+            + "\n\n⚠️ MEMORY WARNING: Any prices or negotiation floors in this summary may refer to "
+            "PREVIOUS products. Ignore them — obey ONLY the CURRENT ACTIVE PRODUCT pricing block "
+            "at the very end of this system prompt.\n\n---\n\n"
             + system
         )
     negotiated_product = _resolve_product_for_prompt(product_id=product_id, merchant_id=merchant_id)
+    _pricing_authority_tail = ""
     if negotiated_product:
-        system = _build_master_negotiation_prompt(negotiated_product) + "\n\n---\n\n" + system
+        _pricing_authority_tail = _build_current_product_authority_block(negotiated_product)
+        _persona_block = _build_sales_persona_block(negotiated_product)
+        if _persona_block:
+            system += _persona_block
+        # Payment / return policy blocks stay near persona (non-pricing product facts).
+        if getattr(negotiated_product, "is_digital", False):
+            _payment_block = _build_payment_methods_block(merchant_id=merchant_id)
+            if _payment_block:
+                system += _payment_block
+        else:
+            _policy_block = _build_physical_return_policy_block(negotiated_product)
+            if _policy_block:
+                system += _policy_block
+    # Pre-compute the FSM state so we can suppress *conflicting* prompt
+    # sections (Order Memory + required-fields override) when the order is
+    # already done. Otherwise the LLM gets contradictory instructions:
+    # "ask for the name" (order memory) vs "do NOT ask for the name" (FSM
+    # banner) — and historically it sided with the older, more verbose
+    # instruction, re-asking for the customer's name.
+    _normalized_state = (conversation_state or "").strip().upper()
+    _suppress_order_capture_blocks = _normalized_state in {"AWAITING_PAYMENT_RECEIPT"}
+
+    # ── Dynamic Order Memory Block ────────────────────────────────────────────
+    # Built from native backend variables only (no text parsing / regex).
+    # Prepended to state_header so it always lands at the very top of the
+    # system prompt — before product context, persona rules, or pacing logic.
+    # SKIPPED entirely once we are post-submission (AWAITING_PAYMENT_RECEIPT)
+    # because the slot-filling rules it contains are no longer applicable.
+    if not _suppress_order_capture_blocks:
+        _order_mem = _build_order_memory_block(
+            phone=str(customer_phone or "").strip(),
+            product_name=pronoun_anchor_product_name,
+            required_order_fields=required_order_fields,
+        )
+        if _order_mem:
+            state_header = (
+                _order_mem + "\n\n" + str(state_header).strip()
+                if state_header and str(state_header).strip()
+                else _order_mem
+            )
+
     if state_header and (state_header or "").strip():
         system = (state_header.strip() + "\n\n") + system
-    # Dynamic COD / Checkout mode: tell the AI exactly which fields are required for this product
-    if required_order_fields:
-        fields_list_str = _format_required_fields_list(required_order_fields)
-        if fields_list_str:
-            # Explicitly override any earlier global rules that mentioned address/city/extra slots
-            override_prefix = (
-                "\n\n🚨 CRITICAL OVERRIDE — PRODUCT CHECKOUT MODE TAKES PRIORITY\n"
-                "For THIS conversation and THIS product, the checkout mode below OVERRIDES any earlier rules in this prompt "
-                "that talked about collecting name + phone + address/city together. Ignore any generic instructions that "
-                "say you MUST always collect address or city or 4 fields. Follow ONLY the field list defined for this product.\n"
-            )
+    # ── Conversation State Banner (HIGHEST PRIORITY) ─────────────────────────
+    # Prepended AFTER state_header (which itself is already at the top) so the
+    # FSM guard becomes the VERY FIRST thing the LLM reads. This overrides
+    # every earlier rule about slot-filling, name/address collection, or
+    # repeated submit_customer_order calls. Used today for the post-digital-
+    # order AWAITING_PAYMENT_RECEIPT phase; future states (e.g.
+    # AWAITING_HUMAN) plug in via _build_conversation_state_banner().
+    _state_banner = _build_conversation_state_banner(
+        conversation_state,
+        pronoun_anchor_product_name=pronoun_anchor_product_name,
+        payment_rejection_reason=payment_rejection_reason,
+        incoming_has_media=incoming_has_media,
+        order_payment_status=order_payment_status,
+        incoming_payment_receipt_valid=incoming_payment_receipt_valid,
+        incoming_media_vision_summary=incoming_media_vision_summary,
+    )
+    if _state_banner:
+        system = _state_banner + "\n\n" + system
+    # Post-sale support for completed digital orders (not during payment-wait FSM).
+    _post_sale_banner = _build_post_sale_support_banner(post_sale_support_context)
+    if _post_sale_banner:
+        system = _post_sale_banner + "\n\n" + system
+    # Dynamic COD / Checkout mode: progressive profiling + field list for this product.
+    # ALSO suppressed in AWAITING_PAYMENT_RECEIPT — no new order will be submitted from this turn.
+    if required_order_fields is not None and not _suppress_order_capture_blocks:
+        _progressive = _build_progressive_data_collection_block(
+            required_order_fields,
+            customer_phone=customer_phone,
+        )
+        if _progressive:
             if checkout_mode_label:
-                system += (
-                    override_prefix
-                    + f"For this specific product, you are operating in [{checkout_mode_label}] mode. "
-                    f"You MUST ONLY ask the customer for these specific details: {fields_list_str}. "
-                    "Do NOT ask for any other shipping data or extra address details that are not in this list. "
-                    "Once you have these exact fields, call the order submission tool."
-                )
+                system += _progressive + f"\nCheckout mode label: [{checkout_mode_label}]."
             else:
-                system += (
-                    override_prefix
-                    + "CRITICAL: To place an order for this specific product, you MUST collect ONLY the following information: "
-                    f"{fields_list_str}. Do NOT ask for any other information like city, full address, or ZIP code unless it is in this list. "
-                    "Once you have these exact fields, call the order submission tool."
-                )
+                system += _progressive
+            system += (
+                "\nOnce every required field is collected, call the order submission tool "
+                "(submit_customer_order)."
+            )
     # Context resumption: when customer returns with "Hello" / "مرحبا", use history to resume, not generic greeting
     system += "\n" + CONTEXT_RESUMPTION_RULE
     # System context injection: give the LLM the customer's WhatsApp number so it can pass it into
@@ -2449,9 +3698,9 @@ def build_messages_payload_sales(conversation_messages, custom_instruction=None,
         "- Call send_product_media(product_id, caption) for each product — this sends a REAL WhatsApp photo.\n"
         "- In your TEXT reply, list products by name and price ONLY (no URLs).\n\n"
         "EXAMPLE — WRONG:\n"
-        "'عندنا كريم الايكل - 199 MAD ![كريم الايكل](https://example.com/img.jpg)'\n"
+        "'عندنا [اسم المنتج] - [السعر] MAD ![اسم المنتج](https://example.com/img.jpg)'\n"
         "EXAMPLE — CORRECT:\n"
-        "'عندنا كريم الايكل - 199 MAD' + call send_product_media(product_id='5', caption='كريم الايكل - 199 MAD')\n\n"
+        "'عندنا [اسم المنتج] - [السعر] MAD' + call send_product_media(product_id='[ID]', caption='[اسم المنتج] - [السعر] MAD')\n\n"
         "When listing catalog products:\n"
         "1. Write a short text listing product names + prices (no URLs).\n"
         "2. Call send_product_media(product_id, caption) ONCE for EACH product that has '📷 has image' in the catalog.\n"
@@ -2478,15 +3727,25 @@ def build_messages_payload_sales(conversation_messages, custom_instruction=None,
             "ask them which product they want to see (e.g. We have several products—which one would you like a photo of? / واش بغيتي صورة ديال شي منتج معين؟)."
         )
     if custom_instruction:
-        # When category persona is present, make it mandatory so the AI takes over as that persona (e.g. Wellness Advisor for health_and_supplements)
-        if "## Persona" in (custom_instruction or ""):
+        # Persona is injected via _build_sales_persona_block when product_id resolves.
+        # Strip any legacy ## Persona sections from custom_instruction to avoid duplication.
+        _ci = (custom_instruction or "").strip()
+        if _ci.startswith("## Persona"):
+            _parts = _ci.split("\n\n## Seller instructions\n", 1)
+            if len(_parts) == 2 and _parts[1].strip():
+                custom_instruction = "## Seller instructions\n" + _parts[1].strip()
+            else:
+                custom_instruction = ""
+        if "[DIGITAL PRODUCT PERSONA]" in system or "## Persona" in system:
             system += (
-                "\n\n--- MANDATORY CATEGORY PERSONA (take over as this for the entire conversation) ---\n"
-                "You MUST adopt and stay in the following persona for every message. "
-                "Do not respond as a generic sales rep; respond as this specific category persona (e.g. Wellness Advisor for health/supplements, Beauty Consultant for beauty). "
-                "Use this persona's tone, framework, and style in every reply.\n\n"
+                "\n\n--- MANDATORY SALES PERSONA (take over for the entire conversation) ---\n"
+                "You MUST adopt and stay in the persona block above for every message. "
+                "For digital products: NEVER mention shipping, couriers, packaging, unboxing, "
+                "or physical delivery — emphasize instant WhatsApp delivery after payment. "
+                "For physical products: respond as the assigned category persona, not as a generic bot.\n"
             )
-        system += f"\n\n{custom_instruction}"
+        if custom_instruction and (custom_instruction or "").strip():
+            system += f"\n\n{custom_instruction}"
 
     # Empty catalog kill-switch: highest-priority safety instruction.
     if catalog_is_empty:
@@ -2508,6 +3767,8 @@ def build_messages_payload_sales(conversation_messages, custom_instruction=None,
         )
     # Language quarantine wall MUST be first line before any other system context.
     system = quarantine_rule + "\n\n" + system
+    if _pricing_authority_tail:
+        system += "\n\n" + _pricing_authority_tail
 
     recent_messages = _trim_conversation_messages(conversation_messages, limit=MAX_CHAT_HISTORY_MESSAGES)
     messages = [{"role": "system", "content": system}]
@@ -2559,7 +3820,7 @@ def parse_and_strip_stage(reply_text):
     return (cleaned, stage)
 
 
-def generate_reply_with_tools(conversation_messages, custom_instruction=None, product_context=None, trust_score=0, media_context=None, state_header=None, sales_stage=None, sentiment=None, market=None, agent_name=None, model=None, customer_phone=None, override_rules=None, required_order_fields=None, checkout_mode_label=None, product_id=None, merchant_id=None, voice_dialect=None, voice_notes_mode=False, voice_script_style=False, output_language=None, memory_summary=None, node_dialect_locked=False, node_language_code=None, node=None, bot_settings=None, channel=None, pronoun_anchor_product_name=None):
+def generate_reply_with_tools(conversation_messages, custom_instruction=None, product_context=None, trust_score=0, media_context=None, state_header=None, sales_stage=None, sentiment=None, market=None, agent_name=None, model=None, customer_phone=None, override_rules=None, required_order_fields=None, checkout_mode_label=None, product_id=None, merchant_id=None, voice_dialect=None, voice_notes_mode=False, voice_script_style=False, output_language=None, memory_summary=None, node_dialect_locked=False, node_language_code=None, node=None, bot_settings=None, channel=None, pronoun_anchor_product_name=None, conversation_state=None, post_sale_support_context=None, payment_rejection_reason=None, incoming_has_media=False, order_payment_status=None, incoming_payment_receipt_valid=None, incoming_media_vision_summary=None):
     """
     Call OpenAI with sales tools. When product_context is set, uses Elite Sales Consultant prompt with trust_score, sales_stage, sentiment, market, agent_name.
     market: 'MA' or 'SA'. agent_name: e.g. Chuck or persona name — AI responds as this human, not as a bot.
@@ -2602,6 +3863,13 @@ def generate_reply_with_tools(conversation_messages, custom_instruction=None, pr
         bot_settings=bot_settings,
         target_dialect=target_dialect,
         pronoun_anchor_product_name=pronoun_anchor_product_name,
+        conversation_state=conversation_state,
+        post_sale_support_context=post_sale_support_context,
+        payment_rejection_reason=payment_rejection_reason,
+        incoming_has_media=incoming_has_media,
+        order_payment_status=order_payment_status,
+        incoming_payment_receipt_valid=incoming_payment_receipt_valid,
+        incoming_media_vision_summary=incoming_media_vision_summary,
     )
     # Static tools: submit_customer_order now has a fixed, safe schema (no dynamic override)
     tools = list(SALES_AGENT_TOOLS)
@@ -2664,7 +3932,12 @@ def generate_reply_with_tools(conversation_messages, custom_instruction=None, pr
         except Exception as e:
             logger.warning("parse tool %s arguments: %s", name, e)
             continue
-        if name in ("save_order", "check_stock", "apply_discount", "record_order", "track_order", "search_products", "send_product_media", "submit_customer_order", "update_lead_status", "add_upsell_to_existing_order", "update_order_notes"):
+        if name in (
+            "save_order", "check_stock", "apply_discount", "record_order", "track_order",
+            "search_products", "switch_active_product", "send_product_media", "submit_customer_order",
+            "register_support_complaint", "flag_order_for_review",
+            "update_lead_status", "add_upsell_to_existing_order", "update_order_notes",
+        ):
             tool_calls.append({"name": name, "arguments": args})
     msg["tool_calls"] = normalized_tool_calls
     usage_obj = getattr(response, "usage", None) or {}
@@ -2725,6 +3998,13 @@ def continue_after_tool_calls(
     bot_settings=None,
     channel=None,
     pronoun_anchor_product_name=None,
+    conversation_state=None,
+    post_sale_support_context=None,
+    payment_rejection_reason=None,
+    incoming_has_media=False,
+    order_payment_status=None,
+    incoming_payment_receipt_valid=None,
+    incoming_media_vision_summary=None,
 ):
     """
     After the model returned tool_calls (e.g. check_stock, apply_discount), send tool results and get the final reply.
@@ -2769,6 +4049,13 @@ def continue_after_tool_calls(
         bot_settings=bot_settings,
         target_dialect=target_dialect,
         pronoun_anchor_product_name=pronoun_anchor_product_name,
+        conversation_state=conversation_state,
+        post_sale_support_context=post_sale_support_context,
+        payment_rejection_reason=payment_rejection_reason,
+        incoming_has_media=incoming_has_media,
+        order_payment_status=order_payment_status,
+        incoming_payment_receipt_valid=incoming_payment_receipt_valid,
+        incoming_media_vision_summary=incoming_media_vision_summary,
     )
     assistant_msg = {
         "role": "assistant",
@@ -2835,7 +4122,12 @@ def continue_after_tool_calls(
         except Exception as e:
             logger.warning("parse tool %s arguments: %s", name, e)
             continue
-        if name in ("save_order", "check_stock", "apply_discount", "record_order", "track_order", "search_products", "send_product_media", "submit_customer_order", "update_lead_status", "add_upsell_to_existing_order", "update_order_notes"):
+        if name in (
+            "save_order", "check_stock", "apply_discount", "record_order", "track_order",
+            "search_products", "switch_active_product", "send_product_media", "submit_customer_order",
+            "register_support_complaint", "flag_order_for_review",
+            "update_lead_status", "add_upsell_to_existing_order", "update_order_notes",
+        ):
             tool_calls.append({"name": name, "arguments": args})
     msg["tool_calls"] = normalized_tool_calls
     usage_obj = getattr(response, "usage", None) or {}

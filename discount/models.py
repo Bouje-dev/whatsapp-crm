@@ -268,8 +268,78 @@ class CustomUser(AbstractUser):
 
     def __str__(self):
         return self.username
-    
 
+
+class MerchantRiskEvent(models.Model):
+    """
+    Auditable incident for Founder HQ risk scoring (complaints, watchdog flags, payment issues).
+    """
+
+    EVENT_SUPPORT_COMPLAINT = "support_complaint"
+    EVENT_FLAG_REVIEW = "flag_for_review"
+    EVENT_PAYMENT_REJECTED = "payment_rejected"
+    EVENT_NEGATIVE_SENTIMENT = "negative_sentiment"
+    EVENT_CHOICES = [
+        (EVENT_SUPPORT_COMPLAINT, "Support complaint"),
+        (EVENT_FLAG_REVIEW, "Flagged for review"),
+        (EVENT_PAYMENT_REJECTED, "Payment receipt rejected"),
+        (EVENT_NEGATIVE_SENTIMENT, "Negative sentiment / rejection"),
+    ]
+
+    merchant = models.ForeignKey(
+        CustomUser,
+        on_delete=models.CASCADE,
+        related_name="risk_events",
+        limit_choices_to={"is_bot": False},
+    )
+    channel = models.ForeignKey(
+        "WhatsAppChannel",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="risk_events",
+    )
+    order = models.ForeignKey(
+        "SimpleOrder",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="risk_events",
+    )
+    customer_phone = models.CharField(max_length=30, blank=True, default="")
+    event_type = models.CharField(max_length=32, choices=EVENT_CHOICES, db_index=True)
+    summary = models.TextField(blank=True, default="")
+    metadata = models.JSONField(default=dict, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True, db_index=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+        indexes = [
+            models.Index(fields=["merchant", "-created_at"]),
+            models.Index(fields=["merchant", "event_type", "-created_at"]),
+        ]
+
+    def __str__(self):
+        return f"{self.event_type} @ {self.merchant_id} ({self.created_at:%Y-%m-%d})"
+
+
+class FounderRiskAlert(models.Model):
+    """Dedupes proactive superadmin alerts (one row per merchant per calendar day per threshold)."""
+
+    merchant = models.ForeignKey(
+        CustomUser,
+        on_delete=models.CASCADE,
+        related_name="founder_risk_alerts",
+    )
+    alert_date = models.DateField(db_index=True)
+    complaints_count = models.PositiveIntegerField(default=0)
+    notified_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = [("merchant", "alert_date")]
+
+    def __str__(self):
+        return f"Risk alert {self.merchant_id} {self.alert_date}"
 
 
 class ExternalTokenmodel(models.Model):
@@ -327,6 +397,15 @@ class Products(models.Model):
         verbose_name=_('خيارات التوصيل'),
         help_text=_('e.g. "Free delivery", "30 MAD", "Free above 200 MAD" — shown to customer when they ask about delivery'),
     )
+    return_policy = models.TextField(
+        blank=True,
+        null=True,
+        verbose_name=_('Return / warranty policy'),
+        help_text=_(
+            'Specific return/warranty policy for this product. If left blank, AI will apply '
+            'standard strict delivery rules.'
+        ),
+    )
     # AI product classification and prompt routing (must match ai_assistant.product_classifier.VALID_CATEGORIES)
     PRODUCT_CATEGORY_CHOICES = [
         ('beauty_and_skincare', _('Beauty & Skincare')),
@@ -366,9 +445,11 @@ class Products(models.Model):
         ),
     )
     CHECKOUT_MODE_CHOICES = [
-        ('quick_lead', _('Quick Lead (Name & Phone only)')),
-        ('standard_cod', _('Standard COD (Name, Phone, City)')),
-        ('strict_cod', _('Strict COD (Full Address)')),
+        ('quick_lead',    _('Quick Lead (Name & Phone only)')),
+        ('standard_cod',  _('Standard COD (Name, Phone, City)')),
+        ('strict_cod',    _('Strict COD (Full Address)')),
+        ('digital',       _('Digital Delivery (Name & Email — no shipping address)')),
+        ('direct_sale',   _('Direct Sale (No information required — instant submit)')),
     ]
     checkout_mode = models.CharField(
         max_length=20,
@@ -376,7 +457,12 @@ class Products(models.Model):
         default='standard_cod',
         blank=True,
         verbose_name=_('Checkout mode (AI data collection)'),
-        help_text=_('Controls what information the AI Sales Agent collects: quick_lead, standard_cod, or strict_cod.'),
+        help_text=_(
+            'Controls what the AI Sales Agent collects before placing an order. '
+            'quick_lead = Name+Phone; standard_cod = Name+Phone+City; '
+            'strict_cod = Name+Phone+City+Address; digital = Name+Email (no shipping); '
+            'direct_sale = No info required — AI submits instantly on purchase intent.'
+        ),
     )
     testimonial = models.FileField(
         upload_to='product_testimonials/%Y/%m/',
@@ -385,6 +471,118 @@ class Products(models.Model):
         verbose_name=_('شهادة صوت/فيديو/صورة'),
         help_text=_('Optional: audio, video or image testimonial'),
     )
+
+
+    # ── Digital Product Fields ─────────────────────────────────────────────
+    # All three fields default to False / None so that every existing physical
+    # product is completely unaffected by these additions.
+    is_digital = models.BooleanField(
+        default=False,
+        db_index=True,
+        verbose_name=_('Digital product'),
+        help_text=_(
+            'Mark True for e-books, courses, licence keys, etc. '
+            'When True the AI Agent collects Name + Email instead of a shipping address, '
+            'and the checkout_mode is automatically treated as "digital".'
+        ),
+    )
+    digital_file = models.FileField(
+        upload_to='digital_assets/',
+        blank=True,
+        null=True,
+        verbose_name=_('Digital file'),
+        help_text=_(
+            'Upload the deliverable directly (PDF, ZIP, …). '
+            'Used when the file is small enough to host on this server.'
+        ),
+    )
+    digital_url = models.URLField(
+        blank=True,
+        null=True,
+        verbose_name=_('Digital download URL'),
+        help_text=_(
+            'External link (Google Drive, Mega, S3…) for large files. '
+            'Sent to the customer after order confirmation.'
+        ),
+    )
+    fulfillment_message = models.TextField(
+        blank=True,
+        null=True,
+        verbose_name=_('Fulfillment message'),
+        help_text=_(
+            'Custom thank-you message sent automatically to the customer after digital product purchase. '
+            'Leave blank for a system default message.'
+        ),
+    )
+    collect_customer_info = models.BooleanField(
+        default=True,
+        verbose_name=_('Collect customer info'),
+        help_text=_(
+            'Digital products only. When True the AI Agent asks for Name + Email before delivering the product. '
+            'When False the AI triggers the order immediately using the WhatsApp phone number — no questions asked.'
+        ),
+    )
+    DIGITAL_PRODUCT_TYPE_ACCOUNT = 'account'
+    DIGITAL_PRODUCT_TYPE_KEY = 'key'
+    DIGITAL_PRODUCT_TYPE_IPTV = 'iptv'
+    DIGITAL_PRODUCT_TYPE_CHOICES = [
+        (DIGITAL_PRODUCT_TYPE_ACCOUNT, _('Account / credentials')),
+        (DIGITAL_PRODUCT_TYPE_KEY, _('Activation key / licence')),
+        (DIGITAL_PRODUCT_TYPE_IPTV, _('IPTV subscription')),
+    ]
+    digital_product_type = models.CharField(
+        max_length=20,
+        choices=DIGITAL_PRODUCT_TYPE_CHOICES,
+        blank=True,
+        null=True,
+        verbose_name=_('Digital product type'),
+        help_text=_('Sub-category for digital goods (account, key, or IPTV). Physical products leave this empty.'),
+    )
+    legal_consent_iptv = models.BooleanField(
+        default=False,
+        verbose_name=_('IPTV legal consent'),
+        help_text=_(
+            'Mandatory for IPTV products: seller accepts full legal liability and DMCA enforcement policy.'
+        ),
+    )
+    # ── Dynamic digital stock format ──────────────────────────────────────
+    # Tells the fulfillment pipeline how to parse and render each consumed
+    # `DigitalAssetStock.asset_content` row:
+    #   - 'single' → one opaque value per row (license key, code, link, ...).
+    #                Customer sees:   🔑 ABCD-1234
+    #                Spoiler field:   {"license": "<value>"}
+    #   - 'combo'  → "email:password" per row (split on the first colon).
+    #                Customer sees:   📧 user@x.com  /  🔑 pass123
+    #                Spoiler field:   {"email": "...", "password": "..."}
+    #
+    # Static `digital_url` / `digital_file` flow is unchanged when no stock
+    # rows exist — it's the legacy fallback.
+    STOCK_FORMAT_SINGLE = 'single'
+    STOCK_FORMAT_COMBO = 'combo'
+    STOCK_FORMAT_IPTV = 'iptv'
+    STOCK_FORMAT_CHOICES = (
+        (STOCK_FORMAT_SINGLE, _('Single keys/codes (one per line)')),
+        (STOCK_FORMAT_COMBO, _('Email & Password (separated by ":")')),
+        (STOCK_FORMAT_IPTV, _('IPTV / Xtream / M3U (one per line)')),
+    )
+    stock_format = models.CharField(
+        max_length=16,
+        choices=STOCK_FORMAT_CHOICES,
+        default=STOCK_FORMAT_SINGLE,
+        verbose_name=_('Digital stock format'),
+        help_text=_(
+            'Controls how each row of bulk-pasted digital stock is parsed '
+            'and delivered. "single" stores one opaque value per row; '
+            '"combo" expects "email:password" on every line; '
+            '"iptv" stores Xtream credentials or M3U links (opaque per line).'
+        ),
+    )
+
+    def get_required_fields_list(self):
+        """Required checkout fields for AI progressive profiling (canonical keys)."""
+        from discount.orders_ai import get_required_order_fields_for_product
+
+        return get_required_order_fields_for_product(self)
 
 
 class ProductImage(models.Model):
@@ -534,12 +732,15 @@ class SimpleOrder(models.Model):
     
     # الخيارات المعروضة (الإنجليزية فقط)
     STATUS_CHOICES = [
-        ('pending', 'Pending'),
-        ('shipped', 'Shipped'),
-        ('delivered', 'Delivered'),
-        ('cancelled', 'Cancelled'),
-        ('returned', 'Returned'),
-        ('out_for_delivery', 'Out for Delivery')
+        ('pending',              'Pending'),
+        ('pending_payment',      'Pending Payment'),      # digital: awaiting customer payment transfer
+        ('pending_verification', 'Pending Verification'), # digital: receipt received, awaiting merchant approval
+        ('shipped',              'Shipped'),
+        ('delivered',            'Delivered'),
+        ('completed',            'Completed'),            # digital: file delivered to customer
+        ('cancelled',            'Cancelled'),
+        ('returned',             'Returned'),
+        ('out_for_delivery',     'Out for Delivery'),
     ]
     agent = models.ForeignKey(
         CustomUser, 
@@ -563,8 +764,19 @@ class SimpleOrder(models.Model):
     order_id = models.CharField(max_length=100, unique=True, verbose_name=_('رقم الطلبية'))
     tracking_number = models.CharField(max_length=100, verbose_name=_('رقم التتبع')  , null=True)
     sku = models.CharField(max_length=100, verbose_name=_('SKU'))
-    customer_name = models.CharField(max_length=200, verbose_name=_('اسم العميل'))
+    customer_name = models.CharField(
+        max_length=200, blank=True, null=True, verbose_name=_('اسم العميل'),
+        help_text="Blank for Direct-Sale digital orders.",
+    )
     customer_phone = models.CharField(max_length=20, verbose_name=_('هاتف العميل'))
+    customer_email = models.EmailField(
+        max_length=254, blank=True, null=True, verbose_name=_('بريد العميل'),
+        help_text="Set for digital products that collect customer info.",
+    )
+    is_digital = models.BooleanField(
+        default=False, db_index=True,
+        help_text="Copied from the product at order creation time.",
+    )
     product_name = models.CharField(max_length=200, verbose_name=_('اسم المنتج'))
     created_at = models.DateTimeField(auto_now_add=False, verbose_name=_('تاريخ الإنشاء'))
     price = models.DecimalField(max_digits=10, decimal_places=2, default=0 ,verbose_name=_('السعر'))
@@ -603,13 +815,59 @@ class SimpleOrder(models.Model):
         verbose_name=_('ملاحظات الطلب'),
         help_text="Delivery timing, alternate phone, and other instructions (appended by AI or staff).",
     )
+    # ── Post-sale digital support (replacement / complaint workflow) ────────
+    SUPPORT_STATUS_NONE = 'none'
+    SUPPORT_STATUS_AWAITING_PROOF = 'awaiting_proof'
+    SUPPORT_STATUS_UNDER_REVIEW = 'under_review'
+    SUPPORT_STATUS_RESOLVED = 'resolved'
+    SUPPORT_STATUS_REJECTED = 'rejected'
+    SUPPORT_STATUS_CHOICES = [
+        (SUPPORT_STATUS_NONE, 'None'),
+        (SUPPORT_STATUS_AWAITING_PROOF, 'Awaiting proof'),
+        (SUPPORT_STATUS_UNDER_REVIEW, 'Under review'),
+        (SUPPORT_STATUS_RESOLVED, 'Resolved'),
+        (SUPPORT_STATUS_REJECTED, 'Rejected'),
+    ]
+    support_status = models.CharField(
+        max_length=20,
+        choices=SUPPORT_STATUS_CHOICES,
+        default=SUPPORT_STATUS_NONE,
+        db_index=True,
+        help_text=(
+            'Post-sale support state for completed digital orders. '
+            'Tracks complaint intake, proof collection, merchant review, and resolution.'
+        ),
+    )
+    complaint_summary = models.TextField(
+        blank=True,
+        null=True,
+        help_text="Brief AI-generated summary of the customer's support issue.",
+    )
+    payment_rejection_reason = models.CharField(
+        max_length=255,
+        blank=True,
+        null=True,
+        help_text=(
+            "Merchant-provided reason when a payment receipt was rejected; "
+            "cleared on approval. Order returns to pending_payment for resubmission."
+        ),
+    )
+    payment_rejection_notice_text = models.TextField(
+        blank=True,
+        null=True,
+        help_text=(
+            "Full localized WhatsApp notice sent to the customer after rejection "
+            "(saved when the outbound message is delivered)."
+        ),
+    )
     class Meta:
         verbose_name = _('طلب مبسط')
         verbose_name_plural = _('طلبات مبسطة')
         ordering = ['-created_at']
 
     def __str__(self):
-        return f"{self.tracking_number} - {self.customer_name}"
+        display = self.customer_name or self.customer_phone or str(self.order_id)
+        return f"{self.tracking_number} - {display}"
     
 
 
@@ -1605,7 +1863,54 @@ class Message(models.Model):
     type = models.CharField(max_length=50, blank=True, null=True) 
     
     is_internal = models.BooleanField(default=False, help_text="إذا كانت True، لا تظهر للعميل ولا ترسل للواتساب")
-    
+
+    # Payment receipt flags — set by the webhook when an inbound image/document
+    # arrives while the linked order is in 'pending_payment' status.
+    is_payment_receipt = models.BooleanField(
+        default=False,
+        db_index=True,
+        help_text="True when the message was identified as a payment receipt from the customer.",
+    )
+    receipt_status = models.CharField(
+        max_length=20,
+        blank=True,
+        null=True,
+        choices=[
+            ('pending_review', 'Pending Review'),
+            ('approved',       'Approved'),
+            ('rejected',       'Rejected'),
+        ],
+        help_text="Merchant review status for this payment receipt.",
+    )
+
+    # ── Digital-product delivery spoiler ──────────────────────────────────
+    # `is_digital_delivery` flags an outgoing fulfillment message that
+    # contains a sensitive asset (download URL, license key, credentials)
+    # which the dashboard MUST hide from non-owner employees.
+    #
+    # `encrypted_asset` stores the sensitive payload as Fernet ciphertext
+    # (see discount.crypto.{encrypt_token, decrypt_token}) so it is never
+    # readable at rest or in the chat-list JSON. Plaintext is exposed ONLY
+    # via the strict owner-only reveal endpoint.
+    #
+    # We use TextField (not CharField(500)) because Fernet ciphertext +
+    # base64 overhead routinely exceeds 500 chars for the very payloads
+    # this feature exists to protect (signed S3 URLs, multi-line keys).
+    is_digital_delivery = models.BooleanField(
+        default=False,
+        db_index=True,
+        help_text="True when this outgoing message carries a sensitive digital "
+                  "asset (download URL/key) that must be revealed only to the "
+                  "store owner via the secure reveal endpoint.",
+    )
+    encrypted_asset = models.TextField(
+        blank=True,
+        null=True,
+        help_text="Fernet-encrypted sensitive payload (download URL, license "
+                  "key, credentials). Never expose at rest or in chat JSON; "
+                  "decrypt only inside the owner-gated reveal endpoint.",
+    )
+
     class Meta:
         ordering = ['-timestamp']
         indexes = [
@@ -1620,6 +1925,94 @@ class Message(models.Model):
         if not self.timestamp:
             self.timestamp = timezone.now()
         super().save(*args, **kwargs)
+
+    # ── Encrypted-asset helpers (mirror StorePaymentMethod's pattern) ─────
+    #
+    # Storage format on `encrypted_asset`:
+    #   • Single sensitive value (legacy)  →  Fernet(plaintext)
+    #   • Multi-field credentials          →  Fernet(json.dumps({"_fields": {...}}))
+    #
+    # The `_fields` envelope discriminator lets `get_decrypted_asset_fields`
+    # cleanly distinguish a structured dict from a legacy plain URL so the
+    # frontend can render the Telegram-style spoiler with one labelled
+    # placeholder per field.
+    def set_encrypted_asset(self, raw_value):
+        """
+        Encrypt `raw_value` at rest using the project's Fernet key.
+
+        Accepts:
+          - str: single sensitive value (download URL, license key, …)
+          - dict[str, str]: multi-field credentials, e.g.
+                {"email": "...", "password": "...", "link": "..."}
+
+        Empty / None / empty-dict input clears the field. The caller is
+        responsible for also setting `is_digital_delivery=True` (the two
+        go hand in hand).
+        """
+        if not raw_value:
+            self.encrypted_asset = None
+            return
+        # Lazy import to avoid circular references on app loading.
+        from discount.crypto import encrypt_token
+        if isinstance(raw_value, dict):
+            import json as _json
+            normalized = {str(k): ('' if v is None else str(v)) for k, v in raw_value.items()}
+            if not normalized:
+                self.encrypted_asset = None
+                return
+            envelope = _json.dumps({"_fields": normalized}, ensure_ascii=False)
+            self.encrypted_asset = encrypt_token(envelope)
+        else:
+            self.encrypted_asset = encrypt_token(str(raw_value))
+
+    def get_decrypted_asset(self):
+        """
+        Return the plaintext sensitive asset (raw, single value form), or
+        '' if absent / corrupted.
+
+        Prefer `get_decrypted_asset_fields()` in new code — it normalizes
+        both legacy strings and dict envelopes into a uniform `{key: val}`
+        mapping for the frontend spoiler renderer.
+
+        IMPORTANT: this method MUST only ever be called inside a view that
+        has already enforced the strict owner-only RBAC check. It will
+        never raise on a corrupted ciphertext (e.g. rotated key) — it
+        returns '' so reveal endpoints fail closed.
+        """
+        ciphertext = self.encrypted_asset
+        if not ciphertext:
+            return ''
+        try:
+            from discount.crypto import decrypt_token
+            return decrypt_token(ciphertext)
+        except Exception:
+            return ''
+
+    def get_decrypted_asset_fields(self):
+        """
+        Return a `{field_name: plaintext_value}` dict suitable for the
+        Telegram-style spoiler reveal API.
+
+        Storage detection:
+          1. Multi-field envelope `{"_fields": {...}}` → return inner dict.
+          2. Legacy plaintext URL                       → return `{"link": "<url>"}`.
+          3. Empty / corrupted ciphertext              → return `{}` (fails closed).
+
+        Always returns a dict so callers can iterate without type-checking.
+        Same RBAC constraint as `get_decrypted_asset`: callers MUST have
+        enforced owner-only authorization before invoking this.
+        """
+        plaintext = self.get_decrypted_asset()
+        if not plaintext:
+            return {}
+        import json as _json
+        try:
+            parsed = _json.loads(plaintext)
+        except (ValueError, TypeError):
+            return {"link": plaintext}
+        if isinstance(parsed, dict) and isinstance(parsed.get("_fields"), dict):
+            return {str(k): str(v) for k, v in parsed["_fields"].items()}
+        return {"link": plaintext}
 
 
 from django.db import models
@@ -1972,8 +2365,16 @@ class NodeMedia(models.Model):
 
 class ChatSession(models.Model):
     """
-    Short-term memory for the AI Agent: keeps product context across messages.
-    Scoped per channel + customer_phone. Expires after 24h inactivity or after order.
+    Persistent AI Agent session: keeps product context across ALL messages indefinitely.
+    Scoped per channel + customer_phone (unique constraint).
+
+    A session is NEVER expired by time — e-commerce users return on payday (20-30 days)
+    and must resume seamlessly without re-sending trigger keywords.
+
+    Explicit resolution only:
+      is_completed=True  — order successfully submitted (submit_customer_order tool fired)
+      is_expired=True    — user explicitly cancelled (reset keyword) or HITL handover
+
     HITL: ai_enabled=False stops the AI; merchant handles the chat manually.
     """
     channel = models.ForeignKey(
@@ -1999,6 +2400,15 @@ class ChatSession(models.Model):
         help_text="Persistent product memory for AI context (survives prompt truncation).",
     )
     is_expired = models.BooleanField(default=False)
+    is_completed = models.BooleanField(
+        default=False,
+        db_index=True,
+        help_text=(
+            "True when the customer successfully completed the Node goal "
+            "(e.g. order submitted via submit_customer_order). "
+            "Session becomes inactive; next message starts fresh trigger evaluation."
+        ),
+    )
     context_data = models.JSONField(default=dict, blank=True)
     last_interaction = models.DateTimeField(auto_now=True)
     # Human-in-the-Loop (HITL)
@@ -2426,3 +2836,204 @@ class AIUsageLog(models.Model):
 
     def __str__(self):
         return f"{self.channel_id} {self.date} {self.provider}: {self.characters_used}"
+
+
+class StorePaymentMethod(models.Model):
+    """Encrypted store-level payment accounts used by the AI for digital product checkout."""
+
+    PROVIDER_CHOICES = [
+        ('cih_bank',      'CIH Bank'),
+        ('attijariwafa',  'Attijariwafa Bank'),
+        ('boa',           'Bank of Africa'),
+        ('paypal',        'PayPal'),
+        ('wise',          'Wise'),
+    ]
+
+    # Providers that require an account holder name and a RIB identifier.
+    # All other providers (PayPal, Wise) use an email address instead.
+    BANK_PROVIDERS = {'cih_bank', 'attijariwafa', 'boa'}
+
+    owner = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name='payment_methods',
+    )
+    provider_name = models.CharField(max_length=50, choices=PROVIDER_CHOICES)
+    display_name = models.CharField(
+        max_length=100,
+        blank=True,
+        help_text='Custom label shown to customers. Leave blank to use the provider name.',
+    )
+    # For bank transfers: the account owner's full name printed on the RIB.
+    account_holder_name = models.CharField(
+        max_length=100,
+        blank=True,
+        null=True,
+        help_text='Full name of the account holder (bank transfers only).',
+    )
+    # Holds either the RIB (bank) or the email address (PayPal / Wise).
+    # Always stored Fernet-encrypted at rest.
+    account_details_encrypted = models.TextField(
+        help_text='RIB (24 digits) or email — stored Fernet-encrypted at rest.',
+    )
+    instructions = models.TextField(
+        blank=True,
+        help_text='e.g., "Include order number in transfer note."',
+    )
+    is_active = models.BooleanField(default=True, db_index=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['provider_name', 'id']
+        verbose_name = 'Store Payment Method'
+        verbose_name_plural = 'Store Payment Methods'
+
+    def __str__(self):
+        return f"{self.label} ({self.owner_id})"
+
+    # ------------------------------------------------------------------ #
+    #  Helpers                                                             #
+    # ------------------------------------------------------------------ #
+
+    @property
+    def is_bank(self) -> bool:
+        return self.provider_name in self.BANK_PROVIDERS
+
+    def set_account_details(self, raw_value: str) -> None:
+        from discount.crypto import encrypt_token
+        self.account_details_encrypted = encrypt_token(raw_value)
+
+    def get_account_details(self) -> str:
+        from discount.crypto import decrypt_token
+        if not self.account_details_encrypted:
+            return ''
+        try:
+            return decrypt_token(self.account_details_encrypted)
+        except Exception:
+            return ''
+
+    def get_masked_details(self) -> str:
+        """
+        Show only the last 4 characters.
+        For emails the domain part is preserved: user@domain.com → ****@domain.com.
+        """
+        details = self.get_account_details()
+        if not details:
+            return '****'
+        if '@' in details:
+            local, domain = details.rsplit('@', 1)
+            masked_local = '*' * max(len(local), 1)
+            return f"{masked_local}@{domain}"
+        if len(details) <= 4:
+            return details
+        return ('*' * (len(details) - 4)) + details[-4:]
+
+    def format_for_ai(self) -> str:
+        """Return a single human-readable line for injection into the AI system prompt."""
+        identifier = self.get_account_details()
+        if self.is_bank:
+            name_part = f"{self.account_holder_name} — " if self.account_holder_name else ""
+            return f"{self.label}: {name_part}RIB {identifier}"
+        return f"{self.label} Email: {identifier}"
+
+    @property
+    def label(self) -> str:
+        return self.display_name.strip() or self.get_provider_name_display()
+
+
+# ══════════════════════════════════════════════════════════════════════════
+# Dynamic Digital Stock
+# ══════════════════════════════════════════════════════════════════════════
+#
+# One row = one ready-to-deliver digital asset (license key, key code, or
+# `email:password` combo) for a `Products` instance. Sellers bulk-paste
+# their inventory in the product form; on each digital order approval the
+# fulfillment endpoint locks **one** unsold row with `select_for_update`,
+# marks it `is_sold=True`, links it to the order, decrypts the content
+# server-side, and ships it via the spoiler pipeline.
+#
+# Race-safety contract:
+#   - `asset_content` is Fernet-encrypted at rest (helpers below mirror
+#     `StorePaymentMethod.account_details_encrypted` / `Message.encrypted_asset`).
+#   - The unique compound index `(product, is_sold, id)` keeps the FIFO
+#     consume-query (`order_by('id').first()` on unsold) index-only.
+#   - The fulfillment view MUST wrap the lookup + `save()` in
+#     `transaction.atomic()` so the `SELECT … FOR UPDATE` row lock is
+#     released only after commit — two parallel approvals can never grab
+#     the same row.
+class DigitalAssetStock(models.Model):
+    """One pre-loaded digital asset row consumed FIFO on each sale."""
+
+    product = models.ForeignKey(
+        'Products',
+        on_delete=models.CASCADE,
+        related_name='digital_stock',
+        help_text='The digital product this asset will be delivered for.',
+    )
+    asset_content = models.TextField(
+        # NOTE: `CharField(500)` would truncate Fernet ciphertext for any
+        # real-world payload. We use TextField (no length cap) like the
+        # rest of the encrypted-fields family in this codebase.
+        blank=True,
+        null=True,
+        help_text='Fernet-encrypted credential payload (single key OR '
+                  '"email:password" depending on product.stock_format).',
+    )
+    is_sold = models.BooleanField(
+        default=False,
+        db_index=True,
+        help_text='True once this row has been consumed and shipped to a customer.',
+    )
+    order = models.ForeignKey(
+        'SimpleOrder',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='digital_stock_rows',
+        help_text='The order that consumed this row (null while is_sold=False).',
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    sold_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text='Timestamp when this row was marked is_sold=True. '
+                  'Useful for analytics and race-condition forensics.',
+    )
+
+    class Meta:
+        ordering = ['id']
+        indexes = [
+            # FIFO consume query — keeps `select_for_update().filter(
+            # product=p, is_sold=False).order_by('id').first()` index-only.
+            models.Index(
+                fields=['product', 'is_sold', 'id'],
+                name='digstock_consume_idx',
+            ),
+        ]
+
+    def __str__(self):
+        state = 'sold' if self.is_sold else 'available'
+        return f'DigitalAssetStock<{self.product_id} #{self.pk} {state}>'
+
+    # ── Encrypted-asset helpers (same Fernet pattern as the rest of the app)
+    def set_asset_content(self, raw_value):
+        """Encrypt `raw_value` at rest. Empty input clears the field."""
+        if not raw_value:
+            self.asset_content = None
+            return
+        from discount.crypto import encrypt_token
+        self.asset_content = encrypt_token(str(raw_value))
+
+    def get_asset_content(self) -> str:
+        """
+        Return the plaintext credential (or '' on missing / corrupted
+        ciphertext). MUST only be called inside the owner-gated
+        fulfillment flow — never in a list endpoint.
+        """
+        if not self.asset_content:
+            return ''
+        try:
+            from discount.crypto import decrypt_token
+            return decrypt_token(self.asset_content)
+        except Exception:
+            return ''

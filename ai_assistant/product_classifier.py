@@ -49,7 +49,29 @@ ALLOWED CATEGORIES AND RULES:
 
 EXPECTED OUTPUT FORMAT:
 {"category": "one_of_the_allowed_categories_exactly_as_written"}
+
+[CLASSIFICATION RULE]: You will receive a product name and a short description. Accurately classify it into the best-matching Persona from the allowed categories above (e.g. Beauty → beauty_and_skincare, Electronics → electronics_and_gadgets, Fragrances → fragrances, General → general_retail). If the text is too vague, ambiguous, or lacks context to confidently assign a specific category, default to "general_retail".
 """
+
+
+def should_classify_product(title, description):
+    """
+    Minimal signal check before calling the LLM classifier.
+    Short names like "AirPods" classify from title alone; longer descriptions
+    or multi-word inputs also qualify without an arbitrary character floor.
+    """
+    title = (title or "").strip()
+    desc = (description or "").strip()
+    combined = f"{title} {desc}".strip()
+    if not combined:
+        return False
+    if len(desc) > 15:
+        return True
+    words = combined.split()
+    if len(words) >= 3:
+        return True
+    return len(title) >= 3
+
 
 def classify_product(title, description):
     """
@@ -81,7 +103,6 @@ def classify_product(title, description):
 
     try:
         response = requests.post(OPENAI_API_URL, headers=headers, json=payload, timeout=15)
-        print(response.json())
         if response.status_code != 200:
             logger.warning("classify_product: API status %s, body %s", response.status_code, response.text[:200])
             return "general_retail"

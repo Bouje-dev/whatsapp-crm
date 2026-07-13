@@ -1343,29 +1343,43 @@ from django.utils import timezone
 from django.utils.timezone import now
 from datetime import timedelta
 
+def _cod_network_token_for_user(user):
+    """Return decrypted COD Network bearer token, or None if not configured."""
+    if not user:
+        return None
+    owner = user if getattr(user, "is_team_admin", False) else getattr(user, "team_admin", None)
+    if not owner:
+        return None
+    token_obj = ExternalTokenmodel.objects.filter(user=owner).first()
+    if not token_obj or not (getattr(token_obj, "access_token", None) or "").strip():
+        return None
+    try:
+        return decrypt_token(token_obj.access_token)
+    except Exception as e:
+        logging.getLogger(__name__).warning("COD token decrypt failed for user %s: %s", owner.pk, e)
+        return None
+
+
 def sendlead(request, cname, cphone, caddress, country_code, items):
+    """
+    Post lead to COD Network when a token is saved.
+    Returns None if skipped (no token); otherwise the requests.Response.
+    """
+    decrypted_tok = _cod_network_token_for_user(request.user)
+    if not decrypted_tok:
+        logging.getLogger(__name__).info(
+            "sendlead: skipping COD Network — no token for user %s",
+            getattr(request.user, "pk", "?"),
+        )
+        return None
+
     payload = {
         "phone": cphone,
         "name": cname,
         "country": country_code,
         "address": caddress,
-        "items": items
+        "items": items,
     }
-    user = request.user
-    if not user.is_team_admin:
-        user = user.team_admin
-
-    token_obj = ExternalTokenmodel.objects.filter(user=user).first()
-    if not token_obj:
-        print("لم يتم العثور على رمز وصول للمستخدم.")
-        return []
-
-    try:
-        decrypted_tok = decrypt_token(token_obj.access_token)
-    except Exception as e:
-        print(f"خطأ في فك تشفير التوكن: {str(e)}")
-        return []
-
     headers = {
         "Authorization": f"Bearer {decrypted_tok}",
         "Content-Type": "application/json",
@@ -1374,7 +1388,7 @@ def sendlead(request, cname, cphone, caddress, country_code, items):
     resp = requests.post(
         "https://api.cod.network/v1/seller/leads",
         data=json.dumps(payload),
-        headers=headers
+        headers=headers,
     )
 
     if resp.status_code == 201:
@@ -1450,76 +1464,59 @@ def submit_order(request):
                 "message": f"لقد وصلت إلى الحد الأقصى لعدد الطلبات اليوم ({user_limit})"
             })
     
-    resp = sendlead(request, name, phone, address, country_code, items_payload) 
-    
-     
-    if resp.status_code == 201:
-        import uuid 
-        try:
-            product_instance = Products.objects.get(sku=selected_product_sku)
-        except Products.DoesNotExist:
-            return JsonResponse({"success": False, "message": "المنتج غير موجود في المخزون"}, status=400)
+    resp = sendlead(request, name, phone, address, country_code, items_payload)
 
-            
-        order = SimpleOrder.objects.create(
-                quantity = product_quantity,
-                product=product_instance,   
-                agent=request.user,
-                channel=WhatsAppChannel.objects.get(id=channel_id),
-
-                
-                sku=selected_product_sku, 
-                product_name=product_instance.name,  
-                
-                
-                customer_name=name,
-                customer_phone=phone,
-                customer_city=address,  
-                
-                # السعر والعملة
-                price=product_price,  
-                
-                # حقول النظام
-                order_id=str(uuid.uuid4())[:8], 
-                status='pending',
-                created_at=timezone.now(),
-               
-                # الهدية
-                gift_chosen=gift_obj,
-
-                )
-        # order = Order.objects.create(
-        #     user=request.user,
-        #     customer_name=name,
-        #     customer_phone=phone,
-        #     customer_city=address,
-        #     product=selected_product_sku,
-        #     product_quantity=product_quantity,
-        #     product_price=product_price,
-        #     gift_chosen=gift_obj ,
-        #     channel= WhatsAppChannel.objects.get(id=channel_id) 
-        # )
-        log_activity(
-            'simple_order_created',
-            f"New order for {name} ({phone}), product: {selected_product_sku}" + (f", gift: {gift_sku}" if gift_sku else ""),
-            request=request, related_object=order,
-        )
-    else:
+    # COD API was called but failed — do not create a local order.
+    if resp is not None and getattr(resp, "status_code", None) != 201:
         try:
             error_data = resp.json()
             if "log" in error_data and isinstance(error_data["log"], list) and error_data["log"]:
                 error_message = error_data["log"][0].get("message", error_data.get("message", "خطأ غير معروف"))
             else:
                 error_message = error_data.get("message", "خطأ غير معروف")
-        except ValueError:
-            error_message = resp.text or "حدث خطأ غير متوقع أثناء إرسال الطلب"
+        except (ValueError, AttributeError):
+            error_message = getattr(resp, "text", None) or "حدث خطأ غير متوقع أثناء إرسال الطلب"
 
         return JsonResponse({
             "success": False,
-            "message": f"فشل إرسال الطلب: {error_message}"
+            "message": f"فشل إرسال الطلب: {error_message}",
         })
 
-    return JsonResponse({"success": True, "message": "تم إرسال الطلب بنجاح"})
+    import uuid
+    try:
+        product_instance = Products.objects.get(sku=selected_product_sku)
+    except Products.DoesNotExist:
+        return JsonResponse({"success": False, "message": "المنتج غير موجود في المخزون"}, status=400)
+
+    order = SimpleOrder.objects.create(
+        quantity=product_quantity,
+        product=product_instance,
+        agent=request.user,
+        channel=WhatsAppChannel.objects.get(id=channel_id),
+        sku=selected_product_sku,
+        product_name=product_instance.name,
+        customer_name=name,
+        customer_phone=phone,
+        customer_city=address,
+        price=product_price,
+        order_id=str(uuid.uuid4())[:8],
+        status="pending",
+        created_at=timezone.now(),
+        gift_chosen=gift_obj,
+    )
+    log_activity(
+        "simple_order_created",
+        f"New order for {name} ({phone}), product: {selected_product_sku}"
+        + (f", gift: {gift_sku}" if gift_sku else ""),
+        request=request,
+        related_object=order,
+    )
+
+    if resp is None:
+        msg = "تم تسجيل الطلب بنجاح (محليًا — لم يتم ربط COD Network)"
+    else:
+        msg = "تم إرسال الطلب بنجاح"
+    return JsonResponse({"success": True, "message": msg})
 
 
 

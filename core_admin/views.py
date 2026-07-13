@@ -8,21 +8,33 @@ import requests
 from django.contrib.auth.decorators import login_required, user_passes_test
 from django.db.models import F, Sum
 from django.db.models.functions import TruncDate
-from django.shortcuts import redirect
+from django.http import JsonResponse
+from django.shortcuts import get_object_or_404, redirect
 from django.utils import timezone
 from django.utils.decorators import method_decorator
+from django.views import View
 from django.views.generic import TemplateView
 
 from ai_assistant.models import AIUsageLog
 from discount.models import (
     ChatSession,
     CustomUser,
+    MerchantRiskEvent,
     Message,
     Products,
     VoiceCloneRequest,
     WhatsAppChannel,
     VoicePersona,
     VOICE_DIALECT_DEFAULT,
+)
+from discount.services.tenant_risk import (
+    COMPLAINT_THRESHOLD_24H,
+    build_merchant_snapshot,
+    fetch_chat_transcript,
+    get_affected_contacts_for_merchant,
+    get_catalog_summary,
+    get_risk_dashboard_merchants,
+    suspend_merchant_account,
 )
 
 
@@ -378,3 +390,97 @@ class PendingVoiceCloneActionView(TemplateView):
         clone_req.status = VoiceCloneRequest.STATUS_APPROVED
         clone_req.save(update_fields=["status"])
         return redirect("/founder-hq/pending-voice-clones/")
+
+
+@method_decorator([login_required, superuser_required], name="dispatch")
+class RiskDashboardView(TemplateView):
+    """Founder HQ — all sellers sorted by complaint volume (risk heatmap)."""
+
+    template_name = "core_admin/risk_dashboard.html"
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        rows = get_risk_dashboard_merchants()
+        ctx.update(
+            {
+                "risk_rows": rows,
+                "complaint_threshold": COMPLAINT_THRESHOLD_24H,
+                "flagged_count": sum(1 for r in rows if r["metrics"].is_red_flag),
+            }
+        )
+        return ctx
+
+
+@method_decorator([login_required, superuser_required], name="dispatch")
+class MerchantAuditReportView(TemplateView):
+    """Detailed seller audit: metrics, catalog, affected contacts."""
+
+    template_name = "core_admin/merchant_audit.html"
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        merchant = get_object_or_404(
+            CustomUser.objects.filter(is_bot=False),
+            pk=kwargs.get("merchant_id"),
+        )
+        metrics = build_merchant_snapshot(merchant)
+        events = list(
+            MerchantRiskEvent.objects.filter(merchant=merchant)
+            .select_related("channel", "order")
+            .order_by("-created_at")[:50]
+        )
+        ctx.update(
+            {
+                "merchant": merchant,
+                "metrics": metrics,
+                "catalog": get_catalog_summary(merchant.id),
+                "affected_contacts": get_affected_contacts_for_merchant(merchant.id),
+                "recent_events": events,
+                "complaint_threshold": COMPLAINT_THRESHOLD_24H,
+            }
+        )
+        return ctx
+
+
+@method_decorator([login_required, superuser_required], name="dispatch")
+class MerchantSuspendView(View):
+    """Kill switch — 1-click account suspension."""
+
+    def post(self, request, merchant_id):
+        merchant = get_object_or_404(
+            CustomUser.objects.filter(is_bot=False),
+            pk=merchant_id,
+        )
+        reason = (request.POST.get("suspension_reason") or "").strip()
+        if not reason:
+            reason = "Suspended via Founder HQ Risk Audit (manual kill switch)."
+        suspend_merchant_account(merchant, reason=reason)
+        return redirect(f"/founder-hq/risk/audit/{merchant.id}/")
+
+
+@method_decorator([login_required, superuser_required], name="dispatch")
+class MerchantChatTranscriptView(View):
+    """JSON API for raw WhatsApp transcript (founder audit only)."""
+
+    def get(self, request, merchant_id):
+        phone = (request.GET.get("phone") or "").strip()
+        channel_id = request.GET.get("channel_id")
+        try:
+            channel_id = int(channel_id) if channel_id else None
+        except (TypeError, ValueError):
+            channel_id = None
+        try:
+            limit = min(max(int(request.GET.get("limit", 80)), 10), 200)
+        except (TypeError, ValueError):
+            limit = 80
+
+        merchant = get_object_or_404(CustomUser, pk=merchant_id, is_bot=False)
+        payload = fetch_chat_transcript(
+            merchant.id,
+            phone,
+            channel_id=channel_id,
+            limit=limit,
+        )
+        if not payload.get("success"):
+            return JsonResponse(payload, status=400)
+        return JsonResponse(payload)

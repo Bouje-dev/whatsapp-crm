@@ -1,0 +1,70 @@
+{% extends "core_admin/base.html" %}
+{% block content %}
+<div class="space-y-6">
+  <div class="flex flex-wrap items-end justify-between gap-4">
+    <div>
+      <h1 class="text-2xl font-bold text-white">Risk Dashboard</h1>
+      <p class="text-sm text-slate-400 mt-1">
+        Tenants sorted by total complaints. Red flag when &gt; {{ complaint_threshold }} incidents in 24h.
+      </p>
+    </div>
+    <div class="text-sm text-amber-300 font-semibold">
+      {{ flagged_count }} flagged seller{{ flagged_count|pluralize }}
+    </div>
+  </div>
+
+  <div class="overflow-x-auto rounded-xl border border-slate-800 bg-slate-900/50">
+    <table class="min-w-full text-sm">
+      <thead class="text-left text-slate-400 border-b border-slate-800">
+        <tr>
+          <th class="px-4 py-3">Seller</th>
+          <th class="px-4 py-3">Complaints</th>
+          <th class="px-4 py-3">24h</th>
+          <th class="px-4 py-3">FT Success %</th>
+          <th class="px-4 py-3">Pending</th>
+          <th class="px-4 py-3">Status</th>
+          <th class="px-4 py-3"></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in risk_rows %}
+        {% with m=row.merchant metrics=row.metrics %}
+        <tr class="border-b border-slate-800/80 hover:bg-slate-800/40">
+          <td class="px-4 py-3">
+            {% if metrics.is_red_flag %}
+            <span class="mr-1" title="High risk (24h complaints &gt; {{ complaint_threshold }})">🚩</span>
+            {% endif %}
+            <span class="font-medium text-slate-100">
+              {{ metrics.user_name|default:m.email }}
+            </span>
+            <div class="text-xs text-slate-500">{{ m.email }}</div>
+          </td>
+          <td class="px-4 py-3 font-mono">{{ metrics.total_complaints }}</td>
+          <td class="px-4 py-3 font-mono {% if metrics.is_red_flag %}text-red-400 font-bold{% endif %}">
+            {{ metrics.complaints_24h }}
+          </td>
+          <td class="px-4 py-3 font-mono">{{ metrics.first_time_success_rate }}%</td>
+          <td class="px-4 py-3 font-mono">{{ metrics.pending_orders_count }}</td>
+          <td class="px-4 py-3">
+            {% if metrics.is_suspended %}
+            <span class="text-red-400 font-semibold">Suspended</span>
+            {% else %}
+            <span class="text-emerald-400">Active</span>
+            {% endif %}
+          </td>
+          <td class="px-4 py-3">
+            <a href="{% url 'core_admin:merchant_audit' m.id %}"
+               class="text-sky-400 hover:text-sky-300 font-medium">Audit →</a>
+          </td>
+        </tr>
+        {% endwith %}
+        {% empty %}
+        <tr>
+          <td colspan="7" class="px-4 py-8 text-center text-slate-500">No merchants found.</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

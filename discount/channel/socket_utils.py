@@ -1,5 +1,9 @@
+import logging
+
 from asgiref.sync import async_to_sync
 from channels.layers import get_channel_layer
+
+logger = logging.getLogger(__name__)
 
 def send_socket(data_type, payload, group_name, channel_name=None):
     """
@@ -24,4 +28,4 @@ def send_socket(data_type, payload, group_name, channel_name=None):
           
             
     except Exception as e:
-        print(f"❌ Failed to send socket event: {e}")
+        logger.exception("Failed to send socket event data_type=%s group=%s", data_type, group_name)

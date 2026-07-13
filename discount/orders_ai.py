@@ -21,38 +21,106 @@ from discount.models import SimpleOrder, Products, WhatsAppChannel, CustomUser, 
 
 logger = logging.getLogger(__name__)
 
+# ─────────────────────────────────────────────────────────────────────────────
+# Canonical anti-hallucination instruction for ALL backend failures of
+# submit_customer_order. The LLM has historically guessed at causes ("product
+# unavailable", "out of stock", "you must reorder") whenever it received a
+# generic error. We hard-code this exact wording so that every system-side
+# failure produces the SAME safe customer-facing behaviour.
+#
+# Used by handle_submit_order_tool() for:
+#   • missing channel / store / seller configuration
+#   • malformed arguments dict
+#   • product lookup miss (Products.objects.filter(...).first() is None)
+#   • DB INSERT exception (SimpleOrder.objects.create raised)
+#   • catch-all FATAL TOOL ERROR
+# ─────────────────────────────────────────────────────────────────────────────
+SUBMIT_ORDER_SYSTEM_BUSY_INSTRUCTION: str = (
+    "[SYSTEM ERROR: The order system is momentarily busy. Do NOT tell the "
+    "user the product is unavailable or out of stock. Apologize gracefully "
+    "for the technical delay and ask them to try again in a moment.]"
+)
+
 # Only these keys may appear in submit_customer_order payload; strip any other keys (LLM hallucination).
-ALLOWED_ORDER_KEYS = ("customer_name", "phone_number", "shipping_city", "shipping_address")
+ALLOWED_ORDER_KEYS = (
+    "customer_name", "phone_number", "shipping_city", "shipping_address",
+    "email_address", "final_agreed_price", "product_id",
+)
+
+_PRICE_FROM_TEXT_RE = re.compile(r"(\d+(?:[.,]\d+)?)")
 
 # Checkout mode (product.checkout_mode) → required_order_fields for AI tool schema and validation
 CHECKOUT_MODE_MAP = {
-    "quick_lead": ["customer_name", "phone_number"],
+    "quick_lead":   ["customer_name", "phone_number"],
     "standard_cod": ["customer_name", "phone_number", "shipping_city"],
-    "strict_cod": ["customer_name", "phone_number", "shipping_city", "shipping_address"],
+    "strict_cod":   ["customer_name", "phone_number", "shipping_city", "shipping_address"],
+    # Digital products: no physical shipping — collect email for download link delivery.
+    "digital":      ["customer_name", "email_address"],
+    # Direct Sale: zero friction — AI submits immediately on purchase intent.
+    # Empty list signals the instant-submit path in _build_order_memory_block.
+    "direct_sale":  [],
 }
 CHECKOUT_MODE_LABELS = {
-    "quick_lead": "Quick Lead (Name & Phone only)",
+    "quick_lead":   "Quick Lead (Name & Phone only)",
     "standard_cod": "Standard COD (Name, Phone, City)",
-    "strict_cod": "Strict COD (Full Address)",
+    "strict_cod":   "Strict COD (Full Address)",
+    "digital":      "Digital Delivery (Name & Email — no shipping address)",
+    "direct_sale":  "Direct Sale (No information required — instant submit)",
+}
+
+# Fields that are considered valid for any checkout mode (extended with email_address)
+_ALL_VALID_FIELDS = {
+    "customer_name", "phone_number",
+    "shipping_city", "shipping_address",
+    "email_address",
 }
 
 
 def get_required_order_fields_for_product(product):
     """
-    Resolve required order fields for a product: use checkout_mode if set, else required_order_fields.
-    Returns a list of valid field keys for submit_customer_order (e.g. customer_name, phone_number, shipping_city, shipping_address).
+    Resolve required order fields for a product.
+
+    Priority order:
+      0. checkout_mode == 'direct_sale'  → [] (instant submit, any product type).
+      1. is_digital=True AND collect_customer_info=False  → [] (instant submit).
+      2. is_digital=True (with collect_customer_info=True) → Name + Email.
+      3. checkout_mode in CHECKOUT_MODE_MAP  → mapped field list.
+      4. required_order_fields (JSONField)   → custom list stored on the product.
+      5. Fallback  → standard COD defaults (Name, Phone, City, Address).
+
+    An explicit empty list [] signals the instant-submit path in
+    _build_order_memory_block (services.py).
+    None means "not yet resolved" and triggers the default fallback.
     """
     if not product:
         return ["customer_name", "phone_number", "shipping_city", "shipping_address"]
+
+    # 0. Direct Sale — highest priority, applies to ANY product type.
+    #    checkout_mode='direct_sale' always returns [] regardless of is_digital flag.
     mode = (getattr(product, "checkout_mode", None) or "").strip()
+    if mode == "direct_sale":
+        return []
+
+    # 1. Digital override — is_digital wins over checkout_mode (except direct_sale above)
+    if getattr(product, "is_digital", False):
+        # When seller opts out of collecting info, return an EMPTY list so the
+        # AI submits the order immediately using only the WhatsApp phone number.
+        if not getattr(product, "collect_customer_info", True):
+            return []
+        return list(CHECKOUT_MODE_MAP["digital"])
+
+    # 2. Explicit checkout_mode
     if mode and mode in CHECKOUT_MODE_MAP:
         return list(CHECKOUT_MODE_MAP[mode])
+
+    # 3. Custom JSONField list (validated against known field names)
     _raw = getattr(product, "required_order_fields", None)
-    _valid = {"customer_name", "phone_number", "shipping_city", "shipping_address"}
     if isinstance(_raw, list):
-        _filtered = [str(f) for f in _raw if isinstance(f, str) and f in _valid]
+        _filtered = [str(f) for f in _raw if isinstance(f, str) and f in _ALL_VALID_FIELDS]
         if _filtered:
             return _filtered
+
+    # 4. Safe default
     return ["customer_name", "phone_number", "shipping_city", "shipping_address"]
 
 
@@ -185,16 +253,150 @@ def _safe_order_arg(arguments, key, default=""):
         return default or ""
 
 
-def handle_submit_order_tool(arguments, session_product_id, session_seller_id, channel, customer_phone_from_chat=None):
+def _parse_price_from_tool_arg(raw):
+    """Parse final_agreed_price from int/float/Decimal/str (e.g. 169, '169', '169 MAD')."""
+    from discount.services.pricing_prompt import _to_decimal
+
+    if raw is None:
+        return None
+    if isinstance(raw, bool):
+        return None
+    if isinstance(raw, (int, float, Decimal)):
+        return _to_decimal(raw)
+    s = str(raw).strip()
+    if not s:
+        return None
+    direct = _to_decimal(s)
+    if direct is not None:
+        return direct
+    m = _PRICE_FROM_TEXT_RE.search(s.replace(",", "."))
+    if m:
+        return _to_decimal(m.group(1))
+    return None
+
+
+def _quantize_order_price(value):
+    """Fit negotiated price into SimpleOrder.price (DecimalField max_digits=10, decimal_places=2)."""
+    try:
+        dec = Decimal(str(value))
+    except Exception:
+        return None
+    try:
+        return dec.quantize(Decimal("0.01"))
+    except Exception:
+        return dec
+
+
+def _coerce_submit_order_arguments(arguments=None, final_agreed_price=None, **kwargs):
+    """
+    Normalize tool payload whether the caller passes a dict, explicit kwargs,
+    or a mix (prevents TypeError from unexpected keyword arguments).
+    """
+    base = dict(arguments) if isinstance(arguments, dict) else {}
+    for key in ALLOWED_ORDER_KEYS:
+        if key in kwargs and kwargs[key] is not None:
+            base[key] = kwargs[key]
+    if final_agreed_price is not None and base.get("final_agreed_price") is None:
+        base["final_agreed_price"] = final_agreed_price
+    # LLM occasionally aliases price → final_agreed_price
+    if base.get("final_agreed_price") is None and kwargs.get("price") is not None:
+        base["final_agreed_price"] = kwargs.get("price")
+    if base.get("final_agreed_price") is None and base.get("price") is not None:
+        base["final_agreed_price"] = base.get("price")
+    return base
+
+
+def _resolve_final_agreed_price(arguments, product):
+    """
+    Parse and validate final_agreed_price from the AI tool call.
+
+    Returns (Decimal price, None) on success or (None, error_message) on failure.
+    Falls back to catalog price when the field is missing (legacy / model slip).
+    """
+    from discount.services.pricing_prompt import negotiation_floor_is_valid, _to_decimal
+
+    official = _to_decimal(getattr(product, "price", None))
+    currency = (getattr(product, "currency", None) or "MAD").strip() or "MAD"
+    raw = arguments.get("final_agreed_price") if isinstance(arguments, dict) else None
+
+    if raw is None or (isinstance(raw, str) and not str(raw).strip()):
+        if official is not None and official > 0:
+            logger.warning(
+                "submit_customer_order: final_agreed_price missing — falling back to catalog price %s %s",
+                official, currency,
+            )
+            return _quantize_order_price(official), None
+        return None, (
+            "final_agreed_price is missing. Pass the exact amount the customer agreed to pay "
+            "(negotiated or list price from PRODUCT CONTEXT) in final_agreed_price."
+        )
+
+    agreed = _parse_price_from_tool_arg(raw)
+    if agreed is None or agreed <= 0:
+        if official is not None and official > 0:
+            logger.warning(
+                "submit_customer_order: could not parse final_agreed_price=%r — falling back to catalog %s",
+                raw, official,
+            )
+            return _quantize_order_price(official), None
+        return None, (
+            "final_agreed_price is invalid. Pass a positive number — the exact amount the "
+            "customer agreed to pay in this conversation."
+        )
+
+    agreed = _quantize_order_price(agreed)
+    if agreed is None or agreed <= 0:
+        return None, "final_agreed_price is invalid after normalization."
+
+    if official is not None and official > 0 and agreed > official:
+        logger.info(
+            "submit_customer_order: final_agreed_price %s > catalog %s — capping at catalog",
+            agreed, official,
+        )
+        agreed = _quantize_order_price(official)
+
+    if negotiation_floor_is_valid(product):
+        backup = _to_decimal(getattr(product, "backup_price", None))
+        if backup is not None and agreed < backup:
+            return None, (
+                f"The agreed price {agreed} {currency} is below the merchant's minimum "
+                f"({backup} {currency}). Pass final_agreed_price at or above {backup}."
+            )
+    elif official is not None and official > 0 and agreed < official:
+        logger.warning(
+            "submit_customer_order: fixed-price product — agreed %s < catalog %s; using catalog price",
+            agreed, official,
+        )
+        agreed = _quantize_order_price(official)
+
+    return agreed, None
+
+
+def handle_submit_order_tool(
+    arguments=None,
+    session_product_id=None,
+    session_seller_id=None,
+    channel=None,
+    customer_phone_from_chat=None,
+    final_agreed_price=None,
+    **kwargs,
+):
     """
     Bulletproof submit_customer_order handler.
 
-    - Static schema: product_id, customer_name and phone_number required; shipping_city and shipping_address optional.
+    - Static schema: product_id, customer_name, phone_number, final_agreed_price;
+      shipping_city and shipping_address optional.
+    - Accepts tool args as a dict and/or explicit keyword parameters (final_agreed_price, etc.).
     - Asynchronous UX: caller sends the transitional WhatsApp message immediately before calling this handler.
     - DB-safe: shipping_city and shipping_address are always coerced to empty strings (no NULL crashes).
     - Feedback loop: ALWAYS returns a JSON string for the LLM to read (never raises to the caller).
     """
     try:
+        arguments = _coerce_submit_order_arguments(
+            arguments,
+            final_agreed_price=final_agreed_price,
+            **kwargs,
+        )
         logger.info("TOOL CALLED: Raw arguments received -> %s", arguments)
 
         if not channel or not session_seller_id:
@@ -207,7 +409,8 @@ def handle_submit_order_tool(arguments, session_product_id, session_seller_id, c
             return json.dumps({
                 "status": "error",
                 "success": False,
-                "message": "Technical configuration error. Tell the user there was a technical glitch and that a human agent will assist shortly.",
+                "reason": "channel_or_seller_missing",
+                "message": SUBMIT_ORDER_SYSTEM_BUSY_INSTRUCTION,
             }, ensure_ascii=False)
 
         if not isinstance(arguments, dict):
@@ -215,44 +418,53 @@ def handle_submit_order_tool(arguments, session_product_id, session_seller_id, c
             return json.dumps({
                 "status": "error",
                 "success": False,
-                "message": "Invalid order details from AI. Politely ask the user to resend their name and phone number.",
+                "reason": "invalid_arguments_type",
+                "message": SUBMIT_ORDER_SYSTEM_BUSY_INSTRUCTION,
             }, ensure_ascii=False)
 
-        # Static, safe parsing
-        customer_name = _safe_order_arg(arguments, "customer_name", "")
-        phone_number = _safe_order_arg(arguments, "phone_number", "")
-        shipping_city = _safe_order_arg(arguments, "shipping_city", "")
+        # ── Parse raw arguments ───────────────────────────────────────────────
+        customer_name    = _safe_order_arg(arguments, "customer_name",    "")
+        phone_number     = _safe_order_arg(arguments, "phone_number",     "")
+        shipping_city    = _safe_order_arg(arguments, "shipping_city",    "")
         shipping_address = _safe_order_arg(arguments, "shipping_address", "")
+        email_address    = _safe_order_arg(arguments, "email_address",    "")
+
         raw_product_id = arguments.get("product_id")
         tool_product_id = None
         if raw_product_id is not None:
             try:
                 tool_product_id = int(raw_product_id)
             except (TypeError, ValueError):
+                # LLM hallucinated a non-numeric product_id. Treat as
+                # validation prompt (not a system error) so the AI can
+                # ask the user to pick a real product from the catalog.
                 return json.dumps({
                     "status": "error",
                     "success": False,
-                    "message": "product_id is invalid. Ask the user clearly which product they want from the catalog, then use the correct numeric ID.",
+                    "reason": "invalid_product_id_format",
+                    "message": (
+                        "product_id is invalid. Ask the user clearly which product they want "
+                        "from the catalog, then use the correct numeric ID. Do NOT tell the user "
+                        "the product is unavailable or out of stock."
+                    ),
                 }, ensure_ascii=False)
 
-        # Enforce required fields in code (product_id + name + phone)
+        # ── product_id is always required ─────────────────────────────────────
         effective_product_id = tool_product_id or session_product_id
         if not effective_product_id:
             return json.dumps({
                 "status": "error",
                 "success": False,
-                "message": "product_id is missing. Ask the user exactly which product they want to order from the catalog, then call the tool again with that product_id.",
+                "reason": "missing_product_id",
+                "message": (
+                    "product_id is missing. Ask the user exactly which product they want to order "
+                    "from the catalog, then call the tool again with that product_id. Do NOT tell "
+                    "the user the product is unavailable or out of stock."
+                ),
             }, ensure_ascii=False)
 
-        if not customer_name:
-            return json.dumps({
-                "status": "error",
-                "success": False,
-                "message": "Customer name is missing. Politely ask the user to share their full name.",
-            }, ensure_ascii=False)
-
-        phone_to_use = phone_number or (customer_phone_from_chat or "")
-        phone_to_use = phone_to_use.strip()
+        # ── Phone is always required (WhatsApp sender = guaranteed fallback) ──
+        phone_to_use = (phone_number or customer_phone_from_chat or "").strip()
         if not phone_to_use:
             return json.dumps({
                 "status": "error",
@@ -265,43 +477,89 @@ def handle_submit_order_tool(arguments, session_product_id, session_seller_id, c
             return json.dumps({
                 "status": "error",
                 "success": False,
+                "reason": "invalid_phone",
                 "message": phone_error,
             }, ensure_ascii=False)
 
-        # At this point, shipping_city / shipping_address are guaranteed non-None strings (possibly "")
-        logger.info("VALIDATION PASSED: name=%s, phone=%s, city=%s, address=%s",
-                    customer_name, normalized_phone, shipping_city, shipping_address)
-
-        # Resolve product and store
+        # ── Resolve product & store (must happen before name validation so
+        #    we can determine the fulfillment mode for this specific product) ──
         product = Products.objects.filter(id=effective_product_id, admin_id=session_seller_id).first()
         if not product:
-            logger.error("submit_customer_order: product_id=%s not found for seller %s", effective_product_id, session_seller_id)
+            # CRITICAL: a missing product lookup looks exactly like a system
+            # outage to the customer ("backend can't see my product"). We
+            # explicitly forbid the LLM from translating this into
+            # "out of stock" copy, because that destroys merchant trust.
+            logger.error(
+                "submit_customer_order: product_id=%s not found for seller %s",
+                effective_product_id, session_seller_id,
+            )
             return json.dumps({
                 "status": "error",
                 "success": False,
-                "message": "Product not available anymore or does not belong to this store. Tell the user to choose a product from the catalog and use its ID.",
+                "reason": "product_lookup_miss",
+                "message": SUBMIT_ORDER_SYSTEM_BUSY_INSTRUCTION,
             }, ensure_ascii=False)
 
         store = getattr(channel, "owner", None)
         if not store or getattr(store, "id", None) != session_seller_id:
-            logger.error("submit_customer_order: store mismatch (channel.owner_id=%s, session_seller_id=%s)",
-                         getattr(store, "id", None), session_seller_id)
+            logger.error(
+                "submit_customer_order: store mismatch (channel.owner_id=%s, session_seller_id=%s)",
+                getattr(store, "id", None), session_seller_id,
+            )
             return json.dumps({
                 "status": "error",
                 "success": False,
-                "message": "Store configuration mismatch. Tell the user there was a technical glitch and that a human agent will assist shortly.",
+                "reason": "store_mismatch",
+                "message": SUBMIT_ORDER_SYSTEM_BUSY_INSTRUCTION,
+            }, ensure_ascii=False)
+
+        # ── Determine fulfillment mode from product settings ─────────────────
+        _is_digital      = bool(getattr(product, "is_digital", False))
+        _collect_info    = bool(getattr(product, "collect_customer_info", True))
+        _checkout_mode   = (getattr(product, "checkout_mode", None) or "").strip()
+
+        # direct_sale: no customer info needed regardless of product type
+        is_direct_sale   = (_checkout_mode == "direct_sale") or (_is_digital and not _collect_info)
+        # digital + collect name & email
+        is_digital_info  = _is_digital and _collect_info and not is_direct_sale
+        # standard physical order
+        is_physical      = not _is_digital
+
+        # ── Conditional name validation (skip for direct-sale digital orders) ─
+        if not is_direct_sale and not customer_name:
+            return json.dumps({
+                "status": "error",
+                "success": False,
+                "reason": "missing_customer_name",
+                "message": (
+                    "Customer name is missing. Politely ask the user to share their full name. "
+                    "Do NOT tell the user the product is unavailable or out of stock."
+                ),
+            }, ensure_ascii=False)
+
+        logger.info(
+            "VALIDATION PASSED: mode=direct_sale=%s digital_info=%s physical=%s "
+            "name=%s phone=%s city=%s address=%s email=%s final_agreed_price=%s",
+            is_direct_sale, is_digital_info, is_physical,
+            customer_name, normalized_phone, shipping_city, shipping_address, email_address,
+            arguments.get("final_agreed_price"),
+        )
+
+        price, price_error = _resolve_final_agreed_price(arguments, product)
+        if price_error:
+            return json.dumps({
+                "status": "error",
+                "success": False,
+                "reason": "invalid_final_agreed_price",
+                "message": price_error,
             }, ensure_ascii=False)
 
         # Database insertion with strict try/except
         try:
-            logger.info("DB INSERT ATTEMPT... (product_id=%s, customer=%s)", effective_product_id, customer_name)
-
-            try:
-                price = Decimal(str(getattr(product, "price", None) or "0"))
-            except Exception:
-                price = Decimal("0")
-            if price is None or price <= 0:
-                price = Decimal("0")
+            logger.info(
+                "DB INSERT ATTEMPT... (product_id=%s, customer=%s, price=%s)",
+                effective_product_id, customer_name or normalized_phone, price,
+            )
 
             order_agent = get_or_create_ai_agent_user(store, agent_name="AI Agent") or store
 
@@ -309,21 +567,46 @@ def handle_submit_order_tool(arguments, session_product_id, session_seller_id, c
             while SimpleOrder.objects.filter(order_id=order_id).exists():
                 order_id = str(uuid.uuid4())[:8]
 
-            customer_city_display = f"{shipping_city} | {shipping_address}".strip()
-
             _ord_cur = (getattr(product, "currency", None) or "").strip() or "MAD"
+
+            # ── Build field values per mode ───────────────────────────────────
+            if is_direct_sale:
+                # Direct Sale: phone only, no name/address/email needed
+                _cname  = None
+                _cemail = None
+                _ccity  = ""
+                _status = "pending_payment"
+
+            elif is_digital_info:
+                # Digital + collect info: name + email; no physical address
+                _cname  = str(customer_name)[:200]
+                _cemail = str(email_address)[:254] if email_address else None
+                _ccity  = ""
+                _status = "pending_payment"
+
+            else:
+                # Physical: name + city/address; no email
+                customer_city_display = " | ".join(
+                    filter(None, [shipping_city.strip(), shipping_address.strip()])
+                )
+                _cname  = str(customer_name)[:200]
+                _cemail = None
+                _ccity  = customer_city_display[:100]
+                _status = "pending"
+
             order = SimpleOrder.objects.create(
                 product=product,
                 agent=order_agent,
                 channel=channel,
                 sku=str(getattr(product, "sku", "") or "")[:100],
                 product_name=str(getattr(product, "name", "") or "")[:200],
-                customer_name=str(customer_name)[:200],
+                customer_name=_cname,
                 customer_phone=str(normalized_phone)[:20],
-                # Explicitly avoid NULLs: use "" when no city/address provided
-                customer_city=customer_city_display[:100] if customer_city_display else "",
+                customer_email=_cemail,
+                customer_city=_ccity,
+                is_digital=_is_digital,
                 order_id=order_id,
-                status="pending",
+                status=_status,
                 created_at=timezone.now(),
                 price=price,
                 currency=_ord_cur,
@@ -353,29 +636,187 @@ def handle_submit_order_tool(arguments, session_product_id, session_seller_id, c
             except Exception as e:
                 logger.warning("submit_customer_order: contact pipeline update failed: %s", e)
 
+            # ────────────────────────────────────────────────────────────────
+            # Success response — forked by product type.
+            # PHYSICAL: keep the original return verbatim so the existing
+            #   COD confirmation flow (format_order_confirmation → truck-emoji
+            #   copy) keeps working unchanged.
+            # DIGITAL: return a ready-to-send Moroccan-Darija payment-request
+            #   message built from the store's active StorePaymentMethod rows.
+            # ────────────────────────────────────────────────────────────────
+            if not _is_digital:
+                # Physical (COD) flow — UNCHANGED behaviour: short directive
+                # so the existing format_order_confirmation() flow can paint
+                # the customer-facing truck-emoji confirmation downstream.
+                # `is_digital: false` is added explicitly so the router can
+                # branch on outcome.get("is_digital", False) without having
+                # to re-query the SimpleOrder row.
+                return json.dumps({
+                    "status": "success",
+                    "success": True,
+                    "is_digital": False,
+                    "message": "Order saved successfully. Confirm the order with the customer now.",
+                    "order_id": order_id,
+                }, ensure_ascii=False)
+
+            # Defensive: guarantee pending_payment even if a future code path
+            # forgets to set it in the create() call above.
+            try:
+                if (order.status or "") != "pending_payment":
+                    order.status = "pending_payment"
+                    order.save(update_fields=["status"])
+            except Exception as _status_err:
+                logger.warning(
+                    "submit_customer_order: could not enforce pending_payment for order_id=%s: %s",
+                    order_id, _status_err,
+                )
+
+            # Pull the merchant's active payout accounts. Lazy import keeps
+            # the physical branch untouched if StorePaymentMethod ever moves.
+            payment_lines = []
+            try:
+                from discount.models import StorePaymentMethod
+                active_methods = list(
+                    StorePaymentMethod.objects
+                    .filter(owner=store, is_active=True)
+                    .order_by("provider_name", "id")
+                )
+                for pm in active_methods:
+                    try:
+                        formatted = (pm.format_for_ai() or "").strip()
+                    except Exception:
+                        # Hand-roll a line if format_for_ai() blows up
+                        # (e.g. decryption error on a single row).
+                        try:
+                            identifier = pm.get_account_details() or ""
+                        except Exception:
+                            identifier = ""
+                        label = (getattr(pm, "label", "") or "").strip() or "Payment Method"
+                        if pm.is_bank:
+                            holder = (pm.account_holder_name or "").strip()
+                            prefix = f"{holder} — " if holder else ""
+                            formatted = f"{label}: {prefix}RIB {identifier}".strip()
+                        else:
+                            formatted = f"{label} Email: {identifier}".strip()
+                    if formatted:
+                        payment_lines.append(f"• {formatted}")
+            except Exception as _pm_err:
+                logger.warning(
+                    "submit_customer_order: failed to load StorePaymentMethod for store=%s: %s",
+                    getattr(store, "id", None), _pm_err,
+                )
+
+            # Build total = price * quantity. Quantity is Decimal('1') for
+            # AI-submitted orders today, but we compute defensively anyway.
+            try:
+                _qty = order.quantity if order.quantity is not None else Decimal("1")
+                _unit = order.price if order.price is not None else Decimal("0")
+                total_amount = (Decimal(str(_unit)) * Decimal(str(_qty)))
+            except Exception:
+                total_amount = Decimal(str(order.price or "0"))
+            try:
+                if total_amount == total_amount.to_integral_value():
+                    total_display = f"{int(total_amount)}"
+                else:
+                    total_display = f"{total_amount:.2f}"
+            except Exception:
+                total_display = str(total_amount)
+            currency_label = (order.currency or "MAD").strip() or "MAD"
+            product_display = (
+                (order.product_name or "").strip()
+                or (getattr(product, "name", "") or "").strip()
+                or "—"
+            )
+
+            # Sentinel-wrap the entire payment block so:
+            #   (1) the LLM is instructed to keep digits as digits (via the
+            #       AWAITING_PAYMENT_RECEIPT banner + Direct Sale prompt rule),
+            #   (2) VoiceFormatterMiddleware bypasses gpt-4o-mini reformatting,
+            #   (3) the WhatsApp router forces type:text delivery regardless of
+            #       the node's response_mode or channel.ai_voice_enabled.
+            # Imported lazily so the physical branch can never accidentally
+            # trigger ai_assistant.services import chain.
+            try:
+                from ai_assistant.services import NO_TTS_OPEN, NO_TTS_CLOSE
+            except Exception:
+                # Safe fallback — must match the canonical markers exactly.
+                NO_TTS_OPEN, NO_TTS_CLOSE = "[NO_TTS]", "[/NO_TTS]"
+
+            if payment_lines:
+                payment_block = "\n".join(payment_lines)
+                digital_message = (
+                    f"{NO_TTS_OPEN}\n"
+                    "✅ تم تسجيل طلبك بنجاح!\n"
+                    f"المنتج: {product_display}\n"
+                    f"المبلغ المطلوب تحويله: {total_display} {currency_label}\n\n"
+                    "لإتمام الطلب واستلام منتجك الرقمي، المرجو تحويل المبلغ "
+                    "لأحد حساباتنا التالية:\n"
+                    f"{payment_block}\n\n"
+                    "⚠️ ملي تصيفط الفلوس، عفاك صور لينا الوصل (Screenshot) "
+                    "وصيفطو هنا باش نأكدو ليك الطلبية ونصيفطو ليك المنتج "
+                    "ديالك دابا.\n"
+                    f"{NO_TTS_CLOSE}"
+                )
+            else:
+                # No payment methods configured yet — do NOT invent fake
+                # account details. Tell the AI to bridge to a human.
+                # Still wrap in sentinels so the amount/product name digits
+                # are preserved if the merchant later asks.
+                logger.warning(
+                    "submit_customer_order: digital order %s saved but store %s "
+                    "has no active StorePaymentMethod — cannot send payout details.",
+                    order_id, getattr(store, "id", None),
+                )
+                digital_message = (
+                    f"{NO_TTS_OPEN}\n"
+                    "✅ تم تسجيل طلبك بنجاح!\n"
+                    f"المنتج: {product_display}\n"
+                    f"المبلغ المطلوب تحويله: {total_display} {currency_label}\n\n"
+                    "⚠️ غادي يتواصل معاك أحد موظفينا فأقرب وقت باش يصيفط ليك "
+                    "تفاصيل الدفع وتكمل الطلبية ديالك.\n"
+                    f"{NO_TTS_CLOSE}"
+                )
+
+            # `next_state` is consumed by the router immediately after this
+            # tool returns; it transitions the session FSM to
+            # AWAITING_PAYMENT_RECEIPT so the next customer message is
+            # interpreted as a payment receipt (not a fresh order intent).
+            # `force_text_delivery` + `disable_tts_reformat` are belt-and-
+            # braces flags so a future caller that doesn't recognise the
+            # [NO_TTS] sentinels can still pick the right transport.
             return json.dumps({
                 "status": "success",
                 "success": True,
-                "message": "Order saved successfully. Confirm the order with the customer now.",
+                "is_digital": True,
+                "awaiting_payment_receipt": True,
+                "next_state": "AWAITING_PAYMENT_RECEIPT",
+                "skip_format_order_confirmation": True,
+                "force_text_delivery": True,
+                "disable_tts_reformat": True,
+                "message": digital_message,
                 "order_id": order_id,
             }, ensure_ascii=False)
 
         except Exception as db_err:
+            err_text = f"Error creating order: {db_err}"
             logger.error("DB INSERT ERROR in submit_customer_order -> %s", db_err)
             logger.error("DB INSERT ERROR (stack) -> %s", traceback.format_exc())
             return json.dumps({
                 "status": "error",
                 "success": False,
-                "message": "Database insertion failed. Tell the user there was a technical glitch and ask them to verify their details or wait for human support.",
+                "reason": "db_insert_failed",
+                "message": err_text,
             }, ensure_ascii=False)
 
     except Exception as e:
+        err_text = f"Error creating order: {e}"
         logger.error("FATAL TOOL ERROR in submit_customer_order -> %s", e)
         logger.error("FATAL TOOL ERROR (stack) -> %s", traceback.format_exc())
         return json.dumps({
             "status": "error",
             "success": False,
-            "message": "System error while processing the order. Tell the user there was a technical glitch and that a human agent will assist shortly.",
+            "reason": "fatal_tool_exception",
+            "message": err_text,
         }, ensure_ascii=False)
 
 
@@ -722,6 +1163,19 @@ def handle_update_lead_status(channel, customer_phone, new_status):
             return {"success": True, "message": "Lead already closed; no change."}
         contact.pipeline_stage = new_status
         contact.save(update_fields=["pipeline_stage"])
+        if new_status == "rejected":
+            try:
+                from discount.models import MerchantRiskEvent
+                from discount.services.tenant_risk import record_event_for_channel
+                record_event_for_channel(
+                    channel,
+                    MerchantRiskEvent.EVENT_NEGATIVE_SENTIMENT,
+                    customer_phone=customer_phone,
+                    summary="Lead marked rejected by AI (negative intent / watchdog).",
+                    metadata={"pipeline_stage": new_status},
+                )
+            except Exception as _risk_err:
+                logger.warning("handle_update_lead_status risk log failed: %s", _risk_err)
         return {"success": True}
     except Exception as e:
         logger.exception("handle_update_lead_status: %s", e)

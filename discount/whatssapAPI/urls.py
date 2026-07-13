@@ -136,6 +136,21 @@ path('api/settings/routing/', wsettings.update_routing_settings, name='api_updat
     path('api/billing/channel-limit-status/', views.api_channel_limit_status, name='api_channel_limit_status'),
     path('api/billing/extra-channel-checkout/', views.api_create_extra_channel_checkout, name='api_extra_channel_checkout'),
     path('api/billing/verify-extra-channel/', views.api_verify_extra_channel_checkout, name='api_verify_extra_channel'),
+
+    # Store Payment Methods (encrypted, for digital product checkout)
+    path('api/payment-methods/', views.api_payment_methods_list, name='api_payment_methods_list'),
+    path('api/payment-methods/create/', views.api_payment_methods_create, name='api_payment_methods_create'),
+    path('api/payment-methods/<int:method_id>/toggle/', views.api_payment_methods_toggle, name='api_payment_methods_toggle'),
+    path('api/payment-methods/<int:method_id>/delete/', views.api_payment_methods_delete, name='api_payment_methods_delete'),
+
+    # Digital product — receipt verification (approve / reject)
+    path('api/orders/verify-receipt/', views.api_verify_receipt, name='api_verify_receipt'),
+    path('api/orders/resolve-support/', views.api_resolve_support, name='api_resolve_support'),
+
+    # Digital product — owner-only secure reveal of an encrypted asset
+    # (download URL, license key) attached to a delivery message bubble.
+    # Strict RBAC enforced inside the view: store owner OR superuser only.
+    path('api/messages/reveal-asset/', views.api_reveal_asset, name='api_reveal_asset'),
 ]
 
 

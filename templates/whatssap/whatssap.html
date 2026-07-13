@@ -3696,10 +3696,136 @@ window.resetFilters = function() {
 
       
       </div>
-
+ <!-- Receipt rejection modal (replaces window.prompt) -->
+ <div id="receipt-reject-modal"
+ class="receipt-reject-modal-overlay"
+ hidden
+ aria-hidden="true">
+<div class="receipt-reject-modal"
+   role="dialog"
+   aria-modal="true"
+   aria-labelledby="rrm_title">
+<div class="rrm-header">
+  <div class="rrm-header-text">
+    <span class="rrm-icon" aria-hidden="true">❌</span>
+    <div>
+      <h3 class="rrm-title" id="rrm_title">Reject payment receipt</h3>
+      <p class="rrm-subtitle" id="rrm_subtitle">The customer will receive your reason on WhatsApp.</p>
+    </div>
+  </div>
+  <button type="button"
+          class="rrm-close"
+          id="rrm_btn_close"
+          aria-label="Close">&times;</button>
+</div>
+<form id="rrm_form" class="rrm-body" novalidate>
+  <label class="rrm-label" for="rrm_reason">Reason for rejection</label>
+  <p class="rrm-hint">Choose a quick option or write your own (required).</p>
+  <div class="rrm-quick-reasons" role="group" aria-label="Quick reasons">
+    <button type="button" class="rrm-chip" data-reason="Blurry or unreadable image">Blurry image</button>
+    <button type="button" class="rrm-chip" data-reason="Wrong payment amount">Wrong amount</button>
+    <button type="button" class="rrm-chip" data-reason="Incomplete screenshot (missing date or reference)">Incomplete screenshot</button>
+    <button type="button" class="rrm-chip" data-reason="Name or account does not match">Name mismatch</button>
+  </div>
+  <textarea id="rrm_reason"
+            class="rrm-textarea"
+            name="reason"
+            rows="4"
+            maxlength="255"
+            placeholder="e.g. Blurry image, wrong amount, missing transfer reference…"
+            required></textarea>
+  <div class="rrm-char-count"><span id="rrm_char_count">0</span> / 255</div>
+  <p class="rrm-error" id="rrm_error" hidden role="alert"></p>
+  <div class="rrm-footer">
+    <button type="button" class="rrm-btn rrm-btn-cancel" id="rrm_btn_cancel">Cancel</button>
+    <button type="submit" class="rrm-btn rrm-btn-submit" id="rrm_btn_submit">
+      Reject &amp; notify customer
+    </button>
+  </div>
+</form>
+</div>
+</div>
       
       <div class="cls3741_chat_input_wrapper" role="region" aria-label="Message input">
-   
+
+        <!--
+          Pending digital-order payment-verification banner.
+          The dashboard is a SPA: there is no per-customer URL/view, so this
+          element stays in the DOM and is populated/shown by
+          `updatePaymentVerificationBanner(...)` after each chat-open AJAX
+          (see fetchMessagesForCurrentws → data.active_digital_order).
+        -->
+        <div id="payment-verification-banner"
+             class="payment-verification-banner"
+             role="region"
+             aria-label="Pending digital order payment"
+             hidden
+             data-order-id=""
+             style="display:none;">
+          <div class="pvb-info">
+            <span class="pvb-icon" aria-hidden="true">⚠️</span>
+            <div class="pvb-text">
+              <div class="pvb-title" id="pvb_title">Pending Digital Order Payment</div>
+              <div class="pvb-subtitle" id="pvb_subtitle"></div>
+            </div>
+          </div>
+          <div class="pvb-actions">
+            <button type="button"
+                    id="pvb_btn_approve"
+                    class="pvb-btn pvb-btn-approve"
+                    title="Confirm payment & deliver the digital product"
+                    onclick="verifyReceipt(this.closest('#payment-verification-banner').dataset.orderId, 'approve')">
+              <span aria-hidden="true">✅</span>
+              <span>Confirm Payment &amp; Send</span>
+            </button>
+            <button type="button"
+                    id="pvb_btn_reject"
+                    class="pvb-btn pvb-btn-reject"
+                    title="Reject the payment receipt"
+                    onclick="verifyReceipt(this.closest('#payment-verification-banner').dataset.orderId, 'reject')">
+              <span aria-hidden="true">❌</span>
+              <span>Reject Receipt</span>
+            </button>
+          </div>
+        </div>
+
+        
+
+        <!-- Post-sale support review (completed digital order + complaint proof) -->
+        <div id="support-review-banner"
+             class="support-review-banner payment-verification-banner"
+             role="region"
+             aria-label="Digital product support review"
+             hidden
+             data-order-id=""
+             style="display:none;">
+          <div class="pvb-info">
+            <span class="pvb-icon" aria-hidden="true">⚠️</span>
+            <div class="pvb-text">
+              <div class="pvb-title" id="srv_title">Complaint Under Review</div>
+              <div class="pvb-subtitle" id="srv_summary"></div>
+            </div>
+          </div>
+          <div class="pvb-actions">
+            <button type="button"
+                    id="srv_btn_approve"
+                    class="pvb-btn pvb-btn-approve"
+                    title="Approve replacement and send new credentials"
+                    onclick="resolveSupportTicket(this.closest('#support-review-banner').dataset.orderId, 'approve')">
+              <span aria-hidden="true">🔄</span>
+              <span>Approve &amp; Send Replacement</span>
+            </button>
+            <button type="button"
+                    id="srv_btn_reject"
+                    class="pvb-btn pvb-btn-reject"
+                    title="Reject complaint"
+                    onclick="resolveSupportTicket(this.closest('#support-review-banner').dataset.orderId, 'reject')">
+              <span aria-hidden="true">❌</span>
+              <span>Reject Complaint</span>
+            </button>
+          </div>
+        </div>
+
         <div class="cls3741_media_preview cls3741_media_preview_phone" id="cls3741_media_preview" style="min-height: 0; max-height: fit-content;"></div>
 
         <div id="slash_menu" class="cls3741_slash_menu cls3741_slash_menu_phone" style="display: none;">
@@ -4797,6 +4923,387 @@ function sendCannedResponseDirectly(item) {
       .cls3741_send_record_slot .cls3741_send_group { display: none; }
       .cls3741_send_record_slot.has-text .cls3741_mobile_record_btn { display: none; }
       .cls3741_send_record_slot.has-text .cls3741_send_group { display: flex; }
+
+      /* ── Payment-verification banner (pending digital order) ─────────── */
+      .payment-verification-banner {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        flex-wrap: wrap;
+        margin: 0 0 10px 0;
+        padding: 10px 14px;
+        background: linear-gradient(180deg, #fff8e1 0%, #fff3c4 100%);
+        border: 1px solid #f0c14b;
+        border-left: 4px solid #d97706;
+        border-radius: 10px;
+        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+        animation: pvbFadeIn 220ms ease;
+      }
+      @keyframes pvbFadeIn {
+        from { opacity: 0; transform: translateY(-4px); }
+        to   { opacity: 1; transform: translateY(0); }
+      }
+      .payment-verification-banner .pvb-info {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        min-width: 0;
+        flex: 1 1 240px;
+      }
+      .payment-verification-banner .pvb-icon {
+        font-size: 20px;
+        line-height: 1;
+        flex-shrink: 0;
+      }
+      .payment-verification-banner .pvb-text {
+        min-width: 0;
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+      }
+      .payment-verification-banner .pvb-title {
+        font-size: 13px;
+        font-weight: 700;
+        color: #92400e;
+        line-height: 1.2;
+      }
+      .payment-verification-banner .pvb-subtitle {
+        font-size: 12px;
+        color: #78350f;
+        line-height: 1.3;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        max-width: 100%;
+      }
+      .payment-verification-banner .pvb-price-wrap {
+        display: inline-flex;
+        flex-wrap: wrap;
+        align-items: baseline;
+        gap: 6px;
+      }
+      .payment-verification-banner .pvb-price-struck {
+        color: #a8a29e;
+        text-decoration: line-through;
+        font-weight: 400;
+      }
+      .payment-verification-banner .pvb-price-negotiated {
+        color: #15803d;
+        font-weight: 700;
+      }
+      .payment-verification-banner .pvb-actions {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        flex-shrink: 0;
+      }
+      .payment-verification-banner .pvb-btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 6px 12px;
+        font-size: 12.5px;
+        font-weight: 600;
+        line-height: 1.2;
+        border-radius: 6px;
+        border: 1px solid transparent;
+        cursor: pointer;
+        transition: filter 0.15s ease, transform 0.05s ease;
+      }
+      .payment-verification-banner .pvb-btn:hover:not(:disabled) { filter: brightness(1.05); }
+      .payment-verification-banner .pvb-btn:active:not(:disabled) { transform: translateY(1px); }
+      .support-review-banner {
+        border-color: rgba(245, 158, 11, 0.45);
+        background: linear-gradient(135deg, rgba(245, 158, 11, 0.12) 0%, rgba(15, 23, 42, 0.92) 100%);
+      }
+      .support-review-banner .pvb-title { color: #fcd34d; }
+      .support-review-banner #srv_summary {
+        font-size: 0.8rem;
+        color: #e2e8f0;
+        line-height: 1.4;
+        max-height: 3.6em;
+        overflow-y: auto;
+      }
+      .payment-verification-banner .pvb-btn:disabled { opacity: 0.6; cursor: not-allowed; }
+      .payment-verification-banner .pvb-btn-approve {
+        background: #16a34a;
+        color: #fff;
+        border-color: #15803d;
+      }
+      .payment-verification-banner .pvb-btn-reject {
+        background: #dc2626;
+        color: #fff;
+        border-color: #b91c1c;
+      }
+      .payment-verification-banner.is-verification .pvb-title::after {
+        content: " — Receipt received";
+        font-weight: 600;
+        color: #b45309;
+      }
+      @media (max-width: 600px) {
+        .payment-verification-banner { padding: 8px 10px; gap: 8px; }
+        .payment-verification-banner .pvb-btn { padding: 6px 10px; font-size: 12px; }
+      }
+
+      /* ── Receipt rejection modal ─────────────────────────────────────── */
+      .receipt-reject-modal-overlay {
+        position: fixed;
+        inset: 0;
+        z-index: 10050;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 20px;
+        background: rgba(15, 23, 42, 0.72);
+        backdrop-filter: blur(6px);
+        opacity: 0;
+        visibility: hidden;
+        transition: opacity 0.2s ease, visibility 0.2s ease;
+      }
+      .receipt-reject-modal-overlay.rrm-open {
+        opacity: 1;
+        visibility: visible;
+      }
+      body.rrm-modal-open {
+        overflow: hidden;
+      }
+      .receipt-reject-modal {
+        width: 100%;
+        max-width: 440px;
+        background: linear-gradient(180deg, #1e293b 0%, #0f172a 100%);
+        border: 1px solid rgba(248, 113, 113, 0.35);
+        border-radius: 16px;
+        box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.55), 0 0 0 1px rgba(255, 255, 255, 0.04) inset;
+        overflow: hidden;
+        transform: translateY(8px) scale(0.98);
+        transition: transform 0.22s ease;
+      }
+      .receipt-reject-modal-overlay.rrm-open .receipt-reject-modal {
+        transform: translateY(0) scale(1);
+      }
+      .receipt-reject-modal .rrm-header {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 12px;
+        padding: 1.15rem 1.25rem;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+        background: linear-gradient(135deg, rgba(220, 38, 38, 0.18) 0%, rgba(15, 23, 42, 0) 70%);
+      }
+      .receipt-reject-modal .rrm-header-text {
+        display: flex;
+        align-items: flex-start;
+        gap: 10px;
+        min-width: 0;
+      }
+      .receipt-reject-modal .rrm-icon {
+        font-size: 1.35rem;
+        line-height: 1;
+        flex-shrink: 0;
+      }
+      .receipt-reject-modal .rrm-title {
+        margin: 0;
+        font-size: 1.05rem;
+        font-weight: 700;
+        color: #f8fafc;
+        line-height: 1.25;
+      }
+      .receipt-reject-modal .rrm-subtitle {
+        margin: 4px 0 0;
+        font-size: 0.8rem;
+        color: #94a3b8;
+        line-height: 1.35;
+      }
+      .receipt-reject-modal .rrm-close {
+        flex-shrink: 0;
+        width: 32px;
+        height: 32px;
+        border: none;
+        border-radius: 8px;
+        background: rgba(255, 255, 255, 0.06);
+        color: #cbd5e1;
+        font-size: 1.35rem;
+        line-height: 1;
+        cursor: pointer;
+        transition: background 0.15s, color 0.15s;
+      }
+      .receipt-reject-modal .rrm-close:hover {
+        background: rgba(255, 255, 255, 0.12);
+        color: #f1f5f9;
+      }
+      .receipt-reject-modal .rrm-body {
+        padding: 1.15rem 1.25rem 1.25rem;
+        display: flex;
+        flex-direction: column;
+        gap: 0.65rem;
+      }
+      .receipt-reject-modal .rrm-label {
+        font-size: 0.8rem;
+        font-weight: 600;
+        color: #e2e8f0;
+        letter-spacing: 0.02em;
+        text-transform: uppercase;
+      }
+      .receipt-reject-modal .rrm-hint {
+        margin: -0.25rem 0 0;
+        font-size: 0.8rem;
+        color: #94a3b8;
+      }
+      .receipt-reject-modal .rrm-quick-reasons {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+      }
+      .receipt-reject-modal .rrm-chip {
+        padding: 6px 10px;
+        font-size: 0.75rem;
+        font-weight: 600;
+        color: #fecaca;
+        background: rgba(220, 38, 38, 0.15);
+        border: 1px solid rgba(248, 113, 113, 0.35);
+        border-radius: 999px;
+        cursor: pointer;
+        transition: background 0.15s, border-color 0.15s, color 0.15s;
+      }
+      .receipt-reject-modal .rrm-chip:hover,
+      .receipt-reject-modal .rrm-chip.rrm-chip-active {
+        background: rgba(220, 38, 38, 0.28);
+        border-color: rgba(248, 113, 113, 0.55);
+        color: #fff;
+      }
+      .receipt-reject-modal .rrm-textarea {
+        width: 100%;
+        min-height: 96px;
+        padding: 10px 12px;
+        font-size: 0.9rem;
+        line-height: 1.45;
+        color: #f1f5f9;
+        background: rgba(15, 23, 42, 0.85);
+        border: 1px solid rgba(148, 163, 184, 0.35);
+        border-radius: 10px;
+        resize: vertical;
+        transition: border-color 0.15s, box-shadow 0.15s;
+      }
+      .receipt-reject-modal .rrm-textarea::placeholder { color: #64748b; }
+      .receipt-reject-modal .rrm-textarea:focus {
+        outline: none;
+        border-color: rgba(248, 113, 113, 0.65);
+        box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.2);
+      }
+      .receipt-reject-modal .rrm-textarea.rrm-invalid {
+        border-color: #f87171;
+        box-shadow: 0 0 0 3px rgba(248, 113, 113, 0.25);
+      }
+      .receipt-reject-modal .rrm-char-count {
+        margin-top: -0.35rem;
+        font-size: 0.72rem;
+        color: #64748b;
+        text-align: right;
+      }
+      .receipt-reject-modal .rrm-error {
+        margin: 0;
+        padding: 8px 10px;
+        font-size: 0.8rem;
+        color: #fecaca;
+        background: rgba(127, 29, 29, 0.35);
+        border: 1px solid rgba(248, 113, 113, 0.4);
+        border-radius: 8px;
+      }
+      .receipt-reject-modal .rrm-footer {
+        display: flex;
+        justify-content: flex-end;
+        gap: 8px;
+        margin-top: 0.35rem;
+        padding-top: 0.5rem;
+      }
+      .receipt-reject-modal .rrm-btn {
+        padding: 8px 14px;
+        font-size: 0.85rem;
+        font-weight: 600;
+        border-radius: 8px;
+        border: 1px solid transparent;
+        cursor: pointer;
+        transition: filter 0.15s, transform 0.05s;
+      }
+      .receipt-reject-modal .rrm-btn:active:not(:disabled) { transform: translateY(1px); }
+      .receipt-reject-modal .rrm-btn:disabled { opacity: 0.55; cursor: not-allowed; }
+      .receipt-reject-modal .rrm-btn-cancel {
+        color: #cbd5e1;
+        background: rgba(255, 255, 255, 0.06);
+        border-color: rgba(148, 163, 184, 0.25);
+      }
+      .receipt-reject-modal .rrm-btn-cancel:hover:not(:disabled) {
+        background: rgba(255, 255, 255, 0.1);
+      }
+      .receipt-reject-modal .rrm-btn-submit {
+        color: #fff;
+        background: linear-gradient(180deg, #dc2626 0%, #b91c1c 100%);
+        border-color: #991b1b;
+      }
+      .receipt-reject-modal .rrm-btn-submit:hover:not(:disabled) {
+        filter: brightness(1.08);
+      }
+
+      /* ── Telegram-style inline spoiler (digital-delivery reveal) ────── */
+      /*
+       * Each `<span class="spoiler-text trigger-decrypt">` is one redacted
+       * value inside a chat bubble. Labels (e.g. "🔗 الرابط:") are NOT
+       * blurred — only the value next to them is. On click, the bubble's
+       * shared message id POSTs to `/api/messages/reveal-asset/`; the
+       * server returns `{fields: {...}}` and the JS swaps each span's
+       * textContent in-place and removes the `.spoiler-text` class
+       * (adds `.revealed` for the unblurred styling).
+       *
+       * Security note: this CSS is purely cosmetic. The real protection
+       * is the owner-only RBAC in `api_reveal_asset` — the DOM contains
+       * ONLY the asterisk redaction at paint time, never any plaintext
+       * or ciphertext.
+       */
+      .spoiler-text {
+        filter: blur(5px);
+        -webkit-filter: blur(5px);
+        background-color: #e9ecef;
+        color: transparent;
+        border-radius: 4px;
+        padding: 0 6px;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        -webkit-user-select: none;
+        -moz-user-select: none;
+        -ms-user-select: none;
+        user-select: none;
+      }
+      .spoiler-text:hover {
+        filter: blur(4px);
+        -webkit-filter: blur(4px);
+      }
+      .spoiler-text.revealed {
+        filter: none;
+        -webkit-filter: none;
+        background-color: transparent;
+        color: inherit;
+        cursor: text;
+        -webkit-user-select: text;
+        -moz-user-select: text;
+        -ms-user-select: text;
+        user-select: text;
+      }
+      /* Permanent-denied state (employee clicked but server returned 403).
+       * Renders the canonical error string in-place inside the same span
+       * so the seller sees WHY the value did not appear — no toast needed.
+       */
+      .spoiler-text.access-denied {
+        filter: none;
+        -webkit-filter: none;
+        background-color: #fef2f2;
+        color: #b91c1c;
+        cursor: not-allowed;
+        font-style: italic;
+        -webkit-user-select: none;
+        user-select: none;
+      }
+
       /* Image / video attachment preview card */
       .cls3741_media_preview_card {
         border-radius: 14px;
@@ -6497,6 +7004,17 @@ $('#cls3741_attach_btn').on('click', function() {
     <div class="cls3741_orders_content">
       <div class="cls3741_orders_toolbar">
         <input type="text" id="contacts_panel_search" class="cls3741_orders_search" placeholder="Search by customer name or phone…" aria-label="Search orders">
+        <div class="cls3741_orders_type_filter" role="group" aria-label="Filter orders by type">
+          <button type="button" class="cls3741_otype_btn active" data-otype="all">
+            <i class="fas fa-layer-group"></i> All
+          </button>
+          <button type="button" class="cls3741_otype_btn" data-otype="physical">
+            <i class="fas fa-box"></i> Physical
+          </button>
+          <button type="button" class="cls3741_otype_btn" data-otype="digital">
+            <i class="fas fa-cloud-download-alt"></i> Digital
+          </button>
+        </div>
       </div>
       <div id="orders_table_wrap" class="cls3741_orders_table_wrap table-responsive">
         <table id="orders_table" class="cls3741_orders_table">
@@ -6531,10 +7049,21 @@ $('#cls3741_attach_btn').on('click', function() {
       .cls3741_orders_title { margin: 0; font-size: 1.25rem; font-weight: 700; color: #f1f5f9; letter-spacing: -0.02em; }
       .cls3741_orders_subtitle { margin: 0.25rem 0 0; font-size: 0.8rem; color: #94a3b8; }
       .cls3741_orders_content { padding: 1.25rem 1.5rem; }
-      .cls3741_orders_toolbar { margin-bottom: 1rem; }
-      .cls3741_orders_search { width: 100%; max-width: 320px; padding: 0.6rem 1rem; font-size: 0.9rem; color: var(--text-primary); background: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: 10px; outline: none; }
+      .cls3741_orders_toolbar { margin-bottom: 1rem; display: flex; align-items: center; flex-wrap: wrap; gap: 0.75rem; }
+      .cls3741_orders_search { padding: 0.6rem 1rem; font-size: 0.9rem; color: var(--text-primary); background: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: 10px; outline: none; min-width: 200px; flex: 1 1 200px; max-width: 320px; }
       .cls3741_orders_search::placeholder { color: #64748b; }
       .cls3741_orders_search:focus { border-color: rgba(16, 185, 129, 0.4); box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.15); }
+      /* ── Order type filter toggle ── */
+      .cls3741_orders_type_filter { display: inline-flex; align-items: center; background: rgba(15,23,42,0.6); border: 1px solid rgba(148,163,184,0.15); border-radius: 10px; padding: 3px; gap: 2px; flex-shrink: 0; }
+      .cls3741_otype_btn { display: inline-flex; align-items: center; gap: 6px; padding: 0.42rem 1rem; font-size: 0.8rem; font-weight: 600; border: none; border-radius: 7px; cursor: pointer; background: transparent; color: #94a3b8; transition: background 0.18s, color 0.18s, box-shadow 0.18s; white-space: nowrap; }
+      .cls3741_otype_btn:hover:not(.active) { background: rgba(148,163,184,0.1); color: #cbd5e1; }
+      .cls3741_otype_btn.active { background: rgba(16,185,129,0.18); color: #34d399; box-shadow: 0 0 0 1px rgba(16,185,129,0.35) inset; }
+      .cls3741_otype_btn[data-otype="digital"].active { background: rgba(99,102,241,0.2); color: #a5b4fc; box-shadow: 0 0 0 1px rgba(99,102,241,0.4) inset; }
+      .cls3741_otype_btn[data-otype="physical"].active { background: rgba(245,158,11,0.18); color: #fcd34d; box-shadow: 0 0 0 1px rgba(245,158,11,0.35) inset; }
+      /* ── Order type badge in table ── */
+      .cls3741_order_type_badge { display: inline-flex; align-items: center; padding: 2px 7px; border-radius: 5px; font-size: 0.68rem; font-weight: 700; letter-spacing: 0.02em; margin-left: 5px; vertical-align: middle; }
+      .cls3741_order_type_badge.digital { background: rgba(99,102,241,0.18); color: #a5b4fc; border: 1px solid rgba(99,102,241,0.3); }
+      .cls3741_order_type_badge.physical { background: rgba(245,158,11,0.15); color: #fcd34d; border: 1px solid rgba(245,158,11,0.3); }
       .cls3741_orders_table_wrap { border-radius: 12px; border: 1px solid var(--border-color); background: var(--surface-soft); overflow: auto; }
       .cls3741_orders_table { width: 100%; border-collapse: collapse; color: #e2e8f0; }
       .cls3741_orders_table thead th { padding: 0.8rem 1rem; font-size: 0.7rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-secondary); background: var(--surface-soft-hover); border-bottom: 1px solid var(--border-color); text-align: left; }
@@ -6575,7 +7104,7 @@ $('#cls3741_attach_btn').on('click', function() {
   const ordersPaginationWrap = document.getElementById('orders_pagination_wrap');
   let ordersCurrentPage = 1;
 
-  async function loadTemplates(channel_id_arg=null, page_arg=1){
+  async function _loadOrdersTable(channel_id_arg=null, page_arg=1){
    
     // 1. تنظيف المدخلات: إذا كان المعامل هو حدث (Event) نجعله null
     let activeChannelId = channel_id_arg;
@@ -6627,14 +7156,20 @@ $('#cls3741_attach_btn').on('click', function() {
         const statusLabel = syncStatus === 'success' ? 'OK' : syncStatus === 'failed' ? 'Failed' : syncStatus === 'pending' ? 'Pending' : '—';
         const statusColor = syncStatus === 'success' ? '#22c55e' : syncStatus === 'failed' ? '#ef4444' : '#eab308';
 
+        const isDigital = !!item.is_digital;
+        const typeBadge = isDigital
+          ? `<span class="cls3741_order_type_badge digital">☁ Digital</span>`
+          : `<span class="cls3741_order_type_badge physical">📦 Physical</span>`;
+
         const tr = document.createElement('tr');
         tr.setAttribute('data-order-id', item.id);
+        tr.setAttribute('data-is-digital', isDigital ? '1' : '0');
         tr.innerHTML = `
           <td class="cls3741_orders_cell_agent" title="${createdByIsBot ? 'Created by AI Agent' : ''}">${useremail}</td>
           <td>${name}</td>
           <td class="cls3741_orders_cell_muted">${customer_city}</td>
           <td>${quantity}</td>
-          <td class="cls3741_orders_cell_muted">${product}</td>
+          <td class="cls3741_orders_cell_muted">${product} ${typeBadge}</td>
           <td>${Tamount}</td>
           <td>${updated}</td>
           <td>
@@ -6669,7 +7204,7 @@ $('#cls3741_attach_btn').on('click', function() {
                 done.style.fontWeight = '600';
                 done.style.marginLeft = '6px';
                 btn.parentNode.appendChild(done);
-                loadTemplates(null, ordersCurrentPage);
+                _loadOrdersTable(null, ordersCurrentPage);
               } else {
                 if (typeof showToast === 'function') showToast('Error: ' + (res.json.message || 'Sync failed'), 'error');
                 else alert('Error: ' + (res.json.message || 'Sync failed'));
@@ -6704,7 +7239,7 @@ $('#cls3741_attach_btn').on('click', function() {
             if (d === 'prev') next = p.page - 1;
             else if (d === 'next') next = p.page + 1;
             else next = parseInt(d, 10);
-            if (next >= 1 && next <= p.total_pages) loadTemplates(null, next);
+            if (next >= 1 && next <= p.total_pages) _loadOrdersTable(null, next);
           });
         });
       } else if (ordersPaginationWrap && pagination && pagination.total_count > 0) {
@@ -6723,9 +7258,8 @@ $('#cls3741_attach_btn').on('click', function() {
   window.loadOrdersForChannel = function(channelId, page) {
     var targetPage = (typeof page === 'number' && page >= 1) ? page : 1;
     ordersCurrentPage = targetPage;
-    return loadTemplates(channelId || null, targetPage);
+    return _loadOrdersTable(channelId || null, targetPage);
   };
-  window.loadTemplates = loadTemplates;
 
   // تحميل البيانات عند الضغط على الزر
   const templatesNavBtn = document.querySelector('.cls3741_btn[data-target="orders"]');
@@ -6734,11 +7268,56 @@ $('#cls3741_attach_btn').on('click', function() {
       if (typeof window.loadOrdersForChannel === 'function') {
         window.loadOrdersForChannel(window.currentChannelId || null, 1);
       } else {
-        loadTemplates(null, 1);
+        _loadOrdersTable(null, 1);
       }
     });
     templatesNavBtn.dataset._boundTemplatesLoader = '1';
   }
+
+  // ── Order type filter ──────────────────────────────────────────────────────
+  let _ordersActiveFilter = 'all';
+
+  function _applyOrderTypeFilter(filter) {
+    _ordersActiveFilter = filter;
+    // Update button active state
+    document.querySelectorAll('.cls3741_otype_btn').forEach(function(btn) {
+      btn.classList.toggle('active', btn.getAttribute('data-otype') === filter);
+    });
+    // Show/hide rows
+    const rows = document.querySelectorAll('#orders_tbody tr[data-order-id]');
+    let visibleCount = 0;
+    rows.forEach(function(row) {
+      const digital = row.getAttribute('data-is-digital') === '1';
+      const show = filter === 'all' || (filter === 'digital' && digital) || (filter === 'physical' && !digital);
+      row.style.display = show ? '' : 'none';
+      if (show) visibleCount++;
+    });
+    // Show empty state if nothing visible
+    const emptyRow = document.querySelector('#orders_tbody .cls3741_orders_empty_filter');
+    if (visibleCount === 0 && rows.length > 0) {
+      if (!emptyRow) {
+        const tr = document.createElement('tr');
+        tr.className = 'cls3741_orders_empty_filter';
+        tr.innerHTML = `<td colspan="8" class="cls3741_orders_empty">No ${filter} orders found.</td>`;
+        document.getElementById('orders_tbody').appendChild(tr);
+      }
+    } else if (emptyRow) {
+      emptyRow.remove();
+    }
+  }
+
+  document.querySelectorAll('.cls3741_otype_btn').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+      _applyOrderTypeFilter(this.getAttribute('data-otype'));
+    });
+  });
+
+  // Re-apply active filter after each data load
+  const _origLoadOrdersForChannel = window.loadOrdersForChannel;
+  window.loadOrdersForChannel = async function(channelId, page) {
+    await _origLoadOrdersForChannel(channelId, page);
+    _applyOrderTypeFilter(_ordersActiveFilter);
+  };
 </script>
 
 
@@ -6768,6 +7347,590 @@ $('#cls3741_attach_btn').on('click', function() {
       .cls3741_panel_products input::placeholder, .cls3741_panel_products textarea::placeholder { color: #64748b; }
       .cls3741_panel_products textarea { resize: vertical; min-height: 88px; }
       .cls3741_panel_products .form-hint { font-size: 0.78rem; color: #64748b; margin-top: 0.35rem; }
+
+      /* ── Basic information card ─────────────────────────────── */
+      .cls3741_panel_products .basic-info-card {
+        border-color: rgba(99,102,241,0.18);
+      }
+      .cls3741_panel_products .basic-info-card-header {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 0.75rem;
+        flex-wrap: wrap;
+        margin-bottom: 1.1rem;
+        padding-bottom: 0.85rem;
+        border-bottom: 1px solid rgba(255,255,255,0.06);
+      }
+      .cls3741_panel_products .basic-info-card-header .product-card-title {
+        margin-bottom: 0;
+        padding-bottom: 0;
+        border-bottom: none;
+        display: flex;
+        align-items: center;
+        gap: 0.45rem;
+        font-size: 0.78rem;
+        color: #a5b4fc;
+      }
+      .cls3741_panel_products .basic-info-card-lead {
+        margin: 0;
+        font-size: 0.78rem;
+        color: #64748b;
+        line-height: 1.45;
+        flex: 1 1 100%;
+      }
+      .cls3741_panel_products .basic-info-block {
+        margin-bottom: 1rem;
+        padding: 0.95rem 1rem;
+        border-radius: 12px;
+        background: rgba(2,6,23,0.28);
+        border: 1px solid rgba(148,163,184,0.1);
+      }
+      .cls3741_panel_products .basic-info-block:last-child { margin-bottom: 0; }
+      .cls3741_panel_products .basic-info-block-label {
+        display: flex;
+        align-items: center;
+        gap: 0.4rem;
+        font-size: 0.72rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+        color: #94a3b8;
+        margin-bottom: 0.65rem;
+      }
+      .cls3741_panel_products .basic-info-block-label i { color: #818cf8; font-size: 0.75rem; }
+      .cls3741_panel_products .basic-info-grid-2 {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 0.75rem;
+      }
+      @media (max-width: 640px) {
+        .cls3741_panel_products .basic-info-grid-2 { grid-template-columns: 1fr; }
+      }
+      .cls3741_panel_products .basic-info-field { margin-bottom: 0; }
+      .cls3741_panel_products .basic-info-field label {
+        display: flex;
+        align-items: center;
+        gap: 0.35rem;
+        font-size: 0.82rem;
+        margin-bottom: 0.4rem;
+      }
+      .cls3741_panel_products .basic-info-pricing-row {
+        display: grid;
+        grid-template-columns: 1fr minmax(160px, 220px);
+        gap: 0.75rem;
+        align-items: start;
+      }
+      @media (max-width: 640px) {
+        .cls3741_panel_products .basic-info-pricing-row { grid-template-columns: 1fr; }
+      }
+
+      /* ── Pricing panel (professional) ─────────────────────────── */
+      .cls3741_panel_products .pricing-panel {
+        margin-bottom: 1rem;
+        border-radius: 14px;
+        border: 1px solid rgba(16,185,129,0.22);
+        background: linear-gradient(160deg, rgba(16,185,129,0.07) 0%, rgba(2,6,23,0.35) 55%);
+        overflow: hidden;
+        box-shadow: 0 0 0 1px rgba(16,185,129,0.05);
+      }
+      .cls3741_panel_products .pricing-panel-header {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 0.75rem;
+        flex-wrap: wrap;
+        padding: 0.9rem 1.05rem 0.75rem;
+        border-bottom: 1px solid rgba(255,255,255,0.06);
+      }
+      .cls3741_panel_products .pricing-panel-title {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        margin: 0 0 0.25rem;
+        font-size: 0.88rem;
+        font-weight: 600;
+        color: #ecfdf5;
+      }
+      .cls3741_panel_products .pricing-panel-title i {
+        width: 28px;
+        height: 28px;
+        border-radius: 8px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        background: rgba(16,185,129,0.15);
+        color: #34d399;
+        font-size: 0.8rem;
+      }
+      .cls3741_panel_products .pricing-panel-sub {
+        margin: 0;
+        font-size: 0.76rem;
+        color: #94a3b8;
+        line-height: 1.4;
+      }
+      .cls3741_panel_products .pricing-panel-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.3rem;
+        padding: 0.28rem 0.6rem;
+        border-radius: 999px;
+        font-size: 0.68rem;
+        font-weight: 600;
+        color: #6ee7b7;
+        background: rgba(16,185,129,0.12);
+        border: 1px solid rgba(16,185,129,0.28);
+        white-space: nowrap;
+      }
+      .cls3741_panel_products .pricing-panel-body {
+        padding: 1rem 1.05rem 1.05rem;
+        display: flex;
+        flex-direction: column;
+        gap: 0.9rem;
+      }
+      .cls3741_panel_products .pricing-amount-block label {
+        display: block;
+        font-size: 0.78rem;
+        font-weight: 600;
+        color: #cbd5e1;
+        margin-bottom: 0.45rem;
+      }
+      .cls3741_panel_products .pricing-amount-group {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) minmax(200px, 260px);
+        gap: 0.65rem;
+        align-items: stretch;
+      }
+      @media (max-width: 720px) {
+        .cls3741_panel_products .pricing-amount-group { grid-template-columns: 1fr; }
+      }
+      .cls3741_panel_products .pricing-amount-input-wrap {
+        position: relative;
+        display: flex;
+        align-items: center;
+      }
+      .cls3741_panel_products .pricing-amount-input {
+        width: 100%;
+        padding: 0.75rem 0.85rem !important;
+        font-size: 1.05rem !important;
+        font-weight: 600;
+        letter-spacing: 0.01em;
+        border-color: rgba(16,185,129,0.25) !important;
+        background: rgba(0,0,0,0.25) !important;
+      }
+      .cls3741_panel_products .pricing-amount-input:focus {
+        border-color: rgba(16,185,129,0.55) !important;
+        box-shadow: 0 0 0 3px rgba(16,185,129,0.15) !important;
+      }
+      .cls3741_panel_products .pricing-currency-picker {
+        position: relative;
+        display: flex;
+        flex-direction: column;
+        gap: 0.35rem;
+        padding: 0.55rem 0.65rem;
+        border-radius: 10px;
+        border: 1px solid rgba(148,163,184,0.14);
+        background: rgba(0,0,0,0.2);
+      }
+      .cls3741_panel_products .pricing-currency-picker.is-open {
+        border-color: rgba(16,185,129,0.35);
+        background: rgba(0,0,0,0.28);
+        z-index: 20;
+      }
+      .cls3741_panel_products .pricing-currency-picker-label {
+        display: flex;
+        align-items: center;
+        gap: 0.35rem;
+        font-size: 0.68rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        color: #64748b;
+        margin: 0;
+      }
+      .cls3741_panel_products .currency-trigger {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        width: 100%;
+        padding: 0.55rem 0.65rem;
+        border-radius: 8px;
+        border: 1px solid rgba(148,163,184,0.16);
+        background: rgba(2,6,23,0.45);
+        color: #e2e8f0;
+        font: inherit;
+        text-align: left;
+        cursor: pointer;
+        transition: border-color 0.2s ease, background 0.2s ease, box-shadow 0.2s ease;
+      }
+      .cls3741_panel_products .currency-trigger:hover {
+        border-color: rgba(16,185,129,0.35);
+        background: rgba(16,185,129,0.06);
+      }
+      .cls3741_panel_products .pricing-currency-picker.is-open .currency-trigger {
+        border-color: rgba(16,185,129,0.4);
+        background: rgba(16,185,129,0.08);
+        box-shadow: 0 0 0 1px rgba(16,185,129,0.1);
+      }
+      .cls3741_panel_products .currency-trigger-code {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-width: 2.6rem;
+        padding: 0.2rem 0.45rem;
+        border-radius: 6px;
+        font-size: 0.78rem;
+        font-weight: 700;
+        letter-spacing: 0.04em;
+        color: #6ee7b7;
+        background: rgba(16,185,129,0.14);
+        border: 1px solid rgba(16,185,129,0.25);
+        flex-shrink: 0;
+      }
+      .cls3741_panel_products .currency-trigger-name {
+        flex: 1;
+        min-width: 0;
+        font-size: 0.82rem;
+        font-weight: 500;
+        color: #cbd5e1;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+      .cls3741_panel_products .currency-trigger-hint {
+        font-size: 0.68rem;
+        color: #64748b;
+        flex-shrink: 0;
+      }
+      .cls3741_panel_products .currency-trigger-chevron {
+        font-size: 0.68rem;
+        color: #64748b;
+        transition: transform 0.2s ease, color 0.2s ease;
+        flex-shrink: 0;
+      }
+      .cls3741_panel_products .pricing-currency-picker.is-open .currency-trigger-chevron {
+        transform: rotate(180deg);
+        color: #34d399;
+      }
+      .cls3741_panel_products .currency-dropdown {
+        display: none;
+        flex-direction: column;
+        gap: 0.4rem;
+        padding-top: 0.35rem;
+        border-top: 1px solid rgba(255,255,255,0.06);
+        margin-top: 0.15rem;
+      }
+      .cls3741_panel_products .pricing-currency-picker.is-open .currency-dropdown {
+        display: flex;
+      }
+      .cls3741_panel_products .pricing-currency-search {
+        padding: 0.45rem 0.6rem !important;
+        font-size: 0.78rem !important;
+        border-radius: 8px !important;
+      }
+      .cls3741_panel_products .pricing-currency-select {
+        padding: 0.5rem 0.6rem !important;
+        font-size: 0.82rem !important;
+        border-radius: 8px !important;
+        max-height: 180px;
+      }
+      .cls3741_panel_products .pricing-options-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 0.65rem;
+      }
+      @media (max-width: 640px) {
+        .cls3741_panel_products .pricing-options-grid { grid-template-columns: 1fr; }
+      }
+      .cls3741_panel_products .pricing-option-card {
+        padding: 0.75rem 0.85rem;
+        border-radius: 10px;
+        border: 1px solid rgba(148,163,184,0.12);
+        background: rgba(2,6,23,0.35);
+        transition: border-color 0.2s ease, background 0.2s ease;
+      }
+      .cls3741_panel_products .pricing-option-card:focus-within {
+        border-color: rgba(99,102,241,0.35);
+        background: rgba(99,102,241,0.06);
+      }
+      .cls3741_panel_products .pricing-option-card--floor:focus-within {
+        border-color: rgba(245,158,11,0.35);
+        background: rgba(245,158,11,0.05);
+      }
+      .cls3741_panel_products .pricing-option-card-head {
+        display: flex;
+        align-items: center;
+        gap: 0.45rem;
+        margin-bottom: 0.45rem;
+      }
+      .cls3741_panel_products .pricing-option-icon {
+        width: 26px;
+        height: 26px;
+        border-radius: 7px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 0.72rem;
+        flex-shrink: 0;
+      }
+      .cls3741_panel_products .pricing-option-card--floor .pricing-option-icon {
+        background: rgba(245,158,11,0.12);
+        color: #fbbf24;
+      }
+      .cls3741_panel_products .pricing-option-card--coupon .pricing-option-icon {
+        background: rgba(99,102,241,0.12);
+        color: #a5b4fc;
+      }
+      .cls3741_panel_products .pricing-option-card label {
+        margin: 0;
+        font-size: 0.78rem;
+        font-weight: 600;
+        color: #e2e8f0;
+        line-height: 1.25;
+      }
+      .cls3741_panel_products .pricing-option-card input {
+        margin-bottom: 0.35rem;
+        font-size: 0.88rem !important;
+      }
+      .cls3741_panel_products .pricing-option-card .form-hint {
+        margin: 0;
+        font-size: 0.71rem;
+        line-height: 1.35;
+      }
+      .cls3741_panel_products .pricing-panel-footnote {
+        margin: 0;
+        padding-top: 0.15rem;
+        font-size: 0.72rem;
+        color: #64748b;
+        line-height: 1.4;
+      }
+      .cls3741_panel_products .pricing-panel-footnote i {
+        color: #818cf8;
+        margin-right: 0.25rem;
+      }
+
+      /* ── Description & persona panel ─────────────────────────── */
+      .cls3741_panel_products .copy-panel {
+        margin-bottom: 0;
+        border-radius: 14px;
+        border: 1px solid rgba(99,102,241,0.24);
+        background: linear-gradient(165deg, rgba(99,102,241,0.09) 0%, rgba(2,6,23,0.38) 58%);
+        overflow: hidden;
+        box-shadow: 0 0 0 1px rgba(99,102,241,0.06);
+      }
+      .cls3741_panel_products .copy-panel-header {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 0.75rem;
+        flex-wrap: wrap;
+        padding: 0.9rem 1.05rem 0.75rem;
+        border-bottom: 1px solid rgba(255,255,255,0.06);
+      }
+      .cls3741_panel_products .copy-panel-title {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        margin: 0 0 0.25rem;
+        font-size: 0.88rem;
+        font-weight: 600;
+        color: #e0e7ff;
+      }
+      .cls3741_panel_products .copy-panel-title i {
+        width: 28px;
+        height: 28px;
+        border-radius: 8px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        background: rgba(99,102,241,0.18);
+        color: #a5b4fc;
+        font-size: 0.8rem;
+      }
+      .cls3741_panel_products .copy-panel-sub {
+        margin: 0;
+        font-size: 0.76rem;
+        color: #94a3b8;
+        line-height: 1.4;
+      }
+      .cls3741_panel_products .copy-panel-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.3rem;
+        padding: 0.28rem 0.6rem;
+        border-radius: 999px;
+        font-size: 0.68rem;
+        font-weight: 600;
+        color: #c7d2fe;
+        background: rgba(99,102,241,0.14);
+        border: 1px solid rgba(99,102,241,0.32);
+        white-space: nowrap;
+      }
+      .cls3741_panel_products .copy-panel-body {
+        display: grid;
+        grid-template-columns: minmax(0, 1.45fr) minmax(240px, 1fr);
+        gap: 0.85rem;
+        padding: 1rem 1.05rem 1.05rem;
+        align-items: start;
+      }
+      @media (max-width: 860px) {
+        .cls3741_panel_products .copy-panel-body { grid-template-columns: 1fr; }
+      }
+      .cls3741_panel_products .copy-description-block label {
+        display: block;
+        font-size: 0.78rem;
+        font-weight: 600;
+        color: #cbd5e1;
+        margin-bottom: 0.45rem;
+      }
+      .cls3741_panel_products .copy-description-input {
+        min-height: 132px !important;
+        padding: 0.75rem 0.85rem !important;
+        font-size: 0.88rem !important;
+        line-height: 1.55 !important;
+        border-color: rgba(99,102,241,0.22) !important;
+        background: rgba(0,0,0,0.22) !important;
+        resize: vertical;
+      }
+      .cls3741_panel_products .copy-description-input:focus {
+        border-color: rgba(99,102,241,0.5) !important;
+        box-shadow: 0 0 0 3px rgba(99,102,241,0.14) !important;
+      }
+      .cls3741_panel_products .copy-description-hint {
+        display: flex;
+        align-items: flex-start;
+        gap: 0.4rem;
+        margin: 0.45rem 0 0;
+        font-size: 0.72rem;
+        color: #64748b;
+        line-height: 1.4;
+      }
+      .cls3741_panel_products .copy-description-hint i {
+        color: #818cf8;
+        margin-top: 0.1rem;
+        flex-shrink: 0;
+      }
+      .cls3741_panel_products .persona-sidebar {
+        padding: 0.85rem 0.9rem;
+        border-radius: 12px;
+        border: 1px solid rgba(99,102,241,0.22);
+        background: rgba(2,6,23,0.45);
+      }
+      .cls3741_panel_products .persona-sidebar-head {
+        display: flex;
+        align-items: center;
+        gap: 0.45rem;
+        margin-bottom: 0.55rem;
+      }
+      .cls3741_panel_products .persona-sidebar-icon {
+        width: 30px;
+        height: 30px;
+        border-radius: 8px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        background: rgba(99,102,241,0.15);
+        color: #a5b4fc;
+        font-size: 0.82rem;
+        flex-shrink: 0;
+      }
+      .cls3741_panel_products .persona-sidebar-label {
+        margin: 0;
+        font-size: 0.78rem;
+        font-weight: 600;
+        color: #e2e8f0;
+        line-height: 1.25;
+      }
+      .cls3741_panel_products .persona-sidebar-sublabel {
+        margin: 0.1rem 0 0;
+        font-size: 0.68rem;
+        color: #64748b;
+      }
+      .cls3741_panel_products .category-ai-field-wrap {
+        position: relative;
+        margin-bottom: 0.55rem;
+      }
+      .cls3741_panel_products .category-ai-field-wrap input[readonly] {
+        width: 100%;
+        padding: 0.65rem 2.4rem 0.65rem 0.75rem !important;
+        cursor: not-allowed;
+        background: rgba(0,0,0,0.28);
+        color: #94a3b8;
+        font-size: 0.88rem !important;
+        font-weight: 600;
+        border-radius: 10px;
+        border: 1px solid rgba(148,163,184,0.14);
+      }
+      .cls3741_panel_products .category-ai-field-wrap.is-detected input[readonly] {
+        color: #c7d2fe;
+        border-color: rgba(99,102,241,0.42);
+        background: rgba(99,102,241,0.12);
+        box-shadow: 0 0 0 1px rgba(99,102,241,0.12);
+      }
+      .cls3741_panel_products .category-ai-field-wrap.is-detecting input[readonly] {
+        color: #94a3b8;
+        border-color: rgba(99,102,241,0.25);
+        background: rgba(99,102,241,0.06);
+      }
+      .cls3741_panel_products .category-ai-icon {
+        position: absolute;
+        right: 0.75rem;
+        top: 50%;
+        transform: translateY(-50%);
+        color: #6366f1;
+        font-size: 0.85rem;
+        pointer-events: none;
+      }
+      .cls3741_panel_products .category-ai-field-wrap.is-detected .category-ai-icon {
+        color: #34d399;
+      }
+      .cls3741_panel_products .persona-tags {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.35rem;
+        margin-bottom: 0.55rem;
+      }
+      .cls3741_panel_products .persona-tag {
+        display: inline-flex;
+        align-items: center;
+        padding: 0.22rem 0.48rem;
+        border-radius: 999px;
+        font-size: 0.65rem;
+        font-weight: 600;
+        letter-spacing: 0.02em;
+        color: #94a3b8;
+        background: rgba(148,163,184,0.08);
+        border: 1px solid rgba(148,163,184,0.12);
+      }
+      .cls3741_panel_products .persona-sidebar-note {
+        display: flex;
+        align-items: flex-start;
+        gap: 0.4rem;
+        margin: 0;
+        font-size: 0.71rem;
+        line-height: 1.4;
+        color: #64748b;
+      }
+      .cls3741_panel_products .persona-sidebar-note i {
+        color: #818cf8;
+        margin-top: 0.08rem;
+        flex-shrink: 0;
+      }
+
+      .cls3741_panel_products .basic-info-currency-wrap {
+        display: flex;
+        flex-direction: column;
+        gap: 0.45rem;
+      }
+      .cls3741_panel_products .basic-info-currency-search {
+        padding: 0.55rem 0.75rem !important;
+        font-size: 0.82rem !important;
+      }
+      .cls3741_panel_products .basic-info-currency-select {
+        padding: 0.6rem 0.75rem !important;
+        font-size: 0.85rem !important;
+      }
+
       .cls3741_panel_products .offer-tiers { margin-top: 0.75rem; }
       .cls3741_panel_products .offer-tier-row { display: flex; gap: 0.75rem; align-items: center; margin-bottom: 0.6rem; }
       .cls3741_panel_products .offer-tier-row input { flex: 0 0 100px; }
@@ -6882,10 +8045,348 @@ $('#cls3741_attach_btn').on('click', function() {
       .cls3741_panel_products .checkout-mode-option:hover { background: rgba(255,255,255,0.06); border-color: rgba(129,140,248,0.35); }
       .cls3741_panel_products .checkout-mode-option.selected { border-color: #6366f1; background: rgba(99,102,241,0.12); box-shadow: 0 0 0 1px rgba(99,102,241,0.3); }
       .cls3741_panel_products .checkout-mode-option input { margin-top: 3px; accent-color: #6366f1; }
+      /* ── Direct Sale option — amber accent ─────────────────── */
+      .cls3741_panel_products .checkout-mode-option[data-mode="direct_sale"] .option-title { color: #fbbf24; }
+      .cls3741_panel_products .checkout-mode-option[data-mode="direct_sale"]:hover { border-color: rgba(245,158,11,0.45); background: rgba(245,158,11,0.06); }
+      .cls3741_panel_products .checkout-mode-option[data-mode="direct_sale"].selected { border-color: #f59e0b; background: rgba(245,158,11,0.1); box-shadow: 0 0 0 1px rgba(245,158,11,0.3); }
       .cls3741_panel_products .checkout-mode-option .option-text { flex: 1; min-width: 0; }
       .cls3741_panel_products .checkout-mode-option .option-title { font-weight: 600; color: #e2e8f0; font-size: 0.875rem; margin-bottom: 2px; }
       .cls3741_panel_products .checkout-mode-option .option-desc { font-size: 0.8rem; color: #94a3b8; line-height: 1.35; }
       .cls3741_panel_products .checkout-mode-wrap .form-hint { margin-top: 0.6rem; margin-bottom: 0; }
+
+      /* ── Product type toggle ─────────────────────────────── */
+      .cls3741_panel_products .ptype-selector { display: flex; gap: 0.75rem; }
+      .cls3741_panel_products .ptype-card { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 0.35rem; padding: 1.1rem 0.75rem 1rem; border-radius: 14px; border: 2px solid rgba(255,255,255,0.1); background: rgba(255,255,255,0.03); cursor: pointer; transition: border-color 0.25s, background 0.25s, box-shadow 0.25s; text-align: center; font: inherit; }
+      .cls3741_panel_products .ptype-card:hover { border-color: rgba(99,102,241,0.45); background: rgba(99,102,241,0.07); }
+      .cls3741_panel_products .ptype-card.active { border-color: #6366f1; background: rgba(99,102,241,0.13); box-shadow: 0 0 0 1px rgba(99,102,241,0.25), 0 4px 18px -6px rgba(99,102,241,0.3); }
+      .cls3741_panel_products .ptype-icon { font-size: 1.6rem; line-height: 1; }
+      .cls3741_panel_products .ptype-label { font-size: 0.875rem; font-weight: 700; color: #e2e8f0; }
+      .cls3741_panel_products .ptype-desc { font-size: 0.72rem; color: #64748b; }
+
+      /* ── Collapsible sections (smooth grid-row trick) ────── */
+      .cls3741_panel_products .prod-section { display: grid; grid-template-rows: 1fr; opacity: 1; transition: grid-template-rows 0.34s cubic-bezier(0.4,0,0.2,1), opacity 0.28s ease; }
+      .cls3741_panel_products .prod-section > .prod-section-inner { overflow: hidden; }
+      .cls3741_panel_products .prod-section.prod-section--hidden { grid-template-rows: 0fr; opacity: 0; pointer-events: none; }
+
+      /* ── Return / warranty policy card ─────────────────────── */
+      .cls3741_panel_products .return-policy-card {
+        margin-top: 0.35rem;
+        margin-bottom: 0.15rem;
+        padding: 1rem 1.05rem;
+        border-radius: 12px;
+        border: 1px solid rgba(148,163,184,0.12);
+        background: rgba(2,6,23,0.3);
+        transition: border-color 0.25s ease, background 0.25s ease, box-shadow 0.25s ease;
+      }
+      .cls3741_panel_products .return-policy-card.return-policy--physical-emphasis {
+        border-color: rgba(245,158,11,0.32);
+        background: linear-gradient(135deg, rgba(245,158,11,0.07) 0%, rgba(2,6,23,0.35) 100%);
+        box-shadow: 0 0 0 1px rgba(245,158,11,0.06);
+      }
+      .cls3741_panel_products .return-policy-card-header {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 0.75rem;
+        flex-wrap: wrap;
+        margin-bottom: 0.55rem;
+      }
+      .cls3741_panel_products .return-policy-card-title {
+        display: flex;
+        align-items: center;
+        gap: 0.45rem;
+        font-size: 0.88rem;
+        font-weight: 600;
+        color: #e2e8f0;
+        margin: 0;
+      }
+      .cls3741_panel_products .return-policy-card-title i {
+        color: #94a3b8;
+        font-size: 0.85rem;
+      }
+      .cls3741_panel_products .return-policy--physical-emphasis .return-policy-card-title i {
+        color: #fbbf24;
+      }
+      .cls3741_panel_products .return-policy-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.3rem;
+        padding: 0.28rem 0.55rem;
+        border-radius: 999px;
+        font-size: 0.68rem;
+        font-weight: 600;
+        letter-spacing: 0.02em;
+        background: rgba(245,158,11,0.12);
+        border: 1px solid rgba(245,158,11,0.28);
+        color: #fcd34d;
+        white-space: nowrap;
+      }
+      .cls3741_panel_products .return-policy-badge.is-hidden { display: none; }
+      .cls3741_panel_products .return-policy-card-lead {
+        margin: 0 0 0.75rem;
+        font-size: 0.78rem;
+        color: #94a3b8;
+        line-height: 1.45;
+      }
+      .cls3741_panel_products .return-policy-card textarea {
+        width: 100%;
+        min-height: 4.75rem;
+        resize: vertical;
+        margin-bottom: 0.55rem;
+      }
+      .cls3741_panel_products .return-policy-examples {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.4rem;
+        margin-bottom: 0.55rem;
+      }
+      .cls3741_panel_products .return-policy-example {
+        display: inline-block;
+        padding: 0.28rem 0.55rem;
+        border-radius: 8px;
+        font-size: 0.72rem;
+        color: #94a3b8;
+        background: rgba(148,163,184,0.08);
+        border: 1px solid rgba(148,163,184,0.12);
+        cursor: pointer;
+        transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+      }
+      .cls3741_panel_products .return-policy-example:hover {
+        color: #e2e8f0;
+        background: rgba(245,158,11,0.1);
+        border-color: rgba(245,158,11,0.25);
+      }
+      .cls3741_panel_products .return-policy-ai-note {
+        display: flex;
+        align-items: flex-start;
+        gap: 0.45rem;
+        margin: 0;
+        padding: 0.55rem 0.65rem;
+        border-radius: 8px;
+        font-size: 0.75rem;
+        line-height: 1.4;
+        color: #94a3b8;
+        background: rgba(99,102,241,0.08);
+        border: 1px solid rgba(99,102,241,0.18);
+      }
+      .cls3741_panel_products .return-policy-ai-note i {
+        color: #a5b4fc;
+        margin-top: 0.12rem;
+        flex-shrink: 0;
+      }
+
+      /* ── Digital asset card ──────────────────────────────── */
+      .cls3741_panel_products .product-card.digital-card { border-color: rgba(99,102,241,0.3); }
+      .cls3741_panel_products .product-card.digital-card > .product-card-title { color: #a5b4fc; border-bottom: none; margin-bottom: 0; padding-bottom: 0; }
+      .cls3741_panel_products .digital-card-header {
+        display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem; flex-wrap: wrap;
+        margin-bottom: 0.35rem; padding-bottom: 0.85rem; border-bottom: 1px solid rgba(255,255,255,0.06);
+      }
+      .cls3741_panel_products .digital-card-header .product-card-title { flex: 1; min-width: 0; }
+      .cls3741_panel_products .dig-stock-badge {
+        display: inline-flex; align-items: center; gap: 0.35rem; flex-shrink: 0;
+        padding: 0.35rem 0.65rem; border-radius: 999px; font-size: 0.72rem; font-weight: 600;
+        background: rgba(99,102,241,0.15); border: 1px solid rgba(99,102,241,0.35); color: #c7d2fe;
+      }
+      .cls3741_panel_products .dig-stock-badge.is-empty { background: rgba(239,68,68,0.12); border-color: rgba(239,68,68,0.35); color: #fca5a5; }
+      .cls3741_panel_products .dig-card-lead {
+        margin: 0 0 1.15rem; font-size: 0.82rem; color: #94a3b8; line-height: 1.45;
+      }
+      .cls3741_panel_products .dig-delivery-block {
+        margin-bottom: 1.1rem; padding: 1rem 1.05rem; border-radius: 12px;
+        background: rgba(2,6,23,0.35); border: 1px solid rgba(148,163,184,0.1);
+      }
+      .cls3741_panel_products .dig-delivery-block:last-child { margin-bottom: 0; }
+      .cls3741_panel_products .dig-delivery-block--stock {
+        border-color: rgba(99,102,241,0.22); background: rgba(99,102,241,0.05);
+      }
+      .cls3741_panel_products .dig-delivery-block--message {
+        background: transparent; border-style: dashed; border-color: rgba(148,163,184,0.15);
+        padding: 0.85rem 1rem;
+      }
+      .cls3741_panel_products .dig-block-label {
+        font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.07em;
+        color: #a5b4fc; margin-bottom: 0.35rem;
+      }
+      .cls3741_panel_products .dig-delivery-block--message .dig-block-label { color: #94a3b8; }
+      .cls3741_panel_products .dig-block-desc {
+        margin: 0 0 0.75rem; font-size: 0.78rem; color: #64748b; line-height: 1.4;
+      }
+      .cls3741_panel_products .dig-static-grid {
+        display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem;
+      }
+      @media (max-width: 640px) {
+        .cls3741_panel_products .dig-static-grid { grid-template-columns: 1fr; }
+      }
+      .cls3741_panel_products .dig-field-card {
+        display: flex; flex-direction: column; gap: 0.45rem; min-width: 0;
+        padding: 0.75rem 0.85rem; border-radius: 10px;
+        border: 1px solid rgba(255,255,255,0.08); background: rgba(15,23,42,0.55);
+      }
+      .cls3741_panel_products .dig-field-card label {
+        display: flex; align-items: center; gap: 0.4rem; font-size: 0.82rem; font-weight: 600; color: #e2e8f0; margin: 0;
+      }
+      .cls3741_panel_products .dig-field-card label i { color: #818cf8; font-size: 0.8rem; width: 1rem; text-align: center; }
+      .cls3741_panel_products .dig-field-card .form-hint { margin: 0; font-size: 0.72rem; line-height: 1.35; }
+      .cls3741_panel_products .dig-field-card input[type="file"],
+      .cls3741_panel_products .dig-field-card input[type="url"] { width: 100%; }
+      .cls3741_panel_products .dig-or-hint {
+        margin: 0.75rem 0 0; padding: 0.5rem 0.75rem; border-radius: 8px;
+        background: rgba(99,102,241,0.08); border: 1px solid rgba(99,102,241,0.2);
+        font-size: 0.75rem; color: #94a3b8; line-height: 1.4;
+      }
+      .cls3741_panel_products .dig-or-hint i { color: #a5b4fc; }
+      .cls3741_panel_products .dig-format-options {
+        display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; margin-bottom: 0.65rem;
+      }
+      @media (max-width: 520px) {
+        .cls3741_panel_products .dig-format-options { grid-template-columns: 1fr; }
+      }
+      .cls3741_panel_products .dig-format-option {
+        display: flex; align-items: flex-start; gap: 0.55rem; margin: 0; padding: 0.65rem 0.75rem;
+        border-radius: 10px; border: 1px solid rgba(255,255,255,0.1); background: rgba(15,23,42,0.45);
+        cursor: pointer; transition: border-color 0.2s, background 0.2s, box-shadow 0.2s;
+      }
+      .cls3741_panel_products .dig-format-option:hover {
+        border-color: rgba(129,140,248,0.4); background: rgba(99,102,241,0.08);
+      }
+      .cls3741_panel_products .dig-format-option:has(input:checked) {
+        border-color: #6366f1; background: rgba(99,102,241,0.14);
+        box-shadow: 0 0 0 1px rgba(99,102,241,0.28);
+      }
+      .cls3741_panel_products .dig-format-option input { margin-top: 2px; accent-color: #6366f1; flex-shrink: 0; }
+      .cls3741_panel_products .dig-format-option .dig-format-text { flex: 1; min-width: 0; }
+      .cls3741_panel_products .dig-format-option .dig-format-title {
+        display: block; font-size: 0.8rem; font-weight: 600; color: #e2e8f0; line-height: 1.3;
+      }
+      .cls3741_panel_products .dig-format-option .dig-format-example {
+        display: block; margin-top: 2px; font-size: 0.68rem; color: #64748b;
+        font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      }
+      .cls3741_panel_products .dig-stock-textarea {
+        width: 100%; min-height: 8.5rem; padding: 0.7rem 0.85rem; border-radius: 10px;
+        border: 1px solid rgba(255,255,255,0.12); background: rgba(2,6,23,0.65); color: #e2e8f0;
+        font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 0.8rem;
+        line-height: 1.55; resize: vertical; transition: border-color 0.2s, box-shadow 0.2s;
+      }
+      .cls3741_panel_products .dig-stock-textarea:focus {
+        outline: none; border-color: #6366f1; box-shadow: 0 0 0 3px rgba(99,102,241,0.2);
+      }
+      .cls3741_panel_products .dig-stock-textarea::placeholder { color: #475569; }
+      .cls3741_panel_products .dig-delivery-block .form-row { margin-bottom: 0; }
+      .cls3741_panel_products .dig-delivery-block--message textarea {
+        width: 100%; min-height: 4.5rem;
+      }
+      .cls3741_panel_products .dig-file-status {
+        margin-top: 0.35rem; padding: 0.45rem 0.6rem; border-radius: 8px; font-size: 0.75rem;
+        background: rgba(34,197,94,0.1); border: 1px solid rgba(34,197,94,0.25); color: #86efac;
+        word-break: break-all;
+      }
+      .cls3741_panel_products .dig-file-status a { color: #a5b4fc; text-decoration: underline; }
+      .cls3741_panel_products .dig-stock-existing {
+        margin-bottom: 0.65rem; padding: 0.65rem 0.75rem; border-radius: 10px;
+        border: 1px solid rgba(99,102,241,0.25); background: rgba(15,23,42,0.55);
+      }
+      .cls3741_panel_products .dig-stock-existing-title {
+        font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em;
+        color: #a5b4fc; margin-bottom: 0.45rem;
+      }
+      .cls3741_panel_products .dig-stock-existing-list {
+        margin: 0; padding: 0; list-style: none; max-height: 9rem; overflow-y: auto;
+        font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+        font-size: 0.75rem; line-height: 1.5; color: #cbd5e1;
+      }
+      .cls3741_panel_products .dig-stock-existing-list li {
+        padding: 0.2rem 0; border-bottom: 1px solid rgba(148,163,184,0.08);
+      }
+      .cls3741_panel_products .dig-stock-existing-list li:last-child { border-bottom: none; }
+      .cls3741_panel_products .dig-stock-existing-empty {
+        font-size: 0.75rem; color: #64748b; margin: 0;
+      }
+      .cls3741_panel_products input[type="url"] { width: 100%; padding: 0.6rem 0.85rem; border-radius: 10px; border: 1px solid rgba(255,255,255,0.1); background: rgba(2,6,23,0.5); color: #f1f5f9; font-size: 0.9rem; transition: border-color 0.2s, box-shadow 0.2s; }
+      .cls3741_panel_products input[type="url"]:focus { outline: none; border-color: #6366f1; box-shadow: 0 0 0 3px rgba(99,102,241,0.2); }
+      .cls3741_panel_products input[type="url"]::placeholder { color: #64748b; }
+
+      /* ── Product type filter toggle ─────────────────────────────── */
+      .cls3741_panel_products .product-list-header {
+        display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap;
+      }
+      .cls3741_panel_products .prod-type-toggle {
+        display: flex; align-items: center;
+        background: rgba(2,6,23,0.55);
+        border: 1px solid rgba(148,163,184,0.12);
+        border-radius: 10px;
+        padding: 3px;
+        gap: 2px;
+        flex-shrink: 0;
+      }
+      .cls3741_panel_products .prod-type-btn {
+        display: flex; align-items: center; gap: 5px;
+        padding: 5px 13px;
+        border: none; border-radius: 8px;
+        font-size: 0.78rem; font-weight: 500;
+        cursor: pointer;
+        transition: background 0.18s, color 0.18s, box-shadow 0.18s;
+        background: transparent;
+        color: #64748b;
+        white-space: nowrap;
+      }
+      .cls3741_panel_products .prod-type-btn i { font-size: 0.73rem; }
+      .cls3741_panel_products .prod-type-btn:hover { color: #cbd5e1; background: rgba(255,255,255,0.05); }
+      .cls3741_panel_products .prod-type-btn.active[data-filter="all"] {
+        background: rgba(99,102,241,0.18); color: #a5b4fc;
+        box-shadow: 0 1px 4px rgba(0,0,0,0.25);
+      }
+      .cls3741_panel_products .prod-type-btn.active[data-filter="physical"] {
+        background: rgba(56,189,248,0.15); color: #7dd3fc;
+        box-shadow: 0 1px 4px rgba(0,0,0,0.25);
+      }
+      .cls3741_panel_products .prod-type-btn.active[data-filter="digital"] {
+        background: rgba(167,139,250,0.18); color: #c4b5fd;
+        box-shadow: 0 1px 4px rgba(0,0,0,0.25);
+      }
+      /* badge on digital product cards in the list */
+      .cls3741_panel_products .product-list-card .prod-type-badge {
+        position: absolute; bottom: 5px; left: 6px;
+        font-size: 0.6rem; font-weight: 600;
+        padding: 1px 6px; border-radius: 5px;
+        pointer-events: none; letter-spacing: 0.04em;
+        text-transform: uppercase;
+      }
+      .iptv-legal-consent-block {
+        margin-top: 0.85rem;
+        padding: 0.85rem 1rem;
+        border-radius: 10px;
+        border: 2px solid rgba(239, 68, 68, 0.55);
+        background: rgba(127, 29, 29, 0.18);
+      }
+      .iptv-legal-consent-label {
+        display: flex;
+        align-items: flex-start;
+        gap: 0.65rem;
+        cursor: pointer;
+        font-weight: 600;
+        color: #fecaca;
+      }
+      .iptv-legal-consent-label input[type="checkbox"] {
+        margin-top: 0.35rem;
+        flex-shrink: 0;
+        width: 1.1rem;
+        height: 1.1rem;
+        accent-color: #ef4444;
+      }
+      .iptv-legal-consent-text {
+        line-height: 1.55;
+        font-size: 0.9rem;
+      }
+      .cls3741_panel_products .product-list-card .prod-type-badge.badge-digital {
+        background: rgba(167,139,250,0.18); color: #c4b5fd;
+        border: 1px solid rgba(167,139,250,0.25);
+      }
+      .cls3741_panel_products .product-list-card .prod-type-badge.badge-physical {
+        background: rgba(56,189,248,0.1); color: #7dd3fc;
+        border: 1px solid rgba(56,189,248,0.18);
+      }
     </style>
 <header class="product-header">
         <div class="product-header-inner">
@@ -6945,11 +8446,24 @@ $('#cls3741_attach_btn').on('click', function() {
           <div id="product_list_view" class="product-list-view">
             <div class="product-list-header">
               <h3 class="product-list-title">Your products</h3>
+              <!-- Product type filter toggle -->
+              <div class="prod-type-toggle" id="prod_type_toggle" role="tablist" aria-label="Filter by product type">
+                <button type="button" class="prod-type-btn active" data-filter="all" role="tab" aria-selected="true">
+                  <i class="fas fa-border-all"></i> All
+                </button>
+                <button type="button" class="prod-type-btn" data-filter="physical" role="tab" aria-selected="false">
+                  <i class="fas fa-box"></i> Physical
+                </button>
+                <button type="button" class="prod-type-btn" data-filter="digital" role="tab" aria-selected="false">
+                  <i class="fas fa-cloud-download-alt"></i> Digital
+                </button>
+              </div>
               <button type="button" id="product_btn_add" class="btn-submit product-btn-add"><i class="fas fa-plus"></i> Add product</button>
             </div>
             <div id="product_list" class="product-list-grid">
               <p style="color: #64748b;">Loading…</p>
             </div>
+            <p id="product_filter_empty" style="display:none;color:#64748b;text-align:center;padding:2rem 0;font-size:0.9rem;"></p>
           </div>
 
           <!-- Form view: Create / Edit (hidden by default) -->
@@ -6964,130 +8478,252 @@ $('#cls3741_attach_btn').on('click', function() {
               <input type="hidden" name="offer" id="product_offer_hidden" value="">
               <input type="hidden" name="product_id" id="product_edit_id" value="">
               <input type="hidden" name="image_urls" id="product_image_urls" value="">
+              <input type="hidden" name="is_digital" id="product_is_digital" value="false">
 
-              <div class="product-card">
-                <div class="product-card-title">Basic information</div>
-                <div class="form-row">
-                  <label>Product name <span class="req">*</span></label>
-                  <input type="text" name="name" id="product_name" required placeholder="e.g. Wireless Earbuds X1">
-                </div>
-                <div class="form-row">
-                  <label>Base price <span class="req">*</span></label>
-                  <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;">
-                    <input type="text" name="price" id="product_price" required placeholder="e.g. 299.00" style="flex:1;min-width:120px;">
-                    <label for="product_currency" class="sr-only">Currency</label>
-                    <div style="display:flex;flex-direction:column;gap:8px;min-width:180px;">
-                      <input
-                        type="text"
-                        id="product_currency_search"
-                        placeholder="Search currency (e.g. AED, NGN, ZAR)"
-                        style="padding:9px 12px;border-radius:10px;border:1px solid rgba(255,255,255,0.1);background:rgba(2,6,23,0.5);color:#f1f5f9;font-size:0.85rem;"
-                        autocomplete="off"
-                      >
-                      <select name="currency" id="product_currency" style="min-width:100px;padding:11px 14px;border-radius:10px;border:1px solid rgba(255,255,255,0.1);background:rgba(2,6,23,0.5);color:#f1f5f9;font-size:0.9rem;">
-                        <option value="MAD" selected>MAD — Moroccan Dirham</option>
-                        <option value="USD">USD — US Dollar</option>
-                        <option value="EUR">EUR — Euro</option>
-                        <option value="GBP">GBP — British Pound</option>
-                        <option value="CAD">CAD — Canadian Dollar</option>
-                        <option value="AUD">AUD — Australian Dollar</option>
-                        <option value="JPY">JPY — Japanese Yen</option>
-                        <option value="CNY">CNY — Chinese Yuan</option>
-                        <option value="INR">INR — Indian Rupee</option>
-                        <option value="TRY">TRY — Turkish Lira</option>
-
-                        <option value="AED">AED — UAE Dirham</option>
-                        <option value="SAR">SAR — Saudi Riyal</option>
-                        <option value="QAR">QAR — Qatari Riyal</option>
-                        <option value="KWD">KWD — Kuwaiti Dinar</option>
-                        <option value="BHD">BHD — Bahraini Dinar</option>
-                        <option value="OMR">OMR — Omani Rial</option>
-                        <option value="JOD">JOD — Jordanian Dinar</option>
-                        <option value="ILS">ILS — Israeli Shekel</option>
-                        <option value="LBP">LBP — Lebanese Pound</option>
-                        <option value="IQD">IQD — Iraqi Dinar</option>
-                        <option value="IRR">IRR — Iranian Rial</option>
-                        <option value="YER">YER — Yemeni Rial</option>
-
-                        <option value="DZD">DZD — Algerian Dinar</option>
-                        <option value="TND">TND — Tunisian Dinar</option>
-                        <option value="LYD">LYD — Libyan Dinar</option>
-                        <option value="EGP">EGP — Egyptian Pound</option>
-                        <option value="SDG">SDG — Sudanese Pound</option>
-                        <option value="MRU">MRU — Mauritanian Ouguiya</option>
-
-                        <option value="XOF">XOF — West African CFA Franc</option>
-                        <option value="XAF">XAF — Central African CFA Franc</option>
-                        <option value="NGN">NGN — Nigerian Naira</option>
-                        <option value="GHS">GHS — Ghanaian Cedi</option>
-                        <option value="SLL">SLL — Sierra Leonean Leone</option>
-                        <option value="LRD">LRD — Liberian Dollar</option>
-                        <option value="GMD">GMD — Gambian Dalasi</option>
-                        <option value="GNF">GNF — Guinean Franc</option>
-                        <option value="CVE">CVE — Cape Verdean Escudo</option>
-
-                        <option value="ETB">ETB — Ethiopian Birr</option>
-                        <option value="KES">KES — Kenyan Shilling</option>
-                        <option value="UGX">UGX — Ugandan Shilling</option>
-                        <option value="TZS">TZS — Tanzanian Shilling</option>
-                        <option value="RWF">RWF — Rwandan Franc</option>
-                        <option value="BIF">BIF — Burundian Franc</option>
-                        <option value="DJF">DJF — Djiboutian Franc</option>
-                        <option value="SOS">SOS — Somali Shilling</option>
-                        <option value="ERN">ERN — Eritrean Nakfa</option>
-
-                        <option value="ZAR">ZAR — South African Rand</option>
-                        <option value="NAD">NAD — Namibian Dollar</option>
-                        <option value="BWP">BWP — Botswana Pula</option>
-                        <option value="ZMW">ZMW — Zambian Kwacha</option>
-                        <option value="ZWL">ZWL — Zimbabwean Dollar</option>
-                        <option value="MWK">MWK — Malawian Kwacha</option>
-                        <option value="MZN">MZN — Mozambican Metical</option>
-                        <option value="AOA">AOA — Angolan Kwanza</option>
-                        <option value="CDF">CDF — Congolese Franc</option>
-
-                        <option value="MUR">MUR — Mauritian Rupee</option>
-                        <option value="SCR">SCR — Seychellois Rupee</option>
-                        <option value="KMF">KMF — Comorian Franc</option>
-                        <option value="MGA">MGA — Malagasy Ariary</option>
-                        <option value="SZL">SZL — Swazi Lilangeni</option>
-                        <option value="LSL">LSL — Lesotho Loti</option>
-                      </select>
-                    </div>
-                  </div>
-                  <div class="form-hint">Single unit price. Default currency: MAD (Moroccan Dirham).</div>
-                </div>
-                <div class="form-row">
-                  <label>Backup price (negotiation floor)</label>
-                  <input type="text" name="backup_price" id="product_backup_price" placeholder="e.g. 249.00">
-                  <div class="form-hint">Optional. Minimum acceptable negotiated price used by AI during discount conversations.</div>
-                </div>
-                <div class="form-row">
-                  <label>Coupon code</label>
-                  <input type="text" name="coupon_code" id="product_coupon_code" maxlength="64" placeholder="e.g. RAMADAN15">
-                  <div class="form-hint">Optional. If set, AI prefers this code during negotiations.</div>
-                </div>
-                <div class="form-row">
-                  <label>Description <span class="req">*</span></label>
-                  <textarea name="description" id="product_description" required rows="4" placeholder="Describe the product, features, and benefits..."></textarea>
-                </div>
-                <div class="form-row">
-                  <label>Product category</label>
-                  <input type="text" id="product_category_display" readonly placeholder="Detected when description has 200+ characters" style="background:rgba(0,0,0,0.2);color:var(--text-secondary, #94a3b8);cursor:not-allowed;">
-                  <input type="hidden" name="category" id="product_category" value="">
-                  <div class="form-hint">AI-detected when description has more than 200 characters. Shown for sales persona (Beauty, Electronics, Fragrances, General).</div>
+              <!-- ── Product type selector ──────────────────────────── -->
+              <div class="product-card" id="product_type_selector_card">
+                <div class="product-card-title">Product type</div>
+                <div class="ptype-selector">
+                  <button type="button" class="ptype-card active" id="ptype_physical" data-ptype="physical">
+                    <span class="ptype-icon">📦</span>
+                    <span class="ptype-label">Physical Product</span>
+                    <span class="ptype-desc">Shipped to customer's address</span>
+                  </button>
+                  <button type="button" class="ptype-card" id="ptype_digital" data-ptype="digital">
+                    <span class="ptype-icon">☁️</span>
+                    <span class="ptype-label">Digital Product</span>
+                    <span class="ptype-desc">Delivered via email or download link</span>
+                  </button>
                 </div>
               </div>
 
+              <div class="product-card basic-info-card">
+                <div class="basic-info-card-header">
+                  <div class="product-card-title"><i class="fas fa-tag" aria-hidden="true"></i> Basic information</div>
+                  <p class="basic-info-card-lead">Core details the AI sales agent uses to present, price, and classify your product.</p>
+                </div>
+
+                <!-- Identity -->
+                <div class="basic-info-block">
+                  <div class="basic-info-block-label"><i class="fas fa-box-open" aria-hidden="true"></i> Identity</div>
+                  <div class="basic-info-field form-row">
+                    <label for="product_name">Product name <span class="req">*</span></label>
+                    <input type="text" name="name" id="product_name" required placeholder="e.g. Wireless Earbuds X1">
+                    <div class="form-hint">Clear, customer-friendly name shown in chat and previews.</div>
+                  </div>
+                </div>
+
+                <!-- Pricing -->
+                <div class="pricing-panel">
+                  <div class="pricing-panel-header">
+                    <div>
+                      <p class="pricing-panel-title"><i class="fas fa-coins" aria-hidden="true"></i> Pricing</p>
+                      <p class="pricing-panel-sub">Set the list price and currency your AI agent quotes to customers.</p>
+                    </div>
+                    <span class="pricing-panel-badge" id="pricing_panel_currency_badge"><i class="fas fa-circle-check" aria-hidden="true"></i> <span id="pricing_panel_currency_label">MAD</span></span>
+                  </div>
+
+                  <div class="pricing-panel-body">
+                    <div class="pricing-amount-block">
+                      <label for="product_price">Base price <span class="req">*</span></label>
+                      <div class="pricing-amount-group">
+                        <div class="pricing-amount-input-wrap">
+                          <input type="text" name="price" id="product_price" class="pricing-amount-input" required placeholder="299.00" inputmode="decimal" autocomplete="off">
+                        </div>
+                        <div class="pricing-currency-picker" id="pricing_currency_picker">
+                          <p class="pricing-currency-picker-label"><i class="fas fa-globe" aria-hidden="true"></i> Currency</p>
+                          <button
+                            type="button"
+                            class="currency-trigger"
+                            id="product_currency_trigger"
+                            aria-expanded="false"
+                            aria-controls="product_currency_dropdown"
+                            aria-label="Change currency"
+                          >
+                            <span class="currency-trigger-code" id="product_currency_code">MAD</span>
+                            <span class="currency-trigger-name" id="product_currency_name">Moroccan Dirham</span>
+                            <span class="currency-trigger-hint">Change</span>
+                            <i class="fas fa-chevron-down currency-trigger-chevron" aria-hidden="true"></i>
+                          </button>
+                          <div class="currency-dropdown" id="product_currency_dropdown" hidden>
+                            <input
+                              type="text"
+                              id="product_currency_search"
+                              class="pricing-currency-search basic-info-currency-search"
+                              placeholder="Search currencies…"
+                              autocomplete="off"
+                              aria-label="Search currencies"
+                            >
+                            <select name="currency" id="product_currency" class="pricing-currency-select basic-info-currency-select" aria-label="Currency" size="6">
+                          <option value="MAD" selected>MAD — Moroccan Dirham</option>
+                          <option value="USD">USD — US Dollar</option>
+                          <option value="EUR">EUR — Euro</option>
+                          <option value="GBP">GBP — British Pound</option>
+                          <option value="CAD">CAD — Canadian Dollar</option>
+                          <option value="AUD">AUD — Australian Dollar</option>
+                          <option value="JPY">JPY — Japanese Yen</option>
+                          <option value="CNY">CNY — Chinese Yuan</option>
+                          <option value="INR">INR — Indian Rupee</option>
+                          <option value="TRY">TRY — Turkish Lira</option>
+
+                          <option value="AED">AED — UAE Dirham</option>
+                          <option value="SAR">SAR — Saudi Riyal</option>
+                          <option value="QAR">QAR — Qatari Riyal</option>
+                          <option value="KWD">KWD — Kuwaiti Dinar</option>
+                          <option value="BHD">BHD — Bahraini Dinar</option>
+                          <option value="OMR">OMR — Omani Rial</option>
+                          <option value="JOD">JOD — Jordanian Dinar</option>
+                          <option value="ILS">ILS — Israeli Shekel</option>
+                          <option value="LBP">LBP — Lebanese Pound</option>
+                          <option value="IQD">IQD — Iraqi Dinar</option>
+                          <option value="IRR">IRR — Iranian Rial</option>
+                          <option value="YER">YER — Yemeni Rial</option>
+
+                          <option value="DZD">DZD — Algerian Dinar</option>
+                          <option value="TND">TND — Tunisian Dinar</option>
+                          <option value="LYD">LYD — Libyan Dinar</option>
+                          <option value="EGP">EGP — Egyptian Pound</option>
+                          <option value="SDG">SDG — Sudanese Pound</option>
+                          <option value="MRU">MRU — Mauritanian Ouguiya</option>
+
+                          <option value="XOF">XOF — West African CFA Franc</option>
+                          <option value="XAF">XAF — Central African CFA Franc</option>
+                          <option value="NGN">NGN — Nigerian Naira</option>
+                          <option value="GHS">GHS — Ghanaian Cedi</option>
+                          <option value="SLL">SLL — Sierra Leonean Leone</option>
+                          <option value="LRD">LRD — Liberian Dollar</option>
+                          <option value="GMD">GMD — Gambian Dalasi</option>
+                          <option value="GNF">GNF — Guinean Franc</option>
+                          <option value="CVE">CVE — Cape Verdean Escudo</option>
+
+                          <option value="ETB">ETB — Ethiopian Birr</option>
+                          <option value="KES">KES — Kenyan Shilling</option>
+                          <option value="UGX">UGX — Ugandan Shilling</option>
+                          <option value="TZS">TZS — Tanzanian Shilling</option>
+                          <option value="RWF">RWF — Rwandan Franc</option>
+                          <option value="BIF">BIF — Burundian Franc</option>
+                          <option value="DJF">DJF — Djiboutian Franc</option>
+                          <option value="SOS">SOS — Somali Shilling</option>
+                          <option value="ERN">ERN — Eritrean Nakfa</option>
+
+                          <option value="ZAR">ZAR — South African Rand</option>
+                          <option value="NAD">NAD — Namibian Dollar</option>
+                          <option value="BWP">BWP — Botswana Pula</option>
+                          <option value="ZMW">ZMW — Zambian Kwacha</option>
+                          <option value="ZWL">ZWL — Zimbabwean Dollar</option>
+                          <option value="MWK">MWK — Malawian Kwacha</option>
+                          <option value="MZN">MZN — Mozambican Metical</option>
+                          <option value="AOA">AOA — Angolan Kwanza</option>
+                          <option value="CDF">CDF — Congolese Franc</option>
+
+                          <option value="MUR">MUR — Mauritian Rupee</option>
+                          <option value="SCR">SCR — Seychellois Rupee</option>
+                          <option value="KMF">KMF — Comorian Franc</option>
+                          <option value="MGA">MGA — Malagasy Ariary</option>
+                          <option value="SZL">SZL — Swazi Lilangeni</option>
+                          <option value="LSL">LSL — Lesotho Loti</option>
+                          </select>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div class="pricing-options-grid">
+                      <div class="pricing-option-card pricing-option-card--floor">
+                        <div class="pricing-option-card-head">
+                          <span class="pricing-option-icon"><i class="fas fa-arrow-trend-down" aria-hidden="true"></i></span>
+                          <label for="product_backup_price">Negotiation floor</label>
+                        </div>
+                        <input type="text" name="backup_price" id="product_backup_price" placeholder="249.00" inputmode="decimal" autocomplete="off">
+                        <div class="form-hint">Lowest price the AI may offer when haggling.</div>
+                      </div>
+                      <div class="pricing-option-card pricing-option-card--coupon">
+                        <div class="pricing-option-card-head">
+                          <span class="pricing-option-icon"><i class="fas fa-ticket" aria-hidden="true"></i></span>
+                          <label for="product_coupon_code">Coupon code</label>
+                        </div>
+                        <input type="text" name="coupon_code" id="product_coupon_code" maxlength="64" placeholder="RAMADAN15" autocomplete="off" spellcheck="false" style="text-transform:uppercase;">
+                        <div class="form-hint">Optional code the AI suggests during discounts.</div>
+                      </div>
+                    </div>
+
+                    <p class="pricing-panel-footnote">
+                      <i class="fas fa-layer-group" aria-hidden="true"></i>
+                      Quantity-based tiers can be configured in the <strong>Pricing tiers &amp; offers</strong> section below.
+                    </p>
+                  </div>
+                </div>
+
+                <!-- Description & AI persona -->
+                <div class="copy-panel">
+                  <div class="copy-panel-header">
+                    <div>
+                      <p class="copy-panel-title"><i class="fas fa-align-left" aria-hidden="true"></i> Description &amp; sales persona</p>
+                      <p class="copy-panel-sub">Product copy for the AI agent — plus automatic persona detection for the right sales tone.</p>
+                    </div>
+                    <span class="copy-panel-badge"><i class="fas fa-wand-magic-sparkles" aria-hidden="true"></i> AI-powered</span>
+                  </div>
+
+                  <div class="copy-panel-body">
+                    <div class="copy-description-block">
+                      <label for="product_description">Product description <span class="req">*</span></label>
+                      <textarea
+                        name="description"
+                        id="product_description"
+                        class="copy-description-input"
+                        required
+                        rows="5"
+                        placeholder="Highlight key features, benefits, and why customers should buy…"></textarea>
+                      <p class="copy-description-hint">
+                        <i class="fas fa-lightbulb" aria-hidden="true"></i>
+                        <span>A short, accurate description is enough — even a product name like &ldquo;AirPods&rdquo; can be classified instantly.</span>
+                      </p>
+                    </div>
+
+                    <aside class="persona-sidebar" aria-labelledby="persona_sidebar_label">
+                      <div class="persona-sidebar-head">
+                        <span class="persona-sidebar-icon" aria-hidden="true"><i class="fas fa-robot"></i></span>
+                        <div>
+                          <p class="persona-sidebar-label" id="persona_sidebar_label">Detected persona</p>
+                          <p class="persona-sidebar-sublabel">Updates as you type</p>
+                        </div>
+                      </div>
+
+                      <div class="category-ai-field-wrap" id="category_ai_field_wrap">
+                        <input type="text" id="product_category_display" readonly placeholder="Waiting for input…" aria-describedby="category_ai_note">
+                        <i class="fas fa-wand-magic-sparkles category-ai-icon" aria-hidden="true"></i>
+                      </div>
+                      <input type="hidden" name="category" id="product_category" value="">
+
+                      <div class="persona-tags" aria-hidden="true">
+                        <span class="persona-tag">Beauty</span>
+                        <span class="persona-tag">Electronics</span>
+                        <span class="persona-tag">Fragrances</span>
+                        <span class="persona-tag">Fashion</span>
+                        <span class="persona-tag">Health</span>
+                        <span class="persona-tag">General</span>
+                      </div>
+
+                      <p class="persona-sidebar-note" id="category_ai_note">
+                        <i class="fas fa-circle-info" aria-hidden="true"></i>
+                        <span>The AI picks the best-matching sales persona from your product name and description. If unclear, it defaults to General.</span>
+                      </p>
+                    </aside>
+                  </div>
+                </div>
+              </div>
+
+              <div class="prod-section" id="section_physical_pricing"><div class="prod-section-inner">
               <div class="product-card">
-                <div class="product-card-title">Pricing tiers & offers (optional)</div>
+                <div class="product-card-title">Pricing tiers &amp; offers (optional)</div>
                 <p class="form-hint" style="margin-bottom: 12px;">Add quantity-based prices and a backup floor price for each tier (currency matches the one selected above).</p>
                 <div id="offer_tiers_container" class="offer-tiers"></div>
                 <button type="button" id="btn_add_offer_tier" class="btn-add-tier"><i class="fas fa-plus"></i> Add offer tier</button>
               </div>
+              </div></div>
 
               <div class="product-card">
-                <div class="product-card-title">Product photos & videos <span class="req">*</span></div>
+                <div class="product-card-title">Product photos &amp; videos <span class="req" id="media_req_star">*</span></div>
                 <div class="form-row">
                   <input type="file" name="images" id="product_images" accept="image/*,video/*" multiple style="display:none;">
                   <button type="button" id="product_images_btn" class="btn-add-tier" style="margin-bottom:8px;"><i class="fas fa-plus"></i> Add photos / videos</button>
@@ -7095,12 +8731,165 @@ $('#cls3741_attach_btn').on('click', function() {
                 </div>
               </div>
 
+              <!-- ── Digital assets (visible only for Digital products) ─── -->
+              <div class="prod-section prod-section--hidden" id="section_digital_assets"><div class="prod-section-inner">
+              <div class="product-card digital-card">
+
+                <div class="digital-card-header">
+                  <div class="product-card-title"><i class="fas fa-cloud-download-alt me-1"></i> Digital asset delivery</div>
+                  <span id="product_digital_stock_summary" class="dig-stock-badge" style="display:none;" aria-live="polite"></span>
+                </div>
+                <p class="dig-card-lead">After payment is approved, customers receive one of the options below. Use <strong>static file/URL</strong> for the same asset every time, or <strong>dynamic stock</strong> for unique keys per order.</p>
+
+                <div class="dig-delivery-block dig-digital-type-block" id="section_digital_product_type">
+                  <div class="dig-block-label">Digital product type</div>
+                  <p class="dig-block-desc">Choose what you are selling so the AI uses the right language and delivery format.</p>
+                  <div class="dig-format-options" role="radiogroup" aria-label="Digital product type">
+                    <label class="dig-format-option" for="digital_product_type_account">
+                      <input type="radio" name="digital_product_type" value="account" id="digital_product_type_account" checked>
+                      <span class="dig-format-text">
+                        <span class="dig-format-title">Account</span>
+                        <span class="dig-format-example">Login credentials</span>
+                      </span>
+                    </label>
+                    <label class="dig-format-option" for="digital_product_type_key">
+                      <input type="radio" name="digital_product_type" value="key" id="digital_product_type_key">
+                      <span class="dig-format-text">
+                        <span class="dig-format-title">Activation key</span>
+                        <span class="dig-format-example">Licence / serial</span>
+                      </span>
+                    </label>
+                  </div>
+                </div>
+
+                <!-- Block A: static delivery (same asset for every order) -->
+                <div class="dig-delivery-block">
+                  <div class="dig-block-label">Static delivery</div>
+                  <p class="dig-block-desc">One file or link sent to every customer. Leave both empty if you rely on dynamic stock only.</p>
+                  <div class="dig-static-grid">
+                    <div class="dig-field-card">
+                      <label for="product_digital_file"><i class="fas fa-file-arrow-up"></i> Upload file</label>
+                      <input type="file" name="digital_file" id="product_digital_file" accept=".pdf,.zip,.epub,.mp3,.mp4,.png,.jpg,.gif,application/*">
+                      <div id="product_digital_file_status" class="dig-file-status" style="display:none;" aria-live="polite"></div>
+                      <div class="form-hint">PDF, ZIP, MP3, MP4, etc. Upload a new file to replace the current one.</div>
+                    </div>
+                    <div class="dig-field-card">
+                      <label for="product_digital_url"><i class="fas fa-link"></i> Download URL</label>
+                      <input type="url" name="digital_url" id="product_digital_url" placeholder="https://drive.google.com/…">
+                      <div class="form-hint">Drive, Dropbox, S3 — used when no file is uploaded.</div>
+                    </div>
+                  </div>
+                  <p class="dig-or-hint"><i class="fas fa-info-circle me-1"></i> Need unique credentials per sale? Skip this block and use <strong>dynamic stock</strong> below instead.</p>
+                </div>
+
+                <!-- Block B: dynamic stock (FIFO, one row per order) -->
+                <div class="dig-delivery-block dig-delivery-block--stock dig-stock-row">
+                  <div class="dig-block-label">Dynamic stock</div>
+                  <p class="dig-block-desc">Paste accounts or keys below — one line per unit. Each approved order consumes the next available row (encrypted, never reused).</p>
+                  <div id="product_digital_stock_existing" class="dig-stock-existing" style="display:none;" aria-live="polite"></div>
+                  <div class="dig-format-options" role="radiogroup" aria-label="Stock format">
+                    <label class="dig-format-option" for="product_stock_format_single">
+                      <input type="radio" name="stock_format" value="single" id="product_stock_format_single" checked>
+                      <span class="dig-format-text">
+                        <span class="dig-format-title">Keys / codes</span>
+                        <span class="dig-format-example">ABCD-1234</span>
+                      </span>
+                    </label>
+                    <label class="dig-format-option" for="product_stock_format_combo">
+                      <input type="radio" name="stock_format" value="combo" id="product_stock_format_combo">
+                      <span class="dig-format-text">
+                        <span class="dig-format-title">Email &amp; password</span>
+                        <span class="dig-format-example">user@mail.com:secret</span>
+                      </span>
+                    </label>
+                    <label class="dig-format-option" for="product_stock_format_iptv">
+                      <input type="radio" name="stock_format" value="iptv" id="product_stock_format_iptv">
+                      <span class="dig-format-text">
+                        <span class="dig-format-title">IPTV / Xtream</span>
+                        <span class="dig-format-example">Host:User:Pass or M3U Link</span>
+                      </span>
+                    </label>
+                  </div>
+                  <span id="smart_detect_badge" style="display:none; color:#28a745; font-size:0.85em;" aria-live="polite">✨ تم التحديد تلقائياً بناءً على اسم المنتج</span>
+                  <textarea name="bulk_stock_input"
+                            id="product_bulk_stock_input"
+                            class="dig-stock-textarea"
+                            rows="7"
+                            spellcheck="false"
+                            autocomplete="off"
+                            autocapitalize="off"
+                            placeholder="ABCD-1234&#10;XYZ-9876&#10;LIC-5555-9999"></textarea>
+                  <p class="form-hint" id="product_bulk_stock_input_hint" style="margin-top:0.5rem;margin-bottom:0;">
+                    On edit, paste <strong>additional</strong> lines only — existing unsold stock stays in inventory.
+                  </p>
+                  <div id="iptv_legal_consent_block" class="iptv-legal-consent-block" style="display: none; background: #fff3cd; padding: 10px; border-radius: 5px; margin-top: 10px;" role="group" aria-labelledby="iptv_legal_consent_label">
+                    <label class="iptv-legal-consent-label" id="iptv_legal_consent_label">
+                      <input type="checkbox" name="legal_consent_iptv" id="product_legal_consent_iptv" value="true">
+                      <span class="iptv-legal-consent-text" dir="rtl" lang="ar">
+                        أقر بأنني أمتلك حقوق توزيع هذا الاشتراك (IPTV) وأنه لا ينتهك أي حقوق ملكية فكرية. أتحمل المسؤولية القانونية الكاملة، وأوافق على الحظر النهائي لحسابي إذا تم تلقي أي شكوى انتهاك حقوق (DMCA).
+                      </span>
+                    </label>
+                    <p class="form-hint iptv-legal-hint" style="margin-top:0.5rem;margin-bottom:0;">
+                      <strong>Required for IPTV.</strong> This shifts distribution liability to you as the seller.
+                    </p>
+                  </div>
+                </div>
+
+                <!-- Block C: post-purchase message -->
+                <div class="dig-delivery-block dig-delivery-block--message">
+                  <div class="dig-block-label">Fulfillment message <span style="font-weight:500;text-transform:none;letter-spacing:0;color:#64748b;">(optional)</span></div>
+                  <textarea name="fulfillment_message" id="product_fulfillment_message" rows="3" placeholder="Thank you for your purchase! Here is your download: [LINK]. Enjoy! 🎉"></textarea>
+                  <div class="form-hint" style="margin-top:0.45rem;margin-bottom:0;">Sent with the asset after purchase. Leave blank for the default thank-you text.</div>
+                </div>
+
+              </div>
+              </div>
+            </div>
+
               <div class="product-card">
                 <div class="product-card-title">Optional details</div>
+                <div class="prod-section" id="section_physical_delivery"><div class="prod-section-inner">
                 <div class="form-row">
                   <label>Delivery options</label>
                   <input type="text" name="delivery_options" id="product_delivery_options" maxlength="500" placeholder="e.g. Free delivery, 30 MAD, Free above 200 MAD">
                   <div class="form-hint">Shown to customers when they ask about delivery. Leave blank if not set.</div>
+                </div>
+                </div></div>
+                <div class="return-policy-card return-policy--physical-emphasis" id="return_policy_row">
+                  <div class="return-policy-card-header">
+                    <p class="return-policy-card-title">
+                      <i class="fas fa-shield-halved" aria-hidden="true"></i>
+                      Return &amp; Warranty Policy
+                    </p>
+                    <span class="return-policy-badge" id="return_policy_physical_badge">
+                      <i class="fas fa-box" aria-hidden="true"></i> Recommended for physical
+                    </span>
+                  </div>
+                  <p class="return-policy-card-lead">
+                    Define what customers can expect about returns, exchanges, and package inspection.
+                    Leave blank to apply strict default delivery rules.
+                  </p>
+                  <textarea
+                    name="return_policy"
+                    id="product_return_policy"
+                    rows="3"
+                    aria-describedby="return_policy_ai_note"
+                    placeholder="e.g. 7-day returns if unused, or: package must not be opened before payment…"></textarea>
+                  <div class="return-policy-examples" aria-label="Quick examples">
+                    <button type="button" class="return-policy-example" data-policy="7-day returns accepted if the product is unused and in original packaging.">
+                      7-day returns
+                    </button>
+                    <button type="button" class="return-policy-example" data-policy="No opening the package before payment. Inspection is not allowed unless the courier permits it.">
+                      No open before payment
+                    </button>
+                    <button type="button" class="return-policy-example" data-policy="1-year manufacturer warranty. Contact us with your order number for support.">
+                      1-year warranty
+                    </button>
+                  </div>
+                  <p class="return-policy-ai-note" id="return_policy_ai_note">
+                    <i class="fas fa-robot" aria-hidden="true"></i>
+                    <span>The AI sales agent uses this text when customers ask about warranty, returns, or inspecting the product. It will not invent guarantees beyond what you write here.</span>
+                  </p>
                 </div>
                 <div class="form-row">
                   <label>How to use</label>
@@ -7110,6 +8899,8 @@ $('#cls3741_attach_btn').on('click', function() {
                 <div class="form-row checkout-mode-wrap">
                   <div class="checkout-mode-label"><i class="fas fa-shopping-cart"></i> Checkout Mode (AI Data Collection)</div>
                   <div class="checkout-mode-options">
+                    <!-- Physical checkout modes (hidden for digital products) -->
+                    <div class="prod-section" id="section_checkout_physical"><div class="prod-section-inner" style="display:flex;flex-direction:column;gap:0.5rem;">
                     <label class="checkout-mode-option" data-mode="quick_lead">
                       <input type="radio" name="checkout_mode" id="product_checkout_mode_quick" value="quick_lead" aria-label="Quick Lead">
                       <span class="option-text">
@@ -7131,6 +8922,24 @@ $('#cls3741_attach_btn').on('click', function() {
                         <span class="option-desc">Best for high-intent buyers and direct shipping. AI collects full address.</span>
                       </span>
                     </label>
+                    </div></div>
+                    <!-- Digital checkout modes (visible only for digital products) -->
+                    <div class="prod-section prod-section--hidden" id="section_checkout_digital"><div class="prod-section-inner" style="display:flex;flex-direction:column;gap:0.5rem;">
+                    <label class="checkout-mode-option" data-mode="digital">
+                      <input type="radio" name="checkout_mode" id="product_checkout_mode_digital" value="digital" aria-label="Digital Delivery">
+                      <span class="option-text">
+                        <span class="option-title">Digital Delivery — Name &amp; Email</span>
+                        <span class="option-desc">AI collects name and email to deliver the digital product automatically.</span>
+                      </span>
+                    </label>
+                    <label class="checkout-mode-option" data-mode="direct_sale" id="checkout_mode_direct_sale_opt">
+                      <input type="radio" name="checkout_mode" id="product_checkout_mode_direct" value="direct_sale" aria-label="Direct Sale">
+                      <span class="option-text">
+                        <span class="option-title">⚡ Direct Sale — No information required</span>
+                        <span class="option-desc">AI submits the order the moment the customer expresses intent to buy — no name, email, or address asked. Uses the WhatsApp number only.</span>
+                      </span>
+                    </label>
+                    </div></div>
                   </div>
                   <div class="form-hint">Controls what information the AI Sales Agent asks for during checkout.</div>
                 </div>
@@ -7370,11 +9179,34 @@ $('#cls3741_attach_btn').on('click', function() {
       }
       var currencySearchInput = document.getElementById('product_currency_search');
       var currencySelectEl = document.getElementById('product_currency');
+      var currencyPickerEl = document.getElementById('pricing_currency_picker');
+      var currencyTriggerEl = document.getElementById('product_currency_trigger');
+      var currencyDropdownEl = document.getElementById('product_currency_dropdown');
+      var currencyCodeEl = document.getElementById('product_currency_code');
+      var currencyNameEl = document.getElementById('product_currency_name');
+      var currencyBadgeLabelEl = document.getElementById('pricing_panel_currency_label');
       var allCurrencyOptions = [];
       if (currencySelectEl) {
         allCurrencyOptions = Array.prototype.slice.call(currencySelectEl.options).map(function(opt) {
           return { value: opt.value, text: opt.text, selected: !!opt.selected };
         });
+      }
+      function parseCurrencyOptionText(text) {
+        var raw = (text || '').trim();
+        var parts = raw.split(' — ');
+        if (parts.length >= 2) {
+          return { code: parts[0].trim(), name: parts.slice(1).join(' — ').trim() };
+        }
+        return { code: raw, name: raw };
+      }
+      function restoreCurrencyOptions() {
+        if (!currencySelectEl || !allCurrencyOptions.length) return;
+        var currentValue = currencySelectEl.value;
+        currencySelectEl.innerHTML = allCurrencyOptions.map(function(opt) {
+          return '<option value="' + opt.value + '">' + opt.text + '</option>';
+        }).join('');
+        var hasCurrent = allCurrencyOptions.some(function(opt) { return opt.value === currentValue; });
+        currencySelectEl.value = hasCurrent ? currentValue : (allCurrencyOptions[0] && allCurrencyOptions[0].value) || 'MAD';
       }
       function filterCurrencyOptions() {
         if (!currencySelectEl || !allCurrencyOptions.length) return;
@@ -7391,8 +9223,90 @@ $('#cls3741_attach_btn').on('click', function() {
         var hasCurrent = filtered.some(function(opt) { return opt.value === currentValue; });
         if (hasCurrent) currencySelectEl.value = currentValue;
       }
+      function syncCurrencyPickerUI() {
+        if (!currencySelectEl) return;
+        var selected = currencySelectEl.options[currencySelectEl.selectedIndex];
+        var parsed = parseCurrencyOptionText(selected ? selected.text : 'MAD — Moroccan Dirham');
+        if (currencyCodeEl) currencyCodeEl.textContent = parsed.code || 'MAD';
+        if (currencyNameEl) currencyNameEl.textContent = parsed.name || 'Moroccan Dirham';
+        if (currencyBadgeLabelEl) currencyBadgeLabelEl.textContent = parsed.code || 'MAD';
+      }
+      function openCurrencyDropdown() {
+        if (!currencyPickerEl || !currencyDropdownEl || !currencyTriggerEl) return;
+        restoreCurrencyOptions();
+        if (currencySearchInput) currencySearchInput.value = '';
+        currencyPickerEl.classList.add('is-open');
+        currencyDropdownEl.hidden = false;
+        currencyTriggerEl.setAttribute('aria-expanded', 'true');
+        if (currencySearchInput) {
+          setTimeout(function() { currencySearchInput.focus(); }, 60);
+        }
+      }
+      function closeCurrencyDropdown() {
+        if (!currencyPickerEl || !currencyDropdownEl || !currencyTriggerEl) return;
+        currencyPickerEl.classList.remove('is-open');
+        currencyDropdownEl.hidden = true;
+        currencyTriggerEl.setAttribute('aria-expanded', 'false');
+        restoreCurrencyOptions();
+        if (currencySearchInput) currencySearchInput.value = '';
+      }
+      window.syncCurrencyPickerUI = syncCurrencyPickerUI;
+      window.closeCurrencyDropdown = closeCurrencyDropdown;
       if (currencySearchInput) {
         currencySearchInput.addEventListener('input', filterCurrencyOptions);
+      }
+      if (currencyTriggerEl) {
+        currencyTriggerEl.addEventListener('click', function() {
+          if (currencyPickerEl && currencyPickerEl.classList.contains('is-open')) {
+            closeCurrencyDropdown();
+          } else {
+            openCurrencyDropdown();
+          }
+        });
+      }
+      if (currencySelectEl) {
+        currencySelectEl.addEventListener('change', function() {
+          syncCurrencyPickerUI();
+          closeCurrencyDropdown();
+          updateProductPreview();
+        });
+      }
+      document.addEventListener('click', function(e) {
+        if (!currencyPickerEl || !currencyPickerEl.classList.contains('is-open')) return;
+        if (currencyPickerEl.contains(e.target)) return;
+        closeCurrencyDropdown();
+      });
+      document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape') closeCurrencyDropdown();
+      });
+      syncCurrencyPickerUI();
+
+      var PRODUCT_CATEGORY_PLACEHOLDER = 'Waiting for input…';
+
+      function setCategoryAiDetected(isDetected) {
+        var wrap = document.getElementById('category_ai_field_wrap');
+        if (wrap) {
+          wrap.classList.toggle('is-detected', !!isDetected);
+          wrap.classList.remove('is-detecting');
+        }
+      }
+
+      function setCategoryAiDetecting(isDetecting) {
+        var wrap = document.getElementById('category_ai_field_wrap');
+        if (wrap) {
+          wrap.classList.toggle('is-detecting', !!isDetecting);
+          if (isDetecting) wrap.classList.remove('is-detected');
+        }
+      }
+
+      function shouldClassifyProduct(name, description) {
+        var title = (name || '').trim();
+        var desc = (description || '').trim();
+        var combined = (title + ' ' + desc).trim();
+        if (!combined) return false;
+        if (desc.length > 15) return true;
+        if (combined.split(/\s+/).filter(Boolean).length >= 3) return true;
+        return title.length >= 3;
       }
 
       var productCategoryDebounce = null;
@@ -7406,20 +9320,22 @@ $('#cls3741_attach_btn').on('click', function() {
           var hiddenEl = document.getElementById('product_category');
           if (!descEl || !displayEl || !hiddenEl) return;
           var desc = (descEl.value || '').trim();
-          if (desc.length < 200) {
+          var title = (nameEl && nameEl.value) ? nameEl.value.trim() : '';
+          if (!shouldClassifyProduct(title, desc)) {
             displayEl.value = '';
-            displayEl.placeholder = 'Detected when description has 200+ characters';
+            displayEl.placeholder = PRODUCT_CATEGORY_PLACEHOLDER;
             hiddenEl.value = '';
+            setCategoryAiDetected(false);
             return;
           }
-          displayEl.placeholder = 'Detecting…';
-          var title = (nameEl && nameEl.value) ? nameEl.value.trim() : 'Product';
+          displayEl.placeholder = 'Detecting persona…';
+          setCategoryAiDetecting(true);
           var csrf = (document.querySelector('input[name="csrfmiddlewaretoken"]') || {}).value || '';
           fetch('/discount/whatssapAPI/api_products/classify/', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrf },
             credentials: 'same-origin',
-            body: JSON.stringify({ title: title, description: desc })
+            body: JSON.stringify({ title: title || 'Product', description: desc })
           })
             .then(function(r) { return r.json(); })
             .then(function(data) {
@@ -7427,14 +9343,17 @@ $('#cls3741_attach_btn').on('click', function() {
                 displayEl.value = data.label;
                 displayEl.placeholder = '';
                 hiddenEl.value = data.category;
+                setCategoryAiDetected(true);
               } else {
-                displayEl.placeholder = 'Detected when description has 200+ characters';
+                displayEl.placeholder = PRODUCT_CATEGORY_PLACEHOLDER;
                 hiddenEl.value = '';
+                setCategoryAiDetected(false);
               }
             })
             .catch(function() {
-              displayEl.placeholder = 'Detected when description has 200+ characters';
+              displayEl.placeholder = PRODUCT_CATEGORY_PLACEHOLDER;
               hiddenEl.value = '';
+              setCategoryAiDetected(false);
             });
         }, 800);
       }
@@ -7608,10 +9527,17 @@ $('#cls3741_attach_btn').on('click', function() {
               var imgHtml = imgs ? '<img src="' + imgs + '" alt="">' : '<div class="no-img">—</div>';
               var curr = (p.currency || 'MAD').trim() || 'MAD';
               var cardId = 'product-card-' + p.id;
-              return '<div class="product-list-card" data-product-id="' + p.id + '" id="' + cardId + '">' +
+              var isDigital = !!p.is_digital;
+              var badge = isDigital
+                ? '<span class="prod-type-badge badge-digital"><i class="fas fa-cloud-download-alt"></i> Digital</span>'
+                : '<span class="prod-type-badge badge-physical"><i class="fas fa-box"></i> Physical</span>';
+              return '<div class="product-list-card" data-product-id="' + p.id + '" data-is-digital="' + (isDigital ? '1' : '0') + '" id="' + cardId + '">' +
                 '<button type="button" class="product-card-edit" aria-label="Edit product" title="Edit"><i class="fas fa-pen"></i></button>' +
-                imgHtml + '<div class="name">' + (p.name || '').split(/\s+/).slice(0, 4).join(' ').replace(/</g, '&lt;') + '</div><div class="price">' + (p.price ? (p.price + ' ' + curr) : '') + '</div></div>';
+                imgHtml + '<div class="name">' + (p.name || '').split(/\s+/).slice(0, 4).join(' ').replace(/</g, '&lt;') + '</div><div class="price">' + (p.price ? (p.price + ' ' + curr) : '') + '</div>' + badge + '</div>';
             }).join('');
+            // Re-apply active filter after list is rebuilt
+            var activeBtn = document.querySelector('#prod_type_toggle .prod-type-btn.active');
+            if (activeBtn) applyProductFilter(activeBtn.dataset.filter);
             wrap.querySelectorAll('.product-list-card').forEach(function(card) {
               var id = card.getAttribute('data-product-id');
               card.addEventListener('click', function(e) {
@@ -7628,8 +9554,13 @@ $('#cls3741_attach_btn').on('click', function() {
                 e.preventDefault();
                 e.stopPropagation();
                 fetch('/discount/whatssapAPI/api_products/' + id + '/?channel_id=' + encodeURIComponent(getProductChannelId()), { credentials: 'same-origin' })
-                  .then(function(r) { return r.json(); })
-                  .then(function(p) { openFormForEdit(p); });
+                  .then(function(r) {
+                    return r.json().then(function(p) { return { ok: r.ok, p: p }; });
+                  })
+                  .then(function(res) { openFormForEdit(res.ok ? res.p : (res.p || { error: 'Could not load product.' })); })
+                  .catch(function() {
+                    openFormForEdit({ error: 'Network error while loading product.' });
+                  });
               });
             });
           })
@@ -7644,6 +9575,48 @@ $('#cls3741_attach_btn').on('click', function() {
         }
         loadProductList();
       };
+
+      /* ── Product type filter ─────────────────────────────────────── */
+      function applyProductFilter(filter) {
+        var cards    = document.querySelectorAll('#product_list .product-list-card');
+        var emptyMsg = document.getElementById('product_filter_empty');
+        var visible  = 0;
+        cards.forEach(function(card) {
+          var isDigital = card.getAttribute('data-is-digital') === '1';
+          var show = (
+            filter === 'all' ||
+            (filter === 'digital'  && isDigital) ||
+            (filter === 'physical' && !isDigital)
+          );
+          card.style.display = show ? '' : 'none';
+          if (show) visible++;
+        });
+        if (emptyMsg) {
+          if (cards.length > 0 && visible === 0) {
+            var label = filter === 'digital' ? 'digital' : 'physical';
+            emptyMsg.textContent = 'No ' + label + ' products yet. Add one above!';
+            emptyMsg.style.display = 'block';
+          } else {
+            emptyMsg.style.display = 'none';
+          }
+        }
+      }
+
+      (function () {
+        var toggle = document.getElementById('prod_type_toggle');
+        if (!toggle) return;
+        toggle.querySelectorAll('.prod-type-btn').forEach(function(btn) {
+          btn.addEventListener('click', function() {
+            toggle.querySelectorAll('.prod-type-btn').forEach(function(b) {
+              b.classList.remove('active');
+              b.setAttribute('aria-selected', 'false');
+            });
+            btn.classList.add('active');
+            btn.setAttribute('aria-selected', 'true');
+            applyProductFilter(btn.dataset.filter);
+          });
+        });
+      })();
 
       var PRODUCT_CATEGORY_LABELS = { beauty: 'Beauty', electronics: 'Electronics', fragrances: 'Fragrances', general: 'General' };
       function setProductCheckoutMode(value) {
@@ -7663,7 +9636,214 @@ $('#cls3741_attach_btn').on('click', function() {
           radio.addEventListener('change', function() { setProductCheckoutMode(radio.value); });
         });
       }
+
+      /** True when product is digital (flag or digital checkout modes). */
+      function isProductDigital(p) {
+        if (!p) return false;
+        if (p.is_digital === true || p.is_digital === 1 || p.is_digital === '1' || p.is_digital === 'true') return true;
+        var mode = String(p.checkout_mode || '').toLowerCase();
+        return mode === 'digital' || mode === 'direct_sale';
+      }
+
+      function getSelectedStockFormat() {
+        var checked = document.querySelector('input[name="stock_format"]:checked');
+        return checked ? checked.value : 'single';
+      }
+
+      function setStockFormatFromValue(val) {
+        var v = (val || 'single').toLowerCase();
+        var map = {
+          single: 'product_stock_format_single',
+          combo: 'product_stock_format_combo',
+          iptv: 'product_stock_format_iptv'
+        };
+        var el = document.getElementById(map[v] || map.single);
+        if (el) el.checked = true;
+        refreshStockFormatUI();
+      }
+
+      function refreshStockFormatUI() {
+        var fmt = getSelectedStockFormat();
+        var bulkEl = document.getElementById('product_bulk_stock_input');
+        var legalBlock = document.getElementById('iptv_legal_consent_block');
+        var legalCb = document.getElementById('product_legal_consent_iptv');
+        var PLACEHOLDERS = {
+          single: 'ABCD-1234\nXYZ-9876\nLIC-5555-9999',
+          combo: 'user1@email.com:pass123\nuser2@email.com:pass456\nuser3@email.com:pass789',
+          iptv: 'http://host.com:8080:username:password\nOR\nhttp://host.com/get.php?username=...'
+        };
+        if (bulkEl) bulkEl.setAttribute('placeholder', PLACEHOLDERS[fmt] || PLACEHOLDERS.single);
+        var showLegal = fmt === 'iptv';
+        if (legalBlock) legalBlock.style.display = showLegal ? '' : 'none';
+        if (legalCb) {
+          legalCb.required = showLegal;
+          if (!showLegal) legalCb.checked = false;
+        }
+      }
+
+      function refreshDigitalStockPlaceholder() {
+        refreshStockFormatUI();
+      }
+
+      // ── Smart stock-format defaults (Poka-Yoke) from product name keywords
+      var stockFormatUserOverride = false;
+      var SMART_STOCK_FORMAT_RULES = [
+        { format: 'iptv', keywords: ['iptv', 'xtream', 'm3u', 'قنوات', 'سيرفر'] },
+        { format: 'combo', keywords: ['netflix', 'spotify', 'canva', 'shahid', 'حساب', 'نتفليكس'] },
+        { format: 'single', keywords: ['key', 'windows', 'office', 'antivirus', 'مفتاح', 'تفعيل'] }
+      ];
+
+      function hideSmartDetectBadge() {
+        var badge = document.getElementById('smart_detect_badge');
+        if (badge) badge.style.display = 'none';
+      }
+
+      function showSmartDetectBadge() {
+        var badge = document.getElementById('smart_detect_badge');
+        if (badge) badge.style.display = '';
+      }
+
+      function resetSmartStockFormatDetect() {
+        stockFormatUserOverride = false;
+        hideSmartDetectBadge();
+      }
+
+      function detectStockFormatFromProductName(name) {
+        var text = (name || '').trim().toLowerCase();
+        if (!text) return null;
+        for (var i = 0; i < SMART_STOCK_FORMAT_RULES.length; i++) {
+          var rule = SMART_STOCK_FORMAT_RULES[i];
+          for (var j = 0; j < rule.keywords.length; j++) {
+            if (text.indexOf(rule.keywords[j].toLowerCase()) !== -1) {
+              return rule.format;
+            }
+          }
+        }
+        return null;
+      }
+
+      function applySmartStockFormat(format, opts) {
+        opts = opts || {};
+        var map = {
+          single: 'product_stock_format_single',
+          combo: 'product_stock_format_combo',
+          iptv: 'product_stock_format_iptv'
+        };
+        var radio = document.getElementById(map[format] || map.single);
+        if (!radio) return false;
+        if (getSelectedStockFormat() === format) {
+          if (!opts.showBadge) hideSmartDetectBadge();
+          return false;
+        }
+        radio.checked = true;
+        try {
+          radio.dispatchEvent(new Event('change', { bubbles: true }));
+        } catch (_) {
+          refreshStockFormatUI();
+        }
+        if (opts.showBadge) showSmartDetectBadge();
+        else hideSmartDetectBadge();
+        return true;
+      }
+
+      function runSmartStockFormatDetect() {
+        var isDigital = (document.getElementById('product_is_digital') || {}).value === 'true';
+        if (!isDigital || stockFormatUserOverride) return;
+        var nameEl = document.getElementById('product_name');
+        var detected = detectStockFormatFromProductName(nameEl && nameEl.value);
+        if (!detected) {
+          hideSmartDetectBadge();
+          return;
+        }
+        applySmartStockFormat(detected, { showBadge: true });
+      }
+
+      function updateDigitalFileStatus(p) {
+        var el = document.getElementById('product_digital_file_status');
+        if (!el) return;
+        if (p && p.has_digital_file && p.digital_file_name) {
+          var link = (p.digital_file_url || '').trim();
+          var safeName = String(p.digital_file_name).replace(/</g, '&lt;');
+          el.style.display = '';
+          el.innerHTML = link
+            ? '<i class="fas fa-check-circle me-1"></i> Current file: <a href="' + link + '" target="_blank" rel="noopener">' + safeName + '</a>'
+            : '<i class="fas fa-check-circle me-1"></i> Current file: ' + safeName;
+        } else {
+          el.style.display = 'none';
+          el.innerHTML = '';
+        }
+      }
+
+      function renderDigitalStockExisting(p) {
+        var wrap = document.getElementById('product_digital_stock_existing');
+        if (!wrap) return;
+        var lines = (p && p.digital_stock_unsold) ? p.digital_stock_unsold : [];
+        var avail = parseInt((p && p.digital_stock_available) || 0, 10) || 0;
+        var sold  = parseInt((p && p.digital_stock_sold) || 0, 10) || 0;
+        if (!isProductDigital(p) || (!lines.length && !avail && !sold)) {
+          wrap.style.display = 'none';
+          wrap.innerHTML = '';
+          return;
+        }
+        wrap.style.display = '';
+        if (!lines.length) {
+          wrap.innerHTML =
+            '<div class="dig-stock-existing-title">Inventory</div>' +
+            '<p class="dig-stock-existing-empty">No unsold stock rows' +
+            (sold ? ' (' + sold + ' already sold).' : '.') + '</p>';
+          return;
+        }
+        var html = '<div class="dig-stock-existing-title">Unsold stock (' + lines.length +
+          (avail > lines.length ? '+' + (avail - lines.length) + ' more' : '') + ')</div><ol class="dig-stock-existing-list">';
+        lines.forEach(function(row) {
+          var text = String(row.content || '').replace(/</g, '&lt;').replace(/&/g, '&amp;');
+          html += '<li><span style="color:#64748b;">#' + (row.line || '') + '</span> ' + text + '</li>';
+        });
+        html += '</ol>';
+        if (sold) {
+          html += '<p class="dig-stock-existing-empty" style="margin-top:0.4rem;">' + sold + ' unit(s) already sold.</p>';
+        }
+        wrap.innerHTML = html;
+      }
+
+      function updateDigitalStockSummaryBadge(p, isDigital) {
+        var summary = document.getElementById('product_digital_stock_summary');
+        if (!summary) return;
+        var avail = parseInt((p && p.digital_stock_available) || 0, 10) || 0;
+        var sold  = parseInt((p && p.digital_stock_sold) || 0, 10) || 0;
+        if (isDigital && (avail || sold)) {
+          summary.style.display = '';
+          summary.classList.toggle('is-empty', avail === 0 && sold > 0);
+          summary.innerHTML =
+            '<i class="fas fa-box-open" aria-hidden="true"></i> ' +
+            avail + ' left · ' + sold + ' sold';
+        } else {
+          summary.style.display = 'none';
+          summary.classList.remove('is-empty');
+          summary.innerHTML = '';
+        }
+      }
+
+      function clearDigitalEditExtras() {
+        updateDigitalFileStatus(null);
+        renderDigitalStockExisting(null);
+        var summary = document.getElementById('product_digital_stock_summary');
+        if (summary) {
+          summary.style.display = 'none';
+          summary.innerHTML = '';
+          summary.classList.remove('is-empty');
+        }
+      }
+
       function openFormForEdit(p) {
+        if (!p || p.error || !p.id) {
+          var errEl = document.getElementById('product_form_errors');
+          var msg = (p && p.error) ? p.error : 'Could not load product details.';
+          if (errEl) { errEl.innerHTML = msg; errEl.style.display = 'block'; }
+          return;
+        }
+        var errEl = document.getElementById('product_form_errors');
+        if (errEl) { errEl.innerHTML = ''; errEl.style.display = 'none'; }
         document.getElementById('product_edit_id').value = p.id;
         document.getElementById('product_name').value = p.name || '';
         document.getElementById('product_price').value = p.price || '';
@@ -7673,16 +9853,49 @@ $('#cls3741_attach_btn').on('click', function() {
         if (couponEl) couponEl.value = p.coupon_code || '';
         var currSel = document.getElementById('product_currency');
         if (currSel) { currSel.value = (p.currency || 'MAD').trim() || 'MAD'; }
+        if (typeof window.syncCurrencyPickerUI === 'function') window.syncCurrencyPickerUI();
+        if (typeof window.closeCurrencyDropdown === 'function') window.closeCurrencyDropdown();
         document.getElementById('product_description').value = p.description || '';
         var deliveryEl = document.getElementById('product_delivery_options');
         if (deliveryEl) deliveryEl.value = (p.delivery_options || '').trim() || '';
+        var returnPolicyEl = document.getElementById('product_return_policy');
+        if (returnPolicyEl) returnPolicyEl.value = (p.return_policy || '').trim() || '';
         var cat = (p.category || 'general').trim().toLowerCase();
         var catDisplay = document.getElementById('product_category_display');
         var catHidden = document.getElementById('product_category');
         if (catDisplay) catDisplay.value = PRODUCT_CATEGORY_LABELS[cat] || cat || '';
         if (catHidden) catHidden.value = cat || 'general';
+        setCategoryAiDetected(!!(catDisplay && catDisplay.value));
         document.getElementById('product_how_to_use').value = p.how_to_use || '';
-        setProductCheckoutMode(p.checkout_mode || 'standard_cod');
+        var isDigital = isProductDigital(p);
+        applyProductTypeUI(isDigital, true);
+        setProductCheckoutMode(p.checkout_mode || (isDigital ? 'digital' : 'standard_cod'));
+        if (isDigital) {
+          setDigitalProductTypeFromValue(p.digital_product_type || 'account');
+          var legalCb = document.getElementById('product_legal_consent_iptv');
+          if (legalCb) legalCb.checked = !!p.legal_consent_iptv;
+        }
+
+        var digUrlEl = document.getElementById('product_digital_url');
+        if (digUrlEl) digUrlEl.value = p.digital_url || '';
+        var digMsgEl = document.getElementById('product_fulfillment_message');
+        if (digMsgEl) digMsgEl.value = p.fulfillment_message || '';
+        var digFileEl = document.getElementById('product_digital_file');
+        if (digFileEl) digFileEl.value = '';
+
+        updateDigitalFileStatus(p);
+
+        var stockFormat = (p.stock_format || 'single').toLowerCase();
+        if (stockFormat !== 'iptv' && (p.digital_product_type || '').toLowerCase() === 'iptv') {
+          stockFormat = 'iptv';
+        }
+        setStockFormatFromValue(stockFormat);
+        stockFormatUserOverride = true;
+        var bulkEl = document.getElementById('product_bulk_stock_input');
+        if (bulkEl) bulkEl.value = '';
+
+        updateDigitalStockSummaryBadge(p, isDigital);
+        renderDigitalStockExisting(p);
         var container = document.getElementById('offer_tiers_container');
         container.innerHTML = '';
         try {
@@ -7697,6 +9910,15 @@ $('#cls3741_attach_btn').on('click', function() {
         updatePreviewImagesFromList();
         updateProductPreview();
         showFormView(true);
+
+        if (isDigital) {
+          var digSection = document.getElementById('section_digital_assets');
+          if (digSection) {
+            setTimeout(function() {
+              try { digSection.scrollIntoView({ behavior: 'smooth', block: 'start' }); } catch (_) {}
+            }, 120);
+          }
+        }
       }
 
       function openAddProductModal() {
@@ -7732,11 +9954,18 @@ $('#cls3741_attach_btn').on('click', function() {
         if (couponEl) couponEl.value = p.coupon_code || '';
         var currSel = document.getElementById('product_currency');
         if (currSel) currSel.value = (p.currency || 'MAD').trim() || 'MAD';
+        if (typeof window.syncCurrencyPickerUI === 'function') window.syncCurrencyPickerUI();
+        if (typeof window.closeCurrencyDropdown === 'function') window.closeCurrencyDropdown();
         document.getElementById('product_description').value = p.description || '';
         var deliveryEl = document.getElementById('product_delivery_options');
         if (deliveryEl) deliveryEl.value = (p.delivery_options || '').trim() || '';
+        var returnPolicyEl = document.getElementById('product_return_policy');
+        if (returnPolicyEl) returnPolicyEl.value = (p.return_policy || '').trim() || '';
         document.getElementById('product_how_to_use').value = p.how_to_use || '';
+        applyProductTypeUI(isProductDigital(p), true);
         setProductCheckoutMode(p.checkout_mode || 'standard_cod');
+        resetSmartStockFormatDetect();
+        runSmartStockFormatDetect();
         document.getElementById('offer_tiers_container').innerHTML = '';
         productMediaFiles = [];
         updatePreviewImagesFromList();
@@ -7755,16 +9984,21 @@ $('#cls3741_attach_btn').on('click', function() {
         document.getElementById('product_edit_id').value = '';
         document.getElementById('product_image_urls').value = '';
         document.getElementById('product_create_form').reset();
+        if (typeof window.syncCurrencyPickerUI === 'function') window.syncCurrencyPickerUI();
+        if (typeof window.closeCurrencyDropdown === 'function') window.closeCurrencyDropdown();
         var catDisplay = document.getElementById('product_category_display');
         var catHidden = document.getElementById('product_category');
-        if (catDisplay) { catDisplay.value = ''; catDisplay.placeholder = 'Detected when description has 200+ characters'; }
+        if (catDisplay) { catDisplay.value = ''; catDisplay.placeholder = PRODUCT_CATEGORY_PLACEHOLDER; }
         if (catHidden) catHidden.value = '';
+        setCategoryAiDetected(false);
         document.getElementById('offer_tiers_container').innerHTML = '';
         productMediaFiles = [];
         productExtractedImageUrls = [];
         syncProductImageUrlsHidden();
         updatePreviewImagesFromList();
         updateProductPreview();
+        applyProductTypeUI(false);
+        resetSmartStockFormatDetect();
         showFormView(false);
       });
       document.getElementById('product_add_ai').addEventListener('click', function() {
@@ -7831,6 +10065,161 @@ $('#cls3741_attach_btn').on('click', function() {
 
       document.getElementById('product_channel_id').value = getProductChannelId();
       initCheckoutModeOptions();
+
+      /* ── Product type toggle logic ───────────────────────────────── */
+      function applyProductTypeUI(isDigital, skipCheckoutReset) {
+        var isDigHidden = document.getElementById('product_is_digital');
+        if (isDigHidden) isDigHidden.value = isDigital ? 'true' : 'false';
+
+        var physCard = document.getElementById('ptype_physical');
+        var digCard  = document.getElementById('ptype_digital');
+        if (physCard) physCard.classList.toggle('active', !isDigital);
+        if (digCard)  digCard.classList.toggle('active',  isDigital);
+
+        function toggleSection(id, show) {
+          var el = document.getElementById(id);
+          if (el) el.classList.toggle('prod-section--hidden', !show);
+        }
+        toggleSection('section_physical_pricing',  !isDigital);
+        toggleSection('section_physical_delivery', !isDigital);
+        toggleSection('section_digital_assets',     isDigital);
+        toggleSection('section_checkout_physical', !isDigital);
+        toggleSection('section_checkout_digital',   isDigital);
+
+        var returnPolicyRow = document.getElementById('return_policy_row');
+        if (returnPolicyRow) {
+          returnPolicyRow.classList.toggle('return-policy--physical-emphasis', !isDigital);
+        }
+        var returnPolicyBadge = document.getElementById('return_policy_physical_badge');
+        if (returnPolicyBadge) {
+          returnPolicyBadge.classList.toggle('is-hidden', isDigital);
+        }
+
+        var mediaReqStar = document.getElementById('media_req_star');
+        var mediaHint    = document.getElementById('product_media_count');
+        if (mediaReqStar) mediaReqStar.style.display = isDigital ? 'none' : '';
+        if (mediaHint) mediaHint.textContent = isDigital
+          ? 'Optional for digital products. Add a cover image if desired.'
+          : 'At least one photo or video required. When editing, add new files to replace existing.';
+
+        if (!skipCheckoutReset) {
+          // Determine the current selection.
+          var currentMode = '';
+          var checkedRadio = document.querySelector('input[name="checkout_mode"]:checked');
+          if (checkedRadio) currentMode = checkedRadio.value;
+          var physModes = ['quick_lead', 'standard_cod', 'strict_cod'];
+          var digModes  = ['digital', 'direct_sale'];
+          // Only reset when the current mode is invalid for the new product type.
+          if (isDigital && physModes.indexOf(currentMode) !== -1) {
+            setProductCheckoutMode('digital');
+          } else if (!isDigital && digModes.indexOf(currentMode) !== -1) {
+            setProductCheckoutMode('standard_cod');
+          }
+        }
+
+        if (!isDigital) {
+          var digFile = document.getElementById('product_digital_file');
+          var digUrl  = document.getElementById('product_digital_url');
+          var digMsg  = document.getElementById('product_fulfillment_message');
+          var digBulk = document.getElementById('product_bulk_stock_input');
+          if (digFile) digFile.value = '';
+          if (digUrl)  digUrl.value  = '';
+          if (digMsg)  digMsg.value  = '';
+          if (digBulk) digBulk.value = '';
+          clearDigitalEditExtras();
+          setStockFormatFromValue('single');
+          resetDigitalSubtypeFields();
+          hideSmartDetectBadge();
+        } else {
+          refreshDigitalSubtypeUI();
+          refreshStockFormatUI();
+          runSmartStockFormatDetect();
+        }
+      }
+
+      function getSelectedDigitalProductType() {
+        var checked = document.querySelector('input[name="digital_product_type"]:checked');
+        return checked ? checked.value : 'account';
+      }
+
+      function resetDigitalSubtypeFields() {
+        var acc = document.getElementById('digital_product_type_account');
+        if (acc) acc.checked = true;
+        var key = document.getElementById('digital_product_type_key');
+        if (key) key.checked = false;
+        refreshDigitalSubtypeUI();
+      }
+
+      function refreshDigitalSubtypeUI() {
+        var isDigital = (document.getElementById('product_is_digital') || {}).value === 'true';
+        var typeBlock = document.getElementById('section_digital_product_type');
+        if (typeBlock) typeBlock.style.display = isDigital ? '' : 'none';
+      }
+
+      function setDigitalProductTypeFromValue(val) {
+        var v = (val || 'account').toLowerCase();
+        if (v === 'iptv') v = 'account';
+        var map = { account: 'digital_product_type_account', key: 'digital_product_type_key' };
+        var id = map[v] || map.account;
+        var el = document.getElementById(id);
+        if (el) el.checked = true;
+        refreshDigitalSubtypeUI();
+      }
+
+      function initDigitalSubtypeUI() {
+        document.querySelectorAll('input[name="digital_product_type"]').forEach(function(r) {
+          r.addEventListener('change', refreshDigitalSubtypeUI);
+        });
+        refreshDigitalSubtypeUI();
+      }
+      initDigitalSubtypeUI();
+
+      function initProductTypeToggle() {
+        var physCard = document.getElementById('ptype_physical');
+        var digCard  = document.getElementById('ptype_digital');
+        if (physCard) physCard.addEventListener('click', function() { applyProductTypeUI(false); });
+        if (digCard)  digCard.addEventListener('click',  function() { applyProductTypeUI(true); });
+      }
+      initProductTypeToggle();
+
+      (function initReturnPolicyExamples() {
+        var textarea = document.getElementById('product_return_policy');
+        if (!textarea) return;
+        document.querySelectorAll('.return-policy-example').forEach(function(btn) {
+          btn.addEventListener('click', function() {
+            var text = (btn.getAttribute('data-policy') || '').trim();
+            if (!text) return;
+            var current = (textarea.value || '').trim();
+            textarea.value = current ? (current + '\n' + text) : text;
+            textarea.focus();
+          });
+        });
+      })();
+
+      // ── Dynamic Digital Stock — placeholder swap + format-aware client lint
+      // Updates the textarea placeholder when the seller switches between
+      // 'single' and 'combo' formats. We also run a lightweight client-side
+      // lint on submit; the authoritative validation still runs on the
+      // server (`_parse_bulk_stock_input`), but a fast-fail UX here saves
+      // a round-trip when the paste is obviously wrong.
+      (function initStockFormatUI() {
+        document.querySelectorAll('input[name="stock_format"]').forEach(function(r) {
+          r.addEventListener('change', function(e) {
+            if (e && e.isTrusted) {
+              stockFormatUserOverride = true;
+              hideSmartDetectBadge();
+            }
+            refreshStockFormatUI();
+          });
+        });
+        refreshStockFormatUI();
+      })();
+
+      (function initSmartStockFormatDetect() {
+        var nameEl = document.getElementById('product_name');
+        if (!nameEl) return;
+        nameEl.addEventListener('input', runSmartStockFormatDetect);
+      })();
       var form = document.getElementById('product_create_form');
       if (form) {
         form.addEventListener('submit', function(e) {
@@ -7848,6 +10237,7 @@ $('#cls3741_attach_btn').on('click', function() {
           var offerHidden = document.getElementById('product_offer_hidden');
           if (errEl) errEl.style.display = 'none';
           if (successEl) successEl.style.display = 'none';
+          var isDigitalMode = (document.getElementById('product_is_digital') || {}).value === 'true';
           var errs = [];
           if (!name) errs.push('Product name is required.');
           if (!price) errs.push('Price is required.');
@@ -7860,7 +10250,55 @@ $('#cls3741_attach_btn').on('click', function() {
             if (tierPrice && (isNaN(Number(tierPrice)) || Number(tierPrice) < 0)) errs.push('Each tier price must be a valid positive number.');
             if (tierBackup && (isNaN(Number(tierBackup)) || Number(tierBackup) < 0)) errs.push('Each tier backup floor must be a valid positive number.');
           });
-          if (!isEdit && files.length === 0) {
+          if (isDigitalMode) {
+            var digUrlVal = ((document.getElementById('product_digital_url') || {}).value || '').trim();
+            var digFileEl = document.getElementById('product_digital_file');
+            var hasDigFile = digFileEl && digFileEl.files && digFileEl.files.length > 0;
+
+            // Bulk-stock client lint — mirrors `_parse_bulk_stock_input`
+            // so the seller gets instant feedback (line numbers match).
+            var bulkEl = document.getElementById('product_bulk_stock_input');
+            var bulkRaw = (bulkEl && bulkEl.value) || '';
+            var stockFormat = getSelectedStockFormat();
+            var bulkLines = bulkRaw.replace(/\r\n/g, '\n').replace(/\r/g, '\n').split('\n');
+            var cleanedBulkCount = 0;
+            for (var i = 0; i < bulkLines.length; i++) {
+              var line = bulkLines[i].trim();
+              if (!line) continue;
+              if (stockFormat === 'combo') {
+                var colonMatches = line.match(/:/g);
+                var colonCount = colonMatches ? colonMatches.length : 0;
+                if (colonCount === 0) {
+                  errs.push("Validation Error: Line " + (i + 1) +
+                            " is missing the ':' separator. " +
+                            "Combo format expects 'email:password' on every line.");
+                  break;
+                }
+                if (colonCount > 1) {
+                  errs.push("Validation Error: Line " + (i + 1) +
+                            " contains " + colonCount + " ':' separators (expected exactly 1).");
+                  break;
+                }
+                var parts = line.split(':');
+                if (!parts[0].trim() || !parts[1].trim()) {
+                  errs.push("Validation Error: Line " + (i + 1) +
+                            " has an empty email or password around the ':' separator.");
+                  break;
+                }
+              }
+              cleanedBulkCount++;
+            }
+
+            if (!digUrlVal && !hasDigFile && cleanedBulkCount === 0) {
+              errs.push('Digital product requires a download URL, a file upload, or at least one bulk stock line.');
+            }
+            if (stockFormat === 'iptv') {
+              var legalCb = document.getElementById('product_legal_consent_iptv');
+              if (!legalCb || !legalCb.checked) {
+                errs.push('IPTV products require accepting the legal liability declaration (checkbox).');
+              }
+            }
+          } else if (!isEdit && files.length === 0) {
             var urlsVal = (document.getElementById('product_image_urls') && document.getElementById('product_image_urls').value || '').trim();
             var parsedUrls = [];
             try { if (urlsVal) parsedUrls = JSON.parse(urlsVal); } catch (e) {}
@@ -7874,6 +10312,14 @@ $('#cls3741_attach_btn').on('click', function() {
           var fd = new FormData(form);
           fd.set('channel_id', getProductChannelId());
           fd.set('offer', offerHidden ? offerHidden.value : '');
+          if (isDigitalMode) {
+            fd.set('digital_product_type', getSelectedDigitalProductType());
+            var legalIptv = document.getElementById('product_legal_consent_iptv');
+            fd.set('legal_consent_iptv', (legalIptv && legalIptv.checked) ? 'true' : 'false');
+          } else {
+            fd.delete('digital_product_type');
+            fd.delete('legal_consent_iptv');
+          }
           fd.delete('images');
           fd.delete('product_id');
           files.forEach(function(file) { fd.append('images', file); });
@@ -7893,6 +10339,7 @@ $('#cls3741_attach_btn').on('click', function() {
                 syncProductImageUrlsHidden();
                 updatePreviewImagesFromList();
                 updateProductPreview();
+                applyProductTypeUI(false);
                 if (btn) btn.disabled = false;
                 showListView();
                 loadProductList();
@@ -11448,17 +13895,53 @@ wrapper.innerHTML = `
     // ============================================================
     } else {
       var body = m.body || '';
-      var linkified = safeLinkify(body);
+      var textHtml = '';
       var previewHtml = '';
-      if (linkified.firstUrl) {
-        try {
-          var host = new URL(linkified.firstUrl).host.replace(/^www\./i, '');
-          var safeUrlAttr = linkified.firstUrl.replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/'/g,'&#039;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
-          previewHtml = '<div class="cls3741_link_preview"><a href="' + safeUrlAttr + '" target="_blank" rel="noopener noreferrer nofollow" class="cls3741_link_preview_a"><span class="cls3741_link_preview_icon">🔗</span><span class="cls3741_link_preview_domain">' + escapeHtml(host) + '</span></a></div>';
-        } catch (e) { previewHtml = ''; }
+
+      if (m.is_digital_delivery && m.has_protected_asset) {
+        // ── Telegram-style inline spoiler ───────────────────────────────
+        // For digital-delivery messages the server emits the body as
+        // labelled-placeholder HTML (see `_render_spoiler_body_html` in
+        // views.py). Labels are plaintext; values are `<span
+        // class="spoiler-text trigger-decrypt">` placeholders carrying
+        // ONLY the redaction mask + `data-id`/`data-field` attributes.
+        // The body is server-controlled so it is safe to inject as HTML;
+        // a stripping/escape step would destroy the spoiler spans.
+        if (body.indexOf('spoiler-text') !== -1) {
+          textHtml = body;
+        } else {
+          // Legacy path: messages persisted by the previous build don't
+          // carry the spoiler markup. Render the original body escaped
+          // and append a default labelled placeholder so the owner can
+          // still reveal the encrypted asset.
+          var safeMsgIdLegacy = String(m.id || '').replace(/[^0-9]/g, '');
+          textHtml =
+            (body ? escapeHtml(body).replace(/\n/g, '<br>') + '<br><br>' : '') +
+            '🔗 ' +
+            '<span class="spoiler-text trigger-decrypt"' +
+              ' data-id="' + safeMsgIdLegacy + '"' +
+              ' data-field="link"' +
+              ' title="انقر لفك التشفير">' +
+              '************************' +
+            '</span>';
+        }
+        // No link preview for digital-delivery bubbles — the link is the
+        // value being protected; we don't want a clickable preview tile.
+      } else {
+        // Regular text path (existing behaviour: safelinkify + preview).
+        var linkified = safeLinkify(body);
+        textHtml = linkified.html;
+        if (linkified.firstUrl) {
+          try {
+            var host = new URL(linkified.firstUrl).host.replace(/^www\./i, '');
+            var safeUrlAttr = linkified.firstUrl.replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/'/g,'&#039;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+            previewHtml = '<div class="cls3741_link_preview"><a href="' + safeUrlAttr + '" target="_blank" rel="noopener noreferrer nofollow" class="cls3741_link_preview_a"><span class="cls3741_link_preview_icon">🔗</span><span class="cls3741_link_preview_domain">' + escapeHtml(host) + '</span></a></div>';
+          } catch (e) { previewHtml = ''; }
+        }
       }
+
       wrapper.innerHTML = `
-          <div class="cls3741_text">${linkified.html}</div>
+          <div class="cls3741_text">${textHtml}</div>
           ${previewHtml}
           <div class="cls3741_msg_footer" style="display:flex; justify-content: flex-end; gap: 5px;">
             ${timeHtml}
@@ -11812,6 +14295,11 @@ function formatTime(seconds) {
       chatOldestLoadedId = null;
       chatLoadingOlder = false;
 
+      // Hide any stale payment-verification banner from the previous chat
+      // immediately; the new chat will repaint it from data.active_digital_order.
+      try { updatePaymentVerificationBanner(null); } catch (_) {}
+      try { updateSupportReviewBanner(null); } catch (_) {}
+
       const url = `${window.API_URLS.messages}?phone=${encodeURIComponent(currentPhone)}&channel_id=${encodeURIComponent(currentChannelId)}&limit=${CHAT_PAGE_SIZE}`;
       try {
         const res = await fetch(url, {
@@ -11828,6 +14316,15 @@ function formatTime(seconds) {
         chatHasOlderMessages = !!data.has_older_messages;
         const crmData = data.crm_data || null;
         updateSidebarCRM(crmData);
+
+        // Paint (or clear) the pending-payment banner for the just-opened chat.
+        // `active_digital_order` is null when no digital order is waiting for
+        // a receipt or merchant approval — the helper hides the banner in
+        // that case.
+        try { updatePaymentVerificationBanner(data.active_digital_order || null); }
+        catch (e) { console.warn('updatePaymentVerificationBanner failed', e); }
+        try { updateSupportReviewBanner(data.active_support_review || null); }
+        catch (e) { console.warn('updateSupportReviewBanner failed', e); }
 
         var sentinel = document.createElement('div');
         sentinel.id = 'cls3741_chat_load_older_sentinel';
@@ -11861,6 +14358,486 @@ function formatTime(seconds) {
         console.error('fetchMessagesForCurrentws', e);
       }
     }
+
+    // ──────────────────────────────────────────────────────────────────
+    // Payment-verification banner (pending digital orders)
+    // ──────────────────────────────────────────────────────────────────
+    //
+    // The dashboard is a single-page app: there is no per-customer Django
+    // view, so the `active_digital_order` flag arrives piggy-backed on the
+    // existing per-customer endpoint `/api/get_messages/` (see
+    // `get_messages1` in views.py). Whenever a chat is opened we:
+    //   1. Hide the previous chat's banner instantly (above).
+    //   2. Call this helper with the JSON payload to paint or clear it.
+    //
+    // `order` shape (from `_serialize_active_digital_order`):
+    //   { id, status, total_price, catalog_price, is_negotiated, currency, product_name,
+    //     customer_name, customer_phone, created_at }
+    //
+    // `status` is always one of: 'pending_payment' | 'pending_verification'
+    // (the backend only emits actionable orders).
+    function formatPvbPriceLabel(order, currency) {
+      const rawPrice = order.total_price;
+      let priceLabel;
+      if (typeof rawPrice === 'number' && isFinite(rawPrice)) {
+        priceLabel = Number.isInteger(rawPrice)
+          ? String(rawPrice)
+          : rawPrice.toFixed(2);
+      } else {
+        priceLabel = String(rawPrice || '');
+      }
+
+      const catalogRaw = order.catalog_price;
+      let catalogLabel = null;
+      if (typeof catalogRaw === 'number' && isFinite(catalogRaw)) {
+        catalogLabel = Number.isInteger(catalogRaw)
+          ? String(catalogRaw)
+          : catalogRaw.toFixed(2);
+      }
+
+      const negotiated = Boolean(
+        order.is_negotiated
+        || (catalogLabel && priceLabel && parseFloat(priceLabel) < parseFloat(catalogLabel) - 0.001)
+      );
+
+      if (negotiated && catalogLabel) {
+        return (
+          '<span class="pvb-price-wrap">'
+          + `<span class="pvb-price-struck">${catalogLabel} ${currency}</span> `
+          + `<strong class="pvb-price-negotiated">${priceLabel} ${currency} (Negotiated Price)</strong>`
+          + '</span>'
+        );
+      }
+      return `<strong>${priceLabel} ${currency}</strong>`;
+    }
+
+    function updatePaymentVerificationBanner(order) {
+      const banner = document.getElementById('payment-verification-banner');
+      if (!banner) return;
+
+      if (!order || !order.id) {
+        banner.hidden = true;
+        banner.style.display = 'none';
+        banner.dataset.orderId = '';
+        banner.classList.remove('is-verification');
+        return;
+      }
+
+      const currency = (order.currency || 'MAD').toString();
+      const product = (order.product_name || '').trim();
+      const customer = (order.customer_name || '').trim();
+
+      const titleEl = document.getElementById('pvb_title');
+      const subEl = document.getElementById('pvb_subtitle');
+      if (titleEl) {
+        titleEl.innerHTML =
+          `Pending Digital Order Payment (${formatPvbPriceLabel(order, currency)})`;
+      }
+      if (subEl) {
+        const subParts = [];
+        if (product) subParts.push(product);
+        if (customer) subParts.push(customer);
+        if (order.status === 'pending_verification') {
+          subParts.push('receipt received — ready to verify');
+        } else {
+          subParts.push('waiting for customer receipt');
+        }
+        subEl.textContent = subParts.join(' • ');
+      }
+
+      banner.classList.toggle('is-verification', order.status === 'pending_verification');
+      banner.dataset.orderId = String(order.id);
+      banner.hidden = false;
+      banner.style.display = '';
+    }
+    window.updatePaymentVerificationBanner = updatePaymentVerificationBanner;
+
+    // Receipt rejection modal — returns trimmed reason or null if cancelled.
+    (function initReceiptRejectModal() {
+      const overlay = document.getElementById('receipt-reject-modal');
+      const form = document.getElementById('rrm_form');
+      const textarea = document.getElementById('rrm_reason');
+      const charCount = document.getElementById('rrm_char_count');
+      const errEl = document.getElementById('rrm_error');
+      const btnClose = document.getElementById('rrm_btn_close');
+      const btnCancel = document.getElementById('rrm_btn_cancel');
+      const btnSubmit = document.getElementById('rrm_btn_submit');
+      const subtitle = document.getElementById('rrm_subtitle');
+      if (!overlay || !form || !textarea) return;
+
+      let pendingResolve = null;
+      let pendingOrderId = '';
+
+      function syncCharCount() {
+        if (charCount) charCount.textContent = String((textarea.value || '').length);
+      }
+
+      function setError(msg) {
+        if (!errEl) return;
+        if (msg) {
+          errEl.textContent = msg;
+          errEl.hidden = false;
+        } else {
+          errEl.textContent = '';
+          errEl.hidden = true;
+        }
+      }
+
+      function highlightChips() {
+        const val = (textarea.value || '').trim();
+        overlay.querySelectorAll('.rrm-chip').forEach(function(chip) {
+          const reason = (chip.getAttribute('data-reason') || '').trim();
+          chip.classList.toggle('rrm-chip-active', reason && reason === val);
+        });
+      }
+
+      function closeModal(result) {
+        overlay.classList.remove('rrm-open');
+        overlay.hidden = true;
+        overlay.setAttribute('aria-hidden', 'true');
+        document.body.classList.remove('rrm-modal-open');
+        textarea.classList.remove('rrm-invalid');
+        setError('');
+        const resolve = pendingResolve;
+        pendingResolve = null;
+        pendingOrderId = '';
+        if (resolve) resolve(result);
+      }
+
+      function openModal(orderId) {
+        pendingOrderId = (orderId || '').toString().trim();
+        if (subtitle && pendingOrderId) {
+          subtitle.textContent = 'Order #' + pendingOrderId + ' — the customer will receive your reason on WhatsApp.';
+        }
+        textarea.value = '';
+        syncCharCount();
+        highlightChips();
+        setError('');
+        overlay.hidden = false;
+        overlay.setAttribute('aria-hidden', 'false');
+        overlay.classList.add('rrm-open');
+        document.body.classList.add('rrm-modal-open');
+        window.setTimeout(function() { textarea.focus(); }, 80);
+        return new Promise(function(resolve) {
+          pendingResolve = resolve;
+        });
+      }
+
+      textarea.addEventListener('input', function() {
+        syncCharCount();
+        highlightChips();
+        textarea.classList.remove('rrm-invalid');
+        setError('');
+      });
+
+      overlay.querySelectorAll('.rrm-chip').forEach(function(chip) {
+        chip.addEventListener('click', function() {
+          textarea.value = (chip.getAttribute('data-reason') || '').trim();
+          syncCharCount();
+          highlightChips();
+          textarea.classList.remove('rrm-invalid');
+          setError('');
+          textarea.focus();
+        });
+      });
+
+      function onCancel() {
+        closeModal(null);
+      }
+
+      if (btnClose) btnClose.addEventListener('click', onCancel);
+      if (btnCancel) btnCancel.addEventListener('click', onCancel);
+      overlay.addEventListener('click', function(e) {
+        if (e.target === overlay) onCancel();
+      });
+
+      document.addEventListener('keydown', function(e) {
+        if (!overlay.classList.contains('rrm-open')) return;
+        if (e.key === 'Escape') {
+          e.preventDefault();
+          onCancel();
+        }
+      });
+
+      form.addEventListener('submit', function(e) {
+        e.preventDefault();
+        const reason = (textarea.value || '').trim();
+        if (!reason) {
+          textarea.classList.add('rrm-invalid');
+          setError('Please enter a reason for rejection.');
+          textarea.focus();
+          return;
+        }
+        closeModal(reason);
+      });
+
+      window.openReceiptRejectModal = openModal;
+    })();
+
+    async function executeVerifyReceipt(orderId, action, rejectReason) {
+      const banner = document.getElementById('payment-verification-banner');
+      const approveBtn = document.getElementById('pvb_btn_approve');
+      const rejectBtn  = document.getElementById('pvb_btn_reject');
+      const modalSubmit = document.getElementById('rrm_btn_submit');
+      if (approveBtn) approveBtn.disabled = true;
+      if (rejectBtn)  rejectBtn.disabled  = true;
+      if (modalSubmit) modalSubmit.disabled = true;
+
+      const csrf = (document.querySelector('[name=csrfmiddlewaretoken]') || {}).value || '';
+      try {
+        const payload = { order_id: orderId, action: action };
+        if (action === 'reject' && rejectReason) {
+          payload.reason = rejectReason;
+        }
+        const res = await fetch('/discount/whatssapAPI/api/orders/verify-receipt/', {
+          method: 'POST',
+          credentials: 'same-origin',
+          headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json',
+            'X-CSRFToken': csrf,
+          },
+          body: JSON.stringify(payload),
+        });
+
+        let data = null;
+        try { data = await res.json(); } catch (_) { data = null; }
+
+        if (!res.ok) {
+          const msg = (data && (data.error || data.detail)) || ('HTTP ' + res.status);
+          window.alert('Could not ' + action + ' the receipt: ' + msg);
+          if (approveBtn) approveBtn.disabled = false;
+          if (rejectBtn)  rejectBtn.disabled  = false;
+          if (modalSubmit) modalSubmit.disabled = false;
+          return false;
+        }
+
+        if (banner && banner.parentNode) {
+          banner.parentNode.removeChild(banner);
+        }
+        return true;
+      } catch (err) {
+        console.error('verifyReceipt error', err);
+        window.alert('Network error while verifying the receipt. Please try again.');
+        if (approveBtn) approveBtn.disabled = false;
+        if (rejectBtn)  rejectBtn.disabled  = false;
+        if (modalSubmit) modalSubmit.disabled = false;
+        return false;
+      }
+    }
+
+    // Approve or reject the most recent payment receipt for `orderId`.
+    window.verifyReceipt = async function verifyReceipt(orderId, action) {
+      orderId = (orderId || '').toString().trim();
+      action  = (action  || '').toString().trim().toLowerCase();
+      if (!orderId) {
+        console.warn('verifyReceipt: missing orderId');
+        return;
+      }
+      if (action !== 'approve' && action !== 'reject') {
+        console.warn('verifyReceipt: invalid action', action);
+        return;
+      }
+
+      if (action === 'reject') {
+        const openModal = window.openReceiptRejectModal;
+        if (typeof openModal !== 'function') {
+          console.warn('openReceiptRejectModal not available');
+          return;
+        }
+        const rejectReason = await openModal(orderId);
+        if (!rejectReason) return;
+        await executeVerifyReceipt(orderId, action, rejectReason);
+        return;
+      }
+
+      await executeVerifyReceipt(orderId, action, '');
+    };
+
+    function updateSupportReviewBanner(order) {
+      const banner = document.getElementById('support-review-banner');
+      if (!banner) return;
+      if (!order || !order.id || order.support_status !== 'under_review') {
+        banner.hidden = true;
+        banner.style.display = 'none';
+        banner.dataset.orderId = '';
+        return;
+      }
+      const titleEl = document.getElementById('srv_title');
+      const summaryEl = document.getElementById('srv_summary');
+      if (titleEl) titleEl.textContent = '⚠️ Complaint Under Review';
+      if (summaryEl) {
+        const summary = (order.complaint_summary || '').trim();
+        const product = (order.product_name || '').trim();
+        summaryEl.textContent = summary
+          ? (product ? product + ' — ' + summary : summary)
+          : (product || 'Customer submitted proof; review required.');
+      }
+      banner.dataset.orderId = String(order.id);
+      banner.hidden = false;
+      banner.style.display = '';
+    }
+    window.updateSupportReviewBanner = updateSupportReviewBanner;
+
+    window.resolveSupportTicket = async function resolveSupportTicket(orderId, action) {
+      orderId = (orderId || '').toString().trim();
+      action = (action || '').toString().trim().toLowerCase();
+      if (!orderId) return;
+      if (action !== 'approve' && action !== 'reject') return;
+      if (action === 'reject' &&
+          !window.confirm('Reject this complaint? The customer will be notified.')) {
+        return;
+      }
+      const banner = document.getElementById('support-review-banner');
+      const approveBtn = document.getElementById('srv_btn_approve');
+      const rejectBtn = document.getElementById('srv_btn_reject');
+      if (approveBtn) approveBtn.disabled = true;
+      if (rejectBtn) rejectBtn.disabled = true;
+      const csrf = (document.querySelector('[name=csrfmiddlewaretoken]') || {}).value || '';
+      try {
+        const res = await fetch('/discount/whatssapAPI/api/orders/resolve-support/', {
+          method: 'POST',
+          credentials: 'same-origin',
+          headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json',
+            'X-CSRFToken': csrf,
+          },
+          body: JSON.stringify({ order_id: orderId, action: action }),
+        });
+        let data = null;
+        try { data = await res.json(); } catch (_) { data = null; }
+        if (!res.ok) {
+          const msg = (data && (data.error || data.detail)) || `HTTP ${res.status}`;
+          window.alert('Could not ' + action + ' support ticket: ' + msg);
+          if (approveBtn) approveBtn.disabled = false;
+          if (rejectBtn) rejectBtn.disabled = false;
+          return;
+        }
+        if (banner && banner.parentNode) {
+          banner.parentNode.removeChild(banner);
+        }
+      } catch (err) {
+        console.error('resolveSupportTicket error', err);
+        window.alert('Network error. Please try again.');
+        if (approveBtn) approveBtn.disabled = false;
+        if (rejectBtn) rejectBtn.disabled = false;
+      }
+    };
+
+    // ──────────────────────────────────────────────────────────────────
+    // Digital-delivery spoiler — owner-only reveal (delegated click)
+    // ──────────────────────────────────────────────────────────────────
+    //
+    // The chat bubble for a digital-delivery message is rendered with one
+    // labelled-placeholder span per sensitive field (Telegram style). On
+    // click of ANY `.trigger-decrypt` span the bubble's shared message id
+    // is POSTed to /api/messages/reveal-asset/.
+    //
+    // Server enforces strict owner-only RBAC and returns:
+    //   200 → { "fields": { "link": "...", "email": "...", ... } }
+    //         → each span with matching `data-field` is swapped via
+    //           textContent and the `.spoiler-text` class is dropped.
+    //   403 → { "error": "Access Denied: Insufficient permissions." }
+    //         → all sibling spans for this message are marked permanently
+    //           denied so the seller sees WHY (no toast / no popup race).
+    //
+    // CRITICAL: plaintext only ever enters the DOM after a successful
+    // owner-authenticated round-trip. Initial paint contains ONLY the
+    // asterisk redaction mask — never ciphertext, never plaintext.
+    //
+    // A single in-flight request is tracked per message id so rapid
+    // clicks on multiple spans of the same bubble coalesce.
+    (function setupSpoilerClickDelegation(){
+      const inflight = new Map(); // messageId -> Promise<{ok, data, status}>
+
+      function spansFor(messageId, container) {
+        const root = container || document;
+        return root.querySelectorAll(
+          '.trigger-decrypt[data-id="' + messageId + '"]'
+        );
+      }
+
+      function markDenied(messageId, errorText) {
+        const spans = spansFor(messageId);
+        spans.forEach(function (sp) {
+          sp.textContent = errorText || 'Access Denied: Insufficient permissions.';
+          sp.classList.remove('spoiler-text');
+          sp.classList.add('access-denied');
+          sp.removeAttribute('title');
+        });
+      }
+
+      function reveal(messageId, fields) {
+        const spans = spansFor(messageId);
+        spans.forEach(function (sp) {
+          const key = sp.dataset.field || 'link';
+          // Assign via textContent — even if the decrypted value contains
+          // '<' or '>' it can NEVER become live DOM. This is the only
+          // place plaintext ever touches the page.
+          const value = fields && Object.prototype.hasOwnProperty.call(fields, key)
+            ? fields[key]
+            : '';
+          sp.textContent = value || '—';
+          sp.classList.remove('spoiler-text');
+          sp.classList.add('revealed');
+          sp.removeAttribute('title');
+        });
+      }
+
+      async function performReveal(messageId) {
+        const csrf = (document.querySelector('[name=csrfmiddlewaretoken]') || {}).value || '';
+        const res = await fetch('/discount/whatssapAPI/api/messages/reveal-asset/', {
+          method: 'POST',
+          credentials: 'same-origin',
+          headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json',
+            'X-CSRFToken': csrf,
+          },
+          body: JSON.stringify({ message_id: messageId }),
+        });
+        let data = null;
+        try { data = await res.json(); } catch (_) { data = null; }
+        return { ok: res.ok, status: res.status, data: data };
+      }
+
+      document.addEventListener('click', function (ev) {
+        const target = ev.target && ev.target.closest
+          ? ev.target.closest('.trigger-decrypt')
+          : null;
+        if (!target) return;
+        // Already revealed or denied → no further action.
+        if (target.classList.contains('revealed') || target.classList.contains('access-denied')) return;
+
+        const messageId = parseInt(target.dataset.id || '0', 10);
+        if (!messageId || isNaN(messageId)) return;
+
+        // Coalesce concurrent clicks on sibling spans of the same bubble.
+        if (inflight.has(messageId)) return;
+
+        const p = (async function () {
+          try {
+            const { ok, status, data } = await performReveal(messageId);
+            if (status === 403) {
+              markDenied(messageId, data && data.error);
+              return;
+            }
+            if (!ok || !data || typeof data.fields !== 'object' || !data.fields) {
+              window.alert('Could not reveal the protected asset. Please try again.');
+              return;
+            }
+            reveal(messageId, data.fields);
+          } catch (err) {
+            console.error('reveal-asset error', err);
+            window.alert('Network error while revealing the asset. Please try again.');
+          } finally {
+            inflight.delete(messageId);
+          }
+        })();
+        inflight.set(messageId, p);
+      }, false);
+    })();
 
 
     const t = document.getElementById('open_template');
@@ -12050,8 +15027,6 @@ if (typeof window.loadDashboardData === 'function') {
     }
     if (typeof window.loadOrdersForChannel === 'function') {
         window.loadOrdersForChannel(newChannelId, 1);
-    } else if (typeof window.loadTemplates === 'function') {
-        window.loadTemplates(newChannelId, 1);
     }
 
 }

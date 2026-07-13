@@ -535,7 +535,8 @@ def process_flow_for_message(flow, message_text, phone, media_type=None):
                         _market_flow = market_from_resolved_dialect(_vd_flow)
                     if _market_flow not in ("MA", "SA", "GCC"):
                         _market_flow = infer_market_from_phone(phone or "") or "MA"
-                    _vs_style = bool(merchant_voice_mode_enabled(flow.channel) or _vn_flow)
+                    from discount.services.voice_dialect import node_reply_prefers_tts
+                    _vs_style = node_reply_prefers_tts(flow.channel, None)
                     _ch = getattr(flow, "channel", None)
                     result = generate_reply_with_tools(
                         conversation,
