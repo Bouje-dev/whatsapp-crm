@@ -252,9 +252,17 @@ def apply_franco_translation_to_conversation(conversation):
     """
     If the last customer message looks like Franco (Latin), replace it with Arabic Darija translation.
     conversation: list of {"role": "customer"|"agent", "body": str} (same shape as LLM pipeline).
+    Skipped when the customer is clearly writing in French or English (AUTO language detect).
     """
     if not conversation:
         return conversation
+    try:
+        from discount.services.bot_language import detect_customer_language
+
+        if detect_customer_language(conversation) in ("fr", "en"):
+            return list(conversation)
+    except Exception:
+        pass
     conv = list(conversation)
     i = len(conv) - 1
     while i >= 0 and conv[i].get("role") != "customer":
@@ -3901,7 +3909,7 @@ def parse_and_strip_stage(reply_text):
     return (cleaned, stage)
 
 
-def generate_reply_with_tools(conversation_messages, custom_instruction=None, product_context=None, trust_score=0, media_context=None, state_header=None, sales_stage=None, sentiment=None, market=None, agent_name=None, model=None, customer_phone=None, override_rules=None, required_order_fields=None, checkout_mode_label=None, product_id=None, merchant_id=None, voice_dialect=None, voice_notes_mode=False, voice_script_style=False, output_language=None, memory_summary=None, node_dialect_locked=False, node_language_code=None, node=None, bot_settings=None, channel=None, pronoun_anchor_product_name=None, conversation_state=None, post_sale_support_context=None, payment_rejection_reason=None, incoming_has_media=False, order_payment_status=None, incoming_payment_receipt_valid=None, incoming_media_vision_summary=None, tools_override=None, can_read_flow_rule=None, missing_order_fields=None):
+def generate_reply_with_tools(conversation_messages, custom_instruction=None, product_context=None, trust_score=0, media_context=None, state_header=None, sales_stage=None, sentiment=None, market=None, agent_name=None, model=None, customer_phone=None, override_rules=None, required_order_fields=None, checkout_mode_label=None, product_id=None, merchant_id=None, voice_dialect=None, voice_notes_mode=False, voice_script_style=False, output_language=None, memory_summary=None, node_dialect_locked=False, node_language_code=None, node=None, bot_settings=None, channel=None, pronoun_anchor_product_name=None, conversation_state=None, post_sale_support_context=None, payment_rejection_reason=None, incoming_has_media=False, order_payment_status=None, incoming_payment_receipt_valid=None, incoming_media_vision_summary=None, tools_override=None, can_read_flow_rule=None, missing_order_fields=None, target_dialect_override=None):
     """
     Call OpenAI with sales tools. When product_context is set, uses Elite Sales Consultant prompt with trust_score, sales_stage, sentiment, market, agent_name.
     market: 'MA' or 'SA'. agent_name: e.g. Chuck or persona name — AI responds as this human, not as a bot.
@@ -3912,8 +3920,11 @@ def generate_reply_with_tools(conversation_messages, custom_instruction=None, pr
     voice_script_style: AUDIO SCRIPT vs TEXT MESSAGING mode line (voice vs structured chat).
     output_language: None | 'fr' | 'ar' | 'en' from channel settings (French skips Arabic dialect prompts).
     memory_summary: summarized key customer facts from older conversation history.
+    target_dialect_override: when set (e.g. AUTO customer-language detect), overrides phone-based dialect routing.
     """
     routed_model, target_dialect = resolve_ai_brain(node, customer_phone, channel=channel, bot_settings=bot_settings)
+    if target_dialect_override and str(target_dialect_override).strip():
+        target_dialect = str(target_dialect_override).strip()
     model = _normalize_litellm_model_name(model or routed_model)
     _prepare_litellm_provider_key(model)
     messages = build_messages_payload_sales(

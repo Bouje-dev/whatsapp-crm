@@ -3373,15 +3373,26 @@ def run_ai_agent_node(
             should_inject_tts_dialect_prompt,
             node_reply_prefers_tts,
         )
-        from discount.services.bot_language import effective_bot_language, effective_output_language_for_node
+        from discount.services.bot_language import resolve_customer_language_for_turn
 
-        output_language = effective_bot_language(channel)
-        _node_output_lang = effective_output_language_for_node(current_node)
-        if _node_output_lang is not None:
-            output_language = _node_output_lang
+        output_language, target_dialect_override, market_override, lang_source = (
+            resolve_customer_language_for_turn(channel, current_node, conversation, sender)
+        )
+        if market_override:
+            market = market_override
+        if lang_source == "auto_customer":
+            logger.info(
+                "AUTO customer language: output=%s dialect=%s market=%s phone=%s",
+                output_language,
+                target_dialect_override,
+                market_override,
+                sender,
+            )
         node_dialect_locked = bool((getattr(current_node, "node_language", None) or "").strip())
         voice_notes_mode = should_inject_tts_dialect_prompt(channel, current_node)
-        voice_dialect_label = resolve_dialect_for_llm_hierarchy(channel, current_node, sender)
+        voice_dialect_label = target_dialect_override or resolve_dialect_for_llm_hierarchy(
+            channel, current_node, sender
+        )
         # AUDIO SCRIPT vs TEXT: only AUDIO_ONLY (or legacy voice_enabled) spell in the LLM;
         # AUTO_SMART keeps digits in the model and VoiceFormatterMiddleware spells at TTS send time.
         voice_script_style = node_reply_prefers_tts(channel, current_node)
@@ -3868,6 +3879,7 @@ def run_ai_agent_node(
                 tools_override=_sales_tools_override,
                 can_read_flow_rule=_can_read_flow_rule,
                 missing_order_fields=_missing_order_fields or None,
+                target_dialect_override=target_dialect_override,
             )
             if store_owner:
                 chargeUserForAiUsage(
@@ -5729,17 +5741,27 @@ def try_ai_voice_reply(
         should_inject_tts_dialect_prompt,
         node_reply_prefers_tts,
     )
-    from discount.services.bot_language import effective_bot_language, effective_output_language_for_node
+    from discount.services.bot_language import resolve_customer_language_for_turn
     from ai_assistant.services import get_agent_name_for_node, market_from_resolved_dialect
 
-    output_language_voice = effective_bot_language(channel)
     _voice_session = get_active_session(channel, sender) if channel and sender else None
     _vd_node = getattr(_voice_session, "active_node", None) if _voice_session else None
-    _nolv = effective_output_language_for_node(_vd_node)
-    if _nolv is not None:
-        output_language_voice = _nolv
+    output_language_voice, target_dialect_override_voice, market_override_voice, lang_source_voice = (
+        resolve_customer_language_for_turn(channel, _vd_node, conversation, sender)
+    )
+    if market_override_voice:
+        market = market_override_voice
+    if lang_source_voice == "auto_customer":
+        logger.info(
+            "AUTO customer language (voice path): output=%s dialect=%s phone=%s",
+            output_language_voice,
+            target_dialect_override_voice,
+            sender,
+        )
     node_dialect_locked_voice = bool(_vd_node and (getattr(_vd_node, "node_language", None) or "").strip())
-    voice_dialect_label_voice = resolve_dialect_for_llm_hierarchy(channel, _vd_node, sender)
+    voice_dialect_label_voice = target_dialect_override_voice or resolve_dialect_for_llm_hierarchy(
+        channel, _vd_node, sender
+    )
     if output_language_voice not in ("fr", "en"):
         _market_v = market_from_resolved_dialect(voice_dialect_label_voice)
         if _market_v:
@@ -5944,6 +5966,7 @@ def try_ai_voice_reply(
             order_payment_status=voice_order_payment_status,
             incoming_payment_receipt_valid=incoming_payment_receipt_valid,
             incoming_media_vision_summary=incoming_media_vision_summary,
+            target_dialect_override=target_dialect_override_voice,
         )
         if store:
             chargeUserForAiUsage(

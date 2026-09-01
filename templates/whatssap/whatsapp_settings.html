@@ -963,13 +963,13 @@
                                                 <div class="mb-3">
                                                     <label class="form-label text-muted small mb-1">Language</label>
                                                     <select name="voice_language" class="form-select form-select-sm modern-input" id="voice_language_select">
-                                                        <option value="AUTO" {% if channel.voice_language == 'AUTO' %}selected{% endif %}>Auto-Detect</option>
+                                                        <option value="AUTO" {% if channel.voice_language == 'AUTO' %}selected{% endif %}>Auto — follow customer's language</option>
                                                         <option value="AR_MA" {% if channel.voice_language == 'AR_MA' %}selected{% endif %}>Arabic (Morocco)</option>
                                                         <option value="AR_SA" {% if channel.voice_language == 'AR_SA' %}selected{% endif %}>Arabic (Saudi)</option>
                                                         <option value="FR_FR" {% if channel.voice_language == 'FR_FR' %}selected{% endif %}>French (France)</option>
                                                         <option value="EN_US" {% if channel.voice_language == 'EN_US' %}selected{% endif %}>English (US)</option>
                                                     </select>
-                                                    <span class="d-inline-block mt-1" data-bs-toggle="tooltip" title="Auto-Detect: AI responds in the customer's language. French (France) locks replies to formal French and skips Arabic dialect prompts."><i class="fas fa-info-circle text-muted small"></i></span>
+                                                    <span class="d-inline-block mt-1" data-bs-toggle="tooltip" title="Auto: the bot replies in the language the customer uses (French, English, or Arabic dialect). Fixed options lock one language for all customers."><i class="fas fa-info-circle text-muted small"></i></span>
                                                 </div>
                                                 <div class="automation-voice-switches">
                                                     <div class="form-check form-switch mb-2">
