@@ -98,6 +98,7 @@ path('api/update-crm/', views.update_contact_crm, name='update_contact_crm'),
 
 path('api/analytics/lifecycle/' , whaDash.api_lifecycle_stats , name='api_lifecycle_stats'),
 path('api/agent-stats/', whaDash.api_agent_stats, name='api_agent_stats'),
+path('api/admin/coach-ai-conversations/', whaDash.api_coach_ai_conversations, name='api_coach_ai_conversations'),
 path('api/admin/coach-ai-history/', whaDash.api_coach_ai_history, name='api_coach_ai_history'),
 path('api/admin/coach-ai/', whaDash.api_coach_ai, name='api_coach_ai'),
 path('api/admin/copilot-chat/', copilot_chat, name='api_copilot_chat'),

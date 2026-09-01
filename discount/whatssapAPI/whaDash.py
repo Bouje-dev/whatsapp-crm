@@ -11,7 +11,16 @@ from django.views.decorators.http import require_http_methods
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.csrf import csrf_protect
 from datetime import timedelta
-from discount.models import Contact, WhatsAppChannel, CannedResponse, CustomUser, Message, Activity, CoachConversationMessage
+from discount.models import (
+    Contact,
+    WhatsAppChannel,
+    CannedResponse,
+    CustomUser,
+    Message,
+    Activity,
+    CoachConversation,
+    CoachConversationMessage,
+)
 
 def api_lifecycle_stats(request):
     user = request.user
@@ -594,31 +603,160 @@ def api_coach_ai_set_rules(request):
     return JsonResponse({"success": True, "message": "Rules updated."})
 
 
-@require_http_methods(["GET"])
-def api_coach_ai_history(request):
-    """
-    Get saved coach conversation history for the current user and channel.
-    GET ?channel_id=<id>. Returns { "messages": [ {"role": "user"|"assistant", "content": "...", "created_at": "..."} ] }
-    """
+def _coach_admin_required(request):
     if not request.user.is_authenticated:
         return JsonResponse({"error": "Unauthorized"}, status=401)
     if not (getattr(request.user, "is_team_admin", False) or request.user.is_superuser):
         return JsonResponse({"error": "Forbidden"}, status=403)
+    return None
+
+
+def _coach_get_channel(request, channel_id):
+    err = _coach_admin_required(request)
+    if err:
+        return None, err
+    try:
+        channel = WhatsAppChannel.objects.get(pk=int(channel_id))
+    except (TypeError, ValueError, WhatsAppChannel.DoesNotExist):
+        return None, JsonResponse({"error": "Channel not found"}, status=404)
+    if not channel.has_user_permission(request.user):
+        return None, JsonResponse({"error": "Forbidden"}, status=403)
+    return channel, None
+
+
+def _coach_get_conversation(request, conversation_id, channel=None):
+    err = _coach_admin_required(request)
+    if err:
+        return None, err
+    try:
+        conv = CoachConversation.objects.select_related("channel").get(pk=conversation_id)
+    except (CoachConversation.DoesNotExist, ValueError, TypeError):
+        return None, JsonResponse({"error": "Conversation not found"}, status=404)
+    if conv.user_id != request.user.id:
+        return None, JsonResponse({"error": "Forbidden"}, status=403)
+    if channel is not None and conv.channel_id != channel.id:
+        return None, JsonResponse({"error": "Conversation does not belong to this channel"}, status=400)
+    if not conv.channel.has_user_permission(request.user):
+        return None, JsonResponse({"error": "Forbidden"}, status=403)
+    return conv, None
+
+
+def _coach_conversation_payload(conv, include_message_count=False):
+    data = {
+        "id": str(conv.id),
+        "title": (conv.title or "").strip() or "New chat",
+        "created_at": timezone.localtime(conv.created_at).isoformat(),
+        "updated_at": timezone.localtime(conv.updated_at).isoformat(),
+    }
+    if include_message_count:
+        data["message_count"] = conv.messages.count()
+    return data
+
+
+def _coach_messages_payload(conversation):
+    return [
+        {
+            "role": m.role,
+            "content": m.content,
+            "created_at": timezone.localtime(m.created_at).isoformat(),
+        }
+        for m in conversation.messages.order_by("created_at")
+    ]
+
+
+def _coach_create_conversation(channel, user, title=""):
+    return CoachConversation.objects.create(
+        channel=channel,
+        user=user,
+        title=(title or "").strip()[:200],
+    )
+
+
+def _coach_touch_conversation(conversation, title=None):
+    fields = ["updated_at"]
+    conversation.updated_at = timezone.now()
+    if title is not None:
+        conversation.title = (title or "").strip()[:200] or conversation.title
+        fields.append("title")
+    conversation.save(update_fields=fields)
+
+
+@require_http_methods(["GET", "POST"])
+def api_coach_ai_conversations(request):
+    """
+    GET  ?channel_id= — list conversations for current user + channel (newest first).
+    POST { channel_id, title? } — create a new empty conversation.
+    """
+    if request.method == "GET":
+        channel_id = request.GET.get("channel_id")
+        if not channel_id:
+            return JsonResponse({"error": "channel_id required"}, status=400)
+        channel, err = _coach_get_channel(request, channel_id)
+        if err:
+            return err
+        qs = (
+            CoachConversation.objects.filter(channel=channel, user=request.user)
+            .annotate(message_count=Count("messages"))
+            .order_by("-updated_at")
+        )
+        conversations = []
+        for c in qs[:100]:
+            payload = _coach_conversation_payload(c)
+            payload["message_count"] = getattr(c, "message_count", 0) or 0
+            conversations.append(payload)
+        return JsonResponse({"success": True, "conversations": conversations})
+
+    try:
+        body = json.loads(request.body) if request.body else {}
+    except Exception:
+        return JsonResponse({"error": "Invalid JSON"}, status=400)
+    channel_id = body.get("channel_id")
+    if channel_id is None:
+        return JsonResponse({"error": "channel_id required"}, status=400)
+    channel, err = _coach_get_channel(request, channel_id)
+    if err:
+        return err
+    title = (body.get("title") or "New chat").strip()[:200]
+    conv = _coach_create_conversation(channel, request.user, title=title)
+    return JsonResponse({"success": True, "conversation": _coach_conversation_payload(conv)})
+
+
+@require_http_methods(["GET"])
+def api_coach_ai_history(request):
+    """
+    Get messages for one coaching conversation.
+    GET ?conversation_id=<uuid>
+    Legacy: GET ?channel_id=<id> returns the most recent conversation for that channel.
+    """
+    conversation_id = request.GET.get("conversation_id")
+    if conversation_id:
+        conv, err = _coach_get_conversation(request, conversation_id)
+        if err:
+            return err
+        return JsonResponse({
+            "success": True,
+            "conversation": _coach_conversation_payload(conv),
+            "messages": _coach_messages_payload(conv),
+        })
+
     channel_id = request.GET.get("channel_id")
     if not channel_id:
-        return JsonResponse({"error": "channel_id required"}, status=400)
-    try:
-        channel = WhatsAppChannel.objects.get(pk=channel_id)
-    except WhatsAppChannel.DoesNotExist:
-        return JsonResponse({"error": "Channel not found"}, status=404)
-    if not channel.has_user_permission(request.user):
-        return JsonResponse({"error": "Forbidden"}, status=403)
-    qs = CoachConversationMessage.objects.filter(channel=channel, user=request.user).order_by("created_at")
-    messages = [
-        {"role": m.role, "content": m.content, "created_at": timezone.localtime(m.created_at).isoformat()}
-        for m in qs
-    ]
-    return JsonResponse({"messages": messages})
+        return JsonResponse({"error": "conversation_id or channel_id required"}, status=400)
+    channel, err = _coach_get_channel(request, channel_id)
+    if err:
+        return err
+    conv = (
+        CoachConversation.objects.filter(channel=channel, user=request.user)
+        .order_by("-updated_at")
+        .first()
+    )
+    if not conv:
+        return JsonResponse({"success": True, "conversation": None, "messages": []})
+    return JsonResponse({
+        "success": True,
+        "conversation": _coach_conversation_payload(conv),
+        "messages": _coach_messages_payload(conv),
+    })
 
 
 def _build_coach_attachment_context(attachment):
@@ -691,6 +829,12 @@ def api_coach_ai(request):
     messages = body.get("messages") or []
     if not isinstance(messages, list):
         return JsonResponse({"error": "messages must be a list"}, status=400)
+    conversation_id = body.get("conversation_id")
+    if not conversation_id:
+        return JsonResponse({"error": "conversation_id required"}, status=400)
+    conversation, conv_err = _coach_get_conversation(request, conversation_id, channel=channel)
+    if conv_err:
+        return conv_err
     attachment = body.get("attachment")
     from ai_assistant.copilot_service import run_copilot_chat
     # Build OpenAI-format messages (no system; added in run_copilot_chat)
@@ -721,24 +865,32 @@ def api_coach_ai(request):
     last_user_msg = next((m for m in reversed(openai_messages) if m.get("role") == "user"), None)
     if last_user_msg and (last_user_msg.get("content") or "").strip():
         try:
+            user_content = (last_user_msg.get("content") or "").strip()[:10000]
             CoachConversationMessage.objects.create(
+                conversation=conversation,
                 channel=channel,
                 user=request.user,
                 role="user",
-                content=(last_user_msg.get("content") or "").strip()[:10000],
+                content=user_content,
             )
             CoachConversationMessage.objects.create(
+                conversation=conversation,
                 channel=channel,
                 user=request.user,
                 role="assistant",
                 content=(final_content or "").strip()[:10000],
             )
+            title = conversation.title
+            if not (title or "").strip() or title.strip().lower() == "new chat":
+                title = user_content[:200]
+            _coach_touch_conversation(conversation, title=title)
         except Exception as e:
             _coach_log.warning("coach-ai: save conversation failed: %s", e)
     return JsonResponse({
         "success": True,
         "reply": final_content,
         "message": final_content,
+        "conversation_id": str(conversation.id),
         "ui_component": payload.get("ui_component", "none"),
         "component_data": payload.get("component_data") or {},
         "rules_updated": bool(payload.get("rules_updated")),

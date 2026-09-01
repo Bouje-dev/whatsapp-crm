@@ -1231,6 +1231,57 @@
   font-size: 12px;
   line-height: 1.45;
   color: #cbd5e1;
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+}
+
+.dash-copilot-rule-tag {
+  flex-shrink: 0;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  padding: 2px 5px;
+  border-radius: 4px;
+  background: rgba(99, 102, 241, 0.25);
+  color: #a5b4fc;
+}
+
+.dash-copilot-rule-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.dash-copilot-rule-delete {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border: none;
+  border-radius: 8px;
+  background: rgba(239, 68, 68, 0.12);
+  color: #f87171;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.dash-copilot-rule-delete:hover {
+  background: rgba(239, 68, 68, 0.22);
+  color: #fca5a5;
+}
+
+.dash-copilot-rule-delete:focus-visible {
+  outline: 2px solid rgba(239, 68, 68, 0.45);
+  outline-offset: 2px;
+}
+
+.dash-copilot-rule-delete i {
+  font-size: 11px;
+  pointer-events: none;
 }
 
 .dash-copilot-rule-empty {
@@ -1649,6 +1700,15 @@
   border-radius: 0.75rem;
   padding: 8px 10px;
   margin-top: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.dash-copilot-inline-rule-item .cls3741_team_coach_rule_item_text {
+  flex: 1;
+  min-width: 0;
 }
 
 .dash-copilot-empty {

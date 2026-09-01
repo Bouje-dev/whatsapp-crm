@@ -1857,11 +1857,49 @@ class VoiceCloneRequest(models.Model):
         return f"VoiceCloneRequest #{self.id} for {self.merchant_id} ({self.status})"
 
 
+class CoachConversation(models.Model):
+    """
+    One coaching chat thread between an admin and the AI copilot (per channel).
+    Each conversation is stored separately; URL param ?convo=<uuid> tracks the active one.
+    """
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    channel = models.ForeignKey(
+        WhatsAppChannel,
+        on_delete=models.CASCADE,
+        related_name="coach_conversations",
+    )
+    user = models.ForeignKey(
+        CustomUser,
+        on_delete=models.CASCADE,
+        related_name="coach_conversations",
+    )
+    title = models.CharField(max_length=200, blank=True, default="")
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["-updated_at"]
+        indexes = [
+            models.Index(fields=["channel", "user", "-updated_at"]),
+        ]
+
+    def __str__(self):
+        label = (self.title or "New chat").strip()[:40]
+        return f"CoachConversation {self.id} ({label})"
+
+
 class CoachConversationMessage(models.Model):
     """
     Persisted messages between an admin (user) and the AI coach for a channel.
     Used to show conversation history when the user opens the Coach again.
     """
+    conversation = models.ForeignKey(
+        CoachConversation,
+        on_delete=models.CASCADE,
+        related_name="messages",
+        null=True,
+        blank=True,
+    )
     channel = models.ForeignKey(
         WhatsAppChannel,
         on_delete=models.CASCADE,

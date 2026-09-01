@@ -32,10 +32,12 @@
   var recognizing = false;
   var chatSessions = [];
   var activeSessionId = null;
+  var activeConversationId = null;
   var pendingNewChat = false;
   var currentPersona = "Friendly Consultant";
   var historySearchQuery = "";
   var pendingAttachment = null;
+  var conversationsLoading = false;
 
   var VIDEO_MAX_BYTES = 16 * 1024 * 1024;
   var IMAGE_MAX_BYTES = 8 * 1024 * 1024;
@@ -339,8 +341,136 @@
     if (inputEl) inputEl.focus();
   }
 
-  function sessionsStorageKey() {
-    return "ai_copilot_sessions_" + (getChannelId() || "none");
+  function getConvoFromUrl() {
+    try {
+      return new URLSearchParams(window.location.search).get("convo");
+    } catch (e) {
+      return null;
+    }
+  }
+
+  function setConvoInUrl(convoId, replace) {
+    try {
+      var url = new URL(window.location.href);
+      if (convoId) url.searchParams.set("convo", convoId);
+      else url.searchParams.delete("convo");
+      if (replace) history.replaceState({ copilotConvo: convoId || null }, "", url);
+      else history.pushState({ copilotConvo: convoId || null }, "", url);
+    } catch (e) {}
+  }
+
+  function isPageReload() {
+    try {
+      var nav = performance.getEntriesByType && performance.getEntriesByType("navigation")[0];
+      return !!(nav && nav.type === "reload");
+    } catch (e) {
+      return false;
+    }
+  }
+
+  function mapConversationToSession(conv) {
+    return {
+      id: conv.id,
+      title: conv.title || "New chat",
+      createdAt: conv.created_at,
+      updatedAt: conv.updated_at,
+      messageCount: conv.message_count || 0,
+      messages: [],
+    };
+  }
+
+  function fetchConversationsList(cid) {
+    return fetch(
+      "/discount/whatssapAPI/api/admin/coach-ai-conversations/?channel_id=" + encodeURIComponent(cid)
+    ).then(function (r) {
+      return r.json();
+    });
+  }
+
+  function createConversationOnServer(cid, title) {
+    return fetch("/discount/whatssapAPI/api/admin/coach-ai-conversations/", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "X-CSRFToken": csrfToken() },
+      body: JSON.stringify({
+        channel_id: parseInt(cid, 10) || cid,
+        title: title || "New chat",
+      }),
+    }).then(function (r) {
+      return r.json();
+    });
+  }
+
+  function fetchConversationMessages(conversationId) {
+    return fetch(
+      "/discount/whatssapAPI/api/admin/coach-ai-history/?conversation_id=" + encodeURIComponent(conversationId)
+    ).then(function (r) {
+      return r.json();
+    });
+  }
+
+  function refreshConversationsList(cid, keepActiveId) {
+    return fetchConversationsList(cid).then(function (data) {
+      var list = (data.conversations || []).map(mapConversationToSession);
+      chatSessions = list;
+      if (keepActiveId && chatSessions.some(function (s) { return s.id === keepActiveId; })) {
+        activeSessionId = keepActiveId;
+      }
+      renderHistoryList();
+      return list;
+    });
+  }
+
+  function activateConversation(conversationId, options) {
+    options = options || {};
+    var cid = getChannelId();
+    if (!cid || !conversationId) return Promise.resolve(false);
+    activeConversationId = conversationId;
+    activeSessionId = conversationId;
+    pendingNewChat = false;
+    setConvoInUrl(conversationId, options.replaceUrl !== false);
+
+    if (options.empty) {
+      coachingMessages = [];
+      renderMessagesFromState();
+      renderHistoryList();
+      return Promise.resolve(true);
+    }
+
+    updateCopilotLayout({ loading: true });
+    return fetchConversationMessages(conversationId)
+      .then(function (data) {
+        coachingMessages = (data.messages || []).map(function (m) {
+          return { role: m.role, content: m.content };
+        });
+        renderMessagesFromState();
+        renderHistoryList();
+        loadRulesPanel();
+        return true;
+      })
+      .catch(function () {
+        coachingMessages = [];
+        renderMessagesFromState();
+        appendMessage("assistant", "Could not load this conversation.");
+        return false;
+      });
+  }
+
+  function createAndActivateNewConversation(cid) {
+    return createConversationOnServer(cid, "New chat").then(function (data) {
+      if (!data.success || !data.conversation) {
+        throw new Error(data.error || "Could not create conversation");
+      }
+      var session = mapConversationToSession(data.conversation);
+      chatSessions.unshift(session);
+      activeConversationId = session.id;
+      activeSessionId = session.id;
+      pendingNewChat = false;
+      coachingMessages = [];
+      setConvoInUrl(session.id, true);
+      renderMessagesFromState();
+      renderHistoryList();
+      return session;
+    });
   }
 
   function personaStorageKey() {
@@ -368,74 +498,11 @@
     savePersonaToStorage();
   }
 
-  function loadSessionsFromStorage() {
-    chatSessions = [];
-    activeSessionId = null;
-    pendingNewChat = false;
-    try {
-      var raw = localStorage.getItem(sessionsStorageKey());
-      if (!raw) return;
-      var data = JSON.parse(raw);
-      chatSessions = (data.sessions || []).filter(function (s) {
-        return s.messages && s.messages.length > 0;
-      });
-      activeSessionId = data.activeSessionId || null;
-      pendingNewChat = !!data.pendingNewChat;
-      if (activeSessionId && !getActiveSession()) {
-        activeSessionId = null;
-      }
-    } catch (e) {
-      chatSessions = [];
-      activeSessionId = null;
-      pendingNewChat = false;
-    }
-  }
-
-  function persistSessions() {
-    chatSessions = chatSessions.filter(function (s) {
-      return s.messages && s.messages.length > 0;
-    });
-    if (activeSessionId && !getActiveSession()) {
-      activeSessionId = null;
-    }
-    if (!pendingNewChat && !activeSessionId && chatSessions.length) {
-      activeSessionId = chatSessions[0].id;
-    }
-    try {
-      localStorage.setItem(
-        sessionsStorageKey(),
-        JSON.stringify({
-          sessions: chatSessions,
-          activeSessionId: activeSessionId,
-          pendingNewChat: pendingNewChat
-        })
-      );
-    } catch (e) {}
-  }
-
   function getActiveSession() {
     for (var i = 0; i < chatSessions.length; i++) {
       if (chatSessions[i].id === activeSessionId) return chatSessions[i];
     }
     return null;
-  }
-
-  function createSession(title, messages) {
-    var session = {
-      id: "s_" + Date.now() + "_" + Math.random().toString(36).slice(2, 8),
-      title: title || "New chat",
-      messages: (messages || []).map(serializeMessageForSession),
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString()
-    };
-    if (session.messages.length) {
-      session.title = sessionTitleFromMessages(session.messages);
-    }
-    chatSessions.unshift(session);
-    activeSessionId = session.id;
-    pendingNewChat = false;
-    persistSessions();
-    return session;
   }
 
   function isDraftNewChat() {
@@ -452,38 +519,21 @@
   }
 
   function updateActiveSessionFromMessages() {
-    if (!coachingMessages.length) return;
-    pendingNewChat = false;
+    if (!coachingMessages.length || !activeConversationId) return;
     var session = getActiveSession();
-    if (!session) {
-      session = createSession(null, coachingMessages);
+    if (session) {
+      session.title = sessionTitleFromMessages(
+        coachingMessages.map(serializeMessageForSession)
+      );
+      session.updatedAt = new Date().toISOString();
+      renderHistoryList();
     }
-    session.messages = coachingMessages.map(serializeMessageForSession);
-    session.updatedAt = new Date().toISOString();
-    session.title = sessionTitleFromMessages(session.messages);
-    activeSessionId = session.id;
-    persistSessions();
-    renderHistoryList();
   }
 
   function switchToSession(sessionId) {
-    var session = null;
-    for (var i = 0; i < chatSessions.length; i++) {
-      if (chatSessions[i].id === sessionId) session = chatSessions[i];
-    }
-    if (!session) return;
-    activeSessionId = sessionId;
-    pendingNewChat = false;
-    coachingMessages = (session.messages || []).map(function (m) {
-      return {
-        role: m.role,
-        content: m.content,
-        attachment: m.attachment || null,
-      };
-    });
-    persistSessions();
-    renderMessagesFromState();
-    renderHistoryList();
+    if (!sessionId || sessionId === activeConversationId) return;
+    hideRules();
+    activateConversation(sessionId, { replaceUrl: false });
   }
 
   function startNewChat() {
@@ -498,15 +548,13 @@
       return;
     }
     hideRules();
-    activeSessionId = null;
-    pendingNewChat = true;
-    coachingMessages = [];
     clearPendingAttachment();
     if (inputEl) inputEl.value = "";
-    renderMessagesFromState();
-    persistSessions();
-    renderHistoryList();
-    if (inputEl) inputEl.focus();
+    createAndActivateNewConversation(cid).then(function () {
+      if (inputEl) inputEl.focus();
+    }).catch(function () {
+      appendMessage("assistant", "Could not start a new conversation.");
+    });
   }
 
   function isSameDay(a, b) {
@@ -882,30 +930,6 @@
     sendMessage(null, { skipUserBubble: true });
   }
 
-  function importServerHistoryIntoSessions(messages) {
-    if (chatSessions.length) return false;
-    var list = messages || [];
-    if (!list.length) {
-      pendingNewChat = true;
-      activeSessionId = null;
-      return true;
-    }
-    var session = {
-      id: "s_import_" + Date.now(),
-      title: sessionTitleFromMessages(list),
-      messages: list.map(function (m) {
-        return { role: m.role, content: m.content };
-      }),
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString()
-    };
-    chatSessions = [session];
-    activeSessionId = session.id;
-    pendingNewChat = false;
-    persistSessions();
-    return true;
-  }
-
   function loadHistory() {
     var cid = getChannelId();
     coachRulesBlockEl = null;
@@ -913,7 +937,6 @@
       showRulesBtn.classList.remove("cls3741_team_coach_btn_rules_active");
       showRulesBtn.title = "Show current rules";
     }
-    loadSessionsFromStorage();
     loadPersonaFromStorage();
 
     if (!messagesEl) return;
@@ -922,6 +945,7 @@
       messagesEl.innerHTML = "";
       coachingMessages = [];
       chatSessions = [];
+      activeConversationId = null;
       updateCopilotLayout({ loading: false });
       renderHistoryList();
       renderRulesPanel();
@@ -938,6 +962,7 @@
       messagesEl.innerHTML = "";
       coachingMessages = [];
       chatSessions = [];
+      activeConversationId = null;
       updateCopilotLayout({ loading: false });
       renderHistoryList();
       renderRulesPanel();
@@ -945,62 +970,46 @@
       return;
     }
 
-    if (pendingNewChat && !activeSessionId) {
-      coachingMessages = [];
-      renderMessagesFromState();
-      renderHistoryList();
-      loadRulesPanel();
-      return;
-    }
-
-    if (chatSessions.length && activeSessionId && getActiveSession()) {
-      pendingNewChat = false;
-      coachingMessages = (getActiveSession().messages || []).map(function (m) {
-        return { role: m.role, content: m.content };
-      });
-      renderMessagesFromState();
-      renderHistoryList();
-      loadRulesPanel();
-      return;
-    }
-
-    if (chatSessions.length) {
-      activeSessionId = chatSessions[0].id;
-      pendingNewChat = false;
-      coachingMessages = (getActiveSession().messages || []).map(function (m) {
-        return { role: m.role, content: m.content };
-      });
-      renderMessagesFromState();
-      renderHistoryList();
-      loadRulesPanel();
-      return;
-    }
-
+    if (conversationsLoading) return;
+    conversationsLoading = true;
     updateCopilotLayout({ loading: true });
-    messagesEl.innerHTML = '<div class="dash-copilot-empty">Loading conversation…</div>';
+    messagesEl.innerHTML = '<div class="dash-copilot-empty">Loading conversations…</div>';
     coachingMessages = [];
 
-    fetch("/discount/whatssapAPI/api/admin/coach-ai-history/?channel_id=" + encodeURIComponent(cid))
-      .then(function (r) {
-        return r.json();
-      })
+    fetchConversationsList(cid)
       .then(function (data) {
-        var list = data.messages || [];
-        importServerHistoryIntoSessions(list);
-        coachingMessages = list.map(function (m) {
-          return { role: m.role, content: m.content };
-        });
-        renderMessagesFromState();
+        chatSessions = (data.conversations || []).map(mapConversationToSession);
         renderHistoryList();
         loadRulesPanel();
+
+        var urlConvo = getConvoFromUrl();
+        var reload = isPageReload();
+        var targetId = null;
+
+        if (reload) {
+          if (urlConvo && chatSessions.some(function (s) { return s.id === urlConvo; })) {
+            targetId = urlConvo;
+          } else if (chatSessions.length) {
+            targetId = chatSessions[0].id;
+          }
+        }
+
+        if (targetId) {
+          return activateConversation(targetId, { replaceUrl: true });
+        }
+        return createAndActivateNewConversation(cid);
       })
       .catch(function () {
         pendingNewChat = true;
-        activeSessionId = null;
+        activeConversationId = null;
         messagesEl.innerHTML = "";
-        appendMessage("assistant", "Could not load conversation history.");
+        appendMessage("assistant", "Could not load conversations.");
         renderHistoryList();
         loadRulesPanel();
+      })
+      .finally(function () {
+        conversationsLoading = false;
+        updateCopilotLayout({ loading: false });
       });
   }
 
@@ -1038,17 +1047,27 @@
       outboundAttachment = lastForRegen._attachmentPayload || null;
     }
     setLoading(true);
-    var requestBody = {
-      channel_id: parseInt(cid, 10) || cid,
-      messages: coachingMessages.map(function (m) {
-        return { role: m.role, content: m.content };
-      }),
-    };
-    if (outboundAttachment) requestBody.attachment = outboundAttachment;
-    fetch("/discount/whatssapAPI/api/admin/coach-ai/", {
-      method: "POST",
-      headers: { "Content-Type": "application/json", "X-CSRFToken": csrfToken() },
-      body: JSON.stringify(requestBody),
+    var ensureConversation = activeConversationId
+      ? Promise.resolve(activeConversationId)
+      : createAndActivateNewConversation(cid).then(function (session) {
+          return session.id;
+        });
+
+    ensureConversation.then(function (conversationId) {
+      activeConversationId = conversationId;
+      var requestBody = {
+        channel_id: parseInt(cid, 10) || cid,
+        conversation_id: conversationId,
+        messages: coachingMessages.map(function (m) {
+          return { role: m.role, content: m.content };
+        }),
+      };
+      if (outboundAttachment) requestBody.attachment = outboundAttachment;
+      return fetch("/discount/whatssapAPI/api/admin/coach-ai/", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "X-CSRFToken": csrfToken() },
+        body: JSON.stringify(requestBody),
+      });
     })
       .then(function (r) {
         return r.json();
@@ -1059,6 +1078,10 @@
           appendMessage("assistant", data.error || "Sorry, something went wrong. Try again.");
           updateActiveSessionFromMessages();
           return;
+        }
+        if (data.conversation_id) {
+          activeConversationId = data.conversation_id;
+          setConvoInUrl(data.conversation_id, true);
         }
         var reply = (data.message || data.reply || "").trim() || "Done. What else would you like to change?";
         var assistantMsg = {
@@ -1077,6 +1100,7 @@
           assistantMsg.component_data
         );
         updateActiveSessionFromMessages();
+        refreshConversationsList(cid, activeConversationId);
         loadRulesPanel();
       })
       .catch(function () {
@@ -1110,6 +1134,60 @@
     });
   }
 
+  function applyRuleListChange(cid, newList, rulesBlock) {
+    saveRulesAndUpdate(cid, newList, rulesBlock);
+  }
+
+  function toggleRuleInList(ruleText, enable) {
+    var newList = currentRulesList.slice();
+    var idx = newList.indexOf(ruleText);
+    if (enable) {
+      if (idx === -1) newList.push(ruleText);
+    } else if (idx !== -1) {
+      newList.splice(idx, 1);
+    }
+    return newList;
+  }
+
+  function deleteRuleFromList(ruleText) {
+    return currentRulesList.filter(function (r) {
+      return r !== ruleText;
+    });
+  }
+
+  function createRuleToggle(item, onChange) {
+    var toggleWrap = document.createElement("label");
+    toggleWrap.className = "dash-toggle";
+    toggleWrap.title = item.preset ? "Enable or disable preset" : "Enable or disable rule";
+    var input = document.createElement("input");
+    input.type = "checkbox";
+    input.checked = ruleIsActive(item.text);
+    input.setAttribute("aria-label", (item.preset ? "Toggle preset: " : "Toggle rule: ") + item.label);
+    var slider = document.createElement("span");
+    slider.className = "dash-toggle-slider";
+    toggleWrap.appendChild(input);
+    toggleWrap.appendChild(slider);
+    input.addEventListener("change", function () {
+      onChange(input.checked);
+    });
+    return toggleWrap;
+  }
+
+  function createRuleDeleteButton(item, onDelete) {
+    var btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "dash-copilot-rule-delete";
+    btn.title = item.preset ? "Remove preset from active rules" : "Delete rule";
+    btn.setAttribute("aria-label", item.preset ? "Remove preset" : "Delete rule");
+    btn.innerHTML = '<i class="fas fa-trash-alt" aria-hidden="true"></i>';
+    btn.addEventListener("click", function (e) {
+      e.preventDefault();
+      e.stopPropagation();
+      onDelete();
+    });
+    return btn;
+  }
+
   function buildRulesPanelItems() {
     var items = [];
     var seen = {};
@@ -1136,36 +1214,39 @@
     }
     items.forEach(function (item) {
       var card = document.createElement("div");
-      card.className = "dash-copilot-rule-card";
+      card.className = "dash-copilot-rule-card" + (item.preset ? "" : " is-custom");
       var text = document.createElement("div");
       text.className = "dash-copilot-rule-text";
       text.textContent = item.label;
-      var toggleWrap = document.createElement("label");
-      toggleWrap.className = "dash-toggle";
-      var input = document.createElement("input");
-      input.type = "checkbox";
-      input.checked = ruleIsActive(item.text);
-      input.setAttribute("aria-label", item.label);
-      var slider = document.createElement("span");
-      slider.className = "dash-toggle-slider";
-      toggleWrap.appendChild(input);
-      toggleWrap.appendChild(slider);
+      if (!item.preset) {
+        var tag = document.createElement("span");
+        tag.className = "dash-copilot-rule-tag";
+        tag.textContent = "AI";
+        text.insertBefore(tag, text.firstChild);
+      }
+      var actions = document.createElement("div");
+      actions.className = "dash-copilot-rule-actions";
+      actions.appendChild(
+        createRuleToggle(item, function (checked) {
+          var cid = getChannelId();
+          if (!cid) return;
+          applyRuleListChange(cid, toggleRuleInList(item.text, checked), null);
+        })
+      );
+      actions.appendChild(
+        createRuleDeleteButton(item, function () {
+          var cid = getChannelId();
+          if (!cid) return;
+          var msg = item.preset
+            ? "Remove this preset from active rules?"
+            : "Delete this AI rule permanently?";
+          if (!confirm(msg)) return;
+          applyRuleListChange(cid, deleteRuleFromList(item.text), null);
+        })
+      );
       card.appendChild(text);
-      card.appendChild(toggleWrap);
+      card.appendChild(actions);
       rulesListEl.appendChild(card);
-
-      input.addEventListener("change", function () {
-        var cid = getChannelId();
-        if (!cid) return;
-        var newList = currentRulesList.slice();
-        var idx = newList.indexOf(item.text);
-        if (input.checked) {
-          if (idx === -1) newList.push(item.text);
-        } else if (idx !== -1) {
-          newList.splice(idx, 1);
-        }
-        saveRulesAndUpdate(cid, newList, null);
-      });
     });
   }
 
@@ -1246,36 +1327,44 @@
         wrap.className = "ai-coaching-msg assistant cls3741_team_coach_rules_block";
         var title = document.createElement("div");
         title.className = "cls3741_team_coach_rules_title";
-        title.textContent = currentRulesList.length
-          ? "Current rules (click × to remove one):"
+        var panelItems = buildRulesPanelItems().filter(function (item) {
+          return !item.preset || ruleIsActive(item.text);
+        });
+        if (!panelItems.length && currentRulesList.length) {
+          currentRulesList.forEach(function (ruleText) {
+            panelItems.push({ label: truncate(ruleText, 80), text: ruleText, preset: false });
+          });
+        }
+        title.textContent = panelItems.length
+          ? "Rules — toggle to enable/disable, trash to delete:"
           : "No rules set for this channel.";
         wrap.appendChild(title);
-        if (currentRulesList.length) {
-          currentRulesList.forEach(function (ruleText) {
+        if (panelItems.length) {
+          panelItems.forEach(function (item) {
             var row = document.createElement("div");
-            row.className = "cls3741_team_coach_rule_item";
-            var btn = document.createElement("button");
-            btn.type = "button";
-            btn.className = "cls3741_team_coach_rule_item_remove";
-            btn.setAttribute("aria-label", "Remove this rule");
-            btn.innerHTML = "&times;";
+            row.className = "cls3741_team_coach_rule_item dash-copilot-inline-rule-item";
             var text = document.createElement("div");
             text.className = "cls3741_team_coach_rule_item_text";
-            text.textContent = ruleText;
-            row.appendChild(btn);
+            text.textContent = item.text;
+            var actions = document.createElement("div");
+            actions.className = "dash-copilot-rule-actions";
+            actions.appendChild(
+              createRuleToggle(item, function (checked) {
+                applyRuleListChange(cid, toggleRuleInList(item.text, checked), wrap);
+                if (!checked) row.remove();
+              })
+            );
+            actions.appendChild(
+              createRuleDeleteButton(item, function () {
+                if (!confirm(item.preset ? "Remove this rule?" : "Delete this AI rule permanently?")) return;
+                applyRuleListChange(cid, deleteRuleFromList(item.text), wrap);
+                row.remove();
+                if (!currentRulesList.length) title.textContent = "No rules set for this channel.";
+              })
+            );
             row.appendChild(text);
+            row.appendChild(actions);
             wrap.appendChild(row);
-            btn.addEventListener("click", function () {
-              if (!confirm("Remove this rule?")) return;
-              var rows = wrap.querySelectorAll(".cls3741_team_coach_rule_item");
-              var idx = Array.prototype.indexOf.call(rows, row);
-              var newList = currentRulesList.slice();
-              if (idx >= 0 && idx < newList.length) newList.splice(idx, 1);
-              currentRulesList = newList;
-              saveRulesAndUpdate(cid, newList, wrap);
-              row.remove();
-              if (newList.length === 0) title.textContent = "No rules set for this channel.";
-            });
           });
         }
         coachRulesBlockEl = wrap;
@@ -1527,6 +1616,12 @@
   }
 
   bindCopilotDropdowns();
+  window.addEventListener("popstate", function () {
+    var convo = getConvoFromUrl();
+    if (convo && convo !== activeConversationId) {
+      activateConversation(convo, { replaceUrl: false });
+    }
+  });
   window.reloadAiSalesCopilot = loadHistory;
   updateCopilotLayout();
   loadHistory();

@@ -3,6 +3,7 @@ import logging
 from django.http import JsonResponse
 from django.views.decorators.http import require_POST
 from django.contrib.auth.decorators import login_required
+from django.utils import timezone
 from django.core.exceptions import PermissionDenied
 
 from discount.models import Message, WhatsAppChannel
@@ -272,23 +273,50 @@ def copilot_chat(request):
     # Optional persistence (same model as legacy coach-ai)
     if channel_id is not None:
         try:
-            from discount.models import CoachConversationMessage
+            from discount.models import CoachConversation, CoachConversationMessage
 
             channel = WhatsAppChannel.objects.get(pk=channel_id)
+            conversation_id = body.get("conversation_id")
+            conversation = None
+            if conversation_id:
+                try:
+                    conversation = CoachConversation.objects.select_related("channel").get(pk=conversation_id)
+                except (CoachConversation.DoesNotExist, ValueError, TypeError):
+                    conversation = None
+                if (
+                    conversation is None
+                    or conversation.user_id != request.user.id
+                    or conversation.channel_id != channel.id
+                ):
+                    conversation = None
+            if conversation is None:
+                conversation = CoachConversation.objects.create(
+                    channel=channel,
+                    user=request.user,
+                    title="New chat",
+                )
             last_user = next((m for m in reversed(chat_messages) if m.get("role") == "user"), None)
             if last_user and (last_user.get("content") or "").strip():
+                user_content = (last_user.get("content") or "").strip()[:10000]
                 CoachConversationMessage.objects.create(
+                    conversation=conversation,
                     channel=channel,
                     user=request.user,
                     role="user",
-                    content=(last_user.get("content") or "").strip()[:10000],
+                    content=user_content,
                 )
                 CoachConversationMessage.objects.create(
+                    conversation=conversation,
                     channel=channel,
                     user=request.user,
                     role="assistant",
                     content=(payload.get("message") or "").strip()[:10000],
                 )
+                title = conversation.title
+                if not (title or "").strip() or title.strip().lower() == "new chat":
+                    conversation.title = user_content[:200]
+                conversation.updated_at = timezone.now()
+                conversation.save(update_fields=["title", "updated_at"])
         except Exception as e:
             logger.warning("copilot_chat: save conversation failed: %s", e)
 
