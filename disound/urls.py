@@ -19,6 +19,7 @@ from django.urls import path ,include, reverse_lazy
 from django.contrib.auth import views as auth_views
 from discount import views ,shopifyLink , user_dash , activites , tests
 from discount.marketing.views import serve_tracker_by_id
+from discount import api_views  # ✅ إضافة جديدة
 from django.conf import settings
 from django.conf.urls.static import static
 from django.contrib.staticfiles.urls import staticfiles_urlpatterns
@@ -132,6 +133,14 @@ urlpatterns = [
      path("track-order", user_dash.track_injaz, name="track_order"),
      path("leadstracking/", user_dash.leadstracking, name="leadstracking"),
      path("tracking/save_activity_tracking/", activites.save_activity_tracking, name="save_activity_tracking"),
+
+    # ✨ Context API endpoints (جديد)
+    path('api/conversation-context/<int:channel_id>/<str:customer_phone>/', 
+         api_views.get_conversation_context_api, 
+         name='get_conversation_context'),
+    path('api/reset-context/<int:channel_id>/<str:customer_phone>/', 
+         api_views.reset_conversation_context_api, 
+         name='reset_conversation_context'),
 
     # path('tracking/leadstracking/', user_dash.displayleads, name='displayleads'),  
 

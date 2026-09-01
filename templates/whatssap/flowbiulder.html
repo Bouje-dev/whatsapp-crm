@@ -732,6 +732,70 @@
         }
         .flow-node[data-node-type="upsell"] .node-icon { background: rgba(255,255,255,0.25); }
 
+        .flow-node[data-node-type="custom-auto-reply"] .node-header {
+            background: linear-gradient(135deg, #06B6D4, #0891B2);
+        }
+        .flow-node[data-node-type="custom-auto-reply"].selected {
+            border-color: #06B6D4;
+            box-shadow: 0 0 0 3px rgba(6, 182, 212, 0.25);
+        }
+        .flow-node[data-node-type="custom-auto-reply"] .node-icon { background: rgba(255,255,255,0.25); }
+        .flow-node[data-node-type="list-message"] .node-header {
+            background: linear-gradient(135deg, #0EA5E9, #0369A1);
+        }
+        .flow-node[data-node-type="list-message"].selected {
+            border-color: #0EA5E9;
+            box-shadow: 0 0 0 3px rgba(14, 165, 233, 0.25);
+        }
+        .flow-node[data-node-type="list-message"] .node-icon { background: rgba(255,255,255,0.25); }
+        .flow-node[data-node-type="whatsapp-flows"] .node-header {
+            background: linear-gradient(135deg, #128C7E, #075E54);
+        }
+        .flow-node[data-node-type="whatsapp-flows"].selected {
+            border-color: #25D366;
+            box-shadow: 0 0 0 3px rgba(37, 211, 102, 0.25);
+        }
+        .flow-node[data-node-type="whatsapp-flows"] .node-icon { background: rgba(255,255,255,0.25); }
+        .custom-reply-dropzone {
+            border: 2px dashed #64748b;
+            border-radius: 8px;
+            padding: 12px;
+            text-align: center;
+            min-height: 52px;
+            font-size: 0.8rem;
+            color: #94a3b8;
+            cursor: pointer;
+        }
+        .custom-reply-dropzone:hover { border-color: #06B6D4; color: #e2e8f0; }
+        .custom-reply-preview {
+            margin-top: 8px;
+            display: none;
+            position: relative;
+        }
+        .custom-reply-preview img,
+        .custom-reply-preview video {
+            width: 100%;
+            max-height: 160px;
+            object-fit: cover;
+            border-radius: 8px;
+            display: block;
+        }
+        .custom-reply-preview audio { width: 100%; margin-top: 4px; }
+        .custom-reply-clear {
+            position: absolute;
+            top: 6px;
+            right: 6px;
+            width: 24px;
+            height: 24px;
+            border: none;
+            border-radius: 50%;
+            background: rgba(0,0,0,0.65);
+            color: #fff;
+            cursor: pointer;
+            line-height: 24px;
+            font-size: 12px;
+        }
+
         .endpoint-label {
             font-size: 0.6rem;
             color: #F59E0B;
@@ -973,6 +1037,139 @@
         .buttons-link-btn:hover {
             border-color: var(--primary);
             color: var(--primary);
+        }
+        .list-rows-wrap {
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            background: #fff;
+            padding: 0.65rem;
+        }
+        .list-rows {
+            display: flex;
+            flex-direction: column;
+            gap: 0.55rem;
+        }
+        .list-row {
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            padding: 0.5rem;
+            background: #f8fafc;
+        }
+        .list-row-head {
+            display: flex;
+            align-items: center;
+            gap: 0.4rem;
+        }
+        .list-row-num {
+            width: 20px;
+            height: 20px;
+            border-radius: 999px;
+            background: #0EA5E9;
+            color: #fff;
+            font-size: 0.68rem;
+            font-weight: 700;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+        .list-row-title { flex: 1; min-width: 0; }
+        .list-row-desc { margin-top: 0.4rem; }
+        .list-row-remove {
+            border: 1px solid #fecaca;
+            background: #fff;
+            color: #ef4444;
+            border-radius: 8px;
+            width: 28px;
+            height: 28px;
+            font-size: 0.75rem;
+            cursor: pointer;
+            flex-shrink: 0;
+        }
+        .list-row-remove:hover { background: #fef2f2; }
+        .list-add-row-btn {
+            margin-top: 0.55rem;
+            width: 100%;
+            border: 1px dashed #94a3b8;
+            background: #fff;
+            color: #0f172a;
+            border-radius: 8px;
+            font-size: 0.78rem;
+            font-weight: 700;
+            padding: 0.4rem 0.5rem;
+            cursor: pointer;
+        }
+        .list-add-row-btn:hover {
+            border-color: #0EA5E9;
+            color: #0369A1;
+        }
+        .list-add-row-btn:disabled {
+            opacity: 0.45;
+            cursor: not-allowed;
+        }
+        .wa-flow-purpose-group {
+            display: flex;
+            flex-direction: column;
+            gap: 0.35rem;
+            margin-top: 0.25rem;
+        }
+        .wa-flow-purpose-group label {
+            display: flex;
+            align-items: flex-start;
+            gap: 0.4rem;
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+            cursor: pointer;
+        }
+        .wa-flow-fields {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+        .wa-flow-field {
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            padding: 0.5rem;
+            background: #f8fafc;
+        }
+        .wa-flow-field-head {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 0.4rem;
+        }
+        .wa-flow-field-meta {
+            display: grid;
+            grid-template-columns: 1fr auto auto;
+            gap: 0.4rem;
+            margin-top: 0.4rem;
+            align-items: center;
+        }
+        .wa-flow-field-options { margin-top: 0.4rem; display: none; }
+        .wa-flow-field-options.show { display: block; }
+        .wa-flow-req {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.25rem;
+            font-size: 0.72rem;
+            color: var(--text-secondary);
+            white-space: nowrap;
+        }
+        .wa-flow-hint {
+            font-size: 0.72rem;
+            color: var(--text-muted);
+            line-height: 1.4;
+            margin: 0.35rem 0 0.6rem;
+        }
+        .wa-flow-locked-fields .wa-flow-add-field,
+        .wa-flow-locked-fields .wa-flow-field-remove {
+            display: none;
+        }
+        .wa-flow-locked-fields .wa-flow-field-label,
+        .wa-flow-locked-fields .wa-flow-field-type,
+        .wa-flow-locked-fields .wa-flow-field-map,
+        .wa-flow-locked-fields .wa-flow-field-required {
+            pointer-events: none;
+            opacity: 0.85;
         }
         .buttons-media-tools {
             display: flex;
@@ -1505,6 +1702,13 @@
                         </div>
                         <div class="component-desc">Image, Video, Audio, File</div>
                     </div>
+                    <div class="component-item" data-type="custom-auto-reply" draggable="true">
+                        <div class="component-header">
+                            <div class="component-icon">💬</div>
+                            <div class="component-title">Custom Auto Reply</div>
+                        </div>
+                        <div class="component-desc">Text, image, both, audio, or video</div>
+                    </div>
                     <div class="component-item" data-type="buttons-message" draggable="true">
                         <div class="component-header">
                             <div class="component-icon">🔘</div>
@@ -1517,7 +1721,14 @@
                             <div class="component-icon">📋</div>
                             <div class="component-title">Interactive List</div>
                         </div>
-                        <div class="component-desc">Dropdown list for selections</div>
+                        <div class="component-desc">WhatsApp list menu customers tap to choose</div>
+                    </div>
+                    <div class="component-item" data-type="whatsapp-flows" draggable="true">
+                        <div class="component-header">
+                            <div class="component-icon">📝</div>
+                            <div class="component-title">WhatsApp Flows</div>
+                        </div>
+                        <div class="component-desc">Native form: leads, feedback, or orders</div>
                     </div>
                     <div class="component-item" data-type="template-message" draggable="true">
                         <div class="component-header">
@@ -2328,7 +2539,7 @@ this.connectionBranch = null;
                     if (!data.source_port) {
                         data.source_port = port;
                     }
-                    if (!data.branch && /^btn_[1-3]$/i.test(port)) {
+                    if (!data.branch && this.isBranchPort(port)) {
                         data.branch = port;
                     }
                     conn.setData && conn.setData(data);
@@ -2443,9 +2654,11 @@ this.connectionBranch = null;
         const templates = {
             'text-message': this.createTextMessageNodeTemplate,
             'media-message': this.createMediaMessageNodeTemplate,
+            'custom-auto-reply': this.createCustomAutoReplyNodeTemplate,
             'template-message': this.createTemplateMessageNodeTemplate,
             'buttons-message': this.createButtonsMessageNodeTemplate,
             'list-message': this.createListMessageNodeTemplate,
+            'whatsapp-flows': this.createWhatsAppFlowsNodeTemplate,
             'condition': this.createConditionNodeTemplate,
             'delay': this.createDelayNodeTemplate,
             'webhook': this.createWebhookNodeTemplate,
@@ -2459,7 +2672,8 @@ this.connectionBranch = null;
             'google-sheets': this.createGoogleSheetsNodeTemplate,
             'upsell': this.createUpsellNodeTemplate
         };
-        return templates[type] || templates['text-message'];
+        const tpl = templates[type] || templates['text-message'];
+        return typeof tpl === 'function' ? tpl.bind(this) : tpl;
     }
 
     // ==========================================
@@ -2511,6 +2725,55 @@ this.connectionBranch = null;
                 </div>
                 <div class="form-group set_media" id ="set_media">
                     <input type="file" class="media-file form-input" accept="image/*,video/*,audio/*,.pdf">
+                </div>
+                <div class="node-properties">
+                    <div class="node-property">
+                        <span>Delay:</span>
+                        <input type="number" value="0" min="0" class="delay-input form-input" style="width: 60px;"> seconds
+                    </div>
+                </div>
+            </div>
+            <div class="node-footer">
+                <button class="btn btn-secondary btn-sm connect-btn" data-node-id="${nodeId}">Connect</button>
+                <button class="btn btn-danger btn-sm delete-node-btn">Delete</button>
+            </div>
+        `;
+    }
+
+    createCustomAutoReplyNodeTemplate(nodeId) {
+        return `
+            <div class="node-header">
+                <div class="node-icon">💬</div>
+                <div class="node-title">Custom Auto Reply</div>
+                <div class="node-type">custom-auto-reply</div>
+            </div>
+            <div class="node-body">
+                <div class="form-group">
+                    <label class="form-label">Reply type</label>
+                    <select class="form-select custom-reply-type">
+                        <option value="text">Text only</option>
+                        <option value="image">Image</option>
+                        <option value="text_image">Text + Image</option>
+                        <option value="audio">Audio</option>
+                        <option value="video">Video</option>
+                    </select>
+                </div>
+                <div class="form-group custom-reply-text-wrap">
+                    <label class="form-label custom-reply-text-label">Message text</label>
+                    <textarea class="form-textarea custom-reply-text" rows="3" placeholder="Write the reply text..."></textarea>
+                </div>
+                <input type="hidden" class="custom-reply-media-url" value="">
+                <div class="form-group custom-reply-media-wrap" style="display:none;">
+                    <label class="form-label">Media file</label>
+                    <div class="custom-reply-dropzone">
+                        <span class="custom-reply-drop-text">Drop or click to upload</span>
+                        <input type="file" class="custom-reply-file" accept="image/*" style="display:none;">
+                    </div>
+                    <div class="custom-reply-preview">
+                        <button type="button" class="custom-reply-clear" title="Remove media">✕</button>
+                        <div class="custom-reply-preview-media"></div>
+                    </div>
+                    <p class="custom-reply-file-name text-muted" style="font-size:0.7rem; margin-top:4px; display:none;"></p>
                 </div>
                 <div class="node-properties">
                     <div class="node-property">
@@ -2654,6 +2917,7 @@ this.connectionBranch = null;
         `;
     }
 
+
     createListMessageNodeTemplate(nodeId) {
         return `
             <div class="node-header">
@@ -2662,8 +2926,112 @@ this.connectionBranch = null;
                 <div class="node-type">list-message</div>
             </div>
             <div class="node-body">
-                <textarea class="message-content form-textarea" placeholder="List title..." rows="2"></textarea>
-                <textarea class="list-items form-textarea" placeholder="List items (one per line)" rows="3"></textarea>
+                <div class="buttons-node-shell list-node-shell">
+                    <div class="buttons-required-alert list-required-alert">Fill body, list button, and at least one row title</div>
+                    <div class="buttons-node-row">
+                        <label class="form-label">Header (optional)</label>
+                        <input type="text" class="list-header-text form-input" maxlength="60" placeholder="Short header above the message">
+                        <div class="buttons-mini-count">0 / 60</div>
+                    </div>
+                    <div class="buttons-node-row">
+                        <label class="form-label">Body <span style="color:#ef4444">*</span></label>
+                        <textarea class="message-content form-textarea" placeholder="Main message customers see before opening the list" rows="3" maxlength="1024"></textarea>
+                        <div class="buttons-mini-count">0 / 1024</div>
+                    </div>
+                    <div class="buttons-node-row">
+                        <label class="form-label">Footer (optional)</label>
+                        <input type="text" class="list-footer-text form-input" maxlength="60" placeholder="Small text under the body">
+                        <div class="buttons-mini-count">0 / 60</div>
+                    </div>
+                    <div class="buttons-node-row">
+                        <label class="form-label">List button <span style="color:#ef4444">*</span></label>
+                        <input type="text" class="list-button-label form-input" maxlength="20" placeholder="View options" value="View options">
+                        <div class="buttons-mini-count">12 / 20</div>
+                    </div>
+                    <div class="buttons-node-row">
+                        <label class="form-label">Section title (optional)</label>
+                        <input type="text" class="list-section-title form-input" maxlength="24" placeholder="Options">
+                        <div class="buttons-mini-count">0 / 24</div>
+                    </div>
+                    <div class="buttons-node-row list-rows-wrap" style="display:block; margin-bottom:0;">
+                        <label class="form-label">List rows (max 10) <span style="color:#ef4444">*</span></label>
+                        <div class="list-rows">
+                            ${this.buildListRowHtml(nodeId, 1)}
+                            ${this.buildListRowHtml(nodeId, 2)}
+                        </div>
+                        <button type="button" class="list-add-row-btn">+ Add row</button>
+                    </div>
+                </div>
+                <div class="node-properties">
+                    <div class="node-property">
+                        <span>Delay:</span>
+                        <input type="number" value="0" min="0" class="delay-input form-input" style="width: 60px;"> seconds
+                    </div>
+                </div>
+            </div>
+            <div class="node-footer">
+                <button class="btn btn-secondary btn-sm connect-btn" data-node-id="${nodeId}">Connect</button>
+                <button class="btn btn-danger btn-sm delete-node-btn">Delete</button>
+            </div>
+        `;
+    }
+
+    createWhatsAppFlowsNodeTemplate(nodeId) {
+        return `
+            <div class="node-header">
+                <div class="node-icon">📝</div>
+                <div class="node-title">WhatsApp Flows</div>
+                <div class="node-type">whatsapp-flows</div>
+            </div>
+            <div class="node-body">
+                <div class="buttons-node-shell wa-flow-shell">
+                    <div class="buttons-required-alert wa-flow-required-alert">Fill the body, add at least one input, and pick a product for orders</div>
+                    <p class="wa-flow-hint">Opens a native WhatsApp form. After Submit, answers are saved here. For orders, pick a catalog product. Changing purpose replaces the default inputs.</p>
+                    <div class="buttons-node-row">
+                        <label class="form-label">Form purpose</label>
+                        <div class="wa-flow-purpose-group">
+                            <label><input type="radio" name="wa-flow-purpose-${nodeId}" class="wa-flow-purpose" value="lead_generation" checked> Generate leads</label>
+                            <label><input type="radio" name="wa-flow-purpose-${nodeId}" class="wa-flow-purpose" value="feedback"> Receive feedback</label>
+                            <label><input type="radio" name="wa-flow-purpose-${nodeId}" class="wa-flow-purpose" value="collect_order"> Collect order (create a sale)</label>
+                        </div>
+                    </div>
+                    <div class="buttons-node-row wa-flow-product-row" style="display:none;">
+                        <label class="form-label">Product <span style="color:#ef4444">*</span></label>
+                        <select class="wa-flow-product-select form-select">
+                            <option value="">— Select a product —</option>
+                        </select>
+                        <p class="text-muted mb-0 mt-1 wa-flow-checkout-hint" style="font-size:0.7rem; line-height:1.35;">Form inputs follow this product’s checkout mode (Quick Lead = name, Standard = name + city, Strict = name + city + address). Phone is the WhatsApp number.</p>
+                    </div>
+                    <div class="buttons-node-row">
+                        <label class="form-label">Header (optional)</label>
+                        <input type="text" class="wa-flow-header-text form-input" maxlength="60" placeholder="Short header">
+                    </div>
+                    <div class="buttons-node-row">
+                        <label class="form-label">Body <span style="color:#ef4444">*</span></label>
+                        <textarea class="message-content form-textarea" placeholder="Message shown before the customer opens the form" rows="3" maxlength="1024"></textarea>
+                    </div>
+                    <div class="buttons-node-row">
+                        <label class="form-label">Footer (optional)</label>
+                        <input type="text" class="wa-flow-footer-text form-input" maxlength="60" placeholder="Small text under the body">
+                    </div>
+                    <div class="buttons-node-row">
+                        <label class="form-label">Open button</label>
+                        <input type="text" class="wa-flow-cta form-input" maxlength="20" value="Open form" placeholder="Open form">
+                    </div>
+                    <div class="buttons-node-row">
+                        <label class="form-label">Screen title</label>
+                        <input type="text" class="wa-flow-screen-title form-input" maxlength="30" value="Your details" placeholder="Your details">
+                    </div>
+                    <div class="buttons-node-row">
+                        <label class="form-label">Submit button</label>
+                        <input type="text" class="wa-flow-submit-label form-input" maxlength="20" value="Submit" placeholder="Submit">
+                    </div>
+                    <div class="buttons-node-row list-rows-wrap" style="display:block; margin-bottom:0;">
+                        <label class="form-label wa-flow-inputs-label">Form inputs (max 8) <span style="color:#ef4444">*</span></label>
+                        <div class="wa-flow-fields"></div>
+                        <button type="button" class="list-add-row-btn wa-flow-add-field">+ Add input</button>
+                    </div>
+                </div>
                 <div class="node-properties">
                     <div class="node-property">
                         <span>Delay:</span>
@@ -3020,6 +3388,11 @@ this.connectionBranch = null;
                             <option value="AUTO_SMART">Auto — Text for short, Audio for pitch/closing</option>
                         </select>
                     </div>
+                    <div class="form-group form-check" style="margin-top:10px;">
+                        <input type="checkbox" class="form-check-input ai-agent-hybrid-checkout" id="ai-hybrid-checkout-${nodeId}" checked>
+                        <label class="form-check-label" for="ai-hybrid-checkout-${nodeId}">Send order form after they agree to buy</label>
+                        <p class="text-muted mb-0 mt-1" style="font-size:0.7rem; line-height:1.35;">After purchase intent, send a WhatsApp form. If they ignore it, cannot fill it, or only send voice notes, collect name and address by voice instead.</p>
+                    </div>
                     <div class="form-group form-check">
                         <input type="checkbox" class="form-check-input ai-agent-voice-enabled" id="ai-voice-${nodeId}">
                         <label class="form-check-label" for="ai-voice-${nodeId}">Voice response (legacy)</label>
@@ -3313,6 +3686,9 @@ this.connectionBranch = null;
                         });
                     });
                 }
+                if (nodeElement.dataset.nodeType === 'list-message') {
+                    this.syncListRowEndpoints(nodeElement);
+                }
                 // إضافة نقطة الهدف (يسار)
                 this.jsPlumbInstance.addEndpoint(nodeId, {
                     endpoint: "Dot",
@@ -3346,8 +3722,17 @@ this.connectionBranch = null;
                 if (nodeElement.dataset.nodeType === 'buttons-message') {
                     this.setupButtonsNodeUI(nodeElement);
                 }
+                if (nodeElement.dataset.nodeType === 'list-message') {
+                    this.setupListNodeUI(nodeElement);
+                }
+                if (nodeElement.dataset.nodeType === 'whatsapp-flows') {
+                    this.setupWhatsAppFlowsNodeUI(nodeElement);
+                }
                 if (nodeElement.dataset.nodeType === 'template-message') {
                     this.setupTemplateNodeUI(nodeElement);
+                }
+                if (nodeElement.dataset.nodeType === 'custom-auto-reply') {
+                    this.setupCustomAutoReplyNodeUI(nodeElement);
                 }
                 // AI Agent: Fetch from URL → modal edit → confirm → save & show summary
                 if (nodeElement.dataset.nodeType === 'ai-agent') {
@@ -4089,6 +4474,568 @@ this.connectionBranch = null;
         this.bindButtonsPortAutoAlign(nodeElement);
     }
 
+    buildListRowHtml(nodeId, index) {
+        const idx = parseInt(index, 10) || 1;
+        return `
+            <div class="list-row" data-branch="row_${idx}">
+                <div class="list-row-head">
+                    <span class="list-row-num">${idx}</span>
+                    <input type="text" class="list-row-title form-input" maxlength="24" placeholder="Row title">
+                    <button type="button" class="buttons-link-btn connect-btn" data-node-id="${nodeId}" data-branch="row_${idx}">Link</button>
+                    <button type="button" class="list-row-remove" title="Remove row" aria-label="Remove row">✕</button>
+                </div>
+                <input type="text" class="list-row-desc form-input" maxlength="72" placeholder="Description (optional)">
+                <div class="buttons-mini-count list-row-title-count">0 / 24</div>
+            </div>
+        `;
+    }
+
+    listRowColors() {
+        return ['#0EA5E9', '#0284C7', '#0369A1', '#14B8A6', '#0D9488', '#06B6D4', '#0891B2', '#2563EB', '#4F46E5', '#7C3AED'];
+    }
+
+    isBranchPort(port) {
+        return typeof port === 'string' && (/^btn_[1-3]$/i.test(port) || /^row_\d+$/i.test(port));
+    }
+
+    nextListRowIndex(nodeElement) {
+        const used = Array.from(nodeElement.querySelectorAll('.list-row')).map((row) => {
+            const m = String(row.dataset.branch || '').match(/^row_(\d+)$/i);
+            return m ? parseInt(m[1], 10) : 0;
+        });
+        return (used.length ? Math.max(...used) : 0) + 1;
+    }
+
+    collectListRowsFromNode(nodeElement) {
+        return Array.from(nodeElement.querySelectorAll('.list-row')).map((row, i) => {
+            const m = String(row.dataset.branch || '').match(/^row_(\d+)$/i);
+            return {
+                title: row.querySelector('.list-row-title')?.value?.trim() || '',
+                description: row.querySelector('.list-row-desc')?.value?.trim() || '',
+                index: m ? parseInt(m[1], 10) : (i + 1),
+            };
+        }).filter(row => row.title).slice(0, 10);
+    }
+
+    parseListRowsFromContent(content) {
+        if (!content || typeof content !== 'object') return [];
+        let rows = Array.isArray(content.rows) ? content.rows : [];
+        if (!rows.length && typeof content.items === 'string') {
+            rows = content.items.split('\n').map(line => line.trim()).filter(Boolean).map((title, i) => ({
+                title, description: '', index: i + 1
+            }));
+        }
+        return rows.slice(0, 10).map((row, i) => {
+            if (typeof row === 'string') {
+                return { title: row.trim(), description: '', index: i + 1 };
+            }
+            const idx = parseInt(row && row.index, 10);
+            return {
+                title: String((row && (row.title || row.text)) || '').trim(),
+                description: String((row && row.description) || '').trim(),
+                index: idx > 0 ? idx : (i + 1),
+            };
+        }).filter(row => row.title || true);
+    }
+
+    fillListRows(node, rows) {
+        const wrap = node.querySelector('.list-rows');
+        if (!wrap) return;
+        const nodeId = node.id;
+        const source = (rows && rows.length) ? rows.slice(0, 10) : [{ title: '', description: '', index: 1 }];
+        wrap.innerHTML = source.map((row, i) => this.buildListRowHtml(nodeId, row.index || (i + 1))).join('');
+        Array.from(wrap.querySelectorAll('.list-row')).forEach((el, i) => {
+            const row = source[i] || {};
+            const titleEl = el.querySelector('.list-row-title');
+            const descEl = el.querySelector('.list-row-desc');
+            if (titleEl) titleEl.value = row.title || '';
+            if (descEl) descEl.value = row.description || '';
+        });
+    }
+
+    renumberListRows(nodeElement) {
+        Array.from(nodeElement.querySelectorAll('.list-row .list-row-num')).forEach((el, i) => {
+            el.textContent = String(i + 1);
+        });
+        const addBtn = nodeElement.querySelector('.list-add-row-btn');
+        const count = nodeElement.querySelectorAll('.list-row').length;
+        if (addBtn) addBtn.disabled = count >= 10;
+        nodeElement.querySelectorAll('.list-row-remove').forEach((btn) => {
+            btn.style.visibility = count <= 1 ? 'hidden' : 'visible';
+        });
+    }
+
+    refreshListCounts(nodeElement) {
+        const pairs = [
+            [nodeElement.querySelector('.list-header-text'), nodeElement.querySelector('.list-header-text')?.nextElementSibling],
+            [nodeElement.querySelector('.message-content'), nodeElement.querySelector('.message-content')?.nextElementSibling],
+            [nodeElement.querySelector('.list-footer-text'), nodeElement.querySelector('.list-footer-text')?.nextElementSibling],
+            [nodeElement.querySelector('.list-button-label'), nodeElement.querySelector('.list-button-label')?.nextElementSibling],
+            [nodeElement.querySelector('.list-section-title'), nodeElement.querySelector('.list-section-title')?.nextElementSibling],
+        ];
+        pairs.forEach(([input, counter]) => {
+            if (!input || !counter || !counter.classList.contains('buttons-mini-count')) return;
+            const max = parseInt(input.getAttribute('maxlength'), 10) || 0;
+            const len = (input.value || '').length;
+            counter.textContent = max ? `${len} / ${max}` : `${len}`;
+        });
+        nodeElement.querySelectorAll('.list-row').forEach((row) => {
+            const title = row.querySelector('.list-row-title');
+            const counter = row.querySelector('.list-row-title-count');
+            if (!title || !counter) return;
+            const max = parseInt(title.getAttribute('maxlength'), 10) || 24;
+            counter.textContent = `${(title.value || '').length} / ${max}`;
+        });
+    }
+
+    validateListNode(nodeElement) {
+        const alertEl = nodeElement.querySelector('.list-required-alert');
+        const bodyOk = !!(nodeElement.querySelector('.message-content')?.value || '').trim();
+        const buttonOk = !!(nodeElement.querySelector('.list-button-label')?.value || '').trim();
+        const rowOk = Array.from(nodeElement.querySelectorAll('.list-row-title')).some(el => (el.value || '').trim());
+        if (alertEl) alertEl.classList.toggle('show', !(bodyOk && buttonOk && rowOk));
+    }
+
+    bindListRowConnectButton(btn, nodeId) {
+        if (!btn) return;
+        const newBtn = btn.cloneNode(true);
+        btn.parentNode.replaceChild(newBtn, btn);
+        newBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            this.connectNode(nodeId, e.currentTarget.dataset.branch);
+        });
+    }
+
+    addListRow(nodeElement) {
+        const wrap = nodeElement.querySelector('.list-rows');
+        if (!wrap || wrap.querySelectorAll('.list-row').length >= 10) return;
+        const nextIndex = this.nextListRowIndex(nodeElement);
+        wrap.insertAdjacentHTML('beforeend', this.buildListRowHtml(nodeElement.id, nextIndex));
+        const rowEl = wrap.lastElementChild;
+        this.bindListRowConnectButton(rowEl.querySelector('.connect-btn'), nodeElement.id);
+        this.syncListRowEndpoints(nodeElement);
+        this.renumberListRows(nodeElement);
+        this.refreshListCounts(nodeElement);
+        this.validateListNode(nodeElement);
+        this.refreshListPortAnchors(nodeElement);
+    }
+
+    removeListRow(nodeElement, rowEl) {
+        const rows = nodeElement.querySelectorAll('.list-row');
+        if (!rowEl || rows.length <= 1) return;
+        rowEl.remove();
+        this.syncListRowEndpoints(nodeElement);
+        this.renumberListRows(nodeElement);
+        this.refreshListCounts(nodeElement);
+        this.validateListNode(nodeElement);
+        this.refreshListPortAnchors(nodeElement);
+    }
+
+    setupListNodeUI(nodeElement) {
+        if (!nodeElement || nodeElement.dataset.nodeType !== 'list-message') return;
+        if (nodeElement.dataset.listUiBound !== '1') {
+            nodeElement.dataset.listUiBound = '1';
+            nodeElement.addEventListener('click', (e) => {
+                if (e.target.closest('.list-add-row-btn')) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    this.addListRow(nodeElement);
+                    return;
+                }
+                const removeBtn = e.target.closest('.list-row-remove');
+                if (removeBtn) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    this.removeListRow(nodeElement, removeBtn.closest('.list-row'));
+                }
+            });
+            nodeElement.addEventListener('input', (e) => {
+                if (!e.target.closest('.list-node-shell')) return;
+                this.refreshListCounts(nodeElement);
+                this.validateListNode(nodeElement);
+            });
+        }
+        this.renumberListRows(nodeElement);
+        this.refreshListCounts(nodeElement);
+        this.validateListNode(nodeElement);
+        this.refreshListPortAnchors(nodeElement);
+        this.bindListPortAutoAlign(nodeElement);
+    }
+
+    waFlowDefaultFields(purpose) {
+        const map = {
+            lead_generation: [
+                { key: 'full_name', label: 'Full name', field_type: 'text', required: true, maps_to: 'name', options: '' },
+                { key: 'phone', label: 'Phone', field_type: 'phone', required: true, maps_to: 'phone', options: '' },
+                { key: 'email', label: 'Email', field_type: 'email', required: false, maps_to: 'email', options: '' },
+            ],
+            feedback: [
+                { key: 'rating', label: 'How was your experience?', field_type: 'rating', required: true, maps_to: 'rating', options: '' },
+                { key: 'comment', label: 'Your feedback', field_type: 'textarea', required: true, maps_to: 'notes', options: '' },
+            ],
+            collect_order: [
+                { key: 'full_name', label: 'Full name', field_type: 'text', required: true, maps_to: 'name', options: '' },
+                { key: 'city', label: 'City', field_type: 'text', required: true, maps_to: 'city', options: '' },
+            ],
+        };
+        return map[purpose] || map.lead_generation;
+    }
+
+    waFlowFieldsForCheckoutMode(mode) {
+        const m = String(mode || 'standard_cod').trim().toLowerCase();
+        const name = { key: 'full_name', label: 'Full name', field_type: 'text', required: true, maps_to: 'name', options: '' };
+        const city = { key: 'city', label: 'City', field_type: 'text', required: true, maps_to: 'city', options: '' };
+        const address = { key: 'address', label: 'Address', field_type: 'textarea', required: true, maps_to: 'address', options: '' };
+        const email = { key: 'email', label: 'Email', field_type: 'email', required: true, maps_to: 'email', options: '' };
+        if (m === 'quick_lead') return [name];
+        if (m === 'strict_cod') return [name, city, address];
+        if (m === 'digital') return [name, email];
+        if (m === 'direct_sale') return [];
+        return [name, city];
+    }
+
+    applyWaFlowFieldsFromProduct(nodeElement) {
+        const purpose = nodeElement.querySelector('.wa-flow-purpose:checked')?.value || '';
+        if (purpose !== 'collect_order') return;
+        const sel = nodeElement.querySelector('.wa-flow-product-select');
+        const opt = sel && sel.selectedOptions && sel.selectedOptions[0];
+        const mode = (opt && opt.dataset.checkoutMode) || 'standard_cod';
+        const hints = {
+            quick_lead: 'Quick Lead: name only. Phone is already the WhatsApp number.',
+            standard_cod: 'Standard COD: name + city. Phone is already the WhatsApp number.',
+            strict_cod: 'Strict COD: name + city + address. Phone is already the WhatsApp number.',
+            digital: 'Digital: name + email. No shipping address.',
+            direct_sale: 'Direct Sale: no form. The AI registers the order without extra details.',
+        };
+        const hint = nodeElement.querySelector('.wa-flow-checkout-hint');
+        if (hint) hint.textContent = hints[mode] || hints.standard_cod;
+        this.fillWaFlowFields(nodeElement, this.waFlowFieldsForCheckoutMode(mode));
+        this.validateWaFlowNode(nodeElement);
+    }
+
+    buildWaFlowFieldHtml(field = {}) {
+        const type = field.field_type || 'text';
+        const mapsTo = field.maps_to || 'custom';
+        const options = field.options || '';
+        const required = field.required !== false;
+        const typeOpts = ['text','textarea','phone','email','number','date','dropdown','rating']
+            .map(t => `<option value="${t}" ${t === type ? 'selected' : ''}>${t}</option>`).join('');
+        const mapOpts = [
+            ['custom', 'Custom'],
+            ['name', 'Name'],
+            ['phone', 'Phone'],
+            ['email', 'Email'],
+            ['city', 'City'],
+            ['address', 'Address'],
+            ['quantity', 'Quantity'],
+            ['notes', 'Notes'],
+            ['rating', 'Rating'],
+        ].map(([v, l]) => `<option value="${v}" ${v === mapsTo ? 'selected' : ''}>${l}</option>`).join('');
+        return `
+            <div class="wa-flow-field" data-key="${this._safeText(field.key || '')}">
+                <div class="wa-flow-field-head">
+                    <input type="text" class="wa-flow-field-label form-input" maxlength="80" placeholder="Input label" value="${this._safeAttr(field.label || '')}">
+                    <select class="wa-flow-field-type form-select">${typeOpts}</select>
+                </div>
+                <div class="wa-flow-field-meta">
+                    <select class="wa-flow-field-map form-select">${mapOpts}</select>
+                    <label class="wa-flow-req"><input type="checkbox" class="wa-flow-field-required" ${required ? 'checked' : ''}> Required</label>
+                    <button type="button" class="list-row-remove wa-flow-field-remove" title="Remove input">✕</button>
+                </div>
+                <textarea class="wa-flow-field-options form-textarea ${type === 'dropdown' ? 'show' : ''}" rows="2" placeholder="Dropdown options (one per line)">${this._safeAttr(options)}</textarea>
+            </div>
+        `;
+    }
+
+    _safeAttr(v) {
+        return String(v == null ? '' : v).replace(/[&<>"']/g, (m) => ({
+            '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+        }[m]));
+    }
+
+    fillWaFlowFields(node, fields) {
+        const wrap = node.querySelector('.wa-flow-fields');
+        if (!wrap) return;
+        if (Array.isArray(fields) && fields.length === 0) {
+            wrap.innerHTML = '';
+            return;
+        }
+        const list = (fields && fields.length) ? fields.slice(0, 8) : this.waFlowDefaultFields('lead_generation');
+        wrap.innerHTML = list.map(f => this.buildWaFlowFieldHtml(f)).join('');
+    }
+
+    collectWaFlowFields(node) {
+        return Array.from(node.querySelectorAll('.wa-flow-field')).map((el, i) => {
+            const label = el.querySelector('.wa-flow-field-label')?.value?.trim() || `Field ${i + 1}`;
+            const fieldType = el.querySelector('.wa-flow-field-type')?.value || 'text';
+            const keyBase = (el.dataset.key || label).toString().replace(/[^a-zA-Z0-9_]/g, '_');
+            return {
+                key: (keyBase.match(/^[A-Za-z]/) ? keyBase : `field_${i + 1}`).slice(0, 28),
+                label,
+                field_type: fieldType,
+                required: !!el.querySelector('.wa-flow-field-required')?.checked,
+                maps_to: el.querySelector('.wa-flow-field-map')?.value || 'custom',
+                options: el.querySelector('.wa-flow-field-options')?.value || '',
+            };
+        }).slice(0, 8);
+    }
+
+    validateWaFlowNode(nodeElement) {
+        const alertEl = nodeElement.querySelector('.wa-flow-required-alert');
+        const bodyOk = !!(nodeElement.querySelector('.message-content')?.value || '').trim();
+        const fields = this.collectWaFlowFields(nodeElement);
+        const fieldsOk = fields.some(f => (f.label || '').trim());
+        const purpose = nodeElement.querySelector('.wa-flow-purpose:checked')?.value || 'lead_generation';
+        const productOk = purpose !== 'collect_order' || !!(nodeElement.querySelector('.wa-flow-product-select')?.value);
+        const sel = nodeElement.querySelector('.wa-flow-product-select');
+        const mode = (sel && sel.selectedOptions && sel.selectedOptions[0] && sel.selectedOptions[0].dataset.checkoutMode) || '';
+        const fieldsOptional = purpose === 'collect_order' && mode === 'direct_sale';
+        if (alertEl) alertEl.classList.toggle('show', !(bodyOk && productOk && (fieldsOk || fieldsOptional)));
+    }
+
+    async loadWaFlowProducts(nodeElement, selectedId) {
+        const sel = nodeElement.querySelector('.wa-flow-product-select');
+        if (!sel) return;
+        const chId = window.currentChannelId || (typeof window.getCurrentChannelId === 'function' && window.getCurrentChannelId());
+        if (!chId) {
+            sel.innerHTML = '<option value="">No channel selected</option>';
+            return;
+        }
+        sel.innerHTML = '<option value="">Loading…</option>';
+        try {
+            const url = (this.apiBaseUrl || '/discount/whatssapAPI') + '/api_products/?channel_id=' + encodeURIComponent(chId);
+            const r = await fetch(url, { credentials: 'same-origin', headers: { 'Accept': 'application/json' } });
+            const j = r.ok ? await r.json() : { products: [] };
+            const list = j.products || [];
+            sel.innerHTML = '<option value="">— Select a product —</option>';
+            list.forEach(p => {
+                const opt = document.createElement('option');
+                opt.value = p.id;
+                opt.textContent = (p.name || 'Product') + (p.price ? ' — ' + p.price + ' ' + (p.currency || 'MAD') : '');
+                opt.dataset.name = p.name || '';
+                opt.dataset.checkoutMode = p.checkout_mode || 'standard_cod';
+                sel.appendChild(opt);
+            });
+            if (selectedId) sel.value = String(selectedId);
+            if (sel.value) this.applyWaFlowFieldsFromProduct(nodeElement);
+        } catch (e) {
+            sel.innerHTML = '<option value="">Could not load products</option>';
+        }
+    }
+
+    setupWhatsAppFlowsNodeUI(nodeElement) {
+        if (!nodeElement || nodeElement.dataset.nodeType !== 'whatsapp-flows') return;
+        const wrap = nodeElement.querySelector('.wa-flow-fields');
+        if (wrap && !wrap.children.length) {
+            this.fillWaFlowFields(nodeElement, this.waFlowDefaultFields('lead_generation'));
+        }
+        if (nodeElement.dataset.waFlowUiBound === '1') {
+            this.validateWaFlowNode(nodeElement);
+            return;
+        }
+        nodeElement.dataset.waFlowUiBound = '1';
+        const productRow = nodeElement.querySelector('.wa-flow-product-row');
+        const updatePurpose = () => {
+            const purpose = nodeElement.querySelector('.wa-flow-purpose:checked')?.value || 'lead_generation';
+            nodeElement.classList.toggle('wa-flow-locked-fields', purpose === 'collect_order');
+            if (productRow) productRow.style.display = purpose === 'collect_order' ? 'block' : 'none';
+            if (purpose === 'collect_order') this.loadWaFlowProducts(nodeElement, nodeElement.dataset.waFlowProductId || '');
+            this.validateWaFlowNode(nodeElement);
+        };
+        nodeElement.querySelectorAll('.wa-flow-purpose').forEach(r => {
+            r.addEventListener('change', () => {
+                const purpose = r.value;
+                if (r.checked) this.fillWaFlowFields(nodeElement, this.waFlowDefaultFields(purpose));
+                updatePurpose();
+            });
+        });
+        nodeElement.addEventListener('click', (e) => {
+            if (e.target.closest('.wa-flow-add-field')) {
+                if (nodeElement.classList.contains('wa-flow-locked-fields')) return;
+                e.preventDefault();
+                e.stopPropagation();
+                const fieldsWrap = nodeElement.querySelector('.wa-flow-fields');
+                if (!fieldsWrap || fieldsWrap.querySelectorAll('.wa-flow-field').length >= 8) return;
+                fieldsWrap.insertAdjacentHTML('beforeend', this.buildWaFlowFieldHtml({
+                    label: '', field_type: 'text', required: true, maps_to: 'custom', options: ''
+                }));
+                this.validateWaFlowNode(nodeElement);
+                return;
+            }
+            if (e.target.closest('.wa-flow-field-remove')) {
+                e.preventDefault();
+                e.stopPropagation();
+                const rows = nodeElement.querySelectorAll('.wa-flow-field');
+                if (rows.length <= 1) return;
+                e.target.closest('.wa-flow-field')?.remove();
+                this.validateWaFlowNode(nodeElement);
+            }
+        });
+        nodeElement.addEventListener('change', (e) => {
+            if (e.target.classList.contains('wa-flow-field-type')) {
+                const field = e.target.closest('.wa-flow-field');
+                const opt = field?.querySelector('.wa-flow-field-options');
+                if (opt) opt.classList.toggle('show', e.target.value === 'dropdown');
+            }
+            if (e.target.classList.contains('wa-flow-product-select')) {
+                this.applyWaFlowFieldsFromProduct(nodeElement);
+            }
+            this.validateWaFlowNode(nodeElement);
+        });
+        nodeElement.addEventListener('input', () => this.validateWaFlowNode(nodeElement));
+        updatePurpose();
+    }
+
+    setupCustomAutoReplyNodeUI(nodeElement) {
+        if (!nodeElement || nodeElement.dataset.nodeType !== 'custom-auto-reply') return;
+        const typeEl = nodeElement.querySelector('.custom-reply-type');
+        const textWrap = nodeElement.querySelector('.custom-reply-text-wrap');
+        const textLabel = nodeElement.querySelector('.custom-reply-text-label');
+        const mediaWrap = nodeElement.querySelector('.custom-reply-media-wrap');
+        const dropzone = nodeElement.querySelector('.custom-reply-dropzone');
+        const fileInput = nodeElement.querySelector('.custom-reply-file');
+        const urlEl = nodeElement.querySelector('.custom-reply-media-url');
+        const previewWrap = nodeElement.querySelector('.custom-reply-preview');
+        const previewMedia = nodeElement.querySelector('.custom-reply-preview-media');
+        const fileNameEl = nodeElement.querySelector('.custom-reply-file-name');
+        const clearBtn = nodeElement.querySelector('.custom-reply-clear');
+        const dropText = nodeElement.querySelector('.custom-reply-drop-text');
+        const self = this;
+
+        const currentType = () => (typeEl?.value || 'text').trim().toLowerCase();
+
+        const renderPreview = (url) => {
+            const replyType = currentType();
+            if (!previewWrap || !previewMedia) return;
+            if (!url || replyType === 'text') {
+                previewWrap.style.display = 'none';
+                previewMedia.innerHTML = '';
+                if (fileNameEl) {
+                    fileNameEl.textContent = '';
+                    fileNameEl.style.display = 'none';
+                }
+                return;
+            }
+            const safeUrl = String(url).replace(/"/g, '&quot;');
+            if (replyType === 'video') {
+                previewMedia.innerHTML = `<video src="${safeUrl}" controls playsinline preload="metadata"></video>`;
+            } else if (replyType === 'audio') {
+                previewMedia.innerHTML = `<audio src="${safeUrl}" controls preload="metadata"></audio>`;
+            } else {
+                previewMedia.innerHTML = `<img src="${safeUrl}" alt="Reply media">`;
+            }
+            previewWrap.style.display = 'block';
+            if (fileNameEl) {
+                const base = url.split('/').filter(Boolean).pop() || url;
+                try {
+                    fileNameEl.textContent = decodeURIComponent(base.split('?')[0]);
+                } catch (e) {
+                    fileNameEl.textContent = base;
+                }
+                fileNameEl.style.display = 'block';
+            }
+        };
+
+        const applyVisibility = () => {
+            const replyType = currentType();
+            const needsText = replyType === 'text' || replyType === 'text_image' || replyType === 'image' || replyType === 'video';
+            const needsMedia = replyType !== 'text';
+            if (textWrap) textWrap.style.display = needsText ? 'block' : 'none';
+            if (textLabel) {
+                textLabel.textContent = (replyType === 'image' || replyType === 'video') ? 'Caption (optional)' : 'Message text';
+            }
+            if (mediaWrap) mediaWrap.style.display = needsMedia ? 'block' : 'none';
+            if (fileInput) {
+                if (replyType === 'audio') fileInput.accept = 'audio/*';
+                else if (replyType === 'video') fileInput.accept = 'video/*';
+                else fileInput.accept = 'image/*';
+            }
+            if (dropText) {
+                dropText.textContent = replyType === 'audio' ? 'Drop or click to upload audio'
+                    : replyType === 'video' ? 'Drop or click to upload video'
+                    : 'Drop or click to upload image';
+            }
+            renderPreview((urlEl && urlEl.value) ? urlEl.value.trim() : '');
+        };
+
+        nodeElement._applyCustomReplyVisibility = applyVisibility;
+
+        const uploadFile = async (file) => {
+            if (!file) return;
+            const replyType = currentType();
+            const mime = (file.type || '').toLowerCase();
+            if (replyType === 'audio' && !mime.startsWith('audio/')) {
+                alert('Please upload an audio file.');
+                return;
+            }
+            if (replyType === 'video' && !mime.startsWith('video/')) {
+                alert('Please upload a video file.');
+                return;
+            }
+            if ((replyType === 'image' || replyType === 'text_image') && !mime.startsWith('image/')) {
+                alert('Please upload an image file.');
+                return;
+            }
+            if (dropText) dropText.textContent = 'Uploading...';
+            const mediaUrl = await self.uploadMediaFile(file);
+            if (!mediaUrl) {
+                if (dropText) dropText.textContent = 'Upload failed. Try again.';
+                return;
+            }
+            if (urlEl) urlEl.value = mediaUrl;
+            const contentData = JSON.parse(nodeElement.dataset.content || '{}');
+            contentData.media_url = mediaUrl;
+            contentData.reply_type = replyType;
+            nodeElement.dataset.content = JSON.stringify(contentData);
+            self.hasUnsavedChanges = true;
+            applyVisibility();
+        };
+
+        if (typeEl) typeEl.addEventListener('change', () => {
+            self.hasUnsavedChanges = true;
+            applyVisibility();
+        });
+        if (dropzone && fileInput) {
+            dropzone.addEventListener('click', () => fileInput.click());
+            ['dragenter', 'dragover'].forEach(ev => {
+                dropzone.addEventListener(ev, (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    dropzone.style.borderColor = '#06B6D4';
+                });
+            });
+            ['dragleave', 'drop'].forEach(ev => {
+                dropzone.addEventListener(ev, (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    dropzone.style.borderColor = '#64748b';
+                });
+            });
+            dropzone.addEventListener('drop', (e) => {
+                const files = e.dataTransfer && e.dataTransfer.files;
+                if (files && files.length) uploadFile(files[0]);
+            });
+            fileInput.addEventListener('change', () => {
+                if (fileInput.files && fileInput.files.length) uploadFile(fileInput.files[0]);
+                fileInput.value = '';
+            });
+        }
+        if (clearBtn) {
+            clearBtn.addEventListener('click', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                if (urlEl) urlEl.value = '';
+                if (fileInput) fileInput.value = '';
+                const contentData = JSON.parse(nodeElement.dataset.content || '{}');
+                contentData.media_url = '';
+                nodeElement.dataset.content = JSON.stringify(contentData);
+                self.hasUnsavedChanges = true;
+                applyVisibility();
+            });
+        }
+        applyVisibility();
+    }
+
     async setupTemplateNodeUI(nodeElement) {
         if (!nodeElement || nodeElement.dataset.nodeType !== 'template-message') return;
         const selectEl = nodeElement.querySelector('.template-message-select');
@@ -4269,6 +5216,127 @@ this.connectionBranch = null;
         mutationObserver.observe(nodeElement, { childList: true, subtree: true, attributes: true });
         this.buttonsPortObservers.set(nodeId, { resizeObserver, mutationObserver });
         schedule();
+    }
+
+    getListPortAnchors(nodeElement) {
+        const out = {};
+        if (!nodeElement) return out;
+        const nodeHeight = nodeElement.clientHeight || 0;
+        if (!nodeHeight) return out;
+        Array.from(nodeElement.querySelectorAll('.list-row')).forEach((row) => {
+            const port = (row.dataset.branch || '').trim();
+            if (!port) return;
+            const y = (row.offsetTop + (row.offsetHeight / 2)) / nodeHeight;
+            out[port] = Math.max(0.05, Math.min(0.98, y));
+        });
+        return out;
+    }
+
+    refreshListPortAnchors(nodeElement) {
+        if (!nodeElement || nodeElement.dataset.nodeType !== 'list-message' || !this.jsPlumbInstance) return;
+        const nodeId = nodeElement.id;
+        if (!nodeId) return;
+        const anchors = this.getListPortAnchors(nodeElement);
+        const endpoints = this.jsPlumbInstance.getEndpoints(nodeId) || [];
+        endpoints.forEach(ep => {
+            const params = (ep.getParameters && ep.getParameters()) || {};
+            const port = params.port;
+            if (!port || !anchors[port]) return;
+            if (typeof ep.setAnchor === 'function') {
+                ep.setAnchor([1, anchors[port], 1, 0]);
+            }
+        });
+        this.jsPlumbInstance.revalidate(nodeId);
+        this.jsPlumbInstance.repaint(nodeId);
+    }
+
+    bindListPortAutoAlign(nodeElement) {
+        if (!nodeElement || nodeElement.dataset.nodeType !== 'list-message') return;
+        const nodeId = nodeElement.id;
+        if (!nodeId) return;
+        const oldObs = this.buttonsPortObservers.get(nodeId);
+        if (oldObs) {
+            try { oldObs.resizeObserver && oldObs.resizeObserver.disconnect(); } catch (e) {}
+            try { oldObs.mutationObserver && oldObs.mutationObserver.disconnect(); } catch (e) {}
+        }
+        const schedule = () => {
+            if (nodeElement.dataset._listPortRaf === '1') return;
+            nodeElement.dataset._listPortRaf = '1';
+            requestAnimationFrame(() => {
+                nodeElement.dataset._listPortRaf = '0';
+                this.refreshListPortAnchors(nodeElement);
+            });
+        };
+        let resizeObserver = null;
+        if (typeof ResizeObserver !== 'undefined') {
+            resizeObserver = new ResizeObserver(() => schedule());
+            resizeObserver.observe(nodeElement);
+        }
+        const mutationObserver = new MutationObserver(() => schedule());
+        mutationObserver.observe(nodeElement, { childList: true, subtree: true, attributes: true });
+        this.buttonsPortObservers.set(nodeId, { resizeObserver, mutationObserver });
+        schedule();
+    }
+
+    syncListRowEndpoints(nodeElement) {
+        if (!nodeElement || nodeElement.dataset.nodeType !== 'list-message' || !this.jsPlumbInstance) return;
+        const nodeId = nodeElement.id;
+        if (!nodeId) return;
+        const colors = this.listRowColors();
+        const wanted = new Set();
+        Array.from(nodeElement.querySelectorAll('.list-row')).forEach((row, visualIdx) => {
+            const port = (row.dataset.branch || '').trim() || `row_${visualIdx + 1}`;
+            wanted.add(port);
+            const uuid = nodeId + '_' + port;
+            const endpointsNow = this.jsPlumbInstance.getEndpoints(nodeId) || [];
+            const existing = endpointsNow.find(ep => {
+                const p = (ep.getParameters && ep.getParameters()) || {};
+                return p.port === port;
+            });
+            if (existing) return;
+            const n = parseInt(String(port).replace(/\D/g, ''), 10) || (visualIdx + 1);
+            const color = colors[(n - 1) % colors.length] || '#0EA5E9';
+            this.jsPlumbInstance.addEndpoint(nodeId, {
+                endpoint: "Dot",
+                paintStyle: { fill: color, radius: 5 },
+                hoverPaintStyle: { fill: "#10B981", radius: 6 },
+                isSource: true,
+                anchor: [1, Math.min(0.98, 0.62 + visualIdx * 0.04), 1, 0],
+                maxConnections: 1,
+                connector: ["Flowchart", { stub: 5, gap: 5, cornerRadius: 5 }],
+                connectorStyle: {
+                    stroke: color,
+                    strokeWidth: 2,
+                    outlineStroke: "transparent",
+                    outlineWidth: 10
+                },
+                connectorHoverStyle: {
+                    stroke: "#10B981",
+                    strokeWidth: 3
+                },
+                parameters: { port },
+                uuid
+            });
+        });
+        const endpoints = this.jsPlumbInstance.getEndpoints(nodeId) || [];
+        endpoints.slice().forEach(ep => {
+            const params = (ep.getParameters && ep.getParameters()) || {};
+            const port = params.port || '';
+            if (!/^row_\d+$/i.test(port) || wanted.has(port)) return;
+            try {
+                const conns = this.jsPlumbInstance.getConnections({ source: nodeId }) || [];
+                conns.forEach(conn => {
+                    const data = (conn.getData && conn.getData()) || {};
+                    if (data.source_port === port || data.branch === port) {
+                        this.jsPlumbInstance.deleteConnection(conn);
+                    }
+                });
+            } catch (e) {}
+            try {
+                this.jsPlumbInstance.deleteEndpoint(ep);
+            } catch (e) {}
+        });
+        this.refreshListPortAnchors(nodeElement);
     }
 
 
@@ -4520,6 +5588,7 @@ this.connectionBranch = null;
                 const connData = (conn && conn.data) ? conn.data : {};
                 const sourcePort = (connData.source_port || connData.branch || '').toString().trim();
                 const isButtonPort = /^btn_[1-3]$/i.test(sourcePort);
+                const isListPort = /^row_\d+$/i.test(sourcePort);
                 if (!sourceId || !targetId) {
                     console.warn('❌ Connection missing source or target:', conn);
                     return resolve();
@@ -4558,7 +5627,14 @@ this.connectionBranch = null;
                     btn_2: '#16A34A',
                     btn_3: '#15803D',
                 };
-                const lineColor = isButtonPort ? (btnColorByPort[sourcePort] || '#16A34A') : '#7C3AED';
+                const listColors = this.listRowColors();
+                let lineColor = '#7C3AED';
+                if (isButtonPort) {
+                    lineColor = btnColorByPort[sourcePort] || '#16A34A';
+                } else if (isListPort) {
+                    const n = parseInt(String(sourcePort).replace(/\D/g, ''), 10) || 1;
+                    lineColor = listColors[(n - 1) % listColors.length] || '#0EA5E9';
+                }
                 const connection = this.jsPlumbInstance.connect({
                     source: sourceId,
                     target: targetId,
@@ -4592,7 +5668,7 @@ this.connectionBranch = null;
                 if (connection) {
                     const nextData = Object.assign({}, connData);
                     if (sourcePort && !nextData.source_port) nextData.source_port = sourcePort;
-                    if (isButtonPort && !nextData.branch) nextData.branch = sourcePort;
+                    if ((isButtonPort || isListPort) && !nextData.branch) nextData.branch = sourcePort;
                     connection.setData(nextData);
                 }
                 resolve();
@@ -4631,6 +5707,29 @@ this.connectionBranch = null;
                     const mediaDelayInput = node.querySelector('.delay-input');
                     if (mediaDelayInput && content.delay !== undefined) mediaDelayInput.value = content.delay;
                     break;
+                case 'custom-auto-reply': {
+                    const typeEl = node.querySelector('.custom-reply-type');
+                    const replyType = (content.reply_type || content.mediaType || 'text').toString().toLowerCase();
+                    const normalizedType = (replyType === 'text+image' || replyType === 'text-image' || replyType === 'both')
+                        ? 'text_image'
+                        : replyType;
+                    if (typeEl && ['text', 'image', 'text_image', 'audio', 'video'].includes(normalizedType)) {
+                        typeEl.value = normalizedType;
+                    }
+                    const textEl = node.querySelector('.custom-reply-text');
+                    if (textEl && (content.text !== undefined || content.caption !== undefined)) {
+                        textEl.value = content.text || content.caption || '';
+                    }
+                    const urlEl = node.querySelector('.custom-reply-media-url');
+                    const mediaUrl = content.media_url || content.url || '';
+                    if (urlEl) urlEl.value = mediaUrl;
+                    const delayEl = node.querySelector('.delay-input');
+                    if (delayEl && content.delay !== undefined) delayEl.value = content.delay;
+                    if (typeof node._applyCustomReplyVisibility === 'function') {
+                        node._applyCustomReplyVisibility();
+                    }
+                    break;
+                }
                 case 'template-message': {
                     const sel = node.querySelector('.template-message-select');
                     const category = node.querySelector('.template-message-category');
@@ -4685,16 +5784,55 @@ this.connectionBranch = null;
                     if (buttonsDelayInput && content.delay !== undefined) buttonsDelayInput.value = content.delay;
                     break;
                   
-                case 'list-message':
-                    const titleTextarea = node.querySelector('.message-content');
-                    if (titleTextarea && content.title) titleTextarea.value = content.title;
-                  
-                    const itemsTextarea = node.querySelector('.list-items');
-                    if (itemsTextarea && content.items) itemsTextarea.value = content.items;
-                  
-                    const listDelayInput = node.querySelector('.delay-input');
-                    if (listDelayInput && content.delay !== undefined) listDelayInput.value = content.delay;
+                case 'list-message': {
+                    const bodyEl = node.querySelector('.message-content');
+                    const headerEl = node.querySelector('.list-header-text');
+                    const footerEl = node.querySelector('.list-footer-text');
+                    const buttonEl = node.querySelector('.list-button-label');
+                    const sectionEl = node.querySelector('.list-section-title');
+                    const delayEl = node.querySelector('.delay-input');
+                    const bodyText = content.text || content.body || '';
+                    const headerText = content.header_text || (!content.text && content.title ? content.title : '');
+                    if (bodyEl) bodyEl.value = bodyText || content.title || '';
+                    if (headerEl) headerEl.value = headerText;
+                    if (footerEl && content.footer_text) footerEl.value = content.footer_text;
+                    if (buttonEl) buttonEl.value = content.button_label || content.button || buttonEl.value || 'View options';
+                    if (sectionEl && content.section_title) sectionEl.value = content.section_title;
+                    if (delayEl && content.delay !== undefined) delayEl.value = content.delay;
+                    this.fillListRows(node, this.parseListRowsFromContent(content));
+                    this.setupListNodeUI(node);
                     break;
+                }
+
+                case 'whatsapp-flows': {
+                    const purpose = content.purpose || 'lead_generation';
+                    node.querySelectorAll('.wa-flow-purpose').forEach(r => {
+                        r.checked = r.value === purpose;
+                    });
+                    const bodyEl = node.querySelector('.message-content');
+                    if (bodyEl) bodyEl.value = content.text || content.body || '';
+                    const headerEl = node.querySelector('.wa-flow-header-text');
+                    if (headerEl) headerEl.value = content.header_text || '';
+                    const footerEl = node.querySelector('.wa-flow-footer-text');
+                    if (footerEl) footerEl.value = content.footer_text || '';
+                    const ctaEl = node.querySelector('.wa-flow-cta');
+                    if (ctaEl) ctaEl.value = content.cta_label || ctaEl.value || 'Open form';
+                    const screenEl = node.querySelector('.wa-flow-screen-title');
+                    if (screenEl) screenEl.value = content.screen_title || screenEl.value || 'Your details';
+                    const submitEl = node.querySelector('.wa-flow-submit-label');
+                    if (submitEl) submitEl.value = content.submit_label || submitEl.value || 'Submit';
+                    const delayEl = node.querySelector('.delay-input');
+                    if (delayEl && content.delay !== undefined) delayEl.value = content.delay;
+                    node.dataset.metaFlowId = content.meta_flow_id || '';
+                    node.dataset.metaFlowJsonHash = content.meta_flow_json_hash || '';
+                    node.dataset.waFlowProductId = content.product_id != null ? String(content.product_id) : '';
+                    this.fillWaFlowFields(node, (content.fields && content.fields.length) ? content.fields : this.waFlowDefaultFields(purpose));
+                    this.setupWhatsAppFlowsNodeUI(node);
+                    const productRow = node.querySelector('.wa-flow-product-row');
+                    if (productRow) productRow.style.display = purpose === 'collect_order' ? 'block' : 'none';
+                    if (purpose === 'collect_order') this.loadWaFlowProducts(node, content.product_id);
+                    break;
+                }
                   
                 case 'condition':
                     const variableInput = node.querySelector('.condition-variable');
@@ -4792,6 +5930,18 @@ this.connectionBranch = null;
                     if (aiDelayEl && content.delay !== undefined) aiDelayEl.value = content.delay;
                     const responseModeEl = node.querySelector('.ai-agent-response-mode');
                     if (responseModeEl && content.response_mode) responseModeEl.value = content.response_mode;
+                    const hybridEl = node.querySelector('.ai-agent-hybrid-checkout');
+                    if (hybridEl) {
+                        let hybridVal = content.hybrid_checkout;
+                        let amcHybrid = content.ai_model_config;
+                        if (typeof amcHybrid === 'string') {
+                            try { amcHybrid = JSON.parse(amcHybrid); } catch (e) { amcHybrid = null; }
+                        }
+                        if (hybridVal == null && amcHybrid && typeof amcHybrid === 'object') {
+                            hybridVal = amcHybrid.hybrid_checkout;
+                        }
+                        hybridEl.checked = hybridVal !== false;
+                    }
                     const personaIdEl = node.querySelector('.ai-agent-persona-id');
                     if (personaIdEl && content.persona_id != null) personaIdEl.value = content.persona_id;
                     const stabEl = node.querySelector('.ai-agent-voice-stability');
@@ -5131,6 +6281,18 @@ this.connectionBranch = null;
             const c = nodeEl.querySelector('textarea')?.value?.trim() || '';
             return `${t.toUpperCase()}${c ? ` - ${c}` : ''}`;
         }
+        if (nodeType === 'custom-auto-reply') {
+            const t = nodeEl.querySelector('.custom-reply-type')?.value || 'text';
+            const labels = {
+                text: 'Text',
+                image: 'Image',
+                text_image: 'Text + Image',
+                audio: 'Audio',
+                video: 'Video'
+            };
+            const msg = nodeEl.querySelector('.custom-reply-text')?.value?.trim() || '';
+            return `${labels[t] || t}${msg ? ` - ${msg}` : ''}`;
+        }
         if (nodeType === 'buttons-message') {
             const body = nodeEl.querySelector('.message-content')?.value?.trim() || '';
             const b = [
@@ -5139,6 +6301,19 @@ this.connectionBranch = null;
                 nodeEl.querySelector('.buttons-reply-3')?.value?.trim() || '',
             ].filter(Boolean);
             return `${body || 'Buttons message'}${b.length ? ` | Buttons: ${b.join(', ')}` : ''}`;
+        }
+        if (nodeType === 'list-message') {
+            const body = nodeEl.querySelector('.message-content')?.value?.trim() || '';
+            const rows = Array.from(nodeEl.querySelectorAll('.list-row-title'))
+                .map(el => (el.value || '').trim())
+                .filter(Boolean);
+            return `${body || 'List message'}${rows.length ? ` | Rows: ${rows.join(', ')}` : ''}`;
+        }
+        if (nodeType === 'whatsapp-flows') {
+            const purpose = nodeEl.querySelector('.wa-flow-purpose:checked')?.value || 'lead_generation';
+            const labels = { lead_generation: 'Leads', feedback: 'Feedback', collect_order: 'Order' };
+            const n = nodeEl.querySelectorAll('.wa-flow-field').length;
+            return `${labels[purpose] || purpose} · ${n} input${n === 1 ? '' : 's'}`;
         }
         if (nodeType === 'condition') {
             const v = nodeEl.querySelector('.condition-variable')?.value?.trim() || '';
@@ -5297,6 +6472,31 @@ this.connectionBranch = null;
                     }
                     break;
 
+                case 'custom-auto-reply': {
+                    content.reply_type = node.querySelector('.custom-reply-type')?.value || 'text';
+                    content.text = node.querySelector('.custom-reply-text')?.value?.trim() || '';
+                    content.delay = parseInt(node.querySelector('.delay-input')?.value) || 0;
+                    let existingUrl = '';
+                    try {
+                        existingUrl = node.querySelector('.custom-reply-media-url')?.value?.trim()
+                            || (JSON.parse(node.dataset.content || '{}').media_url || '');
+                    } catch (e) {
+                        existingUrl = node.querySelector('.custom-reply-media-url')?.value?.trim() || '';
+                    }
+                    const replyFile = node.querySelector('.custom-reply-file');
+                    if (replyFile && replyFile.files && replyFile.files.length > 0) {
+                        const uploaded = await this.uploadMediaFile(replyFile.files[0]);
+                        content.media_url = uploaded || existingUrl || '';
+                    } else {
+                        content.media_url = existingUrl || '';
+                    }
+                    if (content.reply_type === 'image' || content.reply_type === 'text_image') content.mediaType = 'image';
+                    else if (content.reply_type === 'audio') content.mediaType = 'audio';
+                    else if (content.reply_type === 'video') content.mediaType = 'video';
+                    else content.mediaType = 'text';
+                    break;
+                }
+
                 case 'buttons-message':
                     content.text = node.querySelector('.message-content')?.value?.trim() || '';
                     content.header_type = node.querySelector('.buttons-header-type')?.value || '';
@@ -5315,6 +6515,34 @@ this.connectionBranch = null;
                     content.no_reply_followup = !!node.querySelector('.buttons-no-reply-followup')?.checked;
                     content.delay = parseInt(node.querySelector('.delay-input')?.value) || 0;
                     break;
+                case 'list-message':
+                    content.text = node.querySelector('.message-content')?.value?.trim() || '';
+                    content.header_text = node.querySelector('.list-header-text')?.value?.trim() || '';
+                    content.footer_text = node.querySelector('.list-footer-text')?.value?.trim() || '';
+                    content.button_label = node.querySelector('.list-button-label')?.value?.trim() || '';
+                    content.section_title = node.querySelector('.list-section-title')?.value?.trim() || '';
+                    content.rows = this.collectListRowsFromNode(node);
+                    content.delay = parseInt(node.querySelector('.delay-input')?.value) || 0;
+                    break;
+                case 'whatsapp-flows': {
+                    content.purpose = node.querySelector('.wa-flow-purpose:checked')?.value || 'lead_generation';
+                    content.text = node.querySelector('.message-content')?.value?.trim() || '';
+                    content.header_text = node.querySelector('.wa-flow-header-text')?.value?.trim() || '';
+                    content.footer_text = node.querySelector('.wa-flow-footer-text')?.value?.trim() || '';
+                    content.cta_label = node.querySelector('.wa-flow-cta')?.value?.trim() || 'Open form';
+                    content.screen_title = node.querySelector('.wa-flow-screen-title')?.value?.trim() || 'Your details';
+                    content.submit_label = node.querySelector('.wa-flow-submit-label')?.value?.trim() || 'Submit';
+                    content.fields = this.collectWaFlowFields(node);
+                    content.delay = parseInt(node.querySelector('.delay-input')?.value) || 0;
+                    const pSel = node.querySelector('.wa-flow-product-select');
+                    content.product_id = pSel && pSel.value ? parseInt(pSel.value, 10) : null;
+                    content.product_name = pSel && pSel.selectedOptions && pSel.selectedOptions[0]
+                        ? (pSel.selectedOptions[0].dataset.name || pSel.selectedOptions[0].textContent || '')
+                        : '';
+                    content.meta_flow_id = node.dataset.metaFlowId || '';
+                    content.meta_flow_json_hash = node.dataset.metaFlowJsonHash || '';
+                    break;
+                }
                 case 'template-message': {
                     const sel = node.querySelector('.template-message-select');
                     const selected = sel ? sel.options[sel.selectedIndex] : null;
@@ -5355,6 +6583,7 @@ this.connectionBranch = null;
                     const productSelectVal = node.querySelector('.ai-agent-product-select')?.value;
                     content.product_id = (productSelectVal && content.context_source === 'PRODUCT_SELECT') ? parseInt(productSelectVal, 10) : null;
                     content.voice_enabled = node.querySelector('.ai-agent-voice-enabled')?.checked || false;
+                    content.hybrid_checkout = node.querySelector('.ai-agent-hybrid-checkout')?.checked !== false;
                     content.delay = parseInt(node.querySelector('.ai-agent-delay')?.value) || 0;
                     content.ai_model_config = {};
                     content.response_mode = node.querySelector('.ai-agent-response-mode')?.value || 'TEXT_ONLY';
@@ -5982,7 +7211,7 @@ initializeZoom() {
         if (!this.jsPlumbInstance) return;
         try {
             let sourceEndpoint = null;
-            const isButtonBranch = typeof branch === 'string' && /^btn_[1-3]$/i.test(branch);
+            const isButtonBranch = this.isBranchPort(branch);
             const existing = this.jsPlumbInstance.getConnections({
                 source: sourceId,
                 target: targetId
@@ -5997,7 +7226,7 @@ initializeZoom() {
                     return data.source_port === branch || data.branch === branch;
                 });
                 if (hasSameButtonBranch) {
-                    this.showNotification('This button is already linked to this node', 'warning');
+                    this.showNotification('This option is already linked to this node', 'warning');
                     return;
                 }
             }

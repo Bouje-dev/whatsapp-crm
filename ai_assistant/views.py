@@ -9,10 +9,12 @@ from discount.models import Message, WhatsAppChannel
 from discount.services.security_check import verify_plan_access, FEATURE_AI_VOICE, FEATURE_AUTO_REPLY
 from .services import generate_reply
 from .models import AIUsageLog
+from .copilot_service import run_copilot_chat
 
 logger = logging.getLogger(__name__)
 
 MAX_HISTORY_MESSAGES = 20
+MAX_COPILOT_MESSAGES = 20
 
 
 @login_required
@@ -178,3 +180,116 @@ def ai_send_reply_as_voice(request):
     except Exception as e:
         logger.exception("send_whatsapp_audio_file failed: %s", e)
         return JsonResponse({"success": False, "error": "Failed to send voice message."}, status=500)
+
+
+def _user_channel_queryset(user):
+    if user.is_superuser or getattr(user, "is_team_admin", False):
+        return WhatsAppChannel.objects.filter(owner=user)
+    return WhatsAppChannel.objects.filter(assigned_agents=user)
+
+
+@login_required
+@require_POST
+def copilot_chat(request):
+    """
+    POST /ai-assistant/api/copilot-chat/
+
+    Body JSON:
+      {
+        "channel_id": 123,                         // optional but recommended (auth scope)
+        "prompt": "Show today's sales",          // optional if messages provided
+        "messages": [{"role":"user","content":"..."}]  // optional chat history
+      }
+
+    Returns structured payload for dashboard UI blocks:
+      { "success": true, "message", "ui_component", "component_data" }
+    """
+    try:
+        body = json.loads(request.body or b"{}")
+    except (json.JSONDecodeError, ValueError):
+        return JsonResponse({"success": False, "error": "Invalid JSON body."}, status=400)
+
+    channel_id = body.get("channel_id")
+    prompt = (body.get("prompt") or "").strip()
+    messages = body.get("messages")
+
+    if messages is not None and not isinstance(messages, list):
+        return JsonResponse({"success": False, "error": "messages must be a list."}, status=400)
+
+    chat_messages = []
+    if isinstance(messages, list) and messages:
+        for m in messages:
+            role = (m.get("role") or "").strip().lower()
+            content = m.get("content")
+            if role in ("user", "assistant") and content is not None:
+                chat_messages.append({"role": role, "content": str(content)[:8000]})
+        chat_messages = chat_messages[-MAX_COPILOT_MESSAGES:]
+
+    if prompt:
+        if chat_messages and chat_messages[-1].get("role") == "user":
+            chat_messages[-1]["content"] = prompt
+        else:
+            chat_messages.append({"role": "user", "content": prompt[:8000]})
+
+    if not chat_messages or chat_messages[-1].get("role") != "user":
+        return JsonResponse(
+            {"success": False, "error": "Provide a user prompt or messages ending with a user turn."},
+            status=400,
+        )
+
+    extra_context = None
+    if channel_id is not None:
+        try:
+            channel_id = int(channel_id)
+        except (TypeError, ValueError):
+            return JsonResponse({"success": False, "error": "Invalid channel_id."}, status=400)
+
+        channel = _user_channel_queryset(request.user).filter(id=channel_id).first()
+        if not channel:
+            return JsonResponse({"success": False, "error": "Channel not found or access denied."}, status=403)
+        if hasattr(channel, "has_user_permission") and not channel.has_user_permission(request.user):
+            return JsonResponse({"success": False, "error": "Forbidden."}, status=403)
+
+        store = getattr(channel, "owner", None)
+        try:
+            verify_plan_access(store, FEATURE_AUTO_REPLY)
+        except PermissionDenied as e:
+            return JsonResponse({"success": False, "error": str(e)}, status=403)
+
+        extra_context = f"Channel name: {getattr(channel, 'name', channel_id)}"
+
+    try:
+        payload = run_copilot_chat(
+            chat_messages,
+            channel_id=channel_id,
+            extra_context=extra_context,
+        )
+    except ValueError as e:
+        return JsonResponse({"success": False, "error": str(e)}, status=400)
+    except RuntimeError as e:
+        return JsonResponse({"success": False, "error": str(e)}, status=502)
+
+    # Optional persistence (same model as legacy coach-ai)
+    if channel_id is not None:
+        try:
+            from discount.models import CoachConversationMessage
+
+            channel = WhatsAppChannel.objects.get(pk=channel_id)
+            last_user = next((m for m in reversed(chat_messages) if m.get("role") == "user"), None)
+            if last_user and (last_user.get("content") or "").strip():
+                CoachConversationMessage.objects.create(
+                    channel=channel,
+                    user=request.user,
+                    role="user",
+                    content=(last_user.get("content") or "").strip()[:10000],
+                )
+                CoachConversationMessage.objects.create(
+                    channel=channel,
+                    user=request.user,
+                    role="assistant",
+                    content=(payload.get("message") or "").strip()[:10000],
+                )
+        except Exception as e:
+            logger.warning("copilot_chat: save conversation failed: %s", e)
+
+    return JsonResponse({"success": True, **payload})

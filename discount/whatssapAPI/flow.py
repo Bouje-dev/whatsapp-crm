@@ -38,7 +38,71 @@ def serialize_autoreply(obj, request=None):
         "updated_at": obj.updated_at.isoformat() if getattr(obj, "updated_at", None) else None,
     }
 
- 
+
+CUSTOM_AUTO_REPLY_TYPES = ("text", "image", "text_image", "audio", "video")
+
+
+def parse_custom_auto_reply_content(content):
+    """Normalize Custom Auto Reply node payload for Node.content_text / media_url / media_type."""
+    if not isinstance(content, dict):
+        content = {}
+    reply_type = (content.get("reply_type") or content.get("mediaType") or "text")
+    reply_type = str(reply_type).strip().lower()
+    if reply_type in ("text+image", "text-image", "both", "mixed"):
+        reply_type = "text_image"
+    if reply_type not in CUSTOM_AUTO_REPLY_TYPES:
+        reply_type = "text"
+    text = (content.get("text") or content.get("caption") or "")
+    text = str(text).strip() if text is not None else ""
+    media_url = content.get("media_url") or content.get("url") or None
+    if isinstance(media_url, str):
+        media_url = media_url.strip() or None
+    delay = content.get("delay", 0)
+    try:
+        delay = int(delay or 0)
+    except (TypeError, ValueError):
+        delay = 0
+    return reply_type, text, media_url, delay
+
+
+def custom_auto_reply_output_messages(reply_type, text, media_url, delay=0):
+    """Build WhatsApp output messages for a Custom Auto Reply node."""
+    messages = []
+    reply_type = (reply_type or "text").strip().lower()
+    text = (text or "").strip()
+    media_url = (media_url or "").strip() if media_url else ""
+    delay = delay or 0
+
+    if reply_type == "text":
+        if text:
+            messages.append({"type": "text", "content": text, "delay": delay})
+        return messages
+
+    if reply_type == "text_image":
+        if text:
+            messages.append({"type": "text", "content": text, "delay": delay})
+        if media_url:
+            messages.append({"type": "image", "media_url": media_url, "content": "", "delay": 0 if text else delay})
+        return messages
+
+    if reply_type in ("image", "audio", "video"):
+        if media_url:
+            caption = text if reply_type in ("image", "video") else ""
+            messages.append({
+                "type": reply_type,
+                "media_url": media_url,
+                "content": caption,
+                "delay": delay,
+            })
+        elif text:
+            messages.append({"type": "text", "content": text, "delay": delay})
+        return messages
+
+    if text:
+        messages.append({"type": "text", "content": text, "delay": delay})
+    return messages
+
+
 def serialize_flow(obj):
     # جلب العقد
     nodes = []
@@ -67,6 +131,14 @@ def serialize_flow(obj):
             content_data['mediaType'] = getattr(n, 'media_type', 'image')
             content_data['delay'] = getattr(n, 'delay', 0)
 
+        elif n.node_type == 'custom-auto-reply':
+            content_data['text'] = n.content_text or ''
+            content_data['media_url'] = n.content_media_url or ''
+            content_data['url'] = n.content_media_url or ''
+            content_data['reply_type'] = getattr(n, 'media_type', None) or 'text'
+            content_data['mediaType'] = content_data['reply_type']
+            content_data['delay'] = getattr(n, 'delay', 0)
+
         # --- 4. AI Agent ---
         elif n.node_type == 'ai-agent':
             content_data['product_context'] = getattr(n, 'product_context', '') or ''
@@ -81,6 +153,7 @@ def serialize_flow(obj):
                 if _vp in ('OPENAI', 'ELEVENLABS'):
                     content_data['voice_provider'] = _vp
             content_data['product_id'] = ac.get('product_id')
+            content_data['hybrid_checkout'] = True if not isinstance(ac, dict) else bool(ac.get('hybrid_checkout', True))
             content_data['delay'] = getattr(n, 'delay', 0)
             content_data['response_mode'] = getattr(n, 'response_mode', None) or 'TEXT_ONLY'
             content_data['node_voice_id'] = getattr(n, 'node_voice_id', None) or ''
@@ -162,6 +235,45 @@ def serialize_flow(obj):
             content_data['cta_label'] = parsed.get('cta_label', '')
             content_data['cta_url'] = parsed.get('cta_url', '')
             content_data['no_reply_followup'] = bool(parsed.get('no_reply_followup', False))
+        elif n.node_type == 'list-message':
+            raw = (n.content_text or '').strip()
+            parsed = {}
+            if raw:
+                try:
+                    parsed = json.loads(raw) if raw.startswith('{') else {}
+                except Exception:
+                    parsed = {}
+            if not isinstance(parsed, dict):
+                parsed = {}
+            if parsed:
+                content_data['text'] = parsed.get('text', '') or parsed.get('body', '') or parsed.get('title', '')
+                content_data['header_text'] = parsed.get('header_text', '')
+                content_data['footer_text'] = parsed.get('footer_text', '')
+                content_data['button_label'] = parsed.get('button_label', '') or parsed.get('button', '')
+                content_data['section_title'] = parsed.get('section_title', '')
+                content_data['rows'] = parsed.get('rows', [])
+                content_data['items'] = parsed.get('items', '')
+                content_data['delay'] = parsed.get('delay', getattr(n, 'delay', 0))
+            else:
+                content_data['text'] = raw
+                content_data['title'] = raw
+                content_data['delay'] = getattr(n, 'delay', 0)
+        elif n.node_type == 'whatsapp-flows':
+            raw = (n.content_text or '').strip()
+            parsed = {}
+            if raw:
+                try:
+                    parsed = json.loads(raw) if raw.startswith('{') else {}
+                except Exception:
+                    parsed = {}
+            if not isinstance(parsed, dict):
+                parsed = {}
+            if parsed:
+                content_data.update(parsed)
+                content_data['delay'] = parsed.get('delay', getattr(n, 'delay', 0))
+            else:
+                content_data['text'] = raw
+                content_data['delay'] = getattr(n, 'delay', 0)
         elif n.node_type == 'template-message':
             raw = (n.content_text or '').strip()
             parsed = {}
@@ -420,6 +532,13 @@ def process_flow_for_message(flow, message_text, phone, media_type=None):
                     responses.append(response)
                 else:
                     print("⚠️ Media node has invalid data")
+            elif node_type == 'custom-auto-reply':
+                content_data = current_node.get('content', {}) if isinstance(current_node.get('content'), dict) else {}
+                reply_type, reply_text, media_url, delay = parse_custom_auto_reply_content(content_data)
+                for item in custom_auto_reply_output_messages(reply_type, reply_text, media_url, delay):
+                    item['node_type'] = 'custom-auto-reply'
+                    if is_valid_response(item):
+                        responses.append(item)
             elif node_type == 'buttons-message':
                 content_data = current_node.get('content', {}) if isinstance(current_node.get('content'), dict) else {}
                 txt = (content_data.get('text') or '').strip()
@@ -470,6 +589,39 @@ def process_flow_for_message(flow, message_text, phone, media_type=None):
                             'node_type': 'buttons-message',
                         })
                     
+            elif node_type == 'list-message':
+                content_data = current_node.get('content', {}) if isinstance(current_node.get('content'), dict) else {}
+                from discount.whatssapAPI.process_messages import build_list_interactive_from_content
+                interactive, txt, _rows = build_list_interactive_from_content(
+                    content_data, current_node.get('id')
+                )
+                if interactive and txt:
+                    responses.append({
+                        'type': 'interactive',
+                        'interactive': interactive,
+                        'content': txt,
+                        'delay': int(content_data.get('delay', 0) or 0),
+                        'node_type': 'list-message',
+                    })
+                elif txt:
+                    responses.append({
+                        'type': 'text',
+                        'content': txt,
+                        'delay': int(content_data.get('delay', 0) or 0),
+                        'node_type': 'list-message',
+                    })
+
+            elif node_type == 'whatsapp-flows':
+                content_data = current_node.get('content', {}) if isinstance(current_node.get('content'), dict) else {}
+                txt = (content_data.get('text') or content_data.get('body') or '').strip()
+                if txt:
+                    responses.append({
+                        'type': 'text',
+                        'content': txt,
+                        'delay': int(content_data.get('delay', 0) or 0),
+                        'node_type': 'whatsapp-flows',
+                    })
+
             elif node_type == 'condition':
                 condition_result = evaluate_condition(current_node, message_text, phone)
                 print(f"🔀 Condition result: {condition_result}")
@@ -1828,6 +1980,8 @@ class SaveFlowView(APIView):
                     mediatype = None 
                     if node_type_str == "media-message":
                         mediatype = n.get("content", {}).get("mediaType", "")
+                    elif node_type_str == "custom-auto-reply":
+                        mediatype = (n.get("content", {}) or {}).get("reply_type") or (n.get("content", {}) or {}).get("mediaType") or "text"
 
                     content_obj = n.get("content", {}) or {}
                     clean_text_value = ""
@@ -1840,7 +1994,16 @@ class SaveFlowView(APIView):
                         clean_text_value = content_obj.get("caption", "")
                         clean_media_value = content_obj.get("media_url") or content_obj.get("url")
                         clean_delay_value = content_obj.get("delay", 0)
+                    elif node_type_str == "custom-auto-reply":
+                        reply_type, clean_text_value, clean_media_value, clean_delay_value = parse_custom_auto_reply_content(content_obj)
+                        mediatype = reply_type
                     elif node_type_str == "buttons-message":
+                        clean_text_value = json.dumps(content_obj, ensure_ascii=False)
+                        clean_delay_value = content_obj.get("delay", 0)
+                    elif node_type_str == "list-message":
+                        clean_text_value = json.dumps(content_obj, ensure_ascii=False)
+                        clean_delay_value = content_obj.get("delay", 0)
+                    elif node_type_str == "whatsapp-flows":
                         clean_text_value = json.dumps(content_obj, ensure_ascii=False)
                         clean_delay_value = content_obj.get("delay", 0)
                     elif node_type_str == "template-message":
@@ -2061,6 +2224,10 @@ def api_update_flows(request, pk):
                 clean_delay = content.get("delay", 0)
                 media_type_val = content.get("mediaType", "image")
 
+            elif ntype == "custom-auto-reply":
+                reply_type, clean_text, clean_media, clean_delay = parse_custom_auto_reply_content(content)
+                media_type_val = reply_type
+
             elif ntype == "mixed": # إذا كنت تستخدمه
                 clean_text = content.get("text", "")
                 clean_media = content.get("media_url")
@@ -2103,6 +2270,12 @@ def api_update_flows(request, pk):
             elif ntype == "buttons-message":
                 clean_text = json.dumps(content, ensure_ascii=False)
                 clean_delay = content.get("delay", 0)
+            elif ntype == "list-message":
+                clean_text = json.dumps(content, ensure_ascii=False)
+                clean_delay = content.get("delay", 0)
+            elif ntype == "whatsapp-flows":
+                clean_text = json.dumps(content, ensure_ascii=False)
+                clean_delay = content.get("delay", 0)
             elif ntype == "template-message":
                 clean_text = json.dumps(content, ensure_ascii=False)
                 clean_delay = content.get("delay", 0)
@@ -2142,6 +2315,10 @@ def api_update_flows(request, pk):
                 _vprov = (content.get("voice_provider") or "").strip().upper()
                 if _vprov in ("OPENAI", "ELEVENLABS"):
                     ai_cfg["voice_provider"] = _vprov
+                if "hybrid_checkout" in content:
+                    ai_cfg["hybrid_checkout"] = bool(content.get("hybrid_checkout"))
+                elif "hybrid_checkout" not in ai_cfg:
+                    ai_cfg["hybrid_checkout"] = True
                 create_kw["ai_model_config"] = ai_cfg
                 create_kw["response_mode"] = content.get("response_mode") or "TEXT_ONLY"
                 create_kw["node_voice_id"] = (content.get("node_voice_id") or "").strip() or None

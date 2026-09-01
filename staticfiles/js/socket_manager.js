@@ -173,11 +173,13 @@ const ChatSocket = {
                 const formattedMsg = {
                     id: payload.saved_message_id, 
                     body: payload.body,
-                    type: payload.media_type || 'text',
+                    type: payload.type || payload.media_type || 'text',
                     url: payload.media_url || payload.url || '', 
                     time: new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}),
                     fromMe: true, 
-                    status: 'sent' 
+                    status: 'sent',
+                    captions: payload.captions || '',
+                    interactive: payload.interactive || null
                 };
                 if (typeof window.appendMessagesws === 'function') {
                     window.appendMessagesws([formattedMsg]); 
@@ -199,7 +201,9 @@ const ChatSocket = {
 
             // ب) تجهيز نص المختصر (Snippet)
             let snippetText = payload.body;
-            if (!snippetText && payload.media_type) {
+            if (payload.type === 'interactive') {
+                snippetText = payload.body || (payload.interactive && payload.interactive.kind === 'interactive_list' ? '📋 List' : '🔘 Buttons');
+            } else if (!snippetText && payload.media_type) {
                 if (payload.media_type === 'audio') snippetText = '🎤 مقطع صوتي';
                 else if (payload.media_type === 'image') snippetText = '📷 صورة';
                 else snippetText = '📁 ملف';
@@ -212,10 +216,11 @@ const ChatSocket = {
                 profile_picture: currentPic, // نحافظ على الصورة القديمة
                 snippet: snippetText,
                 timestamp: 'Now',
-                
-                unread: 0,       // 🔥 صفرنا العداد (سيختفي البادج الأخضر)
-                fromMe: true,    // 🔥 هذا سيجعل النص رمادياً عادياً (ليس أخضر)
-                last_status: 'sent' // سيظهر علامة صح واحدة
+                unread: 0,
+                fromMe: true,
+                last_status: 'sent',
+                last_id: payload.saved_message_id || null,
+                channel_id: payload.channel_id || null,
             };
 
             // د) استدعاء دالة التحديث
@@ -257,8 +262,9 @@ const ChatSocket = {
             const payload = data.payload || {};
             const mid = payload.message_id != null ? String(payload.message_id) : '';
             if (!mid) break;
-            // Prefer direct match: both wrapper and inner span carry data-msg-id; descendant-only
-            // selectors break when the first matched node is already .cls3741_msg_status.
+            let st = (payload.status != null ? String(payload.status) : 'sent').trim().toLowerCase();
+            if (st === 'played' || st === 'listened') st = 'read';
+
             let msgStatusIcon = document.querySelector(
                 `.cls3741_msg_status[data-msg-id="${mid}"]`
             );
@@ -268,9 +274,12 @@ const ChatSocket = {
                 );
             }
             if (msgStatusIcon && typeof window.getStatusIconHTML === 'function') {
-                let st = (payload.status != null ? String(payload.status) : 'sent').trim().toLowerCase();
-                if (st === 'played' || st === 'listened') st = 'read';
                 msgStatusIcon.innerHTML = window.getStatusIconHTML(st || 'sent');
+            }
+
+            const threadPhone = payload.phone || payload.recipient_id || payload.sender || '';
+            if (threadPhone && typeof window.updateSidebarMessageStatus === 'function') {
+                window.updateSidebarMessageStatus(threadPhone, st, payload.message_id);
             }
             break;
         }
@@ -347,6 +356,8 @@ const ChatSocket = {
                 messageText = "📎 Document";
             } else if (_msgType === 'sticker') {
                 messageText = "🎭 Sticker";
+            } else if (_msgType === 'interactive') {
+                messageText = payload.message.body || (payload.message.interactive && payload.message.interactive.kind === 'interactive_list' ? '📋 List' : '🔘 Buttons');
             } else if (_msgType === 'location') {
                 messageText = "📍 Location";
             }

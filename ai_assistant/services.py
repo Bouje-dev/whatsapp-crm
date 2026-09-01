@@ -278,6 +278,19 @@ def get_api_key():
     return getattr(settings, "OPENAI_API_KEY", None) or os.environ.get("OPENAI_API_KEY", "")
 
 
+def _openai_direct_model(model=None):
+    """
+    Normalize LiteLLM-style model IDs for direct OpenAI REST calls.
+    e.g. openai/gpt-4o-mini -> gpt-4o-mini
+    """
+    m = (model or DEFAULT_MODEL or "gpt-4o-mini").strip()
+    if "/" in m:
+        prefix, bare = m.split("/", 1)
+        if prefix.lower() in ("openai", "azure"):
+            return bare.strip() or "gpt-4o-mini"
+    return m
+
+
 def get_anthropic_api_key():
     """Retrieve the Anthropic API key from Django settings or environment."""
     return getattr(settings, "ANTHROPIC_API_KEY", None) or os.environ.get("ANTHROPIC_API_KEY", "")
@@ -534,7 +547,7 @@ def generate_reply(conversation_messages, custom_instruction=None, model=None):
             "Set OPENAI_API_KEY in your .env file."
         )
 
-    model = model or DEFAULT_MODEL
+    model = _openai_direct_model(model)
     messages = build_messages_payload(conversation_messages, custom_instruction)
 
     headers = {
@@ -829,7 +842,7 @@ def classify_user_intent_for_handover(last_user_message, use_llm=True):
             OPENAI_API_URL,
             headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
             json={
-                "model": DEFAULT_MODEL,
+                "model": _openai_direct_model(DEFAULT_MODEL),
                 "messages": [{"role": "user", "content": prompt}],
                 "max_tokens": 25,
                 "temperature": 0,
@@ -1379,6 +1392,26 @@ ORDER_MODIFICATION_RULE = (
     "After the tool executes successfully, naturally confirm to the user that their request has been registered and passed to the delivery team."
 )
 
+
+def _build_admin_override_rules_tail(override_rules):
+    """Append admin coaching rules at the very end of the system prompt (highest priority)."""
+    rules_text = (override_rules or "").strip()
+    if not rules_text:
+        return ""
+    return (
+        "\n\n"
+        "══════════════════════════════════════════════════\n"
+        "🚨 BOSS / ADMIN COACHING RULES — ABSOLUTE OVERRIDE 🚨\n"
+        "These rules were set by the store owner in the dashboard copilot.\n"
+        "They OVERRIDE every conflicting instruction above — including Value Sandwich, "
+        "Sales Pacing Framework, default price order, CTA scripts, and persona blocks.\n"
+        "When a customer message matches a rule below, follow the rule EXACTLY (step order matters).\n\n"
+        + rules_text
+        + "\n"
+        "══════════════════════════════════════════════════"
+    )
+
+
 SALES_PACING_FRAMEWORK_BLOCK = """CRITICAL SALES PACING & CONVERSATION FRAMEWORK:
 NEVER rush the sale or use a Hard Close (e.g., 'Do you want to order now?') in the first few messages. You must follow this sales psychology:
 1. BUILD VALUE FIRST: Before mentioning the price, briefly highlight 1 or 2 key benefits or ingredients of the product based on the context. Make the customer feel the product's worth.
@@ -1887,7 +1920,8 @@ SEND_PRODUCT_MEDIA_TOOL = {
             "Send a real WhatsApp image message for a catalog product. "
             "The image is sent as a native WhatsApp media message (not a URL in text). "
             "Use this whenever listing products or when the customer asks for a photo. "
-            "Call it once per product. You may provide an optional caption."
+            "Call it once per product. You may provide an optional caption (product name + price). "
+            "After success: do NOT announce 'تم إرسال الصورة' — the customer already sees the image."
         ),
         "parameters": {
             "type": "object",
@@ -2014,6 +2048,32 @@ SUBMIT_CUSTOMER_ORDER_TOOL = {
     },
 }
 
+USE_VOICE_CHECKOUT_TOOL = {
+    "type": "function",
+    "function": {
+        "name": "use_voice_checkout",
+        "description": (
+            "SILENT tool. Switch checkout from the written WhatsApp form to voice collection. "
+            "Call this ONLY after the customer has agreed to buy (or a form was already sent) AND "
+            "they cannot or will not use the form: they send only voice notes, say they cannot read "
+            "or write or fill it, or ignore the form — in ANY language. "
+            "Do NOT call during price questions, product questions, or before they agree to buy. "
+            "Do NOT announce this tool to the customer."
+        ),
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "reason": {
+                    "type": "string",
+                    "enum": ["cannot_fill_form", "voice_only", "declined_form"],
+                    "description": "Why the written form cannot be used.",
+                },
+            },
+            "required": ["reason"],
+        },
+    },
+}
+
 REGISTER_SUPPORT_COMPLAINT_TOOL = {
     "type": "function",
     "function": {
@@ -2133,6 +2193,7 @@ UPDATE_OVERRIDE_RULES_TOOL = {
         "description": (
             "Save new sales rules ONLY when the Boss has clearly stated a rule or instruction for the AI Sales Agent. "
             "Call this only after you have validated that the message is an actual rule (how to sell, handle customers, tone, etc.). "
+            "Put the FULL actionable rule in custom_rules — use numbered steps when sequence/order matters. "
             "Do NOT call for greetings, questions, thanks, or unclear messages."
         ),
         "parameters": {
@@ -2150,6 +2211,9 @@ UPDATE_OVERRIDE_RULES_TOOL = {
 
 COACHING_TOOLS = [UPDATE_OVERRIDE_RULES_TOOL]
 
+# Direct OpenAI REST model (never use LiteLLM provider prefix here).
+COACHING_MODEL = getattr(settings, "OPENAI_COACHING_MODEL", "gpt-4o-mini")
+
 
 def generate_reply_coaching(messages, model=None):
     """
@@ -2160,7 +2224,7 @@ def generate_reply_coaching(messages, model=None):
     api_key = get_api_key()
     if not api_key:
         raise ValueError("OPENAI_API_KEY is not set.")
-    model = model or DEFAULT_MODEL
+    model = _openai_direct_model(model or COACHING_MODEL)
     full_messages = [{"role": "system", "content": COACHING_SYSTEM_PROMPT}]
     for m in messages:
         role = m.get("role")
@@ -2177,7 +2241,12 @@ def generate_reply_coaching(messages, model=None):
     }
     response = requests.post(OPENAI_API_URL, headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"}, json=payload, timeout=45)
     if response.status_code != 200:
-        logger.error("OpenAI coaching API error %s: %s", response.status_code, response.text[:500])
+        logger.error(
+            "OpenAI coaching API error %s model=%r: %s",
+            response.status_code,
+            model,
+            response.text[:500],
+        )
         raise RuntimeError(f"OpenAI API returned status {response.status_code}.")
     data = response.json()
     choice = data.get("choices", [{}])[0]
@@ -2267,6 +2336,7 @@ SALES_AGENT_TOOLS = [
     SWITCH_ACTIVE_PRODUCT_TOOL,
     SEND_PRODUCT_MEDIA_TOOL,
     SUBMIT_CUSTOMER_ORDER_TOOL,
+    USE_VOICE_CHECKOUT_TOOL,
     REGISTER_SUPPORT_COMPLAINT_TOOL,
     FLAG_ORDER_FOR_REVIEW_TOOL,
     UPDATE_LEAD_STATUS_TOOL,
@@ -3064,8 +3134,9 @@ def _build_order_memory_block(
             "\n"
             "MANDATORY BEHAVIOUR:\n"
             "  1. Do NOT ask the customer for their name, email, or any other detail.\n"
-            "  2. The moment the customer expresses ANY intent to buy (e.g. 'أبغاها', 'I want it',\n"
-            "     'نعم', 'yes', 'buy', 'هات', 'كيفاش نشري'), call submit_customer_order IMMEDIATELY.\n"
+            "  2. The moment the customer clearly confirms they want to buy (e.g. 'أبغاها', 'I want it',\n"
+            "     'نعم', 'yes', 'buy', 'هات') — NOT when they only ask HOW to order ('كيفاش نطلب؟') —\n"
+            "     call submit_customer_order IMMEDIATELY.\n"
             f"  3. Pass phone_number='{phone}', customer_name='WhatsApp Customer', and "
             "final_agreed_price=<exact agreed amount> in the tool call.\n"
             "  4. Do NOT add extra pleasantries or stalling questions before calling the tool.\n"
@@ -3276,6 +3347,7 @@ def _build_conversation_state_banner(
     order_payment_status=None,
     incoming_payment_receipt_valid=None,
     incoming_media_vision_summary=None,
+    missing_order_fields=None,
 ):
     """
     Return the hard guard banner that must be prepended to the system prompt
@@ -3410,6 +3482,12 @@ def _build_conversation_state_banner(
             "══════════════════════════════════════════════════"
         )
         return banner
+    if state == "GATHERING_INFO":
+        missing = [f for f in (missing_order_fields or []) if f]
+        if missing:
+            from ai_assistant.order_checkout import build_gathering_info_state_banner
+
+            return build_gathering_info_state_banner(missing)
     # Unknown / future state — fail safe, do nothing.
     return ""
 
@@ -3474,7 +3552,7 @@ def _build_post_sale_support_banner(post_sale_support_context):
     )
 
 
-def build_messages_payload_sales(conversation_messages, custom_instruction=None, product_context=None, trust_score=0, media_context=None, state_header=None, sales_stage=None, sentiment=None, market=None, agent_name=None, customer_phone=None, override_rules=None, required_order_fields=None, checkout_mode_label=None, product_id=None, merchant_id=None, voice_dialect=None, voice_notes_mode=False, voice_script_style=False, output_language=None, memory_summary=None, node_dialect_locked=False, node_language_code=None, node=None, bot_settings=None, target_dialect=None, pronoun_anchor_product_name=None, conversation_state=None, post_sale_support_context=None, payment_rejection_reason=None, incoming_has_media=False, order_payment_status=None, incoming_payment_receipt_valid=None, incoming_media_vision_summary=None):
+def build_messages_payload_sales(conversation_messages, custom_instruction=None, product_context=None, trust_score=0, media_context=None, state_header=None, sales_stage=None, sentiment=None, market=None, agent_name=None, customer_phone=None, override_rules=None, required_order_fields=None, checkout_mode_label=None, product_id=None, merchant_id=None, voice_dialect=None, voice_notes_mode=False, voice_script_style=False, output_language=None, memory_summary=None, node_dialect_locked=False, node_language_code=None, node=None, bot_settings=None, target_dialect=None, pronoun_anchor_product_name=None, conversation_state=None, post_sale_support_context=None, payment_rejection_reason=None, incoming_has_media=False, order_payment_status=None, incoming_payment_receipt_valid=None, incoming_media_vision_summary=None, can_read_flow_rule=None, missing_order_fields=None):
     """Build messages for the sales agent. Uses Elite Sales Consultant prompt when product_context is set (with trust_score, sales_stage, sentiment, market, agent_name).
     state_header: optional for session continuity. market: 'MA' or 'SA'. agent_name: e.g. Chuck or persona name so the AI thinks as that human.
     customer_phone: active WhatsApp number of the customer; injected as system note so the AI can use it when they say 'same number' / نفس الرقم.
@@ -3491,19 +3569,6 @@ def build_messages_payload_sales(conversation_messages, custom_instruction=None,
     bot_settings: global channel/bot settings dict (fallback when node has no language).
     pronoun_anchor_product_name: display name for strict coreference rules (session active product / order)."""
     catalog_is_empty = _is_catalog_empty_for_merchant(merchant_id=merchant_id)
-    admin_rules_prefix = ""
-    if override_rules and (override_rules or "").strip():
-        rules_text = (override_rules or "").strip()
-        admin_rules_prefix = (
-            "## CRITICAL — Admin override rules (you MUST follow these in every reply)\n\n"
-            + rules_text
-            + "\n\n---\n\n"
-        )
-        logger.info(
-            "Admin override rules applied to sales prompt (length=%d, preview=%s)",
-            len(rules_text),
-            (rules_text[:100] + "…") if len(rules_text) > 100 else rules_text,
-        )
     resolved_dialect = (target_dialect or "").strip() or "Standard Arabic"
     quarantine_rule = get_dynamic_dialect_vocabulary_rules(resolved_dialect, output_language)
     persona_wall = (
@@ -3579,7 +3644,7 @@ def build_messages_payload_sales(conversation_messages, custom_instruction=None,
         + PRODUCT_SWITCHING_PIVOTING_RULE
         + "\n\n---\n\n"
     )
-    system = admin_rules_prefix + language_rule_prefix + catalog_truth_prefix + lang_prefix + mode_line + system
+    system = language_rule_prefix + catalog_truth_prefix + lang_prefix + mode_line + system
     # Remove legacy dialect-lock/matrix lines to keep routing model-agnostic and avoid contamination.
     system = _strip_moroccan_default_instructions_for_tts(system)
     if memory_summary and str(memory_summary).strip():
@@ -3652,6 +3717,7 @@ def build_messages_payload_sales(conversation_messages, custom_instruction=None,
         order_payment_status=order_payment_status,
         incoming_payment_receipt_valid=incoming_payment_receipt_valid,
         incoming_media_vision_summary=incoming_media_vision_summary,
+        missing_order_fields=missing_order_fields,
     )
     if _state_banner:
         system = _state_banner + "\n\n" + system
@@ -3704,7 +3770,11 @@ def build_messages_payload_sales(conversation_messages, custom_instruction=None,
         "When listing catalog products:\n"
         "1. Write a short text listing product names + prices (no URLs).\n"
         "2. Call send_product_media(product_id, caption) ONCE for EACH product that has '📷 has image' in the catalog.\n"
-        "3. If the user asks for a photo/image/صورة, call send_product_media IMMEDIATELY."
+        "3. If the user asks for a photo/image/صورة, call send_product_media IMMEDIATELY.\n\n"
+        "AFTER send_product_media (SILENT MODE):\n"
+        "- The image is already delivered — NEVER write 'تم إرسال الصورة', '📷', or 'via WhatsApp'.\n"
+        "- Prefer an EMPTY text reply, OR one short natural sales line (e.g. 'واش عجباتك؟').\n"
+        "- Never meta-commentary about sending/delivering the photo."
     )
     # Product photo: send from media when asked, or ask which product when no image
     if media_context and (media_context or "").strip():
@@ -3770,6 +3840,17 @@ def build_messages_payload_sales(conversation_messages, custom_instruction=None,
     if _pricing_authority_tail:
         system += "\n\n" + _pricing_authority_tail
 
+    if can_read_flow_rule and str(can_read_flow_rule).strip():
+        system += "\n\n[CHECKOUT FLOW RULE]\n" + str(can_read_flow_rule).strip()
+
+    _admin_tail = _build_admin_override_rules_tail(override_rules)
+    if _admin_tail:
+        system += _admin_tail
+        logger.info(
+            "Admin override rules appended to sales prompt tail (length=%d)",
+            len((override_rules or "").strip()),
+        )
+
     recent_messages = _trim_conversation_messages(conversation_messages, limit=MAX_CHAT_HISTORY_MESSAGES)
     messages = [{"role": "system", "content": system}]
     for msg in recent_messages:
@@ -3820,7 +3901,7 @@ def parse_and_strip_stage(reply_text):
     return (cleaned, stage)
 
 
-def generate_reply_with_tools(conversation_messages, custom_instruction=None, product_context=None, trust_score=0, media_context=None, state_header=None, sales_stage=None, sentiment=None, market=None, agent_name=None, model=None, customer_phone=None, override_rules=None, required_order_fields=None, checkout_mode_label=None, product_id=None, merchant_id=None, voice_dialect=None, voice_notes_mode=False, voice_script_style=False, output_language=None, memory_summary=None, node_dialect_locked=False, node_language_code=None, node=None, bot_settings=None, channel=None, pronoun_anchor_product_name=None, conversation_state=None, post_sale_support_context=None, payment_rejection_reason=None, incoming_has_media=False, order_payment_status=None, incoming_payment_receipt_valid=None, incoming_media_vision_summary=None):
+def generate_reply_with_tools(conversation_messages, custom_instruction=None, product_context=None, trust_score=0, media_context=None, state_header=None, sales_stage=None, sentiment=None, market=None, agent_name=None, model=None, customer_phone=None, override_rules=None, required_order_fields=None, checkout_mode_label=None, product_id=None, merchant_id=None, voice_dialect=None, voice_notes_mode=False, voice_script_style=False, output_language=None, memory_summary=None, node_dialect_locked=False, node_language_code=None, node=None, bot_settings=None, channel=None, pronoun_anchor_product_name=None, conversation_state=None, post_sale_support_context=None, payment_rejection_reason=None, incoming_has_media=False, order_payment_status=None, incoming_payment_receipt_valid=None, incoming_media_vision_summary=None, tools_override=None, can_read_flow_rule=None, missing_order_fields=None):
     """
     Call OpenAI with sales tools. When product_context is set, uses Elite Sales Consultant prompt with trust_score, sales_stage, sentiment, market, agent_name.
     market: 'MA' or 'SA'. agent_name: e.g. Chuck or persona name — AI responds as this human, not as a bot.
@@ -3870,9 +3951,10 @@ def generate_reply_with_tools(conversation_messages, custom_instruction=None, pr
         order_payment_status=order_payment_status,
         incoming_payment_receipt_valid=incoming_payment_receipt_valid,
         incoming_media_vision_summary=incoming_media_vision_summary,
+        can_read_flow_rule=can_read_flow_rule,
+        missing_order_fields=missing_order_fields,
     )
-    # Static tools: submit_customer_order now has a fixed, safe schema (no dynamic override)
-    tools = list(SALES_AGENT_TOOLS)
+    tools = list(tools_override) if tools_override is not None else list(SALES_AGENT_TOOLS)
 
     payload = {
         "model": model,
@@ -3935,6 +4017,7 @@ def generate_reply_with_tools(conversation_messages, custom_instruction=None, pr
         if name in (
             "save_order", "check_stock", "apply_discount", "record_order", "track_order",
             "search_products", "switch_active_product", "send_product_media", "submit_customer_order",
+            "send_whatsapp_flow", "use_voice_checkout",
             "register_support_complaint", "flag_order_for_review",
             "update_lead_status", "add_upsell_to_existing_order", "update_order_notes",
         ):
@@ -4005,6 +4088,11 @@ def continue_after_tool_calls(
     order_payment_status=None,
     incoming_payment_receipt_valid=None,
     incoming_media_vision_summary=None,
+    required_order_fields=None,
+    checkout_mode_label=None,
+    tools_override=None,
+    can_read_flow_rule=None,
+    missing_order_fields=None,
 ):
     """
     After the model returned tool_calls (e.g. check_stock, apply_discount), send tool results and get the final reply.
@@ -4036,6 +4124,8 @@ def continue_after_tool_calls(
         agent_name=agent_name,
         customer_phone=customer_phone,
         override_rules=override_rules,
+        required_order_fields=required_order_fields,
+        checkout_mode_label=checkout_mode_label,
         product_id=product_id,
         merchant_id=merchant_id,
         voice_dialect=voice_dialect,
@@ -4056,6 +4146,8 @@ def continue_after_tool_calls(
         order_payment_status=order_payment_status,
         incoming_payment_receipt_valid=incoming_payment_receipt_valid,
         incoming_media_vision_summary=incoming_media_vision_summary,
+        can_read_flow_rule=can_read_flow_rule,
+        missing_order_fields=missing_order_fields,
     )
     assistant_msg = {
         "role": "assistant",
@@ -4067,13 +4159,14 @@ def continue_after_tool_calls(
         for r in tool_results
     ]
     messages = messages + [assistant_msg] + tool_msgs
+    tools = list(tools_override) if tools_override is not None else list(SALES_AGENT_TOOLS)
     payload = {
         "model": model,
         "messages": messages,
         "max_tokens": 400,
         "temperature": 0.25,
         "top_p": 0.9,
-        "tools": SALES_AGENT_TOOLS,
+        "tools": tools,
         "tool_choice": "auto",
     }
     est_tokens = _estimate_payload_tokens(messages)
@@ -4125,6 +4218,7 @@ def continue_after_tool_calls(
         if name in (
             "save_order", "check_stock", "apply_discount", "record_order", "track_order",
             "search_products", "switch_active_product", "send_product_media", "submit_customer_order",
+            "send_whatsapp_flow", "use_voice_checkout",
             "register_support_complaint", "flag_order_for_review",
             "update_lead_status", "add_upsell_to_existing_order", "update_order_notes",
         ):

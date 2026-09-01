@@ -1,5 +1,5 @@
 from django.contrib import admin
-from discount.models import CODProduct ,Order , SimpleOrder ,Products , TeamInvitation ,UserProductPermission , Lead , ScriptFlow
+from discount.models import CODProduct ,Order , SimpleOrder ,Products , TeamInvitation ,UserProductPermission , Lead , ScriptFlow, WhatsAppFlowSubmission
 # Register your models here.
 from discount.models import ExternalOrder ,  CampaignVisit  , AdArchive , AdCreative , UserSavedAd , CTA ,Advertiser , Message
 class CODdrop(admin.ModelAdmin):
@@ -16,6 +16,13 @@ class SimpleOrders(admin.ModelAdmin):
     list_display= ['customer_phone' , 'product_name']
     search_fields = ['customer_phone' , 'product_name']
 admin.site.register(SimpleOrder, SimpleOrders)
+
+
+class WhatsAppFlowSubmissionAdmin(admin.ModelAdmin):
+    list_display = ['customer_phone', 'purpose', 'customer_name', 'created_at']
+    search_fields = ['customer_phone', 'customer_name', 'flow_token']
+    list_filter = ['purpose']
+admin.site.register(WhatsAppFlowSubmission, WhatsAppFlowSubmissionAdmin)
 
 
 
@@ -203,12 +210,20 @@ admin.site.register(GroupMessages)
 
 
 
-from .models import WhatsAppChannel , CannedResponse , Plan, VoiceGalleryEntry, VoiceCloneRequest
+from .models import WhatsAppChannel , CannedResponse , Plan, VoiceGalleryEntry, VoiceCloneRequest, BlockedCustomer
 class ChannelAdmin(admin.ModelAdmin):
     list_display = ('name', 'phone_number', 'phone_number_id', 'business_account_id', 'access_token', 'is_active', 'created_at')
     search_fields = ('name', 'phone_number', 'phone_number_id', 'business_account_id')
     list_filter = ('is_active', 'created_at')
 admin.site.register(WhatsAppChannel, ChannelAdmin)
+
+
+@admin.register(BlockedCustomer)
+class BlockedCustomerAdmin(admin.ModelAdmin):
+    list_display = ("phone", "channel", "blocked_by", "reason", "created_at")
+    list_filter = ("channel", "created_at")
+    search_fields = ("phone", "reason")
+    raw_id_fields = ("channel", "blocked_by")
 admin.site.register(CannedResponse)
 
 class PlanAdmin(admin.ModelAdmin):

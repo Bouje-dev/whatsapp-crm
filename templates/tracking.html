@@ -16,7 +16,7 @@
     <link rel="icon" type="image/png" href="{% static 'img/logo.png' %}">
     <link rel="stylesheet" href="{% static 'style/newstyle.css' %}">
 <!-- Socket tracking  -->
- <script src="{% static 'js/socket_manager.js' %}?v=1.3"></script>
+ <script src="{% static 'js/socket_manager.js' %}?v=1.6"></script>
  
  <!-- end socket  -->
   <script>
@@ -161,7 +161,7 @@
         html:not(.dark) .modal-content,
         html:not(.dark) section > div,
         html:not(.dark) .cls3741_dashboard > div,
-        html:not(.dark) .cls3741_panel_dashboard,
+        html:not(.dark) .cls3741_panel_dashboard:not(.dash-glass),
         html:not(.dark) .cls3741_panel_orders,
         html:not(.dark) .cls3741_panel_templates,
         html:not(.dark) .cls3741_panel_clients,
@@ -170,7 +170,7 @@
         html.light .modal-content,
         html.light section > div,
         html.light .cls3741_dashboard > div,
-        html.light .cls3741_panel_dashboard,
+        html.light .cls3741_panel_dashboard:not(.dash-glass),
         html.light .cls3741_panel_orders,
         html.light .cls3741_panel_templates,
         html.light .cls3741_panel_clients,
@@ -1061,20 +1061,20 @@ color:#ede9e9 !important;
     <div id="platformComparisons" style="display:none;" aria-hidden="true"></div>
     <div id="recommendations" style="display:none;" aria-hidden="true"></div>
     {% if request.user.is_superuser %}
-        <nav class="page-tabs-nav">
+        <!-- <nav class="page-tabs-nav">
             <a class="nav-link active" href="#" id="whatssap_API_cloud" class="btn nav-link2" data-section="future-whatssap_API">Whatssapp</a>
             <a class="nav-link" href="#" data-section="order-tracking-section">Order tracking</a>
             <a class="nav-link" href="#" data-section="leads-tracking-section">Lead Management</a>
             <a class="nav-link" href="#" data-section="update-section">Inventory & Data Update</a>
             <a class="nav-link" href="#" id="Codproduct" data-section="future-features-1-section">Product Hub</a>
             
-{% if request.user.is_team_admin or user_permusstion.can_create_orders %}
+   {% if request.user.is_team_admin or user_permusstion.can_create_orders %}
 
             <a class="nav-link" href="#" data-section="leads-created-section">Add Leads</a>
 
            {% endif %}
 
-        </nav>
+        </nav> -->
         {% endif %}
         
         <div class="section-content active" id="future-whatssap_API">
@@ -4136,4 +4136,5 @@ fetch("{% url 'leadstracking' %}" , {
 </script>
 
 </body>
+
 </html>

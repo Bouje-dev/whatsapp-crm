@@ -84,12 +84,18 @@ _CACHE_KEY_PREFIX: str = "wachat_sess"
 # imports the constant rather than typing the string literal.
 STATE_KEY: str = "conversation_state"
 STATE_IDLE: str = "IDLE"
+STATE_GATHERING_INFO: str = "GATHERING_INFO"
 STATE_AWAITING_PAYMENT_RECEIPT: str = "AWAITING_PAYMENT_RECEIPT"
 
 _LEGAL_STATES: frozenset[str] = frozenset({
     STATE_IDLE,
+    STATE_GATHERING_INFO,
     STATE_AWAITING_PAYMENT_RECEIPT,
 })
+
+CTX_USER_TEXT_MSG_COUNT: str = "user_text_message_count"
+CTX_CAN_READ: str = "can_read"
+CTX_COLLECTED_ORDER_FIELDS: str = "collected_order_fields"
 
 # Session context keys cleared on product pivot — negotiation, checkout, and locks
 # tied to the PREVIOUS product must not carry over.
@@ -110,6 +116,9 @@ _PRODUCT_PIVOT_RESET_KEYS: frozenset[str] = frozenset({
     "order_id",
     "upsell_pending",
     "payment_method_chosen",
+    "checkout_capture_mode",
+    "checkout_form_sent",
+    "checkout_voice_pending_order",
 })
 
 # Reasons that indicate an explicit product pivot (preserve over node default).
@@ -572,6 +581,40 @@ def update_session_context_data(channel, phone: str, patch: dict) -> None:
             session.save(update_fields=["context_data", "last_interaction"])
     except Exception as exc:
         logger.warning("[SessionState] update_context DB: %s", exc)
+
+
+def record_user_text_message(channel, phone: str, increment: int = 1) -> dict:
+    """
+    Increment inbound text message counter (audio/voice excluded).
+    Sets can_read=True when count > 1.
+    Returns updated {user_text_message_count, can_read}.
+    """
+    if not channel or not phone:
+        return {"user_text_message_count": 0, "can_read": False}
+
+    try:
+        increment = max(1, int(increment or 1))
+    except (TypeError, ValueError):
+        increment = 1
+
+    ctx = get_session_context_data(channel, phone) or {}
+    try:
+        count = int(ctx.get(CTX_USER_TEXT_MSG_COUNT) or 0)
+    except (TypeError, ValueError):
+        count = 0
+    count += increment
+    can_read = count > 1
+    patch = {
+        CTX_USER_TEXT_MSG_COUNT: count,
+        CTX_CAN_READ: can_read,
+    }
+    update_session_context_data(channel, phone, patch)
+    return {"user_text_message_count": count, "can_read": can_read}
+
+
+def get_can_read_flag(channel, phone: str) -> bool:
+    ctx = get_session_context_data(channel, phone) or {}
+    return bool(ctx.get(CTX_CAN_READ))
 
 
 # ── Conversation state-machine helpers ────────────────────────────────────────

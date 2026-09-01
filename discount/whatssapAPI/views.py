@@ -708,27 +708,52 @@ def can_send_message(to_phone):
     
 
 def get_last_message(request):
+    """
+  Check whether the 24-hour customer-care window is open for this chat.
+  Always returns HTTP 200 with can_send — used when opening a conversation, not as a send failure.
+    """
     phone = request.GET.get("phone")
-    
-    # جلب آخر رسالة من قاعدة البيانات
-    last_message = Message.objects.filter(sender=phone,is_from_me=False).order_by("-timestamp").first()
-  
+    channel_id = request.GET.get("channel_id")
+
+    if not phone:
+        return JsonResponse({
+            "status": 200,
+            "can_send": False,
+            "error": "message not allowed",
+            "reason": "Missing phone number.",
+        })
+
+    qs = Message.objects.filter(is_from_me=False)
+
+    if channel_id:
+        try:
+            channel = WhatsAppChannel.objects.get(id=channel_id)
+            resolved_sender = _resolve_message_sender_for_channel(channel, phone)
+            qs = qs.filter(channel=channel, sender=resolved_sender)
+        except (WhatsAppChannel.DoesNotExist, ValueError, TypeError):
+            qs = qs.filter(sender=phone)
+    else:
+        qs = qs.filter(sender=phone)
+
+    last_message = qs.order_by("-timestamp").first()
+
     if not last_message:
-       return JsonResponse({
-                    "status": 400,
-                    "error": "message not allowed",
-                    "reason": "you can not send msg to this user"
-                } ,status =400 )
+        return JsonResponse({
+            "status": 200,
+            "can_send": False,
+            "error": "message not allowed",
+            "reason": "you can not send msg to this user",
+        })
+
     if timezone.now() - last_message.created_at > timedelta(hours=24):
         return JsonResponse({
-                    "status": 400,
-                    "error": "message not allowed",
-                    "reason": "Message failed to send because more than 24 hours have passed since the customer last replied to this number."
-                } ,status =400 )
-    
-    
-    else:
-        return JsonResponse({"status": 200,})
+            "status": 200,
+            "can_send": False,
+            "error": "message not allowed",
+            "reason": "Message failed to send because more than 24 hours have passed since the customer last replied to this number.",
+        })
+
+    return JsonResponse({"status": 200, "can_send": True})
 
 # @csrf_exempt
 # def send_message(request):
@@ -1764,17 +1789,35 @@ def _message_to_chat_dict(m, request):
     is_digital_delivery = bool(getattr(m, 'is_digital_delivery', False))
     has_protected_asset = bool(is_digital_delivery and getattr(m, 'encrypted_asset', None))
 
+    interactive = None
+    try:
+        from discount.whatssapAPI.process_messages import decode_interactive_captions
+        interactive = decode_interactive_captions(getattr(m, "captions", None), m.body)
+    except Exception:
+        interactive = None
+
+    # Inbound button taps are stored as type=interactive with no card JSON.
+    # Expose them as text so the inbox never drops them.
+    out_type = msg_type
+    if str(msg_type or "").lower() == "interactive" and not interactive:
+        out_type = "text"
+
+    created = getattr(m, "created_at", None) or getattr(m, "timestamp", None)
+    time_str = created.strftime("%H:%M") if created else ""
+    timestamp_str = created.strftime("%Y-%m-%d %H:%M") if created else ""
+
     return {
         "id": m.id,
         "body": m.body,
         "fromMe": bool(m.is_from_me),
-        "time": m.created_at.strftime("%H:%M"),
-        "type": msg_type,
+        "time": time_str,
+        "type": out_type,
         "url": media_url,
         "status": status,
         "user": note_author,
-        "timestamp": m.created_at.strftime('%Y-%m-%d %H:%M'),
+        "timestamp": timestamp_str,
         "captions": m.captions,
+        "interactive": interactive,
         "is_digital_delivery": is_digital_delivery,
         "has_protected_asset": has_protected_asset,
     }
@@ -2237,9 +2280,12 @@ def api_contacts2(request):
                 Q(sender__icontains=search_query) | Q(sender__in=matching_names)
             )
 
-        # 6. فلتر غير المقروء (Unread Only)
+        # 6. فلتر غير المقروء (Unread Only) / المقروء (Read Only)
+        read_only = request.GET.get('read_only') == 'true'
         if unread_only:
             conversations = conversations.filter(unread_count__gt=0)
+        elif read_only:
+            conversations = conversations.filter(unread_count=0)
 
         # 7. الترقيم (Pagination)
         try:
@@ -2293,6 +2339,8 @@ def api_contacts2(request):
                 if msg.media_type == 'audio': snippet = '🎤 صوت'
                 elif msg.media_type == 'image': snippet = '📷 صورة'
                 elif msg.media_type == 'video': snippet = '🎥 فيديو'
+                elif (msg.type or '') == 'interactive':
+                    snippet = (msg.body or '🔘 Buttons')[:50]
                 else: snippet = msg.body[:50] if msg.body else ''
 
             final_data.append({
@@ -3141,7 +3189,7 @@ def api_products_list(request):
     user = getattr(request, "user", None)
     if not user or not user.is_authenticated:
         return JsonResponse({"products": [], "error": "Authentication required"}, status=401)
-    from discount.models import Products, ProductImage, ProductVideo
+    from discount.models import Products, ProductImage, ProductVideo, UserCheckoutFormCopy
     target_channel = get_target_channel(user, request.GET.get("channel_id"))
     if not target_channel or not target_channel.owner_id:
         return JsonResponse({"products": []})
@@ -3150,12 +3198,25 @@ def api_products_list(request):
         admin_id=target_channel.owner_id,
         project=channel_scope,
     ).order_by("-id")
+    from discount.whatssapAPI.checkout_capture import form_preview_for_product, merge_preview_with_user_copy
+    products = list(qs)
+    copies = {}
+    if user and products:
+        copies = {
+            row.product_id: row
+            for row in UserCheckoutFormCopy.objects.filter(user=user, product_id__in=[p.id for p in products])
+        }
     data = []
-    for p in qs:
+    for p in products:
         imgs = ProductImage.objects.filter(product=p).order_by("order", "id")
         vids = ProductVideo.objects.filter(product=p).order_by("order", "id")
         image_urls = [m.image.url for m in imgs if m.image]
         video_urls = [v.video.url for v in vids if v.video]
+        try:
+            form_preview = form_preview_for_product(p, "ar")
+            form_preview = merge_preview_with_user_copy(form_preview, copies.get(p.id))
+        except Exception:
+            form_preview = None
         data.append({
             "id": p.id,
             "name": p.name or "",
@@ -3177,6 +3238,8 @@ def api_products_list(request):
                 getattr(p, "is_digital", False)
                 or (getattr(p, "checkout_mode", None) or "") in ("digital", "direct_sale")
             ),
+            "checkout_mode": (getattr(p, "checkout_mode", None) or "standard_cod").strip() or "standard_cod",
+            "form_preview": form_preview,
         })
     return JsonResponse({"products": data})
 
@@ -4557,11 +4620,13 @@ def api_dashboard_stats(request):
         ).count()
 
         # Account info
+        is_connected = channel.is_configured()
         account_info = {
             'display_name': channel.name,
             'phone_number': channel.phone_number,
             'waba_id': channel.business_account_id,
-            'status': 'CONNECTED',
+            'status': 'CONNECTED' if is_connected else 'DISCONNECTED',
+            'is_connected': is_connected,
             'quality': 'GREEN',
             'limit': 'TIER_250'
         }

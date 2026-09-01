@@ -19,3 +19,9 @@ media/
 # تجاهل ملفات النظام
 .DS_Store
 .env
+
+# AI testing (local only — not deployed)
+ai_testing/
+templates/ai_testing/
+static/js/ai-testing-dashboard.js
+static/style/ai-testing.css

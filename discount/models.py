@@ -868,7 +868,109 @@ class SimpleOrder(models.Model):
     def __str__(self):
         display = self.customer_name or self.customer_phone or str(self.order_id)
         return f"{self.tracking_number} - {display}"
-    
+
+
+class WhatsAppFlowSubmission(models.Model):
+    """A completed native WhatsApp Flow form (lead, feedback, or order)."""
+
+    PURPOSE_LEAD = "lead_generation"
+    PURPOSE_FEEDBACK = "feedback"
+    PURPOSE_ORDER = "collect_order"
+    PURPOSE_CHOICES = [
+        (PURPOSE_LEAD, "Generate leads"),
+        (PURPOSE_FEEDBACK, "Receive feedback"),
+        (PURPOSE_ORDER, "Collect order"),
+    ]
+
+    channel = models.ForeignKey(
+        "WhatsAppChannel",
+        on_delete=models.CASCADE,
+        related_name="whatsapp_flow_submissions",
+    )
+    contact = models.ForeignKey(
+        "Contact",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="whatsapp_flow_submissions",
+    )
+    automation_flow = models.ForeignKey(
+        "Flow",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="whatsapp_flow_submissions",
+    )
+    node = models.ForeignKey(
+        "Node",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="whatsapp_flow_submissions",
+    )
+    product = models.ForeignKey(
+        Products,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="whatsapp_flow_submissions",
+    )
+    order = models.ForeignKey(
+        SimpleOrder,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="whatsapp_flow_submissions",
+    )
+    purpose = models.CharField(max_length=32, choices=PURPOSE_CHOICES, default=PURPOSE_LEAD)
+    customer_phone = models.CharField(max_length=30, db_index=True)
+    customer_name = models.CharField(max_length=200, blank=True, default="")
+    payload = models.JSONField(default=dict, blank=True)
+    flow_token = models.CharField(max_length=200, blank=True, default="", db_index=True)
+    meta_flow_id = models.CharField(max_length=64, blank=True, default="")
+    whatsapp_message_id = models.CharField(max_length=100, blank=True, null=True, unique=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+        indexes = [
+            models.Index(fields=["channel", "created_at"]),
+            models.Index(fields=["channel", "customer_phone"]),
+        ]
+        verbose_name = "WhatsApp Flow submission"
+        verbose_name_plural = "WhatsApp Flow submissions"
+
+    def __str__(self):
+        return f"{self.get_purpose_display()} · {self.customer_phone} · {self.created_at:%Y-%m-%d %H:%M}"
+
+
+class UserCheckoutFormCopy(models.Model):
+    """Per-user order-form message (header/body/footer/CTA) for a catalog product."""
+
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="checkout_form_copies",
+    )
+    product = models.ForeignKey(
+        Products,
+        on_delete=models.CASCADE,
+        related_name="user_checkout_form_copies",
+    )
+    header_text = models.CharField(max_length=60, blank=True, default="")
+    body_text = models.CharField(max_length=1024, blank=True, default="")
+    footer_text = models.CharField(max_length=60, blank=True, default="")
+    cta_label = models.CharField(max_length=20, blank=True, default="")
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        unique_together = ("user", "product")
+        verbose_name = "User checkout form copy"
+        verbose_name_plural = "User checkout form copies"
+
+    def __str__(self):
+        return f"user={self.user_id} product={self.product_id}"
+
 
 
 
@@ -2292,7 +2394,7 @@ class Node(models.Model):
     position_x = models.FloatField(default=0)
     position_y = models.FloatField(default=0)
     content_text = models.TextField(blank=True, null=True)
-    content_media_url = models.URLField(blank=True, null=True)
+    content_media_url = models.URLField(max_length=1000, blank=True, null=True)
     delay = models.IntegerField(default=0)
 
     started_at = models.DateTimeField(auto_now_add=True)
@@ -2750,6 +2852,36 @@ class Contact(models.Model):
     def __str__(self):
         return self.phone
     created_at = models.DateTimeField(auto_now_add=True , null=True , blank=True)
+
+
+class BlockedCustomer(models.Model):
+    """Phone numbers blocked from inbound WhatsApp processing on a specific channel."""
+    channel = models.ForeignKey(
+        WhatsAppChannel,
+        on_delete=models.CASCADE,
+        related_name="blocked_customers",
+    )
+    phone = models.CharField(max_length=30, db_index=True)
+    blocked_by = models.ForeignKey(
+        CustomUser,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="blocked_customers",
+    )
+    reason = models.CharField(max_length=255, blank=True, default="")
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = "Blocked customer"
+        verbose_name_plural = "Blocked customers"
+        unique_together = [("channel", "phone")]
+        indexes = [
+            models.Index(fields=["channel", "phone"], name="blocked_cust_ch_phone_idx"),
+        ]
+
+    def __str__(self):
+        return f"{self.phone} @ {self.channel_id}"
 
 
 

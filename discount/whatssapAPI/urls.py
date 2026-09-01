@@ -2,6 +2,13 @@
 from discount.whatssapAPI import wsettings
 from django.urls import path
 from . import views , flow , process_messages , templaite , whaDash
+from ai_assistant.views import copilot_chat
+from .whatsapp_flows import (
+    api_whatsapp_flow_submissions,
+    api_whatsapp_flow_ingest,
+    api_send_checkout_flow,
+    api_save_checkout_form_copy,
+)
 
 from .flow import SaveFlowView 
 urlpatterns = [
@@ -27,6 +34,10 @@ urlpatterns = [
     path("api_products/extract_from_link/", views.api_products_extract_from_link, name="api_products_extract_from_link"),
     path("api_products/<int:product_id>/", views.api_products_detail, name="api_products_detail"),
     path("api_products/<int:product_id>/update/", views.api_products_update, name="api_products_update"),
+    path("api/whatsapp-flow-submissions/", api_whatsapp_flow_submissions, name="api_whatsapp_flow_submissions"),
+    path("api/whatsapp-flows/ingest/", api_whatsapp_flow_ingest, name="api_whatsapp_flow_ingest"),
+    path("api/whatsapp-flows/send-checkout/", api_send_checkout_flow, name="api_send_checkout_flow"),
+    path("api/whatsapp-flows/save-checkout-copy/", api_save_checkout_form_copy, name="api_save_checkout_form_copy"),
     path("api/templates/<int:pk>/", views.update_template, name="update_template"),
 
     path("api/templateShow/<int:pk>/", views.api_template, name="api_template"),
@@ -89,6 +100,7 @@ path('api/analytics/lifecycle/' , whaDash.api_lifecycle_stats , name='api_lifecy
 path('api/agent-stats/', whaDash.api_agent_stats, name='api_agent_stats'),
 path('api/admin/coach-ai-history/', whaDash.api_coach_ai_history, name='api_coach_ai_history'),
 path('api/admin/coach-ai/', whaDash.api_coach_ai, name='api_coach_ai'),
+path('api/admin/copilot-chat/', copilot_chat, name='api_copilot_chat'),
 path('api/admin/coach-ai-rules/', whaDash.api_coach_ai_rules, name='api_coach_ai_rules'),
 path('api/admin/coach-ai-clear-rules/', whaDash.api_coach_ai_clear_rules, name='api_coach_ai_clear_rules'),
 path('api/admin/coach-ai-set-rules/', whaDash.api_coach_ai_set_rules, name='api_coach_ai_set_rules'),
@@ -117,6 +129,8 @@ path('api/settings/routing/', wsettings.update_routing_settings, name='api_updat
     path('api/chat-session/status/', process_messages.api_chat_session_status, name='api_chat_session_status'),
     path('api/chat-session/re-enable-ai/', process_messages.api_chat_session_reenable_ai, name='api_chat_session_reenable_ai'),
     path('api/chat-session/toggle-ai/', process_messages.api_chat_session_toggle_ai, name='api_chat_session_toggle_ai'),
+    path('api/customers/block/', process_messages.api_block_customer, name='api_block_customer'),
+    path('api/customers/unblock/', process_messages.api_unblock_customer, name='api_unblock_customer'),
     # Google Sheets: global config + test connection + service email
     path('api/google-sheets/config/', flow.api_google_sheets_config, name='api_google_sheets_config'),
     path('api/google-sheets/test-connection/', flow.api_google_sheets_test_connection, name='api_google_sheets_test_connection'),

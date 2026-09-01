@@ -1,5 +1,7 @@
 import json
 import logging
+import base64
+import re
 from discount.user_dash import change_password
 from django.db.models import Count, Avg, F, ExpressionWrapper, DurationField, Q
 from django.http import JsonResponse
@@ -458,10 +460,11 @@ def api_agent_stats(request):
     })
 
 
-def handle_update_override_rules(channel_id, custom_rules):
+def handle_update_override_rules(channel_id, custom_rules, merge=True):
     """
     Update ai_override_rules for the given channel (workspace).
     Called when the coaching AI uses the update_override_rules tool.
+    By default merges the new rule with existing rules (deduped).
     """
     try:
         pk = int(channel_id)
@@ -471,12 +474,48 @@ def handle_update_override_rules(channel_id, custom_rules):
         channel = WhatsAppChannel.objects.get(pk=pk)
     except WhatsAppChannel.DoesNotExist:
         return {"success": False, "error": "Channel not found"}
-    rules = (custom_rules or "").strip()
+    new_rule = (custom_rules or "").strip()
+    if not new_rule:
+        return {"success": False, "error": "custom_rules is empty"}
+    if len(new_rule) > 8000:
+        new_rule = new_rule[:8000]
+
+    if merge:
+        existing_parts = _split_override_rules(getattr(channel, "ai_override_rules", None))
+        norm_new = _normalize_rule_key(new_rule)
+        replaced = False
+        merged = []
+        for part in existing_parts:
+            if _normalize_rule_key(part) == norm_new:
+                merged.append(new_rule)
+                replaced = True
+            else:
+                merged.append(part)
+        if not replaced:
+            merged.append(new_rule)
+        rules = "\n\n".join(merged).strip()
+    else:
+        rules = new_rule
+
     if len(rules) > 8000:
         rules = rules[:8000]
     channel.ai_override_rules = rules
     channel.save(update_fields=["ai_override_rules"])
-    return {"success": True, "message": "Rules updated."}
+    return {"success": True, "message": "Rules updated.", "rules": rules}
+
+
+def _split_override_rules(text):
+    s = (text or "").strip()
+    if not s:
+        return []
+    parts = [p.strip() for p in re.split(r"\n\n+", s) if p.strip()]
+    if len(parts) <= 1 and "\n" in s:
+        parts = [p.strip() for p in s.split("\n") if p.strip()]
+    return parts
+
+
+def _normalize_rule_key(text):
+    return re.sub(r"\s+", " ", (text or "").strip().lower())
 
 
 @require_http_methods(["GET"])
@@ -582,6 +621,50 @@ def api_coach_ai_history(request):
     return JsonResponse({"messages": messages})
 
 
+def _build_coach_attachment_context(attachment):
+    """Turn an uploaded coach attachment into extra user-message context for the AI."""
+    if not attachment or not isinstance(attachment, dict):
+        return ""
+    att_type = (attachment.get("type") or "").strip().lower()
+    name = (attachment.get("name") or "file").strip() or "file"
+    size = int(attachment.get("size") or 0)
+    mime = (attachment.get("mime") or "").strip()
+    data_b64 = attachment.get("data") or ""
+    text_content = (attachment.get("text_content") or "").strip()
+    log = logging.getLogger(__name__)
+    try:
+        if att_type == "text" and text_content:
+            return f"\n\n[Attached document: {name}]\n{text_content[:8000]}"
+        if att_type == "image" and data_b64:
+            raw = base64.standard_b64decode(data_b64)
+            if len(raw) > 8 * 1024 * 1024:
+                return f"\n\n[Attached image: {name} — file too large to analyze (max 8 MB).]"
+            from ai_assistant.vision_service import analyze_image
+            desc = analyze_image(raw, mime or "image/jpeg")
+            if desc:
+                return f"\n\n[Attached image: {name}]\nVision analysis: {desc}"
+            return f"\n\n[Attached image: {name}]"
+        if att_type == "audio" and data_b64:
+            raw = base64.standard_b64decode(data_b64)
+            if len(raw) > 16 * 1024 * 1024:
+                return f"\n\n[Attached audio: {name} — file too large to transcribe (max 16 MB).]"
+            from ai_assistant.stt_service import transcribe_audio
+            transcript = transcribe_audio(raw, voice_language_hint="AUTO")
+            if transcript:
+                return f"\n\n[Attached audio: {name} — transcription]\n{transcript}"
+            return f"\n\n[Attached audio: {name}]"
+        if att_type == "video":
+            size_mb = round(size / (1024 * 1024), 1) if size else 0
+            return (
+                f"\n\n[Attached video: {name}, {size_mb} MB, format {mime or 'video'}. "
+                "The admin shared a video for sales coaching. Acknowledge it and ask what "
+                "they want you to focus on if they did not explain in their message.]"
+            )
+    except Exception as e:
+        log.warning("coach attachment context failed: %s", e)
+    return ""
+
+
 @require_http_methods(["POST"])
 def api_coach_ai(request):
     """
@@ -608,38 +691,32 @@ def api_coach_ai(request):
     messages = body.get("messages") or []
     if not isinstance(messages, list):
         return JsonResponse({"error": "messages must be a list"}, status=400)
-    from ai_assistant.services import generate_reply_coaching
-    # Build OpenAI-format messages (no system; we add it in generate_reply_coaching)
+    attachment = body.get("attachment")
+    from ai_assistant.copilot_service import run_copilot_chat
+    # Build OpenAI-format messages (no system; added in run_copilot_chat)
     openai_messages = []
     for m in messages:
         role = m.get("role")
         content = m.get("content", "")
         if role in ("user", "assistant") and content is not None:
             openai_messages.append({"role": role, "content": str(content)[:8000]})
+    attachment_ctx = _build_coach_attachment_context(attachment)
+    if attachment_ctx:
+        for i in range(len(openai_messages) - 1, -1, -1):
+            if openai_messages[i].get("role") == "user":
+                openai_messages[i]["content"] = (
+                    (openai_messages[i].get("content") or "") + attachment_ctx
+                )[:16000]
+                break
     try:
-        reply = generate_reply_coaching(openai_messages)
+        payload = run_copilot_chat(
+            openai_messages,
+            channel_id=channel_id,
+        )
     except Exception as e:
         return JsonResponse({"error": str(e), "reply": None}, status=500)
-    # Handle tool calls: update_override_rules
     _coach_log = logging.getLogger(__name__)
-    final_content = reply.get("content") or ""
-    tool_calls = reply.get("tool_calls") or []
-    rules_saved = False
-    for tc in tool_calls:
-        if tc.get("name") == "update_override_rules":
-            try:
-                args = json.loads(tc.get("arguments") or "{}")
-                custom_rules = args.get("custom_rules", "")
-                result = handle_update_override_rules(channel_id, custom_rules)
-                if result.get("success"):
-                    rules_saved = True
-                else:
-                    _coach_log.warning("coach-ai: handle_update_override_rules failed: %s", result.get("error"))
-            except Exception as e:
-                _coach_log.exception("coach-ai: update_override_rules failed: %s", e)
-    # Do NOT save the raw user message as rules—only the model's tool call (extracted/validated rule) is saved.
-    if tool_calls and not final_content:
-        final_content = "Rules updated. Anything else you want to change?"
+    final_content = payload.get("message") or ""
     # Persist this exchange for conversation history
     last_user_msg = next((m for m in reversed(openai_messages) if m.get("role") == "user"), None)
     if last_user_msg and (last_user_msg.get("content") or "").strip():
@@ -658,4 +735,11 @@ def api_coach_ai(request):
             )
         except Exception as e:
             _coach_log.warning("coach-ai: save conversation failed: %s", e)
-    return JsonResponse({"success": True, "reply": final_content})
+    return JsonResponse({
+        "success": True,
+        "reply": final_content,
+        "message": final_content,
+        "ui_component": payload.get("ui_component", "none"),
+        "component_data": payload.get("component_data") or {},
+        "rules_updated": bool(payload.get("rules_updated")),
+    })

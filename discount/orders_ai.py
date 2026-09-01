@@ -124,6 +124,152 @@ def get_required_order_fields_for_product(product):
     return ["customer_name", "phone_number", "shipping_city", "shipping_address"]
 
 
+PLACEHOLDER_ORDER_FIELD_RE = re.compile(
+    r"^(?:"
+    r"غير\s*معروف|"
+    r"unknown|"
+    r"n/?a|"
+    r"none|null|"
+    r"not\s*provided|"
+    r"whatsapp\s*customer|"
+    r"غ/م|"
+    r"[\-—\.]+|"
+    r"\?+"
+    r")$",
+    re.IGNORECASE,
+)
+
+HOW_TO_ORDER_RE = re.compile(
+    r"(?:"
+    r"كيفاش\s*(?:نطلب|نشري|ندير|ناخد|ordering)|"
+    r"بغيت\s+نطلب|"
+    r"how\s*(?:do|can|to)\s*(?:i|we)\s*(?:order|buy)|"
+    r"comment\s*(?:commander|acheter)|"
+    r"want\s+to\s+order"
+    r")",
+    re.IGNORECASE | re.UNICODE,
+)
+
+
+def looks_like_how_to_order_only(text: str) -> bool:
+    """True when the customer asks how to order/buy — not a confirmed purchase."""
+    body = (text or "").strip()
+    if not body or not HOW_TO_ORDER_RE.search(body):
+        return False
+    if re.search(r"^(?:نعم|اه|ok|yes|أكيد|confirm|je\s+prends|j['']achète)\b", body, re.I | re.UNICODE):
+        return False
+    if re.search(
+        r"(المدينة|مدينة|عنوان|address|city|casablanca|rabat|fes|marrakech|tanger|agadir)",
+        body,
+        re.I | re.UNICODE,
+    ):
+        return False
+    return True
+
+
+def is_placeholder_order_field(value) -> bool:
+    s = (value or "").strip()
+    if not s:
+        return True
+    return bool(PLACEHOLDER_ORDER_FIELD_RE.match(s))
+
+
+def validate_submit_order_arguments(
+    arguments,
+    product,
+    incoming_body="",
+    customer_phone_from_chat="",
+):
+    """
+    Return a JSON error string if submit_customer_order must be blocked, else None.
+    """
+    required = get_required_order_fields_for_product(product)
+    if not required:
+        return None
+
+    if looks_like_how_to_order_only(incoming_body):
+        return json.dumps({
+            "status": "error",
+            "success": False,
+            "reason": "how_to_order_not_purchase",
+            "instruction": (
+                "The customer is asking HOW to order, not confirming a purchase. "
+                "Do NOT call submit_customer_order. Explain the next step briefly in their language. "
+                "The system will send the WhatsApp order form when appropriate."
+            ),
+            "message": "Customer has not provided order details yet.",
+        }, ensure_ascii=False)
+
+    args = arguments if isinstance(arguments, dict) else {}
+    missing = []
+    for field in required:
+        if field == "phone_number":
+            val = (args.get("phone_number") or customer_phone_from_chat or "").strip()
+        elif field == "customer_name":
+            val = (args.get("customer_name") or "").strip()
+        elif field == "shipping_city":
+            val = (args.get("shipping_city") or "").strip()
+        elif field == "shipping_address":
+            val = (args.get("shipping_address") or "").strip()
+        elif field == "email_address":
+            val = (args.get("email_address") or "").strip()
+        else:
+            val = (args.get(field) or "").strip()
+        if is_placeholder_order_field(val):
+            missing.append(field)
+
+    if not missing:
+        return None
+
+    labels = {
+        "customer_name": "full name",
+        "phone_number": "phone number",
+        "shipping_city": "city",
+        "shipping_address": "address",
+        "email_address": "email",
+    }
+    need = ", ".join(labels.get(f, f) for f in missing)
+    return json.dumps({
+        "status": "error",
+        "success": False,
+        "reason": "missing_required_fields",
+        "missing_fields": missing,
+        "instruction": (
+            f"Required fields are missing or invalid: {need}. "
+            "Do NOT register the order yet. Collect the missing details, or wait for the "
+            "WhatsApp checkout form. Never invent placeholder values like 'unknown' or 'غير معروف'."
+        ),
+        "message": f"Missing required fields: {', '.join(missing)}",
+    }, ensure_ascii=False)
+
+
+def is_order_customer_info_complete(order, product=None):
+    """True when saved order has all fields required for this product's checkout mode."""
+    if not order:
+        return False
+    if product is None:
+        product = getattr(order, "product", None)
+    required = get_required_order_fields_for_product(product)
+    if not required:
+        return True
+
+    city_raw = (getattr(order, "customer_city", None) or "").strip()
+    city_part = city_raw.split("|")[0].strip() if city_raw else ""
+    address_part = city_raw.split("|")[-1].strip() if "|" in city_raw else city_raw
+
+    values = {
+        "customer_name": getattr(order, "customer_name", None),
+        "phone_number": getattr(order, "customer_phone", None),
+        "shipping_city": city_part,
+        "shipping_address": address_part,
+        "email_address": getattr(order, "customer_email", None),
+    }
+    for field in required:
+        if is_placeholder_order_field(values.get(field)):
+            return False
+    return True
+
+
 def get_or_create_ai_agent_user(owner, agent_name=None):
     """
     Get or create a Virtual Team Member (CustomUser with is_bot=True) for the given merchant.
@@ -379,6 +525,7 @@ def handle_submit_order_tool(
     channel=None,
     customer_phone_from_chat=None,
     final_agreed_price=None,
+    incoming_body=None,
     **kwargs,
 ):
     """
@@ -534,6 +681,26 @@ def handle_submit_order_tool(
                 "message": (
                     "Customer name is missing. Politely ask the user to share their full name. "
                     "Do NOT tell the user the product is unavailable or out of stock."
+                ),
+            }, ensure_ascii=False)
+
+        blocked = validate_submit_order_arguments(
+            arguments,
+            product,
+            incoming_body=(incoming_body or kwargs.get("incoming_body") or ""),
+            customer_phone_from_chat=customer_phone_from_chat,
+        )
+        if blocked:
+            return blocked
+
+        if is_placeholder_order_field(customer_name):
+            return json.dumps({
+                "status": "error",
+                "success": False,
+                "reason": "invalid_customer_name",
+                "message": (
+                    "Customer name is missing or invalid. Ask for their real full name. "
+                    "Never use placeholders like 'unknown' or 'غير معروف'."
                 ),
             }, ensure_ascii=False)
 

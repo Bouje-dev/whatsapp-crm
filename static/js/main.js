@@ -895,76 +895,87 @@ function showSendErrorchat(resData = {}, options = {}) {
     wrapperSelector = '.cls3741_chat_input_wrapper',
     onRetry = null,
     onSelectTemplate = null,
-    autoDismissMs = 8000
+    autoDismissMs = 8000,
+    replaceComposer = false,
   } = options;
 
   const wrapper = document.querySelector(wrapperSelector);
   if (!wrapper) return;
-    
 
-  // نصوص آمنة
   const title = (resData.error && String(resData.error).trim()) || 'حدث خطأ أثناء الإرسال';
   const reason = (resData.reason && String(resData.reason).trim()) || (resData.details && String(resData.details).trim()) || '';
+  const displayTitle = replaceComposer && reason ? reason : title;
+  const displayReason = replaceComposer ? '' : reason;
 
-  // احذف أي بانر قديم
-  const existing = wrapper.querySelector('.error-banner');
+  const inputContainer = wrapper.querySelector('.cls3741_input_container');
+  const existing = wrapper.querySelector('.chat-inline-alert');
   if (existing) existing.remove();
 
-  // بناء العنصر
-
   const el = document.createElement('div');
-  el.className = 'error-banner';
+  el.className = 'chat-inline-alert' + (replaceComposer ? ' is-composer-replacement' : '');
   el.setAttribute('role', 'alert');
   el.innerHTML = `
-    <div class="icon" aria-hidden="true">⚠️</div>
-    <div class="texts">
-      <div class="title">${escapeHtml(title)}</div>
-      <div class="reason">${escapeHtml(reason)}</div>
-      <div class="actions">
-        <button class="action-btn retry-btn" type="button"> Try again</button>
-        <span class="tpl-wrap">
-          <button class="action-btn secondary select-tpl-btn select-tpl" type="button"> Select Templaite</button>
-          
-        </span>
+    <div class="chat-inline-alert-body">
+      <span class="chat-inline-alert-icon" aria-hidden="true">⚠</span>
+      <div class="chat-inline-alert-texts">
+        <div class="chat-inline-alert-title">${escapeHtml(displayTitle)}</div>
+        ${displayReason ? `<div class="chat-inline-alert-reason">${escapeHtml(displayReason)}</div>` : ''}
       </div>
     </div>
-    <button class="close-btn" aria-label="إغلاق">✕</button>
+    <div class="chat-inline-alert-actions">
+      ${replaceComposer ? '' : '<button class="chat-inline-alert-btn retry-btn" type="button">Try again</button>'}
+      <button class="chat-inline-alert-btn select-tpl-btn" type="button">Select Template</button>
+    </div>
   `;
 
-  // إدراج في DOM (نضعه أعلى المحتوى داخل wrapper)
-  wrapper.prepend(el);
-document.querySelector('.cls3741_input_container').classList.add('d-none')
-  // أحداث الأزرار
+  if (replaceComposer) {
+    wrapper.classList.add('is-messaging-blocked');
+    if (inputContainer) {
+      inputContainer.classList.add('chat-composer-hidden');
+      inputContainer.hidden = true;
+    }
+    if (inputContainer && inputContainer.parentNode) {
+      inputContainer.parentNode.insertBefore(el, inputContainer.nextSibling);
+    } else {
+      wrapper.appendChild(el);
+    }
+  } else if (inputContainer) {
+    wrapper.insertBefore(el, inputContainer);
+  } else {
+    wrapper.appendChild(el);
+  }
+
   const retryBtn = el.querySelector('.retry-btn');
   const tplBtn = el.querySelector('.select-tpl-btn');
-  const closeBtn = el.querySelector('.close-btn');
 
   let dismissTimer = null;
-  const startAutoDismiss = () => {
-    if (!autoDismissMs) return;
-    clearTimeout(dismissTimer);
-    dismissTimer = setTimeout(() => fadeOutAndRemove(el), autoDismissMs);
+  const fadeOutAndRemove = (node) => {
+    node.style.transition = 'opacity 220ms ease, transform 220ms ease';
+    node.style.opacity = '0';
+    node.style.transform = 'translateY(6px)';
+    setTimeout(() => {
+      if (node && node.parentNode) node.parentNode.removeChild(node);
+      if (replaceComposer) window.restoreChatComposer();
+    }, 240);
   };
-  const stopAutoDismiss = () => clearTimeout(dismissTimer);
 
-//   el.addEventListener('mouseenter', stopAutoDismiss);
-//   el.addEventListener('mouseleave', startAutoDismiss);
+  if (autoDismissMs) {
+    dismissTimer = setTimeout(() => fadeOutAndRemove(el), autoDismissMs);
+  }
 
-//   startAutoDismiss();
+  if (retryBtn) {
+    retryBtn.addEventListener('click', (ev) => {
+      ev.preventDefault();
+      clearTimeout(dismissTimer);
+      fadeOutAndRemove(el);
+      if (typeof onRetry === 'function') {
+        try { onRetry(); } catch (e) { console.error('onRetry failed', e); }
+      } else {
+        wrapper.dispatchEvent(new CustomEvent('chat9999:retry-send', { detail: { resData } }));
+      }
+    });
+  }
 
-  // Retry callback (اترك الفعل لك لربطه بدالتك)
-  retryBtn.addEventListener('click', (ev) => {
-    ev.preventDefault();
-    fadeOutAndRemove(el);
-    if (typeof onRetry === 'function') {
-      try { onRetry(); } catch (e) { console.error('onRetry failed', e); }
-    } else {
-      // إذا لم توفّر onRetry، نطلق حدثًا يمكن التقاطه من قِبل كود آخر
-      wrapper.dispatchEvent(new CustomEvent('chat9999:retry-send', { detail: { resData } }));
-    }
-  });
-
-  // Select template callback
   tplBtn.addEventListener('click', (ev) => {
     ev.preventDefault();
     if (typeof onSelectTemplate === 'function') {
@@ -974,20 +985,6 @@ document.querySelector('.cls3741_input_container').classList.add('d-none')
     }
   });
 
- 
-
-  // Close button
-  closeBtn.addEventListener('click', () => fadeOutAndRemove(el));
-
-  // helper functions
-  function fadeOutAndRemove(node) {
-    node.style.transition = 'opacity 220ms ease, transform 220ms ease';
-    node.style.opacity = '0';
-    node.style.transform = 'translateY(6px)';
-    setTimeout(() => { if (node && node.parentNode) node.parentNode.removeChild(node); }, 240);
-  }
-
-  // escaping (safety)
   function escapeHtml(str) {
     return String(str || '').replace(/[&<>"'`=\/]/g, function(s){
       return ({
@@ -996,6 +993,21 @@ document.querySelector('.cls3741_input_container').classList.add('d-none')
     });
   }
 }
+
+window.showSendErrorchat = showSendErrorchat;
+
+window.restoreChatComposer = function () {
+  const wrapper = document.querySelector('.cls3741_chat_input_wrapper');
+  if (wrapper) {
+    wrapper.classList.remove('is-messaging-blocked');
+    const alert = wrapper.querySelector('.chat-inline-alert');
+    if (alert) alert.remove();
+  }
+  document.querySelectorAll('.cls3741_input_container').forEach(function (el) {
+    el.classList.remove('d-none', 'chat-composer-hidden');
+    el.hidden = false;
+  });
+};
 
 /**
  * When the customer sends a message (websocket) while this chat is open, remove the
@@ -1010,13 +1022,19 @@ window.dismissSendErrorBannerForChat = function (phone) {
   const cleanActive = String(activePhone).replace(/\D/g, '');
   if (!cleanIncoming || cleanIncoming !== cleanActive) return;
 
-  const wrapper = document.querySelector('.cls3741_chat_input_wrapper');
-  if (!wrapper) return;
-  const banner = wrapper.querySelector('.error-banner');
-  if (banner) banner.remove();
-
-  const inputContainer = document.querySelector('.cls3741_input_container');
-  if (inputContainer) inputContainer.classList.remove('d-none');
+  if (typeof window.restoreChatComposer === 'function') {
+    window.restoreChatComposer();
+  } else {
+    const wrapper = document.querySelector('.cls3741_chat_input_wrapper');
+    if (!wrapper) return;
+    const banner = wrapper.querySelector('.chat-inline-alert') || wrapper.querySelector('.error-banner');
+    if (banner) banner.remove();
+    const inputContainer = document.querySelector('.cls3741_input_container');
+    if (inputContainer) {
+      inputContainer.classList.remove('d-none', 'chat-composer-hidden');
+      inputContainer.hidden = false;
+    }
+  }
 };
 
 

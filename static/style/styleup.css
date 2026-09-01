@@ -883,7 +883,8 @@
   }
 
   .cls3741_panel h2{margin:0 0 8px 0;font-size:20px;color:#cbd5e1}
-  .cls3741_panel p{margin:0;line-height:1.45}
+  .cls3741_panel p{
+    line-height:1.45}
 
   /* البطاقة الجانبية للشات */
   .cls3741_sidecard{
@@ -2214,45 +2215,46 @@
       color: var(--text-primary);
     }
 
-    /* 🔥 أزرار الفلترة */
+    /* 🔥 Segmented filter control */
     .cls3741_filter_buttons {
       display: flex;
-      gap: 8px;
-      flex-wrap: wrap;
-
-    border-bottom: 1px solid #1f2937;
-    padding:13px;
+      gap: 2px;
+      flex-wrap: nowrap;
+      margin: 8px 13px 0;
+      padding: 4px;
+      border-radius: 12px;
+      background: #030712;
+      border-bottom: none;
     }
 
     .cls3741_filter_btn {
       flex: 1;
-      min-width: 80px;
+      min-width: 0;
       display: flex;
       align-items: center;
       justify-content: center;
       gap: 6px;
-      padding: 8px 12px;
-      border: 1px solid var(--border-color);
+      padding: 8px 10px;
+      border: none;
       border-radius: 10px;
-      background: var(--bg-tertiary);
-      color: var(--text-secondary);
-      font-size: 13px;
+      background: transparent;
+      color: #9ca3af;
+      font-size: 12px;
       font-weight: 600;
       cursor: pointer;
-      transition: all 0.2s ease;
+      transition: background 0.2s ease, color 0.2s ease, box-shadow 0.2s ease;
       font-family: inherit;
     }
 
     .cls3741_filter_btn:hover {
-      background: var(--bg-hover);
-      border-color: var(--border-light);
-      color: var(--text-primary);
+      color: #e5e7eb;
+      background: rgba(255, 255, 255, 0.04);
     }
 
     .cls3741_filter_btn.active {
-      background: var(--accent);
-      border-color: var(--accent);
-      color: #ffffff;
+      background: rgba(55, 65, 81, 0.85);
+      color: #f3f4f6;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.06);
     }
 
     .cls3741_filter_btn svg {
@@ -2362,9 +2364,11 @@
     }
 
     .cls3741_contact_item.cls3741_btn_active {
-      background: var(--bg-tertiary);
-      border-color: var(--accent);
-      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+      background: rgba(31, 41, 55, 0.8);
+      border-color: transparent;
+      border-left: 4px solid #6366f1;
+      box-shadow: none;
+      padding-left: 8px;
     }
 
     .cls3741_contact_avatar {
@@ -2455,6 +2459,9 @@
       border-bottom:1px solid var(--border-color);
       background:var(--bg-primary);
       backdrop-filter: blur(10px);
+      position: relative;
+      z-index: 30;
+      flex-shrink: 0;
     }
 
     .cls3741_chat_header .title{
@@ -2538,6 +2545,38 @@ position: relative;
       border: 1px solid var(--accent);
     } 
     
+    .cls3741_msg_meta_inline {
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      gap: 4px;
+      margin-top: 4px;
+      line-height: 1;
+    }
+
+    .cls3741_msg_meta_inline .cls3741_msg_time {
+      font-size: 10px;
+      color: rgba(255, 255, 255, 0.5);
+      margin: 0;
+      display: inline;
+      opacity: 1;
+    }
+
+    .cls3741_msg_bubble:not(.me) .cls3741_msg_meta_inline .cls3741_msg_time {
+      color: rgba(156, 163, 175, 0.85);
+    }
+
+    .cls3741_msg_meta_inline .cls3741_msg_status {
+      display: inline-flex;
+      align-items: center;
+      line-height: 1;
+      color: rgba(255, 255, 255, 0.5);
+    }
+
+    .cls3741_msg_bubble:not(.me) .cls3741_msg_meta_inline .cls3741_msg_status {
+      color: rgba(156, 163, 175, 0.85);
+    }
+
     .cls3741_msg_time{
       display:block;
       font-size:11px;
@@ -2946,8 +2985,9 @@ position: relative;
         min-height: 44px;
       }
       .cls3741_filter_buttons {
-        padding: 8px 12px;
-        gap: 6px;
+        margin: 8px 12px 0;
+        padding: 4px;
+        gap: 2px;
       }
       .cls3741_filter_btn {
         min-width: 0;
