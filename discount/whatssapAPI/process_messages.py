@@ -6823,24 +6823,33 @@ def process_messages(
                                         body_override = ""
                                         stt_whisper_hallucination = True
                                     else:
-                                        cleaned = clean_transcription(
-                                            body_override,
-                                            target_language=voice_language_hint or "AUTO",
+                                        # Optional light cleaner (OFF by default): aggressive
+                                        # "correction" was rewriting Darija into wrong MSA.
+                                        enable_cleaner = False
+                                        try:
+                                            from django.conf import settings as dj_settings
+                                            enable_cleaner = bool(getattr(dj_settings, "STT_ENABLE_CLEANER", False))
+                                        except Exception:
+                                            pass
+                                        if enable_cleaner:
+                                            cleaned = clean_transcription(
+                                                body_override,
+                                                target_language=voice_language_hint or "AUTO",
+                                            )
+                                            if cleaned == STT_UNINTELLIGIBLE or is_whisper_hallucination(cleaned) or not looks_like_speech(cleaned):
+                                                logger.info(
+                                                    "STT cleaner rejected preview=%r -> %r",
+                                                    (body_override or "")[:60],
+                                                    (cleaned or "")[:60],
+                                                )
+                                                body_override = ""
+                                                stt_whisper_hallucination = True
+                                            else:
+                                                body_override = cleaned
+                                        logger.info(
+                                            "STT accepted preview=%r",
+                                            (body_override or "")[:120],
                                         )
-                                        if cleaned == STT_UNINTELLIGIBLE or is_whisper_hallucination(cleaned) or not looks_like_speech(cleaned):
-                                            logger.info(
-                                                "STT cleaner rejected preview=%r -> %r",
-                                                (body_override or "")[:60],
-                                                (cleaned or "")[:60],
-                                            )
-                                            body_override = ""
-                                            stt_whisper_hallucination = True
-                                        else:
-                                            body_override = cleaned
-                                            logger.info(
-                                                "STT accepted preview=%r",
-                                                (body_override or "")[:80],
-                                            )
                             except Exception as e:
                                 logger.exception("STT transcribe_audio: %s", e)
                             if body_override is None:

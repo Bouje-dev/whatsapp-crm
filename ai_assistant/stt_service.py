@@ -21,9 +21,10 @@ DEFAULT_WHISPER_PROMPT = (
     "including any French or English words. Do not invent text."
 )
 
-# Prefer newer transcribe models; fall back to whisper-1 on API errors.
-DEFAULT_STT_MODEL = "gpt-4o-mini-transcribe"
-FALLBACK_STT_MODEL = "whisper-1"
+# Prefer full gpt-4o-transcribe for dialect accuracy (Darija / Maghrebi).
+# Fallbacks: mini → whisper-1. Override with OPENAI_STT_MODEL.
+DEFAULT_STT_MODEL = "gpt-4o-transcribe"
+FALLBACK_STT_MODELS = ("gpt-4o-mini-transcribe", "whisper-1")
 MIN_AUDIO_DURATION_MS = 400
 MIN_MEANINGFUL_LETTERS = 2
 
@@ -116,8 +117,12 @@ def get_openai_api_key():
 
 def get_stt_model():
     """Primary STT model (override via OPENAI_STT_MODEL)."""
+    try:
+        configured = getattr(settings, "OPENAI_STT_MODEL", None)
+    except Exception:
+        configured = None
     return (
-        (getattr(settings, "OPENAI_STT_MODEL", None) or os.environ.get("OPENAI_STT_MODEL") or DEFAULT_STT_MODEL)
+        (configured or os.environ.get("OPENAI_STT_MODEL") or DEFAULT_STT_MODEL)
         .strip()
         or DEFAULT_STT_MODEL
     )
@@ -280,18 +285,67 @@ def is_whisper_hallucination(text):
     return False
 
 
-def _convert_audio_to_wav_or_mp3(media_content, original_suffix=".ogg"):
+def _probe_audio_quality(media_content, original_suffix=".ogg"):
     """
-    Convert OGG/Opus to mono 16 kHz MP3 for STT.
-    Returns (path_or_None, duration_ms_or_None, reject_reason_or_None).
-    reject_reason: 'too_short' | 'too_quiet' when audio should skip STT.
+    Probe duration / silence without preparing an upload file.
+    Returns (duration_ms_or_None, reject_reason_or_None).
     """
     try:
         from pydub import AudioSegment
         from pydub.silence import detect_nonsilent
     except ImportError:
-        logger.debug("pydub not installed; sending original audio to Whisper")
-        return None, None, None
+        return None, None
+
+    tmp_in = None
+    try:
+        tmp_in = tempfile.NamedTemporaryFile(delete=False, suffix=original_suffix)
+        tmp_in.write(media_content)
+        tmp_in.close()
+        seg = AudioSegment.from_file(tmp_in.name, format=original_suffix.lstrip(".") or "ogg")
+        duration_ms = len(seg)
+        if duration_ms < MIN_AUDIO_DURATION_MS:
+            logger.info("STT audio too short: %sms (min %s)", duration_ms, MIN_AUDIO_DURATION_MS)
+            return duration_ms, "too_short"
+        try:
+            nonsilent = detect_nonsilent(seg, min_silence_len=200, silence_thresh=seg.dBFS - 16)
+            if not nonsilent and duration_ms < 3000:
+                logger.info("STT audio near-silent: duration=%sms dBFS=%s", duration_ms, round(seg.dBFS, 1))
+                return duration_ms, "too_quiet"
+        except Exception:
+            pass
+        return duration_ms, None
+    except Exception as e:
+        logger.warning("STT audio probe failed: %s", e)
+        return None, None
+    finally:
+        if tmp_in and os.path.exists(tmp_in.name):
+            try:
+                os.unlink(tmp_in.name)
+            except OSError:
+                pass
+
+
+def _write_original_ogg(media_content):
+    """
+    Write WhatsApp Opus bytes as .ogg (NOT .oga).
+    gpt-4o-*-transcribe rejects .oga; whisper accepts both.
+    Prefer original bytes — lossy re-encode (mp3 64k) destroys dialect clarity.
+    """
+    tmp = tempfile.NamedTemporaryFile(delete=False, suffix=".ogg")
+    tmp.write(media_content)
+    tmp.close()
+    return tmp.name
+
+
+def _convert_to_wav_16k(media_content, original_suffix=".ogg"):
+    """
+    Lossless-ish STT fallback: mono 16 kHz WAV PCM (no mp3 recompression).
+    Used only when the API rejects the original OGG container.
+    """
+    try:
+        from pydub import AudioSegment
+    except ImportError:
+        return None
 
     tmp_in = None
     tmp_out = None
@@ -300,46 +354,30 @@ def _convert_audio_to_wav_or_mp3(media_content, original_suffix=".ogg"):
         tmp_in.write(media_content)
         tmp_in.close()
         seg = AudioSegment.from_file(tmp_in.name, format=original_suffix.lstrip(".") or "ogg")
-        duration_ms = len(seg)
-
-        if duration_ms < MIN_AUDIO_DURATION_MS:
-            logger.info("STT audio too short: %sms (min %s)", duration_ms, MIN_AUDIO_DURATION_MS)
-            return None, duration_ms, "too_short"
-
-        # Mono 16 kHz + light normalize — better for phone voice notes
         seg = seg.set_channels(1).set_frame_rate(16000)
-        try:
-            seg = seg.normalize(headroom=1.0)
-        except Exception:
-            pass
-
-        # Near-silence: no meaningful non-silent windows
-        try:
-            nonsilent = detect_nonsilent(seg, min_silence_len=200, silence_thresh=seg.dBFS - 16)
-            if not nonsilent and duration_ms < 3000:
-                logger.info("STT audio near-silent: duration=%sms dBFS=%s", duration_ms, round(seg.dBFS, 1))
-                return None, duration_ms, "too_quiet"
-        except Exception:
-            pass
-
-        tmp_out = tempfile.NamedTemporaryFile(delete=False, suffix=".mp3")
+        tmp_out = tempfile.NamedTemporaryFile(delete=False, suffix=".wav")
         tmp_out.close()
-        seg.export(tmp_out.name, format="mp3", bitrate="64k")
-        return tmp_out.name, duration_ms, None
+        seg.export(tmp_out.name, format="wav")
+        return tmp_out.name
     except Exception as e:
-        logger.warning("Audio conversion failed: %s", e)
-        if tmp_out and os.path.exists(tmp_out.name):
+        logger.warning("STT WAV convert failed: %s", e)
+        if tmp_out and os.path.exists(getattr(tmp_out, "name", "") or ""):
             try:
                 os.unlink(tmp_out.name)
             except OSError:
                 pass
-        return None, None, None
+        return None
     finally:
         if tmp_in and os.path.exists(tmp_in.name):
             try:
                 os.unlink(tmp_in.name)
             except OSError:
                 pass
+
+
+def _is_gpt4o_transcribe(model: str) -> bool:
+    m = (model or "").lower()
+    return "gpt-4o" in m and "transcribe" in m
 
 
 def _post_transcription(path_to_use, fname, mime, model, prompt, language, api_key):
@@ -350,27 +388,41 @@ def _post_transcription(path_to_use, fname, mime, model, prompt, language, api_k
         # temperature only reliably supported on whisper-1
         if model == "whisper-1" or model.startswith("whisper"):
             data["temperature"] = "0"
+        # gpt-4o-*-transcribe only supports response_format=json
+        if _is_gpt4o_transcribe(model):
+            data["response_format"] = "json"
         if prompt:
             data["prompt"] = prompt
         if language:
             data["language"] = language
         headers = {"Authorization": f"Bearer {api_key}"}
-        resp = requests.post(WHISPER_API_URL, files=files, data=data, headers=headers, timeout=45)
+        resp = requests.post(WHISPER_API_URL, files=files, data=data, headers=headers, timeout=60)
 
     if resp.status_code != 200:
-        return None, resp.status_code, (resp.text or "")[:300]
+        return None, resp.status_code, (resp.text or "")[:400]
 
     out = resp.json() if resp.content else {}
     text = (out.get("text") or "").strip()
     return text, 200, None
 
 
+def _stt_models_to_try(primary_model: str):
+    models = [primary_model]
+    for m in FALLBACK_STT_MODELS:
+        if m and m not in models:
+            models.append(m)
+    return models
+
+
 def transcribe_audio(media_content, prompt=None, model=None, language=None, voice_language_hint=None):
     """
-    Transcribe audio bytes using OpenAI STT (primary model + whisper-1 fallback).
+    Transcribe WhatsApp voice bytes with gpt-4o-transcribe (primary).
+
+    Sends ORIGINAL OGG/Opus (filename .ogg) to preserve quality — do not re-encode to low-bitrate MP3.
+    Falls back to WAV 16k only on format errors, then to weaker models.
 
     Returns:
-        Transcribed text string, STT_UNINTELLIGIBLE if unintelligible, or None on hard failure.
+        Transcribed text, STT_UNINTELLIGIBLE, or None on hard failure.
     """
     if not media_content:
         logger.warning("STT: empty media_content")
@@ -394,7 +446,7 @@ def transcribe_audio(media_content, prompt=None, model=None, language=None, voic
     if len(prompt) > WHISPER_PROMPT_MAX_CHARS:
         prompt = prompt[:WHISPER_PROMPT_MAX_CHARS]
 
-    converted_path, duration_ms, reject_reason = _convert_audio_to_wav_or_mp3(media_content, ".ogg")
+    duration_ms, reject_reason = _probe_audio_quality(media_content, ".ogg")
     if reject_reason in ("too_short", "too_quiet"):
         logger.info(
             "STT reject before API: reason=%s duration_ms=%s bytes=%s",
@@ -404,39 +456,20 @@ def transcribe_audio(media_content, prompt=None, model=None, language=None, voic
         )
         return STT_UNINTELLIGIBLE
 
-    if converted_path:
-        path_to_use = converted_path
-        mime = "audio/mpeg"
-        fname = "audio.mp3"
-    else:
-        path_to_use = None
-        tmp_orig = None
-        try:
-            tmp_orig = tempfile.NamedTemporaryFile(delete=False, suffix=".ogg")
-            tmp_orig.write(media_content)
-            tmp_orig.close()
-            path_to_use = tmp_orig.name
-            mime = "audio/ogg"
-            fname = "audio.ogg"
-        except Exception as e:
-            logger.warning("stt_service temp file: %s", e)
-            if tmp_orig and os.path.exists(tmp_orig.name):
-                try:
-                    os.unlink(tmp_orig.name)
-                except OSError:
-                    pass
-            return None
-
-    cleanup_paths = [path_to_use]
-    if converted_path and converted_path != path_to_use:
-        cleanup_paths.append(converted_path)
-
-    models_to_try = [primary_model]
-    if FALLBACK_STT_MODEL not in models_to_try:
-        models_to_try.append(FALLBACK_STT_MODEL)
-
+    # Prefer original Opus/OGG — WhatsApp voice quality is already good for STT.
+    path_to_use = None
+    wav_path = None
+    cleanup_paths = []
     try:
+        path_to_use = _write_original_ogg(media_content)
+        cleanup_paths.append(path_to_use)
+        mime = "audio/ogg"
+        fname = "audio.ogg"  # critical: not .oga
+
+        models_to_try = _stt_models_to_try(primary_model)
         last_err = None
+        format_retry_done = False
+
         for attempt_model in models_to_try:
             try:
                 text, status, err = _post_transcription(
@@ -451,30 +484,56 @@ def transcribe_audio(media_content, prompt=None, model=None, language=None, voic
                 last_err = str(e)
                 continue
 
+            # Format rejected → convert once to WAV 16k and retry same model
+            if status == 400 and not format_retry_done and err and (
+                "format" in err.lower() or "unsupported" in err.lower() or "oga" in err.lower()
+            ):
+                logger.warning("STT format error model=%s; converting to WAV 16k. err=%s", attempt_model, err)
+                wav_path = _convert_to_wav_16k(media_content, ".ogg")
+                if wav_path:
+                    cleanup_paths.append(wav_path)
+                    path_to_use = wav_path
+                    mime = "audio/wav"
+                    fname = "audio.wav"
+                    format_retry_done = True
+                    try:
+                        text, status, err = _post_transcription(
+                            path_to_use, fname, mime, attempt_model, prompt, language, api_key
+                        )
+                    except Exception as e:
+                        logger.warning("STT WAV retry failed model=%s: %s", attempt_model, e)
+                        last_err = str(e)
+                        continue
+
             if status != 200:
                 logger.warning("STT API error model=%s status=%s: %s", attempt_model, status, err)
                 last_err = err
-                # Model not found / not allowed → try fallback
                 continue
 
             logger.info(
-                "STT ok model=%s duration_ms=%s bytes=%s chars=%s preview=%r",
+                "STT ok model=%s duration_ms=%s bytes=%s chars=%s file=%s preview=%r",
                 attempt_model,
                 duration_ms,
                 len(media_content),
                 len(text or ""),
-                (text or "")[:80],
+                fname,
+                (text or "")[:120],
             )
 
             if not text:
-                return STT_UNINTELLIGIBLE
+                # try next model — empty from a strong model is rare
+                continue
 
             if is_whisper_hallucination(text):
                 logger.info("STT hallucination rejected model=%s preview=%r", attempt_model, text[:80])
-                return STT_UNINTELLIGIBLE
+                # try next model before giving up
+                last_err = "hallucination"
+                continue
 
             return text
 
+        if last_err == "hallucination":
+            return STT_UNINTELLIGIBLE
         logger.warning("STT all models failed last_err=%s", last_err)
         return None
     except Exception as e:
@@ -491,14 +550,13 @@ def transcribe_audio(media_content, prompt=None, model=None, language=None, voic
 
 def clean_transcription(raw_text, target_language):
     """
-    Language Harmonizer: fix obvious transcription errors for the AI Sales Agent.
-    Does NOT translate. Skips junk / hallucination input entirely.
+    Light post-pass only. MUST NOT rewrite Darija into MSA or invent words —
+    aggressive "correction" was making wrong transcripts worse.
     """
     if not raw_text or not (raw_text or "").strip():
         return raw_text or ""
     if raw_text == STT_UNINTELLIGIBLE:
         return raw_text
-    # Never “fix” emoji/noise into fake sentences
     if is_whisper_hallucination(raw_text) or not looks_like_speech(raw_text):
         logger.info("clean_transcription skipped junk preview=%r", (raw_text or "")[:60])
         return STT_UNINTELLIGIBLE
@@ -507,18 +565,24 @@ def clean_transcription(raw_text, target_language):
     if not api_key:
         return raw_text
 
-    lang_label = target_language or "the customer's language"
+    lang_label = target_language or "AUTO"
     if isinstance(lang_label, str) and len(lang_label) > 60:
         lang_label = lang_label[:60]
 
+    # Conservative: keep dialect (Darija / Franco-Arabic / French mix) as spoken.
     instruction = (
-        f"You are a linguistic expert. You received this raw transcription: '{raw_text}'. "
-        f"The store's primary language is '{lang_label}'. "
-        "Correct any obvious transcription errors. "
-        "If the text is in a different language, KEEP IT as is (do not translate), but make it readable. "
-        "If the input is nonsense, only symbols/emojis, or not real speech, reply with exactly: UNINTELLIGIBLE. "
-        "Your output will be used by an AI Sales Agent, so ensure the intent is clear. "
-        "Reply with ONLY the corrected text, no explanation."
+        "You fix ONLY clear ASR spelling glitches in a WhatsApp voice-note transcript.\n"
+        f"Store language hint: {lang_label}.\n"
+        "STRICT RULES:\n"
+        "- Do NOT translate.\n"
+        "- Do NOT convert Moroccan Darija / Maghrebi / Gulf dialect into Modern Standard Arabic.\n"
+        "- Do NOT replace dialect words with 'more correct' words.\n"
+        "- Do NOT invent missing words or change the customer's meaning.\n"
+        "- Keep French/English product words mixed in as they appear.\n"
+        "- If the text is already readable, return it UNCHANGED.\n"
+        "- If the input is nonsense/symbols only, reply exactly: UNINTELLIGIBLE\n"
+        f"Transcript:\n{raw_text}\n"
+        "Reply with ONLY the final text."
     )
 
     url = getattr(settings, "OPENAI_CHAT_URL", None) or "https://api.openai.com/v1/chat/completions"
@@ -527,7 +591,7 @@ def clean_transcription(raw_text, target_language):
         "model": "gpt-4o-mini",
         "messages": [{"role": "user", "content": instruction}],
         "max_tokens": 500,
-        "temperature": 0.2,
+        "temperature": 0,
     }
 
     try:
@@ -543,7 +607,11 @@ def clean_transcription(raw_text, target_language):
         if content.upper() == "UNINTELLIGIBLE" or is_whisper_hallucination(content):
             return STT_UNINTELLIGIBLE
         if not looks_like_speech(content):
-            return STT_UNINTELLIGIBLE
+            return raw_text  # keep original rather than empty
+        # If cleaner drastically rewrote (>60% different length or very different), keep original
+        if abs(len(content) - len(raw_text)) > max(40, int(len(raw_text) * 0.6)):
+            logger.info("clean_transcription rejected large rewrite; keeping raw")
+            return raw_text
         return content
     except Exception as e:
         logger.warning("clean_transcription: %s", e)

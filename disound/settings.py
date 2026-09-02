@@ -319,6 +319,10 @@ SERVER_EMAIL = "support@waselytics.com"
 
 # AI Assistant (OpenAI)
 OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY", "")
+# Speech-to-text: gpt-4o-transcribe (best for dialects) | gpt-4o-mini-transcribe | whisper-1
+OPENAI_STT_MODEL = (os.environ.get("OPENAI_STT_MODEL") or "gpt-4o-transcribe").strip()
+# Optional light GPT rewrite after STT (default off — was mangling Darija)
+STT_ENABLE_CLEANER = (os.environ.get("STT_ENABLE_CLEANER") or "").strip().lower() in ("1", "true", "yes", "on")
 
 
 
