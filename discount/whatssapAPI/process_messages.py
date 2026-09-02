@@ -1401,11 +1401,11 @@ def save_incoming_message(msg, message_type, sender=None, channel=None, name=Non
 
         if channel:
             unread_count = Message.objects.filter(
-                sender=message_obj.sender, is_read=False, channel=channel
+                sender=message_obj.sender, is_read=False, is_from_me=False, channel=channel
             ).count()
         else:
             unread_count = Message.objects.filter(
-                sender=message_obj.sender, is_read=False
+                sender=message_obj.sender, is_read=False, is_from_me=False
             ).count()
 
         contact_payload = {

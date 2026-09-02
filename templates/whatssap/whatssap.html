@@ -1,6 +1,10 @@
 {% load static %}
 <link rel="stylesheet" href="{% static 'style/styleup.css' %}">
 <link rel="stylesheet" href="{% static 'style/dashboard-glass.css' %}?v=16">
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+  tailwind.config = { corePlugins: { preflight: false } };
+</script>
  <div class="current_user_id" id="current_user_id" data-user-id="{{ user.id }}"></div>
 <script src="{% static 'js/whatssap.js' %}"></script>
 <script src="{% static 'js/chat_virtualization.js' %}"></script>
@@ -12,6 +16,9 @@
     // إعدادات عامة لتمرير بيانات جانغو إلى ملف الجافاسكربت الخارجي
     window.TEMPLATE_CONFIG = {
         initialChannelId: '{{ initial_channel_id|default:"null" }}',
+        userChannelIds: [
+            {% for channel in user_channels %}'{{ channel.id }}'{% if not forloop.last %}, {% endif %}{% endfor %}
+        ],
         sentryFrontendDsn: '{{ SENTRY_DSN_FRONTEND|default:""|escapejs }}',
         csrfToken: document.querySelector('[name=csrfmiddlewaretoken]')?.value,
         urls: {
@@ -21,6 +28,55 @@
             templateShow: "/discount/whatssapAPI/api/templateShow/" // رابط ثابت أو يمكن استخدام url tag
         }
     };
+
+    window.ActiveChannelStorage = (function() {
+        var STORAGE_KEY = 'activeChannelId';
+
+        function getAvailableChannelIds() {
+            var ids = [];
+            document.querySelectorAll('.workspace-item[data-channel-id]').forEach(function(el) {
+                var id = el.getAttribute('data-channel-id');
+                if (id) ids.push(String(id));
+            });
+            if (ids.length) return ids;
+
+            var cfg = window.TEMPLATE_CONFIG && window.TEMPLATE_CONFIG.userChannelIds;
+            if (Array.isArray(cfg)) {
+                return cfg.map(String).filter(function(id) { return id && id !== 'null'; });
+            }
+            return [];
+        }
+
+        function resolveInitialChannelId(fallbackId) {
+            var available = getAvailableChannelIds();
+            var fallback = fallbackId != null && String(fallbackId) !== 'null' ? String(fallbackId) : null;
+
+            if (!available.length) return fallback;
+
+            var stored = null;
+            try { stored = localStorage.getItem(STORAGE_KEY); } catch (e) {}
+
+            if (stored && available.indexOf(String(stored)) !== -1) {
+                return String(stored);
+            }
+
+            var resolved = available[0];
+            try { localStorage.setItem(STORAGE_KEY, resolved); } catch (e) {}
+            return resolved;
+        }
+
+        function save(channelId) {
+            if (channelId == null || String(channelId) === 'null') return;
+            try { localStorage.setItem(STORAGE_KEY, String(channelId)); } catch (e) {}
+        }
+
+        return {
+            STORAGE_KEY: STORAGE_KEY,
+            getAvailableChannelIds: getAvailableChannelIds,
+            resolveInitialChannelId: resolveInitialChannelId,
+            save: save
+        };
+    })();
 
     (function initFrontendSentry() {
       var dsn =
@@ -45,12 +101,6 @@
   
   {% if user_channels %}
   <style>
-    @media (max-width: 768px) {
-        .clc3432423 {
-            display: none !important;
-        }
-    }
-
     /* ==========================================
      * ✨ Context Panel Styles
      * ========================================== */
@@ -558,16 +608,16 @@
     </button>
     <div class="cls3741_sidebar_overlay" id="cls3741_sidebar_overlay" aria-hidden="true"></div>
     <!-- sidebar -->
-    <aside class="cls3741_sidebar" role="navigation" aria-label="Sidebar" style="z-index: 1000;">
+    <aside class="cls3741_sidebar" role="navigation" aria-label="Sidebar" style="z-index: 100;">
       <div class="cls3741_brand">
-        <div class="cls3741_logo" id="current_channel_logo">
+        <!-- <div class="cls3741_logo" id="current_channel_logo">
             {% if active_channel.profile_image %}<img src="{{ active_channel.profile_image.url }}" style="width: 100%; border-radius: 50%;" alt="Channel Logo">
             {% else %}
             {{ active_channel.name|slice:":1"|upper|default:"?" }}
             {% endif %}
 
             
-        </div>
+        </div> -->
         
         <div>
             <div class="cls3741_title" id="current_channel_name">
@@ -581,35 +631,6 @@
         </div>
     </div>
 
-    {% if user.is_team_admin or user.is_superuser %}
-    <div class="cls3741_sidebar_channels_mobile" aria-label="Switch channel">
-      <div class="cls3741_sidebar_channels_title">Channels</div>
-      <div class="workspace-list workspace-list-in-sidebar">
-        {% for channel in user_channels %}
-        <div class="workspace-item {% if channel.id == initial_channel_id %}active{% endif %}"
-             data-channel-id="{{ channel.id }}"
-             data-name="{{ channel.name }}"
-             {% if channel.profile_image %}data-profile="{{ channel.profile_image.url }}"{% else %}data-profile=""{% endif %}
-             data-agents="{{ channel.assigned_agents.count }}"
-             data-is-configured="{% if channel.is_configured %}true{% else %}false{% endif %}"
-             onclick="switchChannel('{{ channel.id }}')"
-             title="{{ channel.name }}">
-          {% if channel.profile_image %}
-          <img src="{{ channel.profile_image.url }}" alt="" style="width: 40px; height: 40px; border-radius: 12px;">
-          {% else %}
-          {{ channel.name|slice:":1"|upper }}
-          {% endif %}
-          {% if channel.unread_count > 0 %}<span class="unread-dot"></span>{% endif %}
-        </div>
-        {% endfor %}
-        <div class="workspace-item add-new" onclick="openAddChannelModal()">
-          <svg viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" stroke-width="2" fill="none"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
-        </div>
-      </div>
-    </div>
-    {% endif %}
- 
-  
 <nav class="cls3741_nav collapsed" aria-label="Main menu">
     
   <button class="cls3741_btn cls3741_btn_active" data-target="dashboard">
@@ -659,128 +680,9 @@
       <span class="cls3741_tooltip">Product</span>
   </button>
 
-  {% if user.is_team_admin or user.is_superuser %}
-  <aside class="workspace-sidebar clc3432423" style="margin-top: auto;">
-    <div class="workspace-list">
-      {% for channel in user_channels %}
-      <div class="workspace-item {% if channel.id == initial_channel_id %}active{% endif %}"
-           data-channel-id="{{ channel.id }}"
-           data-name="{{ channel.name }}"
-           {% if channel.profile_image %}data-profile="{{ channel.profile_image.url }}"
-           {% else %}data-profile=""
-           {% endif %}
-           data-agents="{{ channel.assigned_agents.count }}"
-           data-is-configured="{% if channel.is_configured %}true{% else %}false{% endif %}"
-           onclick="switchChannel('{{ channel.id }}')"
-           title="{{ channel.name }}">
-        {% if channel.profile_image %}
-        <img src="{{ channel.profile_image.url }}" alt="Profile Image" style="width: 50px; height: 50px; border-radius: 13px;">
-        {% else %}
-        {{ channel.name|slice:":1"|upper }}
-        {% endif %}
-        {% if channel.unread_count > 0 %}
-        <span class="unread-dot"></span>
-        {% endif %}
-      </div>
-      {% endfor %}
-      <div class="workspace-item add-new" onclick="openAddChannelModal()">
-        <svg viewBox="0 0 24 24" width="24" height="24" stroke="currentColor" stroke-width="2" fill="none">
-          <line x1="12" y1="5" x2="12" y2="19"></line>
-          <line x1="5" y1="12" x2="19" y2="12"></line>
-        </svg>
-      </div>
-    </div>
-  </aside>
-  {% endif %}
 </nav>
 
 <style>
-/* --- Workspace sidebar (channels) - now in nav --- */
-.workspace-sidebar {
-  width: 80px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  /* padding: 20px 0; */
-  z-index: 50;
-  flex-shrink: 0;
-}
-.workspace-list {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-  width: 100%;
-  align-items: center;
-}
-.workspace-item {
-  width: 52px;
-  height: 52px;
-  border-radius: 50%;
-  background-color: #ffffff;
-  color: #374151;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-weight: 700;
-  font-size: 20px;
-  cursor: pointer;
-  transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
-  position: relative;
-  box-shadow: 0 2px 5px rgba(0,0,0,0.05);
-}
-.workspace-item:hover {
-  border-radius: 16px;
-  background-color: #4f46e5;
-  color: white;
-}
-.workspace-item.active {
-  border-radius: 16px;
-  background-color: #4f46e5;
-  color: white;
-  box-shadow: 0 4px 12px rgba(79, 70, 229, 0.3);
-  position: relative;
-}
-.workspace-item.active::after {
-  content: '';
-  position: absolute;
-  right: -26px;
-  top: 50%;
-  transform: translateY(-50%);
-  width: 20px;
-  height: 40px;
-  background-color: #ffffff;
-  border-radius: 20px 0 0 20px;
-  z-index: -1;
-  opacity: 0;
-}
-.workspace-item::before {
-  content: '';
-  position: absolute;
-  left: -12px;
-  top: 50%;
-  transform: translateY(-50%);
-  width: 4px;
-  height: 0;
-  background-color: #000;
-  border-radius: 0 4px 4px 0;
-  transition: height 0.2s;
-}
-.workspace-item:hover::before { height: 20px; }
-.workspace-item.active::before {
-  height: 36px;
-  background-color: #4f46e5;
-}
-.workspace-item.add-new {
-  background-color: transparent;
-  border: 2px dashed #d1d5db;
-  color: #9ca3af;
-  box-shadow: none;
-}
-.workspace-item.add-new:hover {
-  border-color: #4f46e5;
-  color: #4f46e5;
-  background-color: rgba(79, 70, 229, 0.1);
-}
 .unread-dot {
   position: absolute;
   top: -2px;
@@ -17602,30 +17504,120 @@ async function fetchInitialContacts(channelId) {
     renderContactsList(data.contacts);
     fetchContactsAndUpdateUIws(data.contacts, true);
 }
- 
 
- 
-fetchInitialContacts(currentChannelId);
-window.loadTeamStats(currentChannelId);
+function syncActiveChannelUi(channelId) {
+    if (!channelId || String(channelId) === 'null') return;
+
+    document.querySelectorAll('.workspace-item').forEach(function(el) {
+        el.classList.remove('active');
+        el.setAttribute('aria-selected', 'false');
+        var check = el.querySelector('.workspace-active-indicator');
+        if (check) check.classList.add('hidden');
+    });
+
+    var activeEl = document.querySelector('.workspace-item[data-channel-id="' + channelId + '"]');
+    if (!activeEl) return;
+
+    activeEl.classList.add('active');
+    activeEl.setAttribute('aria-selected', 'true');
+    var activeCheck = activeEl.querySelector('.workspace-active-indicator');
+    if (activeCheck) activeCheck.classList.remove('hidden');
+
+    var name = activeEl.getAttribute('data-name');
+    var agentsCount = activeEl.getAttribute('data-agents');
+    var dataprofile = activeEl.getAttribute('data-profile');
+
+    if (typeof window.updateWorkspaceSwitcherTrigger === 'function') {
+        window.updateWorkspaceSwitcherTrigger(name, dataprofile);
+    }
+
+    var logoEl = document.getElementById('current_channel_logo');
+    var nameEl = document.getElementById('current_channel_name');
+    var subEl = document.getElementById('current_channel_agents_count');
+
+    if (logoEl) {
+        if (dataprofile) {
+            logoEl.innerHTML = '<img src="' + dataprofile + '" style="width:50px;height:50px;border-radius:50%;object-fit:cover;">';
+        } else if (name) {
+            logoEl.textContent = name.charAt(0).toUpperCase();
+        }
+    }
+    if (nameEl) nameEl.textContent = name || '';
+    if (subEl && agentsCount != null) subEl.textContent = agentsCount + ' Agents';
+
+    if (typeof window.updateWhatsAppConnectionBadge === 'function') {
+        window.updateWhatsAppConnectionBadge(channelId);
+    }
+}
+
+async function bootstrapActiveChannelFromStorage() {
+    var serverId = String('{{ initial_channel_id|default:"null" }}');
+    var storage = window.ActiveChannelStorage;
+    var resolved = storage && typeof storage.resolveInitialChannelId === 'function'
+        ? storage.resolveInitialChannelId(serverId)
+        : (serverId !== 'null' ? serverId : null);
+
+    if (!resolved || resolved === 'null') {
+        if (currentChannelId && currentChannelId !== 'null') {
+            await fetchInitialContacts(currentChannelId);
+            if (typeof window.loadTeamStats === 'function') window.loadTeamStats(currentChannelId);
+        }
+        return;
+    }
+
+    if (resolved !== serverId && typeof switchChannel === 'function') {
+        await switchChannel(resolved);
+        return;
+    }
+
+    currentChannelId = resolved;
+    window.currentChannelId = resolved;
+    window._activeChannelId = resolved;
+
+    if (storage) storage.save(resolved);
+
+    syncActiveChannelUi(resolved);
+    await fetchInitialContacts(resolved);
+
+    if (typeof window.loadTeamStats === 'function') window.loadTeamStats(resolved);
+    if (typeof window.loadDashboardData === 'function') window.loadDashboardData(resolved);
+}
+window.syncActiveChannelUi = syncActiveChannelUi;
+window.bootstrapActiveChannelFromStorage = bootstrapActiveChannelFromStorage;
 // دالة تهيئة (تستدعى عند فتح الصفحة)
 // async function initApp() {
    
 //     await fetchContacts();
 // }
 
-// دالة تبديل القناة (عند النقر على الدائرة اليسرى)
+// دالة تبديل القناة (Workspace Switcher)
 async function switchChannel(newChannelId) {
-    if(currentChannelId === newChannelId) return;
-    
+    if (typeof window.closeWorkspaceSwitcher === 'function') {
+        window.closeWorkspaceSwitcher();
+    }
+    if (currentChannelId === newChannelId) return;
+
     currentChannelId = newChannelId;
     window.currentChannelId = newChannelId;
     window._activeChannelId = newChannelId;
-    
-    // تحديث الواجهة (Active Class)
 
-    document.querySelectorAll('.workspace-item').forEach(el => el.classList.remove('active'));
-    const ci =  document.querySelector(`[data-channel-id="${newChannelId}"]`).classList.add('active');
-    
+    if (window.ActiveChannelStorage && typeof window.ActiveChannelStorage.save === 'function') {
+        window.ActiveChannelStorage.save(newChannelId);
+    }
+
+    document.querySelectorAll('.workspace-item').forEach(function(el) {
+        el.classList.remove('active');
+        el.setAttribute('aria-selected', 'false');
+        var dot = el.querySelector('.workspace-active-indicator');
+        if (dot) dot.classList.add('hidden');
+    });
+    var activeEl = document.querySelector('.workspace-item[data-channel-id="' + newChannelId + '"]');
+    if (activeEl) {
+        activeEl.classList.add('active');
+        activeEl.setAttribute('aria-selected', 'true');
+        var activeDot = activeEl.querySelector('.workspace-active-indicator');
+        if (activeDot) activeDot.classList.remove('hidden');
+    }
 
     // تنظيف الشات والقائمة الحالية
     if (typeof window.__destroyContactsVirtualList === 'function') window.__destroyContactsVirtualList();
@@ -17673,6 +17665,9 @@ async function switchChannel(newChannelId) {
           }
         if (nameEl) nameEl.textContent = name;
         if (subEl) subEl.textContent = `${agentsCount} Agents`;
+        if (typeof window.updateWorkspaceSwitcherTrigger === 'function') {
+            window.updateWorkspaceSwitcherTrigger(name, dataprofile);
+        }
         if (typeof window.updateWhatsAppConnectionBadge === 'function') {
             window.updateWhatsAppConnectionBadge(newChannelId);
         }
@@ -17709,6 +17704,96 @@ if (typeof window.loadDashboardData === 'function') {
 
 }
 window.switchChannel = switchChannel;
+
+(function initWorkspaceSwitcher() {
+    var root = document.getElementById('workspaceSwitcher');
+    if (!root) return;
+
+    var trigger = document.getElementById('workspaceSwitcherTrigger');
+    var menu = document.getElementById('workspaceSwitcherMenu');
+    var search = document.getElementById('workspaceChannelSearch');
+    var list = document.getElementById('workspaceChannelList');
+
+    function filterChannels(query) {
+        if (!list) return;
+        var q = (query || '').trim().toLowerCase();
+        list.querySelectorAll('.workspace-switcher-item').forEach(function(item) {
+            var name = (item.getAttribute('data-name') || '').toLowerCase();
+            item.style.display = !q || name.indexOf(q) !== -1 ? '' : 'none';
+        });
+    }
+
+    function openMenu() {
+        if (!menu || !trigger) return;
+        menu.classList.remove('hidden');
+        menu.classList.add('open');
+        trigger.setAttribute('aria-expanded', 'true');
+        if (search) {
+            search.value = '';
+            filterChannels('');
+            setTimeout(function() { search.focus(); }, 50);
+        }
+    }
+
+    function closeMenu() {
+        if (!menu || !trigger) return;
+        menu.classList.add('hidden');
+        menu.classList.remove('open');
+        trigger.setAttribute('aria-expanded', 'false');
+        if (search) search.value = '';
+        filterChannels('');
+    }
+
+    window.closeWorkspaceSwitcher = closeMenu;
+    window.updateWorkspaceSwitcherTrigger = function(name, dataprofile) {
+        var iconEl = document.getElementById('wsTriggerIcon');
+        var nameEl = document.getElementById('wsTriggerName');
+        var trigger = document.getElementById('workspaceSwitcherTrigger');
+        if (nameEl && name) nameEl.textContent = name;
+        if (trigger && name) trigger.setAttribute('title', name);
+        if (!iconEl) return;
+        if (dataprofile) {
+            iconEl.innerHTML = '<img src="' + dataprofile + '" alt="">';
+        } else if (name) {
+            iconEl.textContent = name.charAt(0).toUpperCase();
+        }
+    };
+
+    if (trigger) {
+        trigger.addEventListener('click', function(e) {
+            e.stopPropagation();
+            if (trigger.getAttribute('aria-expanded') === 'true') closeMenu();
+            else openMenu();
+        });
+    }
+
+    if (search) {
+        search.addEventListener('input', function() {
+            filterChannels(search.value);
+        });
+        search.addEventListener('click', function(e) {
+            e.stopPropagation();
+        });
+    }
+
+    if (menu) {
+        menu.addEventListener('click', function(e) {
+            e.stopPropagation();
+        });
+    }
+
+    document.addEventListener('click', function() {
+        closeMenu();
+    });
+
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape') closeMenu();
+    });
+})();
+
+if (typeof window.bootstrapActiveChannelFromStorage === 'function') {
+    window.bootstrapActiveChannelFromStorage();
+}
 
 // دالة جلب جهات الاتصال (معدلة)
 // async function fetchContacts() {
@@ -18640,6 +18725,18 @@ async function loadSidebarContacts(reset = false) {
             allContactsData = sidebarState.contacts.slice();
             window.__allContactsData = allContactsData;
         }
+
+        var openPhone = typeof window.getCurrentChatPhone === 'function' ? window.getCurrentChatPhone() : null;
+        if (openPhone) {
+            sidebarState.contacts.forEach(function (c) {
+                if (contactPhonesMatch(c.phone, openPhone)) c.unread = 0;
+            });
+            allContactsData.forEach(function (c) {
+                if (contactPhonesMatch(c.phone, openPhone)) c.unread = 0;
+            });
+            window.__allContactsData = allContactsData;
+        }
+
         renderSidebarItems(reset);
 
     } catch (e) {
@@ -19004,7 +19101,7 @@ window.loadSidebarContacts = loadSidebarContacts;
           if (window.matchMedia('(max-width: 768px)').matches) closeNav();
         });
       });
-      document.querySelectorAll('.cls3741_sidebar .workspace-item').forEach(function(item) {
+      document.querySelectorAll('.cls3741_sidebar .workspace-switcher-item').forEach(function(item) {
         item.addEventListener('click', function() {
           if (window.matchMedia('(max-width: 768px)').matches) closeNav();
         });

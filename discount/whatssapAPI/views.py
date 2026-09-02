@@ -2100,12 +2100,31 @@ def get_messages1(request):
             since_val = int(since_id_raw)
         except ValueError:
             since_val = None
+
+    # --- Paginated history cursor ---
+    before_val = None
+    if before_id_raw not in (None, ''):
+        try:
+            before_val = int(before_id_raw)
+        except ValueError:
+            before_val = None
+
+    # Opening the chat (not scrolling older pages): mark ALL inbound unread for this thread.
+    # Paginated fetch only loads the latest N messages; outbound/template messages after an
+    # old customer reply can push unread inbound rows out of that page (common after 24h+).
+    is_initial_open = before_val is None and not (since_val is not None and since_val > 0)
+    if is_initial_open and resolved_sender:
+        now = timezone.now()
+        qs_base.filter(is_from_me=False, is_read=False).update(is_read=True, read_at=now)
+
     if since_val is not None and since_val > 0:
         qs = qs_base.filter(id__gt=since_val).order_by('id')[:200]
         messages = []
         for m in qs:
-            m.is_read = True
-            m.save(update_fields=['is_read'])
+            if not m.is_read:
+                m.is_read = True
+                m.read_at = timezone.now()
+                m.save(update_fields=['is_read', 'read_at'])
             messages.append(_message_to_chat_dict(m, request))
         return JsonResponse({
             "messages": messages,
@@ -2116,13 +2135,6 @@ def get_messages1(request):
         })
 
     # --- Paginated history ---
-    before_val = None
-    if before_id_raw not in (None, ''):
-        try:
-            before_val = int(before_id_raw)
-        except ValueError:
-            before_val = None
-
     if before_val is not None:
         page_qs = qs_base.filter(id__lt=before_val).order_by('-id')[:limit]
     else:
@@ -2152,9 +2164,6 @@ def get_messages1(request):
     messages = []
     load_older = before_val is not None
     for m in batch:
-        if not load_older:
-            m.is_read = True
-            m.save(update_fields=['is_read'])
         messages.append(_message_to_chat_dict(m, request))
 
     # Only attach the payment banner payload on the initial chat-open call
