@@ -3070,11 +3070,76 @@ def api_templates(request):
 
 
 
+def _user_can_manage_simple_order(user, order):
+    """Same access rules as api_orders list + sync."""
+    if not user or not user.is_authenticated:
+        return False
+    if user.is_superuser:
+        return True
+    if not order.channel:
+        return order.agent_id == user.id
+    if order.channel.owner_id == user.id:
+        return True
+    if getattr(user, "is_team_admin", False):
+        return True
+    return order.agent_id == user.id
+
+
+def _simple_order_to_api_dict(o):
+    if o.product:
+        product_name = o.product.name
+    else:
+        product_name = getattr(o, "product_name", "Unknown Product")
+
+    agent = o.agent
+    created_by_username = agent.username if agent else "—"
+    created_by_is_bot = getattr(agent, "is_bot", False) if agent else False
+    if created_by_is_bot:
+        created_by_display = "AI Agent"
+    else:
+        created_by_display = (getattr(agent, "agent_role", None) or created_by_username) if agent else "—"
+
+    raw_name = (o.customer_name or "").strip()
+    if raw_name:
+        display_name = raw_name
+    elif o.customer_phone:
+        display_name = o.customer_phone
+    else:
+        display_name = "Direct WhatsApp Customer"
+
+    return {
+        "id": o.id,
+        "order_id": o.order_id,
+        "customer_name": display_name,
+        "customer_name_raw": raw_name,
+        "customer_email": (getattr(o, "customer_email", None) or ""),
+        "total_amount": float(o.price) if o.price else 0.0,
+        "price": float(o.price) if o.price else 0.0,
+        "customer_phone": o.customer_phone or "",
+        "customer_city": o.customer_city or "",
+        "is_digital": bool(getattr(o, "is_digital", False)),
+        "status": o.status or "",
+        "product": product_name,
+        "product_id": o.product_id,
+        "product_name": o.product_name or product_name,
+        "created_by": created_by_username,
+        "created_by_display": created_by_display,
+        "created_by_is_bot": created_by_is_bot,
+        "quantity": round(float(o.quantity)) if o.quantity is not None else 1,
+        "created_at": o.created_at.strftime("%Y-%m-%d %H:%M") if o.created_at else None,
+        "sheets_export_status": getattr(o, "sheets_export_status", None) or "",
+        "sheets_export_error": (getattr(o, "sheets_export_error", None) or "")[:200],
+    }
+
+
   
 def api_orders(request):
     user = getattr(request, "user", None)
     if not user or not user.is_authenticated:
         return JsonResponse({"orders": []}, status=401)
+
+    if request.method == "POST":
+        return _api_order_create(request, user)
 
     # 1. تحديد القناة
     target_channel = get_target_channel(user, request.GET.get('channel_id'))
@@ -3098,52 +3163,14 @@ def api_orders(request):
 
     data = []
     for o in page_obj:
-        # استخراج اسم المنتج بأمان
-        if o.product:
-            product_name = o.product.name 
-        else:
-            product_name = getattr(o, "product_name", "Unknown Product")
-
-        agent = o.agent
-        created_by_username = agent.username if agent else "—"
-        created_by_is_bot = getattr(agent, "is_bot", False) if agent else False
-        if created_by_is_bot:
-            created_by_display = "AI Agent"
-        else:
-            created_by_display = (getattr(agent, "agent_role", None) or created_by_username) if agent else "—"
-
-        # Smart customer display: Direct-Sale orders have no name — use phone or a clear label.
-        raw_name = (o.customer_name or "").strip()
-        if raw_name:
-            display_name = raw_name
-        elif o.customer_phone:
-            display_name = o.customer_phone          # e.g. "+212600001234"
-        else:
-            display_name = "Direct WhatsApp Customer"
-
-        data.append({
-            "id": o.id,
-            "order_id": o.order_id,
-            "customer_name": display_name,
-            "customer_name_raw": raw_name,           # blank = direct-sale; use on frontend to style differently
-            "customer_email": (getattr(o, "customer_email", None) or ""),
-            "total_amount": float(o.price) if o.price else 0.0,
-            "customer_phone": o.customer_phone,
-            "customer_city": o.customer_city,
-            "is_digital": bool(getattr(o, "is_digital", False)),
-            "status": o.status,
-            "product": product_name,
-            "created_by": created_by_username,
-            "created_by_display": created_by_display,
-            "created_by_is_bot": created_by_is_bot,
-            "quantity": round(o.quantity),
-            "created_at": o.created_at.strftime("%Y-%m-%d %H:%M") if o.created_at else None,
-            "sheets_export_status": getattr(o, "sheets_export_status", None) or "",
-            "sheets_export_error": (getattr(o, "sheets_export_error", None) or "")[:200],
-        })
+        data.append(_simple_order_to_api_dict(o))
 
     return JsonResponse({
         "orders": data,
+        "status_choices": [
+            {"value": v, "label": lbl}
+            for v, lbl in SimpleOrder.STATUS_CHOICES
+        ],
         "pagination": {
             "page": page_obj.number,
             "page_size": page_size,
@@ -3152,6 +3179,268 @@ def api_orders(request):
             "has_previous": page_obj.has_previous(),
             "has_next": page_obj.has_next(),
         },
+    })
+
+
+@csrf_exempt
+def _api_order_create(request, user):
+    """Create a manual SimpleOrder from the dashboard orders panel."""
+    from decimal import Decimal, InvalidOperation
+
+    from discount.models import Products, SimpleOrder
+    from discount.activites import log_activity
+
+    try:
+        body = json.loads(request.body.decode("utf-8") if request.body else "{}")
+    except (json.JSONDecodeError, UnicodeDecodeError):
+        return JsonResponse({"success": False, "message": "Invalid JSON"}, status=400)
+
+    target_channel = get_target_channel(user, body.get("channel_id") or request.GET.get("channel_id"))
+    if not target_channel:
+        return JsonResponse({"success": False, "message": "Channel not found"}, status=404)
+
+    is_channel_owner = getattr(target_channel, "owner_id", None) == user.pk
+    if not (user.is_superuser or getattr(user, "is_team_admin", False) or is_channel_owner):
+        return JsonResponse({"success": False, "message": "Not allowed to create orders for this channel"}, status=403)
+
+    customer_name = str(body.get("customer_name") or "").strip()[:200] or None
+    customer_phone = str(body.get("customer_phone") or "").strip()[:20]
+    customer_city = str(body.get("customer_city") or "").strip()[:100] or None
+    if not customer_phone:
+        return JsonResponse({"success": False, "message": "Customer phone is required"}, status=400)
+
+    raw_pid = body.get("product_id")
+    if raw_pid in (None, "", 0, "0"):
+        return JsonResponse({"success": False, "message": "Product is required"}, status=400)
+    try:
+        product_id = int(raw_pid)
+    except (TypeError, ValueError):
+        return JsonResponse({"success": False, "message": "Invalid product"}, status=400)
+
+    product = Products.objects.filter(
+        id=product_id,
+        admin_id=target_channel.owner_id,
+        project=str(target_channel.id),
+    ).first()
+    if not product:
+        return JsonResponse({"success": False, "message": "Product not found in this channel"}, status=400)
+
+    if "quantity" in body:
+        try:
+            quantity = Decimal(str(body.get("quantity")))
+            if quantity <= 0:
+                return JsonResponse({"success": False, "message": "Quantity must be greater than 0"}, status=400)
+        except (InvalidOperation, TypeError, ValueError):
+            return JsonResponse({"success": False, "message": "Invalid quantity"}, status=400)
+    else:
+        quantity = Decimal("1")
+
+    if "price" in body and body.get("price") not in (None, ""):
+        try:
+            price = Decimal(str(body.get("price")))
+            if price < 0:
+                return JsonResponse({"success": False, "message": "Price cannot be negative"}, status=400)
+        except (InvalidOperation, TypeError, ValueError):
+            return JsonResponse({"success": False, "message": "Invalid price"}, status=400)
+    else:
+        unit_price = getattr(product, "price", None)
+        try:
+            price = (Decimal(str(unit_price or 0)) * quantity).quantize(Decimal("0.01"))
+        except Exception:
+            price = Decimal("0")
+
+    status = str(body.get("status") or "pending").strip()[:20]
+    valid_status = {v for v, _ in SimpleOrder.STATUS_CHOICES}
+    if status not in valid_status:
+        status = "pending"
+
+    is_digital = bool(
+        getattr(product, "is_digital", False)
+        or (getattr(product, "checkout_mode", None) or "") in ("digital", "direct_sale")
+    )
+    if is_digital and status == "pending":
+        status = "pending_payment"
+
+    order_id = str(uuid.uuid4())[:8]
+    while SimpleOrder.objects.filter(order_id=order_id).exists():
+        order_id = str(uuid.uuid4())[:8]
+
+    order = SimpleOrder.objects.create(
+        product=product,
+        agent=user,
+        channel=target_channel,
+        sku=str(getattr(product, "sku", "") or "")[:100],
+        product_name=str(getattr(product, "name", "") or "")[:200],
+        customer_name=customer_name or customer_phone,
+        customer_phone=customer_phone,
+        customer_city=customer_city,
+        is_digital=is_digital,
+        order_id=order_id,
+        status=status,
+        created_at=timezone.now(),
+        price=price,
+        currency=(getattr(product, "currency", None) or "MAD").strip() or "MAD",
+        quantity=quantity,
+        created_by_ai=False,
+        sheets_export_status="",
+    )
+
+    log_activity(
+        "order_created",
+        f"Manual order #{order.pk} created for {customer_phone}",
+        request=request,
+        related_object=order,
+    )
+
+    return JsonResponse({
+        "success": True,
+        "message": "Order created",
+        "order": _simple_order_to_api_dict(order),
+    }, status=201)
+
+
+@login_required
+@csrf_exempt
+@require_http_methods(["GET", "PATCH", "POST"])
+def api_order_update(request, order_id):
+    """
+    GET  — fetch one order for edit form.
+    PATCH/POST JSON — update editable fields on a SimpleOrder.
+    """
+    from decimal import Decimal, InvalidOperation
+
+    from discount.models import SimpleOrder
+    from discount.activites import log_activity
+
+    try:
+        order = SimpleOrder.objects.select_related("channel", "agent", "product").get(pk=order_id)
+    except SimpleOrder.DoesNotExist:
+        return JsonResponse({"success": False, "message": "Order not found"}, status=404)
+
+    if not _user_can_manage_simple_order(request.user, order):
+        return JsonResponse({"success": False, "message": "Not allowed to edit this order"}, status=403)
+
+    if request.method == "GET":
+        return JsonResponse({
+            "success": True,
+            "order": _simple_order_to_api_dict(order),
+            "status_choices": [
+                {"value": v, "label": lbl}
+                for v, lbl in SimpleOrder.STATUS_CHOICES
+            ],
+        })
+
+    try:
+        body = json.loads(request.body.decode("utf-8") if request.body else "{}")
+    except (json.JSONDecodeError, UnicodeDecodeError):
+        return JsonResponse({"success": False, "message": "Invalid JSON"}, status=400)
+
+    allowed_fields = {
+        "customer_name": ("customer_name", 200),
+        "customer_phone": ("customer_phone", 20),
+        "customer_city": ("customer_city", 100),
+        "product_name": ("product_name", 200),
+        "status": ("status", 20),
+    }
+    changes = []
+    update_fields = []
+
+    if "product_id" in body:
+        from discount.models import Products
+
+        raw_pid = body.get("product_id")
+        if raw_pid in (None, "", 0, "0"):
+            return JsonResponse({"success": False, "message": "Product is required"}, status=400)
+        try:
+            product_id = int(raw_pid)
+        except (TypeError, ValueError):
+            return JsonResponse({"success": False, "message": "Invalid product"}, status=400)
+        if not order.channel_id:
+            return JsonResponse({"success": False, "message": "Order has no channel"}, status=400)
+        product = Products.objects.filter(
+            id=product_id,
+            admin_id=order.channel.owner_id,
+            project=str(order.channel_id),
+        ).first()
+        if not product:
+            return JsonResponse({"success": False, "message": "Product not found in this channel"}, status=400)
+        new_product_name = (product.name or "").strip()[:200]
+        old_product_id = order.product_id
+        old_product_name = order.product_name or ""
+        if old_product_id != product.id:
+            order.product = product
+            update_fields.append("product")
+            changes.append(f"product: {old_product_id or '—'} → {product.id}")
+        if old_product_name != new_product_name:
+            order.product_name = new_product_name or None
+            if "product_name" not in update_fields:
+                update_fields.append("product_name")
+            changes.append(f"product_name: {old_product_name or '—'} → {new_product_name or '—'}")
+        product_id_handled = True
+    else:
+        product_id_handled = False
+
+    for key, (model_field, max_len) in allowed_fields.items():
+        if key == "product_name" and product_id_handled:
+            continue
+        if key not in body:
+            continue
+        raw = body.get(key)
+        if raw is None:
+            continue
+        new_val = str(raw).strip()[:max_len]
+        old_val = getattr(order, model_field, None) or ""
+        if key == "status":
+            valid_status = {v for v, _ in SimpleOrder.STATUS_CHOICES}
+            if new_val and new_val not in valid_status:
+                return JsonResponse({"success": False, "message": f"Invalid status: {new_val}"}, status=400)
+        if str(old_val) != new_val:
+            setattr(order, model_field, new_val or None)
+            update_fields.append(model_field)
+            changes.append(f"{key}: {old_val or '—'} → {new_val or '—'}")
+
+    if "quantity" in body:
+        try:
+            qty = Decimal(str(body.get("quantity")))
+            if qty <= 0:
+                return JsonResponse({"success": False, "message": "Quantity must be greater than 0"}, status=400)
+            if order.quantity != qty:
+                changes.append(f"quantity: {order.quantity} → {qty}")
+                order.quantity = qty
+                update_fields.append("quantity")
+        except (InvalidOperation, TypeError, ValueError):
+            return JsonResponse({"success": False, "message": "Invalid quantity"}, status=400)
+
+    if "price" in body:
+        try:
+            price = Decimal(str(body.get("price")))
+            if price < 0:
+                return JsonResponse({"success": False, "message": "Price cannot be negative"}, status=400)
+            if order.price != price:
+                changes.append(f"price: {order.price} → {price}")
+                order.price = price
+                update_fields.append("price")
+        except (InvalidOperation, TypeError, ValueError):
+            return JsonResponse({"success": False, "message": "Invalid price"}, status=400)
+
+    if not update_fields:
+        return JsonResponse({
+            "success": True,
+            "message": "No changes",
+            "order": _simple_order_to_api_dict(order),
+        })
+
+    order.save(update_fields=update_fields)
+    log_activity(
+        "order_updated",
+        f"Order #{order.pk} updated: " + "; ".join(changes),
+        request=request,
+        related_object=order,
+    )
+    return JsonResponse({
+        "success": True,
+        "message": "Order updated",
+        "order": _simple_order_to_api_dict(order),
     })
 
 
@@ -3386,6 +3675,28 @@ def _bulk_create_digital_stock(product, lines):
     return created
 
 
+def _resolve_product_sku(raw_sku, *, exclude_product_id=None, auto_if_empty=False):
+    """Validate optional SKU from form; auto-generate when empty and auto_if_empty is True."""
+    from discount.models import Products
+
+    sku_raw = (raw_sku or "").strip()
+    if not sku_raw:
+        if not auto_if_empty:
+            return None, None
+        sku = f"PROD-{uuid.uuid4().hex[:10].upper()}"
+        while Products.objects.filter(sku=sku).exists():
+            sku = f"PROD-{uuid.uuid4().hex[:10].upper()}"
+        return sku, None
+    if len(sku_raw) > 100:
+        return None, "SKU must be 100 characters or less."
+    qs = Products.objects.filter(sku=sku_raw)
+    if exclude_product_id:
+        qs = qs.exclude(id=exclude_product_id)
+    if qs.exists():
+        return None, "This SKU is already used by another product."
+    return sku_raw, None
+
+
 @login_required
 @csrf_exempt
 @require_http_methods(["POST"])
@@ -3519,9 +3830,12 @@ def api_products_create(request):
     except (InvalidOperation, ValueError):
         return JsonResponse({"success": False, "error": "Invalid price"}, status=400)
 
-    sku = f"PROD-{uuid.uuid4().hex[:10].upper()}"
-    while Products.objects.filter(sku=sku).exists():
-        sku = f"PROD-{uuid.uuid4().hex[:10].upper()}"
+    sku, sku_error = _resolve_product_sku(
+        request.POST.get("sku"),
+        auto_if_empty=True,
+    )
+    if sku_error:
+        return JsonResponse({"success": False, "error": sku_error, "errors": [sku_error]}, status=400)
 
     seller_custom_persona = (request.POST.get("seller_custom_persona") or "").strip() or None
     if seller_custom_persona and len(seller_custom_persona) > 2000:
@@ -3834,6 +4148,13 @@ def api_products_update(request, product_id):
 
     if errors:
         return JsonResponse({"success": False, "error": " ".join(errors), "errors": errors}, status=400)
+    sku, sku_error = _resolve_product_sku(
+        request.POST.get("sku"),
+        exclude_product_id=product.id,
+        auto_if_empty=False,
+    )
+    if sku_error:
+        return JsonResponse({"success": False, "error": sku_error, "errors": [sku_error]}, status=400)
     try:
         price_val = Decimal(price_raw)
     except (InvalidOperation, ValueError):
@@ -3846,6 +4167,8 @@ def api_products_update(request, product_id):
         errors.append("At least one product photo or video is required.")
         return JsonResponse({"success": False, "error": " ".join(errors), "errors": errors}, status=400)
     product.name = name
+    if sku is not None:
+        product.sku = sku
     product.price = price_val
     product.currency = currency
     product.description = description
@@ -3865,7 +4188,7 @@ def api_products_update(request, product_id):
     product.stock_format = stock_format_val
     product.digital_product_type = digital_product_type_val if is_digital_val else None
     product.legal_consent_iptv = legal_consent_iptv_val
-    product.save(update_fields=["name", "price", "currency", "description", "how_to_use", "offer", "backup_price",
+    product.save(update_fields=["name", "sku", "price", "currency", "description", "how_to_use", "offer", "backup_price",
                                 "coupon_code", "delivery_options", "return_policy", "category", "seller_custom_persona",
                                 "checkout_mode", "is_digital", "digital_url", "fulfillment_message",
                                 "collect_customer_info", "stock_format", "digital_product_type", "legal_consent_iptv"])

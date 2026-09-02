@@ -2708,6 +2708,10 @@ class GoogleSheetsConfig(models.Model):
         blank=True,
         help_text='[{"field": "customer_name", "header": "Customer Name"}, ...]',
     )
+    auto_sync_ai_orders = models.BooleanField(
+        default=True,
+        help_text="When enabled, orders created by the AI agent are exported to Google Sheets automatically.",
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

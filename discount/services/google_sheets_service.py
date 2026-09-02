@@ -376,6 +376,30 @@ def _order_to_sheets_data(order) -> Dict[str, Any]:
     }
 
 
+def should_auto_sync_order_to_google_sheets(order) -> bool:
+    """
+    Whether a newly created order should trigger automatic Google Sheets export.
+    AI orders respect the merchant's auto_sync_ai_orders setting.
+    Orders without sheets_export_status='pending' are never auto-synced (manual orders).
+    """
+    if (getattr(order, "sheets_export_status", None) or "") != "pending":
+        return False
+    if not getattr(order, "created_by_ai", False):
+        return True
+    channel = getattr(order, "channel", None)
+    owner_id = getattr(channel, "owner_id", None) if channel else None
+    if not owner_id:
+        return True
+    try:
+        from discount.models import GoogleSheetsConfig
+        cfg = GoogleSheetsConfig.objects.filter(user_id=owner_id).first()
+    except Exception:
+        return True
+    if not cfg:
+        return True
+    return bool(getattr(cfg, "auto_sync_ai_orders", True))
+
+
 def sync_order_to_google_sheets(order_id: int) -> Tuple[bool, str]:
     """
     Fetch order (SimpleOrder), get merchant GoogleSheetsConfig, append row to sheet.

@@ -132,3 +132,13 @@
 2026-08-31 13:30:55,360 [INFO] sync_order_to_google_sheets attempt order_id=45
 2026-08-31 13:30:56,308 [INFO] order_id=45 sync success
 2026-08-31 13:30:57,192 [INFO] order_id=45 sync success
+2026-09-02 13:55:50,559 [INFO] sync_order_to_google_sheets attempt order_id=4
+2026-09-02 13:55:52,046 [ERROR] order_id=4 sync failed: orders
+2026-09-02 13:56:30,064 [INFO] sync_order_to_google_sheets attempt order_id=5
+2026-09-02 13:56:31,470 [ERROR] order_id=5 sync failed: Ai sheet
+2026-09-02 13:57:06,473 [INFO] sync_order_to_google_sheets attempt order_id=4
+2026-09-02 13:57:07,943 [ERROR] order_id=4 sync failed: Ai sheet
+2026-09-02 13:59:13,094 [INFO] sync_order_to_google_sheets attempt order_id=4
+2026-09-02 13:59:15,671 [INFO] order_id=4 sync success
+2026-09-02 14:21:49,240 [INFO] sync_order_to_google_sheets attempt order_id=5
+2026-09-02 14:21:51,459 [INFO] order_id=5 sync success

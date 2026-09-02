@@ -4773,15 +4773,19 @@ def run_ai_agent_node(
                 # Trigger Google Sheets sync when order was saved via AI (uses channel.owner config; idempotent)
                 if saved_order and getattr(saved_order, "pk", None):
                     try:
-                        from discount.services.google_sheets_service import sync_order_to_google_sheets
-                        import threading
-                        def _sync_saved_order():
-                            try:
-                                sync_order_to_google_sheets(saved_order.pk)
-                            except Exception as e:
-                                logger.warning("Google Sheets sync after AI order (order_id=%s): %s", saved_order.pk, e)
-                        t = threading.Thread(target=_sync_saved_order, daemon=True)
-                        t.start()
+                        from discount.services.google_sheets_service import (
+                            should_auto_sync_order_to_google_sheets,
+                            sync_order_to_google_sheets,
+                        )
+                        if should_auto_sync_order_to_google_sheets(saved_order):
+                            import threading
+                            def _sync_saved_order():
+                                try:
+                                    sync_order_to_google_sheets(saved_order.pk)
+                                except Exception as e:
+                                    logger.warning("Google Sheets sync after AI order (order_id=%s): %s", saved_order.pk, e)
+                            t = threading.Thread(target=_sync_saved_order, daemon=True)
+                            t.start()
                     except Exception as sheet_err:
                         logger.warning("Google Sheets export after AI order: %s", sheet_err)
                 # Legacy: flow-based export when flow/user exist (may duplicate if same config)
@@ -6324,14 +6328,18 @@ def try_ai_voice_reply(
             )
         if saved_order and getattr(saved_order, "pk", None):
             try:
-                from discount.services.google_sheets_service import sync_order_to_google_sheets
-                import threading
-                def _sync_saved_order_voice():
-                    try:
-                        sync_order_to_google_sheets(saved_order.pk)
-                    except Exception as e:
-                        logger.warning("Google Sheets sync after AI order (voice path order_id=%s): %s", saved_order.pk, e)
-                threading.Thread(target=_sync_saved_order_voice, daemon=True).start()
+                from discount.services.google_sheets_service import (
+                    should_auto_sync_order_to_google_sheets,
+                    sync_order_to_google_sheets,
+                )
+                if should_auto_sync_order_to_google_sheets(saved_order):
+                    import threading
+                    def _sync_saved_order_voice():
+                        try:
+                            sync_order_to_google_sheets(saved_order.pk)
+                        except Exception as e:
+                            logger.warning("Google Sheets sync after AI order (voice path order_id=%s): %s", saved_order.pk, e)
+                    threading.Thread(target=_sync_saved_order_voice, daemon=True).start()
             except Exception as e:
                 logger.warning("Google Sheets export after AI order (voice): %s", e)
     else:

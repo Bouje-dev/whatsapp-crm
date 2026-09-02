@@ -27,6 +27,7 @@ urlpatterns = [
     path("create_template/", views.create_template, name="create_template"),
     path("api/template/", views.api_templates, name="api_templates"),
     path("api_orders/", views.api_orders, name="api_orders"),
+    path("api_orders/<int:order_id>/", views.api_order_update, name="api_order_update"),
     path("api_orders/<int:order_id>/sync/", views.api_order_sync_google_sheets, name="api_order_sync_google_sheets"),
     path("api_products/", views.api_products_list, name="api_products_list"),
     path("api_products/classify/", views.api_products_classify, name="api_products_classify"),

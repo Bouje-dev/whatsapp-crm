@@ -2741,6 +2741,7 @@ def api_google_sheets_config(request):
                 "configured": False,
                 "service_account_email": service_account_email,
                 "orders_exported_count": orders_exported_count,
+                "auto_sync_ai_orders": True,
             })
         return JsonResponse({
             "spreadsheet_id": (cfg.spreadsheet_id or ""),
@@ -2751,6 +2752,7 @@ def api_google_sheets_config(request):
             "configured": configured,
             "service_account_email": service_account_email,
             "orders_exported_count": orders_exported_count,
+            "auto_sync_ai_orders": bool(getattr(cfg, "auto_sync_ai_orders", True)),
         })
     # PUT or POST: update config
     try:
@@ -2771,6 +2773,8 @@ def api_google_sheets_config(request):
     if "sheets_mapping" in data:
         sm = data.get("sheets_mapping")
         cfg.sheets_mapping = sm if isinstance(sm, list) else []
+    if "auto_sync_ai_orders" in data:
+        cfg.auto_sync_ai_orders = bool(data.get("auto_sync_ai_orders"))
     if "service_account_json" in data:
         raw = data.get("service_account_json")
         if raw is None or raw == "":
@@ -2793,6 +2797,7 @@ def api_google_sheets_config(request):
         "column_mapping": cfg.column_mapping,
         "sheets_mapping": cfg.sheets_mapping if isinstance(cfg.sheets_mapping, list) else [],
         "configured": bool(cfg.service_account_json_encrypted),
+        "auto_sync_ai_orders": bool(getattr(cfg, "auto_sync_ai_orders", True)),
     })
 
 

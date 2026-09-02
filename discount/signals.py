@@ -25,13 +25,21 @@ def on_simpleorder_created_sync_google_sheets(sender, instance, created, **kwarg
             return
     except ImportError:
         return
+    try:
+        from discount.services.google_sheets_service import (
+            should_auto_sync_order_to_google_sheets,
+            sync_order_to_google_sheets,
+        )
+        if not should_auto_sync_order_to_google_sheets(instance):
+            return
+    except ImportError:
+        return
     order_id = getattr(instance, "pk", None) or getattr(instance, "id", None)
     if not order_id:
         return
 
     def _run_sync():
         try:
-            from discount.services.google_sheets_service import sync_order_to_google_sheets
             sync_order_to_google_sheets(order_id)
         except Exception as e:
             logger.exception("Background sync_order_to_google_sheets order_id=%s failed: %s", order_id, e)
