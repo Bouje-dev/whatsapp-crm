@@ -138,7 +138,7 @@ def download_whatsapp_media(media_id, access_token):
         media_url = f"https://graph.facebook.com/v17.0/{media_id}/"
         headers = {'Authorization': f'Bearer {access_token}'}
         
-        response = requests.get(media_url, headers=headers)
+        response = requests.get(media_url, headers=headers, timeout=30)
         if response.status_code != 200:
             return None
             
@@ -149,7 +149,7 @@ def download_whatsapp_media(media_id, access_token):
             return None
             
         # تحميل الملف
-        download_response = requests.get(download_url, headers=headers)
+        download_response = requests.get(download_url, headers=headers, timeout=60)
         if download_response.status_code == 200:
             return download_response.content
         else:

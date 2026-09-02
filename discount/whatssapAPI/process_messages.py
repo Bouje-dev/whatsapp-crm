@@ -6779,6 +6779,7 @@ def process_messages(
                                     STT_UNINTELLIGIBLE,
                                     build_whisper_prompt_with_context,
                                     is_whisper_hallucination,
+                                    looks_like_speech,
                                 )
                                 # Use active session node language or channel default for STT
                                 voice_language_hint = "AUTO"
@@ -6790,12 +6791,19 @@ def process_messages(
                                         ).strip() or getattr(channel, "voice_language", "AUTO")
                                     else:
                                         voice_language_hint = getattr(channel, "voice_language", "AUTO")
-                                last_ai_ctx = _get_last_agent_message_bodies(sender, channel, 2)
+                                last_ai_ctx = _get_last_agent_message_bodies(sender, channel, 1)
                                 whisper_prompt, _ = build_whisper_prompt_with_context(
                                     voice_language_hint,
                                     last_ai_ctx,
                                     channel=channel,
                                     sender=sender,
+                                )
+                                logger.info(
+                                    "STT start channel=%s sender=%s bytes=%s hint=%s",
+                                    getattr(channel, "id", None),
+                                    sender,
+                                    len(media_content),
+                                    voice_language_hint,
                                 )
                                 body_override = transcribe_audio(
                                     media_content,
@@ -6805,18 +6813,34 @@ def process_messages(
                                 if body_override == STT_UNINTELLIGIBLE:
                                     body_override = ""
                                     transcription_failed = True
+                                    logger.info("STT unintelligible channel=%s sender=%s", getattr(channel, "id", None), sender)
                                 elif body_override and body_override.strip():
-                                    if is_whisper_hallucination(body_override):
+                                    if is_whisper_hallucination(body_override) or not looks_like_speech(body_override):
+                                        logger.info(
+                                            "STT hallucination/noise rejected preview=%r",
+                                            (body_override or "")[:80],
+                                        )
                                         body_override = ""
                                         stt_whisper_hallucination = True
                                     else:
-                                        body_override = clean_transcription(
+                                        cleaned = clean_transcription(
                                             body_override,
                                             target_language=voice_language_hint or "AUTO",
                                         )
-                                        if is_whisper_hallucination(body_override):
+                                        if cleaned == STT_UNINTELLIGIBLE or is_whisper_hallucination(cleaned) or not looks_like_speech(cleaned):
+                                            logger.info(
+                                                "STT cleaner rejected preview=%r -> %r",
+                                                (body_override or "")[:60],
+                                                (cleaned or "")[:60],
+                                            )
                                             body_override = ""
                                             stt_whisper_hallucination = True
+                                        else:
+                                            body_override = cleaned
+                                            logger.info(
+                                                "STT accepted preview=%r",
+                                                (body_override or "")[:80],
+                                            )
                             except Exception as e:
                                 logger.exception("STT transcribe_audio: %s", e)
                             if body_override is None:
@@ -6824,6 +6848,7 @@ def process_messages(
                                 transcription_failed = True
                         else:
                             transcription_failed = True
+                            logger.warning("STT media download failed media_id=%s", media_id)
                     else:
                         transcription_failed = True
                     if body_override is not None:

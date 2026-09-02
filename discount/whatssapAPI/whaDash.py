@@ -786,9 +786,9 @@ def _build_coach_attachment_context(attachment):
             raw = base64.standard_b64decode(data_b64)
             if len(raw) > 16 * 1024 * 1024:
                 return f"\n\n[Attached audio: {name} — file too large to transcribe (max 16 MB).]"
-            from ai_assistant.stt_service import transcribe_audio
+            from ai_assistant.stt_service import transcribe_audio, STT_UNINTELLIGIBLE, is_whisper_hallucination
             transcript = transcribe_audio(raw, voice_language_hint="AUTO")
-            if transcript:
+            if transcript and transcript != STT_UNINTELLIGIBLE and not is_whisper_hallucination(transcript):
                 return f"\n\n[Attached audio: {name} — transcription]\n{transcript}"
             return f"\n\n[Attached audio: {name}]"
         if att_type == "video":
