@@ -3371,6 +3371,12 @@ def api_order_update(request, order_id):
             order.product = product
             update_fields.append("product")
             changes.append(f"product: {old_product_id or '—'} → {product.id}")
+            new_sku = str(getattr(product, "sku", "") or "")[:100]
+            old_sku = order.sku or ""
+            if old_sku != new_sku:
+                order.sku = new_sku
+                update_fields.append("sku")
+                changes.append(f"sku: {old_sku or '—'} → {new_sku or '—'}")
         if old_product_name != new_product_name:
             order.product_name = new_product_name or None
             if "product_name" not in update_fields:

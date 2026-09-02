@@ -351,6 +351,17 @@ def export_to_google_sheets(
         return False, str(e)
 
 
+def _resolve_order_sku(order) -> str:
+    """SKU stored on the order, falling back to the linked product's SKU."""
+    sku = (getattr(order, "sku", None) or "").strip()
+    if sku:
+        return sku
+    product = getattr(order, "product", None)
+    if product:
+        return (getattr(product, "sku", None) or "").strip()
+    return ""
+
+
 def _order_to_sheets_data(order) -> Dict[str, Any]:
     """Build order_data dict for export from SimpleOrder. Keys match column_mapping (name, city, address, created_at, etc.)."""
     from django.utils.dateformat import format as date_format
@@ -360,6 +371,7 @@ def _order_to_sheets_data(order) -> Dict[str, Any]:
             created_str = order.created_at.strftime("%Y-%m-%d %H:%M")
         except Exception:
             created_str = str(order.created_at)
+    sku = _resolve_order_sku(order)
     return {
         "customer_name": getattr(order, "customer_name", None) or "",
         "name": getattr(order, "customer_name", None) or "",
@@ -373,6 +385,8 @@ def _order_to_sheets_data(order) -> Dict[str, Any]:
         "product_name": getattr(order, "product_name", None) or "",
         "price": getattr(order, "price", None) is not None and str(order.price) or "",
         "quantity": getattr(order, "quantity", None) is not None and str(order.quantity) or "",
+        "sku": sku,
+        "customer_country": getattr(order, "customer_country", None) or "",
     }
 
 
@@ -421,7 +435,7 @@ def sync_order_to_google_sheets(order_id: int) -> Tuple[bool, str]:
         return False, msg
 
     try:
-        order = SimpleOrder.objects.select_related("channel", "channel__owner").get(pk=order_id)
+        order = SimpleOrder.objects.select_related("channel", "channel__owner", "product").get(pk=order_id)
     except SimpleOrder.DoesNotExist:
         msg = "Order %s not found" % order_id
         logger.warning(msg)
