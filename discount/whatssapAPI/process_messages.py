@@ -1458,10 +1458,13 @@ def _conversation_start_eligible_before_save(sender_phone: str, channel=None):
     """
     Must run BEFORE persisting the current inbound Message.
 
-    True when there is no prior history for this sender+channel, OR the last prior message is older than 24h.
-    Avoids the race where saving the current message makes the DB look "non-new" and breaks trigger_on_start.
+    True when there is no prior *customer* (inbound) history for this sender+channel,
+    OR the last inbound message is older than 24h.
+
+    Outbound/bot messages must NOT block Conversation Start (they share the same
+    Message.sender = customer phone with is_from_me=True).
     """
-    msg_filter = Message.objects.filter(sender=sender_phone)
+    msg_filter = Message.objects.filter(sender=sender_phone, is_from_me=False)
     if channel:
         msg_filter = msg_filter.filter(channel=channel)
     prior = msg_filter.order_by("-timestamp").first()
@@ -1492,12 +1495,24 @@ def get_matching_flow(
     if channel:
         flows = flows.filter(channel=channel)
 
-    # Explicit path (no race): first-ever message or 24h gap, and/or brand-new Contact row
+    # Explicit path (no race): first-ever inbound message or 24h gap, and/or brand-new Contact row
     if conversation_start_eligible is True:
-        start_flow = flows.filter(trigger_on_start=True).first()
+        start_flow = flows.filter(trigger_on_start=True).order_by("-updated_at", "-id").first()
         if start_flow:
+            logger.info(
+                "Conversation Start matched flow_id=%s name=%r channel=%s phone=…%s",
+                start_flow.id,
+                start_flow.name,
+                getattr(channel, "id", None),
+                (sender_phone or "")[-4:],
+            )
             print(f"🎯 Found Conversation Start Flow (pre-save signal): {start_flow.name}")
             return start_flow
+        logger.info(
+            "Conversation Start eligible but no active trigger_on_start flow channel=%s phone=…%s",
+            getattr(channel, "id", None),
+            (sender_phone or "")[-4:],
+        )
         # fall through to keyword matching if no start flow configured
 
     if conversation_start_eligible is False:
@@ -1505,7 +1520,7 @@ def get_matching_flow(
         pass
     elif conversation_start_eligible is None:
         # Legacy fallback (post-save): last Message row may be the current inbound → breaks first-message detection
-        msg_filter = Message.objects.filter(sender=sender_phone)
+        msg_filter = Message.objects.filter(sender=sender_phone, is_from_me=False)
         if channel:
             msg_filter = msg_filter.filter(channel=channel)
         last_msg = msg_filter.order_by("-timestamp").first()
@@ -1515,7 +1530,7 @@ def get_matching_flow(
         elif timezone.now() - last_msg.timestamp > timedelta(hours=24):
             is_new_conversation = True
         if is_new_conversation:
-            start_flow = flows.filter(trigger_on_start=True).first()
+            start_flow = flows.filter(trigger_on_start=True).order_by("-updated_at", "-id").first()
             if start_flow:
                 print(f"🎯 Found Conversation Start Flow (legacy DB infer): {start_flow.name}")
                 return start_flow
@@ -7305,7 +7320,7 @@ def process_messages(
                 flows_start = Flow.objects.filter(active=True, trigger_on_start=True)
                 if channel:
                     flows_start = flows_start.filter(channel=channel)
-                flow = flows_start.first()
+                flow = flows_start.order_by("-updated_at", "-id").first()
                 if not flow and body:
                     flow = get_matching_flow(
                         sender,

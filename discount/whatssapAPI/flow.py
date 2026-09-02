@@ -1970,6 +1970,7 @@ class SaveFlowView(APIView):
 
                 # خريطة لربط الـ ID القادم من الفرونت إند مع الـ ID الحقيقي في الداتابيز
                 node_map = {}
+                found_trigger = False
 
                 # ب) حفظ العقد (Nodes)
                 for n in nodes_data:
@@ -1987,7 +1988,19 @@ class SaveFlowView(APIView):
                     clean_text_value = ""
                     clean_delay_value = 0
                     clean_media_value = None
-                    if node_type_str == "text-message":
+                    if node_type_str == "trigger":
+                        found_trigger = True
+                        match_type = (content_obj.get("match_type") or "contains").strip()
+                        raw_keywords = content_obj.get("keywords") or ""
+                        if match_type == "conversation_start":
+                            flow.trigger_on_start = True
+                            flow.trigger_keywords = ""
+                            clean_text_value = ""
+                        else:
+                            flow.trigger_on_start = False
+                            flow.trigger_keywords = raw_keywords
+                            clean_text_value = raw_keywords
+                    elif node_type_str == "text-message":
                         clean_text_value = content_obj.get("text", "")
                         clean_delay_value = content_obj.get("delay", 0)
                     elif node_type_str == "media-message":
@@ -2066,7 +2079,10 @@ class SaveFlowView(APIView):
                     # تحديد عقدة البداية
                     if node_type_str == "trigger":
                         flow.start_node = node
-                        flow.save(update_fields=['start_node'])
+
+                # Persist trigger_on_start / keywords / start_node (create path used to skip this)
+                flow.config = config
+                flow.save()
 
                 # ج) حفظ الروابط (Connections)
                 for c in connections_data:

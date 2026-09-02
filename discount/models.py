@@ -2339,11 +2339,14 @@ class Flow(models.Model):
         return False
 
     def save(self, *args, **kwargs):
-        # (اختياري) منطق لضمان وجود تدفق واحد فقط مفعل كـ "بداية محادثة" لتجنب التضارب
-        if self.trigger_on_start and self.active:
-            # قم بإلغاء تفعيل خاصية البداية من التدفقات الأخرى النشطة
-            Flow.objects.filter(trigger_on_start=True, active=True).exclude(pk=self.pk).update(trigger_on_start=False)
-        
+        # Only one active "conversation start" flow per channel (not global across all channels).
+        if self.trigger_on_start and self.active and self.channel_id:
+            Flow.objects.filter(
+                trigger_on_start=True,
+                active=True,
+                channel_id=self.channel_id,
+            ).exclude(pk=self.pk).update(trigger_on_start=False)
+
         super().save(*args, **kwargs)
 
     def __str__(self):

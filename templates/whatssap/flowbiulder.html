@@ -3547,8 +3547,13 @@ this.connectionBranch = null;
                     <select class="form-select trigger-match-type">
                         <option value="contains">Contains Keyword </option>
                         <option value="exact">Exact Match </option>
-                        <option value="conversation_start">Conversation Start </option>
+                        <option value="conversation_start">Conversation Start (new chat)</option>
                     </select>
+                    <div class="text-muted trigger-start-hint" style="font-size: 0.70rem; margin-top: 0.35rem; display:none;">
+                        Fires on the customer’s <strong>first inbound message</strong> on this channel,
+                        or after <strong>24 hours</strong> without any customer message.
+                        Connect this trigger to the next node, save the flow, and keep it <strong>Active</strong>.
+                    </div>
                 </div>
 
                 <div class="form-group" id="kw_container_${nodeId}">
@@ -4307,14 +4312,17 @@ this.connectionBranch = null;
             if (nodeElement.dataset.nodeType === 'trigger') {
                 const typeSelect = nodeElement.querySelector('.trigger-match-type');
                 const kwContainer = nodeElement.querySelector(`#kw_container_${nodeId}`);
+                const startHint = nodeElement.querySelector('.trigger-start-hint');
 
                 if (typeSelect && kwContainer) {
                     // دالة للتحقق من القيمة وتغيير العرض
                     const toggleVisibility = () => {
                         if (typeSelect.value === 'conversation_start') {
                             kwContainer.style.display = 'none'; // إخفاء
+                            if (startHint) startHint.style.display = 'block';
                         } else {
                             kwContainer.style.display = 'block'; // إظهار
+                            if (startHint) startHint.style.display = 'none';
                         }
                     };
 
