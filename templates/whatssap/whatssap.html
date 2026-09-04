@@ -1,6 +1,6 @@
 {% load static %}
 <link rel="stylesheet" href="{% static 'style/styleup.css' %}">
-<link rel="stylesheet" href="{% static 'style/dashboard-glass.css' %}?v=16">
+<link rel="stylesheet" href="{% static 'style/dashboard-glass.css' %}?v=18">
 <script src="https://cdn.tailwindcss.com"></script>
 <script>
   tailwind.config = { corePlugins: { preflight: false } };
@@ -1128,9 +1128,14 @@
         <div class="dash-copilot-workspace h-full flex gap-6 overflow-hidden">
           <!-- Left: Chat history -->
           <aside class="dash-copilot-sidebar dash-copilot-history w-72 hidden xl:flex" id="aiCopilotHistoryPanel" aria-label="Chat history">
-            <button type="button" class="dash-copilot-new-chat bg-indigo-600 hover:bg-indigo-500 rounded-xl" id="aiCopilotNewChat">
-              <i class="fas fa-plus"></i>
-              <span>New Chat</span>
+            <button type="button" class="ai-copilot-compose-btn" id="aiCopilotNewChat" title="New copilot chat" aria-label="New copilot chat">
+              <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" focusable="false">
+                <path d="M5 7.2A3.2 3.2 0 0 1 8.2 4h7.6A3.2 3.2 0 0 1 19 7.2v6.1a3.2 3.2 0 0 1-3.2 3.2h-3.4L8.2 20v-3.5A3.2 3.2 0 0 1 5 13.3V7.2z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/>
+                <circle cx="9.2" cy="10.2" r="0.95" fill="currentColor"/>
+                <circle cx="12" cy="10.2" r="0.95" fill="currentColor"/>
+                <circle cx="14.8" cy="10.2" r="0.95" fill="currentColor"/>
+                <path d="M18.6 2.1l.42 1.28 1.28.42-1.28.42L18.6 5.5l-.42-1.28-1.28-.42 1.28-.42L18.6 2.1z" fill="currentColor"/>
+              </svg>
             </button>
             <div class="dash-copilot-search bg-gray-900 border-gray-800">
               <i class="fas fa-search dash-copilot-search-icon" aria-hidden="true"></i>
@@ -2136,7 +2141,7 @@ function filterContactsByStage(stageKey) {
   };
 })();
 </script>
-      <script src="{% static 'js/ai-sales-copilot.js' %}?v=16"></script>
+      <script src="{% static 'js/ai-sales-copilot.js' %}?v=18"></script>
       <script>
       (function(){
         var toggle = document.getElementById('dashMoreToggle');
@@ -2173,6 +2178,49 @@ function filterContactsByStage(stageKey) {
 
     <!-- Dashboard panel styles -->
     <style>
+/* Isolated from Tailwind CDN / leftover .dash-copilot-new-chat rules */
+#aiCopilotNewChat.ai-copilot-compose-btn {
+  all: unset;
+  box-sizing: border-box;
+  display: inline-flex !important;
+  align-items: center;
+  justify-content: center;
+  width: 44px !important;
+  height: 44px !important;
+  max-width: 44px !important;
+  margin: 0 0 12px 0 !important;
+  padding: 0 !important;
+  border-radius: 14px !important;
+  border: 1px solid rgba(167, 139, 250, 0.45) !important;
+  background: linear-gradient(
+    145deg,
+    rgba(99, 102, 241, 0.55) 0%,
+    rgba(139, 92, 246, 0.4) 48%,
+    rgba(34, 211, 238, 0.22) 100%
+  ) !important;
+  color: #eef2ff !important;
+  cursor: pointer !important;
+  box-shadow:
+    0 8px 22px rgba(99, 102, 241, 0.28),
+    0 0 0 1px rgba(255, 255, 255, 0.06) inset !important;
+  transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease, filter 0.15s ease;
+}
+#aiCopilotNewChat.ai-copilot-compose-btn svg {
+  width: 22px !important;
+  height: 22px !important;
+  display: block !important;
+  pointer-events: none;
+  filter: drop-shadow(0 0 8px rgba(129, 140, 248, 0.5));
+}
+#aiCopilotNewChat.ai-copilot-compose-btn:hover {
+  transform: translateY(-1px) scale(1.03);
+  border-color: rgba(196, 181, 253, 0.75) !important;
+  filter: brightness(1.08);
+}
+#aiCopilotNewChat.ai-copilot-compose-btn.is-hidden {
+  display: none !important;
+}
+
 /* Dashboard layout & components */
 .cls3741_panel_dashboard:not(.dash-glass) {
     padding: 24px;
@@ -4347,6 +4395,11 @@ window.resetFilters = function() {
             <span class="chat-mode-toggle-dot" aria-hidden="true"></span>
             <span class="chat-mode-toggle-label">AI Active</span>
           </button>
+          {% if user.is_superuser %}
+          <button type="button" id="chat_export_transcript_btn" class="cls3741_header_ghost_btn" title="حفظ المحادثة كنص" aria-label="حفظ المحادثة كنص" hidden>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          </button>
+          {% endif %}
           <div class="chat-header-menu-wrap" id="chat_header_menu_wrap" hidden>
             <button type="button" id="chat_header_menu_btn" class="cls3741_header_ghost_btn" title="Chat options" aria-label="Chat options" aria-haspopup="true" aria-expanded="false">
               <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="12" cy="5" r="1.75"/><circle cx="12" cy="12" r="1.75"/><circle cx="12" cy="19" r="1.75"/></svg>
@@ -8355,6 +8408,11 @@ document.addEventListener("DOMContentLoaded", function() {
             background: rgba(255, 255, 255, 0.08);
             color: #e5e7eb;
             border-color: rgba(255, 255, 255, 0.12);
+        }
+        .cls3741_header_ghost_btn:disabled {
+            opacity: 0.45;
+            cursor: wait;
+            pointer-events: none;
         }
         .chat-header-menu-wrap {
             position: relative;
@@ -15121,13 +15179,16 @@ document.addEventListener("DOMContentLoaded", function() {
     var cid = hitlResolveChannelId();
     var modeToggle = document.getElementById('chat_mode_toggle');
     var menuWrap = document.getElementById('chat_header_menu_wrap');
+    var exportBtn = document.getElementById('chat_export_transcript_btn');
     if (!phone || !cid) {
       if (modeToggle) modeToggle.hidden = true;
       if (menuWrap) menuWrap.hidden = true;
+      if (exportBtn) exportBtn.hidden = true;
       return;
     }
     if (modeToggle) modeToggle.hidden = false;
     if (menuWrap) menuWrap.hidden = false;
+    if (exportBtn) exportBtn.hidden = false;
     fetch('/discount/whatssapAPI/api/chat-session/status/?channel_id=' + encodeURIComponent(cid) + '&customer_phone=' + encodeURIComponent(phone.replace(/^\+/,'')), { credentials: 'same-origin' })
       .then(function(r) { return r.json(); })
       .then(function(data) {
@@ -15144,6 +15205,50 @@ document.addEventListener("DOMContentLoaded", function() {
         applyChatModeToggleUI(true, '');
       });
   };
+
+  (function(){
+    var exportBtn = document.getElementById('chat_export_transcript_btn');
+    if (!exportBtn) return;
+    exportBtn.addEventListener('click', function() {
+      var phone = hitlResolvePhone();
+      var cid = hitlResolveChannelId();
+      if (!phone || !cid) return;
+      exportBtn.disabled = true;
+      var url = '/discount/whatssapAPI/api/export_conversation_transcript/?phone='
+        + encodeURIComponent(phone.replace(/^\+/, ''))
+        + '&channel_id=' + encodeURIComponent(cid);
+      fetch(url, { credentials: 'same-origin' })
+        .then(function(r) {
+          return r.json().then(function(data) {
+            data = data || {};
+            data._httpStatus = r.status;
+            return data;
+          });
+        })
+        .then(function(data) {
+          if (!data || !data.success || !data.text) {
+            var msg = (data && data.error) || 'Could not export this conversation.';
+            if (data && data._httpStatus === 403) msg = 'هذا الزر متاح للـ Superadmin فقط.';
+            alert(msg);
+            return;
+          }
+          var blob = new Blob([data.text], { type: 'text/plain;charset=utf-8' });
+          var a = document.createElement('a');
+          a.href = URL.createObjectURL(blob);
+          a.download = data.filename || 'conversation.txt';
+          document.body.appendChild(a);
+          a.click();
+          a.remove();
+          setTimeout(function() { URL.revokeObjectURL(a.href); }, 1500);
+        })
+        .catch(function() {
+          alert('Could not export this conversation.');
+        })
+        .finally(function() {
+          exportBtn.disabled = false;
+        });
+    });
+  })();
 
   function applyChatModeToggleUI(aiEnabled, reason) {
     var btn = document.getElementById('chat_mode_toggle');

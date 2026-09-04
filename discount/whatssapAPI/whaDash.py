@@ -697,6 +697,7 @@ def api_coach_ai_conversations(request):
         qs = (
             CoachConversation.objects.filter(channel=channel, user=request.user)
             .annotate(message_count=Count("messages"))
+            .filter(message_count__gt=0)
             .order_by("-updated_at")
         )
         conversations = []

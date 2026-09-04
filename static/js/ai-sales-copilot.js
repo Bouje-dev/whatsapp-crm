@@ -455,8 +455,9 @@
       });
   }
 
-  function createAndActivateNewConversation(cid) {
-    return createConversationOnServer(cid, "New chat").then(function (data) {
+  function createAndActivateNewConversation(cid, title) {
+    var resolvedTitle = (title || sessionTitleFromMessages(coachingMessages) || "New chat").trim();
+    return createConversationOnServer(cid, resolvedTitle).then(function (data) {
       if (!data.success || !data.conversation) {
         throw new Error(data.error || "Could not create conversation");
       }
@@ -465,7 +466,6 @@
       activeConversationId = session.id;
       activeSessionId = session.id;
       pendingNewChat = false;
-      coachingMessages = [];
       setConvoInUrl(session.id, true);
       renderMessagesFromState();
       renderHistoryList();
@@ -505,10 +505,6 @@
     return null;
   }
 
-  function isDraftNewChat() {
-    return pendingNewChat && coachingMessages.length === 0;
-  }
-
   function sessionTitleFromMessages(messages) {
     for (var i = 0; i < messages.length; i++) {
       if (messages[i].role === "user" && messages[i].content) {
@@ -536,25 +532,32 @@
     activateConversation(sessionId, { replaceUrl: false });
   }
 
+  function enterDraftNewChat() {
+    pendingNewChat = true;
+    activeConversationId = null;
+    activeSessionId = null;
+    coachingMessages = [];
+    hideRules();
+    clearPendingAttachment();
+    if (inputEl) inputEl.value = "";
+    setConvoInUrl(null, true);
+    renderMessagesFromState();
+    renderHistoryList();
+    if (inputEl) inputEl.focus();
+  }
+
   function startNewChat() {
     if (!canCoach) return;
+    if (!activeConversationId) {
+      if (inputEl) inputEl.focus();
+      return;
+    }
     var cid = getChannelId();
     if (!cid) {
       appendMessage("assistant", "Select a channel first.");
       return;
     }
-    if (isDraftNewChat()) {
-      if (inputEl) inputEl.focus();
-      return;
-    }
-    hideRules();
-    clearPendingAttachment();
-    if (inputEl) inputEl.value = "";
-    createAndActivateNewConversation(cid).then(function () {
-      if (inputEl) inputEl.focus();
-    }).catch(function () {
-      appendMessage("assistant", "Could not start a new conversation.");
-    });
+    enterDraftNewChat();
   }
 
   function isSameDay(a, b) {
@@ -622,6 +625,7 @@
     var blocked = !canCoach || !!on;
     if (sendBtn) sendBtn.disabled = blocked;
     if (inputEl) inputEl.disabled = blocked;
+    if (window.syncCopilotNewChatBtn) window.syncCopilotNewChatBtn();
   }
 
   function isEmptyChat() {
@@ -997,7 +1001,8 @@
         if (targetId) {
           return activateConversation(targetId, { replaceUrl: true });
         }
-        return createAndActivateNewConversation(cid);
+        enterDraftNewChat();
+        return Promise.resolve(true);
       })
       .catch(function () {
         pendingNewChat = true;
@@ -1489,11 +1494,16 @@
     newChatBtn.addEventListener("click", startNewChat);
     function syncNewChatBtnState() {
       if (!newChatBtn) return;
-      var draft = isDraftNewChat();
-      newChatBtn.classList.toggle("is-draft", draft);
-      newChatBtn.setAttribute("aria-pressed", draft ? "true" : "false");
+      var waiting = !activeConversationId;
+      var loadingOn = !!(loadingEl && loadingEl.classList.contains("is-on"));
+      var hide = waiting || loadingOn || !canCoach;
+      newChatBtn.disabled = false;
+      newChatBtn.classList.toggle("is-hidden", hide);
+      newChatBtn.setAttribute("aria-hidden", hide ? "true" : "false");
+      newChatBtn.title = "New copilot chat";
     }
     window.syncCopilotNewChatBtn = syncNewChatBtnState;
+    syncNewChatBtnState();
   }
   if (historySearchEl) {
     historySearchEl.addEventListener("input", function () {

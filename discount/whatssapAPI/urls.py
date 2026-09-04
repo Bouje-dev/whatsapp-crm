@@ -20,6 +20,7 @@ urlpatterns = [
     
     # API endpoints
     path("api/get_messages/", views.get_messages1, name="get_messages"),
+    path("api/export_conversation_transcript/", views.api_export_conversation_transcript, name="export_conversation_transcript"),
     path("api/contactslist/", views.api_contactsList, name="api_contactslist"),
     path("api/last_message/", views.get_last_message, name="get_last_message"),
     

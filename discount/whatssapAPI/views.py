@@ -2190,6 +2190,101 @@ def get_messages1(request):
     })
 
 
+@login_required
+@require_GET
+def api_export_conversation_transcript(request):
+    """
+    Superadmin-only: full WhatsApp thread as plain text (customer, system, notes).
+    GET ?phone=&channel_id=
+    """
+    if not getattr(request.user, "is_superuser", False):
+        return JsonResponse({"success": False, "error": "Forbidden"}, status=403)
+
+    channel_id = request.GET.get("channel_id")
+    phone = request.GET.get("phone")
+    if not channel_id or not phone:
+        return JsonResponse({"success": False, "error": "phone and channel_id required"}, status=400)
+    try:
+        channel = WhatsAppChannel.objects.get(id=channel_id)
+    except (WhatsAppChannel.DoesNotExist, ValueError, TypeError):
+        return JsonResponse({"success": False, "error": "Channel not found"}, status=404)
+
+    resolved_sender = _resolve_message_sender_for_channel(channel, phone)
+    qs = (
+        Message.objects.filter(sender=resolved_sender, channel=channel)
+        .select_related("user")
+        .order_by("timestamp", "id")
+    )
+    contact = _contact_for_channel_phone(channel, phone, resolved_sender)
+    contact_name = ""
+    if contact:
+        contact_name = (getattr(contact, "name", None) or getattr(contact, "profile_name", None) or "").strip()
+
+    from django.utils.html import strip_tags
+
+    def _plain(text):
+        raw = strip_tags(text or "").replace("\xa0", " ").strip()
+        return raw or ""
+
+    now = timezone.localtime(timezone.now())
+    phone_label = (phone or resolved_sender or "").strip()
+    lines = [
+        "WhatsApp conversation transcript",
+        f"Exported at: {now.strftime('%Y-%m-%d %H:%M:%S')}",
+        f"Channel ID: {channel.id}",
+        f"Customer: {contact_name or '—'} ({phone_label})",
+        "",
+        "=" * 60,
+        "",
+    ]
+    count = 0
+    for m in qs.iterator(chunk_size=200):
+        count += 1
+        created = getattr(m, "created_at", None) or getattr(m, "timestamp", None)
+        when = timezone.localtime(created).strftime("%Y-%m-%d %H:%M:%S") if created else "—"
+        msg_type = (getattr(m, "type", None) or "").strip().lower()
+        is_note = msg_type == "note" or bool(getattr(m, "is_internal", False))
+        if is_note:
+            author = ""
+            if getattr(m, "user_id", None) and m.user:
+                author = (getattr(m.user, "username", None) or "").strip()
+            if not author:
+                author = (getattr(m, "name", None) or "").strip() or "Unknown"
+            role = f"NOTE ({author})"
+        elif getattr(m, "is_from_me", False):
+            role = "SYSTEM"
+        else:
+            role = "CUSTOMER"
+        body = _plain(m.body) or _plain(getattr(m, "captions", None))
+        media_hint = ""
+        media_type = (getattr(m, "media_type", None) or "").strip().lower()
+        if not body:
+            if media_type:
+                media_hint = f"[{media_type}]"
+            elif msg_type in ("image", "video", "audio", "document", "sticker"):
+                media_hint = f"[{msg_type}]"
+        lines.append(f"[{when}] {role}:")
+        if body:
+            lines.append(body)
+        if media_hint:
+            lines.append(media_hint)
+        lines.append("")
+
+    if count == 0:
+        lines.append("(No messages in this conversation.)")
+        lines.append("")
+
+    text = "\n".join(lines).rstrip() + "\n"
+    safe_phone = re.sub(r"\D", "", phone_label) or "chat"
+    filename = f"chat-{safe_phone}-{now.strftime('%Y%m%d-%H%M')}.txt"
+    return JsonResponse({
+        "success": True,
+        "filename": filename,
+        "text": text,
+        "message_count": count,
+    })
+
+
 from django.db.models import Max, OuterRef, Subquery, Count, Q
 
 from django.core.paginator import Paginator

@@ -388,43 +388,56 @@
   border-radius: 1rem;
 }
 
-/* Left: history */
-.dash-copilot-new-chat {
-  display: flex;
+/* Left: compact copilot compose control (ID-scoped to beat Tailwind/Bootstrap) */
+#aiCopilotNewChat.ai-copilot-compose-btn {
+  all: unset;
+  box-sizing: border-box;
+  display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 8px;
-  width: 100%;
-  padding: 11px 14px;
-  margin-bottom: 12px;
-  border: none;
-  font-size: 13px;
-  font-weight: 600;
-  color: #fff;
+  width: 44px;
+  height: 44px;
+  margin: 0 0 12px;
+  padding: 0;
+  border-radius: 14px;
+  border: 1px solid rgba(167, 139, 250, 0.45);
+  background: linear-gradient(
+    145deg,
+    rgba(99, 102, 241, 0.55) 0%,
+    rgba(139, 92, 246, 0.4) 48%,
+    rgba(34, 211, 238, 0.22) 100%
+  );
+  color: #eef2ff;
   cursor: pointer;
-  transition: background 0.15s ease, transform 0.1s ease;
+  box-shadow:
+    0 8px 22px rgba(99, 102, 241, 0.28),
+    0 0 0 1px rgba(255, 255, 255, 0.06) inset;
+  transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease, filter 0.15s ease;
 }
 
-.dash-copilot-new-chat.bg-indigo-600 {
-  background: #4f46e5;
+#aiCopilotNewChat.ai-copilot-compose-btn svg {
+  width: 22px;
+  height: 22px;
+  display: block;
+  pointer-events: none;
+  filter: drop-shadow(0 0 8px rgba(129, 140, 248, 0.5));
 }
 
-.dash-copilot-new-chat.hover\:bg-indigo-500:hover,
-.dash-copilot-new-chat:hover {
-  background: #6366f1;
+#aiCopilotNewChat.ai-copilot-compose-btn:hover {
+  transform: translateY(-1px) scale(1.03);
+  border-color: rgba(196, 181, 253, 0.75);
+  box-shadow:
+    0 12px 26px rgba(99, 102, 241, 0.38),
+    0 0 18px rgba(129, 140, 248, 0.25);
+  filter: brightness(1.08);
 }
 
-.dash-copilot-new-chat.rounded-xl {
-  border-radius: 0.75rem;
+#aiCopilotNewChat.ai-copilot-compose-btn:active {
+  transform: translateY(0) scale(0.98);
 }
 
-.dash-copilot-new-chat.is-draft {
-  opacity: 0.85;
-  cursor: default;
-}
-
-.dash-copilot-new-chat.is-draft:hover {
-  background: #4f46e5;
+#aiCopilotNewChat.ai-copilot-compose-btn.is-hidden {
+  display: none !important;
 }
 
 .dash-copilot-search {
