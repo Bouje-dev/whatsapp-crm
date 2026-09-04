@@ -64,6 +64,7 @@ beautifulsoup4
 django-anymail[sendgrid]
 pycryptodome>=3.20.0
 openai>=1.0.0
+pgvector>=0.3.0
 litellm
 anthropic
 gspread>=6.0.0

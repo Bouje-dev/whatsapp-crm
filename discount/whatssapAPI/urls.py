@@ -2,7 +2,7 @@
 from discount.whatssapAPI import wsettings
 from django.urls import path
 from . import views , flow , process_messages , templaite , whaDash
-from ai_assistant.views import copilot_chat
+from ai_assistant.views import copilot_chat, generate_product_aliases
 from .whatsapp_flows import (
     api_whatsapp_flow_submissions,
     api_whatsapp_flow_ingest,
@@ -31,6 +31,7 @@ urlpatterns = [
     path("api_orders/<int:order_id>/sync/", views.api_order_sync_google_sheets, name="api_order_sync_google_sheets"),
     path("api_products/", views.api_products_list, name="api_products_list"),
     path("api_products/classify/", views.api_products_classify, name="api_products_classify"),
+    path("api_products/generate_aliases/", generate_product_aliases, name="api_products_generate_aliases"),
     path("api_products/create/", views.api_products_create, name="api_products_create"),
     path("api_products/extract_from_link/", views.api_products_extract_from_link, name="api_products_extract_from_link"),
     path("api_products/<int:product_id>/", views.api_products_detail, name="api_products_detail"),

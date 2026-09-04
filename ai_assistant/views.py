@@ -2,6 +2,7 @@ import json
 import logging
 from django.http import JsonResponse
 from django.views.decorators.http import require_POST
+from django.views.decorators.csrf import csrf_exempt
 from django.contrib.auth.decorators import login_required
 from django.utils import timezone
 from django.core.exceptions import PermissionDenied
@@ -321,3 +322,34 @@ def copilot_chat(request):
             logger.warning("copilot_chat: save conversation failed: %s", e)
 
     return JsonResponse({"success": True, **payload})
+
+
+@login_required
+@csrf_exempt
+@require_POST
+def generate_product_aliases(request):
+    """
+    POST JSON: {"title": "...", "description": "..."}.
+    Returns {"aliases": ["...", ...]} — empty when description has ≤5 words.
+    """
+    try:
+        body = json.loads(request.body) if request.body else {}
+    except (json.JSONDecodeError, ValueError, TypeError):
+        return JsonResponse({"error": "Invalid JSON", "aliases": []}, status=400)
+
+    title = (body.get("title") or "").strip()
+    description = (body.get("description") or "").strip()
+    from ai_assistant.alias_generator import description_has_enough_words, generate_aliases
+
+    if not description_has_enough_words(description):
+        return JsonResponse({
+            "aliases": [],
+            "skipped": True,
+            "error": "Description must have more than 5 words to auto-generate aliases.",
+        })
+    try:
+        aliases = generate_aliases(title, description)
+    except Exception as exc:
+        logger.warning("generate_product_aliases: %s", exc)
+        return JsonResponse({"aliases": [], "error": "Alias generation failed."}, status=502)
+    return JsonResponse({"aliases": aliases})

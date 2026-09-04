@@ -3856,6 +3856,9 @@ def api_products_create(request):
     if seller_custom_persona and len(seller_custom_persona) > 2000:
         seller_custom_persona = seller_custom_persona[:2000]
 
+    from discount.services.product_search import parse_aliases
+    aliases_val = parse_aliases(request.POST.get("aliases"))
+
     category_param = (request.POST.get("category") or "").strip().lower()
     if category_param not in ALLOWED_PRODUCT_CATEGORIES:
         category_param = None
@@ -3885,6 +3888,7 @@ def api_products_create(request):
         stock_format=stock_format_val,
         digital_product_type=digital_product_type_val if is_digital_val else None,
         legal_consent_iptv=legal_consent_iptv_val,
+        aliases=aliases_val,
     )
     if digital_file_upload:
         product.digital_file = digital_file_upload
@@ -4057,6 +4061,7 @@ def api_products_detail(request, product_id):
         "digital_stock_unsold": _serialize_digital_stock_unsold(product),
         "digital_product_type": (getattr(product, "digital_product_type", None) or "").strip() or None,
         "legal_consent_iptv": bool(getattr(product, "legal_consent_iptv", False)),
+        "aliases": list(getattr(product, "aliases", None) or []),
     })
 
 
@@ -4151,6 +4156,9 @@ def api_products_update(request, product_id):
     if coupon_code and len(coupon_code) > 64:
         coupon_code = coupon_code[:64]
 
+    from discount.services.product_search import parse_aliases
+    aliases_val = parse_aliases(request.POST.get("aliases"))
+
     digital_product_type_val = None
     legal_consent_iptv_val = False
     if is_digital_val:
@@ -4203,10 +4211,12 @@ def api_products_update(request, product_id):
     product.stock_format = stock_format_val
     product.digital_product_type = digital_product_type_val if is_digital_val else None
     product.legal_consent_iptv = legal_consent_iptv_val
+    product.aliases = aliases_val
     product.save(update_fields=["name", "sku", "price", "currency", "description", "how_to_use", "offer", "backup_price",
                                 "coupon_code", "delivery_options", "return_policy", "category", "seller_custom_persona",
                                 "checkout_mode", "is_digital", "digital_url", "fulfillment_message",
-                                "collect_customer_info", "stock_format", "digital_product_type", "legal_consent_iptv"])
+                                "collect_customer_info", "stock_format", "digital_product_type", "legal_consent_iptv",
+                                "aliases"])
     if digital_file_upload:
         product.digital_file = digital_file_upload
         product.save(update_fields=["digital_file"])

@@ -135,7 +135,7 @@ import re
 
 from datetime import timedelta
 
-from discount.models import CustomUser, Flow, Message, Contact, WhatsAppChannel, Node, NodeMedia, ChatSession, SimpleOrder, Products, ProductImage, Template
+from discount.models import CustomUser, Flow, Message, Contact, WhatsAppChannel, Node, NodeMedia, ChatSession, SimpleOrder, ProductImage, Template
 from django.utils import timezone
 from django.db.models import Q
 from ..channel.socket_utils import send_socket
@@ -157,6 +157,7 @@ from discount.whatssapAPI.session_state import (
     clear_session_pricing_state,
     STATE_AWAITING_PAYMENT_RECEIPT,
     STATE_GATHERING_INFO,
+    STATE_POST_SALE_SUPPORT,
     record_user_text_message,
     get_can_read_flag,
     update_session_context_data,
@@ -1615,7 +1616,9 @@ def get_channel_products_with_nodes(channel):
             if pid in seen_product_ids:
                 continue
             seen_product_ids.add(pid)
-            product = Products.objects.filter(id=pid, admin_id=owner_id).first()
+            from discount.services.product_scope import get_channel_product
+
+            product = get_channel_product(channel, product_id=pid)
             if not product:
                 continue
             name = (getattr(product, "name", None) or "").strip() or f"Product {pid}"
@@ -1789,6 +1792,7 @@ def update_chat_session_on_trigger(channel, customer_phone, active_node):
 
         active_product = _get_node_bound_product(active_node, channel)
         persist_sticky_sales_session(channel, customer_phone, active_node, active_product)
+        set_conversation_state(channel, customer_phone, STATE_IDLE)
     except Exception as e:
         logger.warning("update_chat_session_on_trigger: %s", e)
 
@@ -1818,7 +1822,9 @@ def _get_node_bound_product(node, channel):
         owner = getattr(channel, "owner", None)
         if pid is None or not owner:
             return None
-        return Products.objects.filter(id=int(pid), admin=owner).first()
+        from discount.services.product_scope import get_channel_product
+
+        return get_channel_product(channel, product_id=pid)
     except Exception:
         return None
 
@@ -1843,6 +1849,11 @@ def _resolve_pronoun_anchor_product_name(channel, customer_phone, session, curre
             sess = None
     ap = getattr(sess, "active_product", None) if sess else None
     if ap is not None:
+        from discount.services.product_scope import product_belongs_to_channel
+
+        if not product_belongs_to_channel(ap, channel):
+            ap = None
+    if ap is not None:
         n = (getattr(ap, "name", None) or "").strip()
         if n:
             return n
@@ -1861,12 +1872,14 @@ def _resolve_pronoun_anchor_product_name(channel, customer_phone, session, curre
                 .first()
             )
             if o:
-                if getattr(o, "product_id", None) and o.product:
+                from discount.services.product_scope import get_channel_product, product_belongs_to_channel
+
+                if getattr(o, "product_id", None) and o.product and product_belongs_to_channel(o.product, channel):
                     n = (getattr(o.product, "name", None) or "").strip()
                     if n:
                         return n
                 n = (getattr(o, "product_name", None) or "").strip()
-                if n:
+                if n and get_channel_product(channel, name=n):
                     return n
         except Exception:
             pass
@@ -2465,21 +2478,16 @@ def _infer_sentiment_from_conversation(conversation_messages, last_n=5):
 
 def _execute_check_stock(channel, product_id=None, sku=None):
     """Check product stock for the channel's store. Returns a short message for the agent."""
-    from discount.models import Products
+    from discount.services.product_scope import get_channel_product
     if not channel:
         return "Channel not available. Cannot check stock."
     owner = getattr(channel, "owner", None)
     if not owner:
         return "Store not configured. Cannot check stock."
     try:
-        qs = Products.objects.filter(admin=owner)
-        if product_id is not None:
-            qs = qs.filter(id=int(product_id))
-        elif sku and str(sku).strip():
-            qs = qs.filter(sku=str(sku).strip())
-        else:
+        if product_id is None and not (sku and str(sku).strip()):
             return "Please specify product_id or sku to check stock."
-        product = qs.first()
+        product = get_channel_product(channel, product_id=product_id, sku=sku)
         if not product:
             return "Product not found."
         stock = getattr(product, "stock", 0)
@@ -2517,7 +2525,9 @@ def _resolve_node_product(current_node, channel):
         owner = getattr(channel, "owner", None)
         if not owner:
             return None
-        return Products.objects.filter(id=int(product_id), admin=owner).first()
+        from discount.services.product_scope import get_channel_product
+
+        return get_channel_product(channel, product_id=product_id)
     except Exception:
         return None
 
@@ -2607,7 +2617,9 @@ def get_channel_catalog_context(channel, max_products=100, description_chars=200
     if not owner:
         return ""
     try:
-        products = list(Products.objects.filter(admin=owner).order_by("name")[: max(1, int(max_products))])
+        from discount.services.product_scope import channel_catalog_queryset
+
+        products = list(channel_catalog_queryset(channel).order_by("name")[: max(1, int(max_products))])
         if any(getattr(p, "admin_id", None) != owner.id for p in products):
             logger.error(
                 "Tenant isolation violation blocked in get_channel_catalog_context: channel_id=%s owner_id=%s",
@@ -2674,7 +2686,9 @@ def search_channel_products(channel, query, top_n=5, *, return_top_match=False):
     top_product = None
     top_score = 0
     try:
-        products = list(Products.objects.filter(admin=owner).order_by("name")[:200])
+        from discount.services.product_scope import channel_catalog_queryset
+
+        products = list(channel_catalog_queryset(channel).order_by("name")[:200])
         if not products:
             msg = "The store has no products in the catalog."
             return (msg, None, 0) if return_top_match else msg
@@ -2703,15 +2717,27 @@ def search_channel_products(channel, query, top_n=5, *, return_top_match=False):
                 lines.append(_format_line(p))
             text = "\n".join(lines)
             return (text, None, 0) if return_top_match else text
+
+        hybrid_hit = None
+        try:
+            from discount.services.product_search import find_matching_product
+
+            hybrid_hit = find_matching_product(q, channel=channel)
+        except Exception as hybrid_exc:
+            logger.debug("search_channel_products hybrid: %s", hybrid_exc)
+
         scored = []
         for p in products:
             name = (getattr(p, "name", None) or "").strip().lower() or ""
             desc = (getattr(p, "description", None) or "").strip().lower() or ""
             category = (getattr(p, "category", None) or "").strip().lower() or ""
             sku = (getattr(p, "sku", None) or "").strip().lower() or ""
+            aliases = " ".join(getattr(p, "aliases", None) or []).strip().lower()
             score = 0
             for w in words:
                 if w in name:
+                    score += 10
+                if w in aliases:
                     score += 10
                 if w in category:
                     score += 5
@@ -2721,6 +2747,9 @@ def search_channel_products(channel, query, top_n=5, *, return_top_match=False):
                     score += 3
             scored.append((score, p))
         scored.sort(key=lambda x: -x[0])
+        if hybrid_hit:
+            scored = [(s, p) for s, p in scored if getattr(p, "id", None) != hybrid_hit.id]
+            scored.insert(0, (100, hybrid_hit))
         top = [p for s, p in scored[: top_n] if s > 0]
         if not top and scored:
             top = [p for _, p in scored[: top_n]]
@@ -2816,17 +2845,17 @@ def _execute_send_product_media(channel, sender, product_id, caption=""):
         product = None
         try:
             pid = int(raw_pid)
-            product = Products.objects.filter(id=pid, admin=owner).first()
+            from discount.services.product_scope import get_channel_product
+
+            product = get_channel_product(channel, product_id=pid)
         except (ValueError, TypeError):
             pass
 
         if not product:
-            # Graceful fallback: try exact name match (case-insensitive)
-            product = (
-                Products.objects
-                .filter(admin=owner, name__iexact=raw_pid)
-                .first()
-            )
+            # Graceful fallback: try exact name match (case-insensitive) inside this channel
+            from discount.services.product_scope import get_channel_product, channel_catalog_queryset
+
+            product = get_channel_product(channel, name=raw_pid)
             if product:
                 logger.warning(
                     "_execute_send_product_media: AI passed name '%s' instead of numeric ID — "
@@ -2896,7 +2925,6 @@ def _is_direct_sale_digital_product(channel, current_node, tool_args):
     the side of the legacy transitional message.
     """
     try:
-        from discount.models import Products as _PTrans
         from discount.orders_ai import get_required_order_fields_for_product
         _seller_id = (
             getattr(channel, "owner_id", None)
@@ -2910,8 +2938,12 @@ def _is_direct_sale_digital_product(channel, current_node, tool_args):
             _pid = tool_args.get("product_id")
         if not _pid or not _seller_id:
             return False
-        _prod = _PTrans.objects.filter(id=int(_pid), admin_id=int(_seller_id)).first()
+        from discount.services.product_scope import get_channel_product
+
+        _prod = get_channel_product(channel, product_id=_pid) if channel else None
         if not _prod:
+            return False
+        if getattr(_prod, "admin_id", None) != int(_seller_id):
             return False
         if not bool(getattr(_prod, "is_digital", False)):
             return False
@@ -3016,7 +3048,7 @@ def _trigger_upsell_after_order(ai_agent_node, channel, sender, saved_order):
     flow = getattr(ai_agent_node, "flow", None)
     if not flow:
         return
-    from discount.models import Connection as FlowConnection, Products
+    from discount.models import Connection as FlowConnection
     upsell_conn = FlowConnection.objects.filter(
         flow=flow,
         from_node=ai_agent_node,
@@ -3042,7 +3074,9 @@ def _trigger_upsell_after_order(ai_agent_node, channel, sender, saved_order):
         logger.warning("Upsell node %s has no upsell_product_id", upsell_node.node_id)
         return
     store = getattr(channel, "owner", None) if channel else None
-    product = Products.objects.filter(id=int(upsell_product_id), admin=store).first() if store else None
+    from discount.services.product_scope import get_channel_product
+
+    product = get_channel_product(channel, product_id=upsell_product_id) if store else None
     if not product:
         logger.warning("Upsell product_id=%s not found for store", upsell_product_id)
         return
@@ -3308,10 +3342,10 @@ def run_ai_agent_node(
             _aicfg_ctx = getattr(current_node, "ai_model_config", None) or {}
             _pid_ctx = _aicfg_ctx.get("product_id") if isinstance(_aicfg_ctx, dict) else None
             if _pid_ctx is not None and store_owner:
-                from discount.models import Products as _ProductsCtx
                 from discount.product_sales_prompt import build_product_context_for_prompt as _build_prod_ctx
+                from discount.services.product_scope import get_channel_product
 
-                _prod_ctx_row = _ProductsCtx.objects.filter(id=int(_pid_ctx), admin=store_owner).first()
+                _prod_ctx_row = get_channel_product(channel, product_id=_pid_ctx)
                 if _prod_ctx_row:
                     _dbc = _build_prod_ctx(_prod_ctx_row)
                     if _dbc:
@@ -3331,14 +3365,14 @@ def run_ai_agent_node(
             _aicfg_for_pid = getattr(current_node, "ai_model_config", None) or {}
             _node_pid = _aicfg_for_pid.get("product_id") if isinstance(_aicfg_for_pid, dict) else None
             if _node_pid is None and store_owner and session and getattr(session, "active_product_id", None):
-                from discount.models import Products as _ProductsSession
                 from discount.product_sales_prompt import build_product_context_for_prompt as _build_sess_ctx
+                from discount.services.product_scope import get_channel_product, product_belongs_to_channel
 
                 _ap = getattr(session, "active_product", None)
+                if _ap is not None and not product_belongs_to_channel(_ap, channel):
+                    _ap = None
                 if _ap is None:
-                    _ap = _ProductsSession.objects.filter(
-                        id=int(session.active_product_id), admin=store_owner
-                    ).first()
+                    _ap = get_channel_product(channel, product_id=session.active_product_id)
                 if _ap:
                     _sess_ctx = _build_sess_ctx(_ap)
                     if _sess_ctx:
@@ -3430,6 +3464,11 @@ def run_ai_agent_node(
                 "Task: Respond to the customer as this specific persona. Match their tone but stay true to your identity."
             )
         persistent_product = getattr(session, "active_product", None) if session else None
+        if persistent_product is not None and channel:
+            from discount.services.product_scope import product_belongs_to_channel
+
+            if not product_belongs_to_channel(persistent_product, channel):
+                persistent_product = None
         persistent_line = _format_persistent_product_context_line(persistent_product)
         if persistent_line:
             custom_instruction = (custom_instruction + "\n\n" + persistent_line) if custom_instruction else persistent_line
@@ -3442,10 +3481,11 @@ def run_ai_agent_node(
             custom_instruction = (custom_instruction + "\n\n" + fallback_persona_line) if custom_instruction else fallback_persona_line
         if _conversation_already_has_order_confirmation(conversation):
             post_order_note = (
-                
-                "The customer already placed an order in this chat (order was confirmed). "
-                "Do NOT repeat 'تم تسجيل طلبك. سنتواصل معك قريباً.' or any order confirmation. "
-                "Answer their current question (e.g. delivery, another product, timing) normally."
+                "The customer already placed an order in this chat. "
+                "You are now فريق الدعم (support), not sales. "
+                "Do NOT repeat order confirmation. "
+                "Answer their question (delivery, usage, product facts) then STOP — no follow-up question. "
+                "NEVER mention canceling the order unless they explicitly asked to cancel."
             )
             custom_instruction = (custom_instruction + " " + post_order_note) if custom_instruction else post_order_note
         # Inject upsell context if a pending upsell exists in the session
@@ -3476,9 +3516,11 @@ def run_ai_agent_node(
         # instead of re-pitching the product from scratch.
         if session and getattr(session, "last_interaction", None):
             try:
+                _cs_now = (conversation_state or "").strip().upper()
+                _skip_returning_sales = _cs_now == STATE_POST_SALE_SUPPORT or bool(post_sale_support_context)
                 _gap_secs = (timezone.now() - session.last_interaction).total_seconds()
                 _gap_days = _gap_secs / 86400
-                if _gap_days >= 3:
+                if (not _skip_returning_sales) and _gap_days >= 3:
                     # Determine the product name from session or current node
                     _ret_product_name = "the product you were interested in"
                     _ret_obj = persistent_product or getattr(session, "active_product", None)
@@ -3565,10 +3607,13 @@ def run_ai_agent_node(
                 if _sess_ctx_pid.get("product_pivot_active") or product_id is None:
                     product_id = int(session.active_product_id)
             if product_id is not None and store:
-                first_img = ProductImage.objects.filter(
-                    product_id=int(product_id),
-                    product__admin=store,
-                ).order_by("order", "id").first()
+                from discount.services.product_scope import get_channel_product
+
+                _photo_prod = get_channel_product(channel, product_id=product_id)
+                if _photo_prod:
+                    first_img = ProductImage.objects.filter(
+                        product=_photo_prod,
+                    ).order_by("order", "id").first()
                 if first_img and first_img.image:
                     product_photo_line = (
                         "Product photo (from catalog): When the customer asks for a photo/image/picture of the product, "
@@ -3582,9 +3627,12 @@ def run_ai_agent_node(
         # Dynamic Product Selection: inject either a fixed product ID or the full catalog
         try:
             store = getattr(channel, "owner", None) if channel else None
-            from discount.models import Products
+            from discount.services.product_scope import get_channel_product
+
             if product_id is not None and store:
-                prod = Products.objects.filter(id=int(product_id), admin=store).first()
+                prod = get_channel_product(channel, product_id=product_id)
+                if not prod:
+                    product_id = None
                 if prod:
                     from ai_assistant.tools import build_product_lock_instruction
 
@@ -3638,9 +3686,10 @@ def run_ai_agent_node(
         checkout_mode_label = None
         try:
             if product_id is not None:
-                from discount.models import Products
                 from discount.orders_ai import get_required_order_fields_for_product, CHECKOUT_MODE_LABELS
-                prod = Products.objects.filter(id=int(product_id), admin=store).first() if store else None
+                from discount.services.product_scope import get_channel_product
+
+                prod = get_channel_product(channel, product_id=product_id) if store else None
                 if prod:
                     if getattr(prod, "admin_id", None) != getattr(store, "id", None):
                         logger.error(
@@ -3681,13 +3730,12 @@ def run_ai_agent_node(
                 sync_mode_from_incoming,
             )
             _checkout_product = None
-            if product_id is not None and store:
-                from discount.models import Products as _CheckoutProducts
-                _checkout_product = _CheckoutProducts.objects.filter(
-                    id=int(product_id), admin=store
-                ).first()
-            if _checkout_product is None and session is not None:
-                _checkout_product = getattr(session, "active_product", None)
+            if product_id is not None or session is not None:
+                from discount.services.product_scope import resolve_session_product
+
+                _checkout_product = resolve_session_product(
+                    channel, product_id=product_id, session=session
+                )
             _hybrid_on = is_hybrid_checkout_enabled(current_node)
             _needs_form = product_needs_checkout_form(_checkout_product)
             _checkout_locale = _checkout_locale_fn(current_node, market)
@@ -3733,11 +3781,11 @@ def run_ai_agent_node(
         _sales_tools_override = None
         _order_product = None
         try:
-            if product_id is not None and store:
-                from discount.models import Products as _OrderProducts
-                _order_product = _OrderProducts.objects.filter(id=int(product_id), admin=store).first()
-            if _order_product is None and session:
-                _order_product = getattr(session, "active_product", None)
+            from discount.services.product_scope import resolve_session_product
+
+            _order_product = resolve_session_product(
+                channel, product_id=product_id, session=session
+            )
 
             from ai_assistant.order_checkout import (
                 build_sales_tools_for_product,
@@ -3828,6 +3876,7 @@ def run_ai_agent_node(
                     product_id,
                     seller_id=getattr(store_owner, "id", None),
                     include_whatsapp_flow=_include_flow_tool,
+                    channel=channel,
                 )
         except Exception as _ord_orch_err:
             logger.warning("order checkout orchestration: %s", _ord_orch_err)
@@ -3902,7 +3951,7 @@ def run_ai_agent_node(
                     result.get("prompt_tokens", 0),
                     result.get("completion_tokens", 0),
                 )
-        tool_calls_for_info = [tc for tc in (result.get("tool_calls") or []) if tc.get("name") in ("check_stock", "apply_discount", "track_order", "search_products", "switch_active_product", "send_product_media", "submit_customer_order", "send_whatsapp_flow", "use_voice_checkout", "register_support_complaint", "flag_order_for_review", "save_order", "record_order", "update_lead_status", "add_upsell_to_existing_order", "update_order_notes")]
+        tool_calls_for_info = [tc for tc in (result.get("tool_calls") or []) if tc.get("name") in ("check_stock", "apply_discount", "track_order", "search_products", "switch_active_product", "send_product_media", "analyze_url", "submit_customer_order", "send_whatsapp_flow", "use_voice_checkout", "register_support_complaint", "flag_order_for_review", "save_order", "record_order", "update_lead_status", "add_upsell_to_existing_order", "update_order_notes")]
         first_result_order_tools = [tc for tc in (result.get("tool_calls") or []) if tc.get("name") in ("save_order", "record_order")]
         submit_order_success_outcome = None
         save_order_result_order = None  # order from save_order/record_order when executed in loop
@@ -4033,10 +4082,10 @@ def run_ai_agent_node(
                         from discount.whatssapAPI.whatsapp_flows import set_flow_pending
 
                         _flow_prod = _order_product
-                        if _flow_prod is None and product_id is not None and store_owner:
-                            _flow_prod = Products.objects.filter(
-                                id=int(product_id), admin=store_owner
-                            ).first()
+                        if _flow_prod is None and product_id is not None:
+                            from discount.services.product_scope import get_channel_product
+
+                            _flow_prod = get_channel_product(channel, product_id=product_id)
                         _item, _pending, _ferr = execute_send_whatsapp_flow(
                             channel,
                             current_node,
@@ -4080,9 +4129,9 @@ def run_ai_agent_node(
                     _submit_pid = args.get("product_id")
                     if _submit_pid and channel and sender and store_owner:
                         try:
-                            _submit_prod = Products.objects.filter(
-                                id=int(_submit_pid), admin=store_owner
-                            ).first()
+                            from discount.services.product_scope import get_channel_product
+
+                            _submit_prod = get_channel_product(channel, product_id=_submit_pid)
                             if _submit_prod:
                                 set_session_active_product(
                                     channel, sender, _submit_prod, reason="submit_customer_order"
@@ -4298,6 +4347,23 @@ def run_ai_agent_node(
                         logger.exception("flag_order_for_review: %s", e)
                         content = json.dumps({"success": False, "message": str(e)}, ensure_ascii=False)
                     tool_results.append({"tool_call_id": tcid, "content": content})
+                elif name == "analyze_url":
+                    try:
+                        from ai_assistant.tools import execute_analyze_url
+                        content = execute_analyze_url(args.get("url"))
+                    except Exception as e:
+                        logger.exception("analyze_url: %s", e)
+                        content = json.dumps(
+                            {"status": "error", "message": "Page could not be loaded."},
+                            ensure_ascii=False,
+                        )
+                    tool_results.append({"tool_call_id": tcid, "content": content})
+                    _add_ai_action_note(
+                        channel,
+                        sender,
+                        f"AI agent analyzed URL: {(args.get('url') or '')[:180]}",
+                        author_name=agent_name,
+                    )
                 elif name in ("save_order", "record_order") and getattr(channel, "ai_order_capture", True):
                     args["customer_phone"] = normalize_customer_phone_for_order(args.get("customer_phone"), sender)
                     if "address" in args and not args.get("customer_city"):
@@ -4574,10 +4640,12 @@ def run_ai_agent_node(
                 _ctx_cap = getattr(_sess_cap, "context_data", None) or {}
                 _mode_cap = _checkout_get_mode(_ctx_cap)
                 _prod_cap = None
-                if product_id is not None and store:
-                    _prod_cap = Products.objects.filter(id=int(product_id), admin=store).first()
-                if _prod_cap is None and _sess_cap is not None:
-                    _prod_cap = getattr(_sess_cap, "active_product", None)
+                if product_id is not None or _sess_cap is not None:
+                    from discount.services.product_scope import resolve_session_product
+
+                    _prod_cap = resolve_session_product(
+                        channel, product_id=product_id, session=_sess_cap
+                    )
                 _llm_tried_submit = any(
                     (tc.get("name") == "submit_customer_order") for tc in (result.get("tool_calls") or [])
                 )
@@ -4770,21 +4838,33 @@ def run_ai_agent_node(
             if order_was_saved:
                 reset_trust_score(channel.id, sender)
                 # Session lifecycle:
-                #   • Physical + no upsell → expire (existing behaviour).
-                #   • Physical + upsell    → defer expiry (existing).
+                #   • Physical (no upsell) → keep session in POST_SALE_SUPPORT
+                #     so the next messages use the support-team persona.
+                #   • Physical + upsell    → keep session for the upsell pitch.
                 #   • Digital              → KEEP ALIVE in
                 #     AWAITING_PAYMENT_RECEIPT until the receipt is
                 #     processed; the FSM was already flipped above.
                 _has_upsell = _node_has_upsell_connection(current_node)
-                if not _has_upsell and not _is_digital_completed_order:
-                    expire_chat_session(channel, sender)
-                elif _is_digital_completed_order:
+                if _is_digital_completed_order:
                     logger.info(
                         "Digital order saved (order_id=%s, channel=%s, sender=%s) — "
                         "session kept alive in AWAITING_PAYMENT_RECEIPT.",
                         getattr(saved_order, "order_id", "—"),
                         getattr(channel, "id", None), sender,
                     )
+                elif not _has_upsell:
+                    try:
+                        _oid = getattr(saved_order, "order_id", None) or (
+                            submit_order_success_outcome.get("order_id") if submit_order_success_outcome else None
+                        )
+                        set_conversation_state(
+                            channel,
+                            sender,
+                            STATE_POST_SALE_SUPPORT,
+                            last_order_id=str(_oid) if _oid else "",
+                        )
+                    except Exception as _pss_state_err:
+                        logger.warning("Failed to set POST_SALE_SUPPORT: %s", _pss_state_err)
                 # Trigger Google Sheets sync when order was saved via AI (uses channel.owner config; idempotent)
                 if saved_order and getattr(saved_order, "pk", None):
                     try:
@@ -5033,7 +5113,11 @@ def run_ai_agent_node(
                 from discount.product_sales_prompt import get_persona_category_label
                 ai_cfg = getattr(current_node, "ai_model_config", None) or {}
                 product_id = ai_cfg.get("product_id") if isinstance(ai_cfg, dict) else None
-                persona_category = get_persona_category_label(product_id, merchant=getattr(channel, "owner", None))
+                persona_category = get_persona_category_label(
+                    product_id,
+                    merchant=getattr(channel, "owner", None),
+                    channel=channel,
+                )
                 name_for_note = (agent_name or "AI Agent").strip() or "AI Agent"
                 takeover_note_body = f"AI agent {name_for_note} took over as {persona_category} (persona-category)."
                 _add_ai_action_note(channel, sender, takeover_note_body, author_name=name_for_note)
@@ -5810,12 +5894,19 @@ def try_ai_voice_reply(
         )
     if _conversation_already_has_order_confirmation(conversation):
         post_order_note = (
-            "The customer already placed an order in this chat. Do NOT repeat 'تم تسجيل طلبك. سنتواصل معك قريباً.'. "
-            "Answer their current question (e.g. delivery, another product) normally."
+            "The customer already placed an order in this chat. You are now فريق الدعم (support), not sales. "
+            "Do NOT repeat order confirmation. Answer their question then STOP — no follow-up. "
+            "NEVER mention canceling the order unless they explicitly asked to cancel."
         )
+        custom_instruction = (custom_instruction + " " + post_order_note) if custom_instruction else post_order_note
         custom_instruction = (custom_instruction + " " + post_order_note) if custom_instruction else post_order_note
 
     persistent_product_voice = getattr(_voice_session, "active_product", None) if _voice_session else None
+    if persistent_product_voice is not None and channel:
+        from discount.services.product_scope import product_belongs_to_channel
+
+        if not product_belongs_to_channel(persistent_product_voice, channel):
+            persistent_product_voice = None
     persistent_line_voice = _format_persistent_product_context_line(persistent_product_voice)
     if persistent_line_voice:
         custom_instruction = (custom_instruction + "\n\n" + persistent_line_voice) if custom_instruction else persistent_line_voice
@@ -5845,7 +5936,10 @@ def try_ai_voice_reply(
         _voice_ai_cfg = getattr(getattr(_voice_session, "active_node", None), "ai_model_config", None) or {}
         _vp = _voice_ai_cfg.get("product_id") if isinstance(_voice_ai_cfg, dict) else None
         if _vp is not None:
-            voice_product_id = int(_vp)
+            from discount.services.product_scope import get_channel_product
+
+            _vp_prod = get_channel_product(channel, product_id=_vp)
+            voice_product_id = int(_vp_prod.id) if _vp_prod else None
         elif persistent_product_voice is not None:
             voice_product_id = int(getattr(persistent_product_voice, "id", None))
     except Exception:
@@ -6156,6 +6250,23 @@ def try_ai_voice_reply(
                     logger.exception("try_ai_voice_reply flag_order_for_review: %s", e)
                     content = json.dumps({"success": False, "message": str(e)}, ensure_ascii=False)
                 tool_results.append({"tool_call_id": tcid, "content": content})
+            elif name == "analyze_url":
+                try:
+                    from ai_assistant.tools import execute_analyze_url
+                    content = execute_analyze_url(args.get("url"))
+                except Exception as e:
+                    logger.exception("try_ai_voice_reply analyze_url: %s", e)
+                    content = json.dumps(
+                        {"status": "error", "message": "Page could not be loaded."},
+                        ensure_ascii=False,
+                    )
+                tool_results.append({"tool_call_id": tcid, "content": content})
+                _add_ai_action_note(
+                    channel,
+                    sender,
+                    f"AI agent analyzed URL: {(args.get('url') or '')[:180]}",
+                    author_name=voice_path_agent_name,
+                )
             elif name == "submit_customer_order":
                 # Same SILENT MODE suppression as the text-flow path: no
                 # transitional message for direct-sale digital products.
@@ -6333,7 +6444,16 @@ def try_ai_voice_reply(
     if order_was_saved:
         reset_trust_score(channel.id, sender)
         if not _voice_is_digital_order:
-            expire_chat_session(channel, sender)
+            try:
+                _void = getattr(saved_order, "order_id", None)
+                set_conversation_state(
+                    channel,
+                    sender,
+                    STATE_POST_SALE_SUPPORT,
+                    last_order_id=str(_void) if _void else "",
+                )
+            except Exception as _vpss_state_err:
+                logger.warning("Voice path failed to set POST_SALE_SUPPORT: %s", _vpss_state_err)
         else:
             logger.info(
                 "Voice path: digital order saved (order_id=%s, channel=%s, sender=%s) — "

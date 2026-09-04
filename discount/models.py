@@ -368,6 +368,17 @@ class Products(models.Model):
     name = models.CharField(max_length=100)
     sku = models.CharField(max_length=100, unique=True, blank=True, null=True)
     stock = models.IntegerField(default=0)
+    aliases = models.JSONField(
+        default=list,
+        blank=True,
+        verbose_name=_('Aliases'),
+        help_text=_('Alternative names, synonyms, or Darija variations used for exact product matching.'),
+    )
+    embedding = models.JSONField(
+        null=True,
+        blank=True,
+        help_text=_('OpenAI text-embedding-3-small vector (1536-d) of title + description.'),
+    )
 
     # Product creation from WhatsApp dashboard (required in form: name, price, description, images)
     price = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True, verbose_name=_('السعر'))

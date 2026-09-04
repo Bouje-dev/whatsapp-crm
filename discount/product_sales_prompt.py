@@ -21,13 +21,19 @@ from discount.product_prompt_config import (
 logger = logging.getLogger(__name__)
 
 
-def _get_tenant_scoped_product(product_id, merchant=None):
-    """Return product only when it belongs to the provided merchant."""
-    from discount.models import Products
-
-    if not product_id or not merchant:
+def _get_tenant_scoped_product(product_id, merchant=None, channel=None):
+    """Return product only when it belongs to this WhatsApp channel (or merchant)."""
+    if not product_id:
         return None
     try:
+        if channel is not None:
+            from discount.services.product_scope import get_channel_product
+
+            return get_channel_product(channel, product_id=product_id)
+        if not merchant:
+            return None
+        from discount.models import Products
+
         return Products.objects.filter(pk=int(product_id), admin=merchant).first()
     except Exception:
         return None
@@ -188,7 +194,7 @@ def build_persona_instruction_block(product) -> str:
     return "".join(parts)
 
 
-def build_sales_system_prompt(product_id, merchant=None):
+def build_sales_system_prompt(product_id, merchant=None, channel=None):
     """
     Generate the final system message for the AI Sales Agent when talking to a buyer.
     Layers: rules (SALES_BASE_RULES) + product context + persona_instruction (category persona + seller instructions).
@@ -199,7 +205,7 @@ def build_sales_system_prompt(product_id, merchant=None):
     parts = [SALES_BASE_RULES]
 
     try:
-        product = _get_tenant_scoped_product(product_id, merchant=merchant)
+        product = _get_tenant_scoped_product(product_id, merchant=merchant, channel=channel)
     except Exception as e:
         logger.warning("build_sales_system_prompt: could not load product_id=%s: %s", product_id, e)
         return "\n\n".join(parts)
@@ -213,14 +219,16 @@ def build_sales_system_prompt(product_id, merchant=None):
         parts.append(product_context)
 
     # Layer c + d: Persona and seller instructions (from get_dynamic_persona_instruction)
-    persona_instruction = get_dynamic_persona_instruction(product_id, merchant=merchant)
+    persona_instruction = get_dynamic_persona_instruction(
+        product_id, merchant=merchant, channel=channel
+    )
     if persona_instruction:
         parts.append(persona_instruction)
 
     return "\n\n".join(parts)
 
 
-def get_dynamic_persona_instruction(product_id, merchant=None):
+def get_dynamic_persona_instruction(product_id, merchant=None, channel=None):
     """
     Return only the category-based persona and seller instructions for a product.
     Use this when the main prompt already has product context (e.g. from flow node)
@@ -229,7 +237,7 @@ def get_dynamic_persona_instruction(product_id, merchant=None):
     :return: Persona + seller instructions text, or empty string if product not found.
     """
     try:
-        product = _get_tenant_scoped_product(product_id, merchant=merchant)
+        product = _get_tenant_scoped_product(product_id, merchant=merchant, channel=channel)
     except Exception as e:
         logger.warning("get_dynamic_persona_instruction: could not load product_id=%s: %s", product_id, e)
         return ""
@@ -240,7 +248,7 @@ def get_dynamic_persona_instruction(product_id, merchant=None):
     return build_persona_instruction_block(product)
 
 
-def get_persona_category_label(product_id, merchant=None):
+def get_persona_category_label(product_id, merchant=None, channel=None):
     """
     Return a short label for the persona category (e.g. "Beauty Consultant") for the given product.
     Used for internal notes like "AI agent {name} took over as {category}".
@@ -248,7 +256,7 @@ def get_persona_category_label(product_id, merchant=None):
     if not product_id:
         return "Sales Agent"
     try:
-        product = _get_tenant_scoped_product(product_id, merchant=merchant)
+        product = _get_tenant_scoped_product(product_id, merchant=merchant, channel=channel)
     except Exception:
         return "Sales Agent"
     if not product:

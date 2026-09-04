@@ -1953,6 +1953,32 @@ SEND_PRODUCT_MEDIA_TOOL = {
     },
 }
 
+ANALYZE_URL_TOOL = {
+    "type": "function",
+    "function": {
+        "name": "analyze_url",
+        "description": (
+            "Fetch and summarize a webpage when the customer sends a URL/link "
+            "(product page, competitor listing, blog, etc.). "
+            "Call this IMMEDIATELY when the latest customer message contains an http(s) link — "
+            "do NOT invent what the page says, and do NOT break character by dumping raw HTML. "
+            "Use the returned title/description to reply naturally. "
+            "If status is 'error', tell the customer politely that the link could not be opened "
+            "(broken, blocked, or temporary) and ask them to describe what they meant or send another link."
+        ),
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "url": {
+                    "type": "string",
+                    "description": "The full http(s) URL the customer shared.",
+                },
+            },
+            "required": ["url"],
+        },
+    },
+}
+
 # -----------------------------------------------------------------------------
 # ARCHITECTURE RULE: Do not use hardcoded arrays or regex to guess user intent
 # from chat messages. Always use LLM Tool descriptions and injected context to
@@ -2343,6 +2369,7 @@ SALES_AGENT_TOOLS = [
     SEARCH_PRODUCTS_TOOL,
     SWITCH_ACTIVE_PRODUCT_TOOL,
     SEND_PRODUCT_MEDIA_TOOL,
+    ANALYZE_URL_TOOL,
     SUBMIT_CUSTOMER_ORDER_TOOL,
     USE_VOICE_CHECKOUT_TOOL,
     REGISTER_SUPPORT_COMPLAINT_TOOL,
@@ -2451,13 +2478,16 @@ def _build_progressive_data_collection_block(required_order_fields, customer_pho
     )
 
 
-def _resolve_product_for_prompt(product_id=None, merchant_id=None):
+def _resolve_product_for_prompt(product_id=None, merchant_id=None, channel=None):
     """Fetch product used to build the master negotiation prompt."""
-    if not product_id or not merchant_id:
+    if not product_id:
         return None
     try:
-        from discount.models import Products
-        return Products.objects.filter(pk=int(product_id), admin_id=int(merchant_id)).first()
+        if channel is not None:
+            from discount.services.product_scope import get_channel_product
+
+            return get_channel_product(channel, product_id=product_id)
+        return None
     except Exception:
         return None
 
@@ -2471,8 +2501,16 @@ EMPTY_CATALOG_GUARDRAIL = (
 )
 
 
-def _is_catalog_empty_for_merchant(merchant_id=None):
+def _is_catalog_empty_for_merchant(merchant_id=None, channel=None):
     """Tenant-scoped empty-catalog guard for prompt safety."""
+    if channel is not None:
+        try:
+            from discount.services.product_scope import channel_catalog_queryset
+
+            return not channel_catalog_queryset(channel).exists()
+        except Exception as e:
+            logger.warning("catalog guard check failed for channel=%s: %s", getattr(channel, "id", None), e)
+            return True
     if not merchant_id:
         return False
     try:
@@ -3347,6 +3385,108 @@ its visual content (use the SYSTEM VISION line and your own judgment) before ass
 """
 
 
+def _master_post_sale_support_prompt(product_context, agent_name=None, market=None):
+    """Support-team prompt used AFTER the order is registered (not a sales closer)."""
+    name = (agent_name or "").strip() or "the support agent"
+    product_block = (product_context or "").strip() or "(use the ordered product from conversation context)"
+    return f"""You are {name}, a member of the store's CUSTOMER SUPPORT team (فريق الدعم).
+You are NOT a salesperson anymore. The customer already placed an order. Your only job is to help them with that order.
+
+PRODUCT CONTEXT (facts only — do not pitch):
+{product_block}
+
+ROLE:
+- Answer questions about the ordered product (how to use it, what's in it, quality facts from the context above).
+- Answer delivery, timing, tracking, and address questions.
+- Stay in the same dialect/tone already used in this chat.
+- Keep replies to 1–3 short sentences. No essays.
+
+CONVERSATION CLOSING (ABSOLUTE):
+- Answer the current question fully, then STOP.
+- Do NOT ask a follow-up question.
+- Do NOT ask if they need anything else / "واش بغيتي نعاونك فشي حاجة أخرى؟" / "how can I help".
+- Do NOT open a new topic, suggest another product, or use sales tied-down questions.
+- If they asked how to use the product: explain the usage only, then end.
+- If they asked about delivery: give the timing/window only, then end.
+
+CANCELLATION / RETURN (ABSOLUTE BAN unless they asked first):
+- NEVER mention canceling, returning, voiding, or deleting the order.
+- NEVER say "if you want I can cancel", "واش بغيتي نلغي الطلبية", "تقدر ترجعو", or any refund/cancel offer.
+- If they ask about quality or whether the product is original: reassure with catalog facts ONLY. Do not offer cancellation as a solution.
+- ONLY if the customer THEMSELVES explicitly asks to cancel the order: do not process it yourself — acknowledge briefly and [HANDOVER] to a human. Do not bring cancellation up again.
+
+FORBIDDEN:
+- Sales pitch, discounts, urgency, stock scarcity, or "shall I register an order".
+- Collecting name/phone/address for a new order.
+- Calling submit_customer_order unless they clearly ask to buy a DIFFERENT additional product.
+
+TRACKING: If they ask where the order is, call track_order(customer_phone) and answer from the result, then stop.
+"""
+
+
+def _build_post_sale_support_banner(post_sale_support_context):
+    """
+    Inject customer-support roleplay after the sale.
+    Overrides the sales-closer prompt. The LLM must answer then stop.
+    """
+    if not post_sale_support_context:
+        return ""
+    order_id = (post_sale_support_context.get("order_id") or "").strip()
+    product_name = (post_sale_support_context.get("product_name") or "").strip() or "the ordered product"
+    support_status = (post_sale_support_context.get("support_status") or "none").strip().lower()
+    prior_summary = (post_sale_support_context.get("complaint_summary") or "").strip()
+    mode = (post_sale_support_context.get("mode") or "customer_care").strip().lower()
+    is_digital = bool(post_sale_support_context.get("is_digital"))
+
+    summary_line = (
+        f"\nPrior complaint on file: {prior_summary}\n" if prior_summary else ""
+    )
+    status_hint = ""
+    digital_tools = ""
+    if mode == "digital_tech" or is_digital:
+        if support_status == "awaiting_proof":
+            status_hint = (
+                "The case is AWAITING_PROOF — you already asked for a screenshot; "
+                "when they send an image, thank them and call flag_order_for_review.\n"
+            )
+        elif support_status == "under_review":
+            status_hint = (
+                "The case is UNDER_REVIEW — proof was received. Reassure the customer the "
+                "tech team is reviewing; do NOT call submit_customer_order.\n"
+            )
+        digital_tools = (
+            "\n"
+            "DIGITAL ISSUE TOOLS (only if the product/account/key does not work):\n"
+            "  • register_support_complaint(complaint_summary) — issue reported, need screenshot.\n"
+            "  • flag_order_for_review(complaint_summary) — screenshot received; order_id optional.\n"
+            "If they report a broken account/key: apologize, ask for a screenshot, then silently "
+            "call register_support_complaint. Do not pitch a new sale.\n"
+        )
+
+    return (
+        "╔══════════════════════════════════════════════════╗\n"
+        "║  [POST-SALE SUPPORT TEAM — HIGHEST PRIORITY]     ║\n"
+        "╚══════════════════════════════════════════════════╝\n"
+        f"The sale is DONE. Order [{product_name}]"
+        + (f" (order_id: {order_id})" if order_id else "")
+        + " is already registered.\n"
+        "You are now فريق الدعم (Customer Support), NOT a salesperson. "
+        "Ignore every sales-closer, tied-down question, CTA, and 'keep the conversation alive' rule below.\n"
+        f"{summary_line}"
+        f"{status_hint}"
+        "ABSOLUTE RULES:\n"
+        "  1. Answer the customer's current question, then STOP. No follow-up question. "
+        "No 'anything else?'. No new topic.\n"
+        "  2. NEVER mention canceling or returning the order unless the customer "
+        "explicitly asked to cancel in THIS message. Quality questions ≠ cancel requests.\n"
+        "  3. NEVER call submit_customer_order for this same purchase.\n"
+        "  4. Do NOT restart a sales pitch or collect checkout fields.\n"
+        "  5. Usage / delivery / product questions: give the fact, then end.\n"
+        f"{digital_tools}"
+        "══════════════════════════════════════════════════"
+    )
+
+
 def _build_conversation_state_banner(
     conversation_state,
     pronoun_anchor_product_name=None,
@@ -3500,67 +3640,7 @@ def _build_conversation_state_banner(
     return ""
 
 
-def _build_post_sale_support_banner(post_sale_support_context):
-    """
-    Inject empathetic tech-support roleplay for completed digital orders.
-    The LLM must generate natural replies in its persona/language — no scripts.
-    """
-    if not post_sale_support_context:
-        return ""
-    order_id = (post_sale_support_context.get("order_id") or "").strip()
-    product_name = (post_sale_support_context.get("product_name") or "").strip() or "the digital product"
-    support_status = (post_sale_support_context.get("support_status") or "none").strip().lower()
-    prior_summary = (post_sale_support_context.get("complaint_summary") or "").strip()
-
-    summary_line = (
-        f"\nPrior complaint on file: {prior_summary}\n" if prior_summary else ""
-    )
-    status_hint = ""
-    if support_status == "awaiting_proof":
-        status_hint = (
-            "The case is AWAITING_PROOF — you already asked for a screenshot; "
-            "when they send an image, thank them and call flag_order_for_review.\n"
-        )
-    elif support_status == "under_review":
-        status_hint = (
-            "The case is UNDER_REVIEW — proof was received. Reassure the customer the "
-            "tech team is reviewing; do NOT call submit_customer_order.\n"
-        )
-
-    return (
-        "╔══════════════════════════════════════════════════╗\n"
-        "║  [POST-SALE SUPPORT MODE — READ BEFORE ANYTHING] ║\n"
-        "╚══════════════════════════════════════════════════╝\n"
-        f"ORDER CONTEXT: The customer already received digital product "
-        f"[{product_name}] (order_id: {order_id}). Status: completed. "
-        f"Support ticket status: {support_status}.\n"
-        f"{summary_line}"
-        f"{status_hint}"
-        "ROLE: You are now an empathetic Tech Support Agent — NOT a salesperson. "
-        "Generate every reply naturally in YOUR configured persona and language. "
-        "Never use canned or robotic scripts.\n"
-        "\n"
-        "ABSOLUTE RULES:\n"
-        "  1. NEVER call submit_customer_order again. The purchase is finished.\n"
-        "  2. NEVER promise an immediate replacement or new key before proof is reviewed.\n"
-        "  3. IF the user says the account/key/password/link does not work: apologize sincerely, "
-        "explain you need to help them properly, and politely ask for a SCREENSHOT that shows "
-        "the exact error (wrong password, locked account, error code, etc.). "
-        "Then SILENTLY call register_support_complaint(order_id, complaint_summary).\n"
-        "  4. IF the user sends an image, photo, or document after complaining: acknowledge the "
-        "proof naturally, say the technical team is reviewing it now and ask them to wait briefly. "
-        "SILENTLY call flag_order_for_review(order_id, complaint_summary) with what the image shows.\n"
-        "  5. Do NOT ask for payment again. Do NOT re-collect name/address for a new order.\n"
-        "  6. If they ask for a human, you may use [HANDOVER] gracefully.\n"
-        "\n"
-        "AVAILABLE TOOLS (post-sale only — you MUST use these, not submit_customer_order):\n"
-        "  • register_support_complaint(complaint_summary) — issue reported, need screenshot.\n"
-        "  • flag_order_for_review(complaint_summary) — screenshot/proof received; order_id optional.\n"
-        "══════════════════════════════════════════════════"
-    )
-
-
-def build_messages_payload_sales(conversation_messages, custom_instruction=None, product_context=None, trust_score=0, media_context=None, state_header=None, sales_stage=None, sentiment=None, market=None, agent_name=None, customer_phone=None, override_rules=None, required_order_fields=None, checkout_mode_label=None, product_id=None, merchant_id=None, voice_dialect=None, voice_notes_mode=False, voice_script_style=False, output_language=None, memory_summary=None, node_dialect_locked=False, node_language_code=None, node=None, bot_settings=None, target_dialect=None, pronoun_anchor_product_name=None, conversation_state=None, post_sale_support_context=None, payment_rejection_reason=None, incoming_has_media=False, order_payment_status=None, incoming_payment_receipt_valid=None, incoming_media_vision_summary=None, can_read_flow_rule=None, missing_order_fields=None):
+def build_messages_payload_sales(conversation_messages, custom_instruction=None, product_context=None, trust_score=0, media_context=None, state_header=None, sales_stage=None, sentiment=None, market=None, agent_name=None, customer_phone=None, override_rules=None, required_order_fields=None, checkout_mode_label=None, product_id=None, merchant_id=None, voice_dialect=None, voice_notes_mode=False, voice_script_style=False, output_language=None, memory_summary=None, node_dialect_locked=False, node_language_code=None, node=None, bot_settings=None, target_dialect=None, pronoun_anchor_product_name=None, conversation_state=None, post_sale_support_context=None, payment_rejection_reason=None, incoming_has_media=False, order_payment_status=None, incoming_payment_receipt_valid=None, incoming_media_vision_summary=None, can_read_flow_rule=None, missing_order_fields=None, channel=None):
     """Build messages for the sales agent. Uses Elite Sales Consultant prompt when product_context is set (with trust_score, sales_stage, sentiment, market, agent_name).
     state_header: optional for session continuity. market: 'MA' or 'SA'. agent_name: e.g. Chuck or persona name so the AI thinks as that human.
     customer_phone: active WhatsApp number of the customer; injected as system note so the AI can use it when they say 'same number' / نفس الرقم.
@@ -3576,15 +3656,30 @@ def build_messages_payload_sales(conversation_messages, custom_instruction=None,
     node: active flow node used by intelligent model routing.
     bot_settings: global channel/bot settings dict (fallback when node has no language).
     pronoun_anchor_product_name: display name for strict coreference rules (session active product / order)."""
-    catalog_is_empty = _is_catalog_empty_for_merchant(merchant_id=merchant_id)
+    catalog_is_empty = _is_catalog_empty_for_merchant(merchant_id=merchant_id, channel=channel)
     resolved_dialect = (target_dialect or "").strip() or "Standard Arabic"
     quarantine_rule = get_dynamic_dialect_vocabulary_rules(resolved_dialect, output_language)
-    persona_wall = (
-        "STRICT PERSONA WALL: "
-        f"You are a local sales assistant operating EXCLUSIVELY in {resolved_dialect}. "
-        f"You MUST mentally translate any context, product descriptions, or user messages into authentic {resolved_dialect} before replying. "
-        "Do NOT use formal Standard Arabic (Fus'ha) unless requested. Be conversational, culturally accurate, and brief.\n"
-    )
+    _normalized_state_early = (conversation_state or "").strip().upper()
+    _is_post_sale_care = _normalized_state_early == "POST_SALE_SUPPORT" or bool(post_sale_support_context)
+    if _is_post_sale_care and not post_sale_support_context:
+        post_sale_support_context = {
+            "product_name": (pronoun_anchor_product_name or "").strip() or "the ordered product",
+            "mode": "customer_care",
+        }
+    if _is_post_sale_care:
+        persona_wall = (
+            "STRICT PERSONA WALL: "
+            f"You are a local CUSTOMER SUPPORT agent (فريق الدعم) operating EXCLUSIVELY in {resolved_dialect}. "
+            f"You MUST mentally translate any context into authentic {resolved_dialect} before replying. "
+            "The sale is already done. Answer, then stop. Do NOT use formal Standard Arabic (Fus'ha) unless requested.\n"
+        )
+    else:
+        persona_wall = (
+            "STRICT PERSONA WALL: "
+            f"You are a local sales assistant operating EXCLUSIVELY in {resolved_dialect}. "
+            f"You MUST mentally translate any context, product descriptions, or user messages into authentic {resolved_dialect} before replying. "
+            "Do NOT use formal Standard Arabic (Fus'ha) unless requested. Be conversational, culturally accurate, and brief.\n"
+        )
     if voice_script_style:
         # AUDIO / voice-note delivery: model may spell numbers; VFM also reformats at TTS time.
         number_rule = (
@@ -3608,7 +3703,13 @@ def build_messages_payload_sales(conversation_messages, custom_instruction=None,
             "- Example: write '2 قطع', NEVER 'جوج قطع' unless the customer explicitly asked for words.\n"
         )
     language_rule_prefix = persona_wall + number_rule + "\n\n---\n\n"
-    if product_context and (product_context or "").strip():
+    if _is_post_sale_care:
+        system = _master_post_sale_support_prompt(
+            (product_context or "").strip(),
+            agent_name=agent_name,
+            market=market,
+        )
+    elif product_context and (product_context or "").strip():
         system = _master_sales_closer_prompt(
             (product_context or "").strip(),
             trust_score=trust_score,
@@ -3664,9 +3765,9 @@ def build_messages_payload_sales(conversation_messages, custom_instruction=None,
             "at the very end of this system prompt.\n\n---\n\n"
             + system
         )
-    negotiated_product = _resolve_product_for_prompt(product_id=product_id, merchant_id=merchant_id)
+    negotiated_product = _resolve_product_for_prompt(product_id=product_id, merchant_id=merchant_id, channel=channel)
     _pricing_authority_tail = ""
-    if negotiated_product:
+    if negotiated_product and not _is_post_sale_care:
         _pricing_authority_tail = _build_current_product_authority_block(negotiated_product)
         _persona_block = _build_sales_persona_block(negotiated_product)
         if _persona_block:
@@ -3680,14 +3781,20 @@ def build_messages_payload_sales(conversation_messages, custom_instruction=None,
             _policy_block = _build_physical_return_policy_block(negotiated_product)
             if _policy_block:
                 system += _policy_block
+    elif negotiated_product and _is_post_sale_care:
+        # Facts only — no sales persona, no return/cancel policy volunteering.
+        _pricing_authority_tail = _build_current_product_authority_block(negotiated_product)
     # Pre-compute the FSM state so we can suppress *conflicting* prompt
     # sections (Order Memory + required-fields override) when the order is
     # already done. Otherwise the LLM gets contradictory instructions:
     # "ask for the name" (order memory) vs "do NOT ask for the name" (FSM
     # banner) — and historically it sided with the older, more verbose
     # instruction, re-asking for the customer's name.
-    _normalized_state = (conversation_state or "").strip().upper()
-    _suppress_order_capture_blocks = _normalized_state in {"AWAITING_PAYMENT_RECEIPT"}
+    _normalized_state = _normalized_state_early
+    _suppress_order_capture_blocks = _normalized_state in {
+        "AWAITING_PAYMENT_RECEIPT",
+        "POST_SALE_SUPPORT",
+    } or _is_post_sale_care
 
     # ── Dynamic Order Memory Block ────────────────────────────────────────────
     # Built from native backend variables only (no text parsing / regex).
@@ -3782,7 +3889,12 @@ def build_messages_payload_sales(conversation_messages, custom_instruction=None,
         "AFTER send_product_media (SILENT MODE):\n"
         "- The image is already delivered — NEVER write 'تم إرسال الصورة', '📷', or 'via WhatsApp'.\n"
         "- Prefer an EMPTY text reply, OR one short natural sales line (e.g. 'واش عجباتك؟').\n"
-        "- Never meta-commentary about sending/delivering the photo."
+        "- Never meta-commentary about sending/delivering the photo.\n\n"
+        "[CUSTOMER URL HANDLING]\n"
+        "When the customer shares an http(s) link (product page, competitor, article, etc.):\n"
+        "- Call analyze_url(url=...) IMMEDIATELY — do not invent what the page contains.\n"
+        "- Reply using title/description only; stay in character; never dump HTML.\n"
+        "- If status is 'error', say the link seems broken/unreachable and ask them to clarify."
     )
     # Product photo: send from media when asked, or ask which product when no image
     if media_context and (media_context or "").strip():
@@ -3814,7 +3926,7 @@ def build_messages_payload_sales(conversation_messages, custom_instruction=None,
                 custom_instruction = "## Seller instructions\n" + _parts[1].strip()
             else:
                 custom_instruction = ""
-        if "[DIGITAL PRODUCT PERSONA]" in system or "## Persona" in system:
+        if (not _is_post_sale_care) and ("[DIGITAL PRODUCT PERSONA]" in system or "## Persona" in system):
             system += (
                 "\n\n--- MANDATORY SALES PERSONA (take over for the entire conversation) ---\n"
                 "You MUST adopt and stay in the persona block above for every message. "
@@ -3832,7 +3944,8 @@ def build_messages_payload_sales(conversation_messages, custom_instruction=None,
     # Extreme negative prompt injection: MUST be at the very bottom so it has ultimate priority.
     # When product is in quick_lead mode, the LLM must never ask for city/address/location.
     is_quick_lead = (
-        required_order_fields is not None
+        (not _is_post_sale_care)
+        and required_order_fields is not None
         and set(required_order_fields) == {"customer_name", "phone_number"}
     )
     if is_quick_lead:
@@ -3944,6 +4057,7 @@ def generate_reply_with_tools(conversation_messages, custom_instruction=None, pr
         checkout_mode_label=checkout_mode_label,
         product_id=product_id,
         merchant_id=merchant_id,
+        channel=channel,
         voice_dialect=voice_dialect,
         voice_notes_mode=voice_notes_mode,
         voice_script_style=voice_script_style,
@@ -4027,7 +4141,8 @@ def generate_reply_with_tools(conversation_messages, custom_instruction=None, pr
             continue
         if name in (
             "save_order", "check_stock", "apply_discount", "record_order", "track_order",
-            "search_products", "switch_active_product", "send_product_media", "submit_customer_order",
+            "search_products", "switch_active_product", "send_product_media", "analyze_url",
+            "submit_customer_order",
             "send_whatsapp_flow", "use_voice_checkout",
             "register_support_complaint", "flag_order_for_review",
             "update_lead_status", "add_upsell_to_existing_order", "update_order_notes",
@@ -4139,6 +4254,7 @@ def continue_after_tool_calls(
         checkout_mode_label=checkout_mode_label,
         product_id=product_id,
         merchant_id=merchant_id,
+        channel=channel,
         voice_dialect=voice_dialect,
         voice_notes_mode=voice_notes_mode,
         voice_script_style=voice_script_style,
@@ -4228,7 +4344,8 @@ def continue_after_tool_calls(
             continue
         if name in (
             "save_order", "check_stock", "apply_discount", "record_order", "track_order",
-            "search_products", "switch_active_product", "send_product_media", "submit_customer_order",
+            "search_products", "switch_active_product", "send_product_media", "analyze_url",
+            "submit_customer_order",
             "send_whatsapp_flow", "use_voice_checkout",
             "register_support_complaint", "flag_order_for_review",
             "update_lead_status", "add_upsell_to_existing_order", "update_order_notes",

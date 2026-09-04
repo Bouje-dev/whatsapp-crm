@@ -53,6 +53,8 @@ def has_active_sales_flow(channel, phone_param: str, resolved_sender: str, conve
     state = (conversation_state or '').strip().upper()
     if state == 'AWAITING_PAYMENT_RECEIPT':
         return True
+    if state == 'POST_SALE_SUPPORT':
+        return False
     phone = (resolved_sender or phone_param or '').strip()
     if not channel or not phone:
         return False
@@ -92,11 +94,19 @@ def should_inject_post_sale_support(
     incoming_body: str = '',
 ) -> bool:
     """
-    Post-sale banner/tools only when NOT in an active sales sticky session, OR the
-    customer explicitly messages about a past-order problem.
+    Post-sale banner when the sale is done: FSM POST_SALE_SUPPORT, a recent
+    order on this chat, or a completed digital order (legacy path).
+    Blocked during payment-wait and during an active NEW purchase.
     """
+    state = (conversation_state or '').strip().upper()
+    if state == 'AWAITING_PAYMENT_RECEIPT':
+        return False
+    if state == 'POST_SALE_SUPPORT':
+        return True
     if has_active_sales_flow(channel, phone_param, resolved_sender, conversation_state):
         return False
+    if latest_care_order(channel, phone_param, resolved_sender) is not None:
+        return True
     return latest_completed_digital_order(channel, phone_param, resolved_sender) is not None
 
 
@@ -125,6 +135,56 @@ def lookup_simple_order_for_channel(channel, order_id: str, customer_phone: str 
             ):
                 return None
     return order
+
+
+_CANCELLED_ORDER_STATUSES = frozenset({
+    'cancelled', 'canceled', 'Cancelled', 'Canceled', 'CANCELLED', 'CANCELED',
+})
+_CARE_ORDER_LOOKBACK_DAYS = 45
+
+
+def _phone_candidates(phone_param: str, resolved_sender: str) -> list[str]:
+    candidates = []
+    if resolved_sender:
+        candidates.append(resolved_sender)
+    if phone_param and phone_param not in candidates:
+        candidates.append(phone_param)
+    return candidates
+
+
+def latest_care_order(channel, phone_param: str, resolved_sender: str):
+    """
+    Latest non-cancelled order for this WhatsApp chat (physical or digital).
+    Used to switch the AI into customer-support after the sale.
+    """
+    from datetime import timedelta
+
+    from django.utils import timezone
+
+    from discount.models import SimpleOrder
+
+    if not channel:
+        return None
+    since = timezone.now() - timedelta(days=_CARE_ORDER_LOOKBACK_DAYS)
+    base_qs = (
+        SimpleOrder.objects
+        .filter(channel=channel, created_at__gte=since)
+        .exclude(status__in=_CANCELLED_ORDER_STATUSES)
+        .select_related('product')
+        .order_by('-created_at')
+    )
+    for cand in _phone_candidates(phone_param, resolved_sender):
+        order = base_qs.filter(customer_phone=cand).first()
+        if order:
+            return order
+    dq = _digits_only_phone(phone_param or resolved_sender or '')
+    if not dq or len(dq) < 9:
+        return None
+    tail = dq[-9:]
+    for order in base_qs.iterator(chunk_size=40):
+        if (_digits_only_phone(order.customer_phone or '') or '').endswith(tail):
+            return order
+    return None
 
 
 def latest_completed_digital_order(channel, phone_param: str, resolved_sender: str):
@@ -243,21 +303,25 @@ def get_post_sale_support_context(
     incoming_body: str = '',
 ) -> Optional[dict[str, Any]]:
     """
-    Context dict for AI prompt injection when eligible for post-sale support.
-    Blocked during active new-purchase sticky sessions unless message is clearly support.
+    Context dict for AI prompt injection after the sale (support team persona).
     """
     if not should_inject_post_sale_support(
         channel, phone_param, resolved_sender, conversation_state, incoming_body,
     ):
         return None
-    order = latest_completed_digital_order(channel, phone_param, resolved_sender)
+    digital = latest_completed_digital_order(channel, phone_param, resolved_sender)
+    order = digital or latest_care_order(channel, phone_param, resolved_sender)
     if not order:
         return None
+    is_digital = bool(getattr(order, 'is_digital', False))
+    mode = 'digital_tech' if digital is not None else 'customer_care'
     return {
         'order_id': order.order_id,
-        'product_name': (order.product_name or '').strip() or 'your digital product',
-        'support_status': order.support_status or 'none',
-        'complaint_summary': (order.complaint_summary or '').strip(),
+        'product_name': (order.product_name or '').strip() or 'your product',
+        'support_status': getattr(order, 'support_status', None) or 'none',
+        'complaint_summary': (getattr(order, 'complaint_summary', None) or '').strip(),
+        'is_digital': is_digital,
+        'mode': mode,
     }
 
 

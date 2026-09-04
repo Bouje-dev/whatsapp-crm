@@ -436,7 +436,7 @@ def _outbound_flow_item(parsed, meta_id, *, node=None, delay=0):
     return item, ""
 
 
-def overlay_order_fields_from_product(parsed, node=None):
+def overlay_order_fields_from_product(parsed, node=None, channel=None):
     """Collect-order forms follow the product checkout_mode, not a custom field list."""
     if not isinstance(parsed, dict) or parsed.get("purpose") != PURPOSE_ORDER:
         return parsed
@@ -444,11 +444,13 @@ def overlay_order_fields_from_product(parsed, node=None):
     if not product_id:
         return parsed
     try:
-        from discount.models import Products
         from discount.orders_ai import get_required_order_fields_for_product
         from discount.whatssapAPI.checkout_capture import build_order_form_content, checkout_locale
+        from discount.services.product_scope import get_channel_product
 
-        product = Products.objects.filter(pk=int(product_id)).first()
+        if channel is None and node is not None:
+            channel = getattr(getattr(node, "flow", None), "channel", None)
+        product = get_channel_product(channel, product_id=product_id) if channel is not None else None
         if not product:
             return parsed
         required = get_required_order_fields_for_product(product)
@@ -468,7 +470,7 @@ def overlay_order_fields_from_product(parsed, node=None):
 def build_outbound_flow_message(channel, node, sender, connections=None):
     """Return (output_item, error). output_item is sent via send_automated_response."""
     parsed = parse_flow_node_content(getattr(node, "content_text", None))
-    parsed = overlay_order_fields_from_product(parsed, node=node)
+    parsed = overlay_order_fields_from_product(parsed, node=node, channel=channel)
     if not parsed["text"]:
         return None, "WhatsApp Flow body text is required"
     if parsed["purpose"] == PURPOSE_ORDER and not parsed["product_id"]:
@@ -489,7 +491,7 @@ def build_outbound_flow_message(channel, node, sender, connections=None):
 def build_outbound_flow_from_parsed(channel, content, sender, *, persist_ai_node=None):
     """Build a Flow message from a content dict (AI hybrid checkout). Does not overwrite node.content_text."""
     parsed = parse_flow_node_content(content if isinstance(content, dict) else {})
-    parsed = overlay_order_fields_from_product(parsed, node=persist_ai_node)
+    parsed = overlay_order_fields_from_product(parsed, node=persist_ai_node, channel=channel)
     if persist_ai_node:
         cfg = getattr(persist_ai_node, "ai_model_config", None) or {}
         if isinstance(cfg, dict):
@@ -643,8 +645,10 @@ def ingest_whatsapp_flow_submission(
 
     product = None
     product_id = pending.get("product_id") or content.get("product_id")
-    if product_id:
-        product = Products.objects.filter(id=product_id).first()
+    if product_id and channel:
+        from discount.services.product_scope import get_channel_product
+
+        product = get_channel_product(channel, product_id=product_id)
 
     order = None
     if purpose == PURPOSE_ORDER and product and channel:
@@ -873,11 +877,9 @@ def api_send_checkout_flow(request):
     if not product_id:
         return JsonResponse({"success": False, "error": "product_id is required"}, status=400)
 
-    product = Products.objects.filter(
-        id=product_id,
-        admin_id=getattr(channel, "owner_id", None),
-        project=str(channel.id),
-    ).first()
+    from discount.services.product_scope import get_channel_product
+
+    product = get_channel_product(channel, product_id=product_id)
     if not product:
         return JsonResponse({"success": False, "error": "Product not found"}, status=404)
 
@@ -946,7 +948,6 @@ def api_send_checkout_flow(request):
 
 
 def _inbox_owned_product(user, payload):
-    from discount.models import Products
     from discount.whatssapAPI.views import get_target_channel
 
     channel = get_target_channel(user, (payload or {}).get("channel_id"))
@@ -956,11 +957,9 @@ def _inbox_owned_product(user, payload):
         product_id = 0
     if not channel or not product_id:
         return None, None
-    product = Products.objects.filter(
-        id=product_id,
-        admin_id=getattr(channel, "owner_id", None),
-        project=str(channel.id),
-    ).first()
+    from discount.services.product_scope import get_channel_product
+
+    product = get_channel_product(channel, product_id=product_id)
     return channel, product
 
 

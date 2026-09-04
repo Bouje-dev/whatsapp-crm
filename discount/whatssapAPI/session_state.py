@@ -57,6 +57,9 @@ LLM cannot regress to an earlier slot-filling step.
                               customer's payment screenshot/PDF. The AI
                               must NOT ask for name/address or call
                               submit_customer_order again.
+  POST_SALE_SUPPORT         — order already registered. The AI is
+                              customer support, not a closer: answer
+                              then stop; never volunteer cancellation.
 """
 
 from __future__ import annotations
@@ -86,11 +89,13 @@ STATE_KEY: str = "conversation_state"
 STATE_IDLE: str = "IDLE"
 STATE_GATHERING_INFO: str = "GATHERING_INFO"
 STATE_AWAITING_PAYMENT_RECEIPT: str = "AWAITING_PAYMENT_RECEIPT"
+STATE_POST_SALE_SUPPORT: str = "POST_SALE_SUPPORT"
 
 _LEGAL_STATES: frozenset[str] = frozenset({
     STATE_IDLE,
     STATE_GATHERING_INFO,
     STATE_AWAITING_PAYMENT_RECEIPT,
+    STATE_POST_SALE_SUPPORT,
 })
 
 CTX_USER_TEXT_MSG_COUNT: str = "user_text_message_count"
@@ -257,11 +262,16 @@ def persist_sticky_sales_session(channel, phone: str, node, active_product=None)
         try:
             ai_cfg = getattr(node, "ai_model_config", None) or {}
             pid = ai_cfg.get("product_id") if isinstance(ai_cfg, dict) else None
-            owner = getattr(channel, "owner", None)
-            if pid is not None and owner:
-                from discount.models import Products
-                product = Products.objects.filter(id=int(pid), admin=owner).first()
+            if pid is not None:
+                from discount.services.product_scope import get_channel_product
+
+                product = get_channel_product(channel, product_id=pid)
         except Exception:
+            product = None
+    if product is not None:
+        from discount.services.product_scope import product_belongs_to_channel
+
+        if not product_belongs_to_channel(product, channel):
             product = None
     try:
         from discount.models import ChatSession
@@ -427,6 +437,15 @@ def set_session_active_product(channel, phone: str, product, *, reason: str = ""
     Returns True when the active product actually changed.
     """
     if not channel or not phone or not product:
+        return False
+    from discount.services.product_scope import product_belongs_to_channel
+
+    if not product_belongs_to_channel(product, channel):
+        logger.warning(
+            "[SessionState] ACTIVE_PRODUCT rejected: product %s is not in channel %s catalog",
+            getattr(product, "id", None),
+            getattr(channel, "id", None),
+        )
         return False
     pid = getattr(product, "pk", None) or getattr(product, "id", None)
     if pid is None:

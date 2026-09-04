@@ -87,12 +87,11 @@ def _format_missing_field_labels(field_keys: list[str]) -> str:
     return ", ".join(labels[:-1]) + " and " + labels[-1]
 
 
-def generate_order_tool_schema(product_id, seller_id=None) -> Optional[dict[str, Any]]:
+def generate_order_tool_schema(product_id, seller_id=None, channel=None) -> Optional[dict[str, Any]]:
     """
     Build the OpenAI `submit_customer_order` tool schema from the product's
     configured checkout fields in the database.
     """
-    from discount.models import Products
     from discount.orders_ai import get_required_order_fields_for_product
 
     try:
@@ -100,13 +99,26 @@ def generate_order_tool_schema(product_id, seller_id=None) -> Optional[dict[str,
     except (TypeError, ValueError):
         return None
 
-    qs = Products.objects.filter(id=pid)
-    if seller_id is not None:
+    product = None
+    if channel is not None:
+        from discount.services.product_scope import get_channel_product
+
+        product = get_channel_product(channel, product_id=pid)
+        if product and seller_id is not None:
+            try:
+                if getattr(product, "admin_id", None) != int(seller_id):
+                    product = None
+            except (TypeError, ValueError):
+                product = None
+    else:
+        if seller_id is None:
+            return None
+        from discount.models import Products
+
         try:
-            qs = qs.filter(admin_id=int(seller_id))
+            product = Products.objects.filter(id=pid, admin_id=int(seller_id)).first()
         except (TypeError, ValueError):
             return None
-    product = qs.first()
     if not product:
         return None
 
@@ -164,12 +176,13 @@ def build_sales_tools_for_product(
     seller_id=None,
     *,
     include_whatsapp_flow: bool = False,
+    channel=None,
 ) -> list[dict[str, Any]]:
     """Replace static submit tool with product schema; optionally add send_whatsapp_flow."""
     from ai_assistant.services import SALES_AGENT_TOOLS
 
     tools = list(SALES_AGENT_TOOLS)
-    dynamic = generate_order_tool_schema(product_id, seller_id=seller_id)
+    dynamic = generate_order_tool_schema(product_id, seller_id=seller_id, channel=channel)
     if dynamic:
         tools = [t for t in tools if (t.get("function") or {}).get("name") != "submit_customer_order"]
         tools.append(dynamic)

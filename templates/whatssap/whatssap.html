@@ -9619,6 +9619,45 @@ $('#cls3741_attach_btn').on('click', function() {
         font-size: 0.82rem;
         margin-bottom: 0.4rem;
       }
+      .cls3741_panel_products .aliases-label-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 0.5rem;
+        margin-bottom: 0.4rem;
+      }
+      .cls3741_panel_products .aliases-label-row label { margin-bottom: 0; }
+      .cls3741_panel_products .aliases-auto-btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.28rem;
+        padding: 0.28rem 0.65rem;
+        border-radius: 999px;
+        border: 1px solid rgba(167, 139, 250, 0.4);
+        background: rgba(139, 92, 246, 0.16);
+        color: #ede9fe;
+        font-size: 0.72rem;
+        font-weight: 600;
+        cursor: pointer;
+        white-space: nowrap;
+        transition: background 0.15s ease, border-color 0.15s ease;
+      }
+      .cls3741_panel_products .aliases-auto-btn:hover {
+        background: rgba(139, 92, 246, 0.28);
+        border-color: rgba(196, 181, 253, 0.55);
+      }
+      .cls3741_panel_products .aliases-auto-btn:disabled {
+        opacity: 0.6;
+        cursor: wait;
+      }
+      .cls3741_panel_products .aliases-auto-status {
+        margin-top: 0.3rem;
+        font-size: 0.72rem;
+        color: #fca5a5;
+        display: none;
+      }
+      .cls3741_panel_products .aliases-auto-status.is-visible { display: block; }
+      .cls3741_panel_products .aliases-auto-status.is-ok { color: #6ee7b7; }
       .cls3741_panel_products .basic-info-pricing-row {
         display: grid;
         grid-template-columns: 1fr minmax(160px, 220px);
@@ -10720,6 +10759,15 @@ $('#cls3741_attach_btn').on('click', function() {
                     <input type="text" name="sku" id="product_sku" maxlength="100" placeholder="e.g. EARBUDS-X1" autocomplete="off" spellcheck="false">
                     <div class="form-hint">Optional product code for inventory and orders. Leave blank to generate one automatically.</div>
                   </div>
+                  <div class="basic-info-field form-row">
+                    <div class="aliases-label-row">
+                      <label for="product_aliases">Aliases</label>
+                      <button type="button" id="product_aliases_generate_btn" class="aliases-auto-btn" title="Generate synonyms and Darija variations from the title and description">✨ Auto-Generate</button>
+                    </div>
+                    <input type="text" name="aliases" id="product_aliases" maxlength="2000" placeholder="e.g. earbuds, écouteurs, سماعات" autocomplete="off">
+                    <div class="form-hint">Alternative names, synonyms, or Moroccan Darija variations. Comma-separated. Used for instant catalog matching.</div>
+                    <div class="aliases-auto-status" id="product_aliases_status" role="status"></div>
+                  </div>
                 </div>
 
                 <!-- Pricing -->
@@ -11576,6 +11624,59 @@ $('#cls3741_attach_btn').on('click', function() {
         nameInput.addEventListener('input', scheduleProductCategoryCheck);
       }
 
+      (function initAliasesAutoGenerate() {
+        var btn = document.getElementById('product_aliases_generate_btn');
+        var input = document.getElementById('product_aliases');
+        var statusEl = document.getElementById('product_aliases_status');
+        if (!btn || !input) return;
+        function setAliasStatus(msg, ok) {
+          if (!statusEl) return;
+          if (!msg) {
+            statusEl.textContent = '';
+            statusEl.classList.remove('is-visible', 'is-ok');
+            return;
+          }
+          statusEl.textContent = msg;
+          statusEl.classList.add('is-visible');
+          statusEl.classList.toggle('is-ok', !!ok);
+        }
+        btn.addEventListener('click', function() {
+          var title = (document.getElementById('product_name') && document.getElementById('product_name').value || '').trim();
+          var desc = (document.getElementById('product_description') && document.getElementById('product_description').value || '').trim();
+          var wordCount = desc.split(/\s+/).filter(Boolean).length;
+          if (wordCount <= 5) {
+            setAliasStatus('Add a description with more than 5 words to auto-generate aliases.');
+            return;
+          }
+          var csrf = (document.querySelector('input[name="csrfmiddlewaretoken"]') || {}).value || '';
+          var originalLabel = btn.textContent;
+          btn.disabled = true;
+          btn.textContent = 'Generating…';
+          setAliasStatus('');
+          fetch('/discount/whatssapAPI/api_products/generate_aliases/', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrf },
+            credentials: 'same-origin',
+            body: JSON.stringify({ title: title || 'Product', description: desc })
+          })
+            .then(function(r) { return r.json().then(function(j) { return { ok: r.ok, json: j }; }); })
+            .then(function(res) {
+              var aliases = (res.json && res.json.aliases) || [];
+              if (aliases.length) {
+                input.value = aliases.join(', ');
+                setAliasStatus('Added ' + aliases.length + ' alias' + (aliases.length === 1 ? '' : 'es') + '.', true);
+              } else {
+                setAliasStatus((res.json && res.json.error) || 'No aliases generated. Try a richer description.');
+              }
+            })
+            .catch(function() { setAliasStatus('Network error. Try again.'); })
+            .finally(function() {
+              btn.disabled = false;
+              btn.textContent = originalLabel || '✨ Auto-Generate';
+            });
+        });
+      })();
+
       var imagesInput = document.getElementById('product_images');
       var imagesBtn = document.getElementById('product_images_btn');
       if (imagesBtn && imagesInput) {
@@ -12057,6 +12158,10 @@ $('#cls3741_attach_btn').on('click', function() {
         document.getElementById('product_name').value = p.name || '';
         var skuEl = document.getElementById('product_sku');
         if (skuEl) skuEl.value = p.sku || '';
+        var aliasesEl = document.getElementById('product_aliases');
+        if (aliasesEl) {
+          aliasesEl.value = Array.isArray(p.aliases) ? p.aliases.join(', ') : (p.aliases || '');
+        }
         document.getElementById('product_price').value = p.price || '';
         var backupEl = document.getElementById('product_backup_price');
         if (backupEl) backupEl.value = p.backup_price || '';
@@ -12158,6 +12263,10 @@ $('#cls3741_attach_btn').on('click', function() {
         productExtractedImageUrls = (p.image_urls && p.image_urls.length) ? p.image_urls.slice() : [];
         syncProductImageUrlsHidden();
         document.getElementById('product_name').value = p.name || '';
+        var aliasesEl = document.getElementById('product_aliases');
+        if (aliasesEl) {
+          aliasesEl.value = Array.isArray(p.aliases) ? p.aliases.join(', ') : (p.aliases || '');
+        }
         document.getElementById('product_price').value = p.price || '';
         var backupEl = document.getElementById('product_backup_price');
         if (backupEl) backupEl.value = p.backup_price || '';

@@ -17,43 +17,48 @@ logger = logging.getLogger(__name__)
 _PRODUCT_LOCK_MARKER = "🔴 PRODUCT ID LOCK"
 
 
-def _resolve_product_for_store(owner, *, product_id=None, product_name=None):
-    """Resolve a catalog product by numeric ID or name (tenant-scoped)."""
-    if not owner:
-        return None
-    from discount.models import Products
+def _resolve_product_for_store(owner, *, product_id=None, product_name=None, channel=None):
+    """Resolve a catalog product by numeric ID or name (channel-scoped when possible)."""
+    if channel is not None:
+        from discount.services.product_scope import channel_catalog_queryset, get_channel_product
 
-    if product_id is not None:
-        try:
-            row = Products.objects.filter(id=int(product_id), admin=owner).first()
+        if product_id is not None:
+            row = get_channel_product(channel, product_id=product_id)
             if row:
                 return row
-        except (TypeError, ValueError):
-            pass
+        name = (product_name or "").strip()
+        if not name:
+            return None
+        try:
+            from discount.services.product_search import find_matching_product
 
-    name = (product_name or "").strip()
-    if not name:
+            hybrid = find_matching_product(name, channel=channel)
+            if hybrid:
+                return hybrid
+        except Exception as exc:
+            logger.debug("_resolve_product_for_store hybrid search: %s", exc)
+        qs = channel_catalog_queryset(channel)
+        row = qs.filter(name__iexact=name).first()
+        if row:
+            return row
+        tokens = [w for w in re.split(r"\s+", name.lower()) if len(w) >= 2]
+        if not tokens:
+            return None
+        scored: list[tuple[int, Any]] = []
+        for p in qs.order_by("name")[:200]:
+            pname = (getattr(p, "name", None) or "").strip().lower()
+            aliases = " ".join(getattr(p, "aliases", None) or []).strip().lower()
+            score = sum(10 for t in tokens if t in pname or t in aliases)
+            if score > 0:
+                scored.append((score, p))
+        if not scored:
+            return None
+        scored.sort(key=lambda x: -x[0])
+        if len(scored) == 1 or scored[0][0] > scored[1][0]:
+            return scored[0][1]
         return None
 
-    row = Products.objects.filter(admin=owner, name__iexact=name).first()
-    if row:
-        return row
-
-    tokens = [w for w in re.split(r"\s+", name.lower()) if len(w) >= 2]
-    if not tokens:
-        return None
-
-    scored: list[tuple[int, Any]] = []
-    for p in Products.objects.filter(admin=owner).order_by("name")[:200]:
-        pname = (getattr(p, "name", None) or "").strip().lower()
-        score = sum(10 for t in tokens if t in pname)
-        if score > 0:
-            scored.append((score, p))
-    if not scored:
-        return None
-    scored.sort(key=lambda x: -x[0])
-    if len(scored) == 1 or scored[0][0] > scored[1][0]:
-        return scored[0][1]
+    logger.warning("_resolve_product_for_store refused unscoped owner-wide lookup")
     return None
 
 
@@ -106,7 +111,7 @@ def execute_switch_active_product(
             locked_pid = None
 
     product = _resolve_product_for_store(
-        owner, product_id=product_id, product_name=product_name
+        owner, product_id=product_id, product_name=product_name, channel=channel
     )
     if not product:
         return {
@@ -200,8 +205,9 @@ def refresh_active_product_prompt_bindings(
         return out
 
     try:
-        from discount.models import Products, ChatSession
+        from discount.models import ChatSession
         from discount.product_sales_prompt import build_product_context_for_prompt
+        from discount.services.product_scope import get_channel_product, product_belongs_to_channel
 
         session = (
             ChatSession.objects.filter(
@@ -216,10 +222,10 @@ def refresh_active_product_prompt_bindings(
             return out
 
         prod = getattr(session, "active_product", None)
+        if prod is not None and not product_belongs_to_channel(prod, channel):
+            prod = None
         if prod is None:
-            prod = Products.objects.filter(
-                id=int(session.active_product_id), admin=store
-            ).first()
+            prod = get_channel_product(channel, product_id=session.active_product_id)
         if not prod:
             return out
 
@@ -240,3 +246,100 @@ def refresh_active_product_prompt_bindings(
 def format_switch_active_product_tool_result(result: dict[str, Any]) -> str:
     """JSON string returned to the LLM after switch_active_product."""
     return json.dumps(result, ensure_ascii=False)
+
+
+_ANALYZE_URL_TIMEOUT_SEC = 3
+_ANALYZE_URL_ERROR = {"status": "error", "message": "Page could not be loaded."}
+_ANALYZE_URL_HEADERS = {
+    "User-Agent": (
+        "Mozilla/5.0 (compatible; DisoundBot/1.0; +https://disound.app) "
+        "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36"
+    ),
+    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+    "Accept-Language": "ar,en;q=0.9,fr;q=0.8",
+}
+
+
+def _analyze_url_error_payload() -> str:
+    return json.dumps(_ANALYZE_URL_ERROR, ensure_ascii=False)
+
+
+def execute_analyze_url(url: Optional[str] = None) -> str:
+    """
+    LLM tool: fetch a customer-shared URL and extract page title + meta description.
+
+    Uses ``requests`` + BeautifulSoup with a strict timeout so the WhatsApp webhook
+    does not hang. Returns a JSON string for the model.
+
+    Success shape::
+        {"status": "ok", "url": "...", "title": "...", "description": "..."}
+
+    Failure shape (timeouts, 4xx/5xx, bad URL, parse errors)::
+        {"status": "error", "message": "Page could not be loaded."}
+
+    # ADVANCED FALLBACK (placeholder):
+    # For JavaScript-heavy SPAs or bot-protected pages (403 / empty shell HTML),
+    # replace or extend this path with a headless browser scraper such as
+    # Selenium Undetected Chromedriver / Playwright stealth. Keep the same
+    # timeout budget and return shape so the LLM contract stays unchanged.
+    """
+    raw = (url or "").strip()
+    if not raw.startswith(("http://", "https://")):
+        return _analyze_url_error_payload()
+
+    try:
+        import requests
+        from bs4 import BeautifulSoup
+    except ImportError as exc:
+        logger.warning("execute_analyze_url missing dependency: %s", exc)
+        return _analyze_url_error_payload()
+
+    try:
+        resp = requests.get(
+            raw,
+            timeout=_ANALYZE_URL_TIMEOUT_SEC,
+            headers=_ANALYZE_URL_HEADERS,
+            allow_redirects=True,
+        )
+        if resp.status_code >= 400:
+            logger.info(
+                "execute_analyze_url HTTP %s for url=%s",
+                resp.status_code,
+                raw[:200],
+            )
+            return _analyze_url_error_payload()
+
+        # Cap body size before parsing (defense against huge HTML dumps).
+        html = (resp.text or "")[:500_000]
+        soup = BeautifulSoup(html, "html.parser")
+
+        title = ""
+        if soup.title and soup.title.string:
+            title = soup.title.string.strip()
+        if not title:
+            og_title = soup.find("meta", property="og:title")
+            if og_title and og_title.get("content"):
+                title = str(og_title["content"]).strip()
+
+        description = ""
+        meta_desc = soup.find("meta", attrs={"name": re.compile(r"^description$", re.I)})
+        if meta_desc and meta_desc.get("content"):
+            description = str(meta_desc["content"]).strip()
+        if not description:
+            og_desc = soup.find("meta", property="og:description")
+            if og_desc and og_desc.get("content"):
+                description = str(og_desc["content"]).strip()
+
+        return json.dumps(
+            {
+                "status": "ok",
+                "url": raw,
+                "title": title[:500],
+                "description": description[:1000],
+            },
+            ensure_ascii=False,
+        )
+    except Exception as exc:
+        # Timeouts, connection errors, TLS failures, 403 via raise_for_status path, etc.
+        logger.info("execute_analyze_url failed for url=%s: %s", raw[:200], exc)
+        return _analyze_url_error_payload()

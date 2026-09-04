@@ -630,15 +630,19 @@ def handle_submit_order_tool(
 
         # ── Resolve product & store (must happen before name validation so
         #    we can determine the fulfillment mode for this specific product) ──
-        product = Products.objects.filter(id=effective_product_id, admin_id=session_seller_id).first()
-        if not product:
-            # CRITICAL: a missing product lookup looks exactly like a system
-            # outage to the customer ("backend can't see my product"). We
-            # explicitly forbid the LLM from translating this into
-            # "out of stock" copy, because that destroys merchant trust.
+        from discount.services.product_scope import get_channel_product
+
+        product = get_channel_product(channel, product_id=effective_product_id)
+        if product and getattr(product, "admin_id", None) != session_seller_id:
             logger.error(
-                "submit_customer_order: product_id=%s not found for seller %s",
+                "submit_customer_order: product_id=%s rejected (owner mismatch seller=%s)",
                 effective_product_id, session_seller_id,
+            )
+            product = None
+        if not product:
+            logger.error(
+                "submit_customer_order: product_id=%s not in channel %s catalog for seller %s",
+                effective_product_id, getattr(channel, "id", None), session_seller_id,
             )
             return json.dumps({
                 "status": "error",
@@ -1028,6 +1032,25 @@ def handle_add_upsell_tool(arguments, channel):
             logger.error("UPSELL: order channel mismatch (order.channel=%s, current=%s)", order.channel_id, channel.id)
             return json.dumps({"status": "error", "success": False,
                                "message": "Order does not belong to this channel."}, ensure_ascii=False)
+
+        if channel:
+            from discount.services.product_scope import get_channel_product
+            from discount.services.product_search import find_matching_product
+
+            upsell_product = get_channel_product(channel, name=new_item_name.strip())
+            if not upsell_product:
+                upsell_product = find_matching_product(new_item_name.strip(), channel=channel)
+            if not upsell_product:
+                logger.error(
+                    "UPSELL: item %r is not in channel %s catalog",
+                    new_item_name, getattr(channel, "id", None),
+                )
+                return json.dumps({
+                    "status": "error",
+                    "success": False,
+                    "message": "That add-on is not in this store's catalog. Offer a product from this channel only.",
+                }, ensure_ascii=False)
+            new_item_name = (getattr(upsell_product, "name", None) or new_item_name).strip()
 
         old_product_name = (order.product_name or "").strip()
         old_price = order.price or Decimal("0")
@@ -1663,33 +1686,34 @@ def save_order_from_ai(channel, customer_phone, customer_name=None, customer_cit
         except Exception:
             pass
 
-    # Resolve product early when price is missing/0 so we can use product.price from DB
+    # Resolve product only inside this WhatsApp channel's catalog (never another channel/account).
+    from discount.services.product_scope import get_channel_product
+    from discount.services.product_search import find_matching_product
+
     product_instance = None
-    if sku_str and getattr(channel, "owner", None):
+    if sku_str:
         try:
-            product_instance = Products.objects.filter(admin=channel.owner).filter(sku=sku_str).first()
-            if not product_instance:
-                product_instance = Products.objects.filter(sku=sku_str).first()
+            product_instance = get_channel_product(channel, sku=sku_str)
         except Exception as e:
             logger.warning("save_order_from_ai product lookup for sku=%s: %s", sku_str, e)
     if sku_str and not product_instance:
-        logger.warning("save_order_from_ai: rejected — sku=%s does not match any product in the store.", sku_str)
+        logger.warning(
+            "save_order_from_ai: rejected — sku=%s is not in channel %s catalog.",
+            sku_str, getattr(channel, "id", None),
+        )
         return None
-    if not product_instance and product_name_str and getattr(channel, "owner", None):
+    if not product_instance and product_name_str:
         try:
-            product_instance = Products.objects.filter(
-                admin=channel.owner,
-                name__iexact=product_name_str,
-            ).first()
+            product_instance = get_channel_product(channel, name=product_name_str)
             if not product_instance:
-                product_instance = Products.objects.filter(
-                    admin=channel.owner,
-                    name__icontains=product_name_str,
-                ).first()
+                product_instance = find_matching_product(product_name_str, channel=channel)
         except Exception as e:
             logger.warning("save_order_from_ai product lookup by name=%s: %s", product_name_str, e)
         if not product_instance:
-            logger.warning("save_order_from_ai: rejected — product_name=%r does not match any product in the store.", product_name_str)
+            logger.warning(
+                "save_order_from_ai: rejected — product_name=%r is not in channel %s catalog.",
+                product_name_str, getattr(channel, "id", None),
+            )
             return None
 
     # When price is 0 or missing: use product price from DB if available; otherwise ask AI to re-extract from conversation
