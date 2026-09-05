@@ -599,20 +599,6 @@ def handle_submit_order_tool(
                     ),
                 }, ensure_ascii=False)
 
-        # ── product_id is always required ─────────────────────────────────────
-        effective_product_id = tool_product_id or session_product_id
-        if not effective_product_id:
-            return json.dumps({
-                "status": "error",
-                "success": False,
-                "reason": "missing_product_id",
-                "message": (
-                    "product_id is missing. Ask the user exactly which product they want to order "
-                    "from the catalog, then call the tool again with that product_id. Do NOT tell "
-                    "the user the product is unavailable or out of stock."
-                ),
-            }, ensure_ascii=False)
-
         # ── Phone is always required (WhatsApp sender = guaranteed fallback) ──
         phone_to_use = (phone_number or customer_phone_from_chat or "").strip()
         if not phone_to_use:
@@ -633,19 +619,89 @@ def handle_submit_order_tool(
 
         # ── Resolve product & store (must happen before name validation so
         #    we can determine the fulfillment mode for this specific product) ──
-        from discount.services.product_scope import get_channel_product
+        from discount.models import ChatSession
+        from discount.services.product_scope import get_channel_product_for_order
 
-        product = get_channel_product(channel, product_id=effective_product_id)
+        candidate_ids = []
+        try:
+            _sess = ChatSession.objects.filter(
+                channel=channel,
+                customer_phone=customer_phone_from_chat,
+                is_expired=False,
+                is_completed=False,
+            ).first()
+            if _sess is None:
+                digits = re.sub(r"\D", "", str(customer_phone_from_chat or ""))
+                if len(digits) >= 8:
+                    _sess = (
+                        ChatSession.objects.filter(
+                            channel=channel,
+                            is_expired=False,
+                            is_completed=False,
+                        )
+                        .filter(customer_phone__endswith=digits[-9:] if len(digits) >= 9 else digits)
+                        .first()
+                    )
+            if _sess and getattr(_sess, "active_product_id", None):
+                candidate_ids.append(int(_sess.active_product_id))
+        except Exception as _sess_err:
+            logger.debug("submit_customer_order session product lookup: %s", _sess_err)
+
+        if session_product_id:
+            try:
+                candidate_ids.append(int(session_product_id))
+            except (TypeError, ValueError):
+                pass
+        if tool_product_id:
+            candidate_ids.append(int(tool_product_id))
+
+        seen = set()
+        ordered_ids = []
+        for pid in candidate_ids:
+            if pid in seen:
+                continue
+            seen.add(pid)
+            ordered_ids.append(pid)
+
+        if not ordered_ids:
+            return json.dumps({
+                "status": "error",
+                "success": False,
+                "reason": "missing_product_id",
+                "message": (
+                    "product_id is missing. Ask the user exactly which product they want to order "
+                    "from the catalog, then call the tool again with that product_id. Do NOT tell "
+                    "the user the product is unavailable or out of stock."
+                ),
+            }, ensure_ascii=False)
+
+        product = None
+        used_pid = None
+        for pid in ordered_ids:
+            product = get_channel_product_for_order(channel, pid)
+            if product:
+                used_pid = pid
+                break
+
         if product and getattr(product, "admin_id", None) != session_seller_id:
-            logger.error(
-                "submit_customer_order: product_id=%s rejected (owner mismatch seller=%s)",
-                effective_product_id, session_seller_id,
-            )
-            product = None
+            _prod_admin = getattr(product, "admin", None)
+            _team_admin_id = getattr(_prod_admin, "team_admin_id", None) if _prod_admin else None
+            if _team_admin_id != session_seller_id:
+                logger.error(
+                    "submit_customer_order: product_id=%s rejected (owner mismatch seller=%s admin=%s)",
+                    used_pid, session_seller_id, getattr(product, "admin_id", None),
+                )
+                product = None
         if not product:
             logger.error(
-                "submit_customer_order: product_id=%s not in channel %s catalog for seller %s",
-                effective_product_id, getattr(channel, "id", None), session_seller_id,
+                "submit_customer_order: product_id=%s not in channel %s catalog for seller %s "
+                "(tried ids=%s tool=%s node=%s)",
+                used_pid or tool_product_id or session_product_id,
+                getattr(channel, "id", None),
+                session_seller_id,
+                ordered_ids,
+                tool_product_id,
+                session_product_id,
             )
             return json.dumps({
                 "status": "error",
@@ -653,6 +709,12 @@ def handle_submit_order_tool(
                 "reason": "product_lookup_miss",
                 "message": SUBMIT_ORDER_SYSTEM_BUSY_INSTRUCTION,
             }, ensure_ascii=False)
+        logger.info(
+            "submit_customer_order: resolved product_id=%s name=%r (tried=%s)",
+            getattr(product, "id", None),
+            getattr(product, "name", None),
+            ordered_ids,
+        )
 
         store = getattr(channel, "owner", None)
         if not store or getattr(store, "id", None) != session_seller_id:
@@ -732,7 +794,7 @@ def handle_submit_order_tool(
         try:
             logger.info(
                 "DB INSERT ATTEMPT... (product_id=%s, customer=%s, price=%s)",
-                effective_product_id, customer_name or normalized_phone, price,
+                getattr(product, "id", None), customer_name or normalized_phone, price,
             )
 
             order_agent = get_or_create_ai_agent_user(store, agent_name="AI Agent") or store

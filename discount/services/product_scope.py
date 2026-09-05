@@ -86,6 +86,51 @@ def get_channel_product(channel, *, product_id=None, sku=None, name=None):
     return None
 
 
+def get_channel_product_for_order(channel, product_id):
+    """
+    Resolve a product for order creation.
+
+    Tagged catalog hits win. Owner products that are *not* tagged to a
+    different WhatsApp channel are also accepted so legacy ``project``
+    names / empty tags still convert (the previous strict catalog miss
+    was aborting real sales).
+    """
+    if not channel or product_id is None:
+        return None
+    hit = get_channel_product(channel, product_id=product_id)
+    if hit:
+        return hit
+    owner_id = _owner_id_from_channel(channel)
+    if not owner_id:
+        return None
+    from discount.models import Products
+    from django.db.models import Q
+
+    try:
+        pid = int(product_id)
+    except (TypeError, ValueError):
+        return None
+    row = Products.objects.filter(id=pid).filter(
+        Q(admin_id=owner_id) | Q(admin__team_admin_id=owner_id)
+    ).first()
+    if not row:
+        return None
+    keys = _owner_channel_keys(owner_id)
+    channel_key = str(getattr(channel, "id", "") or "")
+    proj = str(getattr(row, "project", None) or "").strip()
+    if proj and keys and proj in keys and proj != channel_key:
+        logger.warning(
+            "get_channel_product_for_order: product %s tagged to channel %s, not %s",
+            pid, proj, channel_key,
+        )
+        return None
+    logger.info(
+        "get_channel_product_for_order: accepted owner product %s for channel %s (project=%r)",
+        pid, channel_key, proj,
+    )
+    return row
+
+
 def resolve_session_product(channel, *, product_id=None, session=None):
     """Prefer an explicit product_id, else the session active product — both channel-scoped."""
     prod = None

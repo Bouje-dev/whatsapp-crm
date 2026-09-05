@@ -3584,14 +3584,22 @@ def api_order_sync_google_sheets(request, order_id):
 
 @require_GET
 def api_products_list(request):
-    """GET ?channel_id= — list products for channel (admin = channel.owner)."""
+    """GET ?channel_id= — list products tagged to this WhatsApp channel only."""
     user = getattr(request, "user", None)
     if not user or not user.is_authenticated:
         return JsonResponse({"products": [], "error": "Authentication required"}, status=401)
-    from discount.models import Products, ProductImage, ProductVideo, UserCheckoutFormCopy
-    target_channel = get_target_channel(user, request.GET.get("channel_id"))
+    from discount.models import Products, ProductImage, ProductVideo, UserCheckoutFormCopy, WhatsAppChannel
+    raw_cid = request.GET.get("channel_id")
+    target_channel = None
+    if raw_cid and str(raw_cid) not in ("null", "undefined"):
+        try:
+            target_channel = WhatsAppChannel.objects.filter(id=raw_cid).first()
+        except (TypeError, ValueError):
+            target_channel = None
     if not target_channel or not target_channel.owner_id:
         return JsonResponse({"products": []})
+    if not target_channel.has_user_permission(user):
+        return JsonResponse({"products": [], "error": "Forbidden"}, status=403)
     channel_scope = str(target_channel.id)
     qs = Products.objects.filter(
         admin_id=target_channel.owner_id,

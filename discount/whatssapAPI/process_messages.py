@@ -6266,7 +6266,7 @@ def try_ai_voice_reply(
                     from discount.orders_ai import handle_submit_order_tool
                     content = handle_submit_order_tool(
                         args,
-                        session_product_id=None,
+                        session_product_id=voice_product_id,
                         session_seller_id=session_seller_id,
                         channel=channel,
                         customer_phone_from_chat=sender,

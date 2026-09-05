@@ -1432,30 +1432,154 @@ def _cod_auth_failed(resp):
 @login_required
 @require_POST
 def submit_order(request):
-     
     if request.method != "POST":
         return JsonResponse({"success": False, "message": "الطلب يجب أن يتم باستخدام POST"})
 
-    # بيانات العميل
+    channel_id = (request.POST.get("channel_id") or "").strip()
+    if channel_id and channel_id.lower() not in ("null", "undefined"):
+        return _submit_inbox_simple_order(request)
+
+    # Legacy creatl.html form — keep previous COD Network path.
+    return _submit_cod_network_order(request)
+
+
+def _submit_inbox_simple_order(request):
+    """Save a WhatsApp inbox order as SimpleOrder — same path as the AI agent. No COD Network."""
+    import uuid
+    from decimal import Decimal, InvalidOperation
+
+    from discount.services.product_scope import get_channel_product
+    from discount.models import WhatsAppChannel
+
+    name = (request.POST.get("name") or "").strip()[:200]
+    phone = (request.POST.get("phone") or "").strip()[:20]
+    city = (request.POST.get("city") or "").strip()
+    address = (request.POST.get("address") or "").strip()
+    channel_id = request.POST.get("channel_id")
+    product_id = request.POST.get("product_id")
+    selected_sku = (request.POST.get("selected_sku") or "").strip()
+    product_quantity = request.POST.get("product_quantity") or 1
+    product_price = request.POST.get("product_price")
+
+    if not phone:
+        return JsonResponse({"success": False, "message": "رقم الهاتف مطلوب"}, status=400)
+
+    try:
+        channel = WhatsAppChannel.objects.get(id=channel_id)
+    except (WhatsAppChannel.DoesNotExist, ValueError, TypeError):
+        return JsonResponse({"success": False, "message": "اختر محادثة / قناة أولاً"}, status=400)
+    if not channel.has_user_permission(request.user):
+        return JsonResponse({"success": False, "message": "ليس لديك صلاحية على هذه القناة"}, status=403)
+
+    product = None
+    if product_id not in (None, "", "0"):
+        try:
+            product = get_channel_product(channel, product_id=int(product_id))
+        except (TypeError, ValueError):
+            product = None
+    if not product and selected_sku:
+        product = get_channel_product(channel, sku=selected_sku)
+    if not product:
+        return JsonResponse({"success": False, "message": "المنتج غير موجود في كتالوج هذه القناة"}, status=400)
+
+    try:
+        quantity = Decimal(str(product_quantity or 1))
+        if quantity <= 0:
+            return JsonResponse({"success": False, "message": "الكمية غير صحيحة"}, status=400)
+    except (InvalidOperation, TypeError, ValueError):
+        return JsonResponse({"success": False, "message": "الكمية غير صحيحة"}, status=400)
+
+    if product_price not in (None, ""):
+        try:
+            price = Decimal(str(product_price))
+            if price < 0:
+                return JsonResponse({"success": False, "message": "السعر غير صحيح"}, status=400)
+        except (InvalidOperation, TypeError, ValueError):
+            return JsonResponse({"success": False, "message": "السعر غير صحيح"}, status=400)
+    else:
+        try:
+            price = Decimal(str(getattr(product, "price", 0) or 0))
+        except Exception:
+            price = Decimal("0")
+
+    customer_city = " | ".join(filter(None, [city, address]))[:100]
+    is_digital = bool(
+        getattr(product, "is_digital", False)
+        or (getattr(product, "checkout_mode", None) or "") in ("digital", "direct_sale")
+    )
+    status = "pending_payment" if is_digital else "pending"
+    order_id = str(uuid.uuid4())[:8]
+    while SimpleOrder.objects.filter(order_id=order_id).exists():
+        order_id = str(uuid.uuid4())[:8]
+
+    order = SimpleOrder.objects.create(
+        product=product,
+        agent=request.user,
+        channel=channel,
+        sku=str(getattr(product, "sku", "") or "")[:100],
+        product_name=str(getattr(product, "name", "") or "")[:200],
+        customer_name=name or phone,
+        customer_phone=phone,
+        customer_city=customer_city,
+        is_digital=is_digital,
+        order_id=order_id,
+        status=status,
+        created_at=timezone.now(),
+        price=price,
+        currency=(getattr(product, "currency", None) or "MAD").strip() or "MAD",
+        quantity=quantity,
+        created_by_ai=False,
+        sheets_export_status="pending",
+    )
+
+    log_activity(
+        "simple_order_created",
+        f"Inbox order #{order.order_id} for {name or phone} ({phone}), product: {order.product_name}",
+        request=request,
+        related_object=order,
+    )
+    try:
+        from discount.whatssapAPI.follow_up import cancel_pending_follow_up_tasks_for_customer
+        cancel_pending_follow_up_tasks_for_customer(channel, phone)
+    except Exception as e:
+        logging.getLogger(__name__).warning("cancel_pending_follow_up_tasks_for_customer: %s", e)
+    try:
+        from discount.orders_ai import _notify_owner_order_created
+        _notify_owner_order_created(channel, order)
+    except Exception as e:
+        logging.getLogger(__name__).warning("notify owner after inbox order: %s", e)
+    try:
+        from discount.models import Contact
+        contact = Contact.objects.filter(channel=channel, phone=phone).first()
+        if not contact and len(phone) >= 8:
+            contact = Contact.objects.filter(channel=channel, phone__endswith=phone[-8:]).first()
+        if contact:
+            contact.pipeline_stage = Contact.PipelineStage.CLOSED
+            contact.save(update_fields=["pipeline_stage"])
+    except Exception:
+        pass
+
+    return JsonResponse({
+        "success": True,
+        "message": "تم تسجيل الطلب بنجاح",
+        "order_id": order.order_id,
+    })
+
+
+def _submit_cod_network_order(request):
     name = request.POST.get("name")
     phone = request.POST.get("phone")
     address = request.POST.get("address")
     country_code = request.POST.get("country_code") or "SA"
-    channel_id = request.POST.get("channel_id")
-    # المنتج المختار
-    selected_product_sku = request.POST.get("selected_sku") 
+    selected_product_sku = request.POST.get("selected_sku")
     product_quantity = request.POST.get("product_quantity") or 1
     product_price = request.POST.get("product_price")
- 
-    # عناصر النموذج
     skus = request.POST.getlist("sku[]")
     is_gift_flags = request.POST.getlist("is_gift[]")
-    print(f"selected_product_sku: {selected_product_sku}, product_quantity: {product_quantity}, product_price: {product_price}")
-    
-    if not selected_product_sku :
-        return JsonResponse({"success": False, "message": "المنتج المختار غير موجود"} ,status=400)
 
-    # استخراج SKU الهدية (إن وجدت)
+    if not selected_product_sku:
+        return JsonResponse({"success": False, "message": "المنتج المختار غير موجود"}, status=400)
+
     gift_sku = None
     for i in range(len(skus)):
         if is_gift_flags[i] == "true":
@@ -1483,59 +1607,31 @@ def submit_order(request):
         except CODProduct.DoesNotExist:
             return JsonResponse({"success": False, "message": "الهدية غير موجودة في قاعدة البيانات"})
 
-    # تحقق من الحد اليومي للطلبات إذا لم يكن المستخدم أدمين أو سوبر يوزر
-    if request.user.is_team_admin or request.user.is_superuser:
-        pass
-    else:
+    if not (request.user.is_team_admin or request.user.is_superuser):
         order_limit = UserProductPermission.objects.filter(user=request.user).first()
         today = now().date()
         user_orders_today = Order.objects.filter(user=request.user, order_date__date=today).count()
         user_limit = order_limit.daily_order_limit if order_limit else 0
-
         if user_limit and user_orders_today >= user_limit:
             return JsonResponse({
                 "success": False,
                 "message": f"لقد وصلت إلى الحد الأقصى لعدد الطلبات اليوم ({user_limit})"
             })
 
-    channel = None
-    if channel_id:
-        try:
-            channel = WhatsAppChannel.objects.get(id=channel_id)
-        except (WhatsAppChannel.DoesNotExist, ValueError, TypeError):
-            return JsonResponse({"success": False, "message": "القناة غير موجودة"}, status=400)
-    if not channel:
-        return JsonResponse({"success": False, "message": "اختر محادثة / قناة أولاً"}, status=400)
-
-    token_user = getattr(channel, "owner", None) or request.user
-    try:
-        resp = sendlead(request, name, phone, address, country_code, items_payload, token_user=token_user)
-    except Exception as e:
-        logging.getLogger(__name__).warning("sendlead failed: %s", e)
-        resp = None
-
-    # Expired/invalid COD token must not block the WhatsApp inbox order.
+    resp = sendlead(request, name, phone, address, country_code, items_payload)
     if resp is not None and getattr(resp, "status_code", None) != 201:
-        if _cod_auth_failed(resp):
-            logging.getLogger(__name__).warning(
-                "sendlead: COD Unauthenticated for user %s — saving order locally",
-                getattr(token_user, "pk", "?"),
-            )
-            resp = None
-        else:
-            try:
-                error_data = resp.json()
-                if "log" in error_data and isinstance(error_data["log"], list) and error_data["log"]:
-                    error_message = error_data["log"][0].get("message", error_data.get("message", "خطأ غير معروف"))
-                else:
-                    error_message = error_data.get("message", "خطأ غير معروف")
-            except (ValueError, AttributeError):
-                error_message = getattr(resp, "text", None) or "حدث خطأ غير متوقع أثناء إرسال الطلب"
-
-            return JsonResponse({
-                "success": False,
-                "message": f"فشل إرسال الطلب: {error_message}",
-            })
+        try:
+            error_data = resp.json()
+            if "log" in error_data and isinstance(error_data["log"], list) and error_data["log"]:
+                error_message = error_data["log"][0].get("message", error_data.get("message", "خطأ غير معروف"))
+            else:
+                error_message = error_data.get("message", "خطأ غير معروف")
+        except (ValueError, AttributeError):
+            error_message = getattr(resp, "text", None) or "حدث خطأ غير متوقع أثناء إرسال الطلب"
+        return JsonResponse({
+            "success": False,
+            "message": f"فشل إرسال الطلب: {error_message}",
+        })
 
     import uuid
     try:
@@ -1547,7 +1643,6 @@ def submit_order(request):
         quantity=product_quantity,
         product=product_instance,
         agent=request.user,
-        channel=channel,
         sku=selected_product_sku,
         product_name=product_instance.name,
         customer_name=name,
@@ -1566,9 +1661,8 @@ def submit_order(request):
         request=request,
         related_object=order,
     )
-
     if resp is None:
-        msg = "تم تسجيل الطلب بنجاح (محليًا — لم يتم ربط COD Network)"
+        msg = "تم تسجيل الطلب بنجاح"
     else:
         msg = "تم إرسال الطلب بنجاح"
     return JsonResponse({"success": True, "message": msg})

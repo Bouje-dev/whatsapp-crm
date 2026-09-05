@@ -7753,9 +7753,6 @@ function sendCannedResponseDirectly(item) {
                     <div class="product-select-wrapper">
                         <select id="quick_product_select" class="modern-select">
                             <option value="" selected disabled>Choose a product...</option>
-                            {% for product in productslist %}
-                                <option value="{{ product.sku }}" data-name="{{ product.name }}">{{ product.name }}</option>
-                            {% endfor %}
                         </select>
                         <i class="fas fa-chevron-down select-arrow"></i>
                     </div>
@@ -7832,8 +7829,9 @@ window.switchSidebarView = function(viewName) {
     if (viewName === 'order') {
         crmPanel.style.display = 'none';
         orderPanel.style.display = 'flex';
-        // إضافة أنيميشن بسيط
         orderPanel.classList.add('fade-in');
+        if (typeof window.loadQuickOrderProducts === 'function') window.loadQuickOrderProducts();
+        if (typeof window.fillQuickOrderCustomer === 'function') window.fillQuickOrderCustomer();
     } else {
         orderPanel.style.display = 'none';
         crmPanel.style.display = 'flex';
@@ -7856,34 +7854,79 @@ document.addEventListener("DOMContentLoaded", function() {
         
             // 2. إرسال النموذج
             const quickForm = document.getElementById('quick_order_form');
-            
+            const productSelect = document.getElementById('quick_product_select');
+            const quickPrice = document.getElementById('quick_price');
+
+            window.fillQuickOrderCustomer = function() {
+                var nameEl = document.getElementById('quick_name');
+                var phoneEl = document.getElementById('quick_phone');
+                var activeName = document.getElementById('cls3741_active_name');
+                if (nameEl && activeName && (activeName.textContent || '').trim()) {
+                    nameEl.value = activeName.textContent.trim();
+                }
+                if (phoneEl && window.currentPhone) {
+                    phoneEl.value = String(window.currentPhone).replace(/^\+/, '');
+                }
+            };
+
+            window.loadQuickOrderProducts = function() {
+                if (!productSelect) return;
+                var cid = window.currentChannelId || window._activeChannelId || '';
+                var keep = productSelect.value;
+                productSelect.innerHTML = '<option value="" selected disabled>Choose a product...</option>';
+                if (!cid) return;
+                fetch('/discount/whatssapAPI/api_products/?channel_id=' + encodeURIComponent(cid), { credentials: 'same-origin' })
+                    .then(function(r) { return r.json(); })
+                    .then(function(data) {
+                        (data.products || []).forEach(function(p) {
+                            var opt = document.createElement('option');
+                            opt.value = p.id;
+                            opt.dataset.sku = p.sku || '';
+                            opt.dataset.price = p.price || '';
+                            opt.dataset.name = p.name || '';
+                            opt.textContent = p.name || ('#' + p.id);
+                            productSelect.appendChild(opt);
+                        });
+                        if (keep && productSelect.querySelector('option[value="' + keep + '"]')) {
+                            productSelect.value = keep;
+                        }
+                    })
+                    .catch(function() {});
+            };
+
+            if (productSelect) {
+                productSelect.addEventListener('change', function() {
+                    var opt = this.options[this.selectedIndex];
+                    if (quickPrice && opt && opt.dataset.price) quickPrice.value = opt.dataset.price;
+                });
+            }
+
             if(quickForm) {
                 quickForm.addEventListener('submit', async function(e) {
                     e.preventDefault();
                     
                     const btn = document.getElementById('quick_submit_btn');
                     const originalContent = btn.innerHTML;
-                    const productSelect = document.getElementById('quick_product_select');
+                    const selectEl = document.getElementById('quick_product_select');
         
-                    if(!productSelect.value) {
-                        // تأثير اهتزاز بسيط للحقل في حال الخطأ
-                        productSelect.style.borderColor = '#ef4444';
-                        setTimeout(() => productSelect.style.borderColor = '', 2000);
+                    if(!selectEl || !selectEl.value) {
+                        if (selectEl) {
+                            selectEl.style.borderColor = '#ef4444';
+                            setTimeout(() => selectEl.style.borderColor = '', 2000);
+                        }
                         return;
                     }
         
                     const formData = new FormData(quickForm);
-                    // إضافة SKU يدوياً
-                    formData.append('selected_sku', productSelect.value);
-                    formData.append('channel_id', window.currentChannelId);
+                    var selectedOpt = selectEl.options[selectEl.selectedIndex];
+                    formData.append('product_id', selectEl.value);
+                    formData.append('selected_sku', (selectedOpt && selectedOpt.dataset.sku) || '');
+                    formData.append('channel_id', window.currentChannelId || window._activeChannelId || '');
                     
-                    // Loading State
                     btn.disabled = true;
                     btn.innerHTML = '<span class="spinner-border spinner-border-sm" style="width:1rem;height:1rem;"></span> Processing...';
         
                     try {
-                      
-                        // const channel_id = window.currentChannelId || '{{ initial_channel_id }}';
                         const url = "{% url 'submit_order' %}";
                         const response = await fetch(url, { 
                             method: 'POST',
@@ -7894,17 +7937,18 @@ document.addEventListener("DOMContentLoaded", function() {
                         const result = await response.json();
         
                         if (result.success) {  
-    // نجاح: نعيد الزر للون الأخضر للحظة
                               btn.style.background = '#10b981';
                               btn.innerHTML = '<i class="fas fa-check"></i> Success';
                               setTimeout(() => {
                                   btn.style.background = ''; 
                                   btn.innerHTML = originalContent;
+                                  btn.disabled = false;
                                   quickForm.reset();
                                   if(document.getElementById('quick_qty')) document.getElementById('quick_qty').value = 1;
+                                  if (typeof window.fillQuickOrderCustomer === 'function') window.fillQuickOrderCustomer();
+                                  if (typeof window.loadQuickOrderProducts === 'function') window.loadQuickOrderProducts();
                               }, 2000);
                           } else {
-                              // فشل
                               alert("Error: " + (result.message || "Failed to create order"));
                               btn.disabled = false;
                               btn.innerHTML = originalContent;
