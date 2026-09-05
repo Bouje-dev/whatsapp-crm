@@ -1360,16 +1360,20 @@ def _cod_network_token_for_user(user):
         return None
 
 
-def sendlead(request, cname, cphone, caddress, country_code, items):
+def sendlead(request, cname, cphone, caddress, country_code, items, token_user=None):
     """
     Post lead to COD Network when a token is saved.
     Returns None if skipped (no token); otherwise the requests.Response.
+
+    token_user: whose COD token to use. Inbox orders should pass the
+    WhatsApp channel owner, not the logged-in dashboard viewer.
     """
-    decrypted_tok = _cod_network_token_for_user(request.user)
+    user = token_user if token_user is not None else getattr(request, "user", None)
+    decrypted_tok = _cod_network_token_for_user(user)
     if not decrypted_tok:
         logging.getLogger(__name__).info(
             "sendlead: skipping COD Network — no token for user %s",
-            getattr(request.user, "pk", "?"),
+            getattr(user, "pk", "?"),
         )
         return None
 
@@ -1385,11 +1389,16 @@ def sendlead(request, cname, cphone, caddress, country_code, items):
         "Content-Type": "application/json",
     }
 
-    resp = requests.post(
-        "https://api.cod.network/v1/seller/leads",
-        data=json.dumps(payload),
-        headers=headers,
-    )
+    try:
+        resp = requests.post(
+            "https://api.cod.network/v1/seller/leads",
+            data=json.dumps(payload),
+            headers=headers,
+            timeout=20,
+        )
+    except Exception as e:
+        logging.getLogger(__name__).warning("sendlead: COD Network request failed: %s", e)
+        return None
 
     if resp.status_code == 201:
         print("✅ تم إرسال الطلب إلى COD Network بنجاح")
@@ -1398,7 +1407,29 @@ def sendlead(request, cname, cphone, caddress, country_code, items):
 
     return resp
 
+
+def _cod_auth_failed(resp):
+    """True when COD Network rejected the stored token (expired / invalid)."""
+    if resp is None:
+        return False
+    code = getattr(resp, "status_code", None)
+    if code in (401, 403):
+        return True
+    blob = ""
+    try:
+        blob = (getattr(resp, "text", None) or "")[:2000]
+    except Exception:
+        blob = ""
+    try:
+        data = resp.json()
+        blob += " " + json.dumps(data, ensure_ascii=False)[:2000]
+    except Exception:
+        pass
+    return "unauthenticated" in blob.lower()
+
+
 # @csrf_exempt
+@login_required
 @require_POST
 def submit_order(request):
      
@@ -1431,11 +1462,14 @@ def submit_order(request):
             gift_sku = skus[i]
             break
 
-    items_payload = [{
-        "sku": selected_product_sku,
-        "quantity": int(product_quantity),
-        "price": float(product_price)
-    }]
+    try:
+        items_payload = [{
+            "sku": selected_product_sku,
+            "quantity": int(product_quantity),
+            "price": float(product_price or 0),
+        }]
+    except (TypeError, ValueError):
+        return JsonResponse({"success": False, "message": "السعر أو الكمية غير صحيحة"}, status=400)
 
     gift_obj = None
     if gift_sku:
@@ -1463,24 +1497,45 @@ def submit_order(request):
                 "success": False,
                 "message": f"لقد وصلت إلى الحد الأقصى لعدد الطلبات اليوم ({user_limit})"
             })
-    
-    resp = sendlead(request, name, phone, address, country_code, items_payload)
 
-    # COD API was called but failed — do not create a local order.
-    if resp is not None and getattr(resp, "status_code", None) != 201:
+    channel = None
+    if channel_id:
         try:
-            error_data = resp.json()
-            if "log" in error_data and isinstance(error_data["log"], list) and error_data["log"]:
-                error_message = error_data["log"][0].get("message", error_data.get("message", "خطأ غير معروف"))
-            else:
-                error_message = error_data.get("message", "خطأ غير معروف")
-        except (ValueError, AttributeError):
-            error_message = getattr(resp, "text", None) or "حدث خطأ غير متوقع أثناء إرسال الطلب"
+            channel = WhatsAppChannel.objects.get(id=channel_id)
+        except (WhatsAppChannel.DoesNotExist, ValueError, TypeError):
+            return JsonResponse({"success": False, "message": "القناة غير موجودة"}, status=400)
+    if not channel:
+        return JsonResponse({"success": False, "message": "اختر محادثة / قناة أولاً"}, status=400)
 
-        return JsonResponse({
-            "success": False,
-            "message": f"فشل إرسال الطلب: {error_message}",
-        })
+    token_user = getattr(channel, "owner", None) or request.user
+    try:
+        resp = sendlead(request, name, phone, address, country_code, items_payload, token_user=token_user)
+    except Exception as e:
+        logging.getLogger(__name__).warning("sendlead failed: %s", e)
+        resp = None
+
+    # Expired/invalid COD token must not block the WhatsApp inbox order.
+    if resp is not None and getattr(resp, "status_code", None) != 201:
+        if _cod_auth_failed(resp):
+            logging.getLogger(__name__).warning(
+                "sendlead: COD Unauthenticated for user %s — saving order locally",
+                getattr(token_user, "pk", "?"),
+            )
+            resp = None
+        else:
+            try:
+                error_data = resp.json()
+                if "log" in error_data and isinstance(error_data["log"], list) and error_data["log"]:
+                    error_message = error_data["log"][0].get("message", error_data.get("message", "خطأ غير معروف"))
+                else:
+                    error_message = error_data.get("message", "خطأ غير معروف")
+            except (ValueError, AttributeError):
+                error_message = getattr(resp, "text", None) or "حدث خطأ غير متوقع أثناء إرسال الطلب"
+
+            return JsonResponse({
+                "success": False,
+                "message": f"فشل إرسال الطلب: {error_message}",
+            })
 
     import uuid
     try:
@@ -1492,7 +1547,7 @@ def submit_order(request):
         quantity=product_quantity,
         product=product_instance,
         agent=request.user,
-        channel=WhatsAppChannel.objects.get(id=channel_id),
+        channel=channel,
         sku=selected_product_sku,
         product_name=product_instance.name,
         customer_name=name,

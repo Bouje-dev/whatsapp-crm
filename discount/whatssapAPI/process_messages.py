@@ -2905,7 +2905,7 @@ def _execute_send_product_media(channel, sender, product_id, caption=""):
         return json.dumps({"status": "error", "message": "Failed to send product image media."}, ensure_ascii=False)
 
 
-# Transitional message sent to customer before submit_customer_order DB work (UX: no awkward silence)
+# Never send this to the customer. Kept only as a historical constant.
 SUBMIT_ORDER_TRANSITIONAL_MESSAGE = "غادي نسجل الطلب ديالك دابا. لحظة واحدة..."
 
 
@@ -2954,23 +2954,51 @@ def _is_direct_sale_digital_product(channel, current_node, tool_args):
         return False
 
 
+def _submit_order_silent_error(reason, log_detail=None):
+    from discount.orders_ai import SUBMIT_ORDER_SYSTEM_BUSY_INSTRUCTION
+    if log_detail:
+        logger.warning("submit_customer_order system error (%s): %s", reason, log_detail)
+    return json.dumps({
+        "status": "error",
+        "reason": reason,
+        "instruction": SUBMIT_ORDER_SYSTEM_BUSY_INSTRUCTION,
+        "success": False,
+        "message": SUBMIT_ORDER_SYSTEM_BUSY_INSTRUCTION,
+    }, ensure_ascii=False)
+
+
+def _note_submit_order_failure(channel, sender, outcome, agent_name=None):
+    """Internal-only note so the team can finish the order from the inbox form."""
+    if not channel or not sender or not isinstance(outcome, dict) or outcome.get("success"):
+        return
+    reason = (outcome.get("reason") or "").strip()
+    customer_ok_reasons = {
+        "missing_customer_name",
+        "invalid_customer_name",
+        "invalid_phone",
+        "missing_product_id",
+        "invalid_product_id_format",
+        "invalid_final_agreed_price",
+    }
+    if reason in customer_ok_reasons:
+        return
+    detail = (outcome.get("reason") or outcome.get("status") or "unknown")[:180]
+    _add_ai_action_note(
+        channel,
+        sender,
+        f"Order was not saved ({detail}). Do not tell the customer. Complete it from the inbox order form if needed.",
+        author_name=agent_name or "AI Agent",
+    )
+
+
 def _execute_submit_customer_order(channel, sender, arguments, current_node, incoming_body=None):
     """
     Execute submit_customer_order tool. Product comes from session (current_node), not from AI.
-    Caller must send the transitional message (SUBMIT_ORDER_TRANSITIONAL_MESSAGE) to the customer
-    BEFORE calling this, so the customer sees an instant reply while DB/validation runs.
-    Returns a JSON string with descriptive feedback for the AI's tool result:
-    - Success: {"status": "success", "order_id": "...", "instruction": "..."}
-    - Error: {"status": "error", "reason": "...", "instruction": "..."}
+    Do not announce registration to the customer; only confirm after a successful save.
+    Returns a JSON string with descriptive feedback for the AI's tool result.
     """
     if not channel or not current_node:
-        return json.dumps({
-            "status": "error",
-            "reason": "Channel or product context missing.",
-            "instruction": "Explain that a technical issue occurred and ask the customer to try again in a moment.",
-            "success": False,
-            "message": "SYSTEM ERROR: Channel or product context missing.",
-        }, ensure_ascii=False)
+        return _submit_order_silent_error("channel_or_product_missing")
     ai_cfg = getattr(current_node, "ai_model_config", None) or {}
     session_product_id = ai_cfg.get("product_id") if isinstance(ai_cfg, dict) else None
     try:
@@ -2980,16 +3008,9 @@ def _execute_submit_customer_order(channel, sender, arguments, current_node, inc
     session_seller_id = getattr(channel, "owner_id", None) or (getattr(channel, "owner", None) and getattr(channel.owner, "id", None))
     if not session_seller_id:
         logger.warning("_execute_submit_customer_order: channel has no owner (channel_id=%s)", getattr(channel, "id", None))
-        return json.dumps({
-            "status": "error",
-            "reason": "Channel has no owner configured.",
-            "instruction": "Apologize for a technical issue and say an agent will assist shortly.",
-            "success": False,
-            "message": "SYSTEM ERROR: Channel not configured.",
-        }, ensure_ascii=False)
+        return _submit_order_silent_error("channel_has_no_owner")
     try:
         from discount.orders_ai import handle_submit_order_tool
-        # The handler itself returns a JSON string for the LLM context (never raises to the caller)
         content = handle_submit_order_tool(
             arguments,
             session_product_id=session_product_id,
@@ -3000,24 +3021,12 @@ def _execute_submit_customer_order(channel, sender, arguments, current_node, inc
         )
         if isinstance(content, str):
             return content
-        # Backwards safety: if a dict is ever returned, stringify it.
-        return json.dumps(content or {
-            "status": "error",
-            "message": "Unknown tool result shape. Tell the user there was a technical glitch and that a human agent will assist shortly.",
-        }, ensure_ascii=False)
+        if content:
+            return json.dumps(content, ensure_ascii=False)
+        return _submit_order_silent_error("unknown_tool_result")
     except Exception as e:
         logger.exception("_execute_submit_customer_order: %s", e)
-        err_msg = f"Error creating order: {e}"
-        return json.dumps({
-            "status": "error",
-            "reason": "Order could not be processed.",
-            "instruction": (
-                f"SYSTEM ERROR: Tool execution failed in the backend. {err_msg}. "
-                "Apologize to the customer naturally and ask them to try again in a moment."
-            ),
-            "success": False,
-            "message": err_msg,
-        }, ensure_ascii=False)
+        return _submit_order_silent_error("tool_execution_failed", e)
 
 
 def _node_has_upsell_connection(ai_agent_node):
@@ -4220,25 +4229,8 @@ def run_ai_agent_node(
                         logger.warning("hybrid checkout submit gate: %s", _gate_err)
                     if _checkout_submit_blocked:
                         continue
-                    # Step 1: Transitional message (instant reply) before DB work — no awkward silence.
-                    # SUPPRESSED for direct-sale digital products: the AI is in SILENT MODE for those
-                    # (see [TOOL EXECUTION RULE] in the Direct Sale prompt branch), so the only thing
-                    # the customer should see is the payment block from the tool result. A transitional
-                    # "غادي نسجل الطلب..." between "I want it" and the payment instructions creates the
-                    # exact narration loop the SILENT MODE rule was designed to eliminate.
-                    if not _is_direct_sale_digital_product(channel, current_node, args):
-                        send_automated_response(
-                            sender,
-                            [{"type": "text", "content": SUBMIT_ORDER_TRANSITIONAL_MESSAGE, "delay": 0}],
-                            channel=channel,
-                        )
-                    else:
-                        logger.info(
-                            "submit_customer_order: SILENT MODE — suppressed transitional message "
-                            "for direct-sale digital product (channel=%s, sender=%s).",
-                            getattr(channel, "id", None), sender,
-                        )
-                    # Step 2 & 3: Execute tool and return descriptive feedback for the AI
+                    # Do not announce "I'll register the order" to the customer.
+                    # Confirm only after submit_customer_order succeeds.
                     content = _execute_submit_customer_order(
                         channel, sender, args, current_node, incoming_body=incoming_body or ""
                     )
@@ -4253,6 +4245,7 @@ def run_ai_agent_node(
                                 getattr(channel, "id", None), sender,
                                 outcome.get("message") or outcome.get("reason") or content[:200],
                             )
+                            _note_submit_order_failure(channel, sender, outcome, agent_name)
                     except Exception:
                         pass
                 elif name == "update_lead_status":
@@ -6268,21 +6261,6 @@ def try_ai_voice_reply(
                     author_name=voice_path_agent_name,
                 )
             elif name == "submit_customer_order":
-                # Same SILENT MODE suppression as the text-flow path: no
-                # transitional message for direct-sale digital products.
-                if not _is_direct_sale_digital_product(channel, _vd_node, args):
-                    send_automated_response(
-                        sender,
-                        [{"type": "text", "content": SUBMIT_ORDER_TRANSITIONAL_MESSAGE, "delay": 0}],
-                        channel=channel,
-                    )
-                else:
-                    logger.info(
-                        "submit_customer_order (voice path): SILENT MODE — suppressed "
-                        "transitional message for direct-sale digital product "
-                        "(channel=%s, sender=%s).",
-                        getattr(channel, "id", None), sender,
-                    )
                 session_seller_id = getattr(channel, "owner_id", None) or (getattr(channel, "owner", None) and getattr(channel.owner, "id", None))
                 try:
                     from discount.orders_ai import handle_submit_order_tool
@@ -6295,10 +6273,11 @@ def try_ai_voice_reply(
                     )
                 except Exception as e:
                     logger.exception("try_ai_voice_reply submit_customer_order: %s", e)
+                    from discount.orders_ai import SUBMIT_ORDER_SYSTEM_BUSY_INSTRUCTION
                     content = json.dumps({
                         "status": "error",
                         "success": False,
-                        "message": f"Error creating order: {e}",
+                        "message": SUBMIT_ORDER_SYSTEM_BUSY_INSTRUCTION,
                     }, ensure_ascii=False)
                 tool_results.append({"tool_call_id": tcid, "content": content})
                 try:
@@ -6328,6 +6307,10 @@ def try_ai_voice_reply(
                                     "state for channel=%s sender=%s: %s",
                                     getattr(channel, "id", None), sender, _vs_err,
                                 )
+                    else:
+                        _note_submit_order_failure(
+                            channel, sender, outcome, voice_path_agent_name
+                        )
                 except Exception:
                     pass
         if tool_results:
