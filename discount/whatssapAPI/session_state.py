@@ -434,6 +434,9 @@ def set_session_active_product(channel, phone: str, product, *, reason: str = ""
     state and sets ``product_pivot_active`` so node-default products cannot revert
     the customer's chosen product on the next message.
 
+    Creates a ChatSession row when none exists (generic AI / Lab path) so
+    search_products can bind the catalog product before sticky node sessions exist.
+
     Returns True when the active product actually changed.
     """
     if not channel or not phone or not product:
@@ -455,17 +458,49 @@ def set_session_active_product(channel, phone: str, product, *, reason: str = ""
     try:
         from discount.models import ChatSession
 
-        session = (
-            ChatSession.objects.filter(
+        session = ChatSession.objects.filter(
+            channel=channel,
+            customer_phone=phone,
+        ).select_related("active_node").first()
+
+        if not session:
+            ctx0: dict = {
+                "active_product_id": int(pid),
+                "product_pivot_active": True,
+                "active_product_switched_at": timezone.now().isoformat(),
+            }
+            session = ChatSession.objects.create(
                 channel=channel,
                 customer_phone=phone,
+                active_product_id=int(pid),
                 is_expired=False,
+                is_completed=False,
+                ai_enabled=True,
+                context_data=ctx0,
             )
-            .select_related("active_node")
-            .first()
-        )
-        if not session:
-            return False
+            try:
+                from discount.services.checkout_state import get_or_create_checkout_state
+
+                _cos = get_or_create_checkout_state(channel, phone)
+                if _cos is not None and getattr(_cos, "product_id", None) is None:
+                    _cos.product = product
+                    _cos.save(update_fields=["product", "updated_at"])
+            except Exception as _cos_create_err:
+                logger.debug("[SessionState] checkout seed on create: %s", _cos_create_err)
+            logger.info(
+                "[SessionState] ACTIVE_PRODUCT created session channel=%s phone=…%s product=%s reason=%s",
+                getattr(channel, "id", "?"),
+                (phone or "")[-4:],
+                pid,
+                reason_key or "—",
+            )
+            return True
+
+        # Revive expired/completed rows when binding a product for a new sale.
+        if session.is_expired or session.is_completed:
+            session.is_expired = False
+            session.is_completed = False
+
         switched = session.active_product_id != int(pid)
         session.active_product_id = int(pid)
         ctx = getattr(session, "context_data", None) or {}
@@ -475,10 +510,47 @@ def set_session_active_product(channel, phone: str, product, *, reason: str = ""
             ctx = _reset_context_for_product_pivot(ctx)
             ctx["product_pivot_active"] = True
             ctx["active_product_switched_at"] = timezone.now().isoformat()
+            # Do not wipe checkout slots when the durable state itself is seeding active_product.
+            if reason_key != "checkout_state_sync":
+                try:
+                    from discount.services.checkout_state import get_or_create_checkout_state
+
+                    _cos = get_or_create_checkout_state(channel, phone)
+                    if _cos is not None:
+                        # New product → drop prior COD slots; keep row, bind new product.
+                        _cos.customer_name = ""
+                        _cos.city = ""
+                        _cos.address = ""
+                        _cos.email_address = ""
+                        _cos.product = product
+                        _cos.is_ready_for_checkout = False
+                        _cos.raw_extractions = {}
+                        _cos.save(
+                            update_fields=[
+                                "customer_name",
+                                "city",
+                                "address",
+                                "email_address",
+                                "product",
+                                "is_ready_for_checkout",
+                                "raw_extractions",
+                                "updated_at",
+                            ]
+                        )
+                except Exception as _cos_pivot_err:
+                    logger.debug("[SessionState] checkout pivot reset: %s", _cos_pivot_err)
         ctx["active_product_id"] = int(pid)
         session.context_data = ctx
         session.last_interaction = timezone.now()
-        session.save(update_fields=["active_product", "context_data", "last_interaction"])
+        session.save(
+            update_fields=[
+                "active_product",
+                "context_data",
+                "last_interaction",
+                "is_expired",
+                "is_completed",
+            ]
+        )
         node = getattr(session, "active_node", None)
         if node:
             set_session_cache(channel, phone, node, ctx, active_product=product)
@@ -520,6 +592,11 @@ def clear_session_and_cache(channel, phone: str, reason: str = "") -> None:
         ).update(is_expired=True)
     except Exception as exc:
         logger.warning("[SessionState] DB expire: %s", exc)
+    try:
+        from discount.services.checkout_state import reset_checkout_state
+        reset_checkout_state(channel, phone)
+    except Exception as exc:
+        logger.debug("[SessionState] checkout state reset on clear: %s", exc)
 
 
 def complete_session(channel, phone: str) -> None:
@@ -545,6 +622,11 @@ def complete_session(channel, phone: str) -> None:
         ).update(is_completed=True)
     except Exception as exc:
         logger.warning("[SessionState] DB complete: %s", exc)
+    try:
+        from discount.services.checkout_state import reset_checkout_state
+        reset_checkout_state(channel, phone)
+    except Exception as exc:
+        logger.debug("[SessionState] checkout state reset on complete: %s", exc)
 
 
 def get_session_context_data(channel, phone: str) -> dict:

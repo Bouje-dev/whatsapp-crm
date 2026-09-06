@@ -127,6 +127,38 @@ def get_conversation_state_debug(channel_id: int, customer_phone: str) -> dict:
     if not isinstance(collected, dict):
         collected = {}
 
+    # Prefer durable WhatsAppCheckoutState over ephemeral context_data slots.
+    customer_profile_notes = ""
+    try:
+        from discount.services.checkout_state import (
+            get_or_create_checkout_state,
+            state_to_collected_fields,
+        )
+
+        channel_obj = WhatsAppChannel.objects.filter(id=channel_id).first()
+        if channel_obj and customer_phone:
+            cos = get_or_create_checkout_state(channel_obj, customer_phone)
+            if cos is not None:
+                from_state = state_to_collected_fields(cos)
+                if from_state:
+                    collected = {**collected, **from_state}
+                customer_profile_notes = (getattr(cos, "customer_notes", None) or "").strip()
+                if not active_product and getattr(cos, "product", None) is not None:
+                    active_product = cos.product
+                    price = getattr(active_product, "price", None)
+                    try:
+                        price_val = float(price) if price is not None else None
+                    except (TypeError, ValueError):
+                        price_val = None
+                    product = {
+                        "id": active_product.id,
+                        "name": (getattr(active_product, "name", None) or "").strip(),
+                        "price": price_val,
+                        "sku": getattr(active_product, "sku", None),
+                    }
+    except Exception as exc:
+        logger.debug("checkout state for context panel: %s", exc)
+
     customer_data = {
         "name": (collected.get("customer_name") or ctx.get("customer_name") or "").strip() or None,
         "city": (collected.get("shipping_city") or ctx.get("customer_city") or "").strip() or None,
@@ -162,6 +194,11 @@ def get_conversation_state_debug(channel_id: int, customer_phone: str) -> dict:
     )
 
     notes: list[str] = []
+    if customer_profile_notes:
+        notes.append(
+            f"Profile: {customer_profile_notes[:200]}"
+            f"{'…' if len(customer_profile_notes) > 200 else ''}"
+        )
     if ctx.get("memory_summary"):
         summary = str(ctx["memory_summary"]).strip()
         if summary:

@@ -146,3 +146,7 @@
 2026-09-02 14:59:00,253 [ERROR] order_id=46 sync failed: Orders
 2026-09-02 14:59:25,233 [INFO] sync_order_to_google_sheets attempt order_id=46
 2026-09-02 14:59:27,311 [INFO] order_id=46 sync success
+2026-09-06 17:42:45,401 [INFO] sync_order_to_google_sheets attempt order_id=47
+2026-09-06 17:42:48,391 [INFO] order_id=47 sync success
+2026-09-06 17:50:04,904 [INFO] sync_order_to_google_sheets attempt order_id=48
+2026-09-06 17:50:08,059 [INFO] order_id=48 sync success

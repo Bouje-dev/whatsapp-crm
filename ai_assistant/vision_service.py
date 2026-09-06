@@ -61,9 +61,9 @@ def analyze_image(media_content, mime_type="image/jpeg"):
         {
             "type": "text",
             "text": (
-                "Describe this image in one or two short sentences for a customer support context. "
+                "Describe this image in one or two short sentences for internal agent context. "
                 "If it looks like a product, screenshot, or receipt, say what it is and what the customer might be asking about (e.g. price, order). "
-                "Use English or the same language you detect in the image. Be concise."
+                "Write in English. Be concise. This text is system context only — not the customer's spoken language."
             ),
         },
         {"type": "image_url", "image_url": {"url": f"data:{mime_type};base64,{b64}"}},
@@ -87,7 +87,9 @@ def analyze_image(media_content, mime_type="image/jpeg"):
         text = (choice.get("message", {}).get("content") or "").strip()
         if not text:
             return None
-        return f"The customer sent an image. {text}"
+        # Prefix as system context so AUTO language detect never treats English vision
+        # notes as the customer's spoken language.
+        return f"[SYSTEM IMAGE CONTEXT]: {text}"
     except requests.exceptions.Timeout:
         logger.warning("Vision API timeout")
         return None

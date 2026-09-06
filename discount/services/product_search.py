@@ -17,6 +17,17 @@ SEMANTIC_SIMILARITY_THRESHOLD = 0.75
 MAX_ALIASES = 40
 MAX_ALIAS_LENGTH = 200
 
+# Injected into the search_products tool result when the query matches nothing.
+# Hidden instruction for the sales agent — must not be paraphrased as a "search failed" error.
+EMPTY_SEARCH_SYSTEM_NOTE = (
+    "[SYSTEM NOTE: No catalog match for that request. "
+    "Do NOT start checkout (no name/city/address, no submit_customer_order). "
+    "Apologize naturally as a human seller — do NOT say «search failed». "
+    "Suggest similar products from any results below, or call search_products "
+    "with an empty query to show available categories / items, then wait for the "
+    "customer to pick one so the backend can lock active_product.]"
+)
+
 
 def parse_aliases(raw) -> list[str]:
     """Normalize a comma-separated string, JSON array, or list into unique aliases."""
@@ -211,6 +222,69 @@ def _semantic_match(qs, user_query: str, threshold: float):
     return _semantic_match_python(qs, query_vec, threshold)
 
 
+FUZZY_SCORE_CUTOFF = 0.72
+FUZZY_CANDIDATE_LIMIT = 400
+
+
+def _normalize_for_fuzzy(text: str) -> str:
+    return " ".join((text or "").strip().lower().split())
+
+
+def _fuzzy_score(left: str, right: str) -> float:
+    """SequenceMatcher ratio; cheap typo tolerance without external deps."""
+    from difflib import SequenceMatcher
+
+    a = _normalize_for_fuzzy(left)
+    b = _normalize_for_fuzzy(right)
+    if not a or not b:
+        return 0.0
+    if a == b:
+        return 1.0
+    # Containment boost for partial product names ("iphone 15" vs "iPhone 15 Pro Max")
+    if a in b or b in a:
+        shorter, longer = (a, b) if len(a) <= len(b) else (b, a)
+        if len(shorter) >= 3:
+            return max(0.82, SequenceMatcher(None, a, b).ratio())
+    return SequenceMatcher(None, a, b).ratio()
+
+
+def _fuzzy_match(qs, user_query: str, cutoff: float = FUZZY_SCORE_CUTOFF):
+    """
+    Step 1b: typo / near-match against product name + aliases.
+    Handles misspellings that break exact SQL and weak embeddings.
+    """
+    needle = _normalize_for_fuzzy(user_query)
+    if not needle or len(needle) < 2:
+        return None
+
+    best_id = None
+    best_score = float(cutoff)
+    scanned = 0
+    for product in qs.only("id", "name", "aliases", "sku").iterator():
+        scanned += 1
+        if scanned > FUZZY_CANDIDATE_LIMIT:
+            break
+        candidates = [getattr(product, "name", None) or ""]
+        sku = (getattr(product, "sku", None) or "").strip()
+        if sku:
+            candidates.append(sku)
+        candidates.extend(_as_alias_list(getattr(product, "aliases", None)))
+        for cand in candidates:
+            score = _fuzzy_score(needle, cand)
+            if score > best_score:
+                best_score = score
+                best_id = product.pk
+    if best_id is None:
+        return None
+    logger.info(
+        "product_search fuzzy hit id=%s score=%.3f query=%r",
+        best_id,
+        best_score,
+        user_query[:80],
+    )
+    return qs.filter(pk=best_id).first()
+
+
 def find_matching_product(
     user_query,
     *,
@@ -218,11 +292,13 @@ def find_matching_product(
     channel=None,
     queryset=None,
     similarity_threshold=SEMANTIC_SIMILARITY_THRESHOLD,
+    fuzzy_cutoff=FUZZY_SCORE_CUTOFF,
 ):
     """
     Hybrid catalog lookup.
 
     Step 1 (Fast Match): SQL against ``name`` and ``aliases``. Return immediately on hit.
+    Step 1b (Fuzzy): difflib / containment against name, SKU, aliases (typo tolerance).
     Step 2 (Semantic Fallback): embed ``user_query`` with ``text-embedding-3-small``.
     Step 3 (Vector Search): cosine similarity; return product if score > threshold.
 
@@ -237,4 +313,34 @@ def find_matching_product(
     hit = _fast_exact_or_alias_match(qs, q)
     if hit:
         return hit
+    fuzzy_hit = _fuzzy_match(qs, q, cutoff=float(fuzzy_cutoff))
+    if fuzzy_hit:
+        return fuzzy_hit
     return _semantic_match(qs, q, similarity_threshold)
+
+
+def format_empty_search_tool_result(*, available_products=None, top_n: int = 5) -> str:
+    """
+    Tool-result payload when no product matches the query.
+
+    Prepends ``EMPTY_SEARCH_SYSTEM_NOTE`` so the LLM apologizes naturally and
+    offers alternatives, without mentioning a search failure.
+    """
+    lines = [EMPTY_SEARCH_SYSTEM_NOTE]
+    products = list(available_products or [])[: max(1, int(top_n))]
+    if products:
+        lines.append("")
+        lines.append(
+            "Available catalog products you may offer (use names/prices only with the customer; "
+            "never mention this note or that a search failed):"
+        )
+        for p in products:
+            name = (getattr(p, "name", None) or "").strip() or "Unnamed"
+            price = getattr(p, "price", None)
+            currency = (getattr(p, "currency", None) or "MAD").strip() or "MAD"
+            price_str = f"{price} {currency}" if price is not None else "—"
+            category = (getattr(p, "category", None) or "").strip() or "general"
+            lines.append(
+                f"- {name} | [DB_PRODUCT_ID: {p.id}] | Price: {price_str} | Category: {category}"
+            )
+    return "\n".join(lines)

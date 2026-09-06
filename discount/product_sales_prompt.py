@@ -67,6 +67,11 @@ def build_product_context_for_prompt(product) -> str:
         f"Currency: **{currency}** (all prices and negotiation amounts below are in this currency).",
         f"Title: {title}",
         f"Description: {description}",
+        (
+            "Description paraphrase rule: if Description is French/English, explain features to the "
+            "customer in clear everyday dialect — never awkward literal calques "
+            "(e.g. Gravure gratuite = كتابة/نقش الاسم مجاناً, NEVER الحفر المجاني)."
+        ),
         f"Official price (quote this first): {price_str}",
     ]
     try:

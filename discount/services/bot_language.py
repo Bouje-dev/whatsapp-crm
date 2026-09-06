@@ -18,6 +18,28 @@ OutputLang = Optional[Literal["fr", "ar", "en"]]
 _ARABIC_SCRIPT_RE = re.compile(r"[\u0600-\u06FF]")
 _LATIN_WORD_RE = re.compile(r"[a-zA-ZÀ-ÿ]{2,}")
 
+# Vision / STT / payment classifiers stored as customer body — never use for language detect.
+_SYSTEM_CONTEXT_BODY_RE = re.compile(
+    r"^\s*\[SYSTEM(?:\s+(?:IMAGE|VISION|PAYMENT|STT)[^\]]*)?\]",
+    re.IGNORECASE,
+)
+# Legacy vision bodies written before the [SYSTEM …] prefix.
+_LEGACY_VISION_BODY_RE = re.compile(
+    r"^\s*The customer sent an image\b",
+    re.IGNORECASE,
+)
+
+# Latin-script Moroccan Franco / Arabizi markers (customer wrote Darija in Latin letters).
+_FRANCO_DARIJA_RE = re.compile(
+    r"(?i)(?:"
+    r"\b(?:wach|wash|bghit|bghiti|bghina|mafiha|mafihach|mafihech|chhal|bzaf|bzff|"
+    r"wakha|waxa|waxha|labas|mzyan|mezian|meziane|ach|achnu|chno|chnoua|fin|kayn|kayna|"
+    r"sahbi|khoya|khouya|kifash|kifach|3andi|3ndk|3lik|7aja|9al|drwi|drari|"
+    r"wachi|walo|machi|ghadi|ghan|bgha|bghat|safi|wakhaa|ouiwa|iwa)\b|"
+    r"[379]\w{2,}"
+    r")"
+)
+
 _FRENCH_HINTS = re.compile(
     r"\b(je|tu|vous|nous|est|sont|bonjour|merci|français|francais|parle|parler|parlez|"
     r"seulement|uniquement|oui|non|comment|prix|livraison|commander|produit|svp|s'il|"
@@ -51,6 +73,27 @@ _ENGLISH_ONLY_PHRASES = re.compile(
     re.IGNORECASE,
 )
 _FRENCH_ACCENTS_RE = re.compile(r"[àâäéèêëïîôùûüçœæ]", re.IGNORECASE)
+
+
+def is_system_context_body(body: str) -> bool:
+    """True for injected vision/STT system notes stored on the customer turn."""
+    raw = body or ""
+    return bool(_SYSTEM_CONTEXT_BODY_RE.match(raw) or _LEGACY_VISION_BODY_RE.match(raw))
+
+
+def looks_like_franco_darija(text: str) -> bool:
+    """
+    Latin letters with Moroccan Franco / Arabizi cues.
+    These customers expect Arabic-script replies, not Latin Franco mirroring.
+    """
+    raw = (text or "").strip()
+    if not raw or _ARABIC_SCRIPT_RE.search(raw):
+        return False
+    if not _LATIN_WORD_RE.search(raw):
+        return False
+    if _FRENCH_ONLY_PHRASES.search(raw) or _ENGLISH_ONLY_PHRASES.search(raw):
+        return False
+    return bool(_FRANCO_DARIJA_RE.search(raw))
 
 
 def effective_output_language_for_node(node) -> OutputLang:
@@ -107,6 +150,10 @@ def _customer_message_bodies(conversation, max_messages: int = 4) -> list[str]:
         body = (msg.get("body") or "").strip()
         if not body or body == "[media]":
             continue
+        # Skip vision / payment classifier notes — they are English system context,
+        # not the customer's spoken language.
+        if is_system_context_body(body):
+            continue
         bodies.append(body)
         if len(bodies) >= max_messages:
             break
@@ -118,6 +165,10 @@ def detect_customer_language(conversation) -> OutputLang:
     """
     Infer fr / en / ar from recent customer messages (weighted toward latest).
     Returns None when unclear — caller should fall back to phone/voice hierarchy.
+
+    Notes:
+    - System image/vision notes are ignored (must not flip the chat to English).
+    - Latin Moroccan Franco (Wach / bghit / …) counts as Arabic intent → reply in Arabic script.
     """
     bodies = _customer_message_bodies(conversation, max_messages=4)
     if not bodies:
@@ -136,6 +187,11 @@ def detect_customer_language(conversation) -> OutputLang:
             return "fr"
         if _ENGLISH_ONLY_PHRASES.search(body):
             return "en"
+
+        # Franco Darija in Latin letters → Arabic output language (not EN/FR mirror).
+        if looks_like_franco_darija(body):
+            arabic_score += w * 3.0
+            continue
 
         arabic_chars = len(_ARABIC_SCRIPT_RE.findall(body))
         latin_words = len(_LATIN_WORD_RE.findall(body))

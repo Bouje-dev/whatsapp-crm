@@ -475,6 +475,24 @@ class Products(models.Model):
             'direct_sale = No info required — AI submits instantly on purchase intent.'
         ),
     )
+    CHECKOUT_METHOD_CHOICES = [
+        ('chat_only', _('Chat only (conversational step-by-step)')),
+        ('flow_only', _('WhatsApp Flow only (structured form)')),
+        ('hybrid', _('Hybrid (Flow first, chat fallback)')),
+    ]
+    checkout_method = models.CharField(
+        max_length=20,
+        choices=CHECKOUT_METHOD_CHOICES,
+        default='hybrid',
+        blank=True,
+        verbose_name=_('Checkout method (how to collect)'),
+        help_text=_(
+            'Controls HOW the AI collects order details for this product. '
+            'chat_only = ask step-by-step in chat; '
+            'flow_only = send WhatsApp Flow form only; '
+            'hybrid = send Flow first, then fall back to chat if the customer types details.'
+        ),
+    )
     testimonial = models.FileField(
         upload_to='product_testimonials/%Y/%m/',
         blank=True,
@@ -2606,6 +2624,72 @@ class ChatSession(models.Model):
 
     def __str__(self):
         return f"Session {self.channel_id}:{self.customer_phone} (expired={self.is_expired})"
+
+
+class WhatsAppCheckoutState(models.Model):
+    """
+    Durable checkout slot memory for the WhatsApp AI sales agent.
+
+    Survives prompt truncation / chat-history amnesia: extracted name, city,
+    address, and product stay here until the order completes or the session resets.
+    """
+    channel = models.ForeignKey(
+        WhatsAppChannel,
+        on_delete=models.CASCADE,
+        related_name="checkout_states",
+    )
+    customer_phone = models.CharField(max_length=32, db_index=True)
+    customer_name = models.CharField(max_length=200, blank=True, default="")
+    city = models.CharField(max_length=200, blank=True, default="")
+    address = models.CharField(max_length=500, blank=True, default="")
+    email_address = models.CharField(max_length=254, blank=True, default="")
+    product = models.ForeignKey(
+        Products,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="checkout_states",
+        help_text="Resolved catalog product for this checkout (fuzzy / session sync).",
+    )
+    is_ready_for_checkout = models.BooleanField(
+        default=False,
+        db_index=True,
+        help_text="True when all product-required fields are present (product + slots).",
+    )
+    raw_extractions = models.JSONField(
+        default=dict,
+        blank=True,
+        help_text="Last LLM extraction payload for debugging / audit.",
+    )
+    customer_notes = models.TextField(
+        blank=True,
+        default="",
+        help_text=(
+            "Accumulated customer profile context for sales personalization "
+            "(pain points, objections, skin/health concerns, location nuances, "
+            "prior bad experiences). Updated by the entity extractor; not checkout slots."
+        ),
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=["channel", "customer_phone"],
+                name="unique_channel_customer_checkout_state",
+            )
+        ]
+        indexes = [
+            models.Index(fields=["channel", "customer_phone"]),
+            models.Index(fields=["channel", "is_ready_for_checkout"]),
+        ]
+        verbose_name = "WhatsApp checkout state"
+        verbose_name_plural = "WhatsApp checkout states"
+
+    def __str__(self):
+        ready = "ready" if self.is_ready_for_checkout else "incomplete"
+        return f"CheckoutState {self.channel_id}:{self.customer_phone} ({ready})"
 
 
 class HandoverLog(models.Model):

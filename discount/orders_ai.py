@@ -71,6 +71,31 @@ CHECKOUT_MODE_LABELS = {
     "direct_sale":  "Direct Sale (No information required — instant submit)",
 }
 
+# checkout_method = HOW details are collected (distinct from checkout_mode = WHAT fields)
+CHECKOUT_METHOD_CHAT = "chat_only"
+CHECKOUT_METHOD_FLOW = "flow_only"
+CHECKOUT_METHOD_HYBRID = "hybrid"
+CHECKOUT_METHOD_CHOICES = (
+    CHECKOUT_METHOD_CHAT,
+    CHECKOUT_METHOD_FLOW,
+    CHECKOUT_METHOD_HYBRID,
+)
+CHECKOUT_METHOD_LABELS = {
+    CHECKOUT_METHOD_CHAT: "Chat only (conversational step-by-step)",
+    CHECKOUT_METHOD_FLOW: "WhatsApp Flow only (structured form)",
+    CHECKOUT_METHOD_HYBRID: "Hybrid (Flow first, chat fallback)",
+}
+
+
+def get_product_checkout_method(product) -> str:
+    """Resolve product.checkout_method; default hybrid for legacy / missing rows."""
+    if not product:
+        return CHECKOUT_METHOD_HYBRID
+    method = (getattr(product, "checkout_method", None) or CHECKOUT_METHOD_HYBRID).strip()
+    if method not in CHECKOUT_METHOD_CHOICES:
+        return CHECKOUT_METHOD_HYBRID
+    return method
+
 # Fields that are considered valid for any checkout mode (extended with email_address)
 _ALL_VALID_FIELDS = {
     "customer_name", "phone_number",
@@ -257,8 +282,15 @@ def is_order_customer_info_complete(order, product=None):
         return True
 
     city_raw = (getattr(order, "customer_city", None) or "").strip()
-    city_part = city_raw.split("|")[0].strip() if city_raw else ""
-    address_part = city_raw.split("|")[-1].strip() if "|" in city_raw else city_raw
+    if " | " in city_raw:
+        city_part, address_part = (p.strip() for p in city_raw.split(" | ", 1))
+    elif "|" in city_raw:
+        city_part, address_part = (p.strip() for p in city_raw.split("|", 1))
+    else:
+        # No separator → city only; do not treat the same string as address.
+        city_part, address_part = city_raw, ""
+    if address_part and city_part and address_part == city_part:
+        address_part = ""
 
     values = {
         "customer_name": getattr(order, "customer_name", None),
@@ -693,6 +725,51 @@ def handle_submit_order_tool(
                 )
                 product = None
         if not product:
+            # Last-chance fuzzy recovery: checkout-state product, then name/query fuzzy match.
+            try:
+                from discount.services.checkout_state import (
+                    get_or_create_checkout_state,
+                    fuzzy_lookup_product,
+                )
+
+                _cos = get_or_create_checkout_state(channel, customer_phone_from_chat)
+                if _cos and getattr(_cos, "product_id", None):
+                    product = get_channel_product_for_order(channel, int(_cos.product_id))
+                    if product:
+                        used_pid = int(_cos.product_id)
+                        logger.info(
+                            "submit_customer_order: recovered product via checkout_state id=%s",
+                            used_pid,
+                        )
+                if not product:
+                    fuzzy_q = (
+                        _safe_order_arg(arguments, "product_name", "")
+                        or (incoming_body or kwargs.get("incoming_body") or "")
+                        or ""
+                    ).strip()
+                    if fuzzy_q:
+                        fuzzy_hit = fuzzy_lookup_product(fuzzy_q, channel=channel)
+                        if fuzzy_hit:
+                            product = fuzzy_hit
+                            used_pid = getattr(fuzzy_hit, "id", None)
+                            logger.info(
+                                "submit_customer_order: recovered product via fuzzy match id=%s q=%r",
+                                used_pid,
+                                fuzzy_q[:80],
+                            )
+                if product and getattr(product, "admin_id", None) != session_seller_id:
+                    _prod_admin = getattr(product, "admin", None)
+                    _team_admin_id = getattr(_prod_admin, "team_admin_id", None) if _prod_admin else None
+                    if _team_admin_id != session_seller_id:
+                        logger.error(
+                            "submit_customer_order: fuzzy recovery rejected (owner mismatch seller=%s admin=%s)",
+                            session_seller_id, getattr(product, "admin_id", None),
+                        )
+                        product = None
+            except Exception as _fuzzy_err:
+                logger.debug("submit_customer_order fuzzy recovery: %s", _fuzzy_err)
+
+        if not product:
             logger.error(
                 "submit_customer_order: product_id=%s not in channel %s catalog for seller %s "
                 "(tried ids=%s tool=%s node=%s)",
@@ -821,10 +898,17 @@ def handle_submit_order_tool(
                 _status = "pending_payment"
 
             else:
-                # Physical: name + city/address; no email
-                customer_city_display = " | ".join(
-                    filter(None, [shipping_city.strip(), shipping_address.strip()])
-                )
+                # Physical: persist city; append address only when this product requires it
+                # (avoids "مراكش | مراكش" when address was never a required field).
+                _req_fields = get_required_order_fields_for_product(product) or []
+                _city_bits = []
+                _sc = (shipping_city or "").strip()
+                _sa = (shipping_address or "").strip()
+                if _sc:
+                    _city_bits.append(_sc)
+                if "shipping_address" in _req_fields and _sa and _sa != _sc:
+                    _city_bits.append(_sa)
+                customer_city_display = " | ".join(_city_bits)
                 _cname  = str(customer_name)[:200]
                 _cemail = None
                 _ccity  = customer_city_display[:100]

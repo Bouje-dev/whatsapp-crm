@@ -1,4 +1,4 @@
-"""Hybrid checkout: WhatsApp Flow first, voice collection if the customer cannot fill it."""
+"""Hybrid checkout: WhatsApp Flow first, voice/chat collection if the customer cannot fill it."""
 
 from __future__ import annotations
 
@@ -30,8 +30,29 @@ _FIELD_ASK_RE = re.compile(
     re.IGNORECASE,
 )
 
+_SLOT_KEYS = (
+    "customer_name",
+    "shipping_city",
+    "shipping_address",
+    "email_address",
+)
 
-def is_hybrid_checkout_enabled(node) -> bool:
+
+def get_product_checkout_method(product) -> str:
+    """Prefer orders_ai helper; local fallback keeps imports soft."""
+    try:
+        from discount.orders_ai import get_product_checkout_method as _resolve
+
+        return _resolve(product)
+    except Exception:
+        method = (getattr(product, "checkout_method", None) or "hybrid").strip() if product else "hybrid"
+        if method not in ("chat_only", "flow_only", "hybrid"):
+            return "hybrid"
+        return method
+
+
+def node_hybrid_checkout_enabled(node) -> bool:
+    """Node-level toggle only (ai_model_config.hybrid_checkout, default True)."""
     cfg = getattr(node, "ai_model_config", None) or {}
     if not isinstance(cfg, dict):
         return True
@@ -40,8 +61,34 @@ def is_hybrid_checkout_enabled(node) -> bool:
     return bool(cfg.get("hybrid_checkout"))
 
 
+def is_hybrid_checkout_enabled(node, product=None) -> bool:
+    """
+    Whether WhatsApp Flow checkout is available for this conversation.
+
+    Product checkout_method takes precedence over the node toggle:
+      chat_only → never send Flow
+      flow_only → always allow Flow
+      hybrid    → respect node.ai_model_config.hybrid_checkout (default True)
+    """
+    if product is not None:
+        method = get_product_checkout_method(product)
+        if method == "chat_only":
+            return False
+        if method == "flow_only":
+            return True
+    return node_hybrid_checkout_enabled(node)
+
+
+def product_allows_chat_fallback(product) -> bool:
+    """True when typed details after a Flow may switch to conversational capture."""
+    method = get_product_checkout_method(product)
+    return method in ("chat_only", "hybrid")
+
+
 def product_needs_checkout_form(product) -> bool:
     if not product or getattr(product, "is_digital", False):
+        return False
+    if get_product_checkout_method(product) == "chat_only":
         return False
     try:
         from discount.orders_ai import get_required_order_fields_for_product
@@ -267,9 +314,15 @@ def build_order_form_content(product, required_fields, locale: str) -> dict:
 
 def form_preview_for_product(product, locale: str = "ar") -> dict:
     """Inbox/builder preview of the order form that checkout_mode will send."""
-    from discount.orders_ai import CHECKOUT_MODE_LABELS, get_required_order_fields_for_product
+    from discount.orders_ai import (
+        CHECKOUT_MODE_LABELS,
+        CHECKOUT_METHOD_LABELS,
+        get_product_checkout_method,
+        get_required_order_fields_for_product,
+    )
 
     mode = (getattr(product, "checkout_mode", None) or "standard_cod").strip() or "standard_cod"
+    method = get_product_checkout_method(product)
     try:
         required = get_required_order_fields_for_product(product)
     except Exception:
@@ -279,7 +332,9 @@ def form_preview_for_product(product, locale: str = "ar") -> dict:
     return {
         "checkout_mode": mode,
         "checkout_mode_label": CHECKOUT_MODE_LABELS.get(mode) or mode,
-        "can_send_form": bool(fields),
+        "checkout_method": method,
+        "checkout_method_label": CHECKOUT_METHOD_LABELS.get(method) or method,
+        "can_send_form": bool(fields) and method != "chat_only",
         "fields": [
             {
                 "label": f.get("label") or "",
@@ -399,10 +454,31 @@ def set_checkout_context(channel, sender, patch: dict):
         logger.warning("set_checkout_context failed: %s", exc)
 
 
-def build_prompt(mode: str, required_fields=None) -> str:
+def build_prompt(mode: str, required_fields=None, checkout_method: str = "hybrid") -> str:
     fields = [f for f in (required_fields or []) if f != "phone_number"]
     field_label = ", ".join(fields) if fields else "name, city, address"
+    method = (checkout_method or "hybrid").strip() or "hybrid"
+
+    if method == "chat_only":
+        return (
+            "[CHECKOUT CAPTURE — CHAT ONLY]\n"
+            f"Collect these required fields naturally, step-by-step, in the customer's exact "
+            f"language/dialect: {field_label}.\n"
+            "Do NOT call send_whatsapp_flow and do NOT push a form button.\n"
+            "Ask only for missing fields. When complete, call submit_customer_order."
+        )
+
     if mode == MODE_FORM:
+        if method == "flow_only":
+            return (
+                "[CHECKOUT CAPTURE — FLOW ONLY / FORM SENT]\n"
+                "A WhatsApp order form was already sent. Do NOT ask the customer to type name, "
+                "address, or phone in chat.\n"
+                "Politely remind them to tap the button and fill the form.\n"
+                "If they EXPLICITLY ask to resend the form, call send_whatsapp_flow immediately.\n"
+                "Do NOT switch to manual chat collection and do NOT call submit_customer_order "
+                "from typed chat details."
+            )
         return (
             "[CHECKOUT CAPTURE — FORM ALREADY SENT]\n"
             "A WhatsApp order form was already sent. Do NOT ask the customer to type name, address, or phone.\n"
@@ -412,7 +488,11 @@ def build_prompt(mode: str, required_fields=None) -> str:
             "If they ask a product question, answer it, then remind them in ONE short line that the form is still there.\n"
             "If they cannot or will not use the form — in ANY language (cannot read/write, only send voice notes, "
             "ignore the button) — SILENTLY call use_voice_checkout, then collect fields by voice, one per message.\n"
-            "Do NOT call submit_customer_order unless they typed all required fields in this chat."
+            "STRICT HYBRID FALLBACK: If the user ignores the form and manually types their details "
+            "(e.g. name, city, address) in the chat, immediately switch to conversational mode, "
+            "extract the entities, and confirm the order via text without forcing the form again.\n"
+            "Do NOT call submit_customer_order unless they typed all required fields in this chat "
+            "OR you have completed voice collection."
         )
     if mode == MODE_VOICE:
         return (
@@ -434,14 +514,24 @@ def build_prompt(mode: str, required_fields=None) -> str:
             "[CHECKOUT CAPTURE — DONE]\n"
             "The order is already captured. Do NOT ask for name/address/phone and do NOT call submit_customer_order again."
         )
+    if method == "flow_only":
+        return (
+            "[CHECKOUT CAPTURE — FLOW ONLY]\n"
+            "YOU decide when the customer has agreed to buy — in any language. Price questions are NOT agreement.\n"
+            "When they clearly agree to buy: output [STAGE: STAGE_5_CLOSING], thank them briefly, and "
+            "IMMEDIATELY call send_whatsapp_flow. Do NOT ask for name/address/phone in chat.\n"
+            "Politely ask them to tap the button and fill the form."
+        )
     return (
         "[CHECKOUT CAPTURE — HYBRID]\n"
         "YOU decide when the customer has agreed to buy — in any language. Price questions are NOT agreement.\n"
         "Questions like 'how do I order?' / 'كيفاش نطلب?' are NOT purchase confirmation — explain the process; "
         "do NOT call submit_customer_order.\n"
-        "When they clearly agree to buy: output [STAGE: STAGE_5_CLOSING], thank them in their language, and do NOT ask for "
-        "name/address/phone. The system will send a WhatsApp form.\n"
-        "Do NOT call submit_customer_order to collect those details.\n"
+        "When they clearly agree to buy: output [STAGE: STAGE_5_CLOSING], thank them in their language, call "
+        "send_whatsapp_flow first, and do NOT ask for name/address/phone. The system will send a WhatsApp form.\n"
+        "STRICT RULE: If the user ignores the form and manually types their details (e.g. name, city, address) "
+        "in the chat, immediately switch back to conversational mode, extract the entities, and confirm the "
+        "order via text without forcing the form again.\n"
         "If they already communicate only by voice notes AND they have agreed to buy, SILENTLY call "
         "use_voice_checkout instead of expecting them to fill the form."
     )
@@ -456,18 +546,49 @@ def sync_mode_from_incoming(
     incoming_message_type: str,
     hybrid_enabled: bool,
     needs_form: bool,
+    product=None,
 ) -> str:
     mode = get_mode(ctx)
     if not hybrid_enabled or not needs_form or mode in (MODE_DONE, MODE_VOICE, MODE_CHAT):
         return mode
     if mode == MODE_FORM:
         if is_inbound_audio(incoming_message_type):
+            # Voice escape hatch: allowed for hybrid; flow_only stays on form unless voice-first.
+            if get_product_checkout_method(product) == "flow_only":
+                return mode
             set_checkout_context(channel, sender, {CTX_MODE: MODE_VOICE})
             return MODE_VOICE
         if looks_like_typed_details(incoming_body):
+            if not product_allows_chat_fallback(product):
+                return mode
             set_checkout_context(channel, sender, {CTX_MODE: MODE_CHAT})
             return MODE_CHAT
     return mode
+
+
+def activate_hybrid_chat_fallback_from_entities(
+    channel,
+    sender,
+    *,
+    product=None,
+    collected: Optional[dict] = None,
+    ctx: Optional[dict] = None,
+) -> str:
+    """
+    After a Flow was sent, if hybrid product and entity extraction filled checkout slots
+    from free-text, switch session to chat_fallback so confirm proceeds without re-forcing the form.
+    """
+    mode = get_mode(ctx)
+    if mode != MODE_FORM:
+        return mode
+    if get_product_checkout_method(product) != "hybrid":
+        return mode
+    slots = collected if isinstance(collected, dict) else {}
+    has_slots = any((slots.get(k) or "").strip() for k in _SLOT_KEYS)
+    if not has_slots:
+        return mode
+    set_checkout_context(channel, sender, {CTX_MODE: MODE_CHAT})
+    return MODE_CHAT
 
 
 def is_checkout_moment(
@@ -480,6 +601,7 @@ def is_checkout_moment(
     llm_tried_submit: bool,
     incoming_body: str = "",
     can_read: bool = False,
+    checkout_method: str = "hybrid",
 ) -> bool:
     if not hybrid_enabled or not needs_form:
         return False
@@ -503,6 +625,7 @@ def is_checkout_moment(
             needs_form=needs_form,
             mode=mode,
             form_already_sent=form_already_sent,
+            checkout_method=checkout_method,
         ):
             return True
     except Exception:
@@ -567,24 +690,34 @@ def gate_submit_customer_order(
     except Exception as exc:
         logger.warning("gate_submit_customer_order validation: %s", exc)
 
+    allow_chat_fallback = product_allows_chat_fallback(product)
+
     if hybrid_enabled and needs_form:
         if mode == MODE_FORM:
-            if looks_like_typed_details(incoming_body):
+            if allow_chat_fallback and looks_like_typed_details(incoming_body):
                 return "allow", arguments
             return "block", json_block_submit(
                 "Waiting for the WhatsApp form.",
                 "Do not ask them to type the fields. Remind them to open the form. "
-                "If they cannot use the form, SILENTLY call use_voice_checkout then collect by voice.",
+                + (
+                    "If they cannot use the form, SILENTLY call use_voice_checkout then collect by voice."
+                    if allow_chat_fallback
+                    else "Do not collect details in chat — this product is Flow-only."
+                ),
             )
         if mode == MODE_VOICE:
             if has_voice_pending:
                 return "execute_pending", arguments
             return "pending", arguments
-        if mode in (MODE_NONE, "") and not looks_like_typed_details(incoming_body):
+        if mode in (MODE_NONE, "") and not (
+            allow_chat_fallback and looks_like_typed_details(incoming_body)
+        ):
             return "block", json_block_submit(
                 "Checkout form will be sent.",
                 "Do not collect name/address in chat. Thank them briefly in their language. "
-                "The system is sending a WhatsApp form. If they cannot use a form, call use_voice_checkout.",
+                "The system is sending a WhatsApp form. If they cannot use a form, call use_voice_checkout."
+                if allow_chat_fallback
+                else "Do not collect name/address in chat. Thank them briefly and send the WhatsApp form only.",
             )
     return "allow", arguments
 
@@ -645,20 +778,30 @@ def on_flow_order_captured(channel, sender, submission, locale: str = "ar"):
     if not order:
         return None
     try:
-        from discount.whatssapAPI.process_messages import expire_chat_session
+        from discount.whatssapAPI.session_state import (
+            STATE_AWAITING_PAYMENT_RECEIPT,
+            STATE_POST_SALE_SUPPORT,
+            set_conversation_state,
+        )
+        _oid = str(getattr(order, "order_id", "") or "")
         if getattr(order, "is_digital", False):
-            from discount.whatssapAPI.session_state import (
-                STATE_AWAITING_PAYMENT_RECEIPT,
-                set_conversation_state,
-            )
+            # Keep session alive until receipt is processed (parity with AI chat).
             set_conversation_state(
                 channel,
                 sender,
                 STATE_AWAITING_PAYMENT_RECEIPT,
-                last_order_id=str(getattr(order, "order_id", "") or ""),
+                last_order_id=_oid,
             )
         else:
-            expire_chat_session(channel, sender, reason="order_complete")
+            # Physical Flow order: do NOT expire the session. Keep it alive in
+            # POST_SALE_SUPPORT so the next turns use the support-team persona
+            # (same contract as submit_customer_order in process_messages).
+            set_conversation_state(
+                channel,
+                sender,
+                STATE_POST_SALE_SUPPORT,
+                last_order_id=_oid,
+            )
     except Exception as exc:
         logger.warning("on_flow_order_captured session update: %s", exc)
     return form_thank_you(locale)

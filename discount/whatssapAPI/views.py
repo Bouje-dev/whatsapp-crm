@@ -3646,6 +3646,7 @@ def api_products_list(request):
                 or (getattr(p, "checkout_mode", None) or "") in ("digital", "direct_sale")
             ),
             "checkout_mode": (getattr(p, "checkout_mode", None) or "standard_cod").strip() or "standard_cod",
+            "checkout_method": (getattr(p, "checkout_method", None) or "hybrid").strip() or "hybrid",
             "form_preview": form_preview,
         })
     return JsonResponse({"products": data})
@@ -3880,6 +3881,10 @@ def api_products_create(request):
     if checkout_mode_param not in ("quick_lead", "standard_cod", "strict_cod", "digital", "direct_sale"):
         checkout_mode_param = "standard_cod"
 
+    checkout_method_param = (request.POST.get("checkout_method") or "").strip() or "hybrid"
+    if checkout_method_param not in ("chat_only", "flow_only", "hybrid"):
+        checkout_method_param = "hybrid"
+
     is_digital_raw = (request.POST.get("is_digital") or "false").strip().lower()
     is_digital_val = is_digital_raw in ("true", "1", "yes")
     digital_url_val = (request.POST.get("digital_url") or "").strip() or None
@@ -3984,6 +3989,7 @@ def api_products_create(request):
         stock=0,
         category=category_param or "general_retail",
         checkout_mode=checkout_mode_param,
+        checkout_method=checkout_method_param,
         is_digital=is_digital_val,
         digital_url=digital_url_val,
         fulfillment_message=fulfillment_message_val,
@@ -4113,6 +4119,15 @@ def api_products_detail(request, product_id):
     # Treat checkout_mode as digital even if is_digital was not persisted (legacy rows).
     if checkout_mode in ("digital", "direct_sale"):
         is_digital = True
+    form_preview = None
+    try:
+        from discount.whatssapAPI.checkout_capture import form_preview_for_product, merge_preview_with_user_copy
+        from discount.models import UserCheckoutFormCopy
+        form_preview = form_preview_for_product(product, "ar")
+        copy_row = UserCheckoutFormCopy.objects.filter(user=user, product=product).first()
+        form_preview = merge_preview_with_user_copy(form_preview, copy_row)
+    except Exception:
+        form_preview = None
     digital_file_name = ""
     has_digital_file = False
     digital_file_url = None
@@ -4147,6 +4162,8 @@ def api_products_detail(request, product_id):
         "category": (getattr(product, "category", None) or "general_retail").strip() or "general_retail",
         "seller_custom_persona": (getattr(product, "seller_custom_persona", None) or "").strip() or "",
         "checkout_mode": checkout_mode,
+        "checkout_method": (getattr(product, "checkout_method", None) or "hybrid").strip() or "hybrid",
+        "form_preview": form_preview,
         "testimonial_url": product.testimonial.url if product.testimonial else None,
         "images": image_urls,
         "videos": video_urls,
@@ -4208,6 +4225,9 @@ def api_products_update(request, product_id):
     checkout_mode_raw = (request.POST.get("checkout_mode") or "").strip() or "standard_cod"
     if checkout_mode_raw not in ("quick_lead", "standard_cod", "strict_cod", "digital", "direct_sale"):
         checkout_mode_raw = getattr(product, "checkout_mode", None) or "standard_cod"
+    checkout_method_raw = (request.POST.get("checkout_method") or "").strip() or "hybrid"
+    if checkout_method_raw not in ("chat_only", "flow_only", "hybrid"):
+        checkout_method_raw = getattr(product, "checkout_method", None) or "hybrid"
     is_digital_raw = (request.POST.get("is_digital") or "false").strip().lower()
     is_digital_val = is_digital_raw in ("true", "1", "yes")
     digital_url_val = (request.POST.get("digital_url") or "").strip() or None
@@ -4307,6 +4327,7 @@ def api_products_update(request, product_id):
     product.category = category_raw or "general_retail"
     product.seller_custom_persona = seller_custom_persona
     product.checkout_mode = checkout_mode_raw or "standard_cod"
+    product.checkout_method = checkout_method_raw or "hybrid"
     product.is_digital = is_digital_val
     product.digital_url = digital_url_val
     product.fulfillment_message = fulfillment_message_val
@@ -4317,7 +4338,7 @@ def api_products_update(request, product_id):
     product.aliases = aliases_val
     product.save(update_fields=["name", "sku", "price", "currency", "description", "how_to_use", "offer", "backup_price",
                                 "coupon_code", "delivery_options", "return_policy", "category", "seller_custom_persona",
-                                "checkout_mode", "is_digital", "digital_url", "fulfillment_message",
+                                "checkout_mode", "checkout_method", "is_digital", "digital_url", "fulfillment_message",
                                 "collect_customer_info", "stock_format", "digital_product_type", "legal_consent_iptv",
                                 "aliases"])
     if digital_file_upload:
@@ -6108,11 +6129,24 @@ def api_verify_receipt(request):
 
     if customer_phone and channel:
         try:
-            from discount.whatssapAPI.session_state import clear_conversation_state
-            clear_conversation_state(channel, customer_phone)
+            # After digital fulfillment, switch to support persona (not IDLE).
+            # Clearing to IDLE left sticky sales sessions active and blocked
+            # should_inject_post_sale_support via has_active_sales_flow.
+            from discount.whatssapAPI.session_state import (
+                STATE_POST_SALE_SUPPORT,
+                clear_session_pricing_state,
+                set_conversation_state,
+            )
+            clear_session_pricing_state(channel, customer_phone)
+            set_conversation_state(
+                channel,
+                customer_phone,
+                STATE_POST_SALE_SUPPORT,
+                last_order_id=str(getattr(order, "order_id", "") or ""),
+            )
         except Exception as _fsm_clear_err:
             logging.getLogger(__name__).warning(
-                "api_verify_receipt: clear_conversation_state failed for order %s: %s",
+                "api_verify_receipt: set POST_SALE_SUPPORT failed for order %s: %s",
                 order.order_id, _fsm_clear_err,
             )
 

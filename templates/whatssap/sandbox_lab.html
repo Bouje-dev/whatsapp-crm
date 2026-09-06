@@ -1,0 +1,455 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>مختبر الذكاء — Sandbox</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #07070b;
+      --panel: rgba(255,255,255,.04);
+      --border: rgba(255,255,255,.1);
+      --text: #f8fafc;
+      --muted: #94a3b8;
+      --green: #22c55e;
+      --purple: #a855f7;
+      --red: #f87171;
+      --amber: #fbbf24;
+    }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; height: 100%; background: var(--bg); color: var(--text);
+      font-family: "IBM Plex Sans Arabic", "IBM Plex Sans", sans-serif; }
+    body { display: flex; flex-direction: column; }
+    .top {
+      display: flex; align-items: center; gap: 16px; flex-wrap: wrap;
+      padding: 14px 18px; border-bottom: 1px solid var(--border);
+      background: rgba(10,10,14,.85); backdrop-filter: blur(18px);
+    }
+    .brand { font-weight: 700; font-size: 16px; }
+    .brand span { color: var(--purple); }
+    .hint { color: var(--muted); font-size: 12px; }
+    select, button, textarea {
+      font-family: inherit; color: var(--text);
+    }
+    select {
+      background: #111118; border: 1px solid var(--border); border-radius: 10px;
+      padding: 8px 12px; min-width: 220px;
+    }
+    .badge {
+      font-size: 11px; padding: 4px 8px; border-radius: 999px;
+      border: 1px solid var(--border); color: var(--muted);
+    }
+    .badge.on { color: var(--green); border-color: rgba(34,197,94,.4); }
+    .badge.off { color: var(--amber); border-color: rgba(251,191,36,.4); }
+    .layout { flex: 1; display: grid; grid-template-columns: 1fr 320px; min-height: 0; }
+    .chat { display: flex; flex-direction: column; min-width: 0; border-left: 1px solid var(--border); }
+    .msgs { flex: 1; overflow: auto; padding: 18px; display: flex; flex-direction: column; gap: 10px;  padding-bottom: 120px;}
+    .bubble { max-width: 78%; padding: 10px 12px; border-radius: 16px; line-height: 1.55; font-size: 14px; white-space: pre-wrap; }
+    .me { align-self: flex-start; background: #1d4ed8; border-bottom-right-radius: 6px; }
+    .ai { align-self: flex-end; background: #14532d; border-bottom-left-radius: 6px; }
+    .note { align-self: center; background: rgba(168,85,247,.15); color: #e9d5ff; font-size: 12px; max-width: 90%; }
+    .meta { font-size: 11px; opacity: .7; margin-top: 4px; }
+    .bubble.ai.has-flow { padding-bottom: 0; overflow: hidden; }
+    .flow-head { font-weight: 700; font-size: 13px; margin-bottom: 4px; opacity: .95; }
+    .flow-foot { font-size: 11px; opacity: .75; margin-top: 6px; }
+    .flow-cta {
+      display: flex; align-items: center; justify-content: center; gap: 8px;
+      margin: 10px -12px 0; padding: 10px 12px;
+      border-top: 1px solid rgba(255,255,255,.18);
+      background: rgba(0,0,0,.18); color: #bbf7d0; font-weight: 700;
+      font-size: 13px; cursor: pointer; width: calc(100% + 24px);
+      border-left: 0; border-right: 0; border-bottom: 0; font-family: inherit;
+    }
+    .flow-cta:hover { background: rgba(34,197,94,.25); color: #fff; }
+    .modal-bg {
+      position: fixed; inset: 0; background: rgba(0,0,0,.65);
+      display: none; align-items: center; justify-content: center; z-index: 50; padding: 16px;
+    }
+    .modal-bg.open { display: flex; }
+    .modal {
+      width: min(420px, 100%); background: #111118; border: 1px solid var(--border);
+      border-radius: 16px; padding: 16px; box-shadow: 0 20px 60px rgba(0,0,0,.45);
+    }
+    .modal h3 { margin: 0 0 4px; font-size: 16px; }
+    .modal .sub { color: var(--muted); font-size: 12px; margin-bottom: 12px; }
+    .modal label { display: block; font-size: 12px; color: var(--muted); margin: 10px 0 4px; }
+    .modal input, .modal textarea {
+      width: 100%; background: #050508; border: 1px solid var(--border);
+      border-radius: 10px; padding: 9px 10px; color: var(--text); font-family: inherit;
+    }
+    .modal textarea { min-height: 72px; resize: vertical; }
+    .modal-actions { display: flex; gap: 8px; margin-top: 14px; }
+    .modal-actions button {
+      flex: 1; border-radius: 10px; padding: 10px; cursor: pointer; font-family: inherit; font-weight: 600;
+    }
+    .modal-cancel { background: transparent; border: 1px solid var(--border); color: var(--muted); }
+    .modal-submit { background: linear-gradient(135deg, #22c55e, #16a34a); border: 0; color: #fff; }
+    .quick { display: flex; flex-wrap: wrap; gap: 6px; padding: 0 14px 8px; }
+    .quick button {
+      background: rgba(255,255,255,.06); border: 1px solid var(--border);
+      border-radius: 999px; padding: 6px 10px; cursor: pointer; font-size: 12px;
+    }
+    .quick button:hover { background: rgba(168,85,247,.2); }
+    .composer { display: flex;
+gap: 8px;
+position: fixed;
+padding: 12px 14px;
+border-top: 1px solid var(--border);
+bottom: 0;
+width: 100%;
+}
+    textarea {
+      flex: 1; min-height: 52px; max-height: 140px; resize: vertical;
+      background: #111118; border: 1px solid var(--border); border-radius: 12px; padding: 10px 12px;
+    }
+    .send {
+      background: linear-gradient(135deg, #22c55e, #16a34a); border: 0; border-radius: 12px;
+      padding: 0 18px; font-weight: 600; cursor: pointer; min-width: 88px;
+    }
+    .empty { margin: auto; color: var(--muted); text-align: center; }
+    .send[disabled] { opacity: .5; cursor: wait; }
+    .side { padding: 14px; overflow: auto; background: var(--panel); }
+    .side h3 { margin: 0 0 8px; font-size: 13px; color: var(--muted); font-weight: 600; }
+    .actions { display: flex; flex-direction: column; gap: 8px; margin-bottom: 16px; }
+    .actions button {
+      background: #111118; border: 1px solid var(--border); border-radius: 10px;
+      padding: 10px 12px; cursor: pointer; text-align: right;
+    }
+    .actions button.danger { border-color: rgba(248,113,113,.4); color: #fecaca; }
+    .check { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--muted); margin: 4px 0 12px; }
+    pre {
+      background: #050508; border: 1px solid var(--border); border-radius: 12px;
+      padding: 10px; font-size: 11px; overflow: auto; white-space: pre-wrap;
+      color: #cbd5e1; max-height: 48vh;
+    }
+    .warn { background: rgba(251,191,36,.12); border: 1px solid rgba(251,191,36,.35);
+      color: #fde68a; border-radius: 10px; padding: 8px 10px; font-size: 12px; margin-bottom: 12px; }
+    .empty { margin: auto; color: var(--muted); text-align: center; }
+    @media (max-width: 900px) {
+      .layout { grid-template-columns: 1fr; }
+      .chat { border-left: 0; min-height: 55vh; }
+    }
+  </style>
+</head>
+<body>
+  {% csrf_token %}
+  <header class="top">
+    <div class="brand">مختبر <span>الذكاء</span></div>
+    <label class="hint">القناة
+      <select id="channelSelect">
+        {% for ch in channels %}
+          <option value="{{ ch.id }}" {% if selected_channel and selected_channel.id == ch.id %}selected{% endif %}>
+            {{ ch.name }} — {{ ch.phone_number }}
+          </option>
+        {% endfor %}
+      </select>
+    </label>
+    <span class="badge" id="phoneBadge">رقم تجريبي —</span>
+    <span class="badge off" id="autoBadge">Autopilot</span>
+    <span class="hint">نفس مسار رسائل واتساب الحقيقي. لا يُرسل شيء إلى ميتا.</span>
+  </header>
+
+  <div class="layout">
+    <section class="chat">
+      <div class="msgs" id="msgs">
+        <div class="empty">أرسل رسالة كما يكتب الزبون على واتساب.</div>
+      </div>
+      <div class="quick" id="quick"></div>
+      <div class="composer">
+        <textarea id="input" placeholder="مثلاً: السلام، بغيـت هاد المنتج…"></textarea>
+        <button class="send" id="sendBtn" type="button">إرسال</button>
+      </div>
+    </section>
+    <aside class="side">
+      <h3>إعادة التعيين</h3>
+      <div class="actions">
+        <button type="button" id="resetMemory">مسح الذاكرة / السياق</button>
+        <button type="button" class="danger" id="resetCustomer">عميل جديد كلياً (مسح المحادثة)</button>
+      </div>
+      <label class="check">
+        <input type="checkbox" id="wipeOrders" />
+        احذف الطلبات التجريبية أيضاً
+      </label>
+      <div id="autoWarn" class="warn" hidden>
+        Autopilot متوقف على هذه القناة — الذكاء لن يرد، كما في الإنتاج. فعّله من إعدادات القناة.
+      </div>
+      <h3>حالة الجلسة</h3>
+      <pre id="stateBox">{}</pre>
+    </aside>
+  </div>
+
+  <div class="modal-bg" id="flowModalBg" aria-hidden="true">
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="flowModalTitle">
+      <h3 id="flowModalTitle">معلومات التوصيل</h3>
+      <div class="sub" id="flowModalSub">معاينة النموذج — نفس مسار واتساب الحقيقي</div>
+      <form id="flowForm"></form>
+      <div class="modal-actions">
+        <button type="button" class="modal-cancel" id="flowCancel">إلغاء</button>
+        <button type="button" class="modal-submit" id="flowSubmit">تأكيد الطلب</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const csrf = document.querySelector('[name=csrfmiddlewaretoken]')?.value || '';
+    const select = document.getElementById('channelSelect');
+    const msgsEl = document.getElementById('msgs');
+    const input = document.getElementById('input');
+    const sendBtn = document.getElementById('sendBtn');
+    const quick = document.getElementById('quick');
+    const stateBox = document.getElementById('stateBox');
+    const phoneBadge = document.getElementById('phoneBadge');
+    const autoBadge = document.getElementById('autoBadge');
+    const autoWarn = document.getElementById('autoWarn');
+    let channelId = select.value;
+    let seenIds = new Set();
+    let pendingFlowCard = null;
+
+    function channelParam() {
+      return encodeURIComponent(channelId || '');
+    }
+    async function api(url, opts) {
+      const res = await fetch(url, Object.assign({
+        headers: { 'X-CSRFToken': csrf, 'Content-Type': 'application/json' },
+        credentials: 'same-origin',
+      }, opts || {}));
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || ('HTTP ' + res.status));
+      return data;
+    }
+    function renderState(state) {
+      if (!state) return;
+      const auto = !!state.ai_auto_reply;
+      autoBadge.textContent = auto ? 'Autopilot ON' : 'Autopilot OFF';
+      autoBadge.className = 'badge ' + (auto ? 'on' : 'off');
+      autoWarn.hidden = auto;
+      if (state.sandbox_phone) phoneBadge.textContent = 'رقم تجريبي ' + state.sandbox_phone;
+      const slim = {
+        product: state.product,
+        stage: state.stage,
+        conversation_state: state.conversation_state,
+        sales_stage: state.sales_stage,
+        collected_fields: state.collected_fields,
+        missing_fields: state.missing_fields,
+        last_order_id: state.last_order_id,
+        session_active: state.session_active,
+        ai_enabled: state.ai_enabled,
+        notes: state.notes,
+        orders: state.orders,
+      };
+      stateBox.textContent = JSON.stringify(slim, null, 2);
+    }
+    function defaultFlowFields() {
+      return [
+        { key: 'name', label: 'الاسم الكامل', field_type: 'text', required: true, maps_to: 'name' },
+        { key: 'city', label: 'المدينة', field_type: 'text', required: true, maps_to: 'city' },
+        { key: 'address', label: 'العنوان', field_type: 'textarea', required: true, maps_to: 'address' },
+      ];
+    }
+    function openFlowModal(card) {
+      pendingFlowCard = card || {};
+      const fields = (pendingFlowCard.fields && pendingFlowCard.fields.length)
+        ? pendingFlowCard.fields
+        : defaultFlowFields();
+      const form = document.getElementById('flowForm');
+      const title = document.getElementById('flowModalTitle');
+      const sub = document.getElementById('flowModalSub');
+      const submitBtn = document.getElementById('flowSubmit');
+      title.textContent = pendingFlowCard.screen_title || 'معلومات التوصيل';
+      sub.textContent = pendingFlowCard.product_name
+        ? ('المنتج: ' + pendingFlowCard.product_name)
+        : 'معاينة النموذج — نفس مسار واتساب الحقيقي';
+      submitBtn.textContent = pendingFlowCard.submit_label || 'تأكيد الطلب';
+      form.innerHTML = fields.map((f, i) => {
+        const key = f.key || ('field_' + i);
+        const label = f.label || key;
+        const required = f.required !== false;
+        const type = (f.field_type || 'text').toLowerCase();
+        if (type === 'textarea') {
+          return '<label for="ff_' + key + '">' + escapeHtml(label) + (required ? ' *' : '') + '</label>'
+            + '<textarea id="ff_' + key + '" name="' + escapeHtml(key) + '" ' + (required ? 'required' : '') + '></textarea>';
+        }
+        const inputType = type === 'email' ? 'email' : (type === 'phone' ? 'tel' : 'text');
+        return '<label for="ff_' + key + '">' + escapeHtml(label) + (required ? ' *' : '') + '</label>'
+          + '<input id="ff_' + key + '" name="' + escapeHtml(key) + '" type="' + inputType + '" '
+          + (required ? 'required' : '') + ' />';
+      }).join('');
+      document.getElementById('flowModalBg').classList.add('open');
+      document.getElementById('flowModalBg').setAttribute('aria-hidden', 'false');
+      const first = form.querySelector('input, textarea');
+      if (first) setTimeout(() => first.focus(), 50);
+    }
+    function closeFlowModal() {
+      document.getElementById('flowModalBg').classList.remove('open');
+      document.getElementById('flowModalBg').setAttribute('aria-hidden', 'true');
+      pendingFlowCard = null;
+    }
+    async function submitFlowModal() {
+      const form = document.getElementById('flowForm');
+      if (!form.reportValidity()) return;
+      const answers = {};
+      Array.from(form.elements).forEach((el) => {
+        if (!el.name) return;
+        answers[el.name] = (el.value || '').trim();
+      });
+      const token = (pendingFlowCard && pendingFlowCard.flow_token) || '';
+      closeFlowModal();
+      await send({
+        type: 'nfm_reply',
+        text: 'تم إرسال النموذج',
+        flow_token: token,
+        flow_answers: answers,
+      });
+    }
+    function appendMsg(m) {
+      if (!m || seenIds.has(m.id)) return;
+      seenIds.add(m.id);
+      const empty = msgsEl.querySelector('.empty');
+      if (empty) empty.remove();
+      const div = document.createElement('div');
+      const isNote = !!m.is_internal;
+      const card = m.interactive;
+      const isFlow = !!(card && card.kind === 'whatsapp_flow');
+      div.className = 'bubble ' + (isNote ? 'note' : (m.is_from_me ? 'ai' : 'me')) + (isFlow ? ' has-flow' : '');
+      const who = isNote ? 'ملاحظة داخلية' : (m.is_from_me ? 'الذكاء' : 'أنت (الزبون)');
+      let html = '';
+      if (isFlow && card.header_text) {
+        html += '<div class="flow-head">' + escapeHtml(card.header_text) + '</div>';
+      }
+      html += '<div>' + escapeHtml(m.body || (card && card.body) || (m.media_type ? '[' + m.media_type + ']' : '')) + '</div>';
+      if (isFlow && card.footer) {
+        html += '<div class="flow-foot">' + escapeHtml(card.footer) + '</div>';
+      }
+      html += '<div class="meta">' + who + '</div>';
+      if (isFlow && card.cta) {
+        html += '<button type="button" class="flow-cta" data-flow-cta="1">'
+          + '<span>📝</span><span>' + escapeHtml(card.cta) + '</span></button>';
+      }
+      div.innerHTML = html;
+      if (isFlow && card.cta) {
+        const btn = div.querySelector('[data-flow-cta]');
+        if (btn) btn.addEventListener('click', () => openFlowModal(card));
+      }
+      msgsEl.appendChild(div);
+      if (card && (card.buttons || []).length) {
+        card.buttons.forEach((title) => {
+          const b = document.createElement('button');
+          b.textContent = title;
+          b.onclick = () => sendInteractive({ type: 'interactive', button_title: title, text: title });
+          quick.appendChild(b);
+        });
+      }
+      if (card && (card.rows || []).length) {
+        card.rows.forEach((row) => {
+          const title = row.title || row;
+          const b = document.createElement('button');
+          b.textContent = title;
+          b.onclick = () => sendInteractive({
+            type: 'interactive',
+            list_title: title,
+            list_description: row.description || '',
+            text: title,
+          });
+          quick.appendChild(b);
+        });
+      }
+      msgsEl.scrollTop = msgsEl.scrollHeight;
+    }
+    function escapeHtml(s) {
+      return String(s || '').replace(/[&<>"']/g, (c) => ({
+        '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+      }[c]));
+    }
+    function resetThread(messages) {
+      seenIds = new Set();
+      msgsEl.innerHTML = '';
+      quick.innerHTML = '';
+      (messages || []).forEach(appendMsg);
+      if (!messages || !messages.length) {
+        msgsEl.innerHTML = '<div class="empty">أرسل رسالة كما يكتب الزبون على واتساب.</div>';
+      }
+    }
+    async function loadAll() {
+      if (!channelId) {
+        msgsEl.innerHTML = '<div class="empty">لا توجد قناة مرتبطة بهذا الحساب.</div>';
+        return;
+      }
+      const data = await api('/testing/api/messages/?channel_id=' + channelParam());
+      resetThread(data.messages || []);
+      const st = await api('/testing/api/state/?channel_id=' + channelParam());
+      if (st.state) {
+        st.state.sandbox_phone = data.phone || st.state.sandbox_phone;
+        renderState(st.state);
+      }
+    }
+    async function sendInteractive(extra) {
+      await send(Object.assign({ type: 'text', text: extra.text || '' }, extra));
+    }
+    async function send(payload) {
+      const text = (payload && payload.text) || input.value.trim();
+      const isFlowSubmit = !!(payload && (payload.type === 'nfm_reply' || payload.flow_answers));
+      if (!text && !(payload && payload.type === 'interactive') && !isFlowSubmit) return;
+      sendBtn.disabled = true;
+      quick.innerHTML = '';
+      try {
+        const body = Object.assign({
+          channel_id: channelId,
+          type: 'text',
+          text: text,
+        }, payload || {});
+        const data = await api('/testing/api/send/', { method: 'POST', body: JSON.stringify(body) });
+        (data.messages || []).forEach(appendMsg);
+        if (data.state) {
+          data.state.sandbox_phone = data.phone || data.state.sandbox_phone;
+          renderState(data.state);
+        }
+        if (data.error) {
+          appendMsg({ id: 'err-' + Date.now(), body: data.error, is_from_me: false, is_internal: true });
+        }
+        if (!payload || payload.type === 'text') input.value = '';
+      } catch (e) {
+        alert(e.message || e);
+      } finally {
+        sendBtn.disabled = false;
+        input.focus();
+      }
+    }
+    async function reset(mode) {
+      const wipe_orders = document.getElementById('wipeOrders').checked;
+      const ok = window.confirm(
+        mode === 'memory'
+          ? 'مسح سياق الجلسة (المنتج، الحالة، الذاكرة)؟ المحادثة تبقى ظاهرة.'
+          : 'اعتبارك زبوناً جديداً؟ سيتم مسح المحادثة والذاكرة.'
+      );
+      if (!ok) return;
+      const data = await api('/testing/api/reset/', {
+        method: 'POST',
+        body: JSON.stringify({ channel_id: channelId, mode, wipe_orders }),
+      });
+      resetThread(data.messages || []);
+      if (data.state) renderState(data.state);
+    }
+    sendBtn.addEventListener('click', () => send());
+    input.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(); }
+    });
+    document.getElementById('resetMemory').onclick = () => reset('memory');
+    document.getElementById('resetCustomer').onclick = () => reset('customer');
+    document.getElementById('flowCancel').onclick = () => closeFlowModal();
+    document.getElementById('flowSubmit').onclick = () => submitFlowModal();
+    document.getElementById('flowModalBg').addEventListener('click', (e) => {
+      if (e.target && e.target.id === 'flowModalBg') closeFlowModal();
+    });
+    select.addEventListener('change', () => {
+      channelId = select.value;
+      const url = new URL(window.location.href);
+      url.searchParams.set('channel_id', channelId);
+      history.replaceState({}, '', url);
+      loadAll().catch((e) => alert(e.message));
+    });
+    loadAll().catch((e) => alert(e.message));
+  </script>
+</body>
+</html>

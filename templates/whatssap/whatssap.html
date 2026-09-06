@@ -708,6 +708,12 @@
         <div style="margin-top:6px;color:#84e7f0;font-weight:700">متصل</div>
       </div> -->
 
+      {% if debug or user.is_superuser %}
+      <a class="cls3741_btn" href="{% url 'sandbox_lab' %}" title="AI Sandbox" target="_blank" rel="noopener">
+        <i class="fas fa-flask cls3741_icon"></i>
+        <span class="cls3741_tooltip">AI Lab</span>
+      </a>
+      {% endif %}
       <button class="cls3741_btn" id="btn_open_settings" data-target="settings">
         <i class="fas fa-cog cls3741_icon"></i>
         <span class="cls3741_tooltip">Settings </span>
@@ -10399,6 +10405,215 @@ $('#cls3741_attach_btn').on('click', function() {
       .cls3741_panel_products .checkout-mode-option .option-desc { font-size: 0.8rem; color: #94a3b8; line-height: 1.35; }
       .cls3741_panel_products .checkout-mode-wrap .form-hint { margin-top: 0.6rem; margin-bottom: 0; }
 
+      /* ── Checkout method studio (dropdown + Flow preview) ── */
+      .cls3741_panel_products .checkout-method-studio {
+        display: grid;
+        grid-template-columns: minmax(220px, 1fr) minmax(260px, 1.15fr);
+        gap: 1rem;
+        align-items: stretch;
+      }
+      @media (max-width: 900px) {
+        .cls3741_panel_products .checkout-method-studio { grid-template-columns: 1fr; }
+      }
+      .cls3741_panel_products .checkout-method-studio-left,
+      .cls3741_panel_products .checkout-method-studio-right {
+        border-radius: 12px;
+        border: 1px solid rgba(255,255,255,0.1);
+        background: rgba(255,255,255,0.03);
+        padding: 0.9rem 1rem;
+        min-height: 0;
+      }
+      .cls3741_panel_products .checkout-method-studio-right {
+        background: linear-gradient(160deg, rgba(7,94,84,0.18), rgba(15,23,42,0.55));
+      }
+      .cls3741_panel_products .checkout-method-select {
+        width: 100%;
+        border-radius: 10px;
+        border: 1px solid rgba(255,255,255,0.14);
+        background: rgba(15,23,42,0.75);
+        color: #e2e8f0;
+        padding: 0.65rem 0.8rem;
+        font-size: 0.875rem;
+        font-weight: 600;
+        outline: none;
+      }
+      .cls3741_panel_products .checkout-method-select:focus {
+        border-color: #6366f1;
+        box-shadow: 0 0 0 2px rgba(99,102,241,0.25);
+      }
+      .cls3741_panel_products .checkout-method-detail {
+        margin-top: 0.85rem;
+        padding: 0.85rem 0.9rem;
+        border-radius: 10px;
+        border: 1px solid rgba(129,140,248,0.28);
+        background: rgba(99,102,241,0.1);
+      }
+      .cls3741_panel_products .checkout-method-detail-title {
+        font-size: 0.88rem;
+        font-weight: 700;
+        color: #e2e8f0;
+        margin-bottom: 0.35rem;
+      }
+      .cls3741_panel_products .checkout-method-detail-desc {
+        font-size: 0.8rem;
+        color: #94a3b8;
+        line-height: 1.45;
+        margin: 0;
+      }
+      .cls3741_panel_products .cm-preview-label {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 0.5rem;
+        margin-bottom: 0.65rem;
+        font-size: 0.75rem;
+        font-weight: 600;
+        color: #94a3b8;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+      }
+      .cls3741_panel_products .cm-preview-badge {
+        font-size: 0.68rem;
+        font-weight: 700;
+        padding: 0.2rem 0.5rem;
+        border-radius: 999px;
+        background: rgba(16,185,129,0.18);
+        color: #6ee7b7;
+        text-transform: none;
+        letter-spacing: 0;
+      }
+      .cls3741_panel_products .cm-preview-badge.is-chat { background: rgba(59,130,246,0.2); color: #93c5fd; }
+      .cls3741_panel_products .cm-preview-badge.is-flow { background: rgba(16,185,129,0.18); color: #6ee7b7; }
+      .cls3741_panel_products .cm-preview-badge.is-hybrid { background: rgba(245,158,11,0.2); color: #fcd34d; }
+      .cls3741_panel_products .cm-flow-mock {
+        background: #e5ddd5;
+        border-radius: 12px;
+        padding: 10px;
+      }
+      .cls3741_panel_products .cm-flow-bubble {
+        background: #fff;
+        border-radius: 10px;
+        overflow: hidden;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+      }
+      .cls3741_panel_products .cm-flow-product {
+        padding: 8px 10px 0;
+        font-size: 12px;
+        font-weight: 700;
+        color: #0f172a;
+      }
+      .cls3741_panel_products .cm-flow-head,
+      .cls3741_panel_products .cm-flow-body,
+      .cls3741_panel_products .cm-flow-cta,
+      .cls3741_panel_products .cm-flow-foot {
+        outline: none;
+        cursor: text;
+      }
+      .cls3741_panel_products .cm-flow-head {
+        background: #075e54;
+        color: #fff;
+        font-size: 12px;
+        font-weight: 700;
+        padding: 7px 10px;
+      }
+      .cls3741_panel_products .cm-flow-body {
+        padding: 8px 10px 4px;
+        font-size: 11px;
+        color: #334155;
+        line-height: 1.4;
+        white-space: pre-wrap;
+      }
+      .cls3741_panel_products .cm-flow-offers {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+        padding: 6px 10px;
+      }
+      .cls3741_panel_products .cm-flow-offer {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        border: 1px solid #cbd5e1;
+        border-radius: 8px;
+        padding: 7px 9px;
+        background: #f8fafc;
+        font-size: 11px;
+        color: #334155;
+        cursor: default;
+      }
+      .cls3741_panel_products .cm-flow-offer input { accent-color: #075e54; margin: 0; }
+      .cls3741_panel_products .cm-flow-offer strong { color: #0f172a; }
+      .cls3741_panel_products .cm-flow-field {
+        margin: 6px 10px;
+        border: 1px solid #cbd5e1;
+        border-radius: 6px;
+        padding: 6px 8px;
+        font-size: 12px;
+        color: #64748b;
+        background: #f8fafc;
+      }
+      .cls3741_panel_products .cm-flow-cta {
+        margin: 8px 10px 10px;
+        background: #25d366;
+        color: #fff;
+        text-align: center;
+        border-radius: 8px;
+        padding: 8px 10px;
+        font-size: 12px;
+        font-weight: 700;
+      }
+      .cls3741_panel_products .cm-flow-foot {
+        padding: 0 10px 8px;
+        font-size: 10px;
+        color: #94a3b8;
+        text-align: center;
+      }
+      .cls3741_panel_products .cm-flow-editable:hover {
+        box-shadow: inset 0 0 0 1px rgba(37,99,235,0.45);
+      }
+      .cls3741_panel_products .cm-flow-editable.is-editing {
+        box-shadow: inset 0 0 0 2px #2563eb;
+        background: #fffbeb;
+        color: #0f172a;
+      }
+      .cls3741_panel_products .cm-flow-head.cm-flow-editable.is-editing { background: #0f766e; color: #fff; }
+      .cls3741_panel_products .cm-flow-cta.cm-flow-editable.is-editing { background: #16a34a; }
+      .cls3741_panel_products textarea.cm-flow-body {
+        width: calc(100% - 20px);
+        margin: 0 10px 4px;
+        padding: 8px;
+        border: none;
+        resize: vertical;
+        min-height: 56px;
+        font-family: inherit;
+        box-sizing: border-box;
+        font-size: 11px;
+        line-height: 1.4;
+      }
+      .cls3741_panel_products .cm-flow-hint {
+        margin-top: 6px;
+        font-size: 10px;
+        color: #94a3b8;
+        text-align: center;
+      }
+      .cls3741_panel_products .cm-chat-mock {
+        background: #0b141a;
+        border-radius: 12px;
+        padding: 12px;
+        min-height: 160px;
+      }
+      .cls3741_panel_products .cm-chat-bubble {
+        max-width: 92%;
+        background: #005c4b;
+        color: #e9edef;
+        border-radius: 8px 8px 2px 8px;
+        padding: 8px 10px;
+        font-size: 12px;
+        line-height: 1.4;
+        margin-left: auto;
+      }
+      .cls3741_panel_products .cm-chat-bubble strong { display: block; margin-bottom: 4px; color: #fff; }
+
       /* ── Product type toggle ─────────────────────────────── */
       .cls3741_panel_products .ptype-selector { display: flex; gap: 0.75rem; }
       .cls3741_panel_products .ptype-card { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 0.35rem; padding: 1.1rem 0.75rem 1rem; border-radius: 14px; border: 2px solid rgba(255,255,255,0.1); background: rgba(255,255,255,0.03); cursor: pointer; transition: border-color 0.25s, background 0.25s, box-shadow 0.25s; text-align: center; font: inherit; }
@@ -11303,6 +11518,36 @@ $('#cls3741_attach_btn').on('click', function() {
                   <div class="form-hint">Controls what information the AI Sales Agent asks for during checkout.</div>
                 </div>
 
+                <div class="form-row checkout-mode-wrap checkout-method-wrap">
+                  <div class="checkout-mode-label"><i class="fas fa-exchange-alt"></i> Checkout Method (How to Collect)</div>
+                  <div class="checkout-method-studio">
+                    <div class="checkout-method-studio-left">
+                      <label for="product_checkout_method" class="form-hint" style="display:block;margin:0 0 0.45rem;">Choose how the AI collects order details</label>
+                      <select name="checkout_method" id="product_checkout_method" class="checkout-method-select" aria-label="Checkout method">
+                        <option value="chat_only">Chat only — Conversational</option>
+                        <option value="flow_only">Flow only — WhatsApp form</option>
+                        <option value="hybrid" selected>Hybrid — Form first, chat fallback</option>
+                      </select>
+                      <div class="checkout-method-detail" id="checkout_method_detail" aria-live="polite">
+                        <div class="checkout-method-detail-title" id="checkout_method_detail_title">Hybrid — Form first, chat fallback</div>
+                        <p class="checkout-method-detail-desc" id="checkout_method_detail_desc">AI sends the form first. If the customer ignores it and types name/city/address in chat, switch to conversational checkout without forcing the form again.</p>
+                      </div>
+                      <div class="form-hint" style="margin-top:0.75rem;">Controls how the AI collects checkout details — chat, WhatsApp Flow, or both.</div>
+                    </div>
+                    <div class="checkout-method-studio-right">
+                      <div class="cm-preview-label">
+                        <span>WhatsApp preview</span>
+                        <span class="cm-preview-badge is-hybrid" id="cm_preview_badge">Hybrid</span>
+                      </div>
+                      <div id="checkout_method_preview" class="cm-preview-root"></div>
+                      <input type="hidden" name="checkout_form_header" id="checkout_form_header" value="">
+                      <input type="hidden" name="checkout_form_body" id="checkout_form_body" value="">
+                      <input type="hidden" name="checkout_form_footer" id="checkout_form_footer" value="">
+                      <input type="hidden" name="checkout_form_cta" id="checkout_form_cta" value="">
+                    </div>
+                  </div>
+                </div>
+
                 <div class="form-row">
                   <label>Testimonial — audio / video / image</label>
                   <input type="file" name="testimonial" id="product_testimonial" accept="image/*,audio/*,video/*">
@@ -11337,6 +11582,40 @@ $('#cls3741_attach_btn').on('click', function() {
       var previewObjectUrls = [];
       var productMediaFiles = [];
       var productExtractedImageUrls = [];
+      var CHECKOUT_METHOD_META = {
+        chat_only: {
+          title: 'Chat only — Conversational',
+          desc: 'AI asks for missing details naturally, step-by-step in the customer\'s language. No WhatsApp form.',
+          badge: 'Chat only',
+          badgeClass: 'is-chat'
+        },
+        flow_only: {
+          title: 'Flow only — WhatsApp form',
+          desc: 'AI stops asking questions and sends a structured WhatsApp Flow form. Customer taps the button to fill details.',
+          badge: 'Flow only',
+          badgeClass: 'is-flow'
+        },
+        hybrid: {
+          title: 'Hybrid — Form first, chat fallback',
+          desc: 'AI sends the form first. If the customer ignores it and types name/city/address in chat, switch to conversational checkout without forcing the form again.',
+          badge: 'Hybrid',
+          badgeClass: 'is-hybrid'
+        }
+      };
+      var CHECKOUT_MODE_FIELDS = {
+        quick_lead: ['الاسم الكامل'],
+        standard_cod: ['الاسم الكامل', 'المدينة'],
+        strict_cod: ['الاسم الكامل', 'المدينة', 'العنوان'],
+        digital: ['الاسم الكامل', 'الإيميل'],
+        direct_sale: []
+      };
+      var checkoutFormCopyState = {
+        header: 'تأكيد الطلب 📦',
+        body: 'مرحبا، بكل فرح! 🎉 كليكي لتحت باش تدخل المعلومات ديالك ونأكدو ليك الطلب في الحين.',
+        footer: 'أو صيفط أوديو 🎤',
+        cta: '📝 إدخال المعلومات',
+        dirty: false
+      };
       function escapeHtmlAttr(str) {
         if (str == null || str === undefined) return '';
         return String(str).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
@@ -11393,6 +11672,14 @@ $('#cls3741_attach_btn').on('click', function() {
         if (tiersEl) {
           if (tierParts.length) { tiersEl.innerHTML = tierParts.map(function(t) { return '<div class="tier-item">' + t + '</div>'; }).join(''); tiersEl.style.display = 'block'; }
           else { tiersEl.innerHTML = ''; tiersEl.style.display = 'none'; }
+        }
+        var cmPreview = document.getElementById('checkout_method_preview');
+        var cmEditing = cmPreview && cmPreview.querySelector('.is-editing, textarea[data-cm-edit]');
+        if (typeof renderCheckoutMethodStudio === 'function' && !cmEditing) {
+          renderCheckoutMethodStudio();
+        } else if (cmPreview) {
+          var prodLabel = cmPreview.querySelector('.cm-flow-product, .cm-chat-bubble strong');
+          if (prodLabel) prodLabel.textContent = name === 'Product name' ? 'اسم المنتج' : name;
         }
       }
 
@@ -12031,6 +12318,59 @@ $('#cls3741_attach_btn').on('click', function() {
       })();
 
       var PRODUCT_CATEGORY_LABELS = { beauty: 'Beauty', electronics: 'Electronics', fragrances: 'Fragrances', general: 'General' };
+      function escapeHtmlPreview(str) {
+        return String(str == null ? '' : str)
+          .replace(/&/g, '&amp;')
+          .replace(/</g, '&lt;')
+          .replace(/>/g, '&gt;')
+          .replace(/"/g, '&quot;');
+      }
+
+      function getSelectedCheckoutMode() {
+        var radio = document.querySelector('input[name="checkout_mode"]:checked');
+        return (radio && radio.value) || 'standard_cod';
+      }
+
+      function getSelectedCheckoutMethod() {
+        var sel = document.getElementById('product_checkout_method');
+        return (sel && sel.value) || 'hybrid';
+      }
+
+      function syncCheckoutFormCopyHidden() {
+        var h = document.getElementById('checkout_form_header');
+        var b = document.getElementById('checkout_form_body');
+        var f = document.getElementById('checkout_form_footer');
+        var c = document.getElementById('checkout_form_cta');
+        if (h) h.value = checkoutFormCopyState.header || '';
+        if (b) b.value = checkoutFormCopyState.body || '';
+        if (f) f.value = checkoutFormCopyState.footer || '';
+        if (c) c.value = checkoutFormCopyState.cta || '';
+      }
+
+      function getOfferTiersForFlowPreview() {
+        var rows = document.querySelectorAll('#offer_tiers_container .offer-tier-row');
+        var currency = (typeof getProductCurrency === 'function' ? getProductCurrency() : 'MAD') || 'MAD';
+        var tiers = [];
+        rows.forEach(function(r, idx) {
+          var q = (r.querySelector('.tier-qty') && r.querySelector('.tier-qty').value || '').trim();
+          var p = (r.querySelector('.tier-price') && r.querySelector('.tier-price').value || '').trim();
+          if (!q || !p) return;
+          tiers.push({
+            id: 'cm_offer_' + idx,
+            label: q + ' قطعة — ' + p + ' ' + currency
+          });
+        });
+        return tiers;
+      }
+
+      function defaultFlowBodyForMode(mode) {
+        var fields = CHECKOUT_MODE_FIELDS[mode] || CHECKOUT_MODE_FIELDS.standard_cod;
+        if (!fields.length) {
+          return 'بغيتو نأكدو الطلب دابا؟ غير قولينا و نسجلوه فالحين.';
+        }
+        return 'مرحبا، بكل فرح! 🎉 كليكي لتحت باش تدخل المعلومات ديالك (' + fields.join(' و') + ') ونأكدو ليك الطلب في الحين.';
+      }
+
       function setProductCheckoutMode(value) {
         var opts = document.querySelectorAll('.checkout-mode-option');
         opts.forEach(function(opt) {
@@ -12042,11 +12382,228 @@ $('#cls3741_attach_btn').on('click', function() {
             opt.classList.remove('selected');
           }
         });
+        if (!checkoutFormCopyState.dirty) {
+          checkoutFormCopyState.body = defaultFlowBodyForMode(value || 'standard_cod');
+        }
+        renderCheckoutMethodStudio();
       }
+
+      function setProductCheckoutMethod(value) {
+        var sel = document.getElementById('product_checkout_method');
+        var v = value || 'hybrid';
+        if (sel) sel.value = v;
+        renderCheckoutMethodStudio();
+      }
+
+      function seedCheckoutFormCopyFromProduct(p) {
+        var prev = (p && p.form_preview) || {};
+        var saved = prev.saved || null;
+        checkoutFormCopyState = {
+          header: (saved && saved.header) || prev.header || 'تأكيد الطلب 📦',
+          body: (saved && saved.body) || prev.body || defaultFlowBodyForMode((p && p.checkout_mode) || 'standard_cod'),
+          footer: (saved && saved.footer) || prev.footer || 'أو صيفط أوديو 🎤',
+          cta: (saved && saved.cta) || prev.cta || '📝 إدخال المعلومات',
+          dirty: !!(saved && (saved.header || saved.body || saved.footer || saved.cta))
+        };
+        syncCheckoutFormCopyHidden();
+      }
+
+      function resetCheckoutFormCopyDefaults() {
+        checkoutFormCopyState = {
+          header: 'تأكيد الطلب 📦',
+          body: defaultFlowBodyForMode(getSelectedCheckoutMode()),
+          footer: 'أو صيفط أوديو 🎤',
+          cta: '📝 إدخال المعلومات',
+          dirty: false
+        };
+        syncCheckoutFormCopyHidden();
+      }
+
+      function commitCheckoutPreviewEdits(root) {
+        if (!root) return;
+        root.querySelectorAll('[data-cm-edit]').forEach(function(el) {
+          var key = el.getAttribute('data-cm-edit');
+          var val = el.tagName === 'TEXTAREA' ? el.value : (el.innerText || el.textContent || '');
+          if (key === 'header') checkoutFormCopyState.header = val.replace(/\s+/g, ' ').trim().slice(0, 60);
+          if (key === 'body') checkoutFormCopyState.body = val.trim().slice(0, 1024);
+          if (key === 'footer') checkoutFormCopyState.footer = val.replace(/\s+/g, ' ').trim().slice(0, 60);
+          if (key === 'cta') checkoutFormCopyState.cta = val.replace(/\s+/g, ' ').trim().slice(0, 20);
+        });
+        checkoutFormCopyState.dirty = true;
+        syncCheckoutFormCopyHidden();
+      }
+
+      function bindCheckoutPreviewEditing(root) {
+        if (!root) return;
+        root.querySelectorAll('[data-cm-edit]').forEach(function(el) {
+          el.addEventListener('click', function() {
+            if (el.getAttribute('contenteditable') === 'true' || el.tagName === 'TEXTAREA') return;
+            var key = el.getAttribute('data-cm-edit');
+            if (key === 'body') {
+              var ta = document.createElement('textarea');
+              ta.className = 'cm-flow-body cm-flow-editable is-editing';
+              ta.setAttribute('data-cm-edit', 'body');
+              ta.maxLength = 1024;
+              ta.value = el.innerText || el.textContent || '';
+              ta.dir = 'rtl';
+              el.replaceWith(ta);
+              ta.focus();
+              ta.addEventListener('blur', function() {
+                commitCheckoutPreviewEdits(document.getElementById('checkout_method_preview'));
+                renderCheckoutMethodStudio(true);
+              });
+              return;
+            }
+            el.setAttribute('contenteditable', 'true');
+            el.classList.add('is-editing');
+            el.focus();
+            el.addEventListener('keydown', function(ev) {
+              if (ev.key === 'Enter') {
+                ev.preventDefault();
+                el.blur();
+              }
+            });
+            el.addEventListener('blur', function() {
+              el.removeAttribute('contenteditable');
+              el.classList.remove('is-editing');
+              commitCheckoutPreviewEdits(document.getElementById('checkout_method_preview'));
+              renderCheckoutMethodStudio(true);
+            }, { once: true });
+          });
+        });
+      }
+
+      function renderCheckoutMethodStudio(keepFocus) {
+        if (!CHECKOUT_METHOD_META) return;
+        var method = getSelectedCheckoutMethod();
+        var meta = CHECKOUT_METHOD_META[method] || CHECKOUT_METHOD_META.hybrid;
+        if (!meta) return;
+        var titleEl = document.getElementById('checkout_method_detail_title');
+        var descEl = document.getElementById('checkout_method_detail_desc');
+        var badgeEl = document.getElementById('cm_preview_badge');
+        var previewEl = document.getElementById('checkout_method_preview');
+        if (titleEl) titleEl.textContent = meta.title;
+        if (descEl) descEl.textContent = meta.desc;
+        if (badgeEl) {
+          badgeEl.textContent = meta.badge;
+          badgeEl.className = 'cm-preview-badge ' + meta.badgeClass;
+        }
+        if (!previewEl) return;
+
+        var nameEl = document.getElementById('product_name');
+        var productName = ((nameEl && nameEl.value) || '').trim() || 'اسم المنتج';
+        var mode = getSelectedCheckoutMode();
+        var fields = CHECKOUT_MODE_FIELDS[mode] || CHECKOUT_MODE_FIELDS.standard_cod;
+        var offers = getOfferTiersForFlowPreview();
+        syncCheckoutFormCopyHidden();
+
+        if (method === 'chat_only') {
+          previewEl.innerHTML =
+            '<div class="cm-chat-mock">' +
+              '<div class="cm-chat-bubble" dir="rtl">' +
+                '<strong>' + escapeHtmlPreview(productName) + '</strong>' +
+                'واخا، غادي نجمعو المعلومات ديالك فالمحادثة خطوة بخطوة. شنو سميتك؟' +
+              '</div>' +
+            '</div>' +
+            '<div class="cm-flow-hint">Chat only — no WhatsApp Flow form is sent</div>';
+          return;
+        }
+
+        if (mode === 'direct_sale' && !fields.length) {
+          previewEl.innerHTML =
+            '<div class="cm-flow-mock"><div class="cm-flow-bubble" dir="rtl">' +
+              '<div class="cm-flow-product">' + escapeHtmlPreview(productName) + '</div>' +
+              '<div class="cm-flow-body">Direct Sale — الطلب كيتسجل مباشرة بلا استمارة.</div>' +
+            '</div></div>' +
+            '<div class="cm-flow-hint">No form fields for Direct Sale</div>';
+          return;
+        }
+
+        var offersHtml = '';
+        if (offers.length) {
+          offersHtml = '<div class="cm-flow-offers" role="radiogroup" aria-label="Offer tiers">' +
+            offers.map(function(o, i) {
+              return '<label class="cm-flow-offer">' +
+                '<input type="radio" name="cm_preview_offer" ' + (i === 0 ? 'checked' : '') + ' tabindex="-1">' +
+                '<span><strong>' + escapeHtmlPreview(o.label) + '</strong></span>' +
+              '</label>';
+            }).join('') +
+          '</div>';
+        }
+
+        var fieldsHtml = fields.map(function(label) {
+          return '<div class="cm-flow-field">' + escapeHtmlPreview(label) + '</div>';
+        }).join('');
+
+        previewEl.innerHTML =
+          '<div class="cm-flow-mock">' +
+            '<div class="cm-flow-bubble" dir="rtl">' +
+              '<div class="cm-flow-head cm-flow-editable" data-cm-edit="header" spellcheck="false" title="Click to edit title">' +
+                escapeHtmlPreview(checkoutFormCopyState.header || 'تأكيد الطلب 📦') +
+              '</div>' +
+              '<div class="cm-flow-product">' + escapeHtmlPreview(productName) + '</div>' +
+              '<div class="cm-flow-body cm-flow-editable" data-cm-edit="body" spellcheck="false" title="Click to edit subtitle / message">' +
+                escapeHtmlPreview(checkoutFormCopyState.body || '') +
+              '</div>' +
+              offersHtml +
+              fieldsHtml +
+              '<div class="cm-flow-cta cm-flow-editable" data-cm-edit="cta" spellcheck="false" title="Click to edit button label">' +
+                escapeHtmlPreview(checkoutFormCopyState.cta || '📝 إدخال المعلومات') +
+              '</div>' +
+              '<div class="cm-flow-foot cm-flow-editable" data-cm-edit="footer" spellcheck="false" title="Click to edit footer">' +
+                escapeHtmlPreview(checkoutFormCopyState.footer || '') +
+              '</div>' +
+            '</div>' +
+          '</div>' +
+          '<div class="cm-flow-hint">Click titles / subtitles to edit · Offers appear as radio choices when tiers exist</div>';
+
+        if (!keepFocus) bindCheckoutPreviewEditing(previewEl);
+        else bindCheckoutPreviewEditing(previewEl);
+      }
+
+      function saveCheckoutFormCopyForProduct(productId) {
+        if (!productId) return Promise.resolve();
+        var method = getSelectedCheckoutMethod();
+        if (method === 'chat_only') return Promise.resolve();
+        var body = (checkoutFormCopyState.body || '').trim();
+        if (!body) return Promise.resolve();
+        var csrf = (document.querySelector('input[name="csrfmiddlewaretoken"]') || {}).value || '';
+        return fetch('/discount/whatssapAPI/api/whatsapp-flows/save-checkout-copy/', {
+          method: 'POST',
+          credentials: 'same-origin',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': csrf
+          },
+          body: JSON.stringify({
+            channel_id: getProductChannelId(),
+            product_id: productId,
+            header_text: checkoutFormCopyState.header || '',
+            text: body,
+            footer_text: checkoutFormCopyState.footer || '',
+            cta_label: checkoutFormCopyState.cta || ''
+          })
+        }).catch(function() {});
+      }
+
       function initCheckoutModeOptions() {
         document.querySelectorAll('.checkout-mode-option input[type="radio"]').forEach(function(radio) {
-          radio.addEventListener('change', function() { setProductCheckoutMode(radio.value); });
+          radio.addEventListener('change', function() {
+            setProductCheckoutMode(radio.value);
+          });
         });
+        var methodSel = document.getElementById('product_checkout_method');
+        if (methodSel) {
+          methodSel.addEventListener('change', function() {
+            renderCheckoutMethodStudio();
+          });
+        }
+        var nameInput = document.getElementById('product_name');
+        if (nameInput && !nameInput.dataset._cmBound) {
+          nameInput.addEventListener('input', function() { renderCheckoutMethodStudio(); });
+          nameInput.dataset._cmBound = '1';
+        }
+        renderCheckoutMethodStudio();
       }
 
       /** True when product is digital (flag or digital checkout modes). */
@@ -12288,6 +12845,8 @@ $('#cls3741_attach_btn').on('click', function() {
         var isDigital = isProductDigital(p);
         applyProductTypeUI(isDigital, true);
         setProductCheckoutMode(p.checkout_mode || (isDigital ? 'digital' : 'standard_cod'));
+        seedCheckoutFormCopyFromProduct(p);
+        setProductCheckoutMethod(p.checkout_method || 'hybrid');
         if (isDigital) {
           setDigitalProductTypeFromValue(p.digital_product_type || 'account');
           var legalCb = document.getElementById('product_legal_consent_iptv');
@@ -12386,6 +12945,8 @@ $('#cls3741_attach_btn').on('click', function() {
         document.getElementById('product_how_to_use').value = p.how_to_use || '';
         applyProductTypeUI(isProductDigital(p), true);
         setProductCheckoutMode(p.checkout_mode || 'standard_cod');
+        seedCheckoutFormCopyFromProduct(p);
+        setProductCheckoutMethod(p.checkout_method || 'hybrid');
         resetSmartStockFormatDetect();
         runSmartStockFormatDetect();
         document.getElementById('offer_tiers_container').innerHTML = '';
@@ -12420,6 +12981,9 @@ $('#cls3741_attach_btn').on('click', function() {
         updatePreviewImagesFromList();
         updateProductPreview();
         applyProductTypeUI(false);
+        setProductCheckoutMethod('hybrid');
+        resetCheckoutFormCopyDefaults();
+        renderCheckoutMethodStudio();
         resetSmartStockFormatDetect();
         showFormView(false);
       });
@@ -12753,6 +13317,14 @@ $('#cls3741_attach_btn').on('click', function() {
             .then(function(r) { return r.json().then(function(j) { return { ok: r.ok, json: j }; }); })
             .then(function(res) {
               if (res.ok && res.json.success) {
+                var savedProductId = res.json.product_id || editId;
+                var copySave = saveCheckoutFormCopyForProduct(savedProductId);
+                return Promise.resolve(copySave).then(function() { return res; });
+              }
+              return res;
+            })
+            .then(function(res) {
+              if (res.ok && res.json.success) {
                 if (successEl) { successEl.style.display = 'block'; successEl.textContent = isEdit ? 'Product updated successfully.' : 'Product created successfully.'; }
                 form.reset();
                 document.getElementById('product_edit_id').value = '';
@@ -12764,6 +13336,8 @@ $('#cls3741_attach_btn').on('click', function() {
                 updatePreviewImagesFromList();
                 updateProductPreview();
                 applyProductTypeUI(false);
+                resetCheckoutFormCopyDefaults();
+                setProductCheckoutMethod('hybrid');
                 if (btn) btn.disabled = false;
                 showListView();
                 loadProductList();

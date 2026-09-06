@@ -18,11 +18,11 @@ from ai_assistant.services import SUBMIT_ORDER_FIELD_PROPERTIES
 logger = logging.getLogger(__name__)
 
 FIELD_LABELS = {
-    "customer_name": "Full name",
+    "customer_name": "Name",
     "phone_number": "Phone number",
     "shipping_city": "City",
-    "shipping_address": "Full address",
-    "email_address": "Email address",
+    "shipping_address": "Address",
+    "email_address": "Email",
 }
 
 # Purchase / checkout intent (Darija, MSA, FR, EN) — broader than how-to-order-only.
@@ -35,7 +35,11 @@ CHECKOUT_INTENT_RE = re.compile(
     r"(?:i|we)\s+want\s+to\s+(?:buy|order|get)|"
     r"how\s*(?:do|can|to)\s*(?:i|we)\s*(?:order|buy)|"
     r"comment\s*(?:commander|acheter)|"
-    r"je\s+(?:veux|prends|commande)"
+    r"je\s+(?:veux|prends|commande)|"
+    # Soft confirm / proceed (after price or consent gate)
+    r"^(?:نعم|اه|آه|واخا|صافي|تم|أوكي|اوكي|سجل|دوز|نطلب|نشري|خذ|خودي)\b|"
+    r"^(?:ok|okay|yes|yep|sure|go\s*ahead|deal|take\s*it|i'?ll\s*take)\b|"
+    r"^(?:oui|d'?accord|okey|vas[- ]y|je\s+prends)\b"
     r")",
     re.IGNORECASE | re.UNICODE,
 )
@@ -182,6 +186,16 @@ def build_sales_tools_for_product(
     from ai_assistant.services import SALES_AGENT_TOOLS
 
     tools = list(SALES_AGENT_TOOLS)
+    # No locked product → strip order + flow tools so the model cannot checkout blindly.
+    if product_id is None:
+        tools = [
+            t
+            for t in tools
+            if (t.get("function") or {}).get("name")
+            not in ("submit_customer_order", "send_whatsapp_flow", "use_voice_checkout")
+        ]
+        return tools
+
     dynamic = generate_order_tool_schema(product_id, seller_id=seller_id, channel=channel)
     if dynamic:
         tools = [t for t in tools if (t.get("function") or {}).get("name") != "submit_customer_order"]
@@ -251,7 +265,12 @@ def build_gathering_info_guardrail(missing_fields: list[str]) -> str:
     return (
         f"You must collect the following missing fields: {labels}. "
         "Ask the user to provide ALL of them in a SINGLE, polite message. "
-        "Do NOT ask for them one by one."
+        "Do NOT ask for them one by one. "
+        "No Robotic Phrasing: NEVER use literal translations or bracketed explanations "
+        "(e.g. do not say \"First or Full Name\" or \"(الكامل ولا الأول)\"). "
+        "Ask simply and conversationally in the matching dialect "
+        "(e.g. \"شنو سميتك؟\" / \"What is your name?\"). "
+        "The English field labels above are internal only — never paste them into the reply."
     )
 
 
@@ -302,12 +321,14 @@ def should_force_whatsapp_flow(
     needs_form: bool,
     mode: str,
     form_already_sent: bool,
+    checkout_method: str = "hybrid",
 ) -> bool:
     """
-    Deterministic guard: text-comfortable customer + checkout intent → WhatsApp Flow,
-    not manual slot-filling in chat. Resend requests bypass form_already_sent.
+    Deterministic guard: checkout intent → WhatsApp Flow, not manual slot-filling.
+    flow_only / hybrid do NOT require can_read (form is the default path).
+    Resend requests bypass form_already_sent.
     """
-    from discount.whatssapAPI.checkout_capture import MODE_DONE, MODE_VOICE
+    from discount.whatssapAPI.checkout_capture import MODE_CHAT, MODE_DONE, MODE_VOICE
 
     if should_resend_whatsapp_flow(
         incoming_body=incoming_body,
@@ -317,28 +338,77 @@ def should_force_whatsapp_flow(
     ):
         return True
 
-    if not can_read or not hybrid_enabled or not needs_form:
+    if not hybrid_enabled or not needs_form:
         return False
     if form_already_sent:
         return False
-    if (mode or "") in (MODE_VOICE, MODE_DONE):
+    if (mode or "") in (MODE_VOICE, MODE_DONE, MODE_CHAT):
         return False
-    return looks_like_checkout_intent(incoming_body)
+
+    method = (checkout_method or "hybrid").strip() or "hybrid"
+    intent = looks_like_checkout_intent(incoming_body)
+
+    # Product strategy: Flow is default — do not wait for can_read heuristics.
+    if method in ("flow_only", "hybrid"):
+        return intent
+
+    if not can_read:
+        return False
+    return intent
 
 
 def build_can_read_flow_rule() -> str:
     return (
-        "The user is comfortable with text. To collect order details, you MUST call the "
-        "`send_whatsapp_flow` function immediately. Do NOT ask for name, city, address, or phone "
-        "manually in the chat — the WhatsApp form collects those fields."
+        "🚨 CRITICAL OVERRIDE — WHATSAPP FLOW CHECKOUT\n"
+        "To collect order details, you MUST call `send_whatsapp_flow` immediately. "
+        "It is STRICTLY FORBIDDEN to ask for name, city, address, phone, or email in chat. "
+        "Politely tell the customer to tap the button and fill the WhatsApp form. "
+        "Ignore any earlier ORDER GATHERING / progressive / single-block data-request rules."
     )
 
 
 def build_resend_flow_rule() -> str:
     return (
-        "The customer explicitly asked to receive the WhatsApp order form again. "
+        "🚨 CRITICAL OVERRIDE — RESEND FORM\n"
+        "The customer asked to receive the WhatsApp order form again. "
         "You MUST call `send_whatsapp_flow` immediately. "
-        "Do NOT say you cannot resend the form. Do NOT ask for name/city/address in chat."
+        "Do NOT refuse. Do NOT ask for name/city/address in chat."
+    )
+
+
+def build_checkout_method_rule(method: str) -> str:
+    """
+    Inject product-level checkout_method instructions into the LLM system prompt.
+    Distinct from checkout_mode (which fields) — this controls HOW to collect.
+    Uses CRITICAL OVERRIDE strength so it beats ORDER GATHERING / progressive blocks.
+    """
+    m = (method or "hybrid").strip() or "hybrid"
+    if m == "chat_only":
+        return (
+            "🚨 CRITICAL OVERRIDE — CHECKOUT METHOD: CHAT ONLY\n"
+            "Ask for any missing required fields naturally and step-by-step in the customer's "
+            "exact language/dialect. Never rush them with a form.\n"
+            "Do NOT call send_whatsapp_flow. Do NOT tell them to tap a button or fill a form.\n"
+            "When all required fields are present, call submit_customer_order."
+        )
+    if m == "flow_only":
+        return (
+            "🚨 CRITICAL OVERRIDE — CHECKOUT METHOD: FLOW ONLY\n"
+            "It is STRICTLY FORBIDDEN to ask for name, city, address, phone, or email in chat.\n"
+            "Ignore ORDER GATHERING, progressive checkout, and single-block data-request rules.\n"
+            "When the customer agrees to buy (or asks how to order), IMMEDIATELY call "
+            "`send_whatsapp_flow` and politely ask them to tap the button to fill the form.\n"
+            "Do NOT collect details manually. Do NOT call submit_customer_order until the form "
+            "is submitted (unless the system already filled all slots)."
+        )
+    return (
+        "🚨 CRITICAL OVERRIDE — CHECKOUT METHOD: HYBRID\n"
+        "Default path: when the customer agrees to buy, call `send_whatsapp_flow` FIRST "
+        "and politely ask them to tap the button. Do NOT ask for name/city/address in chat first.\n"
+        "Ignore ORDER GATHERING / progressive chat-collection rules until the form is ignored.\n"
+        "STRICT FALLBACK: If the user ignores the form and manually types their details "
+        "(e.g. name, city, address) in the chat, switch to conversational mode, extract the "
+        "entities, and confirm the order via text without forcing the form again."
     )
 
 
@@ -365,6 +435,22 @@ def intercept_submit_customer_order(
     Validation interceptor for submit_customer_order tool calls.
     Returns (allowed, error_json_string).
     """
+    if product is None:
+        return False, json.dumps(
+            {
+                "success": False,
+                "reason": "no_active_product",
+                "instruction": (
+                    "No product is locked on this chat session. "
+                    "Do NOT ask for checkout fields. Call search_products (or "
+                    "switch_active_product) first; only after the backend locks "
+                    "active_product may you collect details or submit the order. "
+                    "If search finds nothing, suggest alternatives or categories."
+                ),
+            },
+            ensure_ascii=False,
+        )
+
     from discount.orders_ai import validate_submit_order_arguments
 
     blocked = validate_submit_order_arguments(
@@ -384,11 +470,26 @@ def intercept_submit_customer_order(
     missing = payload.get("missing_fields") or []
     if missing or payload.get("reason") == "missing_required_fields":
         labels = _format_missing_field_labels(missing or ["customer_name", "shipping_city"])
-        payload["instruction"] = (
-            f"Required data is missing: {labels}. "
-            "Ask the customer for ALL missing items in ONE polite message — not one field at a time. "
-            "Then call submit_customer_order again with complete valid data."
-        )
+        method = "chat_only"
+        try:
+            from discount.orders_ai import get_product_checkout_method
+
+            method = get_product_checkout_method(product)
+        except Exception:
+            method = "chat_only"
+        if method in ("flow_only", "hybrid"):
+            payload["instruction"] = (
+                f"Required data is missing: {labels}. "
+                "Do NOT ask for these fields in chat. "
+                "Call send_whatsapp_flow immediately and ask the customer to tap the button "
+                "and fill the WhatsApp form."
+            )
+        else:
+            payload["instruction"] = (
+                f"Required data is missing: {labels}. "
+                "Ask the customer for ALL missing items in ONE polite message — not one field at a time. "
+                "Then call submit_customer_order again with complete valid data."
+            )
     return False, json.dumps(payload, ensure_ascii=False)
 
 

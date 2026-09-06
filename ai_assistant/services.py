@@ -248,21 +248,103 @@ def translate_franco_to_darija_arabic(user_franco_message, last_three_context_bl
         return raw
 
 
+def _is_moroccan_darija_label(value: str) -> bool:
+    d = (value or "").strip().lower()
+    return any(k in d for k in ("moroccan", "darija", "maghreb", "ar_ma"))
+
+
+def _darija_split_parts(text: str) -> list:
+    return [p.strip() for p in (text or "").split("[SPLIT]")]
+
+
+def polish_darija_outbound(text: str, *, target_dialect: str = "", output_language: str = "") -> str:
+    """
+    Cheap gpt-4o-mini rewrite of the *customer-facing* reply only.
+
+    Haiku (and similar small Claude models) often mix MSA, Egyptian, and broken
+    gender agreement in Darija. The sales brain stays on the cheap model; this
+    pass only fixes wording. On any failure, returns the original text.
+    """
+    raw = (text or "").strip()
+    if not raw:
+        return text or ""
+    ol = (output_language or "").strip().lower()
+    if ol in ("en", "fr", "english", "french"):
+        return raw
+    if not _is_moroccan_darija_label(target_dialect):
+        return raw
+    if not re.search(r"[\u0600-\u06FF]", raw):
+        return raw
+    api_key = get_api_key()
+    if not api_key:
+        return raw
+
+    model = getattr(settings, "OPENAI_DARIJA_POLISH_MODEL", None) or "gpt-4o-mini"
+    system_content = (
+        "You are a native Moroccan Darija editor for WhatsApp sales messages.\n"
+        "Rewrite the seller message so it sounds like a real Moroccan (دارجة مغربية), "
+        "not Modern Standard Arabic and not Egyptian/Levantine.\n\n"
+        "KEEP UNCHANGED:\n"
+        "- Meaning, facts, prices, product names, promises, and any question that is already there.\n"
+        "- Do NOT add guarantees, return policies, or CTAs that were not in the original.\n"
+        "- Do NOT remove a question if the original had one.\n"
+        "- Keep every [SPLIT] marker. Same number of parts, same order of ideas.\n\n"
+        "FIX:\n"
+        "- Gender agreement: pick one (usually masculine for mixed customers) and stay consistent "
+        "(كتقدر/عجبكش/ترجعو — never mix كتقدر with ترجعيها).\n"
+        "- Egyptian/Levantine: زي → بحال, تمام → مزيان, عشان → باش, حد → شي واحد.\n"
+        "- MSA chat-calques: عند الاستقبال → ملي يوصلك / فالتوصيل; بدون أي مشاكل → بلا حتى مشكيل.\n"
+        "- Natural Darija spelling. Short WhatsApp sentences.\n\n"
+        "Return ONLY the rewritten message, no quotes, no explanation."
+    )
+    payload = {
+        "model": model,
+        "messages": [
+            {"role": "system", "content": system_content},
+            {"role": "user", "content": raw},
+        ],
+        "max_tokens": 500,
+        "temperature": 0.15,
+    }
+    try:
+        resp = requests.post(
+            OPENAI_API_URL,
+            headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
+            json=payload,
+            timeout=20,
+        )
+        if resp.status_code != 200:
+            logger.warning("polish_darija_outbound HTTP %s: %s", resp.status_code, (resp.text or "")[:300])
+            return raw
+        data = resp.json()
+        out = ((data.get("choices") or [{}])[0].get("message", {}) or {}).get("content") or ""
+        out = (out or "").strip().strip('"').strip("'")
+        if not out:
+            return raw
+        if len(_darija_split_parts(out)) != len(_darija_split_parts(raw)):
+            logger.info("polish_darija_outbound rejected: [SPLIT] count changed")
+            return raw
+        if len(out) > int(len(raw) * 2.4) or len(out) < max(8, int(len(raw) * 0.35)):
+            logger.info("polish_darija_outbound rejected: length drift")
+            return raw
+        logger.info("Darija polish applied (%s → %s chars)", len(raw), len(out))
+        return out
+    except Exception as e:
+        logger.warning("polish_darija_outbound failed: %s", e)
+        return raw
+
+
 def apply_franco_translation_to_conversation(conversation):
     """
     If the last customer message looks like Franco (Latin), replace it with Arabic Darija translation.
     conversation: list of {"role": "customer"|"agent", "body": str} (same shape as LLM pipeline).
-    Skipped when the customer is clearly writing in French or English (AUTO language detect).
+
+    Latin Moroccan Franco always translates to Arabic script (even if older turns look FR/EN).
+    Pure French/English Latin messages are skipped via AUTO language detect.
+    System vision/STT notes are never translated as customer Franco.
     """
     if not conversation:
         return conversation
-    try:
-        from discount.services.bot_language import detect_customer_language
-
-        if detect_customer_language(conversation) in ("fr", "en"):
-            return list(conversation)
-    except Exception:
-        pass
     conv = list(conversation)
     i = len(conv) - 1
     while i >= 0 and conv[i].get("role") != "customer":
@@ -272,8 +354,32 @@ def apply_franco_translation_to_conversation(conversation):
     raw = (conv[i].get("body") or "").strip()
     if not raw or raw == "[media]":
         return conv
-    if not is_primarily_latin_franco(raw):
+
+    try:
+        from discount.services.bot_language import (
+            detect_customer_language,
+            is_system_context_body,
+            looks_like_franco_darija,
+        )
+    except Exception:
+        is_system_context_body = lambda _b: False  # noqa: E731
+        looks_like_franco_darija = lambda _t: False  # noqa: E731
+        detect_customer_language = lambda _c: None  # noqa: E731
+
+    if is_system_context_body(raw):
         return conv
+
+    is_franco = looks_like_franco_darija(raw)
+    if not is_franco:
+        # Only skip non-Franco Latin when AUTO clearly says FR/EN.
+        try:
+            if detect_customer_language(conversation) in ("fr", "en"):
+                return conv
+        except Exception:
+            pass
+        if not is_primarily_latin_franco(raw):
+            return conv
+
     ctx = _format_last_three_for_franco_translator(conv)
     translated = translate_franco_to_darija_arabic(raw, ctx)
     if translated and translated.strip():
@@ -469,13 +575,21 @@ def get_dynamic_dialect_vocabulary_rules(resolved_dialect, output_language):
         )
     if ("moroccan" in d) or ("darija" in d):
         return (
-            "CRITICAL DARIJA PERSONA & VOCABULARY OVERRIDE V2:\n"
+            "CRITICAL DARIJA PERSONA & VOCABULARY OVERRIDE V3:\n"
             "You are a local, authentic Moroccan e-commerce seller. You must speak 100% natural Moroccan Darija street language.\n"
             "ABSOLUTE BANS (ZERO TOLERANCE):\n"
             "- DO NOT use Egyptian/Levantine filler words: NEVER use 'تمام' (use 'مزيان' or 'كلشي هو هداك'), "
-            "NEVER use 'حد' (use 'شي واحد'), NEVER use 'عشان' (use 'باش').\n"
+            "NEVER use 'حد' (use 'شي واحد'), NEVER use 'عشان' (use 'باش'), NEVER use 'زي' (use 'بحال').\n"
+            "- DO NOT use literal MSA: NEVER 'عند الاستقبال' (use 'ملي يوصلك' / 'فالتوصيل'), "
+            "NEVER 'بدون أي مشاكل' (use 'بلا حتى مشكيل').\n"
+            "- Gender: stay consistent (usually masculine): كتقدر / عجبكش / ترجعو. "
+            "NEVER mix masculine كتقدر with feminine ترجعيها / أعجباتش unless the customer is clearly feminine and you stay feminine throughout.\n"
             "- DO NOT use literal formal translations: NEVER say 'الشراء معانا' (use 'تقديتي من عندنا' or 'ثقتي فينا').\n"
             "- PREVIOUSLY BANNED: 'حسناً', 'نوديه', 'نرسلوه' (use 'نصيفطوه'), 'بزاف قريب' (use 'دغيا').\n"
+            "- FRANCO / ARABIZI: If the customer writes Darija in Latin letters (Wach, bghit, mafiha…), "
+            "reply in Arabic-script Moroccan Darija only. NEVER mirror Latin Franco in your reply.\n"
+            "- IMAGE CONTEXT: Lines starting with [SYSTEM IMAGE CONTEXT] or [SYSTEM VISION] are internal notes, "
+            "not the customer's language — keep replying in the locked dialect/language of the chat.\n"
             "Keep the tone friendly, brief, and distinctly Moroccan. Use emojis naturally, but do not overdo it."
         )
     if ("saudi" in d) or ("gulf" in d) or ("uae" in d) or ("emirates" in d):
@@ -1549,17 +1663,17 @@ Immediately follow the price with: (a) a persuasive value reason ("النسخة 
 **STEP 3 — SOFT FOLLOW-UP (NOT a hard order close):**
 After price + value, use a LOW-PRESSURE question (usage, variant, stock curiosity) OR end cleanly. Do NOT append "register your order now" unless the user already showed buying intent. Obey ANSWER ONLY.
 
-✅ CORRECT BEHAVIOR (Moroccan Darija structural example — [PRICE] below is a FORMAT PLACEHOLDER, see anti-hallucination lock):
+✅ CORRECT BEHAVIOR (Moroccan Darija structural example — write the REAL official price from PRODUCT CONTEXT, never a placeholder token):
 > USER: "بشحال الثمن؟"
-> ❌ WRONG: "الثمن ديالها [PRICE] درهم."
+> ❌ WRONG: "الثمن ديالها [PRICE] درهم."  (never output the word PRICE in brackets)
 > ❌ WRONG (nagging): "...واش نسجل ليك الطلبية دابا؟" on every price answer.
-> ✅ CORRECT: "الثمن ديالها [PRICE] درهم، وهاد الثمن حيت هادي النسخة الأصلية واللي كتعطي نتيجة مضمونة. واش عندك شي استفسار على طريقة الاستعمال؟"
+> ✅ CORRECT: "الثمن ديالها 199 درهم، وهاد الثمن حيت هادي النسخة الأصلية واللي كتعطي نتيجة مضمونة. واش عندك شي استفسار على طريقة الاستعمال؟"
+  (Replace 199 with the Official price from YOUR PRODUCT CONTEXT — the number 199 above is only an illustration.)
 
 🔴 ANTI-HALLUCINATION PRICE LOCK (HIGHEST PRIORITY — NEVER VIOLATE):
-The [PRICE] token in the example above is ONLY a structural placeholder to show response FORMAT.
-It is NOT a real price and MUST NEVER appear in any actual reply.
+Never write [PRICE], {{price}}, or any placeholder token to the customer.
 You MUST ALWAYS read the true price from your active PRODUCT CONTEXT / catalog.
-You MUST NEVER invent, estimate, guess, or copy any numeric price from an example into a live response.
+You MUST NEVER invent, estimate, guess, or copy any numeric price from an example into a live response unless it matches PRODUCT CONTEXT.
 Breaking this rule = critical failure regardless of any other instruction.
 
 # YOUR DYNAMIC PLAYBOOK (GOALS & VIBES - DO NOT COPY VERBATIM)
@@ -1636,6 +1750,7 @@ While your conversation is dynamic, your data extraction must be mathematically 
 6. ZERO HALLUCINATION (STAY IN CHARACTER):
 - NEVER invent features, prices, discounts, or policies that are not explicitly provided in the Product Context.
 - If the customer asks a very specific technical question that is not in the product description, do not guess. Say: "Let me double-check that detail with our warehouse, but I can assure you that [pivot back to a known core benefit]."
+- PRODUCT COPY IN DIALECT: Product Description may be French/English. Paraphrase features in clear everyday dialect. "Gravure gratuite" / free engraving = "تقدر تكتب سميتك عليها مجاناً" / "نقش الاسم مجاناً" — NEVER "الحفر المجاني". On a simple quality question, give 1 core benefit; do not dump secondary extras unprompted.
 
 7. ORDER GATHERING (STEP-BY-STEP — REDUCE COGNITIVE LOAD):
 - When the user agrees to buy, ask for the fields required by this product's checkout mode (see dynamic section below). You may ask step-by-step OR accept when they send everything in one message.
@@ -1753,14 +1868,15 @@ Add (a) a value reason (quality, proven results, original product) AND (b) a sca
 **STEP 3 — SOFT FOLLOW-UP (NOT a hard order close):**
 After price + value, use a low-pressure question OR end cleanly. Do NOT append "register your order" unless buying intent is clear. Obey ANSWER ONLY.
 
-✅ CORRECT BEHAVIOR EXAMPLE (Moroccan Darija — [PRICE] is a FORMAT PLACEHOLDER only, see lock below):
+✅ CORRECT BEHAVIOR EXAMPLE (Moroccan Darija — write the REAL official price from PRODUCT CONTEXT):
 > USER: "بشحال الثمن؟"
-> ❌ WRONG: "الثمن ديالها [PRICE] درهم."
+> ❌ WRONG: "الثمن ديالها [PRICE] درهم."  (never output PRICE in brackets)
 > ❌ WRONG (nagging): "...واش نسجل ليك الطلبية دابا؟" on every price reply.
-> ✅ CORRECT: "الثمن ديالها [PRICE] درهم، وهاد الثمن حيت هادي النسخة الأصلية واللي كتعطي نتيجة مضمونة. واش عندك شي استفسار على طريقة الاستعمال؟"
+> ✅ CORRECT: "الثمن ديالها 199 درهم، وهاد الثمن حيت هادي النسخة الأصلية واللي كتعطي نتيجة مضمونة. واش عندك شي استفسار على طريقة الاستعمال؟"
+  (Replace 199 with Official price from YOUR PRODUCT CONTEXT.)
 
 🔴 ANTI-HALLUCINATION PRICE LOCK (HIGHEST PRIORITY):
-[PRICE] in the example is a structural placeholder showing FORMAT only — it is NOT a real price.
+Never write [PRICE], {{price}}, or similar placeholders to the customer.
 You MUST ALWAYS use the real price from your active product context / catalog.
 NEVER invent, copy, or estimate any price from an example. This is a critical safety rule.
 
@@ -2473,6 +2589,11 @@ def _build_progressive_data_collection_block(required_order_fields, customer_pho
         f"{fields_list_str} (keys: {', '.join(fields)}).\n"
         "DO NOT ask for all fields at once. That overwhelms the user. Ask step-by-step naturally "
         "(e.g., ask for Name and City first, then address if needed).\n"
+        "No Robotic Phrasing: NEVER use literal translations or bracketed explanations "
+        "(e.g., do not say \"First or Full Name\" or \"(الكامل ولا الأول)\"). "
+        "Ask simply and conversationally in the matching dialect "
+        "(e.g., \"شنو سميتك؟\", \"What is your name?\", \"اسمك؟\"). "
+        "The English labels above are internal only — never paste them into the customer reply.\n"
         f"{phone_hint}\n"
         "Only confirm the final order once ALL required fields are collected. "
         "Do NOT ask for city, address, or extra slots unless they are in the required list above."
@@ -3129,11 +3250,11 @@ def _build_order_memory_block(
     """
     # Human-readable labels for every possible field key
     _FIELD_LABELS: dict[str, str] = {
-        "customer_name":    "Customer Name",
+        "customer_name":    "Name",
         "phone_number":     "Phone Number",
         "shipping_city":    "Delivery City",
         "shipping_address": "Delivery Address",
-        "email_address":    "Email Address (for digital delivery)",
+        "email_address":    "Email",
     }
 
     phone = (phone or "").strip()
@@ -3641,7 +3762,7 @@ def _build_conversation_state_banner(
     return ""
 
 
-def build_messages_payload_sales(conversation_messages, custom_instruction=None, product_context=None, trust_score=0, media_context=None, state_header=None, sales_stage=None, sentiment=None, market=None, agent_name=None, customer_phone=None, override_rules=None, required_order_fields=None, checkout_mode_label=None, product_id=None, merchant_id=None, voice_dialect=None, voice_notes_mode=False, voice_script_style=False, output_language=None, memory_summary=None, node_dialect_locked=False, node_language_code=None, node=None, bot_settings=None, target_dialect=None, pronoun_anchor_product_name=None, conversation_state=None, post_sale_support_context=None, payment_rejection_reason=None, incoming_has_media=False, order_payment_status=None, incoming_payment_receipt_valid=None, incoming_media_vision_summary=None, can_read_flow_rule=None, missing_order_fields=None, channel=None):
+def build_messages_payload_sales(conversation_messages, custom_instruction=None, product_context=None, trust_score=0, media_context=None, state_header=None, sales_stage=None, sentiment=None, market=None, agent_name=None, customer_phone=None, override_rules=None, required_order_fields=None, checkout_mode_label=None, product_id=None, merchant_id=None, voice_dialect=None, voice_notes_mode=False, voice_script_style=False, output_language=None, memory_summary=None, node_dialect_locked=False, node_language_code=None, node=None, bot_settings=None, target_dialect=None, pronoun_anchor_product_name=None, conversation_state=None, post_sale_support_context=None, payment_rejection_reason=None, incoming_has_media=False, order_payment_status=None, incoming_payment_receipt_valid=None, incoming_media_vision_summary=None, can_read_flow_rule=None, missing_order_fields=None, channel=None, checkout_method=None):
     """Build messages for the sales agent. Uses Elite Sales Consultant prompt when product_context is set (with trust_score, sales_stage, sentiment, market, agent_name).
     state_header: optional for session continuity. market: 'MA' or 'SA'. agent_name: e.g. Chuck or persona name so the AI thinks as that human.
     customer_phone: active WhatsApp number of the customer; injected as system note so the AI can use it when they say 'same number' / نفس الرقم.
@@ -3766,6 +3887,23 @@ def build_messages_payload_sales(conversation_messages, custom_instruction=None,
             "at the very end of this system prompt.\n\n---\n\n"
             + system
         )
+    # Durable customer profile notes (pain points / objections) — always inject when present,
+    # including post-sale turns (checkout slot prompt may be suppressed).
+    try:
+        from discount.services.checkout_state import (
+            get_or_create_checkout_state,
+            build_customer_profile_notes_prompt,
+        )
+
+        if channel is not None and customer_phone:
+            _notes_state = get_or_create_checkout_state(channel, str(customer_phone).strip())
+            _notes_prompt = build_customer_profile_notes_prompt(
+                getattr(_notes_state, "customer_notes", "") if _notes_state else ""
+            )
+            if _notes_prompt:
+                system = _notes_prompt + "\n\n---\n\n" + system
+    except Exception as _notes_err:
+        logger.debug("customer notes prompt inject: %s", _notes_err)
     negotiated_product = _resolve_product_for_prompt(product_id=product_id, merchant_id=merchant_id, channel=channel)
     _pricing_authority_tail = ""
     if negotiated_product and not _is_post_sale_care:
@@ -3815,6 +3953,29 @@ def build_messages_payload_sales(conversation_messages, custom_instruction=None,
                 if state_header and str(state_header).strip()
                 else _order_mem
             )
+        # Durable checkout slots (name/city/address/product) override history-based guessing.
+        try:
+            from discount.services.checkout_state import (
+                get_or_create_checkout_state,
+                build_checkout_state_prompt,
+            )
+
+            if channel is not None and customer_phone:
+                _cos = get_or_create_checkout_state(channel, str(customer_phone).strip())
+                _cos_prompt = build_checkout_state_prompt(
+                    _cos,
+                    required_fields=required_order_fields,
+                    product_name=pronoun_anchor_product_name or "",
+                    customer_phone=str(customer_phone or "").strip(),
+                )
+                if _cos_prompt:
+                    state_header = (
+                        _cos_prompt + "\n\n" + str(state_header).strip()
+                        if state_header and str(state_header).strip()
+                        else _cos_prompt
+                    )
+        except Exception as _cos_prompt_err:
+            logger.debug("checkout state prompt inject: %s", _cos_prompt_err)
 
     if state_header and (state_header or "").strip():
         system = (state_header.strip() + "\n\n") + system
@@ -3843,20 +4004,43 @@ def build_messages_payload_sales(conversation_messages, custom_instruction=None,
         system = _post_sale_banner + "\n\n" + system
     # Dynamic COD / Checkout mode: progressive profiling + field list for this product.
     # ALSO suppressed in AWAITING_PAYMENT_RECEIPT — no new order will be submitted from this turn.
+    # Flow-first methods must NOT get "ask for name/city in chat" progressive instructions.
+    _co_method_early = (checkout_method or "").strip()
+    if not _co_method_early and product_id is not None and channel is not None:
+        try:
+            from discount.services.product_scope import get_channel_product
+            from discount.orders_ai import get_product_checkout_method
+
+            _prod_early = get_channel_product(channel, product_id=product_id)
+            _co_method_early = get_product_checkout_method(_prod_early)
+        except Exception:
+            _co_method_early = ""
+    _flow_first_checkout = _co_method_early in ("flow_only", "hybrid")
+
     if required_order_fields is not None and not _suppress_order_capture_blocks:
-        _progressive = _build_progressive_data_collection_block(
-            required_order_fields,
-            customer_phone=customer_phone,
-        )
-        if _progressive:
-            if checkout_mode_label:
-                system += _progressive + f"\nCheckout mode label: [{checkout_mode_label}]."
-            else:
-                system += _progressive
+        if _flow_first_checkout:
+            fields_list = ", ".join(str(f) for f in (required_order_fields or []) if f)
             system += (
-                "\nOnce every required field is collected, call the order submission tool "
-                "(submit_customer_order)."
+                "\n\n[CHECKOUT FIELDS — VIA WHATSAPP FLOW]\n"
+                f"Required slots for this product: {fields_list or 'per product checkout mode'}.\n"
+                "These are collected by the WhatsApp Flow form (send_whatsapp_flow), "
+                "NOT by asking the customer to type them in chat "
+                "(unless hybrid chat-fallback / voice mode is already active)."
             )
+        else:
+            _progressive = _build_progressive_data_collection_block(
+                required_order_fields,
+                customer_phone=customer_phone,
+            )
+            if _progressive:
+                if checkout_mode_label:
+                    system += _progressive + f"\nCheckout mode label: [{checkout_mode_label}]."
+                else:
+                    system += _progressive
+                system += (
+                    "\nOnce every required field is collected, call the order submission tool "
+                    "(submit_customer_order)."
+                )
     # Context resumption: when customer returns with "Hello" / "مرحبا", use history to resume, not generic greeting
     system += "\n" + CONTEXT_RESUMPTION_RULE
     # System context injection: give the LLM the customer's WhatsApp number so it can pass it into
@@ -3889,7 +4073,6 @@ def build_messages_payload_sales(conversation_messages, custom_instruction=None,
         "3. If the user asks for a photo/image/صورة, call send_product_media IMMEDIATELY.\n\n"
         "AFTER send_product_media (SILENT MODE):\n"
         "- The image is already delivered — NEVER write 'تم إرسال الصورة', '📷', or 'via WhatsApp'.\n"
-        "- Prefer an EMPTY text reply, OR one short natural sales line (e.g. 'واش عجباتك؟').\n"
         "- Never meta-commentary about sending/delivering the photo.\n\n"
         "[CUSTOMER URL HANDLING]\n"
         "When the customer shares an http(s) link (product page, competitor, article, etc.):\n"
@@ -3973,6 +4156,27 @@ def build_messages_payload_sales(conversation_messages, custom_instruction=None,
             len((override_rules or "").strip()),
         )
 
+    # Product-level how-to-collect strategy — AFTER admin rules so Flow/chat method wins.
+    _co_method = _co_method_early or (checkout_method or "").strip()
+    if not _co_method and product_id is not None and channel is not None:
+        try:
+            from discount.services.product_scope import get_channel_product
+            from discount.orders_ai import get_product_checkout_method
+
+            _prod_m = get_channel_product(channel, product_id=product_id)
+            _co_method = get_product_checkout_method(_prod_m)
+        except Exception:
+            _co_method = ""
+    if _co_method:
+        try:
+            from ai_assistant.order_checkout import build_checkout_method_rule
+
+            _method_block = build_checkout_method_rule(_co_method)
+            if _method_block:
+                system += "\n\n" + _method_block
+        except Exception:
+            pass
+
     recent_messages = _trim_conversation_messages(conversation_messages, limit=MAX_CHAT_HISTORY_MESSAGES)
     messages = [{"role": "system", "content": system}]
     for msg in recent_messages:
@@ -4023,7 +4227,7 @@ def parse_and_strip_stage(reply_text):
     return (cleaned, stage)
 
 
-def generate_reply_with_tools(conversation_messages, custom_instruction=None, product_context=None, trust_score=0, media_context=None, state_header=None, sales_stage=None, sentiment=None, market=None, agent_name=None, model=None, customer_phone=None, override_rules=None, required_order_fields=None, checkout_mode_label=None, product_id=None, merchant_id=None, voice_dialect=None, voice_notes_mode=False, voice_script_style=False, output_language=None, memory_summary=None, node_dialect_locked=False, node_language_code=None, node=None, bot_settings=None, channel=None, pronoun_anchor_product_name=None, conversation_state=None, post_sale_support_context=None, payment_rejection_reason=None, incoming_has_media=False, order_payment_status=None, incoming_payment_receipt_valid=None, incoming_media_vision_summary=None, tools_override=None, can_read_flow_rule=None, missing_order_fields=None, target_dialect_override=None):
+def generate_reply_with_tools(conversation_messages, custom_instruction=None, product_context=None, trust_score=0, media_context=None, state_header=None, sales_stage=None, sentiment=None, market=None, agent_name=None, model=None, customer_phone=None, override_rules=None, required_order_fields=None, checkout_mode_label=None, product_id=None, merchant_id=None, voice_dialect=None, voice_notes_mode=False, voice_script_style=False, output_language=None, memory_summary=None, node_dialect_locked=False, node_language_code=None, node=None, bot_settings=None, channel=None, pronoun_anchor_product_name=None, conversation_state=None, post_sale_support_context=None, payment_rejection_reason=None, incoming_has_media=False, order_payment_status=None, incoming_payment_receipt_valid=None, incoming_media_vision_summary=None, tools_override=None, can_read_flow_rule=None, missing_order_fields=None, target_dialect_override=None, checkout_method=None):
     """
     Call OpenAI with sales tools. When product_context is set, uses Elite Sales Consultant prompt with trust_score, sales_stage, sentiment, market, agent_name.
     market: 'MA' or 'SA'. agent_name: e.g. Chuck or persona name — AI responds as this human, not as a bot.
@@ -4079,6 +4283,7 @@ def generate_reply_with_tools(conversation_messages, custom_instruction=None, pr
         incoming_media_vision_summary=incoming_media_vision_summary,
         can_read_flow_rule=can_read_flow_rule,
         missing_order_fields=missing_order_fields,
+        checkout_method=checkout_method,
     )
     tools = list(tools_override) if tools_override is not None else list(SALES_AGENT_TOOLS)
 
@@ -4159,6 +4364,11 @@ def generate_reply_with_tools(conversation_messages, custom_instruction=None, pr
     reply_clean, stage = parse_and_strip_stage(reply_text)
     # Strip [HANDOVER] and set flag for HITL (human-in-the-loop)
     reply_clean, handover_reason = parse_and_strip_handover(reply_clean)
+    reply_clean = polish_darija_outbound(
+        reply_clean,
+        target_dialect=target_dialect,
+        output_language=output_language,
+    )
 
     _m = (model or "").strip() or "unknown"
     logger.info("AI sales agent reply model: %s", _m)
@@ -4220,6 +4430,7 @@ def continue_after_tool_calls(
     tools_override=None,
     can_read_flow_rule=None,
     missing_order_fields=None,
+    checkout_method=None,
 ):
     """
     After the model returned tool_calls (e.g. check_stock, apply_discount), send tool results and get the final reply.
@@ -4276,6 +4487,7 @@ def continue_after_tool_calls(
         incoming_media_vision_summary=incoming_media_vision_summary,
         can_read_flow_rule=can_read_flow_rule,
         missing_order_fields=missing_order_fields,
+        checkout_method=checkout_method,
     )
     assistant_msg = {
         "role": "assistant",
@@ -4360,6 +4572,11 @@ def continue_after_tool_calls(
     }
     reply_clean, stage = parse_and_strip_stage(reply_text)
     reply_clean, handover_reason = parse_and_strip_handover(reply_clean)
+    reply_clean = polish_darija_outbound(
+        reply_clean,
+        target_dialect=target_dialect,
+        output_language=output_language,
+    )
 
     _m = (model or "").strip() or "unknown"
     logger.info("AI sales agent reply model (after tool_calls): %s", _m)

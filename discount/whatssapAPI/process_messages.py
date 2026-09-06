@@ -187,13 +187,19 @@ def remove_arabic_diacritics(text: str) -> str:
 #
 # ---------------- Webhook Debounce (Human Typing Aggregation) ----------------
 #
-# We debounce ONLY incoming WhatsApp text messages per (channel, sender) for a short
-# time window. While the user is still "typing" (sending multiple short messages),
-# we buffer them and only trigger the LLM workflow when the timer expires.
+# Debounce ONLY incoming WhatsApp text messages per (channel, sender) for a short
+# window. While the user is still sending short bursts, we buffer them and only
+# run the LLM when the quiet timer expires.
 #
-DEBOUNCE_WINDOW_SECONDS = 10.0
+# Buffer + generation live in Django cache (Redis in production) so multiple
+# web workers / dynos still aggregate the same chat. A version token ensures an
+# older worker's timer never flushes a superseded burst.
+#
+DEBOUNCE_WINDOW_SECONDS = 8.0
+DEBOUNCE_CACHE_TTL = 90
 _DEBOUNCE_LOCK = threading.Lock()
-_DEBOUNCE_STATE = {}  # key -> {messages: [str], timer: threading.Timer, channel_id, sender, name}
+# Process-local timers only (cancel/restart on this worker). Payload is in cache.
+_DEBOUNCE_TIMERS = {}  # key -> threading.Timer
 
 
 def _debounce_key(channel, sender):
@@ -201,10 +207,53 @@ def _debounce_key(channel, sender):
     return f"{channel_id}:{sender}" if channel_id else str(sender)
 
 
+def _debounce_msgs_cache_key(key: str) -> str:
+    return f"wa_debounce:msgs:{key}"
+
+
+def _debounce_gen_cache_key(key: str) -> str:
+    return f"wa_debounce:gen:{key}"
+
+
+def _debounce_meta_cache_key(key: str) -> str:
+    return f"wa_debounce:meta:{key}"
+
+
+def is_debounce_pending(channel, sender) -> bool:
+    """True while a text burst is still buffered for this chat."""
+    if not channel or not sender:
+        return False
+    try:
+        from django.core.cache import cache
+
+        key = _debounce_key(channel, sender)
+        msgs = cache.get(_debounce_msgs_cache_key(key)) or []
+        return bool(msgs)
+    except Exception:
+        return False
+
+
+def wait_until_debounce_idle(channel, sender, timeout=None) -> bool:
+    """
+    Block until the debounce buffer for this chat is empty (or timeout).
+    Used by the AI Lab so HTTP can return after the flush+LLM turn.
+    """
+    if timeout is None:
+        timeout = DEBOUNCE_WINDOW_SECONDS + 3.0
+    if not channel or not sender:
+        return True
+    deadline = time.time() + max(0.5, float(timeout))
+    while time.time() < deadline:
+        if not is_debounce_pending(channel, sender):
+            return True
+        time.sleep(0.2)
+    return not is_debounce_pending(channel, sender)
+
+
 def _debounce_store_text(channel, sender, name, body):
     """
-    Buffer a text message and reset the debounce timer.
-    Returns True to indicate the caller should skip immediate LLM processing.
+    Buffer a text message and (re)schedule the quiet-period timer.
+    Returns True so the caller skips immediate LLM processing.
     """
     if not channel or not sender:
         return False
@@ -215,73 +264,134 @@ def _debounce_store_text(channel, sender, name, body):
         return False
 
     key = _debounce_key(channel, sender)
-    with _DEBOUNCE_LOCK:
-        state = _DEBOUNCE_STATE.get(key)
-        if state:
-            state["messages"].append(text)
-            # Reset the timer: cancel previous and schedule a new one
-            try:
-                state["timer"].cancel()
-            except Exception:
-                pass
-            state["timer"] = threading.Timer(DEBOUNCE_WINDOW_SECONDS, _debounce_flush_key, args=(key,))
-        else:
-            state = {
-                "messages": [text],
-                "timer": None,
-                "channel_id": getattr(channel, "id", None),
-                "sender": sender,
-                "name": name,
-            }
-            _DEBOUNCE_STATE[key] = state
-            state["timer"] = threading.Timer(DEBOUNCE_WINDOW_SECONDS, _debounce_flush_key, args=(key,))
-
-        # Start (or restart) the timer
-        try:
-            state["timer"].daemon = True
-            state["timer"].start()
-        except Exception:
-            # If timer fails, don't block the chat: allow immediate processing on this request.
-            _DEBOUNCE_STATE.pop(key, None)
-            return False
-
-    logger.info("Debounce buffer updated for key=%s: now %d msg(s)", key, len(_DEBOUNCE_STATE[key]["messages"]))
-    return True
-
-
-def _debounce_flush_key(key):
-    """
-    Called when debounce timer expires.
-    Flush buffered messages and re-enter the process_messages pipeline
-    with a combined text payload.
-    """
-    with _DEBOUNCE_LOCK:
-        state = _DEBOUNCE_STATE.pop(key, None)
-
-    if not state:
-        return
-
     try:
-        channel = WhatsAppChannel.objects.filter(id=state.get("channel_id")).first() if state.get("channel_id") else None
-        if not channel:
+        from django.core.cache import cache
+
+        msgs_key = _debounce_msgs_cache_key(key)
+        gen_key = _debounce_gen_cache_key(key)
+        meta_key = _debounce_meta_cache_key(key)
+
+        with _DEBOUNCE_LOCK:
+            msgs = list(cache.get(msgs_key) or [])
+            msgs.append(text)
+            gen = int(cache.get(gen_key) or 0) + 1
+            cache.set(msgs_key, msgs, DEBOUNCE_CACHE_TTL)
+            cache.set(gen_key, gen, DEBOUNCE_CACHE_TTL)
+            cache.set(
+                meta_key,
+                {
+                    "channel_id": getattr(channel, "id", None),
+                    "sender": sender,
+                    "name": name,
+                },
+                DEBOUNCE_CACHE_TTL,
+            )
+
+            prev = _DEBOUNCE_TIMERS.pop(key, None)
+            if prev is not None:
+                try:
+                    prev.cancel()
+                except Exception:
+                    pass
+
+            timer = threading.Timer(
+                DEBOUNCE_WINDOW_SECONDS,
+                _debounce_flush_key,
+                args=(key, gen),
+            )
+            timer.daemon = True
+            _DEBOUNCE_TIMERS[key] = timer
+            try:
+                timer.start()
+            except Exception:
+                _DEBOUNCE_TIMERS.pop(key, None)
+                cache.delete(msgs_key)
+                cache.delete(gen_key)
+                cache.delete(meta_key)
+                return False
+
+        logger.info(
+            "Debounce buffer updated for key=%s: now %d msg(s) gen=%s",
+            key, len(msgs), gen,
+        )
+        return True
+    except Exception as exc:
+        logger.warning("Debounce store failed (processing immediately): %s", exc)
+        return False
+
+
+def _debounce_flush_key(key, expected_gen):
+    """
+    Quiet timer fired. Flush only if ``expected_gen`` is still current
+    (no newer message arrived on any worker).
+    """
+    try:
+        from django.core.cache import cache
+
+        gen_key = _debounce_gen_cache_key(key)
+        msgs_key = _debounce_msgs_cache_key(key)
+        meta_key = _debounce_meta_cache_key(key)
+        lock_key = f"wa_debounce:flush:{key}:{expected_gen}"
+
+        current_gen = cache.get(gen_key)
+        try:
+            current_gen = int(current_gen) if current_gen is not None else None
+        except (TypeError, ValueError):
+            current_gen = None
+        if current_gen != int(expected_gen):
+            logger.debug(
+                "Debounce flush skipped key=%s (stale gen=%s current=%s)",
+                key, expected_gen, current_gen,
+            )
             return
 
-        sender = state.get("sender")
-        name = state.get("name")
-        msgs = state.get("messages") or []
-        combined = "\n".join([f"Msg {i + 1}:\n{m}" for i, m in enumerate(msgs) if str(m).strip()])
+        # Only one worker may flush this generation.
+        if not cache.add(lock_key, 1, timeout=60):
+            return
+
+        with _DEBOUNCE_LOCK:
+            _DEBOUNCE_TIMERS.pop(key, None)
+
+        meta = cache.get(meta_key) or {}
+        msgs = list(cache.get(msgs_key) or [])
+        cache.delete(msgs_key)
+        cache.delete(gen_key)
+        cache.delete(meta_key)
+
+        if not msgs:
+            return
+
+        channel_id = meta.get("channel_id")
+        channel = WhatsAppChannel.objects.filter(id=channel_id).first() if channel_id else None
+        if not channel:
+            logger.warning("Debounce flush: channel missing for key=%s", key)
+            return
+
+        sender = meta.get("sender")
+        name = meta.get("name")
+        combined = "\n".join(
+            f"Msg {i + 1}:\n{m}" for i, m in enumerate(msgs) if str(m).strip()
+        )
         if not combined.strip():
             return
 
-        logger.info("Debounce flush for key=%s (sender=%s). Combined length=%d", key, sender, len(combined))
+        logger.info(
+            "Debounce flush for key=%s (sender=%s) msgs=%d combined_len=%d",
+            key, sender, len(msgs), len(combined),
+        )
 
         pseudo_msg = {
             "from": sender,
             "type": "text",
             "text": {"body": combined},
         }
-        # Re-enter pipeline, bypassing debounce and bypassing incoming-save to avoid duplicates.
-        process_messages([pseudo_msg], channel=channel, name=name, _skip_debounce=True, _skip_incoming_save=True)
+        process_messages(
+            [pseudo_msg],
+            channel=channel,
+            name=name,
+            _skip_debounce=True,
+            _skip_incoming_save=True,
+        )
     except Exception as e:
         logger.exception("Debounce flush failed for key=%s: %s", key, e)
 
@@ -366,8 +476,46 @@ def _clean_reply_after_product_media_sent(text: str) -> str:
     return " ".join(kept).strip()
 
 
+def _scrub_price_placeholders(text: str, product=None) -> str:
+    """
+    Replace leaked prompt placeholders like [PRICE] with the real catalog price.
+    If no product price is available, strip the token so the customer never sees it.
+    """
+    body = text or ""
+    if not body:
+        return body
+    if "[PRICE]" not in body and "{{price}}" not in body.lower() and "{{PRICE}}" not in body:
+        return body
+    price_str = None
+    if product is not None:
+        try:
+            p = getattr(product, "price", None)
+            if p is not None:
+                from decimal import Decimal as _Dec
+
+                d = _Dec(str(p))
+                if d == d.to_integral():
+                    price_str = str(int(d))
+                else:
+                    price_str = format(d, "f").rstrip("0").rstrip(".")
+        except Exception:
+            price_str = str(getattr(product, "price", "") or "") or None
+    if price_str:
+        body = body.replace("[PRICE]", price_str)
+        body = re.sub(r"\{\{\s*price\s*\}\}", price_str, body, flags=re.I)
+    else:
+        body = body.replace("[PRICE]", "").replace("{{price}}", "").replace("{{PRICE}}", "")
+        body = re.sub(r"\s{2,}", " ", body).strip()
+    return body
+
+
 def format_order_confirmation(order):
-    """Build the one-time order confirmation message shown to the customer after order creation."""
+    """
+    One-time order confirmation for the customer.
+
+    Lines under Information: follow the product's required checkout fields only
+    (e.g. standard_cod → Name/Phone/City — no Address line).
+    """
     if not order:
         return None
     product_name = (getattr(order, "product_name", None) or "").strip() or "—"
@@ -382,27 +530,66 @@ def format_order_confirmation(order):
     except Exception:
         price_val = 0
     line_total = price_val * qty
-    total = getattr(order, "price", None)
     try:
-        total_val = float(Decimal(str(total)) * Decimal(str(qty))) if total is not None else line_total
+        total_val = float(Decimal(str(price)) * Decimal(str(qty))) if price is not None else line_total
     except Exception:
         total_val = line_total
-    phone = (getattr(order, "customer_phone", None) or "").strip() or "—"
-    name = (getattr(order, "customer_name", None) or "").strip() or "—"
-    city = (getattr(order, "customer_city", None) or "").strip() or "—"
-    address = city  # SimpleOrder has only customer_city; use as address
     cur = (getattr(order, "currency", None) or "").strip() or "MAD"
-    return (
-        f"✅ Order Confirmed!\n"
-        f"Items: {product_name} x {qty} = {line_total:.0f} {cur}\n"
-        f"Total: {total_val:.0f} {cur}\n"
-        f"Information:\n"
-        f"📞 Phone Number: {phone}\n"
-        f"👤 Name: {name}\n"
-        f"🏙️ City: {city}\n"
-        f"🏠 Address: {address}\n"
-        f"سوف نتواصل معك قريبا لتسليم الطلب. 🚚"
-    )
+
+    phone = (getattr(order, "customer_phone", None) or "").strip()
+    name = (getattr(order, "customer_name", None) or "").strip()
+    email = (getattr(order, "customer_email", None) or "").strip()
+    city_raw = (getattr(order, "customer_city", None) or "").strip()
+    if " | " in city_raw:
+        city_part, address_part = (p.strip() for p in city_raw.split(" | ", 1))
+    elif "|" in city_raw:
+        city_part, address_part = (p.strip() for p in city_raw.split("|", 1))
+    else:
+        city_part, address_part = city_raw, ""
+    # Avoid showing the same value twice when city was wrongly mirrored into address.
+    if address_part and city_part and address_part == city_part:
+        address_part = ""
+
+    product = getattr(order, "product", None)
+    try:
+        from discount.orders_ai import get_required_order_fields_for_product
+
+        required = list(get_required_order_fields_for_product(product) or [])
+    except Exception:
+        required = ["customer_name", "phone_number", "shipping_city", "shipping_address"]
+
+    # Instant / direct sale: keep a minimal receipt (items + optional phone).
+    if not required:
+        info_lines = []
+        if phone:
+            info_lines.append(f"📞 Phone Number: {phone}")
+    else:
+        info_lines = []
+        for field in required:
+            if field == "phone_number" and phone:
+                info_lines.append(f"📞 Phone Number: {phone}")
+            elif field == "customer_name" and name:
+                info_lines.append(f"👤 Name: {name}")
+            elif field == "shipping_city" and city_part:
+                info_lines.append(f"🏙️ City: {city_part}")
+            elif field == "shipping_address" and address_part:
+                info_lines.append(f"🏠 Address: {address_part}")
+            elif field == "email_address" and email:
+                info_lines.append(f"📧 Email: {email}")
+
+    lines = [
+        "✅ Order Confirmed!",
+        f"Items: {product_name} x {qty} = {line_total:.0f} {cur}",
+        f"Total: {total_val:.0f} {cur}",
+    ]
+    if info_lines:
+        lines.append("Information:")
+        lines.extend(info_lines)
+    if getattr(order, "is_digital", False):
+        lines.append("سنتواصل معك قريباً لإتمام التسليم. ✅")
+    else:
+        lines.append("سوف نتواصل معك قريبا لتسليم الطلب. 🚚")
+    return "\n".join(lines)
 
 
 
@@ -530,6 +717,8 @@ def encode_interactive_captions(interactive, body_text):
             "header_text": header_text[:60],
             "footer": footer[:60],
             "cta": str(params.get("flow_cta") or "Open form").strip()[:20],
+            "flow_token": str(params.get("flow_token") or "").strip(),
+            "flow_id": str(params.get("flow_id") or "").strip(),
             "body": (body_text or "").strip(),
         }, ensure_ascii=False)
     if itype == "list":
@@ -641,6 +830,8 @@ def decode_interactive_captions(captions, body_fallback=""):
             "header_media_url": "",
             "footer": footer,
             "cta": cta,
+            "flow_token": str(data.get("flow_token") or "").strip(),
+            "flow_id": str(data.get("flow_id") or "").strip(),
             "buttons": [],
             "body": body,
         }
@@ -860,6 +1051,19 @@ def send_automated_response(recipient, responses, channel=None, user=None):
                     'Content-Type': 'application/json'
                 }
 
+                from discount.services.sandbox import FakeGraphResponse, is_sandbox_phone
+                sandbox_outbound = is_sandbox_phone(recipient)
+
+                def _post_graph_messages(payload):
+                    if sandbox_outbound:
+                        print("🧪 Sandbox outbound — skipping Meta Graph API")
+                        return FakeGraphResponse()
+                    return requests.post(
+                        f"https://graph.facebook.com/v17.0/{phone_number_id}/messages",
+                        headers=headers,
+                        json=payload,
+                    )
+
                 for i, item in enumerate(responses):
 
                     msg_type = item.get("type")
@@ -868,14 +1072,16 @@ def send_automated_response(recipient, responses, channel=None, user=None):
                     if msg_type == "delay":
                         duration = item.get("duration", 0)
                         print(f"⏳ Delay {duration} sec")
-                        time.sleep(duration)
+                        if not sandbox_outbound:
+                            time.sleep(duration)
                         continue
 
                     # تأخير داخل كل رسالة
                     delay = item.get("delay", 0)
                     if delay > 0:
                         print(f"⏳ Internal delay {delay} sec")
-                        time.sleep(delay)
+                        if not sandbox_outbound:
+                            time.sleep(delay)
 
                     # ------------------------
                     # نص message
@@ -1013,11 +1219,7 @@ def send_automated_response(recipient, responses, channel=None, user=None):
                     # إرسال الرسالة
                     # ------------------------
                     print(f"🚀 Sending message {i+1} ({msg_type}) ...")
-                    res = requests.post(
-                        f"https://graph.facebook.com/v17.0/{phone_number_id}/messages",
-                        headers=headers,
-                        json=data
-                    )
+                    res = _post_graph_messages(data)
 
                     print("📥 WhatsApp Response:", res.status_code, res.text)
                     print("👌 data send " , data)
@@ -1033,11 +1235,7 @@ def send_automated_response(recipient, responses, channel=None, user=None):
                                 "type": "text",
                                 "text": {"body": fallback_caption}
                             }
-                            res_fb = requests.post(
-                                f"https://graph.facebook.com/v17.0/{phone_number_id}/messages",
-                                headers=headers,
-                                json=fallback_data
-                            )
+                            res_fb = _post_graph_messages(fallback_data)
                             if res_fb.status_code == 200:
                                 print(f"✅ Sent fallback text for failed media")
                     else:
@@ -2751,13 +2949,16 @@ def search_channel_products(channel, query, top_n=5, *, return_top_match=False):
             scored = [(s, p) for s, p in scored if getattr(p, "id", None) != hybrid_hit.id]
             scored.insert(0, (100, hybrid_hit))
         top = [p for s, p in scored[: top_n] if s > 0]
-        if not top and scored:
-            top = [p for _, p in scored[: top_n]]
         if scored:
             top_score = scored[0][0]
             top_product = scored[0][1] if top_score > 0 else None
         if not top:
-            msg = "No matching products. Use the full catalog below to suggest alternatives."
+            from discount.services.product_search import format_empty_search_tool_result
+
+            msg = format_empty_search_tool_result(
+                available_products=products,
+                top_n=top_n,
+            )
             return (msg, None, 0) if return_top_match else msg
         lines = ["Closest products matching the customer's request:\n"]
         for p in top:
@@ -2766,7 +2967,12 @@ def search_channel_products(channel, query, top_n=5, *, return_top_match=False):
         return (text, top_product, top_score) if return_top_match else text
     except Exception as e:
         logger.warning("search_channel_products: %s", e)
-        msg = "Search failed. Use the store catalog to suggest products."
+        try:
+            from discount.services.product_search import EMPTY_SEARCH_SYSTEM_NOTE
+
+            msg = EMPTY_SEARCH_SYSTEM_NOTE
+        except Exception:
+            msg = "Search failed. Use the store catalog to suggest products."
         return (msg, None, 0) if return_top_match else msg
 
 
@@ -2795,21 +3001,40 @@ def _try_sync_active_product_from_message(channel, sender, body, current_node, s
 
 
 def _execute_search_products(channel, sender, query):
-    """Execute search_products tool: return matches and auto-sync active_product on exact/unique hit."""
-    from ai_assistant.tools import should_auto_sync_search_product
+    """Execute search_products: return matches and ALWAYS lock active_product on a hit."""
+    from discount.services.product_search import EMPTY_SEARCH_SYSTEM_NOTE
 
     text, top, score = search_channel_products(channel, query or "", top_n=5, return_top_match=True)
     q = str(query or "").strip()
-    if sender and q and top and should_auto_sync_search_product(q, top, score):
-        set_session_active_product(channel, sender, top, reason="search_products_auto_sync")
+    # Real query with zero matches — not empty "show catalog" lookups.
+    if q and (not top or score <= 0):
+        if EMPTY_SEARCH_SYSTEM_NOTE not in (text or ""):
+            text = f"{EMPTY_SEARCH_SYSTEM_NOTE}\n\n{text}".strip() if text else EMPTY_SEARCH_SYSTEM_NOTE
+        text += (
+            "\n\n[SYSTEM: active_product NOT locked. "
+            "FORBIDDEN to collect order fields or call submit_customer_order until a product is locked.]"
+        )
+        return text
+
+    # Specific query + match → lock session product immediately (Lab + WhatsApp).
+    if sender and q and top and score > 0:
+        switched = set_session_active_product(channel, sender, top, reason="search_products")
         pname = (getattr(top, "name", None) or "").strip()
         text += (
-            f"\n\n[SYSTEM: Active product auto-switched to \"{pname}\" "
-            f"(ID {top.id}). Backend pricing rules now match this product. "
-            "Use this product_id for submit_customer_order.]"
+            f"\n\n[SYSTEM: Active product LOCKED to \"{pname}\" "
+            f"(ID {top.id}, switched={bool(switched)}). "
+            "Pricing and submit_customer_order MUST use this product_id. "
+            "You may now collect checkout fields if the customer wants to order.]"
         )
-    elif sender and q and top and score > 0:
-        set_session_active_product(channel, sender, top, reason="search_products")
+        return text
+
+    # Empty catalog browse — list only, do not lock a random product.
+    if sender and not q:
+        text += (
+            "\n\n[SYSTEM: Catalog browse only — active_product NOT locked yet. "
+            "Ask the customer which item they want, then search_products/switch_active_product "
+            "to lock it before any checkout.]"
+        )
     return text
 
 
@@ -2897,7 +3122,8 @@ def _execute_send_product_media(channel, sender, product_id, caption=""):
                 "SILENT MODE: The WhatsApp image is already in the customer's chat. "
                 "Do NOT say 'تم إرسال الصورة' or announce that you sent it. "
                 "Leave your text reply EMPTY unless you add one short natural sales line "
-                "(e.g. 'واش عجباتك؟' or 'واش بغيتي تشري؟') — never meta-commentary about delivery."
+                
+                
             ),
         }, ensure_ascii=False)
     except Exception as e:
@@ -3005,6 +3231,24 @@ def _execute_submit_customer_order(channel, sender, arguments, current_node, inc
         session_product_id = int(session_product_id) if session_product_id is not None else None
     except (TypeError, ValueError):
         session_product_id = None
+    # Prefer durable checkout / active session product over node default when present.
+    try:
+        from discount.services.checkout_state import (
+            get_or_create_checkout_state,
+            merge_state_into_submit_args,
+        )
+
+        _cos = get_or_create_checkout_state(channel, sender)
+        if _cos is not None:
+            arguments = merge_state_into_submit_args(arguments or {}, _cos, sender or "")
+            if getattr(_cos, "product_id", None):
+                session_product_id = int(_cos.product_id)
+        if session_product_id is None:
+            _sess = get_active_session(channel, sender) if channel and sender else None
+            if _sess and getattr(_sess, "active_product_id", None):
+                session_product_id = int(_sess.active_product_id)
+    except Exception as _cos_submit_err:
+        logger.debug("checkout state submit merge: %s", _cos_submit_err)
     session_seller_id = getattr(channel, "owner_id", None) or (getattr(channel, "owner", None) and getattr(channel.owner, "id", None))
     if not session_seller_id:
         logger.warning("_execute_submit_customer_order: channel has no owner (channel_id=%s)", getattr(channel, "id", None))
@@ -3723,7 +3967,8 @@ def run_ai_agent_node(
                 pass
             override_rules = (getattr(channel, "ai_override_rules", None) or "").strip()
 
-        # Hybrid checkout: WhatsApp form first, voice if they cannot fill it.
+        # Hybrid / product checkout_method: WhatsApp form first, voice/chat if they cannot fill it.
+        _product_checkout_method = "hybrid"
         try:
             from discount.whatssapAPI.checkout_capture import (
                 CTX_MODE,
@@ -3732,6 +3977,7 @@ def run_ai_agent_node(
                 checkout_locale as _checkout_locale_fn,
                 detect_voice_first,
                 get_mode as _checkout_get_mode,
+                get_product_checkout_method,
                 is_hybrid_checkout_enabled,
                 CLOSING_STAGES,
                 product_needs_checkout_form,
@@ -3745,7 +3991,8 @@ def run_ai_agent_node(
                 _checkout_product = resolve_session_product(
                     channel, product_id=product_id, session=session
                 )
-            _hybrid_on = is_hybrid_checkout_enabled(current_node)
+            _product_checkout_method = get_product_checkout_method(_checkout_product)
+            _hybrid_on = is_hybrid_checkout_enabled(current_node, _checkout_product)
             _needs_form = product_needs_checkout_form(_checkout_product)
             _checkout_locale = _checkout_locale_fn(current_node, market)
             if session:
@@ -3758,6 +4005,7 @@ def run_ai_agent_node(
                 incoming_message_type=incoming_message_type or "",
                 hybrid_enabled=_hybrid_on,
                 needs_form=_needs_form,
+                product=_checkout_product,
             )
             if session:
                 try:
@@ -3769,6 +4017,7 @@ def run_ai_agent_node(
             if (
                 _hybrid_on
                 and _needs_form
+                and _product_checkout_method != "flow_only"
                 and _checkout_mode not in (MODE_VOICE, "chat_fallback", "done", "form_pending")
                 and (
                     detect_voice_first(channel, sender)
@@ -3779,7 +4028,18 @@ def run_ai_agent_node(
                 set_checkout_context(channel, sender, {CTX_MODE: MODE_VOICE})
                 _checkout_mode = MODE_VOICE
             if _hybrid_on and _needs_form:
-                _cap_note = _checkout_prompt(_checkout_mode, required_order_fields)
+                _cap_note = _checkout_prompt(
+                    _checkout_mode,
+                    required_order_fields,
+                    checkout_method=_product_checkout_method,
+                )
+                custom_instruction = (custom_instruction + "\n\n" + _cap_note) if custom_instruction else _cap_note
+            elif _product_checkout_method == "chat_only" and required_order_fields:
+                _cap_note = _checkout_prompt(
+                    "chat_fallback",
+                    required_order_fields,
+                    checkout_method="chat_only",
+                )
                 custom_instruction = (custom_instruction + "\n\n" + _cap_note) if custom_instruction else _cap_note
         except Exception as _hyb_err:
             logger.warning("hybrid checkout pre-LLM: %s", _hyb_err)
@@ -3811,6 +4071,48 @@ def run_ai_agent_node(
 
             _sess_ctx_order = get_session_context_data(channel, sender) if channel and sender else {}
             _collected = get_collected_order_fields(_sess_ctx_order)
+
+            # Durable checkout state: extract entities from newest message and update slots
+            # (prompt injection happens in build_messages_payload_sales).
+            try:
+                from discount.services.checkout_state import (
+                    process_incoming_checkout_message,
+                    state_to_collected_fields,
+                )
+                from discount.whatssapAPI.checkout_capture import (
+                    activate_hybrid_chat_fallback_from_entities,
+                )
+
+                if channel and sender and (incoming_body or "").strip():
+                    _checkout_state = process_incoming_checkout_message(
+                        channel,
+                        sender,
+                        incoming_body or "",
+                        session=session,
+                        product=_order_product,
+                        required_fields=required_order_fields,
+                    )
+                    if _checkout_state is not None:
+                        _from_state = state_to_collected_fields(_checkout_state)
+                        if _from_state:
+                            _collected = {**_collected, **_from_state}
+                        if getattr(_checkout_state, "product", None) is not None:
+                            _order_product = _checkout_state.product
+                            if product_id is None:
+                                product_id = getattr(_checkout_state.product, "id", None)
+                        # Hybrid: text entities after Flow → conversational mode + session sync
+                        _mode_after_entities = activate_hybrid_chat_fallback_from_entities(
+                            channel,
+                            sender,
+                            product=_order_product,
+                            collected=_from_state if _from_state else {},
+                            ctx=_sess_ctx_order,
+                        )
+                        if _mode_after_entities == "chat_fallback":
+                            _sess_ctx_order = get_session_context_data(channel, sender) or _sess_ctx_order
+            except Exception as _cos_err:
+                logger.warning("checkout state pipeline: %s", _cos_err)
+
             _missing_order_fields = compute_missing_order_fields(
                 _order_product, collected=_collected, customer_phone=sender or ""
             )
@@ -3823,14 +4125,16 @@ def run_ai_agent_node(
                 is_hybrid_checkout_enabled as _hybrid_flow_enabled,
                 product_needs_checkout_form as _prod_needs_form,
                 get_mode as _co_get_mode,
+                get_product_checkout_method as _get_co_method,
                 MODE_VOICE,
                 MODE_DONE,
                 CLOSING_STAGES,
             )
-            _hybrid_flow = _hybrid_flow_enabled(current_node)
+            _hybrid_flow = _hybrid_flow_enabled(current_node, _order_product)
             _needs_form_flow = _prod_needs_form(_order_product)
             _mode_flow = _co_get_mode(_sess_ctx_order)
             _form_sent = bool(_sess_ctx_order.get("checkout_form_sent"))
+            _co_method = _get_co_method(_order_product)
 
             _force_flow = should_force_whatsapp_flow(
                 can_read=_can_read,
@@ -3839,6 +4143,7 @@ def run_ai_agent_node(
                 needs_form=_needs_form_flow,
                 mode=_mode_flow,
                 form_already_sent=_form_sent,
+                checkout_method=_co_method,
             )
             _resend_flow = should_resend_whatsapp_flow(
                 incoming_body=incoming_body or "",
@@ -3847,6 +4152,7 @@ def run_ai_agent_node(
                 mode=_mode_flow,
             )
 
+            # Chat slot-filling FSM only for chat_only, or hybrid after form was ignored.
             if (
                 not _force_flow
                 and not _resend_flow
@@ -3855,6 +4161,10 @@ def run_ai_agent_node(
                     _missing_order_fields,
                     sales_stage=sales_stage,
                     conversation_state=conversation_state,
+                )
+                and (
+                    _co_method == "chat_only"
+                    or _mode_flow in (MODE_VOICE, "chat_fallback")
                 )
             ):
                 set_conversation_state(channel, sender, STATE_GATHERING_INFO)
@@ -3867,11 +4177,19 @@ def run_ai_agent_node(
                 or _resend_form_request
                 or (conversation_state or "").upper() == STATE_GATHERING_INFO
                 or (sales_stage or "") in CLOSING_STAGES
+                or _force_flow
             )
             if _order_product and required_order_fields and _hybrid_flow and _needs_form_flow:
-                if _mode_flow not in (MODE_VOICE, MODE_DONE) and (
+                # flow_only / hybrid: expose send_whatsapp_flow without waiting for can_read.
+                if _mode_flow not in (MODE_VOICE, MODE_DONE, "chat_fallback") and (
                     _resend_flow
-                    or (_can_read and (_ready_to_order or _force_flow))
+                    or _force_flow
+                    or _ready_to_order
+                    or (_co_method in ("flow_only", "hybrid") and (
+                        _checkout_intent
+                        or (sales_stage or "") in CLOSING_STAGES
+                        or _can_read
+                    ))
                 ):
                     _include_flow_tool = True
                     _can_read_flow_rule = (
@@ -3885,6 +4203,14 @@ def run_ai_agent_node(
                     product_id,
                     seller_id=getattr(store_owner, "id", None),
                     include_whatsapp_flow=_include_flow_tool,
+                    channel=channel,
+                )
+            else:
+                # Strip submit/flow tools until active_product is locked.
+                _sales_tools_override = build_sales_tools_for_product(
+                    None,
+                    seller_id=getattr(store_owner, "id", None),
+                    include_whatsapp_flow=False,
                     channel=channel,
                 )
         except Exception as _ord_orch_err:
@@ -3953,6 +4279,7 @@ def run_ai_agent_node(
                 can_read_flow_rule=_can_read_flow_rule,
                 missing_order_fields=_missing_order_fields or None,
                 target_dialect_override=target_dialect_override,
+                checkout_method=_product_checkout_method,
             )
             if store_owner:
                 chargeUserForAiUsage(
@@ -4203,7 +4530,7 @@ def run_ai_agent_node(
                                 mode=_mode_now,
                                 incoming_body=incoming_body or "",
                                 arguments=args,
-                                hybrid_enabled=is_hybrid_checkout_enabled(current_node),
+                                hybrid_enabled=is_hybrid_checkout_enabled(current_node, _prod_gate),
                                 needs_form=product_needs_checkout_form(_prod_gate),
                                 has_voice_pending=bool(isinstance(_pending_now, dict) and _pending_now),
                                 product=_prod_gate,
@@ -4448,6 +4775,7 @@ def run_ai_agent_node(
                         tools_override=_sales_tools_override,
                         can_read_flow_rule=_can_read_flow_rule,
                         missing_order_fields=_missing_order_fields or None,
+                        checkout_method=_product_checkout_method,
                     )
                     if store_owner:
                         chargeUserForAiUsage(
@@ -4525,6 +4853,15 @@ def run_ai_agent_node(
         reply_text = (result.get("reply") or "").strip()
         if _product_media_sent_success:
             reply_text = _clean_reply_after_product_media_sent(reply_text)
+        try:
+            _scrub_prod = None
+            if session is not None:
+                _scrub_prod = getattr(session, "active_product", None)
+            if _scrub_prod is None:
+                _scrub_prod = _order_product
+            reply_text = _scrub_price_placeholders(reply_text, _scrub_prod)
+        except Exception:
+            reply_text = _scrub_price_placeholders(reply_text, None)
         if not reply_text:
             logger.warning(
                 "AI agent node produced empty reply (channel=%s, sender=%s). "
@@ -4620,6 +4957,7 @@ def run_ai_agent_node(
                     detect_voice_first,
                     form_copy,
                     get_mode as _checkout_get_mode,
+                    get_product_checkout_method as _get_method_cap,
                     is_checkout_moment,
                     is_hybrid_checkout_enabled,
                     looks_like_asking_for_fields,
@@ -4642,8 +4980,9 @@ def run_ai_agent_node(
                 _llm_tried_submit = any(
                     (tc.get("name") == "submit_customer_order") for tc in (result.get("tool_calls") or [])
                 )
-                _hybrid_on = is_hybrid_checkout_enabled(current_node)
+                _hybrid_on = is_hybrid_checkout_enabled(current_node, _prod_cap)
                 _needs_form = product_needs_checkout_form(_prod_cap)
+                _method_cap = _get_method_cap(_prod_cap)
                 _checkout_locale = _checkout_locale_fn(current_node, market)
                 _can_read_cap = get_can_read_flag(channel, sender) if channel and sender else False
                 _force_flow_cap = False
@@ -4660,6 +4999,7 @@ def run_ai_agent_node(
                         needs_form=_needs_form,
                         mode=_mode_cap,
                         form_already_sent=bool(_ctx_cap.get(CTX_FORM_SENT)),
+                        checkout_method=_method_cap,
                     )
                     _resend_flow_cap = should_resend_whatsapp_flow(
                         incoming_body=incoming_body or "",
@@ -4671,6 +5011,16 @@ def run_ai_agent_node(
                     pass
                 _llm_called_flow = any(
                     (tc.get("name") == "send_whatsapp_flow") for tc in (result.get("tool_calls") or [])
+                )
+                _ask_fields = looks_like_asking_for_fields(reply_text or "")
+                # Safety net: if Flow-first product and model asked for fields in chat → send form.
+                _flow_safety_net = (
+                    _method_cap in ("flow_only", "hybrid")
+                    and _hybrid_on
+                    and _needs_form
+                    and _mode_cap not in (MODE_VOICE, "chat_fallback", "done")
+                    and not bool(_ctx_cap.get(CTX_FORM_SENT))
+                    and (_ask_fields or _force_flow_cap or _llm_tried_submit)
                 )
                 _should_send_form = (
                     not _llm_called_flow
@@ -4684,23 +5034,27 @@ def run_ai_agent_node(
                             new_stage=current_stage,
                             llm_tried_submit=_llm_tried_submit,
                             incoming_body=incoming_body or "",
-                            can_read=_can_read_cap,
+                            can_read=_can_read_cap or _method_cap in ("flow_only", "hybrid"),
+                            checkout_method=_method_cap,
                         )
-                        or (
-                            (_force_flow_cap or _resend_flow_cap)
-                            and looks_like_asking_for_fields(reply_text or "")
-                        )
+                        or _force_flow_cap
+                        or _resend_flow_cap
+                        or _flow_safety_net
                     )
                 )
                 if _should_send_form:
-                    if _resend_flow_cap and (reply_text or "").strip():
+                    if (_resend_flow_cap or _ask_fields or _flow_safety_net) and (reply_text or "").strip():
                         reply_text = form_copy(_checkout_locale).get("intro") or reply_text
-                    _voice_now = detect_voice_first(channel, sender) or str(
-                        incoming_message_type or ""
-                    ).lower() in ("audio", "voice")
+                    _voice_now = (
+                        _method_cap != "flow_only"
+                        and (
+                            detect_voice_first(channel, sender)
+                            or str(incoming_message_type or "").lower() in ("audio", "voice")
+                        )
+                    )
                     if _voice_now:
                         set_checkout_context(channel, sender, {CTX_MODE: MODE_VOICE})
-                        if looks_like_asking_for_fields(reply_text or "") or not (reply_text or "").strip():
+                        if _ask_fields or not (reply_text or "").strip():
                             reply_text = voice_intro_reply(_checkout_locale)
                     else:
                         _item, _pending, _ferr = try_build_checkout_form_item(
@@ -4718,19 +5072,20 @@ def run_ai_agent_node(
                                 CTX_MODE: MODE_FORM,
                                 CTX_FORM_SENT: True,
                             })
-                            if looks_like_asking_for_fields(reply_text or "") or not (reply_text or "").strip():
+                            if _ask_fields or not (reply_text or "").strip():
                                 reply_text = form_copy(_checkout_locale).get("intro") or reply_text
                             _add_ai_action_note(
                                 channel,
                                 sender,
-                                "Hybrid checkout: sent WhatsApp order form.",
+                                f"Checkout ({_method_cap}): sent WhatsApp order form.",
                                 author_name=agent_name,
                             )
                         else:
                             logger.warning("hybrid checkout form send failed: %s", _ferr)
-                            set_checkout_context(channel, sender, {CTX_MODE: MODE_VOICE})
-                            if looks_like_asking_for_fields(reply_text or "") or not (reply_text or "").strip():
-                                reply_text = voice_intro_reply(_checkout_locale)
+                            if _method_cap != "flow_only":
+                                set_checkout_context(channel, sender, {CTX_MODE: MODE_VOICE})
+                                if _ask_fields or not (reply_text or "").strip():
+                                    reply_text = voice_intro_reply(_checkout_locale)
             except Exception as _cap_err:
                 logger.warning("hybrid checkout post-LLM: %s", _cap_err)
 
@@ -5586,7 +5941,7 @@ def execute_flow(
                     try:
                         from discount.whatssapAPI.checkout_capture import is_hybrid_checkout_enabled
                         from discount.whatssapAPI.whatsapp_flows import PURPOSE_ORDER, parse_flow_node_content
-                        if is_hybrid_checkout_enabled(current_node):
+                        if is_hybrid_checkout_enabled(current_node, None):
                             _parsed_next = parse_flow_node_content(_to.content_text)
                             if _parsed_next.get("purpose") == PURPOSE_ORDER:
                                 continue
@@ -5872,13 +6227,14 @@ def try_ai_voice_reply(
     # Keep fallback context lean: do not inject the full store catalog each turn.
     product_context_for_reply = None
     custom_instruction = (
-        "No fixed product context is selected. Keep replies short. "
-        "If customer asks generic catalog availability, call search_products with an empty query first. "
-        "Use search_products(query) only when they ask about a specific product. "
-        "Never mention product names that were not returned by search_products. "
-        "Use natural local phrasing; avoid literal translations like 'شنو كتشوف'. "
-        "CRITICAL: Do NOT call save_order or record_order in this chat. Do NOT output [ORDER_DATA: ...]. "
-        "If they want to order, ask them to choose a specific product first."
+        "No fixed product is locked on this session yet. Keep replies short. "
+        "If the customer wants to order or gives name/city: FIRST call search_products "
+        "(or empty query to list categories) and wait until active_product is locked. "
+        "FORBIDDEN until a product is locked: collecting/confirming checkout fields, "
+        "listing «معلوماتك», or calling submit_customer_order. "
+        "If search finds nothing: suggest alternatives or categories from the tool result. "
+        "Never invent product names that were not returned by search_products. "
+        "Use natural local phrasing; avoid literal translations like 'شنو كتشوف'."
     )
     if is_order_cap_reached(channel):
         custom_instruction = (
@@ -5892,7 +6248,27 @@ def try_ai_voice_reply(
             "NEVER mention canceling the order unless they explicitly asked to cancel."
         )
         custom_instruction = (custom_instruction + " " + post_order_note) if custom_instruction else post_order_note
-        custom_instruction = (custom_instruction + " " + post_order_note) if custom_instruction else post_order_note
+
+    # Ensure a session row exists so search_products / checkout can bind product + slots
+    # even when there is no sticky AI flow node (Lab / generic fallback).
+    if channel and sender and not _voice_session:
+        try:
+            _voice_session, _ = ChatSession.objects.get_or_create(
+                channel=channel,
+                customer_phone=sender,
+                defaults={
+                    "is_expired": False,
+                    "is_completed": False,
+                    "ai_enabled": True,
+                },
+            )
+            if _voice_session.is_expired or _voice_session.is_completed:
+                _voice_session.is_expired = False
+                _voice_session.is_completed = False
+                _voice_session.save(update_fields=["is_expired", "is_completed"])
+        except Exception as _vs_create_err:
+            logger.debug("voice path ensure ChatSession: %s", _vs_create_err)
+            _voice_session = get_active_session(channel, sender)
 
     persistent_product_voice = getattr(_voice_session, "active_product", None) if _voice_session else None
     if persistent_product_voice is not None and channel:
@@ -5900,6 +6276,35 @@ def try_ai_voice_reply(
 
         if not product_belongs_to_channel(persistent_product_voice, channel):
             persistent_product_voice = None
+
+    # Same durable checkout pipeline as run_ai_agent_node (name/city/address/product_query).
+    if channel and sender and (body or "").strip():
+        try:
+            from discount.services.checkout_state import (
+                process_incoming_checkout_message,
+                state_to_collected_fields,
+            )
+
+            _v_cos = process_incoming_checkout_message(
+                channel,
+                sender,
+                body or "",
+                session=_voice_session,
+                product=persistent_product_voice,
+            )
+            if _v_cos is not None:
+                if getattr(_v_cos, "product", None) is not None:
+                    persistent_product_voice = _v_cos.product
+                    _voice_session = get_active_session(channel, sender) or _voice_session
+                _v_collected = state_to_collected_fields(_v_cos)
+                if _v_collected:
+                    custom_instruction = (custom_instruction or "") + (
+                        "\n\n[CHECKOUT SLOTS ALREADY KNOWN — do not re-ask]: "
+                        + ", ".join(f"{k}={v}" for k, v in _v_collected.items() if v)
+                    )
+        except Exception as _v_cos_err:
+            logger.warning("voice checkout state pipeline: %s", _v_cos_err)
+
     persistent_line_voice = _format_persistent_product_context_line(persistent_product_voice)
     if persistent_line_voice:
         custom_instruction = (custom_instruction + "\n\n" + persistent_line_voice) if custom_instruction else persistent_line_voice
@@ -6040,6 +6445,18 @@ def try_ai_voice_reply(
         )
         if persistent_line_voice:
             custom_instruction = custom_instruction + "\n\n" + persistent_line_voice
+    voice_tools_override = None
+    try:
+        from ai_assistant.order_checkout import build_sales_tools_for_product
+
+        voice_tools_override = build_sales_tools_for_product(
+            voice_product_id,
+            seller_id=getattr(store, "id", None),
+            include_whatsapp_flow=False,
+            channel=channel,
+        )
+    except Exception as _vt_err:
+        logger.debug("voice build_sales_tools_for_product: %s", _vt_err)
     try:
         result = generate_reply_with_tools(
             conversation,
@@ -6073,6 +6490,7 @@ def try_ai_voice_reply(
             incoming_payment_receipt_valid=incoming_payment_receipt_valid,
             incoming_media_vision_summary=incoming_media_vision_summary,
             target_dialect_override=target_dialect_override_voice,
+            tools_override=voice_tools_override,
         )
         if store:
             chargeUserForAiUsage(
@@ -6263,14 +6681,31 @@ def try_ai_voice_reply(
             elif name == "submit_customer_order":
                 session_seller_id = getattr(channel, "owner_id", None) or (getattr(channel, "owner", None) and getattr(channel.owner, "id", None))
                 try:
-                    from discount.orders_ai import handle_submit_order_tool
-                    content = handle_submit_order_tool(
-                        args,
-                        session_product_id=voice_product_id,
-                        session_seller_id=session_seller_id,
-                        channel=channel,
-                        customer_phone_from_chat=sender,
+                    from ai_assistant.order_checkout import intercept_submit_customer_order
+                    from discount.services.product_scope import get_channel_product
+
+                    _v_prod = (
+                        get_channel_product(channel, product_id=voice_product_id)
+                        if voice_product_id
+                        else None
                     )
+                    _ok, _ierr = intercept_submit_customer_order(
+                        args,
+                        _v_prod,
+                        incoming_body=body or "",
+                        customer_phone=sender or "",
+                    )
+                    if not _ok:
+                        content = _ierr
+                    else:
+                        from discount.orders_ai import handle_submit_order_tool
+                        content = handle_submit_order_tool(
+                            args,
+                            session_product_id=voice_product_id,
+                            session_seller_id=session_seller_id,
+                            channel=channel,
+                            customer_phone_from_chat=sender,
+                        )
                 except Exception as e:
                     logger.exception("try_ai_voice_reply submit_customer_order: %s", e)
                     from discount.orders_ai import SUBMIT_ORDER_SYSTEM_BUSY_INSTRUCTION
@@ -6386,6 +6821,10 @@ def try_ai_voice_reply(
                 logger.warning("continue_after_tool_calls (voice) failed: %s", cont_err)
 
     reply_text = (result.get("reply") or "").strip()
+    try:
+        reply_text = _scrub_price_placeholders(reply_text, persistent_product_voice)
+    except Exception:
+        reply_text = _scrub_price_placeholders(reply_text, None)
     if not reply_text:
         logger.warning(
             "AI voice path produced empty reply (channel=%s, sender=%s). "
@@ -8215,6 +8654,8 @@ def send_message_socket(sreciver,  user ,channel_id ,  message, msg_type,
     saved_filename = None
     template_data = None
     r = None
+    from discount.services.sandbox import FakeGraphResponse, is_sandbox_phone
+    _sandbox_recipient = is_sandbox_phone(to)
 
     # تحقق إعداد - التحقق من channel_id والصلاحيات باستخدام دالة التحقق
     channel, error_msg = validate_channel_id(channel_id, user)
@@ -8366,93 +8807,104 @@ def send_message_socket(sreciver,  user ,channel_id ,  message, msg_type,
 
             # رفع الملف إلى WhatsApp — Meta expects messaging_product + file; MIME must match supported types.
             # Use plain audio/ogg for Opus (not "audio/ogg; codecs=opus") to avoid upload error 131053.
-            fb_upload_url = f"https://graph.facebook.com/v22.0/{PHONE_NUMBER_ID}/media"
-            upload_mime = saved_mime or "application/octet-stream"
-            if media_type == "audio":
-                upload_mime = "audio/ogg"
-            elif upload_mime.startswith("audio/ogg"):
-                upload_mime = "audio/ogg"
-            elif upload_mime.startswith("audio/webm"):
-                upload_mime = "audio/webm"
-
-            try:
-                # CRITICAL (Live Chat voice): Meta multipart must use fixed name + audio/ogg — not frontend filename.
+            if _sandbox_recipient:
+                try:
+                    if temp_input_path and os.path.isfile(temp_input_path):
+                        with open(temp_input_path, "rb") as fh:
+                            saved_local_bytes = fh.read()
+                except Exception:
+                    saved_local_bytes = None
+                import uuid as _uuid
+                media_id = f"sandbox-media-{_uuid.uuid4().hex[:16]}"
+                print("🧪 Sandbox media — skipping Meta /media upload")
+            else:
+                fb_upload_url = f"https://graph.facebook.com/v22.0/{PHONE_NUMBER_ID}/media"
+                upload_mime = saved_mime or "application/octet-stream"
                 if media_type == "audio":
+                    upload_mime = "audio/ogg"
+                elif upload_mime.startswith("audio/ogg"):
+                    upload_mime = "audio/ogg"
+                elif upload_mime.startswith("audio/webm"):
+                    upload_mime = "audio/webm"
+
+                try:
+                    # CRITICAL (Live Chat voice): Meta multipart must use fixed name + audio/ogg — not frontend filename.
+                    if media_type == "audio":
+                        with open(temp_input_path, "rb") as fh:
+                            files = {"file": ("voice_message.ogg", fh, "audio/ogg")}
+                            fb_res = requests.post(
+                                fb_upload_url,
+                                params={
+                                    "messaging_product": "whatsapp",
+                                    "access_token": ACCESS_TOKEN,
+                                },
+                                files=files,
+                                timeout=80,
+                            )
+                        _upload_log_name = "voice_message.ogg"
+                        _upload_log_mime = "audio/ogg"
+                    else:
+                        with open(temp_input_path, "rb") as fh:
+                            files = {"file": (saved_filename, fh, upload_mime)}
+                            fb_res = requests.post(
+                                fb_upload_url,
+                                params={
+                                    "messaging_product": "whatsapp",
+                                    "access_token": ACCESS_TOKEN,
+                                },
+                                files=files,
+                                timeout=80,
+                            )
+                        _upload_log_name = saved_filename
+                        _upload_log_mime = upload_mime
+                except Exception as e:
+                    _cleanup_paths(temp_input_path, temp_converted_path)
+                    send_socket("error", {"error": "upload connection failed", "details": str(e)} , group_name=group_name)
+                    return {"ok": False, "error": "upload_failed", "details": str(e)}
+
+                # Meta /media — full response (debug voice & other uploads)
+                _upload_body = (fb_res.text or "")[:12000]
+                _upload_headers = dict(getattr(fb_res, "headers", {}) or {})
+                print(
+                    "[Meta WhatsApp] POST /media",
+                    f"status={fb_res.status_code}",
+                    f"filename={_upload_log_name!r}",
+                    f"upload_mime={_upload_log_mime!r}",
+                    f"media_type={media_type!r}",
+                    f"headers={_upload_headers}",
+                    f"body={_upload_body}",
+                )
+                logger.info(
+                    "[Meta WhatsApp] POST /media status=%s filename=%s upload_mime=%s media_type=%s headers=%s body=%s",
+                    fb_res.status_code,
+                    _upload_log_name,
+                    _upload_log_mime,
+                    media_type,
+                    _upload_headers,
+                    _upload_body,
+                )
+
+                if fb_res.status_code not in (200, 201):
+                    _cleanup_paths(temp_input_path, temp_converted_path)
+                    send_socket("error", {"error": "whatsapp upload rejected", "details": fb_res.text} , group_name=group_name)
+                    return {"ok": False, "error": "upload_rejected", "details": fb_res.text}
+
+                try:
+                    fb_json = fb_res.json()
+                except Exception as je:
+                    logger.warning("[Meta WhatsApp] /media JSON parse error: %s raw=%s", je, _upload_body)
+                    fb_json = {}
+                print("[Meta WhatsApp] /media parsed_json=", fb_json)
+                media_id = fb_json.get("id")
+                print("[Meta WhatsApp] /media parsed media_id=", media_id)
+                logger.info("[Meta WhatsApp] /media parsed media_id=%s", media_id)
+
+                # اقرأ الملف ليحفظ محلياً لاحقاً
+                try:
                     with open(temp_input_path, "rb") as fh:
-                        files = {"file": ("voice_message.ogg", fh, "audio/ogg")}
-                        fb_res = requests.post(
-                            fb_upload_url,
-                            params={
-                                "messaging_product": "whatsapp",
-                                "access_token": ACCESS_TOKEN,
-                            },
-                            files=files,
-                            timeout=80,
-                        )
-                    _upload_log_name = "voice_message.ogg"
-                    _upload_log_mime = "audio/ogg"
-                else:
-                    with open(temp_input_path, "rb") as fh:
-                        files = {"file": (saved_filename, fh, upload_mime)}
-                        fb_res = requests.post(
-                            fb_upload_url,
-                            params={
-                                "messaging_product": "whatsapp",
-                                "access_token": ACCESS_TOKEN,
-                            },
-                            files=files,
-                            timeout=80,
-                        )
-                    _upload_log_name = saved_filename
-                    _upload_log_mime = upload_mime
-            except Exception as e:
-                _cleanup_paths(temp_input_path, temp_converted_path)
-                send_socket("error", {"error": "upload connection failed", "details": str(e)} , group_name=group_name)
-                return {"ok": False, "error": "upload_failed", "details": str(e)}
-
-            # Meta /media — full response (debug voice & other uploads)
-            _upload_body = (fb_res.text or "")[:12000]
-            _upload_headers = dict(getattr(fb_res, "headers", {}) or {})
-            print(
-                "[Meta WhatsApp] POST /media",
-                f"status={fb_res.status_code}",
-                f"filename={_upload_log_name!r}",
-                f"upload_mime={_upload_log_mime!r}",
-                f"media_type={media_type!r}",
-                f"headers={_upload_headers}",
-                f"body={_upload_body}",
-            )
-            logger.info(
-                "[Meta WhatsApp] POST /media status=%s filename=%s upload_mime=%s media_type=%s headers=%s body=%s",
-                fb_res.status_code,
-                _upload_log_name,
-                _upload_log_mime,
-                media_type,
-                _upload_headers,
-                _upload_body,
-            )
-
-            if fb_res.status_code not in (200, 201):
-                _cleanup_paths(temp_input_path, temp_converted_path)
-                send_socket("error", {"error": "whatsapp upload rejected", "details": fb_res.text} , group_name=group_name)
-                return {"ok": False, "error": "upload_rejected", "details": fb_res.text}
-
-            try:
-                fb_json = fb_res.json()
-            except Exception as je:
-                logger.warning("[Meta WhatsApp] /media JSON parse error: %s raw=%s", je, _upload_body)
-                fb_json = {}
-            print("[Meta WhatsApp] /media parsed_json=", fb_json)
-            media_id = fb_json.get("id")
-            print("[Meta WhatsApp] /media parsed media_id=", media_id)
-            logger.info("[Meta WhatsApp] /media parsed media_id=%s", media_id)
-
-            # اقرأ الملف ليحفظ محلياً لاحقاً
-            try:
-                with open(temp_input_path, "rb") as fh:
-                    saved_local_bytes = fh.read()
-            except Exception:
-                saved_local_bytes = None
+                        saved_local_bytes = fh.read()
+                except Exception:
+                    saved_local_bytes = None
 
         
         elif msg_type in ['image', 'video', 'audio', 'document'] and media_url:
@@ -8582,7 +9034,11 @@ def send_message_socket(sreciver,  user ,channel_id ,  message, msg_type,
         # إرسال لواتساب (HTTP)
         url = f"https://graph.facebook.com/v22.0/{PHONE_NUMBER_ID}/messages"
         headers = {"Authorization": f"Bearer {ACCESS_TOKEN}", "Content-Type": "application/json"}
-        r = requests.post(url, headers=headers, json=send_payload, timeout=30)
+        if _sandbox_recipient:
+            print("🧪 Sandbox outbound — skipping Meta POST /messages")
+            r = FakeGraphResponse()
+        else:
+            r = requests.post(url, headers=headers, json=send_payload, timeout=30)
         _msg_body = (r.text or "")[:12000]
         _msg_headers = dict(getattr(r, "headers", {}) or {})
         print(
