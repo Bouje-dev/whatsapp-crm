@@ -18,7 +18,8 @@ logger = logging.getLogger(__name__)
 # OpenAI voices by gender
 OPENAI_VOICE_MALE = "onyx"
 OPENAI_VOICE_FEMALE = "nova"
-# ElevenLabs: use multilingual v2 for natural Arabic (no foreign accent)
+# ElevenLabs: v3 multilingual (with v2 fallback inside text_to_speech_service).
+ELEVENLABS_MODEL_V3 = "eleven_v3"
 ELEVENLABS_MODEL_MULTILINGUAL_V2 = "eleven_multilingual_v2"
 # Fixed TTS payload for Arabic / Moroccan Darija quality (non-English); do not drift from API contract.
 ELEVENLABS_TTS_VOICE_SETTINGS = {
@@ -58,119 +59,31 @@ def get_store_settings(channel=None):
 # ---------------------------------------------------------------------------
 
 def _tts_elevenlabs(text, output_path, api_key=None, voice_id=None, stability=None, similarity_boost=None, model_id=None, speed=None):
-    """Convert text to speech using ElevenLabs API.
+    """Convert text to speech using ElevenLabs API (v3, with multilingual v2 fallback).
 
-    Always sends ``model_id`` = ``eleven_multilingual_v2`` and ``voice_settings`` =
-    :data:`ELEVENLABS_TTS_VOICE_SETTINGS` (tuned for Arabic / dialect quality).
-    Legacy kwargs ``stability``, ``similarity_boost``, ``model_id``, ``speed`` are ignored
-    so all call sites share one consistent payload.
+    Legacy kwargs ``stability``, ``similarity_boost``, ``speed`` are ignored so all
+    call sites share one consistent payload. ``model_id`` defaults to ``eleven_v3``.
 
     Auth: ``xi-api-key`` header.
     """
-    raw = (api_key or "").strip() or getattr(settings, "ELEVENLABS_API_KEY", None) or os.environ.get("ELEVENLABS_API_KEY", "").strip()
-    key = (raw or "").strip()
-    # Tolerate common copy/paste formats like:
-    # - "Bearer <key>"
-    # - "xi-api-key: <key>"
-    # - "<key>" with accidental trailing/leading whitespace
-    lk = (key or "").lower()
-    if lk.startswith("bearer "):
-        key = key.split(" ", 1)[1].strip()
-        lk = key.lower()
-    if lk.startswith("xi-api-key"):
-        if ":" in key:
-            key = key.split(":", 1)[1].strip()
-        else:
-            parts = key.split()
-            key = parts[-1].strip() if parts else key
-        lk = key.lower()
-    if key and " " in key:
-        # If someone pasted a full header line, keep the last token as the raw key.
-        parts = key.split()
-        key = parts[-1].strip() if parts else key
-    if not key:
-        logger.warning("ELEVENLABS_API_KEY not set; skipping ElevenLabs TTS")
-        return False
-    # Voice ID note:
-    # Replace `ELEVENLABS_VOICE_ID` in `.env` with your Custom Cloned Voice ID
-    # for the best localized accent (unless Channel Settings provides `voice_id`).
+    from ai_assistant.text_to_speech_service import (
+        ELEVENLABS_MODEL_V3,
+        resolve_elevenlabs_api_key,
+        synthesize_elevenlabs,
+    )
+
+    key = (api_key or "").strip() or resolve_elevenlabs_api_key()
     vid = (voice_id or os.environ.get("ELEVENLABS_VOICE_ID", ELEVENLABS_VOICE_FEMALE) or "").strip()
     if not vid:
         logger.warning("ElevenLabs voice_id missing")
         return False
-    url = f"https://api.elevenlabs.io/v1/text-to-speech/{vid}"
-    headers = {"Accept": "audio/mpeg", "Content-Type": "application/json", "xi-api-key": key}
-    payload = {
-        "text": text[:5000],
-        "model_id": ELEVENLABS_MODEL_MULTILINGUAL_V2,
-        "voice_settings": dict(ELEVENLABS_TTS_VOICE_SETTINGS),
-    }
-    try:
-        # Debug metadata (avoid printing full key)
-        try:
-            logger.warning(
-                "ElevenLabs TTS debug: voice_id=%s model=%s xi-api-key len=%s last4=%s",
-                vid,
-                ELEVENLABS_MODEL_MULTILINGUAL_V2,
-                len(key),
-                key[-4:],
-            )
-        except Exception:
-            pass
-        r = requests.post(url, json=payload, headers=headers, timeout=30)
-        # ElevenLabs TTS returns audio on success (not JSON). For failures, it usually returns JSON.
-        if r.status_code != 200:
-            try:
-                print("ElevenLabs TTS response (json):", r.json())
-            except Exception:
-                try:
-                    print("ElevenLabs TTS response (text):", (r.text or "")[:2000])
-                except Exception:
-                    pass
-        r.raise_for_status()
-        with open(output_path, "wb") as f:
-            f.write(r.content)
-        return True
-    except requests.exceptions.Timeout as e:
-        logger.warning("ElevenLabs TTS request timed out: %s", e)
-        return False
-    except requests.exceptions.HTTPError as e:
-        if e.response is not None:
-            try:
-                print(
-                    "ElevenLabs TTS HTTPError status=",
-                    e.response.status_code,
-                    "body(json)=",
-                    e.response.json(),
-                )
-            except Exception:
-                try:
-                    print(
-                        "ElevenLabs TTS HTTPError status=",
-                        e.response.status_code,
-                        "body(text)=",
-                        (e.response.text or "")[:2000],
-                    )
-                except Exception:
-                    pass
-        if e.response is not None and e.response.status_code == 401:
-            try:
-                body = e.response.json() if e.response.content else {}
-                detail = (body.get("detail") or body.get("message") or {}).get("message", "") or str(body)[:200]
-            except Exception:
-                detail = ""
-            msg = "ElevenLabs API key is invalid or expired. Please set a valid key in Channel Settings → Voice Identity → ElevenLabs API Key."
-            if detail and "invalid" in detail.lower():
-                msg = "ElevenLabs API key is invalid or expired. Get a key from elevenlabs.io → Profile → API Keys. Then set it in Channel Settings → Voice Identity."
-            raise ValueError(msg)
-        logger.exception("ElevenLabs TTS failed: %s", e)
-        return False
-    except requests.exceptions.RequestException as e:
-        logger.warning("ElevenLabs TTS request failed: %s", e)
-        return False
-    except Exception as e:
-        logger.exception("ElevenLabs TTS failed: %s", e)
-        return False
+    return synthesize_elevenlabs(
+        text,
+        output_path,
+        api_key=key,
+        voice_id=vid,
+        model_id=(model_id or "").strip() or ELEVENLABS_MODEL_V3,
+    )
 
 
 # OpenAI TTS only accepts these voice names (not ElevenLabs IDs)
@@ -382,8 +295,8 @@ def generate_audio_file(text, store_settings):
     Unified MP3 output for WhatsApp.
 
     - If persona.provider == 'ELEVENLABS' (or channel voice_provider): ElevenLabs API with
-      ``eleven_multilingual_v2`` and :data:`ELEVENLABS_TTS_VOICE_SETTINGS` (channel DB fields for
-      stability/similarity are not applied to the TTS payload).
+      ``eleven_v3`` (fallback ``eleven_multilingual_v2``). Channel DB fields for
+      stability/similarity are not applied to the TTS payload.
     - If persona.provider == 'OPENAI': OpenAI tts-1 with the persona voice_id (e.g. shimmer, alloy, nova, onyx).
 
     On failure, returns None (no OpenAI TTS fallback after ElevenLabs — use
@@ -515,7 +428,7 @@ def get_preview_audio(store_settings, text=None):
 def generate_voice_sample(voice_id, text, api_key=None, model_id=None, stability=0.5, similarity_boost=0.75, speed=1.0):
     """
     Generate a short sample for the Voice Gallery (specific ``voice_id``).
-    Uses the same fixed ``eleven_multilingual_v2`` + :data:`ELEVENLABS_TTS_VOICE_SETTINGS` as production TTS.
+    Uses the same ElevenLabs v3 path as production TTS.
     ``model_id`` / ``stability`` / etc. are kept for call compatibility but ignored.
 
     Returns (path, None) on success or (None, error_message) on failure (caller must delete temp file).

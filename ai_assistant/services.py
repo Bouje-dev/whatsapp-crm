@@ -1217,10 +1217,92 @@ def _is_moroccan_darija_dialect_label(voice_dialect: str) -> bool:
     return str(voice_dialect).strip().lower() == _canonical_moroccan_darija_label().lower()
 
 
+def _is_moroccan_dialect_label(resolved_dialect: str) -> bool:
+    d = (resolved_dialect or "").strip().lower()
+    return "darija" in d or "morocco" in d or "moroccan" in d
+
+
+def _build_text_only_delivery_rules(resolved_dialect: str, output_language: str | None = None) -> str:
+    """Text-optimizing rules when the store/node delivers WhatsApp text (not TTS)."""
+    lang = (output_language or "").strip().lower()
+    if lang == "fr":
+        return (
+            "TEXT MESSAGING MODE:\n"
+            "You are communicating via text messages. Use professional French. "
+            "Use emojis appropriately to make the text engaging. "
+            "Ensure correct spelling and clean formatting.\n\n"
+        )
+    if lang == "en":
+        return (
+            "TEXT MESSAGING MODE:\n"
+            "You are communicating via text messages. Use professional English. "
+            "Use emojis appropriately to make the text engaging. "
+            "Ensure correct spelling and clean formatting.\n\n"
+        )
+    dialect = (resolved_dialect or "").strip() or "Moroccan Darija"
+    if _is_moroccan_dialect_label(dialect):
+        spoken = "professional Moroccan Darija"
+    else:
+        spoken = f"professional {dialect}"
+    return (
+        "TEXT MESSAGING MODE:\n"
+        f"You are communicating via text messages. Use {spoken}. "
+        "Use emojis appropriately to make the text engaging. "
+        "Ensure correct spelling and clean formatting.\n\n"
+    )
+
+
+def _build_voice_enabled_delivery_rules(resolved_dialect: str, output_language: str | None = None) -> str:
+    """TTS spoken-script rules when the store/node delivers Voice Audio. Do not mix with text rules."""
+    lang = (output_language or "").strip().lower()
+    if lang == "fr":
+        speak_in = "natural spoken French"
+        fillers = "e.g., 'Alors...', 'Écoutez...'"
+    elif lang == "en":
+        speak_in = "natural spoken English"
+        fillers = "e.g., 'Look...', 'Honestly...'"
+    else:
+        dialect = (resolved_dialect or "").strip() or "Moroccan Darija"
+        if _is_moroccan_dialect_label(dialect):
+            speak_in = "Moroccan Darija"
+            fillers = "e.g., 'Chouf...', 'Sraha...'"
+        else:
+            speak_in = dialect
+            fillers = f"natural {dialect} openers at the start of a sentence"
+    return (
+        "AUDIO SCRIPT MODE (TTS):\n"
+        f"You are speaking via Voice Audio (TTS), not text. Write exactly as people speak in {speak_in}.\n"
+        "To create a short natural pause, use an ellipsis (...) instead of commas.\n"
+        "To sound confident or finish a point definitively, end the sentence with a period (.).\n"
+        "To show excitement or a welcoming tone, end the sentence with an exclamation mark (!).\n"
+        "NEVER use brackets, action tags like [pause], or emojis, as the TTS engine will read them aloud. "
+        "Exception: keep required system markers such as [NO_TTS] … [/NO_TTS] exactly as instructed elsewhere.\n"
+        f"Use natural spoken filler words at the beginning of sentences occasionally ({fillers}).\n\n"
+    )
+
+
+def _build_delivery_mode_prompt_block(
+    *,
+    response_mode: str,
+    resolved_dialect: str,
+    output_language: str | None = None,
+) -> str:
+    """
+    Mutually exclusive delivery rules.
+
+    ``response_mode`` is ``text_only`` or ``voice_enabled``. Voice rules must not
+    be combined with the text-optimizing block.
+    """
+    if (response_mode or "").strip().lower() == "voice_enabled":
+        return _build_voice_enabled_delivery_rules(resolved_dialect, output_language)
+    return _build_text_only_delivery_rules(resolved_dialect, output_language)
+
+
 def _build_critical_audio_scripting_block(resolved_dialect: str) -> str:
     """
     Voice-note / TTS mode: human spoken script, not catalog or markdown.
-    Placed at the very top of the system prompt when voice_notes_mode is on.
+    Kept as a dialect-pacing supplement; primary TTS vs text routing uses
+    ``_build_delivery_mode_prompt_block``.
     """
     rd = (resolved_dialect or "").strip() or "the configured Arabic dialect"
     return (
@@ -2076,6 +2158,36 @@ SEND_PRODUCT_MEDIA_TOOL = {
     },
 }
 
+SEND_VOICE_NOTE_TOOL = {
+    "type": "function",
+    "function": {
+        "name": "send_voice_note",
+        "description": (
+            "Send a real WhatsApp Voice Note (PTT audio), generated with ElevenLabs TTS. "
+            "ONLY use this when explicitly confirming an order success, or when trying to recover "
+            "a highly hesitant customer. Keep the spoken text short, natural, enthusiastic, and "
+            "strictly in the customer's dialect. "
+            "Do NOT use for greetings, FAQs, checkout field collection, payment details, RIB, "
+            "passwords, or routine replies. "
+            "After success: do NOT announce that you sent a voice note."
+        ),
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "text": {
+                    "type": "string",
+                    "description": (
+                        "The exact words to speak, already in the customer's dialect. "
+                        "2–4 short sentences max. No emojis, markdown, digits-as-lists, "
+                        "bank details, or URLs."
+                    ),
+                },
+            },
+            "required": ["text"],
+        },
+    },
+}
+
 ANALYZE_URL_TOOL = {
     "type": "function",
     "function": {
@@ -2527,6 +2639,7 @@ SALES_AGENT_TOOLS = [
     SEARCH_PRODUCTS_TOOL,
     SWITCH_ACTIVE_PRODUCT_TOOL,
     SEND_PRODUCT_MEDIA_TOOL,
+    SEND_VOICE_NOTE_TOOL,
     ANALYZE_URL_TOOL,
     SUBMIT_CUSTOMER_ORDER_TOOL,
     USE_VOICE_CHECKOUT_TOOL,
@@ -3812,7 +3925,8 @@ def build_messages_payload_sales(conversation_messages, custom_instruction=None,
     checkout_mode_label: human-readable mode (e.g. 'Standard COD (Name, Phone, City)') for prompt injection.
     voice_dialect: human-readable dialect label (e.g. Moroccan Darija) aligned with the selected TTS voice.
     voice_notes_mode: when True (channel voice notes on or node may emit TTS), inject strict dialect rule so LLM matches the voice.
-    voice_script_style: when True, prepend AUDIO SCRIPT MODE (conversational TTS); when False, TEXT MESSAGING MODE (structured chat).
+    voice_script_style: when True, LLM spells numbers for AUDIO_ONLY TTS; when False, keep numeric digits (TEXT / AUTO_SMART).
+    Delivery copy (text vs spoken TTS) is chosen from store ``ai_voice_enabled`` plus node ``response_mode`` — see ``resolve_sales_prompt_response_mode``.
     output_language: None | 'fr' | 'ar' | 'en' — from channel voice_language. When 'fr', Arabic dialect/TTS coupling is skipped.
     memory_summary: optional summarized long-term customer facts from older chat history.
     node_dialect_locked: deprecated compatibility arg (ignored by dialect routing engine).
@@ -3893,17 +4007,25 @@ def build_messages_payload_sales(conversation_messages, custom_instruction=None,
     _anchor_block = _coreference_pronoun_anchor_system_block(pronoun_anchor_product_name or "")
     if _anchor_block:
         system = system + "\n\n" + _anchor_block
-    if voice_script_style:
-        mode_line = (
-            "AUDIO SCRIPT MODE: Write a highly conversational, flowing script. Use human filler words. "
-            "NO emojis, NO markdown, NO bullet points. Prioritize the exact dialect of the selected voice. "
-            "In Arabic, never separate list items with commas only — use 'و' / 'أو' so audio does not sound staccato.\n\n"
-        )
-    else:
-        mode_line = (
-            "TEXT MESSAGING MODE: Write a structured WhatsApp message. Use emojis naturally, line breaks, "
-            "and bullet points for readability. Be concise.\n\n"
-        )
+    try:
+        from discount.services.voice_dialect import resolve_sales_prompt_response_mode
+
+        _delivery_mode = resolve_sales_prompt_response_mode(channel, node)
+    except Exception:
+        _delivery_mode = "voice_enabled" if voice_script_style else "text_only"
+    mode_line = _build_delivery_mode_prompt_block(
+        response_mode=_delivery_mode,
+        resolved_dialect=resolved_dialect,
+        output_language=output_language,
+    )
+    voice_note_tool_rule = (
+        "VOICE NOTE TOOL:\n"
+        "You have the ability to send Voice Notes. ONLY use the send_voice_note tool when explicitly "
+        "confirming an order success, or when trying to recover a highly hesitant customer. "
+        "Keep the voice note text short, natural, enthusiastic, and strictly in the customer's dialect.\n"
+        "Never put bank details, RIB, passwords, or URLs in a voice note. "
+        "Do not use send_voice_note for greetings, FAQs, or routine replies.\n\n"
+    )
     lang_prefix = ""
     if output_language == "fr":
         lang_prefix = _french_bot_language_prefix(voice_notes_mode)
@@ -3917,7 +4039,7 @@ def build_messages_payload_sales(conversation_messages, custom_instruction=None,
         + PRODUCT_SWITCHING_PIVOTING_RULE
         + "\n\n---\n\n"
     )
-    system = language_rule_prefix + catalog_truth_prefix + lang_prefix + mode_line + system
+    system = language_rule_prefix + catalog_truth_prefix + lang_prefix + mode_line + voice_note_tool_rule + system
     # Remove legacy dialect-lock/matrix lines to keep routing model-agnostic and avoid contamination.
     system = _strip_moroccan_default_instructions_for_tts(system)
     if memory_summary and str(memory_summary).strip():
@@ -4286,7 +4408,8 @@ def generate_reply_with_tools(conversation_messages, custom_instruction=None, pr
     override_rules: optional admin rules; injected at the start of the system prompt so the model MUST follow them.
     voice_dialect: human-readable dialect for the selected TTS voice (voice–dialect coupling).
     voice_notes_mode: inject strict TTS dialect instruction (channel voice notes or node audio mode).
-    voice_script_style: AUDIO SCRIPT vs TEXT MESSAGING mode line (voice vs structured chat).
+    voice_script_style: spell numbers in the LLM (AUDIO_ONLY) vs keep digits (text / AUTO_SMART).
+    Delivery wording (text_only vs voice_enabled) is resolved inside the prompt builder from channel + node.
     output_language: None | 'fr' | 'ar' | 'en' from channel settings (French skips Arabic dialect prompts).
     memory_summary: summarized key customer facts from older conversation history.
     target_dialect_override: when set (e.g. AUTO customer-language detect), overrides phone-based dialect routing.
@@ -4398,7 +4521,7 @@ def generate_reply_with_tools(conversation_messages, custom_instruction=None, pr
             continue
         if name in (
             "save_order", "check_stock", "apply_discount", "record_order", "track_order",
-            "search_products", "switch_active_product", "send_product_media", "analyze_url",
+            "search_products", "switch_active_product", "send_product_media", "send_voice_note", "analyze_url",
             "submit_customer_order",
             "send_whatsapp_flow", "use_voice_checkout",
             "register_support_complaint", "flag_order_for_review", "escalate_missing_info",
@@ -4616,7 +4739,7 @@ def continue_after_tool_calls(
             continue
         if name in (
             "save_order", "check_stock", "apply_discount", "record_order", "track_order",
-            "search_products", "switch_active_product", "send_product_media", "analyze_url",
+            "search_products", "switch_active_product", "send_product_media", "send_voice_note", "analyze_url",
             "submit_customer_order",
             "send_whatsapp_flow", "use_voice_checkout",
             "register_support_complaint", "flag_order_for_review", "escalate_missing_info",

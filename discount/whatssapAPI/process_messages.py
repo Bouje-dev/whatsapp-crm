@@ -3154,6 +3154,38 @@ def _execute_send_product_media(channel, sender, product_id, caption=""):
         return json.dumps({"status": "error", "message": "Failed to send product image media."}, ensure_ascii=False)
 
 
+def _execute_send_voice_note(channel, sender, text=""):
+    """
+    Generate ElevenLabs v3 audio and send it as a WhatsApp PTT voice note.
+    Returns a JSON string for the LLM tool result.
+    """
+    try:
+        from ai_assistant.text_to_speech_service import deliver_whatsapp_voice_note
+
+        outcome = deliver_whatsapp_voice_note(channel, sender, text or "")
+        if not isinstance(outcome, dict):
+            outcome = {"status": "error", "success": False, "message": "Voice note failed."}
+        return json.dumps(outcome, ensure_ascii=False)
+    except Exception as e:
+        logger.exception("_execute_send_voice_note failed: %s", e)
+        return json.dumps(
+            {
+                "status": "error",
+                "success": False,
+                "message": "Failed to send voice note. Reply with a short text instead.",
+            },
+            ensure_ascii=False,
+        )
+
+
+def _voice_note_tool_succeeded(content) -> bool:
+    try:
+        data = json.loads(content) if isinstance(content, str) else (content or {})
+        return bool(data.get("success")) or (str(data.get("status") or "").lower() == "success")
+    except Exception:
+        return False
+
+
 # Never send this to the customer. Kept only as a historical constant.
 SUBMIT_ORDER_TRANSITIONAL_MESSAGE = "غادي نسجل الطلب ديالك دابا. لحظة واحدة..."
 
@@ -4310,7 +4342,7 @@ def run_ai_agent_node(
                     result.get("prompt_tokens", 0),
                     result.get("completion_tokens", 0),
                 )
-        tool_calls_for_info = [tc for tc in (result.get("tool_calls") or []) if tc.get("name") in ("check_stock", "apply_discount", "track_order", "search_products", "switch_active_product", "send_product_media", "analyze_url", "submit_customer_order", "send_whatsapp_flow", "use_voice_checkout", "register_support_complaint", "flag_order_for_review", "escalate_missing_info", "save_order", "record_order", "update_lead_status", "add_upsell_to_existing_order", "update_order_notes")]
+        tool_calls_for_info = [tc for tc in (result.get("tool_calls") or []) if tc.get("name") in ("check_stock", "apply_discount", "track_order", "search_products", "switch_active_product", "send_product_media", "send_voice_note", "analyze_url", "submit_customer_order", "send_whatsapp_flow", "use_voice_checkout", "register_support_complaint", "flag_order_for_review", "escalate_missing_info", "save_order", "record_order", "update_lead_status", "add_upsell_to_existing_order", "update_order_notes")]
         first_result_order_tools = [tc for tc in (result.get("tool_calls") or []) if tc.get("name") in ("save_order", "record_order")]
         submit_order_success_outcome = None
         save_order_result_order = None  # order from save_order/record_order when executed in loop
@@ -4319,6 +4351,7 @@ def run_ai_agent_node(
         })
         _product_state_changed = False
         _product_media_sent_success = False
+        _voice_note_sent_success = False
         if tool_calls_for_info and channel:
             raw_msg = result.get("raw_message") or {}
             tool_calls_from_api = raw_msg.get("tool_calls") or []
@@ -4404,6 +4437,17 @@ def run_ai_agent_node(
                         channel,
                         sender,
                         f"AI agent sent product media for product_id={args.get('product_id') or '—'}.",
+                        author_name=agent_name,
+                    )
+                elif name == "send_voice_note":
+                    content = _execute_send_voice_note(channel, sender, args.get("text") or "")
+                    if _voice_note_tool_succeeded(content):
+                        _voice_note_sent_success = True
+                    tool_results.append({"tool_call_id": tcid, "content": content})
+                    _add_ai_action_note(
+                        channel,
+                        sender,
+                        "AI agent sent a WhatsApp voice note.",
                         author_name=agent_name,
                     )
                 elif name == "use_voice_checkout":
@@ -4827,6 +4871,23 @@ def run_ai_agent_node(
                     # save_order/record_order were already executed in the loop above and tool result sent to AI
                 except Exception as cont_err:
                     logger.warning("continue_after_tool_calls failed: %s", cont_err)
+                if channel and not _voice_note_sent_success:
+                    for _tc2 in (result.get("tool_calls") or []):
+                        if _tc2.get("name") != "send_voice_note":
+                            continue
+                        _vn_args = _tc2.get("arguments") or {}
+                        _vn_content = _execute_send_voice_note(
+                            channel, sender, (_vn_args or {}).get("text") or ""
+                        )
+                        if _voice_note_tool_succeeded(_vn_content):
+                            _voice_note_sent_success = True
+                            _add_ai_action_note(
+                                channel,
+                                sender,
+                                "AI agent sent a WhatsApp voice note.",
+                                author_name=agent_name,
+                            )
+                        break
 
         # If submit_customer_order succeeded, mark order as saved and fetch for session expiry / confirmation
         if submit_order_success_outcome and channel:
@@ -5410,6 +5471,9 @@ def run_ai_agent_node(
             (response_mode == "AUTO_SMART" and word_count >= 15) or
             (response_mode not in ("TEXT_ONLY", "AUDIO_ONLY", "AUTO_SMART") and voice_enabled_legacy)
         )
+        if _voice_note_sent_success:
+            # Dedicated PTT already sent this turn — do not TTS the whole reply again.
+            use_voice = False
 
         # ── Force-text override for protected payloads ──────────────────────
         # If the reply contains a [NO_TTS]…[/NO_TTS] sentinel (e.g. the
@@ -6587,6 +6651,7 @@ def try_ai_voice_reply(
     tool_calls_from_api = raw_msg.get("tool_calls") or []
     order_was_saved_voice = False
     saved_order_voice = None
+    _voice_note_sent_success_voice = False
     if channel and tool_calls_from_api:
         tool_results = []
         _voice_product_state_changed = False
@@ -6656,6 +6721,17 @@ def try_ai_voice_reply(
                     channel,
                     sender,
                     f"AI agent sent product media for product_id={args.get('product_id') or '—'}.",
+                    author_name=voice_path_agent_name,
+                )
+            elif name == "send_voice_note":
+                content = _execute_send_voice_note(channel, sender, args.get("text") or "")
+                if _voice_note_tool_succeeded(content):
+                    _voice_note_sent_success_voice = True
+                tool_results.append({"tool_call_id": tcid, "content": content})
+                _add_ai_action_note(
+                    channel,
+                    sender,
+                    "AI agent sent a WhatsApp voice note.",
                     author_name=voice_path_agent_name,
                 )
             elif name == "add_upsell_to_existing_order":
@@ -6913,6 +6989,23 @@ def try_ai_voice_reply(
                     result["tool_calls"] = list(result.get("tool_calls") or []) + order_tools
             except Exception as cont_err:
                 logger.warning("continue_after_tool_calls (voice) failed: %s", cont_err)
+            if channel and not _voice_note_sent_success_voice:
+                for _tc2 in (result.get("tool_calls") or []):
+                    if _tc2.get("name") != "send_voice_note":
+                        continue
+                    _vn_args = _tc2.get("arguments") or {}
+                    _vn_content = _execute_send_voice_note(
+                        channel, sender, (_vn_args or {}).get("text") or ""
+                    )
+                    if _voice_note_tool_succeeded(_vn_content):
+                        _voice_note_sent_success_voice = True
+                        _add_ai_action_note(
+                            channel,
+                            sender,
+                            "AI agent sent a WhatsApp voice note.",
+                            author_name=voice_path_agent_name,
+                        )
+                    break
 
     reply_text = (result.get("reply") or "").strip()
     try:
@@ -7052,6 +7145,8 @@ def try_ai_voice_reply(
         return
 
     use_voice = getattr(channel, "ai_voice_enabled", False)
+    if _voice_note_sent_success_voice:
+        use_voice = False
     if use_voice:
         try:
             verify_plan_access(store, FEATURE_AI_VOICE)

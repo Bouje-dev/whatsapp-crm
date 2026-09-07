@@ -141,11 +141,34 @@ def resolve_voice_dialect_for_prompt(channel, node=None) -> str:
 
 def merchant_voice_mode_enabled(channel) -> bool:
     """
-    Conditional prompt routing: when True, LLM uses AUDIO SCRIPT MODE; when False, TEXT MESSAGING MODE.
+    Store-level preference: Voice-enabled vs Text-only.
 
     Maps to product docs ``merchant.voice_settings.is_active`` — stored as ``WhatsAppChannel.ai_voice_enabled``.
     """
     return bool(channel and getattr(channel, "ai_voice_enabled", False))
+
+
+def resolve_sales_prompt_response_mode(channel, node=None) -> str:
+    """
+    Effective delivery mode for the sales-agent system prompt.
+
+    Returns ``voice_enabled`` or ``text_only``.
+    Store default is ``WhatsAppChannel.ai_voice_enabled``. A TEXT_ONLY flow node
+    still forces text rules; AUDIO_ONLY (or legacy node.voice_enabled) forces
+    voice rules even if the store default is text.
+    """
+    if node is not None:
+        rm = (getattr(node, "response_mode", None) or "").strip()
+        if rm == "TEXT_ONLY":
+            return "text_only"
+        if rm == "AUDIO_ONLY" or bool(getattr(node, "voice_enabled", False)):
+            return "voice_enabled"
+    return "voice_enabled" if merchant_voice_mode_enabled(channel) else "text_only"
+
+
+def prompt_uses_voice_delivery_rules(channel, node=None) -> bool:
+    """True when the LLM must write a spoken TTS script instead of a WhatsApp text."""
+    return resolve_sales_prompt_response_mode(channel, node) == "voice_enabled"
 
 
 def node_reply_prefers_tts(channel, node=None) -> bool:
