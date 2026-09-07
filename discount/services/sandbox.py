@@ -218,7 +218,9 @@ def reset_sandbox_identity(channel, phone: str, *, wipe_messages: bool, wipe_ord
         HandoverLog,
         Message,
         SimpleOrder,
+        WhatsAppAdClick,
         WhatsAppCheckoutState,
+        KnowledgeGapEscalation,
     )
     from discount.whatssapAPI.session_state import clear_session_and_cache
 
@@ -238,6 +240,8 @@ def reset_sandbox_identity(channel, phone: str, *, wipe_messages: bool, wipe_ord
         "handovers": 0,
         "orders": 0,
         "checkout_states": 0,
+        "ad_clicks": 0,
+        "knowledge_gaps": 0,
     }
 
     deleted["sessions"] = ChatSession.objects.filter(
@@ -246,6 +250,18 @@ def reset_sandbox_identity(channel, phone: str, *, wipe_messages: bool, wipe_ord
     deleted["checkout_states"] = WhatsAppCheckoutState.objects.filter(
         channel=channel, customer_phone=phone
     ).delete()[0]
+    try:
+        deleted["ad_clicks"] = WhatsAppAdClick.objects.filter(
+            channel=channel, customer_phone=phone
+        ).delete()[0]
+    except Exception:
+        deleted["ad_clicks"] = 0
+    try:
+        deleted["knowledge_gaps"] = KnowledgeGapEscalation.objects.filter(
+            channel=channel, customer_phone=phone
+        ).delete()[0]
+    except Exception:
+        deleted["knowledge_gaps"] = 0
     deleted["follow_ups"] = FollowUpTask.objects.filter(
         channel=channel, customer_phone=phone
     ).delete()[0]

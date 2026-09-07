@@ -717,6 +717,13 @@ def _create_order_from_flow(*, channel, sender, product, customer_name, customer
     note_parts = [str(notes or "").strip()]
     if node:
         note_parts.append(f"WhatsApp Flow node {node.id}")
+    _ad_kwargs = {}
+    try:
+        from discount.services.ad_attribution import attribution_kwargs_for_customer
+
+        _ad_kwargs = attribution_kwargs_for_customer(channel, sender)
+    except Exception:
+        _ad_kwargs = {}
     order = SimpleOrder.objects.create(
         product=product,
         channel=channel,
@@ -737,6 +744,7 @@ def _create_order_from_flow(*, channel, sender, product, customer_name, customer
         created_by_bot_session=(f"whatsapp_flow:{getattr(channel, 'id', '')}:{sender}"[:100] or None),
         sheets_export_status="pending",
         order_notes="\n".join(p for p in note_parts if p)[:2000] or None,
+        **_ad_kwargs,
     )
     try:
         _notify_owner_order_created(channel, order)

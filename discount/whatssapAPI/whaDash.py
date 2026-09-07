@@ -854,9 +854,16 @@ def api_coach_ai(request):
                 )[:16000]
                 break
     try:
+        from discount.services.knowledge_base import pending_escalations_prompt_hint
+
+        extra_context = pending_escalations_prompt_hint(channel_id)
+    except Exception:
+        extra_context = None
+    try:
         payload = run_copilot_chat(
             openai_messages,
             channel_id=channel_id,
+            extra_context=extra_context,
         )
     except Exception as e:
         return JsonResponse({"error": str(e), "reply": None}, status=500)

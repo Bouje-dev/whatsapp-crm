@@ -1749,7 +1749,13 @@ While your conversation is dynamic, your data extraction must be mathematically 
 
 6. ZERO HALLUCINATION (STAY IN CHARACTER):
 - NEVER invent features, prices, discounts, or policies that are not explicitly provided in the Product Context.
-- If the customer asks a very specific technical question that is not in the product description, do not guess. Say: "Let me double-check that detail with our warehouse, but I can assure you that [pivot back to a known core benefit]."
+- If the customer packs several questions in one message, answer EVERY fact that is already in PRODUCT CONTEXT in the same turn (Official price, Delivery / shipping, Return/Warranty Policy). Never skip the official price.
+- Sales objections and reassurance ('will it work for me?', 'is it guaranteed?', personal efficacy) are NOT knowledge gaps. Handle them with empathy and the product's general benefits. NEVER call escalate_missing_info for them.
+- Store policies (shipping, returns) are NOT product-spec gaps. Quote PRODUCT CONTEXT; do not escalate them.
+- Call escalate_missing_info ONLY for a missing factual product specification (ingredients, sensitive skin / medical compatibility, allergies, pregnancy, kids, side effects). On a mixed question, answer the known parts, use sales tactics for the subjective parts, and pass only the factual gap (or the full message — the server keeps only real spec gaps). Then tell the customer you are checking with the team FOR THAT GAP ONLY.
+- NEVER say you are checking with the team (غادي نتأكد من الفريق / I'll check with the team) unless you actually called escalate_missing_info in this turn for a factual gap. Writing that sentence without the tool does NOT save the question.
+- NEVER escalate Official price / Delivery / Return-Warranty when those lines are already in PRODUCT CONTEXT — quote them.
+- Do NOT infer medical or skin-safety claims from marketing copy. "Natural", "lightweight", or "absorbs fast" does NOT mean "safe for sensitive skin". If they ask about sensitive skin / allergies / pregnancy / kids / side effects and it is not written in the product info, call escalate_missing_info and do not guess while you wait.
 - PRODUCT COPY IN DIALECT: Product Description may be French/English. Paraphrase features in clear everyday dialect. "Gravure gratuite" / free engraving = "تقدر تكتب سميتك عليها مجاناً" / "نقش الاسم مجاناً" — NEVER "الحفر المجاني". On a simple quality question, give 1 core benefit; do not dump secondary extras unprompted.
 
 7. ORDER GATHERING (STEP-BY-STEP — REDUCE COGNITIVE LOAD):
@@ -2290,6 +2296,41 @@ FLAG_ORDER_FOR_REVIEW_TOOL = {
     },
 }
 
+ESCALATE_MISSING_INFO_TOOL = {
+    "type": "function",
+    "function": {
+        "name": "escalate_missing_info",
+        "description": (
+            "Call this ONLY for a missing factual product specification "
+            "(ingredients, medical compatibility such as sensitive skin, allergies, "
+            "pregnancy, kids, side effects). "
+            "DO NOT call for sales objections or reassurance "
+            "('will it work for me?', 'is it guaranteed?') — handle those with empathy "
+            "and the product's general benefits. "
+            "DO NOT call for store policies (shipping, returns) or catalog facts "
+            "(official price, delivery line, warranty) — quote PRODUCT CONTEXT. "
+            "On a mixed message, answer known facts, handle subjective parts as sales, "
+            "and pass only the factual gap (or the full message; the server drops "
+            "non-gaps). Call IN THE SAME TURN before you say you are checking with the team."
+        ),
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "customer_question": {
+                    "type": "string",
+                    "description": (
+                        "The factual product-spec gap in the customer's words "
+                        "(e.g. sensitive skin, ingredients). Prefer only that clause. "
+                        "If you pass a mixed message, the server ignores sales objections "
+                        "and store policies."
+                    ),
+                },
+            },
+            "required": ["customer_question"],
+        },
+    },
+}
+
 # -----------------------------------------------------------------------------
 # Lead Status (CRM pipeline stage) – call when user intent clearly matches a stage.
 # Do NOT use for 'new' (default at chat start) or 'closed' (set automatically on order).
@@ -2491,6 +2532,7 @@ SALES_AGENT_TOOLS = [
     USE_VOICE_CHECKOUT_TOOL,
     REGISTER_SUPPORT_COMPLAINT_TOOL,
     FLAG_ORDER_FOR_REVIEW_TOOL,
+    ESCALATE_MISSING_INFO_TOOL,
     UPDATE_LEAD_STATUS_TOOL,
     ADD_UPSELL_TO_ORDER_TOOL,
     UPDATE_ORDER_NOTES_TOOL,
@@ -3904,6 +3946,15 @@ def build_messages_payload_sales(conversation_messages, custom_instruction=None,
                 system = _notes_prompt + "\n\n---\n\n" + system
     except Exception as _notes_err:
         logger.debug("customer notes prompt inject: %s", _notes_err)
+    try:
+        from discount.services.knowledge_base import peek_deferred_knowledge_prompt
+
+        if channel is not None and customer_phone:
+            _deferred_kb = peek_deferred_knowledge_prompt(channel, str(customer_phone).strip())
+            if _deferred_kb:
+                system = _deferred_kb + "\n\n---\n\n" + system
+    except Exception as _def_kb_err:
+        logger.debug("deferred knowledge prompt inject: %s", _def_kb_err)
     negotiated_product = _resolve_product_for_prompt(product_id=product_id, merchant_id=merchant_id, channel=channel)
     _pricing_authority_tail = ""
     if negotiated_product and not _is_post_sale_care:
@@ -4350,7 +4401,7 @@ def generate_reply_with_tools(conversation_messages, custom_instruction=None, pr
             "search_products", "switch_active_product", "send_product_media", "analyze_url",
             "submit_customer_order",
             "send_whatsapp_flow", "use_voice_checkout",
-            "register_support_complaint", "flag_order_for_review",
+            "register_support_complaint", "flag_order_for_review", "escalate_missing_info",
             "update_lead_status", "add_upsell_to_existing_order", "update_order_notes",
         ):
             tool_calls.append({"name": name, "arguments": args})
@@ -4373,6 +4424,14 @@ def generate_reply_with_tools(conversation_messages, custom_instruction=None, pr
     _m = (model or "").strip() or "unknown"
     logger.info("AI sales agent reply model: %s", _m)
     print(f"🤖 AI reply model: {_m}")
+
+    if not tool_calls and (reply_clean or "").strip():
+        try:
+            from discount.services.knowledge_base import clear_deferred_knowledge_answer
+
+            clear_deferred_knowledge_answer(channel, customer_phone)
+        except Exception:
+            pass
 
     return {
         "reply": reply_clean,
@@ -4560,7 +4619,7 @@ def continue_after_tool_calls(
             "search_products", "switch_active_product", "send_product_media", "analyze_url",
             "submit_customer_order",
             "send_whatsapp_flow", "use_voice_checkout",
-            "register_support_complaint", "flag_order_for_review",
+            "register_support_complaint", "flag_order_for_review", "escalate_missing_info",
             "update_lead_status", "add_upsell_to_existing_order", "update_order_notes",
         ):
             tool_calls.append({"name": name, "arguments": args})
@@ -4581,6 +4640,14 @@ def continue_after_tool_calls(
     _m = (model or "").strip() or "unknown"
     logger.info("AI sales agent reply model (after tool_calls): %s", _m)
     print(f"🤖 AI reply model (after tool_calls): {_m}")
+
+    if not tool_calls and (reply_clean or "").strip():
+        try:
+            from discount.services.knowledge_base import clear_deferred_knowledge_answer
+
+            clear_deferred_knowledge_answer(channel, customer_phone)
+        except Exception:
+            pass
 
     return {
         "reply": reply_clean,

@@ -1,6 +1,6 @@
 {% load static %}
 <link rel="stylesheet" href="{% static 'style/styleup.css' %}">
-<link rel="stylesheet" href="{% static 'style/dashboard-glass.css' %}?v=18">
+<link rel="stylesheet" href="{% static 'style/dashboard-glass.css' %}?v=20">
 <script src="https://cdn.tailwindcss.com"></script>
 <script>
   tailwind.config = { corePlugins: { preflight: false } };
@@ -1068,6 +1068,13 @@
           WhatsApp Disconnected
         </span>
         {% endif %}
+
+        <button type="button" id="dashActionRequiredBtn" class="dash-action-required-btn" hidden style="display: none;" aria-hidden="true" title="Unanswered customer questions">
+          <span class="dash-action-required-pulse" aria-hidden="true"></span>
+          <i class="fas fa-exclamation-circle"></i>
+          Action Required
+          <span class="dash-action-required-count" id="dashActionRequiredCount" hidden></span>
+        </button>
 
         <div class="dropdown">
           <button class="dash-date-btn dropdown-toggle" type="button" id="aiRangeDropdown" data-bs-toggle="dropdown" aria-expanded="false">
@@ -2147,7 +2154,7 @@ function filterContactsByStage(stageKey) {
   };
 })();
 </script>
-      <script src="{% static 'js/ai-sales-copilot.js' %}?v=18"></script>
+      <script src="{% static 'js/ai-sales-copilot.js' %}?v=19"></script>
       <script>
       (function(){
         var toggle = document.getElementById('dashMoreToggle');
@@ -15341,6 +15348,26 @@ video.real-media-element {
     opacity: 1;
 }
 
+.media-loading-wrapper.wa-sticker-wrap {
+    max-width: 160px;
+    max-height: 160px;
+    min-width: 80px;
+    min-height: 80px;
+    background: transparent;
+    border: none;
+    box-shadow: none;
+    cursor: default;
+    overflow: visible;
+}
+
+.wa-sticker-img {
+    max-width: 140px;
+    width: auto !important;
+    height: auto !important;
+    object-fit: contain;
+    background: transparent;
+}
+
 @keyframes loadSkeleton {
     100% {
         background-position: -100% 0;
@@ -17210,6 +17237,29 @@ else if (m.type === 'image') {
 
         ${buildMsgMetaInline(timeHtml, msg_status)}
     `;
+
+// ============================================================
+// 3b. ملصقات واتساب (Sticker / webp)
+// ============================================================
+} else if (m.type === 'sticker' || m.media_type === 'sticker') {
+    const uniqueMediaId = `media_${m.id || Date.now()}`;
+    const stickerUrl = m.url || '';
+    wrapper.innerHTML = `
+        <div class="media-loading-wrapper wa-sticker-wrap" id="wrapper_${uniqueMediaId}">
+            <div class="image_skeleton_loader"></div>
+            <img
+                src="${stickerUrl}"
+                class="real-media-element wa-sticker-img"
+                alt="sticker"
+                loading="lazy"
+                decoding="async"
+                onload="onMediaLoaded(this)"
+                onerror="onMediaError(this)"
+            >
+        </div>
+        ${buildMsgMetaInline(timeHtml, msg_status)}
+    `;
+
 } else if (m.type === 'log' || m.is_internal) {
         wrapper.className = 'system-log-wrapper animate-fadeIn'; 
         wrapper.innerHTML = `
@@ -18432,6 +18482,9 @@ async function switchChannel(newChannelId) {
     currentChannelId = newChannelId;
     window.currentChannelId = newChannelId;
     window._activeChannelId = newChannelId;
+    if (typeof window.refreshEscalationActionButton === "function") {
+        window.refreshEscalationActionButton();
+    }
 
     if (window.ActiveChannelStorage && typeof window.ActiveChannelStorage.save === 'function') {
         window.ActiveChannelStorage.save(newChannelId);
@@ -19644,7 +19697,8 @@ function applyContactItemSingleUpdate(contactData, messagePayload) {
   if (messagePayload && typeof messagePayload === 'object') {
     const mt = (messagePayload.type || messagePayload.media_type || '').toLowerCase();
     var sn = merged.snippet;
-    if (messagePayload.body) sn = String(messagePayload.body).slice(0, 160);
+    if (mt === 'sticker') sn = '🎭 ملصق';
+    else if (messagePayload.body) sn = String(messagePayload.body).slice(0, 160);
     else if (mt === 'image') sn = sn || '📷 Image';
     else if (mt === 'video') sn = sn || '🎬 Video';
     else if (mt === 'audio') sn = sn || '🎤 Audio';

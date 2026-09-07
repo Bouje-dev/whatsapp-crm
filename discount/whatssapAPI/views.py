@@ -169,7 +169,7 @@ def process_incoming_media(msg, access_token):
         media_content = None
         
         # تحديد نوع الوسائط
-        for media_key in ['image', 'audio', 'video', 'document']:
+        for media_key in ['image', 'audio', 'video', 'document', 'sticker']:
             if media_key in msg:
                 media_type = media_key
                 media_id = msg[media_key]['id']
@@ -188,7 +188,8 @@ def process_incoming_media(msg, access_token):
             'image': '.jpg',
             'audio': '.ogg',
             'video': '.mp4',
-            'document': '.pdf'
+            'document': '.pdf',
+            'sticker': '.webp',
         }
         
         extension = extensions.get(media_type, '.bin')
@@ -383,7 +384,7 @@ def save_incoming_message(msg):
         media_id = None
         media_file = None
         
-        for media_key in ['image', 'audio', 'video', 'document']:
+        for media_key in ['image', 'audio', 'video', 'document', 'sticker']:
             if media_key in msg:
                 media_type = media_key
                 media_id = msg[media_key]['id']
@@ -462,7 +463,8 @@ def get_media_extension(media_type):
         'image': 'jpg',
         'audio': 'ogg', 
         'video': 'mp4',
-        'document': 'pdf'
+        'document': 'pdf',
+        'sticker': 'webp',
     }
     return extensions.get(media_type, 'bin')
 
@@ -2443,6 +2445,8 @@ def api_contacts2(request):
                 if msg.media_type == 'audio': snippet = '🎤 صوت'
                 elif msg.media_type == 'image': snippet = '📷 صورة'
                 elif msg.media_type == 'video': snippet = '🎥 فيديو'
+                elif msg.media_type == 'sticker' or (msg.type or '') == 'sticker':
+                    snippet = '🎭 ملصق'
                 elif (msg.type or '') == 'interactive':
                     snippet = (msg.body or '🔘 Buttons')[:50]
                 else: snippet = msg.body[:50] if msg.body else ''

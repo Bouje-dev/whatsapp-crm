@@ -626,6 +626,7 @@
     if (sendBtn) sendBtn.disabled = blocked;
     if (inputEl) inputEl.disabled = blocked;
     if (window.syncCopilotNewChatBtn) window.syncCopilotNewChatBtn();
+    updateCopilotLayout({ loading: on });
   }
 
   function isEmptyChat() {
@@ -1030,7 +1031,12 @@
       return;
     }
     var outboundAttachment = null;
-    if (!opts.skipUserBubble) {
+    if (opts.silent) {
+      var silentText = (presetText != null ? presetText : "").trim();
+      if (!silentText) return;
+      coachingMessages.push({ role: "user", content: silentText });
+      updateActiveSessionFromMessages();
+    } else if (!opts.skipUserBubble) {
       var text = (presetText != null ? presetText : (inputEl && inputEl.value) || "").trim();
       text = defaultTextForAttachment(pendingAttachment, text);
       outboundAttachment = buildAttachmentPayload(pendingAttachment);
@@ -1107,6 +1113,9 @@
         updateActiveSessionFromMessages();
         refreshConversationsList(cid, activeConversationId);
         loadRulesPanel();
+        if (typeof window.refreshEscalationActionButton === "function") {
+          window.refreshEscalationActionButton();
+        }
       })
       .catch(function () {
         setLoading(false);
@@ -1633,6 +1642,71 @@
     }
   });
   window.reloadAiSalesCopilot = loadHistory;
+
+  var actionBtn = document.getElementById("dashActionRequiredBtn");
+  var actionCountEl = document.getElementById("dashActionRequiredCount");
+  var ESCALATION_STATUS_URL = "/discount/whatssapAPI/api/escalations/status/";
+
+  function setActionRequiredButton(hasPending, count) {
+    if (!actionBtn) return;
+    var n = parseInt(count, 10) || 0;
+    var show = !!hasPending && n > 0;
+    actionBtn.classList.toggle("is-visible", show);
+    actionBtn.style.display = show ? "inline-flex" : "none";
+    actionBtn.hidden = !show;
+    actionBtn.setAttribute("aria-hidden", show ? "false" : "true");
+    if (actionCountEl) {
+      var showCount = show && n > 1;
+      actionCountEl.textContent = showCount ? String(n) : "";
+      actionCountEl.classList.toggle("is-visible", showCount);
+      actionCountEl.style.display = showCount ? "inline-flex" : "none";
+      actionCountEl.hidden = !showCount;
+    }
+  }
+
+  function refreshEscalationActionButton() {
+    var cid = getChannelId();
+    if (!actionBtn) return;
+    if (!cid) {
+      setActionRequiredButton(false, 0);
+      return;
+    }
+    fetch(ESCALATION_STATUS_URL + "?channel_id=" + encodeURIComponent(cid), {
+      credentials: "same-origin",
+      headers: { Accept: "application/json", "X-CSRFToken": csrfToken() },
+    })
+      .then(function (r) {
+        return r.json();
+      })
+      .then(function (data) {
+        if (!data || data.success === false) {
+          setActionRequiredButton(false, 0);
+          return;
+        }
+        setActionRequiredButton(!!data.has_pending, data.pending_count || 0);
+      })
+      .catch(function () {});
+  }
+
+  function openAndFetchPendingEscalations() {
+    if (copilotRoot) {
+      copilotRoot.scrollIntoView({ behavior: "smooth", block: "center" });
+    }
+    sendMessage("FETCH_PENDING_QUESTIONS", { silent: true });
+    if (inputEl && canCoach) inputEl.focus();
+  }
+
+  if (actionBtn) {
+    actionBtn.addEventListener("click", function () {
+      openAndFetchPendingEscalations();
+    });
+    refreshEscalationActionButton();
+    setInterval(refreshEscalationActionButton, 60000);
+  }
+
+  window.refreshEscalationActionButton = refreshEscalationActionButton;
+  window.openCopilotPendingEscalations = openAndFetchPendingEscalations;
+
   updateCopilotLayout();
   loadHistory();
 })();

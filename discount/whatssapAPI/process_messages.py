@@ -1413,7 +1413,8 @@ def get_media_extension(media_type):
         'image': 'jpg',
         'audio': 'ogg', 
         'video': 'mp4',
-        'document': 'pdf'
+        'document': 'pdf',
+        'sticker': 'webp',
     }
     return extensions.get(media_type, 'bin')
 
@@ -1487,6 +1488,24 @@ def save_incoming_message(msg, message_type, sender=None, channel=None, name=Non
             # إذا لم يكن هناك نص (مجرد نقرة على الإعلان)، نجعله هو الـ body
             if not body:
                 body = f"Hello (from Ad: {headline})"
+            if channel and sender:
+                try:
+                    from discount.services.ad_attribution import (
+                        apply_ctwa_referral_to_checkout,
+                    )
+
+                    apply_ctwa_referral_to_checkout(channel, sender, referral_data)
+                except Exception as _ref_save_err:
+                    logger.warning("CTWA referral persist (save_incoming): %s", _ref_save_err)
+        elif channel and sender:
+            try:
+                from discount.services.ad_attribution import (
+                    apply_direct_source_if_unattributed,
+                )
+
+                apply_direct_source_if_unattributed(channel, sender)
+            except Exception as _dir_save_err:
+                logger.debug("direct source persist (save_incoming): %s", _dir_save_err)
             
         # إضافة معلومات الإعلان للنص الأصلي إذا وجد
         if referral_body:
@@ -1513,6 +1532,8 @@ def save_incoming_message(msg, message_type, sender=None, channel=None, name=Non
                     if caption_text:
                         body = caption_text  # نجعل الكابشن هو نص الرسالة
                 break
+        if (media_type == "sticker" or message_type == "sticker") and not (body or "").strip():
+            body = "[sticker]"
         if body_override is not None:
             body = body_override
                 
@@ -1595,6 +1616,8 @@ def save_incoming_message(msg, message_type, sender=None, channel=None, name=Non
             snippet = "[صورة]"
         elif message_obj.media_type == "video":
             snippet = "[فيديو]"
+        elif message_obj.media_type == "sticker" or (message_obj.type or "") == "sticker":
+            snippet = "🎭 ملصق"
         else:
             snippet = message_obj.body[:80] if message_obj.body else ""
 
@@ -4287,7 +4310,7 @@ def run_ai_agent_node(
                     result.get("prompt_tokens", 0),
                     result.get("completion_tokens", 0),
                 )
-        tool_calls_for_info = [tc for tc in (result.get("tool_calls") or []) if tc.get("name") in ("check_stock", "apply_discount", "track_order", "search_products", "switch_active_product", "send_product_media", "analyze_url", "submit_customer_order", "send_whatsapp_flow", "use_voice_checkout", "register_support_complaint", "flag_order_for_review", "save_order", "record_order", "update_lead_status", "add_upsell_to_existing_order", "update_order_notes")]
+        tool_calls_for_info = [tc for tc in (result.get("tool_calls") or []) if tc.get("name") in ("check_stock", "apply_discount", "track_order", "search_products", "switch_active_product", "send_product_media", "analyze_url", "submit_customer_order", "send_whatsapp_flow", "use_voice_checkout", "register_support_complaint", "flag_order_for_review", "escalate_missing_info", "save_order", "record_order", "update_lead_status", "add_upsell_to_existing_order", "update_order_notes")]
         first_result_order_tools = [tc for tc in (result.get("tool_calls") or []) if tc.get("name") in ("save_order", "record_order")]
         submit_order_success_outcome = None
         save_order_result_order = None  # order from save_order/record_order when executed in loop
@@ -4667,6 +4690,24 @@ def run_ai_agent_node(
                         logger.exception("flag_order_for_review: %s", e)
                         content = json.dumps({"success": False, "message": str(e)}, ensure_ascii=False)
                     tool_results.append({"tool_call_id": tcid, "content": content})
+                elif name == "escalate_missing_info":
+                    try:
+                        from discount.services.knowledge_base import handle_escalate_missing_info
+
+                        _esc_product = _order_product or (
+                            getattr(session, "active_product", None) if session else None
+                        )
+                        outcome = handle_escalate_missing_info(
+                            channel,
+                            sender,
+                            args.get("customer_question") or "",
+                            product=_esc_product,
+                        )
+                        content = json.dumps(outcome, ensure_ascii=False)
+                    except Exception as e:
+                        logger.exception("escalate_missing_info: %s", e)
+                        content = json.dumps({"success": False, "message": str(e)}, ensure_ascii=False)
+                    tool_results.append({"tool_call_id": tcid, "content": content})
                 elif name == "analyze_url":
                     try:
                         from ai_assistant.tools import execute_analyze_url
@@ -4862,6 +4903,25 @@ def run_ai_agent_node(
             reply_text = _scrub_price_placeholders(reply_text, _scrub_prod)
         except Exception:
             reply_text = _scrub_price_placeholders(reply_text, None)
+        try:
+            from discount.services.knowledge_base import ensure_knowledge_gap_recorded
+
+            _esc_product = None
+            if session is not None:
+                _esc_product = getattr(session, "active_product", None)
+            if _esc_product is None:
+                _esc_product = _order_product
+            reply_text = ensure_knowledge_gap_recorded(
+                channel=channel,
+                customer_phone=sender,
+                customer_question=incoming_body or "",
+                ai_reply=reply_text,
+                tool_names=result.get("tool_calls") or [],
+                product=_esc_product,
+                product_context=product_context or "",
+            )
+        except Exception as _esc_net_err:
+            logger.warning("knowledge gap safety-net: %s", _esc_net_err)
         if not reply_text:
             logger.warning(
                 "AI agent node produced empty reply (channel=%s, sender=%s). "
@@ -5281,10 +5341,24 @@ def run_ai_agent_node(
         # Log only; caller may send nothing or handoff is triggered by the except block on real errors.
         if not (reply_text or "").strip():
             logger.warning(
-                "AI agent returned empty reply (channel=%s, sender=%s); no fallback message sent.",
+                "AI agent returned empty reply (channel=%s, sender=%s); using conversational fallback.",
                 channel.id if channel else None,
                 sender,
             )
+            try:
+                from discount.services.knowledge_base import empty_sales_reply_fallback
+
+                _fb_prod = getattr(session, "active_product", None) if session else None
+                if _fb_prod is None:
+                    _fb_prod = _order_product
+                reply_text = empty_sales_reply_fallback(
+                    incoming_body or "",
+                    market=market,
+                    product=_fb_prod,
+                    tool_names=(result.get("tool_calls") if isinstance(result, dict) else None) or [],
+                )
+            except Exception as _fb_err:
+                logger.warning("empty sales reply fallback: %s", _fb_err)
 
         reply_text, send_media_ids = parse_and_strip_send_media(reply_text)
         reply_text, send_product_image = parse_and_strip_send_product_image(reply_text)
@@ -6085,6 +6159,11 @@ def get_conversation_history(sender, channel, limit=None):
     result = []
     for m in messages:
         body = (m.body or "").strip() or "[media]"
+        if (
+            (getattr(m, "media_type", None) == "sticker" or (getattr(m, "type", None) or "") == "sticker")
+            and (not body or body == "[media]")
+        ):
+            body = "[sticker]"
         if m.is_from_me:
             body = _strip_image_urls_from_body(body)
         result.append({"role": "agent" if m.is_from_me else "customer", "body": body})
@@ -6661,6 +6740,21 @@ def try_ai_voice_reply(
                     logger.exception("try_ai_voice_reply flag_order_for_review: %s", e)
                     content = json.dumps({"success": False, "message": str(e)}, ensure_ascii=False)
                 tool_results.append({"tool_call_id": tcid, "content": content})
+            elif name == "escalate_missing_info":
+                try:
+                    from discount.services.knowledge_base import handle_escalate_missing_info
+
+                    outcome = handle_escalate_missing_info(
+                        channel,
+                        sender,
+                        args.get("customer_question") or "",
+                        product=persistent_product_voice,
+                    )
+                    content = json.dumps(outcome, ensure_ascii=False)
+                except Exception as e:
+                    logger.exception("try_ai_voice_reply escalate_missing_info: %s", e)
+                    content = json.dumps({"success": False, "message": str(e)}, ensure_ascii=False)
+                tool_results.append({"tool_call_id": tcid, "content": content})
             elif name == "analyze_url":
                 try:
                     from ai_assistant.tools import execute_analyze_url
@@ -6825,6 +6919,20 @@ def try_ai_voice_reply(
         reply_text = _scrub_price_placeholders(reply_text, persistent_product_voice)
     except Exception:
         reply_text = _scrub_price_placeholders(reply_text, None)
+    try:
+        from discount.services.knowledge_base import ensure_knowledge_gap_recorded
+
+        reply_text = ensure_knowledge_gap_recorded(
+            channel=channel,
+            customer_phone=sender,
+            customer_question=body or "",
+            ai_reply=reply_text,
+            tool_names=result.get("tool_calls") or [],
+            product=persistent_product_voice,
+            product_context=product_context_for_reply or "",
+        )
+    except Exception as _esc_net_err:
+        logger.warning("knowledge gap safety-net (voice): %s", _esc_net_err)
     if not reply_text:
         logger.warning(
             "AI voice path produced empty reply (channel=%s, sender=%s). "
@@ -6931,10 +7039,13 @@ def try_ai_voice_reply(
                 else "شكراً على التصويرة. الفريق التقني يراجعها الآن وسنعود إليك قريباً."
             )
         else:
-            reply_text = (
-                "عذراً، ما قدرتش أكمل من هنا. من فضلك اختر منتجاً من القائمة أولاً، ثم أرسل اسمك ورقم هاتفك ونكمل تسجيل الطلب."
-                if market == "MA"
-                else "عذراً، لم أستطع إكمال الطلب من هنا. من فضلك اختر منتجاً من القائمة أولاً ثم أرسل اسمك ورقم هاتفك."
+            from discount.services.knowledge_base import empty_sales_reply_fallback
+
+            reply_text = empty_sales_reply_fallback(
+                body or "",
+                market=market,
+                product=persistent_product_voice,
+                tool_names=(result or {}).get("tool_calls") or [],
             )
 
     if not reply_text:
@@ -7501,6 +7612,10 @@ def process_messages(
                 body = body_text
                 # (اختياري) Payload مفيد لو كنت تريد تنفيذ كود خاص بناء عليه
                 payload = button_data.get('payload')
+
+            elif message_type == "sticker":
+                # Stickers have no caption; keep a marker so the sales agent still replies.
+                body = body or "[sticker]"
  
             if "referral" in msg:
                 is_referral = True
@@ -7509,7 +7624,27 @@ def process_messages(
                 body = ref_data.get("body", "") # نص الإعلان نفسه
                 print(f"📢 Incoming Ad Referral: {headline}")
                 if not body and message_type == "text": 
-                     body = msg.get("text", {}).get("body", "")  
+                     body = msg.get("text", {}).get("body", "")
+                if not body and message_type == "sticker":
+                    body = "[sticker]"
+                if channel and sender:
+                    try:
+                        from discount.services.ad_attribution import (
+                            apply_ctwa_referral_to_checkout,
+                        )
+
+                        apply_ctwa_referral_to_checkout(channel, sender, ref_data)
+                    except Exception as _ref_err:
+                        logger.warning("CTWA referral persist failed: %s", _ref_err)
+            elif channel and sender:
+                try:
+                    from discount.services.ad_attribution import (
+                        apply_direct_source_if_unattributed,
+                    )
+
+                    apply_direct_source_if_unattributed(channel, sender)
+                except Exception as _dir_err:
+                    logger.debug("direct source persist failed: %s", _dir_err)  
                 
    
                
@@ -7524,6 +7659,12 @@ def process_messages(
                     cancel_pending_follow_up_tasks_for_customer(channel, sender)
                 except Exception as e:
                     logger.warning("cancel_pending_follow_up_tasks_for_customer: %s", e)
+                try:
+                    from discount.services.knowledge_base import mark_customer_not_waiting
+
+                    mark_customer_not_waiting(channel, sender)
+                except Exception as _wait_err:
+                    logger.debug("mark_customer_not_waiting: %s", _wait_err)
             
             # New-user / session boundary: compute BEFORE save (saving first would make "new" checks fail)
             if channel and sender and not _skip_incoming_save:

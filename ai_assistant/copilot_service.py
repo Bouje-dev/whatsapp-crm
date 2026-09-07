@@ -4,10 +4,13 @@ and structured UI payloads for the frontend chat blocks.
 """
 import json
 import logging
-import random
+from datetime import timedelta
+from decimal import Decimal
 
 import requests
 from django.conf import settings
+from django.db.models import Count, Q, Sum
+from django.db.models.functions import Coalesce, Lower
 from django.utils import timezone
 
 from ai_assistant.services import get_api_key, UPDATE_OVERRIDE_RULES_TOOL, _openai_direct_model
@@ -21,8 +24,11 @@ MAX_TOOL_ROUNDS = 4
 
 DASHBOARD_COPILOT_SYSTEM_PROMPT = """You are the Dashboard AI Copilot for an e-commerce / SaaS sales platform (WhatsApp commerce, AI sales agents, persuasion rules, and order analytics).
 
+You are an expert Media Buyer and Sales Analyst. If the merchant asks about campaign performance, use the calculate_campaign_performance tool. Analyze the returned data and explain exactly which ad is driving actual SALES (not just clicks), and advise them on where to scale their ad budget based on the highest conversion rate.
+
 Your role is a command center for store owners and team admins. You help them:
 - Monitor sales performance and KPIs
+- Analyze Click-to-WhatsApp (CTWA) ad attribution vs organic Direct chats, and conversion
 - Adjust the AI sales agent's persuasion persona and selling style
 - Interpret trends and recommend concrete next actions
 - Answer questions about how the dashboard, rules, and AI agent behave
@@ -30,15 +36,21 @@ Your role is a command center for store owners and team admins. You help them:
 Behavior guidelines:
 - Be concise, confident, and action-oriented — you are an operator's copilot, not a generic chatbot.
 - When the user asks for metrics, numbers, or performance, call `get_sales_metrics` with an appropriate period (today, week, or month).
+- When the user asks about ads, campaigns, Facebook/Instagram ads, Click-to-WhatsApp, attribution, which ad converts, or where to scale ad budget, call `calculate_campaign_performance` with an appropriate days window (7 for this week, 30 for this month, 1 for today).
 - When the user asks to change persona, tone, or selling style, call `update_persuasion_rule` with a recognized rule_name.
 - In your natural-language replies, wrap key figures and names in **double asterisks** (e.g. **126 orders**, **$5,324**, **Starter Bundle**) so the dashboard can highlight them.
 - You may call tools and also explain results in natural language in your final reply.
 - If a request is ambiguous, ask one clarifying question instead of guessing.
-- Never invent live database figures — use `get_sales_metrics` for numeric KPIs.
+- Never invent live database figures — use `get_sales_metrics` for numeric KPIs and `calculate_campaign_performance` for ad conversion.
+- Prefer conversion rate and confirmed orders over click/chat volume when recommending budget. An ad with fewer chats but more orders is the one driving sales. Treat source_id "direct" / headline "Direct" as organic (no ad) — exclude it from "which ad to scale".
 - Valid persuasion personas: Friendly Consultant, Aggressive Closer, Value Strategist, Empathetic Listener.
 - When the admin gives a clear sales rule or instruction for the WhatsApp AI agent, you MUST call `update_override_rules` with custom_rules containing the full actionable rule (use numbered steps when order matters).
 - Write custom_rules in imperative form the sales agent can follow literally. Example: "When customer asks about price: (1) state free shipping first, (2) explain product benefits, (3) give the price last."
 - NEVER tell the admin that rules were saved/updated unless `update_override_rules` succeeded in this turn.
+- When the merchant asks about unanswered customer questions, knowledge gaps, pending escalations, or sends FETCH_PENDING_QUESTIONS, immediately call `get_pending_escalations`. List each stored question separately. If two rows have the same meaning, treat them as one; if they ask different facts (e.g. sensitive skin vs infants), keep them as two and ask the merchant for each answer.
+- When the merchant provides an answer for a pending customer question, call `resolve_escalation` ONLY for the question they actually answered, using `question_id` and `merchant_answer` copied from their own words (alias: `resolve_knowledge_escalation`).
+- NEVER invent an answer for a different pending question. If 2 questions are pending and the merchant answered only 1, resolve that one and then tell them the other is still waiting.
+- NEVER tell the merchant that a question was answered unless `resolve_escalation` succeeded for that id in this turn.
 
 After tool calls, summarize what changed or what the data means in plain language."""
 
@@ -47,8 +59,11 @@ GET_SALES_METRICS_TOOL = {
     "function": {
         "name": "get_sales_metrics",
         "description": (
-            "Fetch sales KPIs for the dashboard (orders, revenue, conversion rate, top product). "
-            "Use when the user asks about performance, stats, numbers, or analytics."
+            "Fetch LIVE store sales KPIs from the database for the current WhatsApp "
+            "channel (orders, revenue, conversion rate, top product). "
+            "Use for overall dashboard stats. Never invent these numbers. "
+            "Do NOT use for Facebook/Instagram ads or Click-to-WhatsApp campaigns — "
+            "use calculate_campaign_performance for those."
         ),
         "parameters": {
             "type": "object",
@@ -60,6 +75,126 @@ GET_SALES_METRICS_TOOL = {
                 },
             },
             "required": [],
+        },
+    },
+}
+
+CALCULATE_CAMPAIGN_PERFORMANCE_TOOL = {
+    "type": "function",
+    "function": {
+        "name": "calculate_campaign_performance",
+        "description": (
+            "Analyze WhatsApp campaign performance: Click-to-WhatsApp ads plus organic "
+            "Direct (no Meta referral). Groups chats vs confirmed orders by ad_source_id "
+            "and returns conversion rate. The Direct row is organic traffic, not a paid ad — "
+            "do not recommend scaling it as a Facebook campaign. Use when the merchant asks "
+            "which campaign converts, which ad to scale, CTWA attribution, Direct vs ads, "
+            "or ad ROI — not for general store KPIs."
+        ),
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "days": {
+                    "type": "integer",
+                    "description": (
+                        "Lookback window in days. Use 7 for this week, 30 for this month, "
+                        "1 for today. Defaults to 7."
+                    ),
+                    "minimum": 1,
+                    "maximum": 365,
+                },
+            },
+            "required": [],
+        },
+    },
+}
+
+GET_PENDING_ESCALATIONS_TOOL = {
+    "type": "function",
+    "function": {
+        "name": "get_pending_escalations",
+        "description": (
+            "List pending unanswered customer questions (knowledge-gap escalations) "
+            "the WhatsApp AI could not answer. Call immediately when the merchant "
+            "sends FETCH_PENDING_QUESTIONS, clicks Action Required, or asks about "
+            "unanswered / pending questions."
+        ),
+        "parameters": {
+            "type": "object",
+            "properties": {},
+            "required": [],
+        },
+    },
+}
+
+LIST_PENDING_ESCALATIONS_TOOL = {
+    "type": "function",
+    "function": {
+        "name": "list_pending_escalations",
+        "description": (
+            "Alias of get_pending_escalations. List pending knowledge-gap escalations: "
+            "product questions the WhatsApp AI could not answer."
+        ),
+        "parameters": {
+            "type": "object",
+            "properties": {},
+            "required": [],
+        },
+    },
+}
+
+RESOLVE_ESCALATION_TOOL = {
+    "type": "function",
+    "function": {
+        "name": "resolve_escalation",
+        "description": (
+            "Resolve ONE pending unanswered customer question using the merchant's own "
+            "words from this turn. Do NOT invent an answer. Do NOT resolve other pending "
+            "questions the merchant did not address. Saves Q&A to the Knowledge Base. "
+            "If the customer is waiting, sends WhatsApp immediately; otherwise the next "
+            "AI reply weaves the answer in."
+        ),
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "question_id": {
+                    "type": "integer",
+                    "description": "Escalation / question id from get_pending_escalations.",
+                },
+                "merchant_answer": {
+                    "type": "string",
+                    "description": (
+                        "Copy the merchant's reply from this turn. Do not add facts they "
+                        "did not write (no guessed timelines, ingredients, or medical claims)."
+                    ),
+                },
+            },
+            "required": ["question_id", "merchant_answer"],
+        },
+    },
+}
+
+RESOLVE_KNOWLEDGE_ESCALATION_TOOL = {
+    "type": "function",
+    "function": {
+        "name": "resolve_knowledge_escalation",
+        "description": (
+            "Alias of resolve_escalation. Answer a pending knowledge-gap escalation. "
+            "Saves Q&A into ProductKnowledgeBase."
+        ),
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "escalation_id": {
+                    "type": "integer",
+                    "description": "ID from get_pending_escalations / list_pending_escalations.",
+                },
+                "answer": {
+                    "type": "string",
+                    "description": "The factual answer to send to the customer and save as product knowledge.",
+                },
+            },
+            "required": ["escalation_id", "answer"],
         },
     },
 }
@@ -90,6 +225,11 @@ UPDATE_PERSUASION_RULE_TOOL = {
 
 COPILOT_TOOLS = [
     GET_SALES_METRICS_TOOL,
+    CALCULATE_CAMPAIGN_PERFORMANCE_TOOL,
+    GET_PENDING_ESCALATIONS_TOOL,
+    LIST_PENDING_ESCALATIONS_TOOL,
+    RESOLVE_ESCALATION_TOOL,
+    RESOLVE_KNOWLEDGE_ESCALATION_TOOL,
     UPDATE_PERSUASION_RULE_TOOL,
     UPDATE_OVERRIDE_RULES_TOOL,
 ]
@@ -116,36 +256,114 @@ def _normalize_period(period):
     return "today"
 
 
-def _mock_metrics_seed(period):
-    """Deterministic-ish mock data keyed by period."""
-    base = {"today": 1, "week": 7, "month": 30}[period]
-    rng = random.Random(base * 9973)
-    orders = rng.randint(12, 48) * (1 if period == "today" else base // 2)
-    revenue = round(orders * rng.uniform(28.0, 95.0), 2)
-    conversion = round(rng.uniform(1.8, 6.4), 2)
-    products = ["Gold Pack", "Starter Bundle", "Premium Kit", "Wellness Box", "Pro Subscription"]
-    return {
-        "period": period,
-        "orders": orders,
-        "revenue": revenue,
-        "currency": "USD",
-        "conversion_rate_pct": conversion,
-        "avg_order_value": round(revenue / max(orders, 1), 2),
-        "top_product": rng.choice(products),
-        "generated_at": timezone.now().isoformat(),
-    }
+_EXCLUDED_ORDER_STATUSES = ("cancelled", "returned")
+_PERIOD_LABELS = {"today": "Today", "week": "Last 7 days", "month": "Last 30 days"}
 
 
-def mock_get_sales_metrics(period="today"):
+def _period_start(period):
+    now = timezone.localtime()
+    today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
+    if period == "today":
+        return today_start
+    if period == "week":
+        return today_start - timedelta(days=6)
+    return today_start - timedelta(days=29)
+
+
+def get_sales_metrics(period="today", channel_id=None):
+    """Live KPIs from SimpleOrder + inbound conversations, scoped to the channel."""
+    from discount.models import Message, SimpleOrder
+
     period = _normalize_period(period)
-    data = _mock_metrics_seed(period)
-    period_label = {"today": "Today", "week": "Last 7 days", "month": "Last 30 days"}[period]
+    period_label = _PERIOD_LABELS[period]
+    if channel_id is None:
+        return {
+            "success": False,
+            "error": "channel_id is required for live sales metrics.",
+            "period": period,
+            "period_label": period_label,
+        }
+
+    now = timezone.now()
+    start = _period_start(period)
+    orders = (
+        SimpleOrder.objects.filter(
+            channel_id=channel_id,
+            created_at__gte=start,
+            created_at__lte=now,
+        )
+        .annotate(_status_l=Lower("status"))
+        .exclude(_status_l__in=_EXCLUDED_ORDER_STATUSES)
+    )
+
+    orders_count = orders.count()
+    revenue = float(
+        orders.aggregate(total=Coalesce(Sum("price"), Decimal("0")))["total"] or 0
+    )
+    currency_row = (
+        orders.exclude(Q(currency__isnull=True) | Q(currency=""))
+        .values("currency")
+        .annotate(n=Count("id"))
+        .order_by("-n")
+        .first()
+    )
+    currency = (currency_row or {}).get("currency") or "MAD"
+    top_row = (
+        orders.exclude(Q(product_name__isnull=True) | Q(product_name=""))
+        .values("product_name")
+        .annotate(n=Count("id"), rev=Coalesce(Sum("price"), Decimal("0")))
+        .order_by("-n", "-rev")
+        .first()
+    )
+    top_product = ((top_row or {}).get("product_name") or "—")[:120]
+
+    conversations = (
+        Message.objects.filter(
+            channel_id=channel_id,
+            timestamp__gte=start,
+            timestamp__lte=now,
+            is_from_me=False,
+            is_internal=False,
+        )
+        .exclude(Q(sender__isnull=True) | Q(sender=""))
+        .values("sender")
+        .distinct()
+        .count()
+    )
+    unique_buyers = (
+        orders.exclude(Q(customer_phone__isnull=True) | Q(customer_phone=""))
+        .values("customer_phone")
+        .distinct()
+        .count()
+    )
+    conversion = (
+        round((unique_buyers / conversations) * 100.0, 2) if conversations else 0.0
+    )
+    avg_order_value = round(revenue / orders_count, 2) if orders_count else 0.0
+
     return {
         "success": True,
         "period": period,
         "period_label": period_label,
-        "metrics": data,
+        "metrics": {
+            "period": period,
+            "orders": orders_count,
+            "revenue": round(revenue, 2),
+            "currency": currency,
+            "conversion_rate_pct": conversion,
+            "avg_order_value": avg_order_value,
+            "top_product": top_product,
+            "conversations": conversations,
+            "unique_buyers": unique_buyers,
+            "generated_at": now.isoformat(),
+            "source": "database",
+        },
     }
+
+
+def mock_get_sales_metrics(period="today", channel_id=None):
+    """Back-compat alias — live database metrics, not mock data."""
+    return get_sales_metrics(period, channel_id=channel_id)
 
 
 def mock_update_persuasion_rule(rule_name, channel_id=None):
@@ -177,11 +395,55 @@ def get_active_persuasion_rule(channel_id=None):
     return _active_persona_by_channel.get(key, "Friendly Consultant")
 
 
-def execute_copilot_tool(tool_name, arguments, channel_id=None):
+def _normalize_campaign_days(days):
+    try:
+        value = int(days)
+    except (TypeError, ValueError):
+        return 7
+    return max(1, min(value, 365))
+
+
+def execute_copilot_tool(tool_name, arguments, channel_id=None, merchant_message=None):
     """Run a single tool call and return a JSON-serializable result dict."""
     args = arguments if isinstance(arguments, dict) else {}
     if tool_name == "get_sales_metrics":
-        return mock_get_sales_metrics(args.get("period") or "today")
+        return get_sales_metrics(args.get("period") or "today", channel_id=channel_id)
+    if tool_name == "calculate_campaign_performance":
+        from discount.services.ad_attribution import calculate_campaign_performance
+
+        return calculate_campaign_performance(
+            _normalize_campaign_days(args.get("days") or 7),
+            channel_id=channel_id,
+        )
+    if tool_name in ("list_pending_escalations", "get_pending_escalations"):
+        from discount.services.knowledge_base import list_pending_escalations
+
+        return list_pending_escalations(channel_id=channel_id)
+    if tool_name in ("resolve_knowledge_escalation", "resolve_escalation"):
+        from discount.models import KnowledgeGapEscalation
+        from discount.services.knowledge_base import (
+            merchant_may_resolve_escalation,
+            resolve_knowledge_escalation,
+        )
+
+        esc_id = args.get("escalation_id") if args.get("escalation_id") is not None else args.get("question_id")
+        answer = args.get("answer") or args.get("merchant_answer") or ""
+        qs = KnowledgeGapEscalation.objects.all()
+        if channel_id is not None:
+            qs = qs.filter(channel_id=channel_id)
+        esc = None
+        try:
+            esc = qs.filter(pk=int(esc_id)).first()
+        except (TypeError, ValueError):
+            esc = None
+        ok, err = merchant_may_resolve_escalation(
+            merchant_message or "",
+            answer,
+            getattr(esc, "question", "") if esc else "",
+        )
+        if not ok:
+            return {"success": False, "error": err, "code": "not_merchant_answer"}
+        return resolve_knowledge_escalation(esc_id, answer, channel_id=channel_id)
     if tool_name == "update_persuasion_rule":
         return mock_update_persuasion_rule(args.get("rule_name"), channel_id=channel_id)
     if tool_name == "update_override_rules":
@@ -199,12 +461,71 @@ def _metrics_to_component_data(tool_result):
     rows = [
         {"label": "Period", "value": period_label},
         {"label": "Orders", "value": str(metrics.get("orders", "—"))},
-        {"label": "Revenue", "value": f"{metrics.get('currency', 'USD')} {metrics.get('revenue', '—')}"},
+        {"label": "Revenue", "value": f"{metrics.get('currency', 'MAD')} {metrics.get('revenue', '—')}"},
+        {"label": "Conversations", "value": str(metrics.get("conversations", "—"))},
         {"label": "Conversion rate", "value": f"{metrics.get('conversion_rate_pct', '—')}%"},
-        {"label": "Avg. order value", "value": f"{metrics.get('currency', 'USD')} {metrics.get('avg_order_value', '—')}"},
+        {"label": "Avg. order value", "value": f"{metrics.get('currency', 'MAD')} {metrics.get('avg_order_value', '—')}"},
         {"label": "Top product", "value": str(metrics.get("top_product", "—"))},
     ]
     return {"rows": rows, "title": f"Sales metrics — {period_label}"}
+
+
+def _campaigns_to_component_data(tool_result):
+    days = tool_result.get("days") or 7
+    campaigns = tool_result.get("campaigns") or []
+    rows = []
+    for c in campaigns[:12]:
+        headline = (c.get("ad_headline") or "").strip() or c.get("ad_source_id") or "Ad"
+        rows.append(
+            {
+                "label": headline,
+                "value": (
+                    f"{c.get('orders_confirmed', 0)} orders / "
+                    f"{c.get('chats_initiated', 0)} chats "
+                    f"({c.get('conversion_rate_pct', 0)}%)"
+                ),
+            }
+        )
+    if not rows:
+        rows = [{"label": "Campaigns", "value": "No attributed chats or ads in this period"}]
+    totals = tool_result.get("totals") or {}
+    rows.append(
+        {
+            "label": "Overall conversion",
+            "value": f"{totals.get('conversion_rate_pct', 0)}%",
+        }
+    )
+    return {"rows": rows, "title": f"Ad campaign performance — last {days} days"}
+
+
+def _escalations_to_component_data(tool_result):
+    rows = []
+    for e in (tool_result.get("escalations") or [])[:15]:
+        product = e.get("product_name") or f"product #{e.get('product_id') or '—'}"
+        q = (e.get("question_text") or e.get("question") or "")[:80]
+        rows.append(
+            {
+                "label": f"#{e.get('id')} · {product}",
+                "value": f"{e.get('customer_phone') or '—'} — {q}",
+            }
+        )
+    if not rows:
+        rows = [{"label": "Pending escalations", "value": "None"}]
+    return {
+        "rows": rows,
+        "title": f"Pending knowledge gaps ({tool_result.get('count') or 0})",
+    }
+
+
+def _resolve_escalation_to_component_data(tool_result):
+    if not tool_result.get("success"):
+        return {
+            "text": tool_result.get("error") or "Could not resolve escalation.",
+            "type": "error",
+        }
+    learned = "learned" if tool_result.get("learned") else "not saved to knowledge base"
+    sent = "WhatsApp sent" if tool_result.get("whatsapp_sent") else "WhatsApp not sent"
+    return {"text": f"Escalation resolved — {sent}, {learned}", "type": "success"}
 
 
 def _persuasion_to_component_data(tool_result):
@@ -235,6 +556,9 @@ def build_structured_response(message, tool_results):
 
     # Prefer the most recent tool for UI rendering; metrics table wins over badge if both ran.
     last_metrics = None
+    last_campaigns = None
+    last_escalations = None
+    last_resolve = None
     last_persuasion = None
     last_rules = None
     for tr in tool_results:
@@ -242,14 +566,29 @@ def build_structured_response(message, tool_results):
         result = tr.get("result") or {}
         if name == "get_sales_metrics" and result.get("success"):
             last_metrics = result
+        elif name == "calculate_campaign_performance" and result.get("success"):
+            last_campaigns = result
+        elif name in ("list_pending_escalations", "get_pending_escalations") and result.get("success"):
+            last_escalations = result
+        elif name in ("resolve_knowledge_escalation", "resolve_escalation"):
+            last_resolve = result
         elif name == "update_persuasion_rule":
             last_persuasion = result
         elif name == "update_override_rules":
             last_rules = result
 
-    if last_metrics:
+    if last_escalations:
+        ui_component = "data_table"
+        component_data = _escalations_to_component_data(last_escalations)
+    elif last_campaigns:
+        ui_component = "data_table"
+        component_data = _campaigns_to_component_data(last_campaigns)
+    elif last_metrics:
         ui_component = "data_table"
         component_data = _metrics_to_component_data(last_metrics)
+    elif last_resolve:
+        ui_component = "status_badge"
+        component_data = _resolve_escalation_to_component_data(last_resolve)
     elif last_persuasion:
         ui_component = "status_badge"
         component_data = _persuasion_to_component_data(last_persuasion)
@@ -266,6 +605,12 @@ def build_structured_response(message, tool_results):
     if not text:
         if last_persuasion and last_persuasion.get("success"):
             text = f"Done — the AI agent is now using the **{last_persuasion.get('rule_name')}** persona."
+        elif last_resolve and last_resolve.get("success"):
+            text = last_resolve.get("message") or "The answer was sent to the customer and saved to the knowledge base."
+        elif last_escalations:
+            text = "Here are the pending knowledge-gap escalations."
+        elif last_campaigns:
+            text = "Here is Click-to-WhatsApp campaign performance for the selected period."
         elif last_metrics:
             text = "Here are the latest sales metrics for your selected period."
         else:
@@ -381,7 +726,16 @@ def run_copilot_chat(messages, channel_id=None, extra_context=None):
             except json.JSONDecodeError:
                 args = {}
 
-            result = execute_copilot_tool(name, args, channel_id=channel_id)
+            try:
+                result = execute_copilot_tool(
+                    name,
+                    args,
+                    channel_id=channel_id,
+                    merchant_message=history[-1].get("content") or "",
+                )
+            except Exception as tool_err:
+                logger.exception("Copilot tool %s failed", name)
+                result = {"success": False, "error": str(tool_err)}
             tool_results.append({"tool_name": name, "arguments": args, "result": result})
 
             full_messages.append(

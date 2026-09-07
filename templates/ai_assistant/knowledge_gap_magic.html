@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Answer customer question — Waselytics</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg-dark: #030014;
+      --primary: #7c3aed;
+      --text-main: #ffffff;
+      --text-muted: #94a3b8;
+      --border: rgba(255, 255, 255, 0.08);
+      --danger: rgba(239, 68, 68, 0.15);
+      --ok: rgba(16, 185, 129, 0.15);
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0; min-height: 100vh; font-family: 'Inter', sans-serif;
+      background: var(--bg-dark); color: var(--text-main);
+      display: flex; align-items: center; justify-content: center; padding: 20px;
+    }
+    .box {
+      width: 100%; max-width: 480px;
+      background: rgba(15, 23, 42, 0.72); backdrop-filter: blur(20px);
+      border: 1px solid var(--border); border-radius: 24px; padding: 32px 24px;
+    }
+    .brand { font-family: 'Space Grotesk', sans-serif; font-weight: 700; font-size: 18px; margin-bottom: 20px; }
+    h1 { font-family: 'Space Grotesk', sans-serif; font-size: 22px; margin: 0 0 8px; }
+    p.sub { color: var(--text-muted); font-size: 14px; margin: 0 0 20px; line-height: 1.5; }
+    .meta { font-size: 13px; color: var(--text-muted); margin-bottom: 16px; line-height: 1.6; }
+    .q {
+      background: rgba(0,0,0,0.28); border: 1px solid var(--border); border-radius: 12px;
+      padding: 14px; font-size: 15px; line-height: 1.5; margin-bottom: 18px; white-space: pre-wrap;
+    }
+    label { display: block; font-size: 13px; color: var(--text-muted); margin-bottom: 8px; font-weight: 500; }
+    textarea {
+      width: 100%; min-height: 140px; padding: 14px 16px; background: rgba(0,0,0,0.3);
+      border: 1px solid var(--border); border-radius: 12px; color: white; font-size: 15px;
+      font-family: inherit; resize: vertical;
+    }
+    textarea:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 4px rgba(124, 58, 237, 0.12); }
+    .btn {
+      width: 100%; padding: 14px; margin-top: 16px;
+      background: linear-gradient(135deg, var(--primary), #4f46e5);
+      border: none; border-radius: 12px; color: white; font-weight: 600; font-size: 16px; cursor: pointer;
+    }
+    .error { background: var(--danger); border: 1px solid rgba(239, 68, 68, 0.3); color: #fca5a5; padding: 12px; border-radius: 8px; font-size: 13px; margin-bottom: 16px; }
+    .ok { background: var(--ok); border: 1px solid rgba(16, 185, 129, 0.35); color: #6ee7b7; padding: 12px; border-radius: 8px; font-size: 14px; line-height: 1.5; }
+    .hint { margin-top: 16px; font-size: 12px; color: #64748b; line-height: 1.4; }
+  </style>
+</head>
+<body>
+  <div class="box">
+    <div class="brand">Waselytics</div>
+    {% if done %}
+      <h1>Answer saved</h1>
+      <p class="ok">{{ message }}</p>
+      <p class="hint">You can close this page. You were not signed into the dashboard.</p>
+    {% elif not ok %}
+      <h1>Link unavailable</h1>
+      <p class="error">{{ error }}</p>
+      <p class="hint">Open the Copilot in your dashboard to answer pending questions.</p>
+    {% else %}
+      <h1>Customer question</h1>
+      <p class="sub">The AI could not answer this from the product description. Your reply trains the agent for next time.</p>
+      <div class="meta">
+        <div><strong>Product:</strong> {{ product_name }}</div>
+        <div><strong>Customer:</strong> {{ customer_label }}</div>
+      </div>
+      <div class="q">{{ question }}</div>
+      {% if form_error %}<p class="error">{{ form_error }}</p>{% endif %}
+      <form method="post" action="">
+        {% csrf_token %}
+        <label for="answer">Your answer</label>
+        <textarea id="answer" name="answer" required maxlength="8000" placeholder="Write the factual answer the customer should hear…"></textarea>
+        <button class="btn" type="submit">Send answer</button>
+      </form>
+      <p class="hint">This page is a one-time form. It does not sign you into the dashboard. The link expires in 2 hours.</p>
+    {% endif %}
+  </div>
+</body>
+</html>

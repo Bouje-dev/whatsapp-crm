@@ -914,6 +914,16 @@ def handle_submit_order_tool(
                 _ccity  = customer_city_display[:100]
                 _status = "pending"
 
+            _ad_kwargs = {}
+            try:
+                from discount.services.ad_attribution import attribution_kwargs_for_customer
+
+                _ad_kwargs = attribution_kwargs_for_customer(
+                    channel, customer_phone_from_chat or normalized_phone
+                )
+            except Exception as _ad_err:
+                logger.debug("submit_customer_order ad attribution: %s", _ad_err)
+
             order = SimpleOrder.objects.create(
                 product=product,
                 agent=order_agent,
@@ -934,6 +944,7 @@ def handle_submit_order_tool(
                 created_by_ai=True,
                 created_by_bot_session=(f"submit_order:{getattr(channel, 'id', '')}:{normalized_phone}"[:100] or None),
                 sheets_export_status="pending",
+                **_ad_kwargs,
             )
 
             logger.info("DB SUCCESS: Order ID -> %s", order_id)
@@ -1909,6 +1920,13 @@ def save_order_from_ai(channel, customer_phone, customer_name=None, customer_cit
                 pass
 
         _cur = (getattr(product_instance, "currency", None) or "").strip() or "MAD" if product_instance else "MAD"
+        _ad_kwargs = {}
+        try:
+            from discount.services.ad_attribution import attribution_kwargs_for_customer
+
+            _ad_kwargs = attribution_kwargs_for_customer(channel, customer_phone)
+        except Exception as _ad_err:
+            logger.debug("save_order_from_ai ad attribution: %s", _ad_err)
         order = SimpleOrder.objects.create(
             product=product_instance,
             agent=order_agent,
@@ -1928,6 +1946,7 @@ def save_order_from_ai(channel, customer_phone, customer_name=None, customer_cit
             created_by_ai=True,
             created_by_bot_session=(bot_session_id or "")[:100] or None,
             sheets_export_status="pending",
+            **_ad_kwargs,
         )
         logger.info("save_order_from_ai created order_id=%s for %s", order_id, customer_phone)
         # Stop logic: cancel pending follow-up tasks when customer places an order

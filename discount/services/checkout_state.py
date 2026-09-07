@@ -164,6 +164,12 @@ def reset_checkout_state(channel, customer_phone: str) -> None:
         product=None,
         is_ready_for_checkout=False,
         raw_extractions={},
+        is_waiting_for_answer=False,
+        pending_knowledge_question="",
+        pending_knowledge_answer="",
+        # CTWA ad attribution is preserved so a completed/reset checkout
+        # still counts as an attributed chat and later orders inherit it
+        # until a new referral overwrites the fields.
     )
 
 

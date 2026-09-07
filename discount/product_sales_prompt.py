@@ -119,6 +119,26 @@ def build_product_context_for_prompt(product) -> str:
             lines.append(offer_txt)
     except Exception as e:
         logger.warning("build_product_context_for_prompt: offer tiers: %s", e)
+    try:
+        from discount.services.knowledge_base import knowledge_prompt_block
+
+        kb_block = knowledge_prompt_block(product)
+        if kb_block:
+            lines.append(kb_block)
+    except Exception as e:
+        logger.warning("build_product_context_for_prompt: knowledge base: %s", e)
+    lines.append(
+        "Knowledge-gap rule: Answer catalog fields the customer asked "
+        "(Official price, Delivery, Return/Warranty) in the SAME turn. "
+        "Sales objections ('will it work for me?', 'is it guaranteed?') are NOT "
+        "knowledge gaps — handle with empathy and general benefits; never escalate. "
+        "Call escalate_missing_info ONLY for a missing factual spec "
+        "(ingredients, sensitive skin / medical compatibility). On mixed questions, "
+        "pass only that factual gap (or the full message; the server drops non-gaps). "
+        "NEVER write that you will check with the team unless you called the tool "
+        "for a real spec gap. "
+        "NEVER infer 'safe for sensitive skin' from 'natural / lightweight / absorbs fast'."
+    )
     return "\n".join(lines)
 
 

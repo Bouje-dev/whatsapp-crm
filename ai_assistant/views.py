@@ -1,7 +1,8 @@
 import json
 import logging
 from django.http import JsonResponse
-from django.views.decorators.http import require_POST
+from django.shortcuts import render
+from django.views.decorators.http import require_GET, require_POST, require_http_methods
 from django.views.decorators.csrf import csrf_exempt
 from django.contrib.auth.decorators import login_required
 from django.utils import timezone
@@ -259,6 +260,14 @@ def copilot_chat(request):
             return JsonResponse({"success": False, "error": str(e)}, status=403)
 
         extra_context = f"Channel name: {getattr(channel, 'name', channel_id)}"
+        try:
+            from discount.services.knowledge_base import pending_escalations_prompt_hint
+
+            hint = pending_escalations_prompt_hint(channel_id)
+            if hint:
+                extra_context += f"\n{hint}"
+        except Exception:
+            pass
 
     try:
         payload = run_copilot_chat(
@@ -324,6 +333,82 @@ def copilot_chat(request):
     return JsonResponse({"success": True, **payload})
 
 
+def _copilot_channel_or_error(request, channel_id):
+    if channel_id is None or channel_id == "":
+        return None, JsonResponse({"success": False, "error": "channel_id is required."}, status=400)
+    try:
+        channel_id = int(channel_id)
+    except (TypeError, ValueError):
+        return None, JsonResponse({"success": False, "error": "Invalid channel_id."}, status=400)
+    channel = _user_channel_queryset(request.user).filter(id=channel_id).first()
+    if not channel:
+        return None, JsonResponse({"success": False, "error": "Channel not found or access denied."}, status=403)
+    if hasattr(channel, "has_user_permission") and not channel.has_user_permission(request.user):
+        return None, JsonResponse({"success": False, "error": "Forbidden."}, status=403)
+    return channel, None
+
+
+@login_required
+@require_GET
+def list_pending_escalations(request):
+    """
+    GET /ai-assistant/api/pending-escalations/?channel_id=123
+
+    Returns pending knowledge-gap tickets for the Copilot UI.
+    """
+    channel, err = _copilot_channel_or_error(request, request.GET.get("channel_id"))
+    if err:
+        return err
+    from discount.services.knowledge_base import list_pending_escalations as _list
+
+    return JsonResponse(_list(channel_id=channel.id))
+
+
+@login_required
+@require_GET
+def escalation_status(request):
+    """
+    GET /ai-assistant/api/escalations/status/?channel_id=123
+
+    Lightweight poll for the dashboard Action Required button.
+    Returns { has_pending, pending_count }.
+    """
+    channel, err = _copilot_channel_or_error(request, request.GET.get("channel_id"))
+    if err:
+        return err
+    from discount.services.knowledge_base import pending_escalation_status
+
+    return JsonResponse(pending_escalation_status(channel_id=channel.id))
+
+
+@login_required
+@require_POST
+def resolve_pending_escalation(request):
+    """
+    POST /ai-assistant/api/pending-escalations/resolve/
+    Body JSON: { channel_id, escalation_id, answer }
+
+    Sends the answer to the customer on WhatsApp and saves Q&A to ProductKnowledgeBase.
+    """
+    try:
+        body = json.loads(request.body or b"{}")
+    except (json.JSONDecodeError, ValueError):
+        return JsonResponse({"success": False, "error": "Invalid JSON body."}, status=400)
+
+    channel, err = _copilot_channel_or_error(request, body.get("channel_id"))
+    if err:
+        return err
+    from discount.services.knowledge_base import resolve_knowledge_escalation
+
+    result = resolve_knowledge_escalation(
+        body.get("escalation_id") if body.get("escalation_id") is not None else body.get("question_id"),
+        body.get("answer") or body.get("merchant_answer") or "",
+        channel_id=channel.id,
+    )
+    status = 200 if result.get("success") else 400
+    return JsonResponse(result, status=status)
+
+
 @login_required
 @csrf_exempt
 @require_POST
@@ -353,3 +438,106 @@ def generate_product_aliases(request):
         logger.warning("generate_product_aliases: %s", exc)
         return JsonResponse({"aliases": [], "error": "Alias generation failed."}, status=502)
     return JsonResponse({"aliases": aliases})
+
+
+_MAGIC_ERROR_COPY = {
+    "expired": "This link expired (valid for 2 hours). Answer from the dashboard Copilot instead.",
+    "invalid": "This link is not valid.",
+    "used": "This question was already answered. The link cannot be reused.",
+    "mismatch": "This link does not match the store account.",
+    "missing": "This link is not valid.",
+}
+
+
+@require_http_methods(["GET", "POST"])
+def knowledge_gap_magic_link(request, token):
+    """
+    Isolated answer form. Validates a signed magic-link token.
+    Does NOT log the merchant into the dashboard.
+    """
+    from discount.services.knowledge_base import (
+        load_escalation_from_magic_token,
+        resolve_knowledge_escalation,
+    )
+
+    # Never honor a caller-supplied email — token is bound to the account owner.
+    if request.method == "POST" and (request.POST.get("email") or request.POST.get("to")):
+        logger.warning("knowledge_gap_magic_link ignored custom email field")
+
+    esc, err = load_escalation_from_magic_token(token)
+    if err or esc is None:
+        return render(
+            request,
+            "ai_assistant/knowledge_gap_magic.html",
+            {
+                "ok": False,
+                "done": False,
+                "error": _MAGIC_ERROR_COPY.get(err or "invalid"),
+            },
+            status=400 if err in ("invalid", "mismatch", "missing") else 200,
+        )
+
+    product_name = (getattr(getattr(esc, "product", None), "name", None) or "").strip() or "Product"
+    phone = (esc.customer_phone or "")
+    masked = ("…" + phone[-4:]) if len(phone) >= 4 else phone
+
+    if request.method == "GET":
+        return render(
+            request,
+            "ai_assistant/knowledge_gap_magic.html",
+            {
+                "ok": True,
+                "done": False,
+                "token": token,
+                "question": esc.question,
+                "product_name": product_name,
+                "customer_label": masked,
+            },
+        )
+
+    answer = (request.POST.get("answer") or "").strip()
+    if not answer:
+        return render(
+            request,
+            "ai_assistant/knowledge_gap_magic.html",
+            {
+                "ok": True,
+                "done": False,
+                "token": token,
+                "question": esc.question,
+                "product_name": product_name,
+                "customer_label": masked,
+                "form_error": "Please write an answer before sending.",
+            },
+            status=400,
+        )
+
+    result = resolve_knowledge_escalation(
+        esc.id,
+        answer,
+        channel_id=esc.channel_id,
+    )
+    if not result.get("success"):
+        code = result.get("code") or "invalid"
+        return render(
+            request,
+            "ai_assistant/knowledge_gap_magic.html",
+            {
+                "ok": False,
+                "done": False,
+                "error": result.get("error") or _MAGIC_ERROR_COPY.get(code, "Could not save the answer."),
+            },
+            status=400,
+        )
+
+    return render(
+        request,
+        "ai_assistant/knowledge_gap_magic.html",
+        {
+            "ok": True,
+            "done": True,
+            "whatsapp_sent": bool(result.get("whatsapp_sent")),
+            "deferred": bool(result.get("deferred_to_next_reply")),
+            "message": result.get("message") or "Saved.",
+        },
+    )

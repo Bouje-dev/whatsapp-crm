@@ -206,6 +206,7 @@ const ChatSocket = {
             } else if (!snippetText && payload.media_type) {
                 if (payload.media_type === 'audio') snippetText = '🎤 مقطع صوتي';
                 else if (payload.media_type === 'image') snippetText = '📷 صورة';
+                else if (payload.media_type === 'sticker') snippetText = '🎭 ملصق';
                 else snippetText = '📁 ملف';
             }
 
@@ -560,6 +561,14 @@ const ChatSocket = {
      
     
 
+
+        case 'knowledge_gap':
+        case 'knowledge_gap_resolved': {
+            if (typeof window.refreshEscalationActionButton === 'function') {
+                window.refreshEscalationActionButton();
+            }
+            break;
+        }
 
         default:
             console.warn("Unknown message type:", type);

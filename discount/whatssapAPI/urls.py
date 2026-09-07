@@ -2,7 +2,7 @@
 from discount.whatssapAPI import wsettings
 from django.urls import path
 from . import views , flow , process_messages , templaite , whaDash
-from ai_assistant.views import copilot_chat, generate_product_aliases
+from ai_assistant.views import copilot_chat, generate_product_aliases, list_pending_escalations, resolve_pending_escalation, escalation_status
 from .whatsapp_flows import (
     api_whatsapp_flow_submissions,
     api_whatsapp_flow_ingest,
@@ -105,6 +105,9 @@ path('api/admin/coach-ai-conversations/', whaDash.api_coach_ai_conversations, na
 path('api/admin/coach-ai-history/', whaDash.api_coach_ai_history, name='api_coach_ai_history'),
 path('api/admin/coach-ai/', whaDash.api_coach_ai, name='api_coach_ai'),
 path('api/admin/copilot-chat/', copilot_chat, name='api_copilot_chat'),
+path('api/admin/pending-escalations/', list_pending_escalations, name='api_pending_escalations'),
+path('api/admin/pending-escalations/resolve/', resolve_pending_escalation, name='api_resolve_pending_escalation'),
+path('api/escalations/status/', escalation_status, name='api_escalation_status'),
 path('api/admin/coach-ai-rules/', whaDash.api_coach_ai_rules, name='api_coach_ai_rules'),
 path('api/admin/coach-ai-clear-rules/', whaDash.api_coach_ai_clear_rules, name='api_coach_ai_clear_rules'),
 path('api/admin/coach-ai-set-rules/', whaDash.api_coach_ai_set_rules, name='api_coach_ai_set_rules'),

@@ -648,6 +648,101 @@ class ProductVideo(models.Model):
         return f"Video for {self.product.name} (#{self.order})"
 
 
+class ProductKnowledgeBase(models.Model):
+    """Learned product Q&A. Injected into the sales-agent prompt as authoritative facts."""
+
+    product = models.ForeignKey(
+        Products,
+        on_delete=models.CASCADE,
+        related_name="knowledge_entries",
+    )
+    question = models.TextField(help_text="Customer question the AI could not answer from the description.")
+    answer = models.TextField(help_text="Merchant-provided answer; treated as product fact going forward.")
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["-updated_at"]
+        indexes = [
+            models.Index(fields=["product", "updated_at"]),
+        ]
+        verbose_name = "Product knowledge entry"
+        verbose_name_plural = "Product knowledge base"
+
+    def __str__(self):
+        q = (self.question or "")[:60]
+        return f"KB {self.product_id}: {q}"
+
+
+class KnowledgeGapEscalation(models.Model):
+    """Open ticket when the AI refuses to guess and asks the merchant for a product fact."""
+
+    STATUS_PENDING = "pending"
+    STATUS_RESOLVED = "resolved"
+    STATUS_CHOICES = [
+        (STATUS_PENDING, "Pending"),
+        (STATUS_RESOLVED, "Resolved"),
+    ]
+
+    channel = models.ForeignKey(
+        "WhatsAppChannel",
+        on_delete=models.CASCADE,
+        related_name="knowledge_gap_escalations",
+    )
+    customer_phone = models.CharField(max_length=32, db_index=True)
+    product = models.ForeignKey(
+        Products,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="knowledge_gap_escalations",
+    )
+    question = models.TextField()
+    answer = models.TextField(blank=True, default="")
+    status = models.CharField(
+        max_length=16,
+        choices=STATUS_CHOICES,
+        default=STATUS_PENDING,
+        db_index=True,
+    )
+    knowledge_entry = models.ForeignKey(
+        ProductKnowledgeBase,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="escalations",
+    )
+    magic_token_nonce = models.CharField(
+        max_length=64,
+        blank=True,
+        default="",
+        help_text="One-time nonce bound to the magic-link token; cleared when resolved.",
+    )
+    created_at = models.DateTimeField(auto_now_add=True, db_index=True)
+    resolved_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+        indexes = [
+            models.Index(fields=["channel", "status", "created_at"]),
+            models.Index(fields=["channel", "customer_phone", "status"]),
+        ]
+        verbose_name = "Knowledge gap escalation"
+        verbose_name_plural = "Knowledge gap escalations"
+
+    @property
+    def question_text(self):
+        """Dashboard / API alias for ``question`` (EscalatedQuestion.question_text)."""
+        return self.question
+
+    def __str__(self):
+        return f"Escalation {self.id} {self.status} {self.customer_phone}"
+
+
+# Merchant-dashboard name for KnowledgeGapEscalation (same table; do not duplicate).
+EscalatedQuestion = KnowledgeGapEscalation
+
+
 CustomUsers = get_user_model()
 
 
@@ -817,6 +912,26 @@ class SimpleOrder(models.Model):
         blank=True,
         null=True,
         help_text="Chat/session ID when order was created by AI (for tracing).",
+    )
+    # Click-to-WhatsApp (CTWA) ad attribution copied from WhatsAppCheckoutState at checkout.
+    ad_source_id = models.CharField(
+        max_length=128,
+        blank=True,
+        default="",
+        db_index=True,
+        help_text="Meta CTWA referral source_id (ad id) captured at chat start.",
+    )
+    ad_source_url = models.URLField(
+        max_length=500,
+        blank=True,
+        default="",
+        help_text="Meta CTWA referral source_url for the originating ad.",
+    )
+    ad_headline = models.CharField(
+        max_length=255,
+        blank=True,
+        default="",
+        help_text="Meta CTWA ad headline from the referral object.",
     )
     # Google Sheets export status: blank = not applicable, pending = queued, success = exported, failed = export error (merchant can re-sync)
     sheets_export_status = models.CharField(
@@ -2013,7 +2128,13 @@ class Message(models.Model):
     
     media_type = models.CharField(
         max_length=20,
-        choices=[('image', 'Image'), ('video', 'Video'), ('audio', 'Audio'), ('document', 'Document')],
+        choices=[
+            ('image', 'Image'),
+            ('video', 'Video'),
+            ('audio', 'Audio'),
+            ('document', 'Document'),
+            ('sticker', 'Sticker'),
+        ],
         blank=True,
         null=True
     )
@@ -2670,6 +2791,51 @@ class WhatsAppCheckoutState(models.Model):
             "prior bad experiences). Updated by the entity extractor; not checkout slots."
         ),
     )
+    # Click-to-WhatsApp (CTWA) ad attribution from the WhatsApp Cloud API referral object.
+    ad_source_id = models.CharField(
+        max_length=128,
+        blank=True,
+        default="",
+        db_index=True,
+        help_text="Meta CTWA referral source_id (ad id).",
+    )
+    ad_source_url = models.URLField(
+        max_length=500,
+        blank=True,
+        default="",
+        help_text="Meta CTWA referral source_url.",
+    )
+    ad_headline = models.CharField(
+        max_length=255,
+        blank=True,
+        default="",
+        help_text="Meta CTWA ad headline from the referral object.",
+    )
+    ad_attributed_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        db_index=True,
+        help_text="When the current CTWA referral was last saved onto this session.",
+    )
+    is_waiting_for_answer = models.BooleanField(
+        default=False,
+        db_index=True,
+        help_text=(
+            "True after a knowledge-gap escalation while the customer is paused waiting. "
+            "If still True when the merchant answers, WhatsApp the reply immediately; "
+            "otherwise queue it for the next AI turn."
+        ),
+    )
+    pending_knowledge_question = models.TextField(
+        blank=True,
+        default="",
+        help_text="Customer question waiting to be woven into the next AI reply.",
+    )
+    pending_knowledge_answer = models.TextField(
+        blank=True,
+        default="",
+        help_text="Merchant answer to integrate on the next AI turn (not sent immediately).",
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -2683,6 +2849,7 @@ class WhatsAppCheckoutState(models.Model):
         indexes = [
             models.Index(fields=["channel", "customer_phone"]),
             models.Index(fields=["channel", "is_ready_for_checkout"]),
+            models.Index(fields=["channel", "ad_source_id"]),
         ]
         verbose_name = "WhatsApp checkout state"
         verbose_name_plural = "WhatsApp checkout states"
@@ -2690,6 +2857,36 @@ class WhatsAppCheckoutState(models.Model):
     def __str__(self):
         ready = "ready" if self.is_ready_for_checkout else "incomplete"
         return f"CheckoutState {self.channel_id}:{self.customer_phone} ({ready})"
+
+
+class WhatsAppAdClick(models.Model):
+    """
+    One row per Click-to-WhatsApp (CTWA) referral webhook.
+
+    Checkout state holds the *current* last-click ad; this table keeps history so
+    campaign conversion can be measured over a date window.
+    """
+    channel = models.ForeignKey(
+        WhatsAppChannel,
+        on_delete=models.CASCADE,
+        related_name="ad_clicks",
+    )
+    customer_phone = models.CharField(max_length=32, db_index=True)
+    ad_source_id = models.CharField(max_length=128, db_index=True)
+    ad_source_url = models.URLField(max_length=500, blank=True, default="")
+    ad_headline = models.CharField(max_length=255, blank=True, default="")
+    created_at = models.DateTimeField(auto_now_add=True, db_index=True)
+
+    class Meta:
+        indexes = [
+            models.Index(fields=["channel", "ad_source_id", "created_at"]),
+            models.Index(fields=["channel", "customer_phone", "created_at"]),
+        ]
+        verbose_name = "WhatsApp ad click"
+        verbose_name_plural = "WhatsApp ad clicks"
+
+    def __str__(self):
+        return f"AdClick {self.ad_source_id} {self.customer_phone}"
 
 
 class HandoverLog(models.Model):

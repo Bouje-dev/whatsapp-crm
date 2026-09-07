@@ -1,5 +1,5 @@
 from django.contrib import admin
-from discount.models import CODProduct ,Order , SimpleOrder ,Products , TeamInvitation ,UserProductPermission , Lead , ScriptFlow, WhatsAppFlowSubmission
+from discount.models import CODProduct ,Order , SimpleOrder ,Products , TeamInvitation ,UserProductPermission , Lead , ScriptFlow, WhatsAppFlowSubmission, ProductKnowledgeBase, KnowledgeGapEscalation
 # Register your models here.
 from discount.models import ExternalOrder ,  CampaignVisit  , AdArchive , AdCreative , UserSavedAd , CTA ,Advertiser , Message
 class CODdrop(admin.ModelAdmin):
@@ -67,6 +67,23 @@ class product(admin.ModelAdmin):
     list_display = ['name']
 
 admin.site.register(Products, product)
+
+
+class ProductKnowledgeBaseAdmin(admin.ModelAdmin):
+    list_display = ["product", "question", "updated_at"]
+    search_fields = ["question", "answer", "product__name"]
+
+
+admin.site.register(ProductKnowledgeBase, ProductKnowledgeBaseAdmin)
+
+
+class KnowledgeGapEscalationAdmin(admin.ModelAdmin):
+    list_display = ["id", "status", "customer_phone", "product", "created_at"]
+    list_filter = ["status"]
+    search_fields = ["customer_phone", "question"]
+
+
+admin.site.register(KnowledgeGapEscalation, KnowledgeGapEscalationAdmin)
 
 
 class TeamInvitationAdmin(admin.ModelAdmin):
