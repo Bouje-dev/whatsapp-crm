@@ -1,4 +1,5 @@
 import logging
+import json
 import os
 import random
 import re
@@ -527,17 +528,18 @@ def _litellm_completion_with_model_fallback(payload):
             forced_model = MODEL_CLAUDE_SONNET  # Haiku test; Latest Sonnet: anthropic/claude-3-5-sonnet-20241022
             print("🚨 FORCING CLAUDE EXECUTION - NO FALLBACKS ALLOWED 🚨")
             try:
-                # Anthropic Messages API: cannot send both temperature and top_p (400 invalid_request_error).
-                return litellm.completion(
-                    model=forced_model,
-                    messages=call_payload.get("messages") or [],
-                    api_key=anthropic_key,
-                    temperature=call_payload.get("temperature", 0.25),
-                    max_tokens=call_payload.get("max_tokens", 400),
-                    tools=call_payload.get("tools"),
-                    tool_choice=call_payload.get("tool_choice"),
-                    # fallbacks=["gpt-4o", ...]  # TEMP: do not use — obscures Claude failures
-                )
+                kwargs = {
+                    "model": forced_model,
+                    "messages": call_payload.get("messages") or [],
+                    "api_key": anthropic_key,
+                    "temperature": call_payload.get("temperature", 0.25),
+                    "max_tokens": call_payload.get("max_tokens", 400),
+                    "tools": call_payload.get("tools"),
+                    "tool_choice": call_payload.get("tool_choice"),
+                }
+                if call_payload.get("response_format"):
+                    kwargs["response_format"] = call_payload["response_format"]
+                return litellm.completion(**kwargs)
             except Exception as e:
                 print(f"❌ LiteLLM Anthropic local error type: {type(e)}")
                 traceback.print_exc()
@@ -1281,19 +1283,87 @@ def _build_voice_enabled_delivery_rules(resolved_dialect: str, output_language: 
     )
 
 
+def _build_auto_delivery_rules(
+    resolved_dialect: str,
+    output_language: str | None = None,
+    force_voice_mode: bool = False,
+) -> str:
+    """LLM chooses text vs voice per turn (cost vs conversion)."""
+    lang = (output_language or "").strip().lower()
+    if lang == "fr":
+        dialect_label = "French"
+        fillers = "e.g., 'Alors...', 'Écoutez...'"
+    elif lang == "en":
+        dialect_label = "English"
+        fillers = "e.g., 'Look...', 'Honestly...'"
+    else:
+        dialect = (resolved_dialect or "").strip() or "Moroccan Darija"
+        dialect_label = "Moroccan Darija" if _is_moroccan_dialect_label(dialect) else dialect
+        fillers = (
+            "e.g., 'Chouf...', 'Sraha...'"
+            if _is_moroccan_dialect_label(dialect)
+            else f"natural {dialect} openers"
+        )
+    json_line = (
+        '{"reply_type": "text" | "voice", "content": "The actual response in '
+        + dialect_label
+        + '"}'
+    )
+    if force_voice_mode:
+        return (
+            "AUTO RESPONSE MODE — ACCESSIBILITY OVERRIDE:\n"
+            "The user requires audio communication (accessibility mode). "
+            'You MUST set reply_type: "voice" for ALL your responses from now on, '
+            "including data collection and receipts. Apply all TTS formatting rules "
+            f"(use '...' for pauses, no emojis, spoken style, conversational filler words {fillers}).\n"
+            "Do not use reply_type text except for bank details / RIB / passwords "
+            "(those stay text with [NO_TTS]).\n"
+            "OUTPUT FORMAT (MANDATORY): Your final message MUST be a single JSON object, "
+            "no markdown fences, no extra keys:\n"
+            '{"reply_type": "voice", "content": "The actual spoken response in '
+            + dialect_label
+            + '"}\n'
+            "When you need tools, call them first. After tools, the final assistant message MUST be that JSON.\n\n"
+        )
+    return (
+        "AUTO RESPONSE MODE (TEXT vs VOICE):\n"
+        "You must evaluate the customer's input and decide the best format for your reply (text or voice).\n"
+        "If the user explicitly asks you to send voice notes, or says they cannot read, "
+        "call enable_voice_only_mode immediately, then reply with reply_type voice.\n"
+        "RULE 1 (Use TEXT): Use text for collecting data (Name, Address, Phone), answering simple logical "
+        "questions (shipping cost, price), or showing the order summary/receipt.\n"
+        "RULE 2 (Use VOICE): Use voice ONLY for emotional or critical moments: resolving trust objections "
+        "(e.g., 'Will it work for me?', 'Is there a guarantee?'), recovering a silent/hesitant customer, "
+        "or the final congratulatory order confirmation.\n"
+        "RULE 3: If you choose voice, apply TTS formatting rules (use '...' for pauses, no emojis, "
+        f"conversational filler words {fillers}). If you choose text, use clean formatting with emojis.\n"
+        "OUTPUT FORMAT (MANDATORY): Your final message to the customer MUST be a single JSON object, "
+        "no markdown fences, no extra keys:\n"
+        f"{json_line}\n"
+        "When you need tools, call them first. After tools, the final assistant message MUST be that JSON.\n"
+        "Never put bank details, RIB, or passwords in voice content — use reply_type text and [NO_TTS] for those.\n\n"
+    )
+
+
 def _build_delivery_mode_prompt_block(
     *,
     response_mode: str,
     resolved_dialect: str,
     output_language: str | None = None,
+    force_voice_mode: bool = False,
 ) -> str:
     """
     Mutually exclusive delivery rules.
 
-    ``response_mode`` is ``text_only`` or ``voice_enabled``. Voice rules must not
-    be combined with the text-optimizing block.
+    ``response_mode`` is ``text_only``, ``voice_enabled``, or ``auto``.
+    Voice-only rules must not be combined with the text-optimizing block.
     """
-    if (response_mode or "").strip().lower() == "voice_enabled":
+    mode = (response_mode or "").strip().lower()
+    if mode == "auto":
+        return _build_auto_delivery_rules(
+            resolved_dialect, output_language, force_voice_mode=force_voice_mode
+        )
+    if mode == "voice_enabled":
         return _build_voice_enabled_delivery_rules(resolved_dialect, output_language)
     return _build_text_only_delivery_rules(resolved_dialect, output_language)
 
@@ -2188,6 +2258,23 @@ SEND_VOICE_NOTE_TOOL = {
     },
 }
 
+ENABLE_VOICE_ONLY_MODE_TOOL = {
+    "type": "function",
+    "function": {
+        "name": "enable_voice_only_mode",
+        "description": (
+            "If the user explicitly asks you to send voice notes, or says they cannot read, "
+            "call enable_voice_only_mode. This locks the rest of the chat to spoken TTS replies "
+            "(accessibility). Call it once; do not wait. No arguments."
+        ),
+        "parameters": {
+            "type": "object",
+            "properties": {},
+            "additionalProperties": False,
+        },
+    },
+}
+
 ANALYZE_URL_TOOL = {
     "type": "function",
     "function": {
@@ -2640,6 +2727,7 @@ SALES_AGENT_TOOLS = [
     SWITCH_ACTIVE_PRODUCT_TOOL,
     SEND_PRODUCT_MEDIA_TOOL,
     SEND_VOICE_NOTE_TOOL,
+    ENABLE_VOICE_ONLY_MODE_TOOL,
     ANALYZE_URL_TOOL,
     SUBMIT_CUSTOMER_ORDER_TOOL,
     USE_VOICE_CHECKOUT_TOOL,
@@ -4013,10 +4101,19 @@ def build_messages_payload_sales(conversation_messages, custom_instruction=None,
         _delivery_mode = resolve_sales_prompt_response_mode(channel, node)
     except Exception:
         _delivery_mode = "voice_enabled" if voice_script_style else "text_only"
+    _force_voice_mode = False
+    try:
+        from discount.services.checkout_state import is_force_voice_mode
+
+        if channel is not None and customer_phone:
+            _force_voice_mode = is_force_voice_mode(channel, customer_phone)
+    except Exception:
+        _force_voice_mode = False
     mode_line = _build_delivery_mode_prompt_block(
         response_mode=_delivery_mode,
         resolved_dialect=resolved_dialect,
         output_language=output_language,
+        force_voice_mode=_force_voice_mode,
     )
     voice_note_tool_rule = (
         "VOICE NOTE TOOL:\n"
@@ -4024,7 +4121,9 @@ def build_messages_payload_sales(conversation_messages, custom_instruction=None,
         "confirming an order success, or when trying to recover a highly hesitant customer. "
         "Keep the voice note text short, natural, enthusiastic, and strictly in the customer's dialect.\n"
         "Never put bank details, RIB, passwords, or URLs in a voice note. "
-        "Do not use send_voice_note for greetings, FAQs, or routine replies.\n\n"
+        "Do not use send_voice_note for greetings, FAQs, or routine replies.\n"
+        "If the user explicitly asks you to send voice notes, or says they cannot read, "
+        "call enable_voice_only_mode (then reply as spoken audio; do not use send_voice_note for every turn).\n\n"
     )
     lang_prefix = ""
     if output_language == "fr":
@@ -4377,6 +4476,98 @@ def parse_and_strip_handover(reply_text):
     return (cleaned, "Customer asked for human or sentiment detected")
 
 
+SALES_AUTO_REPLY_JSON_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "reply_type": {
+            "type": "string",
+            "enum": ["text", "voice"],
+            "description": "text for data/logic; voice for trust, hesitation, or order congratulations.",
+        },
+        "content": {
+            "type": "string",
+            "description": "The actual response in Darija (or the customer's dialect).",
+        },
+    },
+    "required": ["reply_type", "content"],
+    "additionalProperties": False,
+}
+
+SALES_AUTO_REPLY_RESPONSE_FORMAT = {
+    "type": "json_schema",
+    "json_schema": {
+        "name": "whatsapp_sales_reply",
+        "strict": True,
+        "schema": SALES_AUTO_REPLY_JSON_SCHEMA,
+    },
+}
+
+_AUTO_JSON_OBJECT_RE = re.compile(r"\{[\s\S]*\}")
+
+
+def _auto_mode_response_format_for_model(model_name: str) -> dict:
+    if str(model_name or "").startswith("anthropic/"):
+        return {"type": "json_object"}
+    return dict(SALES_AUTO_REPLY_RESPONSE_FORMAT)
+
+
+def parse_auto_mode_reply(raw: str) -> tuple[str, str]:
+    """
+    Parse ``{"reply_type": "text"|"voice", "content": "..."}``.
+
+    Returns ``(reply_type, content)``. Invalid JSON is treated as text with the
+    original string as content (safer / cheaper than accidental TTS).
+    """
+    text = (raw or "").strip()
+    if not text:
+        return ("text", "")
+    fence = re.match(r"^```(?:json)?\s*([\s\S]*?)\s*```$", text, re.IGNORECASE)
+    blob = fence.group(1).strip() if fence else text
+    if not (blob.startswith("{") and "}" in blob):
+        found = _AUTO_JSON_OBJECT_RE.search(blob)
+        if found:
+            blob = found.group(0)
+    try:
+        data = json.loads(blob)
+    except Exception:
+        return ("text", text)
+    if not isinstance(data, dict):
+        return ("text", text)
+    rtype = str(data.get("reply_type") or "text").strip().lower()
+    if rtype not in ("text", "voice"):
+        rtype = "text"
+    content = data.get("content")
+    if content is None:
+        content = data.get("reply") or data.get("message") or ""
+    return (rtype, str(content).strip())
+
+
+def _coerce_auto_reply_type_for_accessibility(channel, customer_phone, reply_type, reply_text):
+    """Accessibility lock: auto replies must be voice unless [NO_TTS] (RIB / secrets)."""
+    try:
+        from discount.services.checkout_state import is_force_voice_mode
+
+        if not is_force_voice_mode(channel, customer_phone):
+            return reply_type
+    except Exception:
+        return reply_type
+    try:
+        if reply_text and contains_no_tts_marker(reply_text):
+            return "text"
+    except Exception:
+        pass
+    return "voice"
+
+
+def _sales_prompt_is_auto_mode(channel, node) -> bool:
+    try:
+        from discount.services.voice_dialect import resolve_sales_prompt_response_mode
+
+        return resolve_sales_prompt_response_mode(channel, node) == "auto"
+    except Exception:
+        return False
+
+
 def parse_and_strip_stage(reply_text):
     """If reply ends with [STAGE: ...], strip it and return (cleaned_text, stage). Supports funnel and goal stages."""
     if not reply_text or not isinstance(reply_text, str):
@@ -4470,6 +4661,10 @@ def generate_reply_with_tools(conversation_messages, custom_instruction=None, pr
         "tools": tools,
         "tool_choice": "auto",
     }
+    _auto_mode = _sales_prompt_is_auto_mode(channel, node)
+    if _auto_mode:
+        payload["response_format"] = _auto_mode_response_format_for_model(model)
+        payload["max_tokens"] = 500
 
     est_tokens = _estimate_payload_tokens(messages)
     logger.info("LiteLLM payload estimate: ~%s tokens (messages=%s, model=%s, dialect=%s)", est_tokens, len(messages), model, target_dialect)
@@ -4481,7 +4676,15 @@ def generate_reply_with_tools(conversation_messages, custom_instruction=None, pr
     try:
         response = _litellm_completion_with_model_fallback(payload)
     except Exception as e:
-        raise RuntimeError(f"LiteLLM completion failed: {e}")
+        if _auto_mode and payload.get("response_format"):
+            logger.warning("LiteLLM auto json_schema failed, retrying without response_format: %s", e)
+            payload.pop("response_format", None)
+            try:
+                response = _litellm_completion_with_model_fallback(payload)
+            except Exception as e2:
+                raise RuntimeError(f"LiteLLM completion failed: {e2}")
+        else:
+            raise RuntimeError(f"LiteLLM completion failed: {e}")
 
     choice0 = response.choices[0] if getattr(response, "choices", None) else {}
     msg = getattr(choice0, "message", None) or {}
@@ -4491,6 +4694,12 @@ def generate_reply_with_tools(conversation_messages, custom_instruction=None, pr
             "tool_calls": getattr(msg, "tool_calls", None) or [],
         }
     reply_text = (msg.get("content") or "").strip()
+    reply_type = None
+    if _auto_mode:
+        reply_type, reply_text = parse_auto_mode_reply(reply_text)
+        reply_type = _coerce_auto_reply_type_for_accessibility(
+            channel, customer_phone, reply_type, reply_text
+        )
     tool_calls = []
     import json
     normalized_tool_calls = []
@@ -4521,7 +4730,8 @@ def generate_reply_with_tools(conversation_messages, custom_instruction=None, pr
             continue
         if name in (
             "save_order", "check_stock", "apply_discount", "record_order", "track_order",
-            "search_products", "switch_active_product", "send_product_media", "send_voice_note", "analyze_url",
+            "search_products", "switch_active_product", "send_product_media", "send_voice_note",
+            "enable_voice_only_mode", "analyze_url",
             "submit_customer_order",
             "send_whatsapp_flow", "use_voice_checkout",
             "register_support_complaint", "flag_order_for_review", "escalate_missing_info",
@@ -4567,6 +4777,7 @@ def generate_reply_with_tools(conversation_messages, custom_instruction=None, pr
         "completion_tokens": usage.get("completion_tokens", 0),
         "model": model,
         "target_dialect": target_dialect,
+        "reply_type": reply_type,
     }
 
 
@@ -4691,6 +4902,10 @@ def continue_after_tool_calls(
         "tools": tools,
         "tool_choice": "auto",
     }
+    _auto_mode = _sales_prompt_is_auto_mode(channel, node)
+    if _auto_mode:
+        payload["response_format"] = _auto_mode_response_format_for_model(model)
+        payload["max_tokens"] = 500
     est_tokens = _estimate_payload_tokens(messages)
     logger.info("LiteLLM payload estimate (after tools): ~%s tokens (messages=%s, model=%s, dialect=%s)", est_tokens, len(messages), model, target_dialect)
     print(f"[LiteLLM payload estimate][after tools] ~{est_tokens} tokens (messages={len(messages)}, model={model})")
@@ -4700,7 +4915,15 @@ def continue_after_tool_calls(
     try:
         response = _litellm_completion_with_model_fallback(payload)
     except Exception as e:
-        raise RuntimeError(f"LiteLLM completion failed: {e}")
+        if _auto_mode and payload.get("response_format"):
+            logger.warning("LiteLLM auto json_schema failed, retrying without response_format: %s", e)
+            payload.pop("response_format", None)
+            try:
+                response = _litellm_completion_with_model_fallback(payload)
+            except Exception as e2:
+                raise RuntimeError(f"LiteLLM completion failed: {e2}")
+        else:
+            raise RuntimeError(f"LiteLLM completion failed: {e}")
     choice0 = response.choices[0] if getattr(response, "choices", None) else {}
     msg = getattr(choice0, "message", None) or {}
     if not isinstance(msg, dict):
@@ -4709,6 +4932,12 @@ def continue_after_tool_calls(
             "tool_calls": getattr(msg, "tool_calls", None) or [],
         }
     reply_text = (msg.get("content") or "").strip()
+    reply_type = None
+    if _auto_mode:
+        reply_type, reply_text = parse_auto_mode_reply(reply_text)
+        reply_type = _coerce_auto_reply_type_for_accessibility(
+            channel, customer_phone, reply_type, reply_text
+        )
     tool_calls = []
     import json as _json
     normalized_tool_calls = []
@@ -4739,7 +4968,8 @@ def continue_after_tool_calls(
             continue
         if name in (
             "save_order", "check_stock", "apply_discount", "record_order", "track_order",
-            "search_products", "switch_active_product", "send_product_media", "send_voice_note", "analyze_url",
+            "search_products", "switch_active_product", "send_product_media", "send_voice_note",
+            "enable_voice_only_mode", "analyze_url",
             "submit_customer_order",
             "send_whatsapp_flow", "use_voice_checkout",
             "register_support_complaint", "flag_order_for_review", "escalate_missing_info",
@@ -4782,4 +5012,5 @@ def continue_after_tool_calls(
         "completion_tokens": usage.get("completion_tokens", 0),
         "model": model,
         "target_dialect": target_dialect,
+        "reply_type": reply_type,
     }

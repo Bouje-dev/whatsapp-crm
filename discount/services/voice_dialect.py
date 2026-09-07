@@ -144,31 +144,81 @@ def merchant_voice_mode_enabled(channel) -> bool:
     Store-level preference: Voice-enabled vs Text-only.
 
     Maps to product docs ``merchant.voice_settings.is_active`` — stored as ``WhatsAppChannel.ai_voice_enabled``.
+    ``response_mode == voice_enabled`` also counts as voice-on.
     """
-    return bool(channel and getattr(channel, "ai_voice_enabled", False))
+    if not channel:
+        return False
+    rm = (getattr(channel, "response_mode", None) or "").strip().lower()
+    if rm == "voice_enabled":
+        return True
+    if rm in ("text_only", "auto"):
+        return False
+    return bool(getattr(channel, "ai_voice_enabled", False))
 
 
 def resolve_sales_prompt_response_mode(channel, node=None) -> str:
     """
     Effective delivery mode for the sales-agent system prompt.
 
-    Returns ``voice_enabled`` or ``text_only``.
-    Store default is ``WhatsAppChannel.ai_voice_enabled``. A TEXT_ONLY flow node
-    still forces text rules; AUDIO_ONLY (or legacy node.voice_enabled) forces
-    voice rules even if the store default is text.
+    Returns ``text_only``, ``voice_enabled``, or ``auto``.
+    Node TEXT_ONLY / AUDIO_ONLY override the store. Node AUTO / AUTO_SMART
+    select LLM-decided auto. Otherwise use ``WhatsAppChannel.response_mode``,
+    falling back to ``ai_voice_enabled``.
     """
     if node is not None:
         rm = (getattr(node, "response_mode", None) or "").strip()
-        if rm == "TEXT_ONLY":
+        ru = rm.upper()
+        if ru == "TEXT_ONLY":
             return "text_only"
-        if rm == "AUDIO_ONLY" or bool(getattr(node, "voice_enabled", False)):
+        if ru in ("AUTO", "AUTO_SMART") or rm.lower() == "auto":
+            return "auto"
+        if ru == "AUDIO_ONLY" or bool(getattr(node, "voice_enabled", False)):
             return "voice_enabled"
+    ch = (getattr(channel, "response_mode", None) or "").strip().lower() if channel else ""
+    if ch in ("text_only", "voice_enabled", "auto"):
+        return ch
     return "voice_enabled" if merchant_voice_mode_enabled(channel) else "text_only"
 
 
 def prompt_uses_voice_delivery_rules(channel, node=None) -> bool:
     """True when the LLM must write a spoken TTS script instead of a WhatsApp text."""
     return resolve_sales_prompt_response_mode(channel, node) == "voice_enabled"
+
+
+def should_send_sales_reply_as_voice(
+    channel, node, result=None, reply_text="", force_voice_mode=None, customer_phone=None
+) -> bool:
+    """
+    Runtime router: whether this turn's customer-facing reply is TTS audio.
+
+    ``auto`` uses the LLM ``reply_type`` from structured JSON. Missing/invalid
+    JSON falls back to text (cheaper), unless accessibility ``force_voice_mode``
+    is on — then every auto reply is voice.
+    """
+    if force_voice_mode is None and customer_phone:
+        try:
+            from discount.services.checkout_state import is_force_voice_mode
+
+            force_voice_mode = is_force_voice_mode(channel, customer_phone)
+        except Exception:
+            force_voice_mode = False
+    mode = resolve_sales_prompt_response_mode(channel, node)
+    if mode == "text_only":
+        return False
+    if mode == "voice_enabled":
+        return True
+    if mode == "auto":
+        if force_voice_mode:
+            return True
+        rtype = ""
+        if isinstance(result, dict):
+            rtype = str(result.get("reply_type") or "").strip().lower()
+        if rtype == "voice":
+            return True
+        if rtype == "text":
+            return False
+        return False
+    return False
 
 
 def node_reply_prefers_tts(channel, node=None) -> bool:
@@ -187,7 +237,7 @@ def node_reply_prefers_tts(channel, node=None) -> bool:
             return False
         if rm == "AUDIO_ONLY":
             return True
-        if rm == "AUTO_SMART":
+        if rm in ("AUTO_SMART", "AUTO"):
             return False
         if getattr(node, "voice_enabled", False):
             return True
@@ -207,12 +257,14 @@ def should_inject_tts_dialect_prompt(channel, node=None) -> bool:
         return False
     if getattr(channel, "ai_voice_enabled", False):
         return True
+    if (getattr(channel, "response_mode", None) or "").strip().lower() in ("voice_enabled", "auto"):
+        return True
     if node is None:
         return False
     rm = (getattr(node, "response_mode", None) or "").strip()
     if rm == "TEXT_ONLY":
         return False
-    if rm in ("AUDIO_ONLY", "AUTO_SMART"):
+    if rm in ("AUDIO_ONLY", "AUTO_SMART", "AUTO"):
         return True
     if getattr(node, "voice_enabled", False):
         return True

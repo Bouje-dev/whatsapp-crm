@@ -80,7 +80,12 @@ def update_channel_settings(request):
 
         # AI Voice & Sales Intelligence
         channel.ai_auto_reply = request.POST.get('ai_auto_reply') == 'on'
-        channel.ai_voice_enabled = request.POST.get('ai_voice_enabled') == 'on'
+        _rm = (request.POST.get('response_mode') or '').strip().lower()
+        if _rm not in ('text_only', 'voice_enabled', 'auto'):
+            _rm = 'voice_enabled' if request.POST.get('ai_voice_enabled') == 'on' else 'text_only'
+        if hasattr(channel, 'response_mode'):
+            channel.response_mode = _rm
+        channel.ai_voice_enabled = _rm == 'voice_enabled'
         channel.voice_provider = request.POST.get('voice_provider', 'OPENAI').strip() or 'OPENAI'
         if channel.voice_provider not in ('OPENAI', 'ELEVENLABS'):
             channel.voice_provider = 'OPENAI'
@@ -118,6 +123,8 @@ def update_channel_settings(request):
             channel.ai_auto_reply = False
         if not _store_can_feature(channel, 'ai_voice'):
             channel.ai_voice_enabled = False
+            if hasattr(channel, 'response_mode') and channel.response_mode in ('voice_enabled', 'auto'):
+                channel.response_mode = 'text_only'
         # Voice Studio
         if hasattr(channel, 'voice_language'):
             channel.voice_language = request.POST.get('voice_language', 'AUTO').strip() or 'AUTO'
@@ -184,6 +191,9 @@ def update_channel_settings(request):
                 'enable_welcome_msg': channel.enable_welcome_msg,
                 'ai_auto_reply': getattr(channel, 'ai_auto_reply', False),
                 'ai_voice_enabled': getattr(channel, 'ai_voice_enabled', False),
+                'response_mode': getattr(channel, 'response_mode', None) or (
+                    'voice_enabled' if getattr(channel, 'ai_voice_enabled', False) else 'text_only'
+                ),
                 'voice_provider': getattr(channel, 'voice_provider', 'OPENAI'),
                 'voice_gender': getattr(channel, 'voice_gender', 'FEMALE'),
                 'voice_delay_seconds': getattr(channel, 'voice_delay_seconds', 20),
@@ -622,6 +632,9 @@ def get_channel_settings(request):
             # AI Voice & Sales
             'ai_auto_reply': getattr(channel, 'ai_auto_reply', False),
             'ai_voice_enabled': getattr(channel, 'ai_voice_enabled', False),
+            'response_mode': getattr(channel, 'response_mode', None) or (
+                'voice_enabled' if getattr(channel, 'ai_voice_enabled', False) else 'text_only'
+            ),
             'voice_provider': getattr(channel, 'voice_provider', 'OPENAI'),
             'voice_gender': getattr(channel, 'voice_gender', 'FEMALE'),
             'voice_delay_seconds': getattr(channel, 'voice_delay_seconds', 20),

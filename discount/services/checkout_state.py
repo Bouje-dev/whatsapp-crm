@@ -147,6 +147,29 @@ def get_or_create_checkout_state(channel, customer_phone: str):
     return state
 
 
+def is_force_voice_mode(channel, customer_phone: str) -> bool:
+    """True when this chat is locked to TTS (accessibility / customer asked for audio)."""
+    state = get_or_create_checkout_state(channel, customer_phone)
+    return bool(state and getattr(state, "force_voice_mode", False))
+
+
+def set_force_voice_mode(channel, customer_phone: str, enabled: bool = True) -> bool:
+    """
+    Persist accessibility voice-only mode for (channel, phone).
+
+    Kept across checkout reset so later orders in the same chat stay spoken.
+    """
+    state = get_or_create_checkout_state(channel, customer_phone)
+    if not state:
+        return False
+    flag = bool(enabled)
+    if bool(getattr(state, "force_voice_mode", False)) == flag:
+        return True
+    state.force_voice_mode = flag
+    state.save(update_fields=["force_voice_mode", "updated_at"])
+    return True
+
+
 def reset_checkout_state(channel, customer_phone: str) -> None:
     """Clear slots after order complete / hard reset / product pivot."""
     from discount.models import WhatsAppCheckoutState

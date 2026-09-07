@@ -3178,6 +3178,36 @@ def _execute_send_voice_note(channel, sender, text=""):
         )
 
 
+def _execute_enable_voice_only_mode(channel, sender):
+    """Lock this chat to TTS replies (accessibility / customer asked for audio)."""
+    try:
+        from discount.services.checkout_state import set_force_voice_mode
+
+        ok = set_force_voice_mode(channel, sender, True)
+        if not ok:
+            return json.dumps(
+                {"success": False, "status": "error", "message": "Could not save voice-only mode."},
+                ensure_ascii=False,
+            )
+        return json.dumps(
+            {
+                "success": True,
+                "status": "voice_only_enabled",
+                "force_voice_mode": True,
+                "instruction": (
+                    "Accessibility voice mode is ON for this customer. "
+                    "Every following reply MUST use reply_type voice (TTS formatting: pauses, no emojis). "
+                    "Do not switch back to text for data collection or receipts. "
+                    "Bank details / RIB still use text with [NO_TTS]."
+                ),
+            },
+            ensure_ascii=False,
+        )
+    except Exception as e:
+        logger.exception("_execute_enable_voice_only_mode failed: %s", e)
+        return json.dumps({"success": False, "status": "error", "message": str(e)}, ensure_ascii=False)
+
+
 def _voice_note_tool_succeeded(content) -> bool:
     try:
         data = json.loads(content) if isinstance(content, str) else (content or {})
@@ -3869,7 +3899,10 @@ def run_ai_agent_node(
         # Agent name: when voice reply is on use persona name or Chuck; when off use a random name (AI thinks as human)
         response_mode = getattr(current_node, "response_mode", None) or ""
         voice_enabled_legacy = getattr(current_node, "voice_enabled", False)
-        voice_reply_on = (response_mode == "AUDIO_ONLY") or (response_mode == "AUTO_SMART") or voice_enabled_legacy
+        voice_reply_on = (
+            response_mode in ("AUDIO_ONLY", "AUTO_SMART", "AUTO")
+            or voice_enabled_legacy
+        )
         agent_name = get_agent_name_for_node(voice_reply_on, persona, market=market)
         trust_score = get_trust_score(channel.id, sender) if channel else 0
 
@@ -4342,7 +4375,7 @@ def run_ai_agent_node(
                     result.get("prompt_tokens", 0),
                     result.get("completion_tokens", 0),
                 )
-        tool_calls_for_info = [tc for tc in (result.get("tool_calls") or []) if tc.get("name") in ("check_stock", "apply_discount", "track_order", "search_products", "switch_active_product", "send_product_media", "send_voice_note", "analyze_url", "submit_customer_order", "send_whatsapp_flow", "use_voice_checkout", "register_support_complaint", "flag_order_for_review", "escalate_missing_info", "save_order", "record_order", "update_lead_status", "add_upsell_to_existing_order", "update_order_notes")]
+        tool_calls_for_info = [tc for tc in (result.get("tool_calls") or []) if tc.get("name") in ("check_stock", "apply_discount", "track_order", "search_products", "switch_active_product", "send_product_media", "send_voice_note", "enable_voice_only_mode", "analyze_url", "submit_customer_order", "send_whatsapp_flow", "use_voice_checkout", "register_support_complaint", "flag_order_for_review", "escalate_missing_info", "save_order", "record_order", "update_lead_status", "add_upsell_to_existing_order", "update_order_notes")]
         first_result_order_tools = [tc for tc in (result.get("tool_calls") or []) if tc.get("name") in ("save_order", "record_order")]
         submit_order_success_outcome = None
         save_order_result_order = None  # order from save_order/record_order when executed in loop
@@ -4448,6 +4481,15 @@ def run_ai_agent_node(
                         channel,
                         sender,
                         "AI agent sent a WhatsApp voice note.",
+                        author_name=agent_name,
+                    )
+                elif name == "enable_voice_only_mode":
+                    content = _execute_enable_voice_only_mode(channel, sender)
+                    tool_results.append({"tool_call_id": tcid, "content": content})
+                    _add_ai_action_note(
+                        channel,
+                        sender,
+                        "AI enabled accessibility voice-only mode for this chat.",
                         author_name=agent_name,
                     )
                 elif name == "use_voice_checkout":
@@ -5465,12 +5507,29 @@ def run_ai_agent_node(
 
         response_mode = getattr(current_node, "response_mode", None) or ""
         voice_enabled_legacy = getattr(current_node, "voice_enabled", False)
-        word_count = len((reply_text or "").split())
-        use_voice = (
-            (response_mode == "AUDIO_ONLY") or
-            (response_mode == "AUTO_SMART" and word_count >= 15) or
-            (response_mode not in ("TEXT_ONLY", "AUDIO_ONLY", "AUTO_SMART") and voice_enabled_legacy)
-        )
+        try:
+            from discount.services.voice_dialect import should_send_sales_reply_as_voice
+
+            use_voice = should_send_sales_reply_as_voice(
+                channel, current_node, result=result, reply_text=reply_text, customer_phone=sender
+            )
+        except Exception:
+            word_count = len((reply_text or "").split())
+            use_voice = (
+                (response_mode == "AUDIO_ONLY") or
+                (response_mode in ("AUTO_SMART", "AUTO") and word_count >= 15) or
+                (response_mode not in ("TEXT_ONLY", "AUDIO_ONLY", "AUTO_SMART", "AUTO") and voice_enabled_legacy)
+            )
+        if use_voice and store:
+            try:
+                from django.core.exceptions import PermissionDenied
+                from discount.services.security_check import verify_plan_access, FEATURE_AI_VOICE
+
+                verify_plan_access(store, FEATURE_AI_VOICE)
+            except PermissionDenied:
+                use_voice = False
+            except Exception:
+                pass
         if _voice_note_sent_success:
             # Dedicated PTT already sent this turn — do not TTS the whole reply again.
             use_voice = False
@@ -6364,7 +6423,9 @@ def try_ai_voice_reply(
     _vd_persona = getattr(_vd_node, "persona", None) if _vd_node else None
     _vd_rm = (getattr(_vd_node, "response_mode", None) or "") if _vd_node else ""
     _vd_vleg = bool(getattr(_vd_node, "voice_enabled", False)) if _vd_node else False
-    _voice_reply_on_path = (_vd_rm == "AUDIO_ONLY") or (_vd_rm == "AUTO_SMART") or _vd_vleg
+    _voice_reply_on_path = (
+        _vd_rm in ("AUDIO_ONLY", "AUTO_SMART", "AUTO") or _vd_vleg
+    )
     voice_path_agent_name = get_agent_name_for_node(_voice_reply_on_path, _vd_persona, market=market)
 
     # Keep fallback context lean: do not inject the full store catalog each turn.
@@ -6732,6 +6793,15 @@ def try_ai_voice_reply(
                     channel,
                     sender,
                     "AI agent sent a WhatsApp voice note.",
+                    author_name=voice_path_agent_name,
+                )
+            elif name == "enable_voice_only_mode":
+                content = _execute_enable_voice_only_mode(channel, sender)
+                tool_results.append({"tool_call_id": tcid, "content": content})
+                _add_ai_action_note(
+                    channel,
+                    sender,
+                    "AI enabled accessibility voice-only mode for this chat.",
                     author_name=voice_path_agent_name,
                 )
             elif name == "add_upsell_to_existing_order":
@@ -7144,7 +7214,14 @@ def try_ai_voice_reply(
     if not reply_text:
         return
 
-    use_voice = getattr(channel, "ai_voice_enabled", False)
+    try:
+        from discount.services.voice_dialect import should_send_sales_reply_as_voice
+
+        use_voice = should_send_sales_reply_as_voice(
+            channel, _vd_node, result=result, reply_text=reply_text, customer_phone=sender
+        )
+    except Exception:
+        use_voice = getattr(channel, "ai_voice_enabled", False)
     if _voice_note_sent_success_voice:
         use_voice = False
     if use_voice:
@@ -7525,6 +7602,20 @@ def process_messages(
                 access_token = channel.access_token
             if not access_token:
                 access_token = ACCESS_TOKEN
+
+            if message_type in ("audio", "voice") and channel and sender:
+                try:
+                    from discount.services.checkout_state import set_force_voice_mode
+
+                    set_force_voice_mode(channel, sender, True)
+                    logger.info(
+                        "force_voice_mode ON (inbound %s) channel=%s phone=…%s",
+                        message_type,
+                        getattr(channel, "id", None),
+                        str(sender)[-4:],
+                    )
+                except Exception as _fv_err:
+                    logger.warning("force_voice_mode from inbound audio failed: %s", _fv_err)
 
             if message_type in ("audio", "voice") and access_token:
                 # Full Autopilot must be on to run Whisper (no transcription when autopilot is off)

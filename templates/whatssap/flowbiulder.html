@@ -3385,7 +3385,7 @@ this.connectionBranch = null;
                         <select class="form-select ai-agent-response-mode">
                             <option value="TEXT_ONLY">Text only — Fast and cheap</option>
                             <option value="AUDIO_ONLY">Audio only — High-trust (voice)</option>
-                            <option value="AUTO_SMART">Auto — Text for short, Audio for pitch/closing</option>
+                            <option value="AUTO">Auto — AI chooses text or voice</option>
                         </select>
                     </div>
                     <div class="form-group form-check" style="margin-top:10px;">
@@ -5937,7 +5937,9 @@ this.connectionBranch = null;
                     const aiDelayEl = node.querySelector('.ai-agent-delay');
                     if (aiDelayEl && content.delay !== undefined) aiDelayEl.value = content.delay;
                     const responseModeEl = node.querySelector('.ai-agent-response-mode');
-                    if (responseModeEl && content.response_mode) responseModeEl.value = content.response_mode;
+                    if (responseModeEl && content.response_mode) {
+                        responseModeEl.value = content.response_mode === 'AUTO_SMART' ? 'AUTO' : content.response_mode;
+                    }
                     const hybridEl = node.querySelector('.ai-agent-hybrid-checkout');
                     if (hybridEl) {
                         let hybridVal = content.hybrid_checkout;

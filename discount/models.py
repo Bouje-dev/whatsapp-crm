@@ -1772,6 +1772,18 @@ class WhatsAppChannel(models.Model):
     # --- 5. AI Voice & Sales Intelligence ---
     ai_auto_reply = models.BooleanField(default=False, help_text="Full autopilot: AI replies when no flow matches")
     ai_voice_enabled = models.BooleanField(default=False, help_text="Send AI replies as voice messages")
+    CHANNEL_RESPONSE_MODE_CHOICES = [
+        ("text_only", "Text only"),
+        ("voice_enabled", "Voice enabled"),
+        ("auto", "Auto (AI chooses text or voice)"),
+    ]
+    response_mode = models.CharField(
+        max_length=20,
+        choices=CHANNEL_RESPONSE_MODE_CHOICES,
+        default="text_only",
+        blank=True,
+        help_text="Store reply delivery: text_only, voice_enabled, or auto (LLM chooses per turn).",
+    )
     voice_provider = models.CharField(
         max_length=20,
         choices=[('OPENAI', 'OpenAI TTS'), ('ELEVENLABS', 'ElevenLabs')],
@@ -2602,11 +2614,12 @@ class Node(models.Model):
     RESPONSE_MODE_CHOICES = [
         ("TEXT_ONLY", "Text only"),
         ("AUDIO_ONLY", "Audio only"),
-        ("AUTO_SMART", "Auto (text for short, audio for pitch/closing)"),
+        ("AUTO_SMART", "Auto (AI chooses text or voice)"),
+        ("AUTO", "Auto (AI chooses text or voice)"),
     ]
     response_mode = models.CharField(
         max_length=20, choices=RESPONSE_MODE_CHOICES, default="TEXT_ONLY", blank=True,
-        help_text="TEXT_ONLY, AUDIO_ONLY, or AUTO_SMART",
+        help_text="TEXT_ONLY, AUDIO_ONLY, AUTO, or AUTO_SMART",
     )
     node_voice_id = models.CharField(max_length=100, blank=True, null=True, help_text="Voice ID for this node (e.g. ElevenLabs) – legacy; prefer persona")
     node_language = models.CharField(max_length=20, blank=True, null=True, help_text="e.g. AR_MA, FR_FR, EN_US")
@@ -2835,6 +2848,14 @@ class WhatsAppCheckoutState(models.Model):
         blank=True,
         default="",
         help_text="Merchant answer to integrate on the next AI turn (not sent immediately).",
+    )
+    force_voice_mode = models.BooleanField(
+        default=False,
+        db_index=True,
+        help_text=(
+            "Accessibility: customer sent a voice note or asked for audio. "
+            "When Auto reply format is on, every subsequent AI reply is TTS."
+        ),
     )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)

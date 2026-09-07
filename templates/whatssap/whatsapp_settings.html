@@ -971,8 +971,17 @@
                                                     </select>
                                                     <span class="d-inline-block mt-1" data-bs-toggle="tooltip" title="Auto: the bot replies in the language the customer uses (French, English, or Arabic dialect). Fixed options lock one language for all customers."><i class="fas fa-info-circle text-muted small"></i></span>
                                                 </div>
+                                                <div class="mb-3">
+                                                    <label class="form-label text-muted small mb-1" for="channel_response_mode">Reply format</label>
+                                                    <select name="response_mode" class="form-select form-select-sm modern-input" id="channel_response_mode">
+                                                        <option value="text_only" {% if channel.response_mode == 'text_only' or not channel.response_mode and not channel.ai_voice_enabled %}selected{% endif %}>Text only</option>
+                                                        <option value="voice_enabled" {% if channel.response_mode == 'voice_enabled' or not channel.response_mode and channel.ai_voice_enabled %}selected{% endif %}>Voice enabled</option>
+                                                        <option value="auto" {% if channel.response_mode == 'auto' %}selected{% endif %}>Auto — AI chooses text or voice</option>
+                                                    </select>
+                                                    <small class="text-muted d-block mt-1">Auto uses voice only for trust, hesitation, and order congratulations — text for data and prices (saves TTS cost).</small>
+                                                </div>
                                                 <div class="automation-voice-switches">
-                                                    <div class="form-check form-switch mb-2">
+                                                    <div class="form-check form-switch mb-2 d-none">
                                                         <input class="form-check-input" type="checkbox" name="ai_voice_enabled" id="switch_ai_voice" {% if channel.ai_voice_enabled %}checked{% endif %}>
                                                         <label class="form-check-label text-muted" for="switch_ai_voice">Send as voice</label>
                                                     </div>
@@ -1850,6 +1859,9 @@
         }
 
         $(function() {
+            $(document).on('change', '#channel_response_mode', function() {
+                $('input[name="ai_voice_enabled"]').prop('checked', $(this).val() === 'voice_enabled');
+            });
             $(document).on('click', '#btn_voice_gallery', function() {
                 var el = document.getElementById('voiceGalleryModal');
                 if (el && typeof bootstrap !== 'undefined' && bootstrap.Modal) {
@@ -1933,7 +1945,12 @@
                 $('#voice_delay_slider').val(data.voice_delay_seconds || 20);
                 $('#voice_delay_value').text(data.voice_delay_seconds || 20);
                 $('input[name="ai_auto_reply"]').prop('checked', !!data.ai_auto_reply);
-                $('input[name="ai_voice_enabled"]').prop('checked', !!data.ai_voice_enabled);
+                var rm = data.response_mode || (data.ai_voice_enabled ? 'voice_enabled' : 'text_only');
+                $('select[name="response_mode"]').val(rm);
+                $('input[name="ai_voice_enabled"]').prop('checked', rm === 'voice_enabled');
+                $('#channel_response_mode').off('change.responseMode').on('change.responseMode', function() {
+                    $('input[name="ai_voice_enabled"]').prop('checked', $(this).val() === 'voice_enabled');
+                });
                 $('select[name="voice_provider"]').val(data.voice_provider || 'OPENAI');
                 $('select[name="voice_gender"]').val(data.voice_gender || 'FEMALE');
                 $('input[name="ai_order_capture"]').prop('checked', data.ai_order_capture !== false);
