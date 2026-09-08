@@ -175,25 +175,77 @@ def generate_order_tool_schema(product_id, seller_id=None, channel=None) -> Opti
     }
 
 
+_LEGACY_ORDER_TOOLS = frozenset({"save_order", "record_order"})
+_SALES_TURN_TOOLS = frozenset({
+    "search_products",
+    "switch_active_product",
+    "send_product_media",
+    "analyze_url",
+    "send_voice_note",
+    "enable_voice_only_mode",
+    "check_stock",
+    "apply_discount",
+    "escalate_missing_info",
+    "track_order",
+    "update_lead_status",
+    "submit_customer_order",
+    "use_voice_checkout",
+    "send_whatsapp_flow",
+})
+_POST_SALE_TURN_TOOLS = frozenset({
+    "register_support_complaint",
+    "flag_order_for_review",
+    "add_upsell_to_existing_order",
+    "update_order_notes",
+})
+
+
+def _filter_tools_for_conversation_state(
+    tools: list[dict[str, Any]],
+    *,
+    conversation_state: Optional[str] = None,
+    product_id=None,
+    include_whatsapp_flow: bool = False,
+) -> list[dict[str, Any]]:
+    """Drop unused schemas so OpenAI TPM stays under the org limit."""
+    state = (conversation_state or "").strip().upper().replace(" ", "_")
+    allowed = set(_SALES_TURN_TOOLS)
+    if state in ("POST_SALE_SUPPORT", "AWAITING_PAYMENT_RECEIPT"):
+        allowed |= _POST_SALE_TURN_TOOLS
+        allowed.discard("apply_discount")
+        if state == "AWAITING_PAYMENT_RECEIPT":
+            allowed.discard("use_voice_checkout")
+            allowed.discard("send_whatsapp_flow")
+    allowed -= _LEGACY_ORDER_TOOLS
+    if product_id is None:
+        allowed -= {"submit_customer_order", "send_whatsapp_flow", "use_voice_checkout"}
+    if not include_whatsapp_flow:
+        allowed.discard("send_whatsapp_flow")
+    return [
+        t for t in tools
+        if (t.get("function") or {}).get("name") in allowed
+    ]
+
+
 def build_sales_tools_for_product(
     product_id,
     seller_id=None,
     *,
     include_whatsapp_flow: bool = False,
     channel=None,
+    conversation_state: Optional[str] = None,
 ) -> list[dict[str, Any]]:
     """Replace static submit tool with product schema; optionally add send_whatsapp_flow."""
     from ai_assistant.services import SALES_AGENT_TOOLS
 
     tools = list(SALES_AGENT_TOOLS)
-    # No locked product → strip order + flow tools so the model cannot checkout blindly.
     if product_id is None:
-        tools = [
-            t
-            for t in tools
-            if (t.get("function") or {}).get("name")
-            not in ("submit_customer_order", "send_whatsapp_flow", "use_voice_checkout")
-        ]
+        tools = _filter_tools_for_conversation_state(
+            tools,
+            conversation_state=conversation_state,
+            product_id=None,
+            include_whatsapp_flow=False,
+        )
         return tools
 
     dynamic = generate_order_tool_schema(product_id, seller_id=seller_id, channel=channel)
@@ -203,7 +255,12 @@ def build_sales_tools_for_product(
     if include_whatsapp_flow:
         if not any((t.get("function") or {}).get("name") == "send_whatsapp_flow" for t in tools):
             tools.append(SEND_WHATSAPP_FLOW_TOOL)
-    return tools
+    return _filter_tools_for_conversation_state(
+        tools,
+        conversation_state=conversation_state,
+        product_id=product_id,
+        include_whatsapp_flow=include_whatsapp_flow,
+    )
 
 
 def get_collected_order_fields(session_context: Optional[dict]) -> dict[str, str]:

@@ -4292,6 +4292,7 @@ def run_ai_agent_node(
                     seller_id=getattr(store_owner, "id", None),
                     include_whatsapp_flow=_include_flow_tool,
                     channel=channel,
+                    conversation_state=conversation_state,
                 )
             else:
                 # Strip submit/flow tools until active_product is locked.
@@ -4300,6 +4301,7 @@ def run_ai_agent_node(
                     seller_id=getattr(store_owner, "id", None),
                     include_whatsapp_flow=False,
                     channel=channel,
+                    conversation_state=conversation_state,
                 )
         except Exception as _ord_orch_err:
             logger.warning("order checkout orchestration: %s", _ord_orch_err)
@@ -6658,6 +6660,7 @@ def try_ai_voice_reply(
             seller_id=getattr(store, "id", None),
             include_whatsapp_flow=False,
             channel=channel,
+            conversation_state=voice_conversation_state,
         )
     except Exception as _vt_err:
         logger.debug("voice build_sales_tools_for_product: %s", _vt_err)
@@ -7432,10 +7435,12 @@ def remove_emojis(text):
     return "".join(c for c in text if c <= '\uFFFF')
 
 @csrf_exempt
-
 def whatsapp_webhook(request):
     """
     ويب هوك واتساب محسن - يدعم الإعلانات ويحل مشكلة الإيموجي
+
+    POST returns 200 immediately. Heavy AI/TTS runs in a background thread so
+    Daphne can still serve the dashboard (avoids Railway 502 while GPT is busy).
     """
     if request.method == "GET":
         mode = request.GET.get("hub.mode", "subscribe")
@@ -7445,128 +7450,130 @@ def whatsapp_webhook(request):
             return HttpResponse(challenge)
         else:
             return HttpResponse(status=403)
-                
+
     elif request.method == "POST":
         try:
             data = json.loads(request.body.decode("utf-8"))
-            
-        
-              
-            for entry in data.get("entry", []):
-                for change in entry.get("changes", []):
-                    value = change.get("value", {})
-                    # 🔥 1. استخراج معرف الرقم الذي استقبل الرسالة 🔥
-                    metadata = value.get('metadata', {})
-                    phone_number_id = metadata.get('phone_number_id')
-                    
-
-                    
-                    # 🔥 2. البحث عن القناة في قاعدة بياناتنا 🔥
-                    try:
-                        active_channel = WhatsAppChannel.objects.get(phone_number_id=phone_number_id)
-                    except WhatsAppChannel.DoesNotExist:
-                        print(f"❌ رسالة لرقم غير مسجل عندنا: {phone_number_id}")
-                        continue
-
-                    # Blocked customer gate — acknowledge Meta but skip all processing
-                    _inbound_phones = set()
-                    if "messages" in value:
-                        for _msg in value.get("messages", []):
-                            _sender = (_msg.get("from") or "").strip()
-                            if _sender:
-                                _inbound_phones.add(_sender)
-                    if "contacts" in value:
-                        for _contact in value.get("contacts", []):
-                            _wa_id = (_contact.get("wa_id") or "").strip()
-                            if _wa_id:
-                                _inbound_phones.add(_wa_id)
-                    if _inbound_phones:
-                        from discount.services.blocked_customers import any_blocked_in_batch
-                        if any_blocked_in_batch(active_channel, _inbound_phones):
-                            logger.info(
-                                "Blocked inbound webhook channel=%s phones=…%s — skipped",
-                                getattr(active_channel, "id", None),
-                                next(iter(_inbound_phones))[-4:],
-                            )
-                            continue
-
-                    contact_just_created_for_batch = None
-                    created = False
-                    raw_name = ""
-
-                    if 'contacts' in value:
-                        contact_data = value.get('contacts', [{}])[0]
-                        phone = contact_data.get('wa_id')
-                        raw_name = contact_data.get('profile', {}).get('name', '')
-                        
-                        safe_name = remove_emojis(raw_name)
-
-                        if phone:
-                            try:
-                                active_channel = WhatsAppChannel.objects.filter(phone_number_id=phone_number_id).first()
-                               
-                            except WhatsAppChannel.DoesNotExist:
-                                print(f"❌ Error: Channel not found for ID {phone_number_id}")
-                                return HttpResponse("Channel not found", status=200) 
-                            channel_owner = active_channel.owner
-                            # --- Strict Sticky Routing: existing contacts keep their assigned_agent ---
-                            # New contact: Full Autopilot ON → AI (None); OFF → Weighted distribution
-                            ai_auto = getattr(active_channel, "ai_auto_reply", False)
-                            contact, created = Contact.objects.get_or_create(
-                                phone=phone,
-                                channel=active_channel,
-                                defaults={
-                                    'user': channel_owner,
-                                    'name': safe_name,
-                                    'assigned_agent': None,  # set below: AI (if autopilot) or weighted routing (else)
-                                }
-                            )
-                            contact_just_created_for_batch = bool(created)
-                            # Weighted Chat Routing: new contact only, when not Full Autopilot
-                            if created and not ai_auto:
-                                try:
-                                    from discount.whatssapAPI.chat_routing import run_weighted_routing_for_new_contact
-                                    run_weighted_routing_for_new_contact(contact, active_channel)
-                                except Exception as e:
-                                    import logging
-                                    logging.getLogger(__name__).exception("chat_routing: %s", e)
-                                    # Keep default (channel_owner) if routing fails
-                                    if not contact.assigned_agent_id:
-                                        contact.assigned_agent = channel_owner
-                                        contact.save(update_fields=["assigned_agent"])
-
-                       
-                        if not created and not contact.channel:
-                            contact.channel = active_channel
-                            contact.user = channel_owner
-                            pipeline_stage=Contact.PipelineStage.NEW
-                            contact.pipeline_stage = pipeline_stage
-                            contact.save()        
-                           
-                            if safe_name and (created or contact.name != safe_name):
-                                contact.name = safe_name
-                                contact.last_interaction = timezone.now()
-                                contact.save()
-                 
-                    if 'messages' in value:
-                        process_messages(
-                            value.get("messages", []),
-                            channel=active_channel,
-                            name=raw_name,
-                            contact_just_created=contact_just_created_for_batch,
-                        )
-
-                    if 'statuses' in value:
-
-                        process_message_statuses(value['statuses'] , channel=active_channel)
-
-            return HttpResponse("EVENT_RECEIVED", status=200)
-            
         except Exception as e:
-            print(f"❌ Webhook error: {e}")
-            import traceback
-            traceback.print_exc()
-            return HttpResponse("ERROR", status=500)
+            logger.warning("WhatsApp webhook invalid JSON: %s", e)
+            return HttpResponse("ERROR", status=400)
+        t = threading.Thread(
+            target=_run_whatsapp_webhook_job,
+            args=(data,),
+            daemon=True,
+            name="wa-webhook",
+        )
+        t.start()
+        return HttpResponse("EVENT_RECEIVED", status=200)
+
+    return HttpResponse(status=405)
+
+
+def _run_whatsapp_webhook_job(data):
+    from django.db import close_old_connections
+
+    close_old_connections()
+    try:
+        _handle_whatsapp_webhook_payload(data)
+    except Exception:
+        logger.exception("Background WhatsApp webhook failed")
+    finally:
+        close_old_connections()
+
+
+def _handle_whatsapp_webhook_payload(data):
+    for entry in data.get("entry", []):
+        for change in entry.get("changes", []):
+            value = change.get("value", {})
+            metadata = value.get("metadata", {})
+            phone_number_id = metadata.get("phone_number_id")
+
+            try:
+                active_channel = WhatsAppChannel.objects.get(phone_number_id=phone_number_id)
+            except WhatsAppChannel.DoesNotExist:
+                print(f"❌ رسالة لرقم غير مسجل عندنا: {phone_number_id}")
+                continue
+
+            _inbound_phones = set()
+            if "messages" in value:
+                for _msg in value.get("messages", []):
+                    _sender = (_msg.get("from") or "").strip()
+                    if _sender:
+                        _inbound_phones.add(_sender)
+            if "contacts" in value:
+                for _contact in value.get("contacts", []):
+                    _wa_id = (_contact.get("wa_id") or "").strip()
+                    if _wa_id:
+                        _inbound_phones.add(_wa_id)
+            if _inbound_phones:
+                from discount.services.blocked_customers import any_blocked_in_batch
+                if any_blocked_in_batch(active_channel, _inbound_phones):
+                    logger.info(
+                        "Blocked inbound webhook channel=%s phones=…%s — skipped",
+                        getattr(active_channel, "id", None),
+                        next(iter(_inbound_phones))[-4:],
+                    )
+                    continue
+
+            contact_just_created_for_batch = None
+            created = False
+            raw_name = ""
+
+            if "contacts" in value:
+                contact_data = value.get("contacts", [{}])[0]
+                phone = contact_data.get("wa_id")
+                raw_name = contact_data.get("profile", {}).get("name", "")
+
+                safe_name = remove_emojis(raw_name)
+
+                if phone:
+                    active_channel = WhatsAppChannel.objects.filter(phone_number_id=phone_number_id).first()
+                    if not active_channel:
+                        print(f"❌ Error: Channel not found for ID {phone_number_id}")
+                        continue
+                    channel_owner = active_channel.owner
+                    ai_auto = getattr(active_channel, "ai_auto_reply", False)
+                    contact, created = Contact.objects.get_or_create(
+                        phone=phone,
+                        channel=active_channel,
+                        defaults={
+                            "user": channel_owner,
+                            "name": safe_name,
+                            "assigned_agent": None,
+                        },
+                    )
+                    contact_just_created_for_batch = bool(created)
+                    if created and not ai_auto:
+                        try:
+                            from discount.whatssapAPI.chat_routing import run_weighted_routing_for_new_contact
+                            run_weighted_routing_for_new_contact(contact, active_channel)
+                        except Exception as e:
+                            logging.getLogger(__name__).exception("chat_routing: %s", e)
+                            if not contact.assigned_agent_id:
+                                contact.assigned_agent = channel_owner
+                                contact.save(update_fields=["assigned_agent"])
+
+                    if not created and not contact.channel:
+                        contact.channel = active_channel
+                        contact.user = channel_owner
+                        contact.pipeline_stage = Contact.PipelineStage.NEW
+                        contact.save()
+
+                        if safe_name and (created or contact.name != safe_name):
+                            contact.name = safe_name
+                            contact.last_interaction = timezone.now()
+                            contact.save()
+
+            if "messages" in value:
+                process_messages(
+                    value.get("messages", []),
+                    channel=active_channel,
+                    name=raw_name,
+                    contact_just_created=contact_just_created_for_batch,
+                )
+
+            if "statuses" in value:
+                process_message_statuses(value["statuses"], channel=active_channel)
 
 
 def process_messages(

@@ -156,11 +156,19 @@ ASGI_APPLICATION = 'disound.asgi.application'
 #     },
 # }
 
+_REDIS_URL = os.environ.get("REDIS_URL", "redis://127.0.0.1:6379")
+
 CHANNEL_LAYERS = {
     "default": {
         "BACKEND": "channels_redis.core.RedisChannelLayer",
         "CONFIG": {
-            "hosts": [os.environ.get('REDIS_URL', 'redis://127.0.0.1:6379')],
+            "hosts": [
+                {
+                    "address": _REDIS_URL,
+                    "socket_connect_timeout": 2,
+                    "socket_timeout": 3,
+                }
+            ],
         },
     },
 }
@@ -336,6 +344,10 @@ else:
         'default': {
             'BACKEND': 'django.core.cache.backends.redis.RedisCache',
             'LOCATION': os.environ.get('REDIS_URL', 'redis://127.0.0.1:6379'),
+            'OPTIONS': {
+                'socket_connect_timeout': 2,
+                'socket_timeout': 3,
+            },
         }
     }
 

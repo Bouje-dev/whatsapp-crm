@@ -24,10 +24,12 @@ from django.conf import settings
 from django.conf.urls.static import static
 from django.contrib.staticfiles.urls import staticfiles_urlpatterns
 from django.conf.urls import handler404
+from django.http import HttpResponse
 from django.shortcuts import render
 
  
 urlpatterns = [    
+    path("healthz/", lambda request: HttpResponse("ok", content_type="text/plain"), name="healthz"),
     # whatssap API cloud 
     path('discount/whatssapAPI/', include('discount.whatssapAPI.urls')),
    
