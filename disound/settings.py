@@ -234,7 +234,6 @@ USE_TZ = True
 # STATICFILES_STORAGE = 'whitenoise.storage.CompressedStaticFilesStorage'
 
 # STATICFILES_STORAGE = 'whitenoise.storage.CompressedStaticFilesStorage'
-EMAIL_PORT = 587
 
  
 ALLOWED_HOSTS = ['*']  
@@ -305,12 +304,11 @@ KEY = 'k76TMkpykna7wyWyNS4KYdZC-NK_XfoXvWMPLacwVAY='
  
 # Hostinger mailbox SMTP — send as support@waselytics.com
 # Port 465 = SSL. For 587 set EMAIL_PORT=587 (STARTTLS).
-EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
+EMAIL_BACKEND = "discount.email_backend.IPv4EmailBackend"
 EMAIL_HOST = os.environ.get("EMAIL_HOST", "smtp.hostinger.com")
 EMAIL_PORT = int(os.environ.get("EMAIL_PORT", "465"))
+EMAIL_TIMEOUT = int(os.environ.get("EMAIL_TIMEOUT", "20"))
 EMAIL_HOST_USER = os.environ.get("EMAIL_HOST_USER", "support@waselytics.com").strip()
-if "@smtp-brevo.com" in EMAIL_HOST_USER:
-    EMAIL_HOST_USER = "support@waselytics.com"
 EMAIL_HOST_PASSWORD = os.environ.get("EMAIL_HOST_PASSWORD", "")
 if EMAIL_PORT == 465:
     EMAIL_USE_SSL = True

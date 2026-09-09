@@ -1,5 +1,6 @@
 from ast import Assign
 import logging
+import smtplib
 from multiprocessing import context
 from django.conf import settings
 from .models import CODProduct ,SimpleOrder , CustomUser ,TeamInvitation , ExternalTokenmodel , Products , Activity ,UserProductPermission,Order, Plan
@@ -140,6 +141,8 @@ def calculate_percentage_change(old_value, new_value):
 
 
 from django.contrib.auth import authenticate, login
+from django.contrib.auth.views import PasswordResetView
+
 
 def login_user(request):
     error = ""
@@ -164,6 +167,35 @@ def login_user(request):
                 log_activity('login_failed', f"Failed login attempt for {email}", request=request, defer=False)
                 error = "Invalid email or password."
     return render(request, 'user/login.html', {'error': error})
+
+
+logger = logging.getLogger(__name__)
+
+
+class SafePasswordResetView(PasswordResetView):
+    """Same as Django's reset view, but SMTP outages show a form error instead of a 500."""
+
+    template_name = "user/password_reset_form.html"
+    email_template_name = "user/password_reset_email.txt"
+    subject_template_name = "user/password_reset_subject.txt"
+
+    def form_valid(self, form):
+        try:
+            return super().form_valid(form)
+        except (OSError, smtplib.SMTPException):
+            logger.exception("password reset SMTP failed")
+            form.add_error(
+                None,
+                "Could not send the reset email right now. Please try again in a few minutes.",
+            )
+            return self.form_invalid(form)
+        except Exception:
+            logger.exception("password reset email failed")
+            form.add_error(
+                None,
+                "Could not send the reset email right now. Please try again in a few minutes.",
+            )
+            return self.form_invalid(form)
 
 login_required(login_url='/auth/login/')  
 def  logout(request):
