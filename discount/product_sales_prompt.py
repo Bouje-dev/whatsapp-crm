@@ -6,6 +6,7 @@ Builds the final system message for the AI Sales Agent by concatenating:
   c) Persona instruction (category-based persona + optional seller_custom_persona via get_dynamic_persona_instruction)
 """
 import logging
+import re
 
 from discount.product_prompt_config import (
     CATEGORY_ALIASES,
@@ -19,6 +20,54 @@ from discount.product_prompt_config import (
 )
 
 logger = logging.getLogger(__name__)
+
+_FLOW_TEMPLATE_DESC_RE = re.compile(r"(?im)^Description:\s*(.+)$")
+
+
+def extract_merchant_product_copy(node_notes: str) -> str:
+    """
+    Merchant copy from the flow-builder AI context textarea.
+
+    The product picker pastes a labeled stub (Product name / SKU / Description / …).
+    Prefer the Description line from that stub; otherwise use the whole freeform text.
+    """
+    text = (node_notes or "").strip()
+    if not text:
+        return ""
+    looks_like_stub = bool(
+        re.search(r"(?im)^Product name:", text) and re.search(r"(?im)^Description:", text)
+    )
+    if looks_like_stub:
+        match = _FLOW_TEMPLATE_DESC_RE.search(text)
+        desc = (match.group(1) if match else "").strip()
+        if desc in ("", "—", "-", "n/a", "none"):
+            return ""
+        return desc
+    return text
+
+
+def _pick_description_text(catalog_desc: str, merchant_desc: str) -> str:
+    """
+    Catalog description vs flow AI context.
+
+    Truncated picker stub that is a prefix of the live catalog → catalog (fuller).
+    Merchant rewrote or wrote extra copy → AI context wins on conflict.
+    """
+    catalog = (catalog_desc or "").strip()
+    merchant = (merchant_desc or "").strip()
+    if merchant and not catalog:
+        return merchant
+    if catalog and not merchant:
+        return catalog
+    if not catalog and not merchant:
+        return ""
+    if merchant == catalog:
+        return catalog
+    if catalog in merchant:
+        return merchant
+    if merchant in catalog:
+        return catalog
+    return merchant
 
 
 def _get_tenant_scoped_product(product_id, merchant=None, channel=None):
@@ -39,10 +88,13 @@ def _get_tenant_scoped_product(product_id, merchant=None, channel=None):
         return None
 
 
-def build_product_context_for_prompt(product) -> str:
+def build_product_context_for_prompt(product, merchant_copy=None) -> str:
     """
     Authoritative PRODUCT CONTEXT block for the LLM: uses the product row's currency, price,
     backup price, delivery line, and offer tiers (same source as product creation / dashboard).
+
+    ``merchant_copy`` is the flow-builder AI context textarea. When the merchant wrote a
+    description there, it wins over a conflicting/empty catalog Description for شرح/وصف.
 
     The real database primary key is injected as [DB_PRODUCT_ID: X] so the LLM can pass the
     correct product_id when calling submit_customer_order — preventing hallucinated sequential IDs.
@@ -51,7 +103,10 @@ def build_product_context_for_prompt(product) -> str:
         return ""
     db_product_id = getattr(product, "id", None) or getattr(product, "pk", None)
     title = (getattr(product, "name", None) or "").strip() or "Product"
-    description = (getattr(product, "description", None) or "").strip() or ""
+    catalog_desc = (getattr(product, "description", None) or "").strip() or ""
+    merchant_desc = extract_merchant_product_copy(merchant_copy)
+    description = _pick_description_text(catalog_desc, merchant_desc)
+    how_to_use = (getattr(product, "how_to_use", None) or "").strip()
     price = getattr(product, "price", None)
     backup_price = getattr(product, "backup_price", None)
     coupon_code = (getattr(product, "coupon_code", None) or "").strip().upper()
@@ -66,14 +121,23 @@ def build_product_context_for_prompt(product) -> str:
         f"[DB_PRODUCT_ID: {db_product_id}]  ← USE THIS EXACT NUMBER for product_id in submit_customer_order",
         f"Currency: **{currency}** (all prices and negotiation amounts below are in this currency).",
         f"Title: {title}",
-        f"Description: {description}",
+        f"Description: {description or '(none — do not invent features)'}",
         (
             "Description paraphrase rule: if Description is French/English, explain features to the "
             "customer in clear everyday dialect — never awkward literal calques "
             "(e.g. Gravure gratuite = كتابة/نقش الاسم مجاناً, NEVER الحفر المجاني)."
         ),
+        (
+            "DESCRIPTION / شرح RULE: When the customer asks what this is, for a description, "
+            "شرح, وصف, details, or features — answer ONLY from the Description line "
+            "(and How to use if present). Do NOT invent benefits from the sales persona, "
+            "category, product name, or generic examples. If Description is empty, call "
+            "escalate_missing_info — never guess."
+        ),
         f"Official price (quote this first): {price_str}",
     ]
+    if how_to_use:
+        lines.append(f"How to use: {how_to_use}")
     try:
         from discount.services.pricing_prompt import build_product_pricing_context_lines
 
@@ -131,7 +195,7 @@ def build_product_context_for_prompt(product) -> str:
         "Knowledge-gap rule: Answer catalog fields the customer asked "
         "(Official price, Delivery, Return/Warranty) in the SAME turn. "
         "Sales objections ('will it work for me?', 'is it guaranteed?') are NOT "
-        "knowledge gaps — handle with empathy and general benefits; never escalate. "
+        "knowledge gaps — handle with empathy using ONLY benefits already in Description. "
         "Call escalate_missing_info ONLY for a missing factual spec "
         "(ingredients, sensitive skin / medical compatibility). On mixed questions, "
         "pass only that factual gap (or the full message; the server drops non-gaps). "
@@ -209,8 +273,10 @@ def build_persona_instruction_block(product) -> str:
         persona_text = CATEGORY_PERSONAS.get(active_persona) or DEFAULT_PERSONA
     parts = [
         "## Persona",
-        "CRITICAL: This persona MUST take over the conversation. Use it for every message; "
-        "do not fall back to a generic sales tone.\n\n",
+        "CRITICAL: This persona is TONE and SALES STYLE only. "
+        "Use it for every message; do not fall back to a generic sales tone. "
+        "NEVER invent product features, ingredients, uses, or medical/skin claims from this persona. "
+        "Facts about what the product is come ONLY from PRODUCT CONTEXT Description / How to use.\n\n",
         persona_text,
     ]
     custom = (getattr(product, "seller_custom_persona", None) or "").strip()
@@ -288,3 +354,48 @@ def get_persona_category_label(product_id, merchant=None, channel=None):
         return "Sales Agent"
     active = resolve_active_sales_persona(product)
     return PERSONA_CATEGORY_LABELS.get(active, "Store Manager")
+
+
+def assemble_turn_product_context(channel, node=None, session=None) -> str:
+    """
+    PRODUCT CONTEXT for this WhatsApp turn.
+
+    Prefers the session's locked product after a catalog pivot; otherwise the
+    flow node's bound product. Merchant AI-context notes apply only when they
+    belong to that same node product (never after a pivot to another SKU).
+    """
+    from discount.services.product_scope import get_channel_product, product_belongs_to_channel
+
+    node_notes = (getattr(node, "product_context", None) or "").strip() if node is not None else ""
+    node_prod = None
+    if node is not None:
+        cfg = getattr(node, "ai_model_config", None) or {}
+        pid = cfg.get("product_id") if isinstance(cfg, dict) else None
+        if pid is not None and channel is not None:
+            node_prod = get_channel_product(channel, product_id=pid)
+
+    sess_prod = None
+    if session is not None and channel is not None:
+        ap = getattr(session, "active_product", None)
+        if ap is not None and product_belongs_to_channel(ap, channel):
+            sess_prod = ap
+        elif getattr(session, "active_product_id", None):
+            sess_prod = get_channel_product(channel, product_id=session.active_product_id)
+
+    ctx = getattr(session, "context_data", None) or {} if session is not None else {}
+    pivoted = bool(ctx.get("product_pivot_active"))
+    if sess_prod and (pivoted or node_prod is None):
+        product = sess_prod
+    else:
+        product = node_prod or sess_prod
+
+    merchant = ""
+    if node_notes:
+        if product is None:
+            merchant = node_notes
+        elif node_prod is not None and getattr(product, "id", None) == getattr(node_prod, "id", None):
+            merchant = node_notes
+
+    if product:
+        return build_product_context_for_prompt(product, merchant_copy=merchant)
+    return merchant

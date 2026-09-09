@@ -510,35 +510,6 @@ def set_session_active_product(channel, phone: str, product, *, reason: str = ""
             ctx = _reset_context_for_product_pivot(ctx)
             ctx["product_pivot_active"] = True
             ctx["active_product_switched_at"] = timezone.now().isoformat()
-            # Do not wipe checkout slots when the durable state itself is seeding active_product.
-            if reason_key != "checkout_state_sync":
-                try:
-                    from discount.services.checkout_state import get_or_create_checkout_state
-
-                    _cos = get_or_create_checkout_state(channel, phone)
-                    if _cos is not None:
-                        # New product → drop prior COD slots; keep row, bind new product.
-                        _cos.customer_name = ""
-                        _cos.city = ""
-                        _cos.address = ""
-                        _cos.email_address = ""
-                        _cos.product = product
-                        _cos.is_ready_for_checkout = False
-                        _cos.raw_extractions = {}
-                        _cos.save(
-                            update_fields=[
-                                "customer_name",
-                                "city",
-                                "address",
-                                "email_address",
-                                "product",
-                                "is_ready_for_checkout",
-                                "raw_extractions",
-                                "updated_at",
-                            ]
-                        )
-                except Exception as _cos_pivot_err:
-                    logger.debug("[SessionState] checkout pivot reset: %s", _cos_pivot_err)
         ctx["active_product_id"] = int(pid)
         session.context_data = ctx
         session.last_interaction = timezone.now()
@@ -551,6 +522,36 @@ def set_session_active_product(channel, phone: str, product, *, reason: str = ""
                 "is_completed",
             ]
         )
+        # Always keep WhatsAppCheckoutState.product in sync (Lab session panel reads this).
+        try:
+            from discount.services.checkout_state import get_or_create_checkout_state
+
+            _cos = get_or_create_checkout_state(channel, phone)
+            if _cos is not None and getattr(_cos, "product_id", None) != int(pid):
+                wipe_slots = (switched or is_pivot) and reason_key != "checkout_state_sync"
+                if wipe_slots:
+                    _cos.customer_name = ""
+                    _cos.city = ""
+                    _cos.address = ""
+                    _cos.email_address = ""
+                    _cos.is_ready_for_checkout = False
+                    _cos.raw_extractions = {}
+                _cos.product = product
+                update_fields = ["product", "updated_at"]
+                if wipe_slots:
+                    update_fields.extend(
+                        [
+                            "customer_name",
+                            "city",
+                            "address",
+                            "email_address",
+                            "is_ready_for_checkout",
+                            "raw_extractions",
+                        ]
+                    )
+                _cos.save(update_fields=update_fields)
+        except Exception as _cos_sync_err:
+            logger.warning("[SessionState] checkout product sync failed: %s", _cos_sync_err)
         node = getattr(session, "active_node", None)
         if node:
             set_session_cache(channel, phone, node, ctx, active_product=product)

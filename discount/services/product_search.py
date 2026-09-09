@@ -6,6 +6,7 @@ from __future__ import annotations
 import json
 import logging
 import math
+import re
 
 from django.db import connection
 from django.db.models import BooleanField, Q
@@ -27,6 +28,54 @@ EMPTY_SEARCH_SYSTEM_NOTE = (
     "with an empty query to show available categories / items, then wait for the "
     "customer to pick one so the backend can lock active_product.]"
 )
+
+_SEARCH_STOPWORDS = {
+    "شحال", "بشحال", "ثمن", "الثمن", "تمن", "تمنو", "ثمنها", "ثمنو", "سعر", "السعر",
+    "واش", "عندكم", "عندك", "كاين", "كاينة", "بغيتي", "بغيت", "بغينا", "ديال", "من",
+    "في", "على", "هذا", "هاد", "هدي", "هي", "هو", "كم", "بكم", "please", "how",
+    "much", "is", "the", "price", "of", "what", "do", "you", "have", "whats",
+    "what's", "for", "a", "an", "هل", "يوجد", "عندكم؟",
+    "كيصلح", "لشنو", "لماذا", "علاش", "شنو", "كيف", "كيداير",
+    "واش", "وصف", "الوصف", "شرح", "التفاصيل", "تفاصيل", "benefits", "uses",
+    "description", "details", "about",
+}
+
+_BROWSE_CATALOG_RE = re.compile(
+    r"^\s*("
+    r"شنو\s*(كاين\s*)?عندكم"
+    r"|اش\s*(كاين\s*)?عندكم"
+    r"|ما\s*هي\s*منتجاتكم"
+    r"|المنتجات(\s*ديالكم)?"
+    r"|what\s+(do\s+you\s+)?(have|sell)"
+    r"|what\s+products"
+    r"|show\s+(me\s+)?(the\s+)?(catalog|catalogue)"
+    r")\s*[؟?!.]*\s*$",
+    re.IGNORECASE,
+)
+
+
+def infer_product_search_query(llm_query: str, customer_text: str = "") -> str:
+    """
+    Use the model's query when it passed a real keyword.
+
+    If the model passed '' but the customer named a product (price / «واش كاين X»),
+    recover keywords from the customer message instead of dumping the whole catalog.
+    """
+    q = (llm_query or "").strip()
+    if q:
+        return q
+    body = (customer_text or "").strip()
+    if not body or _BROWSE_CATALOG_RE.match(body):
+        return ""
+    keywords = []
+    for raw in re.split(r"\s+", body):
+        token = raw.strip("؟?!.،,;:\"'()[]").strip().lower()
+        if len(token) < 2 or token in _SEARCH_STOPWORDS:
+            continue
+        keywords.append(token)
+    if keywords:
+        return " ".join(keywords)
+    return body
 
 
 def parse_aliases(raw) -> list[str]:
@@ -271,6 +320,18 @@ def _fuzzy_match(qs, user_query: str, cutoff: float = FUZZY_SCORE_CUTOFF):
         candidates.extend(_as_alias_list(getattr(product, "aliases", None)))
         for cand in candidates:
             score = _fuzzy_score(needle, cand)
+            tokens = [_normalize_for_fuzzy(cand)]
+            tokens.extend(_normalize_for_fuzzy(cand).split())
+            for tok in tokens:
+                if len(tok) < 3:
+                    continue
+                score = max(score, _fuzzy_score(needle, tok))
+                if tok.startswith("ال") and len(tok) > 3:
+                    score = max(score, _fuzzy_score(needle, tok[2:]))
+                if needle.startswith("ال") and len(needle) > 3:
+                    score = max(score, _fuzzy_score(needle[2:], tok))
+                    if tok.startswith("ال") and len(tok) > 3:
+                        score = max(score, _fuzzy_score(needle[2:], tok[2:]))
             if score > best_score:
                 best_score = score
                 best_id = product.pk

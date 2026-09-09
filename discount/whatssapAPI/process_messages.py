@@ -2947,6 +2947,8 @@ def search_channel_products(channel, query, top_n=5, *, return_top_match=False):
         except Exception as hybrid_exc:
             logger.debug("search_channel_products hybrid: %s", hybrid_exc)
 
+        from difflib import SequenceMatcher
+
         scored = []
         for p in products:
             name = (getattr(p, "name", None) or "").strip().lower() or ""
@@ -2956,16 +2958,23 @@ def search_channel_products(channel, query, top_n=5, *, return_top_match=False):
             aliases = " ".join(getattr(p, "aliases", None) or []).strip().lower()
             score = 0
             for w in words:
-                if w in name:
-                    score += 10
-                if w in aliases:
-                    score += 10
-                if w in category:
-                    score += 5
-                if w in desc:
-                    score += 2
-                if w in sku:
-                    score += 3
+                variants = [w]
+                if w.startswith("ال") and len(w) > 3:
+                    variants.append(w[2:])
+                for v in variants:
+                    if v in name:
+                        score += 10
+                    if v in aliases:
+                        score += 10
+                    if v in category:
+                        score += 5
+                    if v in desc:
+                        score += 2
+                    if v in sku:
+                        score += 3
+                    for nt in name.split():
+                        if len(v) >= 3 and len(nt) >= 3 and SequenceMatcher(None, v, nt).ratio() >= 0.72:
+                            score += 8
             scored.append((score, p))
         scored.sort(key=lambda x: -x[0])
         if hybrid_hit:
@@ -3001,20 +3010,20 @@ def search_channel_products(channel, query, top_n=5, *, return_top_match=False):
 
 def _try_sync_active_product_from_message(channel, sender, body, current_node, session):
     """
-    When the AI node is not catalog-locked, infer product switches from the customer's message
-    (e.g. moving from Netflix to IPTV in the same thread) and refresh session.active_product.
+    Infer the catalog product from the customer's message and lock it on the session
+    BEFORE the LLM replies — so PRODUCT CONTEXT (merchant description) is available
+    on the first turn, not only after a search_products tool call.
     """
     if not channel or not sender or not body or not session:
         return None
-    ai_cfg = getattr(current_node, "ai_model_config", None) or {}
-    if isinstance(ai_cfg, dict) and ai_cfg.get("product_id"):
-        return None
-    q = str(body).strip()
-    if len(q) < 3:
+    from discount.services.product_search import infer_product_search_query
+
+    q = infer_product_search_query("", body)
+    if not q:
         return None
     try:
         _, top, score = search_channel_products(channel, q, top_n=3, return_top_match=True)
-        if not top or score < 8:
+        if not top or score <= 0:
             return None
         set_session_active_product(channel, sender, top, reason="incoming_message")
         return top
@@ -3023,12 +3032,20 @@ def _try_sync_active_product_from_message(channel, sender, body, current_node, s
         return None
 
 
-def _execute_search_products(channel, sender, query):
+def _execute_search_products(channel, sender, query, customer_text=""):
     """Execute search_products: return matches and ALWAYS lock active_product on a hit."""
-    from discount.services.product_search import EMPTY_SEARCH_SYSTEM_NOTE
+    from discount.services.product_search import EMPTY_SEARCH_SYSTEM_NOTE, infer_product_search_query
 
-    text, top, score = search_channel_products(channel, query or "", top_n=5, return_top_match=True)
-    q = str(query or "").strip()
+    raw_q = str(query or "").strip()
+    q = infer_product_search_query(raw_q, customer_text or "")
+    if q != raw_q:
+        logger.info(
+            "search_products query recovered from customer text: model=%r effective=%r",
+            raw_q,
+            q[:80],
+        )
+
+    text, top, score = search_channel_products(channel, q, top_n=5, return_top_match=True)
     # Real query with zero matches — not empty "show catalog" lookups.
     if q and (not top or score <= 0):
         if EMPTY_SEARCH_SYSTEM_NOTE not in (text or ""):
@@ -3046,8 +3063,9 @@ def _execute_search_products(channel, sender, query):
         text += (
             f"\n\n[SYSTEM: Active product LOCKED to \"{pname}\" "
             f"(ID {top.id}, switched={bool(switched)}). "
-            "Pricing and submit_customer_order MUST use this product_id. "
-            "You may now collect checkout fields if the customer wants to order.]"
+            "Answer THIS product only — quote its Official price if they asked شحال/ثمن/price. "
+            "Do not list unrelated catalog items. "
+            "Pricing and submit_customer_order MUST use this product_id.]"
         )
         return text
 
@@ -3673,54 +3691,17 @@ def run_ai_agent_node(
                     session.save(update_fields=["context_data"])
 
         product_context = (getattr(current_node, "product_context", None) or "").strip()
-        _flow_node_product_notes = product_context
         store_owner = getattr(channel, "owner", None) if channel else None
-        # Catalog-bound AI node: inject authoritative currency/prices from Products row (same as product creation).
         try:
-            _aicfg_ctx = getattr(current_node, "ai_model_config", None) or {}
-            _pid_ctx = _aicfg_ctx.get("product_id") if isinstance(_aicfg_ctx, dict) else None
-            if _pid_ctx is not None and store_owner:
-                from discount.product_sales_prompt import build_product_context_for_prompt as _build_prod_ctx
-                from discount.services.product_scope import get_channel_product
+            from discount.product_sales_prompt import assemble_turn_product_context
 
-                _prod_ctx_row = get_channel_product(channel, product_id=_pid_ctx)
-                if _prod_ctx_row:
-                    _dbc = _build_prod_ctx(_prod_ctx_row)
-                    if _dbc:
-                        product_context = _dbc + (
-                            "\n\n---\n\nAdditional notes from flow builder:\n" + _flow_node_product_notes
-                            if _flow_node_product_notes
-                            else ""
-                        )
+            _assembled = assemble_turn_product_context(
+                channel, node=current_node, session=session
+            )
+            if _assembled:
+                product_context = _assembled
         except Exception as _merge_prod_ctx_err:
-            logger.debug("merge catalog product_context for AI node: %s", _merge_prod_ctx_err)
-
-        # Stateful memory: node-level product_context only covers catalog-bound nodes. If the customer is on a
-        # generic/menu step but ChatSession.active_product is set (ad/trigger or earlier sync), hydrate the
-        # same DB-backed context here — otherwise only a short PERSISTENT line at the end of the prompt pointed
-        # at the product and the main system prompt stayed generic (felt like "forgetting" after history trim).
-        try:
-            _aicfg_for_pid = getattr(current_node, "ai_model_config", None) or {}
-            _node_pid = _aicfg_for_pid.get("product_id") if isinstance(_aicfg_for_pid, dict) else None
-            if _node_pid is None and store_owner and session and getattr(session, "active_product_id", None):
-                from discount.product_sales_prompt import build_product_context_for_prompt as _build_sess_ctx
-                from discount.services.product_scope import get_channel_product, product_belongs_to_channel
-
-                _ap = getattr(session, "active_product", None)
-                if _ap is not None and not product_belongs_to_channel(_ap, channel):
-                    _ap = None
-                if _ap is None:
-                    _ap = get_channel_product(channel, product_id=session.active_product_id)
-                if _ap:
-                    _sess_ctx = _build_sess_ctx(_ap)
-                    if _sess_ctx:
-                        product_context = _sess_ctx + (
-                            "\n\n---\n\nAdditional notes from flow builder:\n" + _flow_node_product_notes
-                            if _flow_node_product_notes
-                            else ""
-                        )
-        except Exception as _hydrate_sess_err:
-            logger.debug("hydrate product_context from session.active_product: %s", _hydrate_sess_err)
+            logger.debug("assemble turn product_context: %s", _merge_prod_ctx_err)
 
         if store_owner and Decimal(getattr(store_owner, "wallet_balance", 0) or 0) <= Decimal("0"):
             _pause_ai_for_wallet_depleted(channel, sender, active_node=current_node)
@@ -4013,10 +3994,11 @@ def run_ai_agent_node(
                 # Use tools to discover products on demand to reduce token usage.
                 line = (
                     "You are a general store assistant for the full catalog — customers may switch products freely. "
-                    "If customer asks generic catalog availability (e.g. what products do you have), call search_products with an empty query first to get real catalog items. "
-                    "Use search_products(query) only when customer asks about a specific product by name/keyword. "
+                    "If the customer names a product or asks its price, call search_products with that keyword — never an empty query. "
+                    "Empty query is ONLY for generic catalog questions (شنو عندكم / what do you have). "
                     "When the customer switches to a different product, call switch_active_product BEFORE negotiating or checkout — NEVER refuse a switch. "
                     "Never list product names unless they came from search_products tool results. "
+                    "After a specific search match is LOCKED, quote that product's official price — do not list unrelated catalog items. "
                     "For images, use send_product_media(product_id) only after selecting the relevant product."
                 )
                 custom_instruction = (custom_instruction or "") + "\n\n" + line
@@ -4431,13 +4413,22 @@ def run_ai_agent_node(
                         author_name=agent_name,
                     )
                 elif name == "search_products":
-                    content = _execute_search_products(channel, sender, args.get("query") or "")
+                    _raw_q = args.get("query") or ""
+                    content = _execute_search_products(
+                        channel, sender, _raw_q, customer_text=incoming_body or ""
+                    )
                     _product_state_changed = True
                     tool_results.append({"tool_call_id": tcid, "content": content})
+                    try:
+                        from discount.services.product_search import infer_product_search_query
+
+                        _logged_q = infer_product_search_query(_raw_q, incoming_body or "")
+                    except Exception:
+                        _logged_q = _raw_q
                     _add_ai_action_note(
                         channel,
                         sender,
-                        f"AI agent searched products: \"{args.get('query') or ''}\".",
+                        f"AI agent searched products: \"{_logged_q}\".",
                         author_name=agent_name,
                     )
                 elif name == "switch_active_product":
@@ -4844,7 +4835,7 @@ def run_ai_agent_node(
                             channel,
                             sender,
                             store_owner,
-                            flow_notes=_flow_node_product_notes or "",
+                            node=current_node,
                         )
                         if refresh.get("product_id"):
                             product_id = refresh["product_id"]
@@ -6435,9 +6426,12 @@ def try_ai_voice_reply(
     custom_instruction = (
         "No fixed product is locked on this session yet. Keep replies short. "
         "If the customer wants to order or gives name/city: FIRST call search_products "
-        "(or empty query to list categories) and wait until active_product is locked. "
+        "with their product keyword (empty query ONLY if they asked what you sell in general). "
+        "Wait until active_product is locked. "
         "FORBIDDEN until a product is locked: collecting/confirming checkout fields, "
         "listing «معلوماتك», or calling submit_customer_order. "
+        "FORBIDDEN: inventing a feature list, ingredients, or «كيصلح لـ» benefits when "
+        "PRODUCT CONTEXT Description is missing — call search_products first, or escalate_missing_info. "
         "If search finds nothing: suggest alternatives or categories from the tool result. "
         "Never invent product names that were not returned by search_products. "
         "Use natural local phrasing; avoid literal translations like 'شنو كتشوف'."
@@ -6475,6 +6469,16 @@ def try_ai_voice_reply(
         except Exception as _vs_create_err:
             logger.debug("voice path ensure ChatSession: %s", _vs_create_err)
             _voice_session = get_active_session(channel, sender)
+
+    if channel and sender and (body or "").strip() and _voice_session:
+        try:
+            _pre_lock = _try_sync_active_product_from_message(
+                channel, sender, body, _vd_node, _voice_session
+            )
+            if _pre_lock is not None:
+                _voice_session.refresh_from_db(fields=["active_product", "context_data"])
+        except Exception as _pre_lock_err:
+            logger.debug("voice pre-lock product from message: %s", _pre_lock_err)
 
     persistent_product_voice = getattr(_voice_session, "active_product", None) if _voice_session else None
     if persistent_product_voice is not None and channel:
@@ -6514,18 +6518,22 @@ def try_ai_voice_reply(
     persistent_line_voice = _format_persistent_product_context_line(persistent_product_voice)
     if persistent_line_voice:
         custom_instruction = (custom_instruction + "\n\n" + persistent_line_voice) if custom_instruction else persistent_line_voice
-    if persistent_product_voice and store:
-        try:
-            from discount.product_sales_prompt import build_product_context_for_prompt as _build_voice_ctx
+    try:
+        from discount.product_sales_prompt import assemble_turn_product_context
 
-            _vctx = _build_voice_ctx(persistent_product_voice)
-            if _vctx:
-                product_context_for_reply = _vctx
-        except Exception as _vctx_err:
-            logger.debug("voice hydrate product_context from active_product: %s", _vctx_err)
+        _vctx = assemble_turn_product_context(
+            channel, node=_vd_node, session=_voice_session
+        )
+        if _vctx:
+            product_context_for_reply = _vctx
+    except Exception as _vctx_err:
+        logger.debug("voice hydrate product_context from active_product: %s", _vctx_err)
 
     if product_context_for_reply and not is_order_cap_reached(channel):
         custom_instruction = custom_instruction.replace(
+            "No fixed product is locked on this session yet. Keep replies short. ",
+            "",
+        ).replace(
             "No fixed product context is selected. Keep replies short. ",
             "",
         ).replace(
@@ -6759,13 +6767,22 @@ def try_ai_voice_reply(
                     author_name=voice_path_agent_name,
                 )
             elif name == "search_products":
-                content = _execute_search_products(channel, sender, args.get("query") or "")
+                _raw_q = args.get("query") or ""
+                content = _execute_search_products(
+                    channel, sender, _raw_q, customer_text=body or ""
+                )
                 _voice_product_state_changed = True
                 tool_results.append({"tool_call_id": tcid, "content": content})
+                try:
+                    from discount.services.product_search import infer_product_search_query
+
+                    _logged_q = infer_product_search_query(_raw_q, body or "")
+                except Exception:
+                    _logged_q = _raw_q
                 _add_ai_action_note(
                     channel,
                     sender,
-                    f"AI agent searched products: \"{args.get('query') or ''}\".",
+                    f"AI agent searched products: \"{_logged_q}\".",
                     author_name=voice_path_agent_name,
                 )
             elif name == "switch_active_product":
@@ -6999,7 +7016,9 @@ def try_ai_voice_reply(
                         strip_product_lock_instruction,
                     )
 
-                    refresh = refresh_active_product_prompt_bindings(channel, sender, store)
+                    refresh = refresh_active_product_prompt_bindings(
+                        channel, sender, store, node=_vd_node
+                    )
                     if refresh.get("product_id"):
                         voice_product_id = refresh["product_id"]
                     if refresh.get("product_context"):

@@ -3887,7 +3887,7 @@ this.connectionBranch = null;
                                 opt.dataset.name = p.name || '';
                                 opt.dataset.price = p.price != null ? String(p.price) : '';
                                 opt.dataset.currency = p.currency || 'MAD';
-                                opt.dataset.description = (p.description || '').slice(0, 500);
+                                opt.dataset.description = p.description || '';
                                 opt.dataset.deliveryOptions = (p.delivery_options || '').trim() || '';
                                 sel.appendChild(opt);
                             });

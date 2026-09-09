@@ -187,6 +187,7 @@ def refresh_active_product_prompt_bindings(
     sender,
     store,
     *,
+    node=None,
     flow_notes: str = "",
 ) -> dict[str, Any]:
     """
@@ -206,7 +207,10 @@ def refresh_active_product_prompt_bindings(
 
     try:
         from discount.models import ChatSession
-        from discount.product_sales_prompt import build_product_context_for_prompt
+        from discount.product_sales_prompt import (
+            assemble_turn_product_context,
+            build_product_context_for_prompt,
+        )
         from discount.services.product_scope import get_channel_product, product_belongs_to_channel
 
         session = (
@@ -215,7 +219,7 @@ def refresh_active_product_prompt_bindings(
                 customer_phone=sender,
                 is_expired=False,
             )
-            .select_related("active_product")
+            .select_related("active_product", "active_node")
             .first()
         )
         if not session or not getattr(session, "active_product_id", None):
@@ -229,9 +233,10 @@ def refresh_active_product_prompt_bindings(
         if not prod:
             return out
 
-        ctx = build_product_context_for_prompt(prod)
-        if flow_notes and (flow_notes or "").strip():
-            ctx = ctx + "\n\n---\n\nAdditional notes from flow builder:\n" + flow_notes.strip()
+        bound_node = node if node is not None else getattr(session, "active_node", None)
+        ctx = assemble_turn_product_context(channel, node=bound_node, session=session)
+        if not ctx:
+            ctx = build_product_context_for_prompt(prod, merchant_copy=flow_notes)
 
         out["product_id"] = int(prod.id)
         out["product_context"] = ctx

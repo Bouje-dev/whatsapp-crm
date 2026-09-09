@@ -1849,6 +1849,7 @@ Authenticity fear: validate + we ship exactly as shown + inspect on delivery / r
 # KNOWLEDGE
 escalate_missing_info ONLY for missing factual specs (ingredients, medical/skin safety, allergies, pregnancy, kids, side effects). Never escalate price/delivery/warranty if those lines exist in PRODUCT CONTEXT. Never say you will ask the team unless you called that tool this turn.
 Do not infer medical safety from marketing ("natural" ≠ safe for sensitive skin). Paraphrase FR/EN product copy in everyday dialect (e.g. gravure gratuite → نقش الاسم مجاناً, never الحفر المجاني).
+When they ask for a description / شرح / وصف: quote or paraphrase ONLY the Description line in PRODUCT CONTEXT. Do not invent a different product story from the persona or from examples in these rules.
 
 # ORDER (tool only)
 Required fields = dynamic checkout section (may be name+phone only). Ask them in one natural line after consent, or extract if they dump everything.
@@ -1897,6 +1898,9 @@ Call `track_order` for tracking. Ready to buy → collect only the product's req
 
 # DELIVERY
 Quote only Delivery/Shipping from PRODUCT CONTEXT.
+
+# PRODUCT FACTS
+If PRODUCT CONTEXT Description is missing, you MUST call search_products with the customer's keyword before describing the item. NEVER invent a «كيصلح لـ» / benefits / ingredients brochure from the product name or category. If search still has no Description, call escalate_missing_info.
 """
 )
 
@@ -2005,18 +2009,26 @@ SEARCH_PRODUCTS_TOOL = {
         "name": "search_products",
         "description": (
             "Search the store catalog and return real products we actually have. "
-            "If customer asks generic availability (e.g. 'what products do you have?'), call with empty query ''. "
-            "Use query text only when customer asks about a specific product by name/keyword. "
-            "When you find the product the customer wants, the backend may auto-switch active_product on exact match. "
-            "For topic changes (Netflix → IPTV), also call switch_active_product before negotiating or checkout. "
+            "ALWAYS pass the customer's product keyword as query "
+            "(e.g. 'ايكل', 'ايربودز', 'AirPods') when they name an item or ask its price. "
+            "Empty query '' is ONLY when they ask what you sell in general "
+            "('شنو عندكم', 'what products do you have') with NO product name. "
+            "Never use empty query for 'شحال تمن X' / 'how much is X'. "
+            "When you find the product they want, the backend may auto-lock active_product. "
             "Never invent product names."
         ),
         "parameters": {
             "type": "object",
             "properties": {
-                "query": {"type": "string", "description": "Specific product search text. Leave empty ('') for full/available catalog listing."},
+                "query": {
+                    "type": "string",
+                    "description": (
+                        "Product keyword from the customer message. Required for price/"
+                        "availability of a named item. Use '' ONLY for a generic catalog listing."
+                    ),
+                },
             },
-            "required": [],
+            "required": ["query"],
         },
     },
 }
@@ -2863,7 +2875,6 @@ def _build_master_negotiation_prompt(product):
     )
 
     name = (getattr(product, "name", None) or "Product").strip()
-    description = (getattr(product, "description", None) or "").strip() or "No additional product details."
     currency = (getattr(product, "currency", None) or "MAD").strip() or "MAD"
     shipping_cost = (getattr(product, "delivery_options", None) or "").strip() or "Ask merchant policy (often free delivery)."
     regular_price = getattr(product, "price", None)
@@ -2897,7 +2908,7 @@ You are an elite, highly persuasive e-commerce sales representative. Your ultima
 
 [PRODUCT & PRICING CONTEXT]
 - Product Name: {name}
-- Product Details: {description}
+- Product Details: Use ONLY the Description / How to use lines from PRODUCT CONTEXT above. Do not invent or replace them.
 - Standard / Official Price: {regular_price_txt}
 - Negotiation floor: {lowest_price_txt}
 - Shipping Cost: {shipping_cost}
@@ -3984,8 +3995,8 @@ def build_messages_payload_sales(conversation_messages, custom_instruction=None,
         lang_prefix = _french_bot_language_prefix(voice_notes_mode)
     catalog_truth_prefix = (
         "CATALOG TRUTH POLICY:\n"
-        "- If customer asks generic availability (what products do you have), call search_products with empty query ('') before naming any product.\n"
-        "- Use search_products(query) only when customer asks for a specific product by name/keyword.\n"
+        "- If the customer names a product or asks its price, call search_products with that keyword (never '').\n"
+        "- Empty query '' is ONLY for generic availability ('شنو عندكم' / what products do you have) with no item name.\n"
         "- Never mention product names that are not returned by search_products or fixed product_context.\n\n"
         + STATE_SYNCHRONIZATION_RULE
         + "\n\n"
