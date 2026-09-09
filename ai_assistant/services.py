@@ -3,7 +3,6 @@ import json
 import os
 import random
 import re
-import traceback
 import requests
 from django.conf import settings
 import litellm
@@ -508,52 +507,125 @@ def _normalize_litellm_model_name(model_name):
     return m
 
 
+def _is_llm_quota_or_rate_error(exc) -> bool:
+    """True for billing/quota/TPM 429s where another provider can still answer."""
+    seen = set()
+    cur = exc
+    while cur is not None and id(cur) not in seen:
+        seen.add(id(cur))
+        text = str(cur or "").lower()
+        name = type(cur).__name__.lower()
+        if "ratelimit" in name or "budgetexceeded" in name:
+            return True
+        if any(
+            needle in text
+            for needle in (
+                "ratelimit",
+                "rate limit",
+                "rate_limit",
+                "error code: 429",
+                "insufficient_quota",
+                "credit_balance_exhausted",
+                "no credits remaining",
+                "quota",
+                "tokens per min",
+                "tpm",
+                "overloaded",
+            )
+        ):
+            return True
+        cur = getattr(cur, "__cause__", None) or getattr(cur, "__context__", None)
+    return False
+
+
+def _is_response_format_error(exc) -> bool:
+    if _is_llm_quota_or_rate_error(exc):
+        return False
+    text = str(exc or "").lower()
+    return any(
+        needle in text
+        for needle in (
+            "response_format",
+            "json_schema",
+            "json_object",
+            "invalid schema",
+        )
+    )
+
+
+def _payload_for_fallback_model(payload, model_name):
+    next_payload = dict(payload)
+    next_payload["model"] = model_name
+    if next_payload.get("response_format"):
+        if str(model_name).startswith("anthropic/"):
+            next_payload["response_format"] = {"type": "json_object"}
+        elif str(model_name).startswith("openai/"):
+            next_payload["response_format"] = _auto_mode_response_format_for_model(model_name)
+    return next_payload
+
+
+def _litellm_try_completion(call_payload):
+    model_name = str(call_payload.get("model") or "")
+    _prepare_litellm_provider_key(model_name)
+    kwargs = {
+        "model": model_name,
+        "messages": call_payload.get("messages") or [],
+        "temperature": call_payload.get("temperature", 0.25),
+        "max_tokens": call_payload.get("max_tokens", 400),
+        "tools": call_payload.get("tools"),
+        "tool_choice": call_payload.get("tool_choice"),
+    }
+    if call_payload.get("response_format"):
+        kwargs["response_format"] = call_payload["response_format"]
+    if not kwargs.get("tools"):
+        kwargs.pop("tools", None)
+        kwargs.pop("tool_choice", None)
+    if model_name.startswith("anthropic/") or "claude" in model_name.lower():
+        # Newer Claude models reject temperature + top_p together.
+        kwargs.pop("top_p", None)
+        anth = get_anthropic_api_key()
+        if anth:
+            kwargs["api_key"] = anth
+    elif call_payload.get("top_p") is not None:
+        kwargs["top_p"] = call_payload.get("top_p")
+    return litellm.completion(**kwargs)
+
+
 def _litellm_completion_with_model_fallback(payload):
     """
-    LiteLLM completion for sales agent.
-
-    TEMPORARY (Claude X-ray debug): Any Anthropic route uses exactly
-    MODEL_CLAUDE_SONNET (Haiku test ID); model-level fallback to alternate Claude IDs or GPT-4o is
-    DISABLED so failures surface loudly. Re-enable retries after Anthropic is verified.
-
-    Note: We do not pass litellm ``fallbacks=[...]`` here (none in codebase); optional
-    router fallbacks must stay disabled during this debug window.
+    Sales-agent LiteLLM call. If the primary provider is out of credits or
+    rate-limited, retry once on the other provider (OpenAI ↔ Claude).
     """
-    # NOTE: Ensure server runtime includes anthropic SDK:
-    #   pip install anthropic
-    def _xray_litellm_call(call_payload):
-        model_name = str(call_payload.get("model") or "")
-        if model_name.startswith("anthropic/"):
-            anthropic_key = os.getenv("ANTHROPIC_API_KEY")
-            if not anthropic_key:
-                print("❌ CRITICAL: Anthropic Key is missing in OS Environment!")
-            forced_model = MODEL_CLAUDE_SONNET  # Haiku test; Latest Sonnet: anthropic/claude-3-5-sonnet-20241022
-            print("🚨 FORCING CLAUDE EXECUTION - NO FALLBACKS ALLOWED 🚨")
-            try:
-                kwargs = {
-                    "model": forced_model,
-                    "messages": call_payload.get("messages") or [],
-                    "api_key": anthropic_key,
-                    "temperature": call_payload.get("temperature", 0.25),
-                    "max_tokens": call_payload.get("max_tokens", 400),
-                    "tools": call_payload.get("tools"),
-                    "tool_choice": call_payload.get("tool_choice"),
-                }
-                if call_payload.get("response_format"):
-                    kwargs["response_format"] = call_payload["response_format"]
-                return litellm.completion(**kwargs)
-            except Exception as e:
-                print(f"❌ LiteLLM Anthropic local error type: {type(e)}")
-                traceback.print_exc()
-                raise
-        try:
-            return litellm.completion(**call_payload)
-        except Exception as e:
-            print(f"❌ LiteLLM local error type: {type(e)}")
-            traceback.print_exc()
+    primary = str((payload or {}).get("model") or MODEL_GPT4O)
+    try:
+        return _litellm_try_completion(payload)
+    except Exception as e:
+        if not _is_llm_quota_or_rate_error(e):
+            logger.exception("LiteLLM completion failed model=%s", primary)
             raise
 
-    return _xray_litellm_call(payload)
+        fallback_model = None
+        if primary.startswith("openai/") or primary.lower().startswith("gpt"):
+            if get_anthropic_api_key():
+                fallback_model = MODEL_CLAUDE_SONNET
+        elif primary.startswith("anthropic/") or "claude" in primary.lower():
+            if get_api_key():
+                fallback_model = MODEL_GPT4O
+
+        if not fallback_model or fallback_model == primary:
+            logger.error("LiteLLM provider exhausted model=%s: %s", primary, e)
+            raise
+
+        logger.warning(
+            "LiteLLM model=%s quota/rate-limited; falling back to %s",
+            primary,
+            fallback_model,
+        )
+        try:
+            return _litellm_try_completion(_payload_for_fallback_model(payload, fallback_model))
+        except Exception:
+            logger.exception("LiteLLM fallback model=%s also failed", fallback_model)
+            raise
 
 
 def get_dynamic_dialect_vocabulary_rules(resolved_dialect, output_language):
@@ -4391,6 +4463,13 @@ def generate_reply_with_tools(conversation_messages, custom_instruction=None, pr
     if target_dialect_override and str(target_dialect_override).strip():
         target_dialect = str(target_dialect_override).strip()
     model = _normalize_litellm_model_name(model or routed_model)
+    logger.info(
+        "AI brain resolved model=%s node_engine=%s channel_engine=%s dialect=%s",
+        model,
+        (getattr(node, "ai_engine", None) or "none") if node is not None else "none",
+        (getattr(channel, "ai_llm_engine", None) or "none") if channel is not None else "none",
+        target_dialect,
+    )
     _prepare_litellm_provider_key(model)
     messages = build_messages_payload_sales(
         conversation_messages,
@@ -4458,15 +4537,15 @@ def generate_reply_with_tools(conversation_messages, custom_instruction=None, pr
     try:
         response = _litellm_completion_with_model_fallback(payload)
     except Exception as e:
-        if _auto_mode and payload.get("response_format"):
+        if _auto_mode and payload.get("response_format") and _is_response_format_error(e):
             logger.warning("LiteLLM auto json_schema failed, retrying without response_format: %s", e)
             payload.pop("response_format", None)
             try:
                 response = _litellm_completion_with_model_fallback(payload)
             except Exception as e2:
-                raise RuntimeError(f"LiteLLM completion failed: {e2}")
+                raise RuntimeError(f"LiteLLM completion failed: {e2}") from e2
         else:
-            raise RuntimeError(f"LiteLLM completion failed: {e}")
+            raise RuntimeError(f"LiteLLM completion failed: {e}") from e
 
     choice0 = response.choices[0] if getattr(response, "choices", None) else {}
     msg = getattr(choice0, "message", None) or {}
@@ -4697,15 +4776,15 @@ def continue_after_tool_calls(
     try:
         response = _litellm_completion_with_model_fallback(payload)
     except Exception as e:
-        if _auto_mode and payload.get("response_format"):
+        if _auto_mode and payload.get("response_format") and _is_response_format_error(e):
             logger.warning("LiteLLM auto json_schema failed, retrying without response_format: %s", e)
             payload.pop("response_format", None)
             try:
                 response = _litellm_completion_with_model_fallback(payload)
             except Exception as e2:
-                raise RuntimeError(f"LiteLLM completion failed: {e2}")
+                raise RuntimeError(f"LiteLLM completion failed: {e2}") from e2
         else:
-            raise RuntimeError(f"LiteLLM completion failed: {e}")
+            raise RuntimeError(f"LiteLLM completion failed: {e}") from e
     choice0 = response.choices[0] if getattr(response, "choices", None) else {}
     msg = getattr(choice0, "message", None) or {}
     if not isinstance(msg, dict):

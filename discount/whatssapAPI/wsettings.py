@@ -101,11 +101,13 @@ def update_channel_settings(request):
             channel.voice_delay_seconds = 20
         channel.ai_order_capture = request.POST.get('ai_order_capture') != 'off'  # default True
         if hasattr(channel, "ai_llm_engine"):
-            _eng = (request.POST.get("ai_llm_engine") or "AUTO").strip().upper()
-            if _eng in ("AUTO", "GPT_4O", "CLAUDE_3_5"):
-                channel.ai_llm_engine = _eng
-            else:
-                channel.ai_llm_engine = "AUTO"
+            # Disabled <select> is omitted from POST. Do NOT treat missing as AUTO
+            # (that silently switched Claude channels back to GPT).
+            _raw_eng = request.POST.get("ai_llm_engine")
+            if _raw_eng is not None:
+                _eng = _raw_eng.strip().upper()
+                if _eng in ("AUTO", "GPT_4O", "CLAUDE_3_5"):
+                    channel.ai_llm_engine = _eng
         if hasattr(channel, 'order_notify_method'):
             channel.order_notify_method = (request.POST.get('order_notify_method') or '').strip() or ''
             if channel.order_notify_method not in ('', 'EMAIL', 'WHATSAPP'):

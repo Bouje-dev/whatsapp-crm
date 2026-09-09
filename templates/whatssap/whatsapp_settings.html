@@ -940,9 +940,9 @@
                                                     <select name="ai_llm_engine" id="channel_ai_llm_engine" class="form-select form-select-sm modern-input">
                                                         <option value="AUTO" {% if channel.ai_llm_engine == 'AUTO' or not channel.ai_llm_engine %}selected{% endif %}>Auto (dialect-based)</option>
                                                         <option value="GPT_4O" {% if channel.ai_llm_engine == 'GPT_4O' %}selected{% endif %}>GPT-4o (OpenAI)</option>
-                                                        <option value="CLAUDE_3_5" {% if channel.ai_llm_engine == 'CLAUDE_3_5' %}selected{% endif %}>Claude 3.5 (Cloud)</option>
+                                                        <option value="CLAUDE_3_5" {% if channel.ai_llm_engine == 'CLAUDE_3_5' %}selected{% endif %}>Claude (Anthropic)</option>
                                                     </select>
-                                                    <small class="text-muted d-block mt-1" style="font-size: 0.7rem;">Default model for AI conversations on this number. A specific choice on an <strong>AI Agent flow node</strong> overrides this.</small>
+                                                    <small class="text-muted d-block mt-1" style="font-size: 0.7rem;">Chat replies for this number. <strong>Auto</strong> still uses GPT-4o for non-Maghreb dialects. Pick <strong>Claude</strong> to force Anthropic. An AI Agent flow node set to GPT-4o overrides this.</small>
                                                 </div>
                                                 <div class="row g-2 mb-3">
                                                     <div class="col-6">
@@ -1986,7 +1986,9 @@
                 $('#ai_voice_identity_card').find('input, select').prop('disabled', false);
                 if (!data.plan_can_ai_voice) {
                     $('#ai_voice_identity_card').addClass('feature-locked').attr('title', lockTip);
-                    $('#ai_voice_identity_card').find('input, select').prop('disabled', true);
+                    // Keep AI chat model enabled: it is not a voice-plan feature, and
+                    // disabled <select> values are dropped from FormData on save.
+                    $('#ai_voice_identity_card').find('input, select').not('#channel_ai_llm_engine').prop('disabled', true);
                 }
                 $('#voice_cloning_row').removeClass('feature-locked').attr('title', '');
                 $('#switch_voice_cloning').prop('disabled', false);
@@ -2383,6 +2385,7 @@ function submitChannelSettings() {
     const originalBtnContent = btn.html();
     formData.append('csrfmiddlewaretoken', '{{ csrf_token }}');
     formData.append('channel_id' , currentChannelId)
+    formData.set('ai_llm_engine', $('#channel_ai_llm_engine').val() || 'AUTO');
      
 
     // 1. حالة التحميل
