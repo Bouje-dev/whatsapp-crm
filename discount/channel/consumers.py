@@ -241,6 +241,7 @@ from ..whatssapAPI.process_messages import send_message_socket
 
 
 import json
+import logging
 from channels.generic.websocket import AsyncWebsocketConsumer
 from channels.db import database_sync_to_async
 from django.utils import timezone
@@ -251,71 +252,64 @@ from django.contrib.auth import get_user_model
 # from discount.models import Message, WhatsAppChannel # استورد المودلز الخاصة بك هنا
 
 User = get_user_model()
+logger = logging.getLogger(__name__)
 
 class WebhookConsumer(AsyncWebsocketConsumer):
     async def connect(self):
         self.user = self.scope["user"]
-        
-        if self.user.is_authenticated:
-            # 1. تحديث الحالة
-            await self.update_user_status(self.user, True)
-            
-            # 2. الانضمام لجروب الأدمن العام (اختياري حسب منطقك)
-            await self.channel_layer.group_add("admin_updates", self.channel_name)
+        self.team_group_name = None
 
-            # 3. 🔥 تحديد معرف الفريق (Team ID) بالطريقة الصحيحة 🔥
-            
-            # الحالة أ: هل المستخدم هو مدير الفريق نفسه؟
-            if self.user.is_team_admin:
-                self.team_id = self.user.id
-            
-            elif self.user.team_admin_id: 
-                self.team_id = self.user.team_admin_id
-                
-            # الحالة ج: مستخدم عادي مستقل
-            else:
-                self.team_id = self.user.id
+        try:
+            if self.user.is_authenticated:
+                # 1. تحديث الحالة
+                await self.update_user_status(self.user, True)
 
-            # 4. تكوين اسم المجموعة
-            self.team_group_name = f"team_updates_{self.team_id}"
+                # 2. الانضمام لجروب الأدمن العام (اختياري حسب منطقك)
+                await self.channel_layer.group_add("admin_updates", self.channel_name)
 
-            # 5. الانضمام وإرسال الحالة
-            await self.channel_layer.group_add(self.team_group_name, self.channel_name)
+                # 3. تحديد معرف الفريق (Team ID)
+                if self.user.is_team_admin:
+                    self.team_id = self.user.id
+                elif self.user.team_admin_id:
+                    self.team_id = self.user.team_admin_id
+                else:
+                    self.team_id = self.user.id
 
-            await self.channel_layer.group_send(
-                self.team_group_name, 
-                {
-                    "type": "user_status_change",
-                    "user_id": self.user.id,
-                    "status": "online"
-                }
-            )
-            
+                self.team_group_name = f"team_updates_{self.team_id}"
+                await self.channel_layer.group_add(self.team_group_name, self.channel_name)
+                await self.channel_layer.group_send(
+                    self.team_group_name,
+                    {
+                        "type": "user_status_change",
+                        "user_id": self.user.id,
+                        "status": "online",
+                    },
+                )
+        except Exception:
+            logger.exception("WebhookConsumer.connect channel-layer failed")
+
         await self.accept()
 
 
     async def disconnect(self, close_code):
-        if self.user.is_authenticated:
-            # 1. تحديث الحالة إلى "غير متصل"
-            await self.update_user_status(self.user, False)
-            
-            # 2. إبلاغ الفريق (باستخدام نفس اسم المجموعة الديناميكي)
-            # نتحقق من وجود السمة لتجنب الأخطاء إذا فشل الاتصال من البداية
-            if hasattr(self, 'team_group_name'):
-                await self.channel_layer.group_send(
-                    self.team_group_name, 
-                    {
-                        "type": "user_status_change",
-                        "user_id": self.user.id,
-                        "status": "offline"
-                    }
-                )
-                
-                # مغادرة المجموعة
-                await self.channel_layer.group_discard(
-                    self.team_group_name,
-                    self.channel_name
-                )
+        try:
+            if getattr(self, "user", None) and self.user.is_authenticated:
+                await self.update_user_status(self.user, False)
+                if getattr(self, "team_group_name", None):
+                    await self.channel_layer.group_send(
+                        self.team_group_name,
+                        {
+                            "type": "user_status_change",
+                            "user_id": self.user.id,
+                            "status": "offline",
+                        },
+                    )
+                    await self.channel_layer.group_discard(
+                        self.team_group_name,
+                        self.channel_name,
+                    )
+        except Exception:
+            logger.exception("WebhookConsumer.disconnect channel-layer failed")
 
     async def receive(self, text_data=None, bytes_data=None):
         try:

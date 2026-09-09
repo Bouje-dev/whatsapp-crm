@@ -158,6 +158,10 @@ ASGI_APPLICATION = 'disound.asgi.application'
 
 _REDIS_URL = os.environ.get("REDIS_URL", "redis://127.0.0.1:6379")
 
+# Channel layer uses Redis PUB/SUB. Do NOT set socket_timeout on these
+# connections: the socket sits idle waiting for the next group_send, and a
+# short read timeout disconnects every WebSocket after a few quiet seconds
+# ("Timeout reading from redis... WSDISCONNECT /chat/stream/").
 CHANNEL_LAYERS = {
     "default": {
         "BACKEND": "channels_redis.core.RedisChannelLayer",
@@ -165,10 +169,11 @@ CHANNEL_LAYERS = {
             "hosts": [
                 {
                     "address": _REDIS_URL,
-                    "socket_connect_timeout": 2,
-                    "socket_timeout": 3,
+                    "socket_connect_timeout": 6,
                 }
             ],
+            "capacity": 1500,
+            "expiry": 60,
         },
     },
 }
@@ -344,9 +349,14 @@ else:
         'default': {
             'BACKEND': 'django.core.cache.backends.redis.RedisCache',
             'LOCATION': os.environ.get('REDIS_URL', 'redis://127.0.0.1:6379'),
+            # Cache GET/SET are request/response, so a read timeout is OK.
+            # Keep it generous: a 3s timeout under Redis lag drops debounce
+            # flushes and customers get no WhatsApp reply.
             'OPTIONS': {
-                'socket_connect_timeout': 2,
-                'socket_timeout': 3,
+                'socket_connect_timeout': 5,
+                'socket_timeout': 8,
+                'retry_on_timeout': True,
+                'health_check_interval': 30,
             },
         }
     }
