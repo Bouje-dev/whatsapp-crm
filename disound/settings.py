@@ -302,9 +302,8 @@ KEY = 'k76TMkpykna7wyWyNS4KYdZC-NK_XfoXvWMPLacwVAY='
 
  
  
-# Hostinger mailbox SMTP — send as support@waselytics.com
-# Port 465 = SSL. For 587 set EMAIL_PORT=587 (STARTTLS).
-EMAIL_BACKEND = "discount.email_backend.IPv4EmailBackend"
+# Mail: Railway blocks outbound SMTP (465/587 timeout). Use an HTTPS API there.
+# Local/dev can still use Hostinger SMTP. Production needs BREVO_API_KEY or RESEND_API_KEY.
 EMAIL_HOST = os.environ.get("EMAIL_HOST", "smtp.hostinger.com")
 EMAIL_PORT = int(os.environ.get("EMAIL_PORT", "465"))
 EMAIL_TIMEOUT = int(os.environ.get("EMAIL_TIMEOUT", "20"))
@@ -319,6 +318,27 @@ else:
 
 DEFAULT_FROM_EMAIL = "Waselytics Support <support@waselytics.com>"
 SERVER_EMAIL = "support@waselytics.com"
+
+_BREVO_API_KEY = os.environ.get("BREVO_API_KEY", "").strip()
+_RESEND_API_KEY = os.environ.get("RESEND_API_KEY", "").strip()
+_SENDGRID_API_KEY = os.environ.get("SENDGRID_API_KEY", "").strip()
+_ON_RAILWAY = bool(
+    os.environ.get("RAILWAY_ENVIRONMENT") or os.environ.get("RAILWAY_PROJECT_ID")
+)
+ANYMAIL = {}
+if _BREVO_API_KEY:
+    EMAIL_BACKEND = "anymail.backends.brevo.EmailBackend"
+    ANYMAIL["BREVO_API_KEY"] = _BREVO_API_KEY
+elif _RESEND_API_KEY:
+    EMAIL_BACKEND = "anymail.backends.resend.EmailBackend"
+    ANYMAIL["RESEND_API_KEY"] = _RESEND_API_KEY
+elif _SENDGRID_API_KEY:
+    EMAIL_BACKEND = "anymail.backends.sendgrid.EmailBackend"
+    ANYMAIL["SENDGRID_API_KEY"] = _SENDGRID_API_KEY
+elif _ON_RAILWAY:
+    EMAIL_BACKEND = "discount.email_backend.HttpsMailRequiredBackend"
+else:
+    EMAIL_BACKEND = "discount.email_backend.IPv4EmailBackend"
 
 # AI Assistant (OpenAI)
 OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY", "")

@@ -1,18 +1,21 @@
-"""SMTP backend that connects over IPv4 only.
+"""Email backends for local SMTP and hosts that block outbound SMTP.
 
-Railway (and many Docker hosts) have no IPv6 route. smtp.hostinger.com often
-returns an AAAA record first, then Python fails with:
+Railway (and many Docker hosts) drop connections to ports 25/465/587.
+That shows up as:
 
-    OSError: [Errno 101] Network is unreachable
+    OSError: [Errno 101] Network is unreachable   (IPv6 first)
+    TimeoutError: timed out                       (IPv4 SMTP blocked)
 
-Local laptops still work because they can reach IPv6 or skip it. Forcing
-AF_INET uses the A record and restores password-reset / notification mail.
+Local laptops can still reach Hostinger SMTP. Production must send over
+HTTPS (Brevo / Resend / SendGrid API on port 443).
 """
 from __future__ import annotations
 
 import smtplib
 import socket
 
+
+from django.core.mail.backends.base import BaseEmailBackend
 from django.core.mail.backends.smtp import EmailBackend as DjangoSMTPBackend
 
 
@@ -53,3 +56,12 @@ class IPv4EmailBackend(DjangoSMTPBackend):
         if self.use_ssl:
             return SMTP_SSL_IPv4
         return SMTPIPv4
+
+
+class HttpsMailRequiredBackend(BaseEmailBackend):
+    """Fail immediately on hosts that cannot reach SMTP, instead of hanging."""
+
+    def send_messages(self, email_messages):
+        raise OSError(
+            "Outbound SMTP is blocked here. Set BREVO_API_KEY or RESEND_API_KEY."
+        )

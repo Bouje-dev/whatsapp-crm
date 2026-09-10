@@ -182,15 +182,15 @@ class SafePasswordResetView(PasswordResetView):
     def form_valid(self, form):
         try:
             return super().form_valid(form)
-        except (OSError, smtplib.SMTPException):
-            logger.exception("password reset SMTP failed")
+        except (OSError, smtplib.SMTPException, TimeoutError):
+            logger.warning("password reset mail failed", exc_info=True)
             form.add_error(
                 None,
                 "Could not send the reset email right now. Please try again in a few minutes.",
             )
             return self.form_invalid(form)
         except Exception:
-            logger.exception("password reset email failed")
+            logger.warning("password reset email failed", exc_info=True)
             form.add_error(
                 None,
                 "Could not send the reset email right now. Please try again in a few minutes.",
