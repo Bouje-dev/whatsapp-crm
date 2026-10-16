@@ -43,6 +43,14 @@ def api_lifecycle_stats(request):
         # (يمكنك استخدام دالة get_target_channel التي كتبناها سابقاً هنا)
         contacts_qs = contacts_qs.filter(channel_id=channel_id)
 
+    from discount.whatssapAPI.views import statistics_period
+
+    period_start, period_end, _range_label = statistics_period(request)
+    if period_start is not None:
+        contacts_qs = contacts_qs.filter(created_at__gte=period_start)
+    if period_end is not None:
+        contacts_qs = contacts_qs.filter(created_at__lte=period_end)
+
     # 3. تجميع البيانات (Aggregation)
     stats = contacts_qs.values('pipeline_stage').annotate(total=Count('id'))
     stats_dict = {item['pipeline_stage']: item['total'] for item in stats}

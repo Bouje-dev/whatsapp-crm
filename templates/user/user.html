@@ -77,39 +77,102 @@ $(document).ready(function () {
     <main class="account-main" id="accountMain">
         <!-- Home Dashboard Section (Example) -->
         <div id="home-dashboard" class="content-area-pane active">
-            <div class="section-header-container">
-                <h1 class="section-header">Dashboard Overview</h1>
-                <p class="section-description">Welcome back! Here's a quick look at your account and activities.</p>
-            </div>
-            <div class="row g-4">
-                <div class="col-md-6 w-100">
-                    <div class="card h-100">
-                        <div class="card-header">
-                            <i class="fas fa-chart-line"></i> Recent Activity
+            <style>
+                #home-dashboard .home-shell {
+                    direction: ltr;
+                    text-align: left;
+                    position: relative;
+                    padding: 22px;
+                    border-radius: 24px;
+                    background:
+                        radial-gradient(780px 240px at 0% -20%, rgba(16,185,129,0.18), transparent 55%),
+                        linear-gradient(180deg, #121826 0%, #0c1018 100%);
+                    border: 1px solid rgba(148,163,184,0.16);
+                    box-shadow: 0 24px 50px rgba(0,0,0,0.28);
+                    color: #e2e8f0;
+                }
+                #home-dashboard .home-shell::after {
+                    content: "";
+                    position: absolute;
+                    left: 22px; right: 22px; top: 0; height: 2px;
+                    border-radius: 999px;
+                    background: linear-gradient(90deg, transparent, #34d399, #22d3ee, #6366f1, transparent);
+                    pointer-events: none;
+                }
+                #home-dashboard .home-kicker {
+                    margin: 0 0 8px;
+                    display: inline-flex; align-items: center; gap: 8px;
+                    padding: 5px 10px; border-radius: 999px;
+                    background: rgba(16,185,129,0.16);
+                    color: #6ee7b7 !important;
+                    font-size: 11px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase;
+                }
+                #home-dashboard .home-headline { margin: 8px 0 18px; }
+                #home-dashboard .home-headline h1 { margin: 0 0 6px; color: #f8fafc !important; font-size: 1.7rem; letter-spacing: -0.03em; }
+                #home-dashboard .home-headline p { margin: 0; max-width: 560px; color: #94a3b8 !important; font-size: 0.92rem; }
+                #home-dashboard .home-grid { display: grid; grid-template-columns: 1.6fr 0.9fr; gap: 14px; align-items: start; }
+                #home-dashboard .home-panel {
+                    border: 1px solid rgba(148,163,184,0.16);
+                    border-radius: 18px;
+                    background: rgba(15,23,42,0.5);
+                    padding: 16px 18px;
+                }
+                #home-dashboard .home-panel h2 { margin: 0; color: #f8fafc !important; font-size: 1.05rem; }
+                #home-dashboard .home-panel-head p, #home-dashboard .home-side p { margin: 4px 0 0; color: #94a3b8 !important; font-size: 13px; }
+                #home-dashboard .home-log { margin-top: 12px; max-height: 420px; overflow: auto; }
+                #home-dashboard .home-log ul { list-style: none; margin: 0; padding: 0; }
+                #home-dashboard .home-log li {
+                    margin: 0 0 8px; padding: 10px 12px;
+                    border: 1px solid rgba(148,163,184,0.12);
+                    border-radius: 12px;
+                    background: rgba(15,23,42,0.55);
+                    color: #e2e8f0 !important;
+                    white-space: normal;
+                    line-height: 1.45;
+                }
+                #home-dashboard .home-log li span,
+                #home-dashboard .home-log li strong { color: #e2e8f0 !important; }
+                #home-dashboard .home-log .text-success { color: #6ee7b7 !important; }
+                #home-dashboard .home-log .text-warning { color: #fcd34d !important; }
+                #home-dashboard .home-log .text-danger { color: #fca5a5 !important; }
+                #home-dashboard .home-log .text-info, #home-dashboard .home-log .text-primary { color: #67e8f9 !important; }
+                #home-dashboard .home-empty, #home-dashboard .home-note { text-align: center; padding: 28px 8px; }
+                #home-dashboard .home-empty i, #home-dashboard .home-note i {
+                    width: 46px; height: 46px; margin: 0 auto 10px; border-radius: 14px;
+                    display: grid; place-items: center;
+                    background: rgba(16,185,129,0.14); color: #6ee7b7;
+                }
+                #home-dashboard .home-empty p, #home-dashboard .home-note p { margin: 8px 0 0; color: #94a3b8 !important; }
+                #home-dashboard .home-side { display: grid; gap: 14px; }
+                #home-dashboard .home-links { display: grid; gap: 8px; margin-top: 12px; }
+                #home-dashboard .home-links a {
+                    display: flex; align-items: center; gap: 10px;
+                    padding: 12px 14px; border-radius: 14px; text-decoration: none;
+                    border: 1px solid rgba(148,163,184,0.16);
+                    background: rgba(15,23,42,0.55);
+                    color: #f8fafc !important; font-weight: 700; font-size: 14px;
+                }
+                #home-dashboard .home-links a i { color: #6ee7b7 !important; width: 18px; text-align: center; }
+                #home-dashboard .home-links a:hover { border-color: rgba(52,211,153,0.5); }
+                @media (max-width: 900px) {
+                    #home-dashboard .home-grid { grid-template-columns: 1fr; }
+                }
+            </style>
+            <div class="home-shell">
+                <div class="home-headline">
+                    <p class="home-kicker"><i class="fas fa-gauge-high"></i> Home</p>
+                    <h1 class="section-header">Dashboard Overview</h1>
+                    <p class="section-description">Welcome back. Here is a quick look at your account and recent activity.</p>
+                </div>
+                <div class="home-grid">
+                    <section class="home-panel home-activity">
+                        <div class="home-panel-head">
+                            <h2>Recent activity</h2>
+                            <p>The latest actions on this account.</p>
                         </div>
-                        <!-- <div class="card-body">
-                            {% if activities%}
-                            {% for activity in activities %}
-                            <div class="d-flex align-items-center"> 
-                                <div class="flex-shrink-0 d-flex align-items-center justify-content-center">
-                                    <i class="fas fa-circle text-{{ activity.color }} me-2"></i>
-                                    {% if  activity.activity_type %}
-                                    <div class="fw-bold d-flex"><span>{{ activity.user.user_name }} </span>  <span>  {{ activity.activity_type }} </span>  </div>
-                                    {% else %}
-
-                                    <div class="fw-bold">{{ activity.user.user_name }}</div>
-                                    {% endif %}
-                                </div>
-                            </div>
-                            {% endfor %}
-                            {% else %}
-                            
-                            <p class="text-muted">No recent activities to display.</p>
-                            {% endif %}
-                        </div> -->
-  <div class="card-body" style="overflow-x: auto; overflow-y: auto; max-height: 200px; font-family: monospace; white-space: nowrap; padding-left: 0px !important; padding-right: 0px !important; padding-top: 7px;">
+                        <div class="home-log">
     {% if activities %}
-        <ul class="list-unstyled mb-0" style="    padding-left: 11px;">
+        <ul class="list-unstyled mb-0">
             {% for activity in activities %}
                 <li class="mb-2 border-bottom pb-2">
 
@@ -225,35 +288,30 @@ $(document).ready(function () {
             {% endfor %}
         </ul>
     {% else %}
-        <p class="text-muted text-center">No recent activities to display.</p>
+        <div class="home-empty">
+            <i class="fas fa-stream"></i>
+            <p>No recent activities to display.</p>
+        </div>
     {% endif %}
-</div>
-
-
-                    </div>
-                </div>
-                <div class="col-md-6">
-                    <div class="card h-100">
-                        <div class="card-header">
-                            <i class="fas fa-info-circle"></i> Quick Links
                         </div>
-                        <div class="card-body">
-                            <ul class="list-unstyled">
-                                <li class="mb-2"><a href="#" class="btn btn-outline-dark btn-sm w-100">View Invoices</a></li>
-                                <li class="mb-2"><a href="#" class="btn btn-outline-dark btn-sm w-100">Contact Support</a></li>
-                            </ul>
-                        </div>
-                    </div>
-                </div>
-                <div class="col-md-6">
-                    <div class="card h-100">
-                        <div class="card-header">
-                            <i class="fas fa-bullhorn"></i> Announcements
-                        </div>
-                        <div class="card-body">
-                            <p class="text-muted">No new announcements at the moment.</p>
-                        </div>
-                    </div>
+                    </section>
+                    <aside class="home-side">
+                        <section class="home-panel">
+                            <h2>Quick links</h2>
+                            <p>Jump to billing and support.</p>
+                            <div class="home-links">
+                                <a href="#"><i class="fas fa-file-invoice"></i> View invoices</a>
+                                <a href="#"><i class="fas fa-life-ring"></i> Contact support</a>
+                            </div>
+                        </section>
+                        <section class="home-panel">
+                            <h2>Announcements</h2>
+                            <div class="home-note">
+                                <i class="fas fa-bullhorn"></i>
+                                <p>No new announcements at the moment.</p>
+                            </div>
+                        </section>
+                    </aside>
                 </div>
             </div>
         </div>
@@ -263,13 +321,142 @@ $(document).ready(function () {
   
         <!-- Profile Settings Section -->
         <div id="profile-settings" class="content-area-pane">
-            <div class="section-header-container">
-                <h1 class="section-header">Profile Settings</h1>
-                <p class="section-description">Manage your profile information and account security.</p>
-            </div>
+            <style>
+                #profile-settings .profile-shell {
+                    direction: ltr;
+                    text-align: left;
+                    position: relative;
+                    padding: 22px;
+                    border-radius: 24px;
+                    background:
+                        radial-gradient(760px 240px at 100% -20%, rgba(168,85,247,0.22), transparent 55%),
+                        linear-gradient(180deg, #121826 0%, #0c1018 100%);
+                    border: 1px solid rgba(148,163,184,0.16);
+                    box-shadow: 0 24px 50px rgba(0,0,0,0.28);
+                    color: #e2e8f0;
+                }
+                #profile-settings .profile-shell::after {
+                    content: "";
+                    position: absolute;
+                    left: 22px; right: 22px; top: 0; height: 2px;
+                    border-radius: 999px;
+                    background: linear-gradient(90deg, transparent, #c084fc, #6366f1, #22d3ee, transparent);
+                    pointer-events: none;
+                }
+                #profile-settings .profile-kicker {
+                    margin: 0 0 8px;
+                    display: inline-flex; align-items: center; gap: 8px;
+                    padding: 5px 10px; border-radius: 999px;
+                    background: rgba(168,85,247,0.16);
+                    color: #e9d5ff !important;
+                    font-size: 11px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase;
+                }
+                #profile-settings .profile-headline { display: flex; justify-content: space-between; gap: 16px; align-items: flex-end; margin: 8px 0 18px; }
+                #profile-settings .profile-headline h1 { margin: 0 0 6px; color: #f8fafc !important; font-size: 1.7rem; letter-spacing: -0.03em; }
+                #profile-settings .profile-headline p { margin: 0; max-width: 520px; color: #94a3b8 !important; font-size: 0.92rem; }
+                #profile-settings .profile-status { border-radius: 999px; padding: 8px 14px; font-size: 12px; font-weight: 800; white-space: nowrap; }
+                #profile-settings .profile-status.on { background: rgba(16,185,129,0.16); color: #6ee7b7 !important; border: 1px solid rgba(52,211,153,0.4); }
+                #profile-settings .profile-status.off { background: rgba(248,113,113,0.14); color: #fca5a5 !important; border: 1px solid rgba(248,113,113,0.35); }
+                #profile-settings .profile-tabs {
+                    display: inline-flex; gap: 6px; padding: 4px;
+                    border-radius: 999px; background: rgba(15,23,42,0.65);
+                    border: 1px solid rgba(148,163,184,0.16); margin-bottom: 16px;
+                }
+                #profile-settings .profile-tabs .nav-item { margin: 0; }
+                #profile-settings .profile-tabs .nav-link {
+                    border: 0 !important; border-radius: 999px !important;
+                    background: transparent !important; color: #94a3b8 !important;
+                    padding: 8px 14px; font-size: 13px; font-weight: 700;
+                }
+                #profile-settings .profile-tabs .nav-link.active { background: #fff !important; color: #312e81 !important; }
+                #profile-settings .profile-hero {
+                    display: flex; align-items: center; gap: 16px;
+                    padding: 18px; border-radius: 20px;
+                    background: linear-gradient(145deg, #4c1d95 0%, #6d28d9 48%, #4f46e5 100%);
+                    box-shadow: inset 0 1px 0 rgba(255,255,255,0.16);
+                    margin-bottom: 14px;
+                }
+                #profile-settings .profile-avatar {
+                    width: 58px; height: 58px; border-radius: 18px;
+                    display: grid; place-items: center; flex-shrink: 0;
+                    background: rgba(255,255,255,0.16); color: #fff !important;
+                    font-size: 22px; font-weight: 800;
+                }
+                #profile-settings .profile-hero h2 { margin: 0 0 4px; color: #fff !important; font-size: 1.25rem; }
+                #profile-settings .profile-hero p { margin: 0; color: rgba(255,255,255,0.78) !important; font-size: 13px; }
+                #profile-settings .profile-hero .profile-edit { margin-left: auto; }
+                #profile-settings .profile-edit, #profile-settings .profile-action {
+                    border: 0; border-radius: 999px; padding: 10px 16px;
+                    background: #fff !important; color: #312e81 !important;
+                    font-weight: 800; font-size: 13px; cursor: pointer; text-decoration: none;
+                    white-space: nowrap;
+                }
+                #profile-settings .profile-edit i, #profile-settings .profile-action i { color: #312e81 !important; }
+                #profile-settings .profile-facts { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+                #profile-settings .profile-fact {
+                    border: 1px solid rgba(148,163,184,0.16); border-radius: 16px;
+                    background: rgba(15,23,42,0.55); padding: 14px 16px;
+                }
+                #profile-settings .profile-fact span { display: block; color: #94a3b8 !important; font-size: 12px; font-weight: 600; margin-bottom: 4px; }
+                #profile-settings .profile-fact strong { color: #f8fafc !important; font-size: 14px; font-weight: 700; }
+                #profile-settings .profile-form, #profile-settings .profile-security, #profile-settings .profile-soon {
+                    border: 1px solid rgba(148,163,184,0.16); border-radius: 18px;
+                    background: rgba(15,23,42,0.45); padding: 18px;
+                }
+                #profile-settings .profile-form h2, #profile-settings .profile-security h2 { margin: 0 0 14px; color: #f8fafc !important; font-size: 1.05rem; }
+                #profile-settings .profile-form label { display: block; margin-bottom: 6px; color: #94a3b8 !important; font-size: 12px; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; }
+                #profile-settings .form-control {
+                    background: rgba(15,23,42,0.72) !important;
+                    border: 1px solid rgba(148,163,184,0.24) !important;
+                    color: #f8fafc !important; border-radius: 12px !important; min-height: 44px;
+                }
+                #profile-settings .form-control:focus { border-color: #818cf8 !important; box-shadow: 0 0 0 3px rgba(99,102,241,0.25) !important; }
+                #profile-settings .profile-form-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 8px; }
+                #profile-settings .profile-cancel {
+                    border: 0; border-radius: 999px; padding: 10px 16px;
+                    background: rgba(148,163,184,0.14); color: #e2e8f0 !important; font-weight: 800; font-size: 13px;
+                }
+                #profile-settings .profile-save {
+                    border: 0; border-radius: 999px; padding: 10px 16px;
+                    background: linear-gradient(135deg, #6366f1, #8b5cf6) !important; color: #fff !important; font-weight: 800; font-size: 13px;
+                }
+                #profile-settings .profile-security-row {
+                    display: flex; justify-content: space-between; align-items: center; gap: 16px;
+                    padding: 14px 0;
+                }
+                #profile-settings .profile-security-row + .profile-security-row { border-top: 1px solid rgba(148,163,184,0.14); }
+                #profile-settings .profile-security-row h3 { margin: 0 0 4px; color: #f8fafc !important; font-size: 15px; }
+                #profile-settings .profile-security-row p { margin: 0; color: #94a3b8 !important; font-size: 13px; }
+                #profile-settings .profile-ghost {
+                    border: 1px solid rgba(148,163,184,0.22); border-radius: 999px; padding: 8px 14px;
+                    background: transparent; color: #64748b !important; font-weight: 700; font-size: 12px;
+                }
+                #profile-settings .profile-soon { text-align: center; padding: 36px 16px; }
+                #profile-settings .profile-soon-icon {
+                    width: 54px; height: 54px; margin: 0 auto 12px; border-radius: 16px;
+                    display: grid; place-items: center; background: rgba(168,85,247,0.16); color: #e9d5ff; font-size: 20px;
+                }
+                #profile-settings .profile-soon h5 { margin: 0 0 6px; color: #f8fafc !important; }
+                #profile-settings .profile-soon p { margin: 0; color: #94a3b8 !important; }
+                @media (max-width: 800px) {
+                    #profile-settings .profile-facts { grid-template-columns: 1fr; }
+                    #profile-settings .profile-headline, #profile-settings .profile-hero, #profile-settings .profile-security-row { flex-direction: column; align-items: flex-start; }
+                    #profile-settings .profile-hero .profile-edit { margin-left: 0; }
+                }
+            </style>
+            <div class="profile-shell">
+                <div class="profile-headline">
+                    <div>
+                        <p class="profile-kicker"><i class="fas fa-user"></i> Account</p>
+                        <h1 class="section-header">Profile Settings</h1>
+                        <p class="section-description">Manage your profile information and account security.</p>
+                    </div>
+                    <div class="profile-status {% if user.is_active %}on{% else %}off{% endif %}">
+                        {% if user.is_active %}Active{% else %}Inactive{% endif %}
+                    </div>
+                </div>
 
-            <!-- Tabs for Profile Settings -->
-            <ul class="nav nav-tabs-custom" id="profileSettingsTabs" role="tablist">
+            <ul class="nav nav-tabs-custom profile-tabs" id="profileSettingsTabs" role="tablist">
                 <li class="nav-item" role="presentation">
                     <button class="nav-link active" id="profile-tab" data-bs-toggle="tab" data-bs-target="#profile-details" type="button" role="tab" aria-controls="profile-details" aria-selected="true">Profile</button>
                 </li>
@@ -285,87 +472,54 @@ $(document).ready(function () {
             <!-- Tab Content -->
             <div class="tab-content" id="profileSettingsTabContent">
                 <!-- Profile Details Tab -->
-                 <div class="tab-pane fade show active d-none" id="profile-update01" aria-labelledby="profile-tab"> 
-                 <div class="card">
-                        <div class="card-header">
-                            <i class="fas fa-id-card"></i> Personal Information
+                <div class="tab-pane fade show active" id="profile-details" role="tabpanel" aria-labelledby="profile-tab">
+                    <div class="profile-hero">
+                        <div class="profile-avatar">{% if user.user_name %}{{ user.user_name|first|upper }}{% else %}{{ user.email|first|upper }}{% endif %}</div>
+                        <div>
+                            <h2>{% if user.user_name %}{{ user.user_name }}{% else %}{{ user.email }}{% endif %}</h2>
+                            <p>{{ user.email }}</p>
                         </div>
-                         <div class="card-body p-4">
-                    <!-- <div class="tab-pane fade show active p-4" id="profile-details-Edit" role="tabpanel" aria-labelledby="profile-details-tab"> -->
-    <form id="userProfileForm" method="POST" >
-        {% csrf_token %}
-        <h4 class="mb-4">personal information :</h4>
-        
-        <div class="row mb-3">
-            <div class="col-md-6">
-                <label for="fullName" class="form-label">Full Name</label>
-                <input type="text" class="form-control" id="fullName" name="full_name" value=" {% if user.user_name %} {{ user.user_name }} {% else %}  {% endif %}" required>
-            </div>
-            <div class="col-md-6">
-                <label for="email" class="form-label">Email address </label>
-                <input type="email" class="form-control" id="email" name="email" value="{{ user.email }}" required>
-            </div>
-        </div>
-        
-        <div class="row mb-3">
-            <div class="col-md-6">
-                <label for="phone" class="form-label">Phone number: </label>
-                <input type="text" class="form-control" id="phone" name="phone" value=" {% if user.phone %}  {{ user.phone }} {% else %}  {% endif %}">
-            </div>
-            <div class="col-md-6">
-                <label for="address" class="form-label">Address :</label>
-                <input type="text" class="form-control" id="address" name="address" value="{% if user.address %} {{ user.address }} {% else %} {% endif %}">
-            </div>
-        </div>
-
-        <div class="d-flex justify-content-end mt-4 mb-4">
-            <button type="reset" class="btn btn-outline-secondary me-2" id="cancelForm">cancel</button>
-            <button type="submit" class="btn btn-primary">Save Change</button>
-        </div>
-    </form>
-</div>
-</div>
-
+                        <button type="button" id="Edit_profile" class="profile-edit">
+                            <i class="fas fa-pen"></i> Edit profile
+                        </button>
+                    </div>
+                    <div class="profile-facts">
+                        <div class="profile-fact"><span>Username</span><strong>{% if user.user_name %}{{ user.user_name }}{% else %}—{% endif %}</strong></div>
+                        <div class="profile-fact"><span>Email</span><strong>{{ user.email }}</strong></div>
+                        <div class="profile-fact"><span>Phone</span><strong>{% if user.phone %}{{ user.phone }}{% else %}Not set{% endif %}</strong></div>
+                        <div class="profile-fact"><span>Address</span><strong>{% if user.address %}{{ user.address }}{% else %}Not set{% endif %}</strong></div>
+                        <div class="profile-fact"><span>Joined</span><strong>{{ user.date_joined|date:"Y/m/d" }}</strong></div>
+                        <div class="profile-fact"><span>Last login</span><strong>{{ user.last_login|date:"Y/m/d H:i"|default:"—" }}</strong></div>
+                    </div>
                 </div>
 
-
-                <div class="tab-pane fade show active" id="profile-details" role="tabpanel" aria-labelledby="profile-tab">
-                    <div class="card">
-                        <div class="card-header">
-                            <i class="fas fa-id-card"></i> Personal Information
-                        </div>
-                        <div class="card-body">
-                            <ul class="list-group list-group-flush mb-4">
-                                <li class="list-group-item d-flex justify-content-between align-items-center">
-                                    <span><i class="fas fa-user me-3"></i>Username</span>
-                                    <span>{{ user.user_name }}</span>
-                                </li>
-                                <li class="list-group-item d-flex justify-content-between align-items-center">
-                                    <span><i class="fas fa-envelope me-3"></i>Email Address</span>
-                                    <span>{{ user.email }}</span>
-                                </li>
-                                <li class="list-group-item d-flex justify-content-between align-items-center">
-                                    <span><i class="fas fa-calendar-alt me-3"></i>Join Date</span>
-                                    <span>{{ user.date_joined|date:"Y/m/d" }}</span>
-                                </li>
-                                <li class="list-group-item d-flex justify-content-between align-items-center">
-                                    <span><i class="fas fa-clock me-3"></i>Last Login</span>
-                                    <span>{{ user.last_login|date:"Y/m/d H:i"|default:"-" }}</span>
-                                </li>
-                                <li class="list-group-item d-flex justify-content-between align-items-center">
-                                    <span><i class="fas fa-shield-alt me-3"></i>Account Status</span>
-                                    <span class="badge {% if user.is_active %}badge-success{% else %}badge-danger{% endif %}">
-                                        {% if user.is_active %}Active{% else %}Inactive{% endif %}
-                                    </span>
-                                </li>
-                            </ul>
-                            <div class="d-flex justify-content-end gap-3">
-                                <botton id="Edit_profile" class="btn btn-secondary" >
-                                    <i class="fas fa-edit"></i> Edit Profile
-                                </botton>
+                <div class="tab-pane fade show active d-none" id="profile-update01" aria-labelledby="profile-tab">
+                    <form id="userProfileForm" class="profile-form" method="POST">
+                        {% csrf_token %}
+                        <h2>Edit profile</h2>
+                        <div class="row g-3 mb-3">
+                            <div class="col-md-6">
+                                <label for="fullName">Full name</label>
+                                <input type="text" class="form-control" id="fullName" name="full_name" value="{% if user.user_name %}{{ user.user_name }}{% endif %}" required>
+                            </div>
+                            <div class="col-md-6">
+                                <label for="email">Email address</label>
+                                <input type="email" class="form-control" id="email" name="email" value="{{ user.email }}" required>
+                            </div>
+                            <div class="col-md-6">
+                                <label for="phone">Phone number</label>
+                                <input type="text" class="form-control" id="phone" name="phone" value="{% if user.phone %}{{ user.phone }}{% endif %}">
+                            </div>
+                            <div class="col-md-6">
+                                <label for="address">Address</label>
+                                <input type="text" class="form-control" id="address" name="address" value="{% if user.address %}{{ user.address }}{% endif %}">
                             </div>
                         </div>
-                    </div>
+                        <div class="profile-form-actions">
+                            <button type="reset" class="profile-cancel" id="cancelForm">Cancel</button>
+                            <button type="submit" class="profile-save">Save changes</button>
+                        </div>
+                    </form>
                 </div>
 
                 <script>
@@ -384,85 +538,57 @@ $(document).ready(function () {
                      $("#cancelForm").click (function(){$("#profile-update01").addClass("d-none"); $("#profile-details").removeClass("d-none");})
                 </script>
 
-                <!-- Security Tab -->
                 <div class="tab-pane fade" id="profile-security" role="tabpanel" aria-labelledby="security-tab">
-                    <div class="card mb-4">
-                        <div class="card-header">
-                            <i class="fas fa-lock"></i> Account Security
-                        </div>
-                        <div class="card-body d-none" id="changePasswordSection">
-                        <div class="mb-3 " >
-                                <form id="changePasswordForm" method="POST">
-                                    {% csrf_token %}
-                                    <div class="mb-3">
-                                        <label for="oldPassword" class="form-label">Old Password</label>
-                                        <input type="password" class="form-control" id="oldPassword" name="old_password" required>
-                                    </div>
-                                    <div class="mb-3">
-                                        <label for="newPassword" class="form-label">New Password</label>
-                                        <input type="password" class="form-control" id="newPassword" name="new_password" required>
-                                    </div>
-                                    <div class="mb-3">
-                                        <label for="confirmPassword" class="form-label">Confirm New Password</label>
-                                        <input type="password" class="form-control" id="confirmPassword" name="confirm_password" required>
-                                    </div>
-
-                                    <div class="d-flex justify-content-end">
-                                        <button type="submit" class="btn btn-primary">Change Password</button>
-                                         <botton id="changePasswordCancel" class="btn btn-info-accent">
-                                    Cancel 
-                                </botton>
-                                    </div>
-                                </form>
+                    <div class="profile-form d-none" id="changePasswordSection">
+                        <form id="changePasswordForm" method="POST">
+                            {% csrf_token %}
+                            <h2>Change password</h2>
+                            <div class="mb-3">
+                                <label for="oldPassword">Current password</label>
+                                <input type="password" class="form-control" id="oldPassword" name="old_password" required>
                             </div>
+                            <div class="mb-3">
+                                <label for="newPassword">New password</label>
+                                <input type="password" class="form-control" id="newPassword" name="new_password" required>
+                            </div>
+                            <div class="mb-3">
+                                <label for="confirmPassword">Confirm new password</label>
+                                <input type="password" class="form-control" id="confirmPassword" name="confirm_password" required>
+                            </div>
+                            <div class="profile-form-actions">
+                                <button type="button" id="changePasswordCancel" class="profile-cancel">Cancel</button>
+                                <button type="submit" class="profile-save">Update password</button>
+                            </div>
+                        </form>
                     </div>
-                        <div class="card-body" id="two-factorEnfo">
-                            <div class="mb-4 d-flex justify-content-between align-items-center">
-                                <div>
-                                    <h6 class="mb-1" style="color: var(--text-light);">Two-Factor Authentication</h6>
-                                    <p class="text-muted mb-0">Add an extra layer of security to your account.</p>
-                                </div>
-                                <button class="btn btn-info-accent disabled">
-                                    Add Two-Factor Authentication
-                                </button>
+                    <div class="profile-security" id="two-factorEnfo">
+                        <div class="profile-security-row">
+                            <div>
+                                <h3>Two-factor authentication</h3>
+                                <p>Add an extra layer of security to your account.</p>
                             </div>
-                            
-
-                            <div class="mb-4 d-flex justify-content-between align-items-center">
-                                <div>
-                                    {% if has_password  %}
-                                    <h6 class="mb-1" style="color: var(--text-light);">Change Password</h6>
-                                    <p class="text-muted mb-0">Update your password regularly to keep your account secure.</p>
-                                </div>
-                                <botton id="changePassword" class="btn btn-info-accent">
-                                    Change Password
-                                </botton>
-                                  
-                                
-                                {% else %}
-                                <h6 class="mb-1" style="color: var(--text-light);">Add Password</h6>
-                                    <p class="text-muted mb-0">Add your password regularly to keep your account secure.</p>
-                                </div>
-                                <a href="{% url 'change_password' %}" class="btn btn-info-accent">
-                                    Add Password
-                                </a>
-                                {% endif %}
+                            <button type="button" class="profile-ghost" disabled>Coming soon</button>
+                        </div>
+                        <div class="profile-security-row">
+                            {% if has_password %}
+                            <div>
+                                <h3>Password</h3>
+                                <p>Update your password to keep this account secure.</p>
                             </div>
+                            <button type="button" id="changePassword" class="profile-action">Change password</button>
+                            {% else %}
+                            <div>
+                                <h3>Password</h3>
+                                <p>Add a password so you can sign in with email.</p>
+                            </div>
+                            <a href="{% url 'change_password' %}" class="profile-action">Add password</a>
+                            {% endif %}
                         </div>
                     </div>
                     <div class="card d-none" id="delete-account-card" aria-hidden="true">
-                        <div class="card-header">
-                            <i class="fas fa-trash-alt"></i> Delete Account
-                        </div>
-                        <div class="card-body">
-                            <p class="text-muted mb-4">Deleting your account is permanent. You will no longer be able to create an account with this email.</p>
-                            <button type="button" class="btn btn-delete-account" disabled>
-                                Delete Account
-                            </button>
-                            <a href="{% url 'logout' %}" class="btn btn-info-accent">
-                                Logout
-                            </a>
-                        </div>
+                        <p>Deleting your account is permanent. You will no longer be able to create an account with this email.</p>
+                        <button type="button" class="btn btn-delete-account" disabled>Delete Account</button>
+                        <a href="{% url 'logout' %}">Logout</a>
                     </div>
                 </div>
                 <script>
@@ -536,12 +662,13 @@ $(document).ready(function () {
             </script>
                 <!-- Empty Tab Content -->
                 <div class="tab-pane fade" id="profile-empty" role="tabpanel" aria-labelledby="empty-tab">
-                    <div class="empty-state">
-                        <div class="empty-state-icon"><i class="fas fa-hourglass-half"></i></div>
-                        <h5>Coming Soon!</h5>
-                        <p class="text-muted">Exciting new features will be available here shortly.</p>
+                    <div class="profile-soon">
+                        <div class="profile-soon-icon"><i class="fas fa-hourglass-half"></i></div>
+                        <h5>Coming soon</h5>
+                        <p>More account controls will show up here.</p>
                     </div>
                 </div>
+            </div>
             </div>
         </div>
 
@@ -549,47 +676,234 @@ $(document).ready(function () {
         <!-- Plans Section: Free, Basic, Premium -->
         <div id="current-plan" class="content-area-pane">
             <style>
-                #current-plan .plans-shell { background: linear-gradient(180deg, rgba(124,58,237,0.08), rgba(15,23,42,0.35)); border: 1px solid rgba(148,163,184,0.18); border-radius: 18px; padding: 18px; }
-                #current-plan .plans-headline { display: flex; justify-content: space-between; gap: 16px; align-items: flex-start; margin-bottom: 18px; }
-                #current-plan .plans-headline h1 { margin-bottom: 6px; }
-                #current-plan .current-pill { border: 1px solid rgba(34,197,94,0.35); background: rgba(34,197,94,0.14); color: #86efac; border-radius: 999px; padding: 6px 12px; font-size: 12px; font-weight: 700; white-space: nowrap; }
-                #current-plan .plan-pro-card { background: radial-gradient(circle at top right, rgba(99,102,241,0.24), rgba(15,23,42,0.96)); border: 1px solid rgba(148,163,184,0.24); border-radius: 16px; overflow: hidden; transition: transform .2s ease, border-color .2s ease; }
-                #current-plan .plan-pro-card:hover { transform: translateY(-2px); border-color: rgba(129,140,248,0.55); }
-                #current-plan .plan-pro-card.is-current { border: 1px solid rgba(34,197,94,0.55); box-shadow: 0 0 0 1px rgba(34,197,94,0.2); }
-                #current-plan .plan-pro-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; }
-                #current-plan .plan-pro-icon { width: 34px; height: 34px; border-radius: 10px; display: grid; place-items: center; background: rgba(148,163,184,0.14); color: #c4b5fd; }
-                #current-plan .plan-pro-name { font-size: 18px; font-weight: 700; color: #f8fafc; }
-                #current-plan .plan-pro-price { color: #f8fafc; font-size: 28px; font-weight: 800; line-height: 1; }
-                #current-plan .plan-pro-price-note { color: #94a3b8; font-size: 12px; }
-                #current-plan .plan-feature-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
-                #current-plan .plan-feature-list li { color: #cbd5e1; font-size: 14px; }
-                #current-plan .plan-feature-list i { width: 18px; text-align: center; }
-                #current-plan .plan-feature-list .fa-check { color: #22c55e; }
-                #current-plan .plan-feature-list .fa-times { color: #64748b; }
-                #current-plan .plan-meta-line { margin-top: 14px; display: flex; gap: 8px; flex-wrap: wrap; }
-                #current-plan .plan-meta-chip { background: rgba(148,163,184,0.14); color: #cbd5e1; border: 1px solid rgba(148,163,184,0.22); border-radius: 999px; padding: 4px 10px; font-size: 12px; }
-                #current-plan .plan-cancel-wrap { margin-top: 22px; background: rgba(15,23,42,0.65); border: 1px solid rgba(148,163,184,0.18); border-radius: 14px; padding: 16px; }
-                #current-plan .plan-cancel-wrap h5 { margin: 0 0 6px; color: #f8fafc; }
-                #current-plan .plan-cancel-wrap p { margin: 0 0 12px; color: #94a3b8; font-size: 14px; }
-                #current-plan .wallet-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; margin-bottom: 18px; }
-                #current-plan .wallet-card { border: 1px solid rgba(148,163,184,0.2); border-radius: 14px; padding: 16px; background: rgba(15,23,42,0.75); }
-                #current-plan .wallet-balance-card { grid-column: 1 / -1; background: linear-gradient(180deg, rgba(37,99,235,0.18), rgba(15,23,42,0.95)); }
-                #current-plan .wallet-label { margin: 0; color: #94a3b8; font-size: 13px; }
-                #current-plan .wallet-value { margin: 8px 0 12px; color: #f8fafc; font-size: 34px; line-height: 1; font-weight: 800; }
-                #current-plan .wallet-progress-track { width: 100%; height: 10px; border-radius: 999px; background: rgba(148,163,184,0.2); overflow: hidden; margin-top: 8px; }
-                #current-plan .wallet-progress-fill { width: 0%; height: 100%; border-radius: 999px; background: linear-gradient(90deg, #22c55e, #16a34a); transition: width .25s ease; }
-                #current-plan .wallet-progress-text { margin: 8px 0 0; color: #cbd5e1; font-size: 12px; }
-                #current-plan .wallet-toggle { width: 52px; height: 30px; border-radius: 999px; border: 1px solid rgba(148,163,184,0.5); position: relative; cursor: pointer; background: #475569; transition: background .2s ease; }
-                #current-plan .wallet-toggle.on { background: #2563eb; }
-                #current-plan .wallet-toggle-knob { position: absolute; top: 2px; left: 2px; width: 24px; height: 24px; border-radius: 50%; background: #fff; transition: transform .2s ease; }
+                #current-plan .plans-shell {
+                    direction: ltr;
+                    text-align: left;
+                    position: relative;
+                    overflow: hidden;
+                    padding: 22px;
+                    border-radius: 24px;
+                    background:
+                        radial-gradient(900px 280px at 100% -10%, rgba(99,102,241,0.28), transparent 55%),
+                        linear-gradient(180deg, #121826 0%, #0c1018 100%);
+                    border: 1px solid rgba(148,163,184,0.16);
+                    box-shadow: 0 24px 50px rgba(0,0,0,0.28);
+                    color: #e2e8f0;
+                }
+                #current-plan .plans-shell::after {
+                    content: "";
+                    position: absolute;
+                    left: 22px;
+                    right: 22px;
+                    top: 0;
+                    height: 2px;
+                    border-radius: 999px;
+                    background: linear-gradient(90deg, transparent, #6366f1, #22d3ee, #a855f7, transparent);
+                }
+                #current-plan .plans-kicker {
+                    margin: 0 0 8px;
+                    display: inline-flex;
+                    align-items: center;
+                    gap: 8px;
+                    padding: 5px 10px;
+                    border-radius: 999px;
+                    background: rgba(99,102,241,0.16);
+                    color: #c4b5fd !important;
+                    font-size: 11px;
+                    font-weight: 700;
+                    letter-spacing: 0.12em;
+                    text-transform: uppercase;
+                }
+                #current-plan .plans-headline { display: flex; justify-content: space-between; gap: 16px; align-items: flex-end; margin: 8px 0 20px; }
+                #current-plan .plans-headline h1 { margin: 0 0 6px; color: #f8fafc !important; font-size: 1.7rem; letter-spacing: -0.03em; }
+                #current-plan .plans-headline p { margin: 0; max-width: 520px; color: #94a3b8 !important; font-size: 0.92rem; line-height: 1.5; }
+                #current-plan .current-pill { border: 1px solid rgba(52,211,153,0.4); background: rgba(16,185,129,0.14); color: #6ee7b7 !important; border-radius: 999px; padding: 8px 14px; font-size: 12px; font-weight: 700; white-space: nowrap; }
+                #current-plan .wallet-board { display: grid; grid-template-columns: 1.4fr 1fr 1fr; gap: 12px; margin-bottom: 22px; }
+                #current-plan .wallet-hero {
+                    grid-row: span 2;
+                    position: relative;
+                    overflow: hidden;
+                    min-height: 220px;
+                    padding: 22px;
+                    border-radius: 20px;
+                    background: linear-gradient(145deg, #312e81 0%, #4f46e5 48%, #7c3aed 100%);
+                    box-shadow: inset 0 1px 0 rgba(255,255,255,0.18);
+                    display: flex;
+                    flex-direction: column;
+                    justify-content: space-between;
+                }
+                #current-plan .wallet-hero::before {
+                    content: "";
+                    position: absolute;
+                    width: 180px;
+                    height: 180px;
+                    right: -40px;
+                    top: -50px;
+                    border-radius: 50%;
+                    background: rgba(255,255,255,0.12);
+                }
+                #current-plan .wallet-label { margin: 0; color: rgba(255,255,255,0.78) !important; font-size: 13px; font-weight: 600; }
+                #current-plan .wallet-card .wallet-label { color: #94a3b8 !important; }
+                #current-plan .wallet-value { margin: 10px 0 4px; color: #fff !important; font-size: 42px; line-height: 1; font-weight: 800; letter-spacing: -0.04em; }
+                #current-plan .wallet-hint { margin: 0; color: rgba(255,255,255,0.75) !important; font-size: 13px; }
+                #current-plan .wallet-topup {
+                    position: relative;
+                    z-index: 1;
+                    align-self: flex-start;
+                    margin-top: 18px;
+                    border: 0;
+                    border-radius: 999px;
+                    padding: 10px 16px;
+                    background: #fff !important;
+                    color: #312e81 !important;
+                    font-weight: 800;
+                    font-size: 13px;
+                    cursor: pointer;
+                }
+                #current-plan .wallet-topup:disabled { opacity: 0.7; cursor: wait; }
+                #current-plan .wallet-card {
+                    border: 1px solid rgba(148,163,184,0.16);
+                    border-radius: 18px;
+                    padding: 16px;
+                    background: rgba(15,23,42,0.72);
+                }
+                #current-plan .wallet-card .wallet-value { color: #f8fafc !important; font-size: 30px; margin: 8px 0 0; }
+                #current-plan .wallet-progress-track { width: 100%; height: 8px; border-radius: 999px; background: rgba(148,163,184,0.18); overflow: hidden; margin-top: 14px; }
+                #current-plan .wallet-progress-fill { width: 0%; height: 100%; border-radius: 999px; background: linear-gradient(90deg, #22d3ee, #6366f1); transition: width .25s ease; }
+                #current-plan .wallet-progress-text { margin: 8px 0 0; color: #cbd5e1 !important; font-size: 12px; }
+                #current-plan .wallet-alert { grid-column: 2 / -1; display: flex; justify-content: space-between; gap: 12px; align-items: center; }
+                #current-plan .wallet-alert p { margin: 0; color: #cbd5e1 !important; font-size: 13px; }
+                #current-plan .wallet-toggle { width: 52px; height: 30px; border-radius: 999px; border: 0; position: relative; cursor: pointer; background: #475569; transition: background .2s ease; flex-shrink: 0; }
+                #current-plan .wallet-toggle.on { background: #6366f1; }
+                #current-plan .wallet-toggle-knob { position: absolute; top: 3px; left: 3px; width: 24px; height: 24px; border-radius: 50%; background: #fff; transition: transform .2s ease; }
                 #current-plan .wallet-toggle.on .wallet-toggle-knob { transform: translateX(22px); }
-                #current-plan .wallet-error { color: #fca5a5; font-size: 12px; margin-top: 10px; display: none; }
-                @media (max-width: 900px) { #current-plan .wallet-grid { grid-template-columns: 1fr; } }
+                #current-plan .wallet-error { color: #fca5a5 !important; font-size: 12px; margin: 10px 0 0; display: none; grid-column: 1 / -1; }
+                #current-plan .plans-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
+                #current-plan .plan-pro-card {
+                    height: 100%;
+                    border-radius: 20px;
+                    padding: 18px;
+                    background: rgba(15,23,42,0.55);
+                    border: 1px solid rgba(148,163,184,0.16);
+                    transition: transform .2s ease, border-color .2s ease;
+                }
+                #current-plan .plan-pro-card:hover { transform: translateY(-3px); border-color: rgba(129,140,248,0.5); }
+                #current-plan .plan-pro-card.is-starter { background: linear-gradient(180deg, rgba(14,165,233,0.16), rgba(15,23,42,0.7)); }
+                #current-plan .plan-pro-card.is-pro { background: linear-gradient(180deg, rgba(99,102,241,0.22), rgba(15,23,42,0.72)); }
+                #current-plan .plan-pro-card.is-elite { background: linear-gradient(180deg, rgba(245,158,11,0.16), rgba(15,23,42,0.72)); }
+                #current-plan .plan-pro-card.is-current { border-color: rgba(52,211,153,0.7); box-shadow: 0 0 0 1px rgba(52,211,153,0.25); }
+                #current-plan .plan-pro-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+                #current-plan .plan-pro-icon { width: 36px; height: 36px; border-radius: 12px; display: grid; place-items: center; background: rgba(255,255,255,0.08); color: #e0e7ff; }
+                #current-plan .plan-pro-name { font-size: 18px; font-weight: 700; color: #f8fafc !important; }
+                #current-plan .plan-now { border-radius: 999px; padding: 4px 8px; background: rgba(16,185,129,0.16); color: #6ee7b7 !important; font-size: 11px; font-weight: 800; }
+                #current-plan .plan-pro-price { color: #f8fafc !important; font-size: 32px; font-weight: 800; line-height: 1; letter-spacing: -0.03em; }
+                #current-plan .plan-pro-price-note { color: #94a3b8 !important; font-size: 12px; margin-top: 4px; }
+                #current-plan .plan-feature-list { list-style: none; margin: 16px 0 0; padding: 0; display: grid; gap: 8px; }
+                #current-plan .plan-feature-list li { color: #cbd5e1 !important; font-size: 14px; }
+                #current-plan .plan-feature-list i { width: 18px; text-align: center; }
+                #current-plan .plan-feature-list .fa-check { color: #34d399; }
+                #current-plan .plan-meta-line { margin-top: 14px; display: flex; gap: 8px; flex-wrap: wrap; }
+                #current-plan .plan-meta-chip { background: rgba(148,163,184,0.12); color: #cbd5e1 !important; border: 1px solid rgba(148,163,184,0.18); border-radius: 999px; padding: 4px 10px; font-size: 12px; }
+                #current-plan .plan-action {
+                    width: 100%;
+                    margin-top: 16px;
+                    border-radius: 12px !important;
+                    border: 1px solid rgba(148,163,184,0.22) !important;
+                    background: rgba(15,23,42,0.45) !important;
+                    color: #e2e8f0 !important;
+                    font-weight: 700;
+                }
+                #current-plan .plan-action:disabled { opacity: 1; }
+                #current-plan .plan-pro-card.is-current .plan-action { background: rgba(16,185,129,0.16) !important; border-color: rgba(52,211,153,0.4) !important; color: #6ee7b7 !important; }
+                #current-plan .plan-empty { grid-column: 1 / -1; text-align: center; color: #94a3b8; padding: 28px; }
+                #current-plan .plan-cancel-wrap {
+                    margin-top: 18px;
+                    display: flex;
+                    justify-content: space-between;
+                    gap: 16px;
+                    align-items: center;
+                    background: rgba(15,23,42,0.55);
+                    border: 1px solid rgba(148,163,184,0.16);
+                    border-radius: 18px;
+                    padding: 16px 18px;
+                }
+                #current-plan .plan-cancel-wrap h5 { margin: 0 0 4px; color: #f8fafc !important; }
+                #current-plan .plan-cancel-wrap p { margin: 0; color: #94a3b8 !important; font-size: 14px; max-width: 640px; }
+                #current-plan .plan-portal-btn { border: 0 !important; border-radius: 999px !important; padding: 10px 16px !important; background: linear-gradient(135deg, #6366f1, #8b5cf6) !important; color: #fff !important; font-weight: 800; white-space: nowrap; }
+                #current-plan .topup-overlay {
+                    position: fixed;
+                    inset: 0;
+                    z-index: 80;
+                    display: none;
+                    align-items: center;
+                    justify-content: center;
+                    padding: 24px;
+                    background: rgba(2, 6, 23, 0.62);
+                    backdrop-filter: blur(8px);
+                }
+                #current-plan .topup-overlay.open { display: flex; }
+                #current-plan .topup-card {
+                    width: min(420px, 100%);
+                    direction: ltr;
+                    text-align: left;
+                    border-radius: 22px;
+                    padding: 22px;
+                    background:
+                        radial-gradient(280px 140px at 100% 0%, rgba(99,102,241,0.28), transparent 60%),
+                        linear-gradient(180deg, #1a2233 0%, #101722 100%);
+                    border: 1px solid rgba(148,163,184,0.22);
+                    box-shadow: 0 30px 70px rgba(0,0,0,0.45);
+                    color: #e2e8f0;
+                }
+                #current-plan .topup-kicker { margin: 0 0 8px; color: #c4b5fd !important; font-size: 11px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; }
+                #current-plan .topup-card h2 { margin: 0 0 6px; color: #f8fafc !important; font-size: 1.35rem; letter-spacing: -0.03em; }
+                #current-plan .topup-card > p { margin: 0 0 16px; color: #94a3b8 !important; font-size: 14px; }
+                #current-plan .topup-field { display: flex; align-items: center; gap: 8px; border: 1px solid rgba(148,163,184,0.24); border-radius: 14px; background: rgba(15,23,42,0.7); padding: 4px 14px; }
+                #current-plan .topup-field:focus-within { border-color: #818cf8; box-shadow: 0 0 0 3px rgba(99,102,241,0.25); }
+                #current-plan .topup-currency { color: #c4b5fd !important; font-size: 22px; font-weight: 800; }
+                #current-plan .topup-field input {
+                    width: 100%;
+                    border: 0;
+                    outline: none;
+                    background: transparent;
+                    color: #f8fafc;
+                    font-size: 28px;
+                    font-weight: 800;
+                    letter-spacing: -0.03em;
+                    padding: 10px 0;
+                }
+                #current-plan .topup-field input::-webkit-outer-spin-button,
+                #current-plan .topup-field input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+                #current-plan .topup-presets { display: flex; gap: 8px; margin-top: 12px; }
+                #current-plan .topup-preset {
+                    flex: 1;
+                    border: 1px solid rgba(148,163,184,0.22);
+                    background: rgba(15,23,42,0.45);
+                    color: #e2e8f0;
+                    border-radius: 999px;
+                    padding: 8px 0;
+                    font-weight: 700;
+                    font-size: 13px;
+                    cursor: pointer;
+                }
+                #current-plan .topup-preset.is-active { background: rgba(99,102,241,0.28); border-color: #818cf8; color: #fff; }
+                #current-plan .topup-note { min-height: 18px; margin: 10px 0 0; color: #fca5a5 !important; font-size: 12px; }
+                #current-plan .topup-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 16px; }
+                #current-plan .topup-cancel, #current-plan .topup-confirm { border: 0; border-radius: 999px; padding: 10px 16px; font-weight: 800; font-size: 13px; cursor: pointer; }
+                #current-plan .topup-cancel { background: rgba(148,163,184,0.14); color: #e2e8f0; }
+                #current-plan .topup-confirm { background: linear-gradient(135deg, #6366f1, #8b5cf6); color: #fff; }
+                #current-plan .topup-confirm:disabled { opacity: 0.65; cursor: wait; }
+                @media (max-width: 980px) {
+                    #current-plan .wallet-board, #current-plan .plans-grid { grid-template-columns: 1fr; }
+                    #current-plan .wallet-hero, #current-plan .wallet-alert { grid-row: auto; grid-column: auto; }
+                    #current-plan .plan-cancel-wrap { flex-direction: column; align-items: flex-start; }
+                }
             </style>
 
             <div class="plans-shell">
                 <div class="plans-headline">
                     <div>
+                        <p class="plans-kicker"><i class="fas fa-gem"></i> Billing</p>
                         <h1 class="section-header">Plan & Billing</h1>
                         <p class="section-description">Manage your subscription with clear upgrade and downgrade actions based on your current plan.</p>
                     </div>
@@ -604,44 +918,44 @@ $(document).ready(function () {
                     </div>
                 </div>
 
-                <div class="wallet-grid" id="walletDashboard">
-                    <article class="wallet-card wallet-balance-card">
-                        <p class="wallet-label">Wallet Balance</p>
-                        <h3 class="wallet-value" id="walletBalanceValue">$0.00 Available</h3>
-                        <button type="button" class="btn btn-info-accent" id="walletTopupBtn">
-                            <i class="fas fa-wallet me-1"></i> Top Up Wallet
+                <div class="wallet-board" id="walletDashboard">
+                    <article class="wallet-hero">
+                        <div>
+                            <p class="wallet-label">Wallet balance</p>
+                            <h3 class="wallet-value" id="walletBalanceValue">$0.00</h3>
+                            <p class="wallet-hint">Available to spend</p>
+                        </div>
+                        <button type="button" class="wallet-topup" id="walletTopupBtn">
+                            <i class="fas fa-plus"></i> Top up wallet
                         </button>
                     </article>
                     <article class="wallet-card">
-                        <p class="wallet-label">Total Tokens Used</p>
-                        <h4 class="wallet-value" id="walletTokensUsed" style="font-size:30px; margin:8px 0 0">0</h4>
+                        <p class="wallet-label">Tokens used</p>
+                        <h4 class="wallet-value" id="walletTokensUsed">0</h4>
                     </article>
                     <article class="wallet-card">
-                        <p class="wallet-label">Usage Progress</p>
+                        <p class="wallet-label">Usage remaining</p>
                         <div class="wallet-progress-track">
                             <div class="wallet-progress-fill" id="walletUsageProgress"></div>
                         </div>
-                        <p class="wallet-progress-text" id="walletUsageText">0% of initial $1.00 consumed</p>
+                        <p class="wallet-progress-text" id="walletUsageText">0% remaining (reference: $10.00 top-up)</p>
                     </article>
-                    <article class="wallet-card" style="grid-column: 1 / -1;">
-                        <div style="display:flex; justify-content:space-between; gap:12px; align-items:center;">
-                            <div>
-                                <p class="wallet-label" style="margin-bottom:4px;">Low Balance Alert</p>
-                                <p style="margin:0; color:#cbd5e1; font-size:13px;">Send email alert when the balance is less than 0.50$</p>   
-                            </div>
-                            <button type="button" class="wallet-toggle" id="walletLowAlertToggle" aria-pressed="true">
-                                <span class="wallet-toggle-knob"></span>
-                            </button>
+                    <article class="wallet-card wallet-alert">
+                        <div>
+                            <p class="wallet-label">Low balance alert</p>
+                            <p>Email me when the balance drops under $0.50</p>
                         </div>
-                        <p class="wallet-error" id="walletErrorText"></p>
+                        <button type="button" class="wallet-toggle" id="walletLowAlertToggle" aria-pressed="true" aria-label="Low balance alert">
+                            <span class="wallet-toggle-knob"></span>
+                        </button>
                     </article>
+                    <p class="wallet-error" id="walletErrorText"></p>
                 </div>
 
-                <div class="row g-4">
+                <div class="plans-grid">
                     {% for plan in plans %}
-                    <div class="col-md-4">
-                        <div class="plan-pro-card h-100 {% if current_plan and current_plan.id == plan.id %}is-current{% endif %}">
-                            <div class="card-body p-4">
+                    <div>
+                        <div class="plan-pro-card {% if current_plan and current_plan.id == plan.id %}is-current{% endif %} {% if plan.name|lower == 'premium' or plan.name|lower == 'pro' %}is-pro{% elif plan.name|lower == 'elite' %}is-elite{% else %}is-starter{% endif %}">
                                 <div class="plan-pro-header">
                                     <div class="d-flex align-items-center gap-2">
                                         <span class="plan-pro-icon">
@@ -652,16 +966,13 @@ $(document).ready(function () {
                                         </span>
                                     </div>
                                     {% if current_plan and current_plan.id == plan.id %}
-                                    <span class="badge bg-success">
-                                        Current
-                                        {% if plan.name|lower == 'premium' or plan.name|lower == 'pro' %}Pro{% elif plan.name|lower == 'basic' or plan.name|lower == 'starter' or plan.name|lower == 'free' %}Starter{% elif plan.name|lower == 'elite' %}Elite{% else %}Plan{% endif %}
-                                    </span>
+                                    <span class="plan-now">Current</span>
                                     {% endif %}
                                 </div>
 
                                 <div class="mb-3">
                                     <div class="plan-pro-price">
-                                        {% if plan.price == 0 or plan.price == None %}Free{% else %}{{ plan.price }} ${% endif %}
+                                        {% if plan.price == 0 or plan.price == None %}Free{% else %}${{ plan.price }}{% endif %}
                                     </div>
                                     <div class="plan-pro-price-note">{% if plan.price and plan.price > 0 %}per month{% else %}always available{% endif %}</div>
                                 </div>
@@ -687,43 +998,61 @@ $(document).ready(function () {
                                 </ul>
 
                                 <div class="plan-meta-line">
-                                    <span class="plan-meta-chip">{% if plan.max_channels == None %}Unlimited channels{% else %}{{ plan.max_channels }} channels{% endif %}</span>
-                                    <span class="plan-meta-chip">{% if plan.max_team_members == None %}Unlimited team{% else %}{{ plan.max_team_members }} team seats{% endif %}</span>
+                                    <span class="plan-meta-chip">{% if plan.max_channels == None %}Unlimited channels{% else %}{{ plan.max_channels }} channel{{ plan.max_channels|pluralize }}{% endif %}</span>
+                                    <span class="plan-meta-chip">{% if plan.max_team_members == None %}Unlimited seats{% else %}{{ plan.max_team_members }} team seat{{ plan.max_team_members|pluralize }}{% endif %}</span>
                                 </div>
 
                                 <div class="mt-3">
                                     {% if current_plan and current_plan.id == plan.id %}
-                                    <button type="button" class="btn btn-outline-secondary w-100" disabled>
-                                        <i class="fas fa-check me-1"></i> Current Plan
+                                    <button type="button" class="btn plan-action" disabled>
+                                        <i class="fas fa-check"></i> Current plan
                                     </button>
                                     {% else %}
-                                    <button type="button" class="btn btn-outline-secondary w-100" disabled>
-                                        <i class="fas fa-external-link-alt me-1"></i> Managed in Stripe Portal
+                                    <button type="button" class="btn plan-action" disabled>
+                                        <i class="fas fa-external-link-alt"></i> Managed in Stripe
                                     </button>
                                     {% endif %}
                                 </div>
-                            </div>
                         </div>
                     </div>
                     {% empty %}
-                    <div class="col-12">
-                        <div class="card">
-                            <div class="card-body text-center text-muted">
-                                <p class="mb-0">No plans available. Run <code>python manage.py init_plans</code> to create Starter, Pro, and Elite plans.</p>
-                            </div>
-                        </div>
+                    <div class="plan-empty">
+                        <p class="mb-0">No plans available. Run <code>python manage.py init_plans</code> to create Starter, Pro, and Elite plans.</p>
                     </div>
                     {% endfor %}
                 </div>
 
                 <div class="plan-cancel-wrap">
-                    <h5>Manage Subscription and Billing</h5>
-                    <p>
-                        All upgrade, downgrade, cancellation, card update, and billing are securely handled through the Stripe Billing Portal.
-                    </p>
-                    <button type="button" id="manageBillingPortalBtn" class="btn btn-info-accent">
-                        <i class="fas fa-credit-card me-1"></i> Manage Subscription and Billing
+                    <div>
+                        <h5>Manage subscription</h5>
+                        <p>Upgrades, downgrades, cancellation, and card updates go through the Stripe billing portal.</p>
+                    </div>
+                    <button type="button" id="manageBillingPortalBtn" class="btn plan-portal-btn">
+                        <i class="fas fa-credit-card"></i> Open billing portal
                     </button>
+                </div>
+            </div>
+
+            <div class="topup-overlay" id="walletTopupOverlay" hidden>
+                <div class="topup-card" role="dialog" aria-modal="true" aria-labelledby="walletTopupTitle">
+                    <p class="topup-kicker"><i class="fas fa-wallet"></i> Wallet</p>
+                    <h2 id="walletTopupTitle">Top up wallet</h2>
+                    <p>Enter the amount you want to add. The minimum is $5.</p>
+                    <label class="topup-field" for="walletTopupAmount">
+                        <span class="topup-currency">$</span>
+                        <input id="walletTopupAmount" type="number" inputmode="decimal" min="5" step="0.01" placeholder="5.00" value="10">
+                    </label>
+                    <div class="topup-presets">
+                        <button type="button" class="topup-preset" data-amount="5">$5</button>
+                        <button type="button" class="topup-preset" data-amount="10">$10</button>
+                        <button type="button" class="topup-preset" data-amount="25">$25</button>
+                        <button type="button" class="topup-preset" data-amount="50">$50</button>
+                    </div>
+                    <p class="topup-note" id="walletTopupNote"></p>
+                    <div class="topup-actions">
+                        <button type="button" class="topup-cancel" id="walletTopupCancel">Cancel</button>
+                        <button type="button" class="topup-confirm" id="walletTopupConfirm">Continue to checkout</button>
+                    </div>
                 </div>
             </div>
         </div>
@@ -742,6 +1071,12 @@ $(document).ready(function () {
                 var toggleEl = document.getElementById("walletLowAlertToggle");
                 var errEl = document.getElementById("walletErrorText");
                 var topupEl = document.getElementById("walletTopupBtn");
+                var topupOverlay = document.getElementById("walletTopupOverlay");
+                var topupAmount = document.getElementById("walletTopupAmount");
+                var topupNote = document.getElementById("walletTopupNote");
+                var topupConfirm = document.getElementById("walletTopupConfirm");
+                var topupCancel = document.getElementById("walletTopupCancel");
+                var MIN_TOPUP = 5;
 
                 function setError(message) {
                     if (!errEl) return;
@@ -773,7 +1108,7 @@ $(document).ready(function () {
                         var balance = Math.max(0, Number(data.walletBalance || 0));
                         var referenceTopup = 10;
                         var remainingPct = Math.max(0, Math.min(100, Math.round((balance / referenceTopup) * 100)));
-                        if (balEl) balEl.textContent = "$" + balance.toFixed(2) + " Available";
+                        if (balEl) balEl.textContent = "$" + balance.toFixed(2);
                         if (tokEl) tokEl.textContent = Number(data.totalTokensUsed || 0).toLocaleString();
                         if (barEl) barEl.style.width = remainingPct + "%";
                         if (txtEl) txtEl.textContent = remainingPct + "% remaining (reference: $10.00 top-up)";
@@ -784,19 +1119,73 @@ $(document).ready(function () {
                     }
                 }
 
-                if (topupEl) {
-                    topupEl.addEventListener("click", async function () {
-                        var amountInput = window.prompt("Enter top-up amount in USD (minimum $10):", "10");
-                        if (amountInput === null) return;
-                        var amount = Number(amountInput);
-                        if (!Number.isFinite(amount) || amount < 10) {
-                            setError("Minimum top-up amount is $10.");
+                function markPreset(amount) {
+                    if (!topupOverlay) return;
+                    topupOverlay.querySelectorAll(".topup-preset").forEach(function (btn) {
+                        btn.classList.toggle("is-active", Number(btn.getAttribute("data-amount")) === amount);
+                    });
+                }
+
+                function readTopupAmount() {
+                    var amount = Number(topupAmount && topupAmount.value);
+                    if (!Number.isFinite(amount)) return null;
+                    return Math.round(amount * 100) / 100;
+                }
+
+                function openTopup() {
+                    if (!topupOverlay) return;
+                    topupOverlay.hidden = false;
+                    topupOverlay.classList.add("open");
+                    if (topupNote) topupNote.textContent = "";
+                    if (topupAmount) {
+                        topupAmount.value = "10";
+                        markPreset(10);
+                        topupAmount.focus();
+                        topupAmount.select();
+                    }
+                }
+
+                function closeTopup() {
+                    if (!topupOverlay || (topupConfirm && topupConfirm.disabled)) return;
+                    topupOverlay.classList.remove("open");
+                    topupOverlay.hidden = true;
+                }
+
+                if (topupEl) topupEl.addEventListener("click", openTopup);
+                if (topupCancel) topupCancel.addEventListener("click", closeTopup);
+                if (topupOverlay) {
+                    topupOverlay.addEventListener("click", function (event) {
+                        if (event.target === topupOverlay) closeTopup();
+                    });
+                    topupOverlay.querySelectorAll(".topup-preset").forEach(function (btn) {
+                        btn.addEventListener("click", function () {
+                            var amount = Number(btn.getAttribute("data-amount"));
+                            if (topupAmount) topupAmount.value = amount.toFixed(2);
+                            markPreset(amount);
+                            if (topupNote) topupNote.textContent = "";
+                        });
+                    });
+                }
+                if (topupAmount) {
+                    topupAmount.addEventListener("input", function () {
+                        markPreset(readTopupAmount());
+                        if (topupNote) topupNote.textContent = "";
+                    });
+                }
+                document.addEventListener("keydown", function (event) {
+                    if (event.key === "Escape" && topupOverlay && topupOverlay.classList.contains("open")) closeTopup();
+                });
+
+                if (topupConfirm) {
+                    topupConfirm.addEventListener("click", async function () {
+                        var amount = readTopupAmount();
+                        if (amount === null || amount < MIN_TOPUP) {
+                            if (topupNote) topupNote.textContent = "Minimum top-up amount is $5.";
                             return;
                         }
-
-                        var original = topupEl.innerHTML;
-                        topupEl.disabled = true;
-                        topupEl.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i> Redirecting...';
+                        var original = topupConfirm.innerHTML;
+                        topupConfirm.disabled = true;
+                        topupConfirm.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i> Redirecting...';
                         try {
                             var res = await fetch("/discount/whatssapAPI/api/wallet/topup/", {
                                 method: "POST",
@@ -816,9 +1205,9 @@ $(document).ready(function () {
                             }
                             window.location.href = data.url;
                         } catch (e) {
-                            setError(e.message || "Unable to start top-up checkout");
-                            topupEl.disabled = false;
-                            topupEl.innerHTML = original;
+                            if (topupNote) topupNote.textContent = e.message || "Unable to start top-up checkout";
+                            topupConfirm.disabled = false;
+                            topupConfirm.innerHTML = original;
                         }
                     });
                 }
@@ -895,35 +1284,208 @@ $(document).ready(function () {
 
         <!-- Team Management Section -->
         <div id="team-management" class="content-area-pane">
-            <div class="section-header-container">
-                <h1 class="section-header">Team Management</h1>
-                <p class="section-description">Manage your team members, roles, and permissions.</p>
-            </div>
-
-            <div class="row g-4 mb-4">
-                <div class="col-md-4">
-                    <div class="card h-100">
-                        <div class="card-header">
-                            <i class="fas fa-users-cog"></i> Team Overview
-                        </div>
-                        <div class="card-body text-center">
-                            <h2 style="font-size: 2.5rem; font-weight: 700; color: var(--accent-color);">{{ team_invitations|length }}</h2>
-                            <p class="text-muted mb-0">Total Members</p>
-                        </div>
-                        
-              
-
+            <style>
+                #team-management .team-shell {
+                    direction: ltr;
+                    text-align: left;
+                    position: relative;
+                    padding: 22px;
+                    border-radius: 24px;
+                    background:
+                        radial-gradient(820px 260px at 0% -10%, rgba(14,165,233,0.22), transparent 55%),
+                        linear-gradient(180deg, #121826 0%, #0c1018 100%);
+                    border: 1px solid rgba(148,163,184,0.16);
+                    box-shadow: 0 24px 50px rgba(0,0,0,0.28);
+                    color: #e2e8f0;
+                }
+                #team-management .team-shell::after {
+                    content: "";
+                    position: absolute;
+                    left: 22px;
+                    right: 22px;
+                    top: 0;
+                    height: 2px;
+                    border-radius: 999px;
+                    background: linear-gradient(90deg, transparent, #22d3ee, #6366f1, #34d399, transparent);
+                    pointer-events: none;
+                }
+                #team-management .team-kicker {
+                    margin: 0 0 8px;
+                    display: inline-flex;
+                    align-items: center;
+                    gap: 8px;
+                    padding: 5px 10px;
+                    border-radius: 999px;
+                    background: rgba(14,165,233,0.16);
+                    color: #67e8f9 !important;
+                    font-size: 11px;
+                    font-weight: 700;
+                    letter-spacing: 0.12em;
+                    text-transform: uppercase;
+                }
+                #team-management .team-headline { display: flex; justify-content: space-between; gap: 16px; align-items: flex-end; margin: 8px 0 20px; }
+                #team-management .team-headline h1 { margin: 0 0 6px; color: #f8fafc !important; font-size: 1.7rem; letter-spacing: -0.03em; }
+                #team-management .team-headline p { margin: 0; max-width: 520px; color: #94a3b8 !important; font-size: 0.92rem; line-height: 1.5; }
+                #team-management .team-invite-btn {
+                    border: 0;
+                    border-radius: 999px;
+                    padding: 10px 16px;
+                    background: linear-gradient(135deg, #6366f1, #8b5cf6) !important;
+                    color: #fff !important;
+                    font-weight: 800;
+                    font-size: 13px;
+                    white-space: nowrap;
+                    cursor: pointer;
+                }
+                #team-management .team-invite-btn i { color: #fff !important; }
+                #team-management .team-stats { display: grid; grid-template-columns: 1.3fr 1fr 1fr; gap: 12px; margin-bottom: 16px; }
+                #team-management .team-stat {
+                    border: 1px solid rgba(148,163,184,0.16);
+                    border-radius: 18px;
+                    padding: 16px 18px;
+                    background: rgba(15,23,42,0.72);
+                }
+                #team-management .team-stat-main {
+                    background: linear-gradient(145deg, #0e7490 0%, #0891b2 46%, #4f46e5 100%);
+                    border: 0;
+                    box-shadow: inset 0 1px 0 rgba(255,255,255,0.16);
+                }
+                #team-management .team-stat p { margin: 0; color: #94a3b8 !important; font-size: 13px; font-weight: 600; }
+                #team-management .team-stat-main p,
+                #team-management .team-stat-main span { color: rgba(255,255,255,0.78) !important; }
+                #team-management .team-stat h3 { margin: 8px 0 4px; color: #f8fafc !important; font-size: 34px; font-weight: 800; letter-spacing: -0.04em; line-height: 1; }
+                #team-management .team-stat span { color: #94a3b8 !important; font-size: 12px; }
+                #team-management .team-panel {
+                    border: 1px solid rgba(148,163,184,0.16);
+                    border-radius: 18px;
+                    background: rgba(15,23,42,0.45);
+                    padding: 16px 18px;
+                    margin-top: 14px;
+                }
+                #team-management .team-panel h2 { margin: 0; color: #f8fafc !important; font-size: 1.05rem; }
+                #team-management .team-panel-head { display: flex; justify-content: space-between; gap: 12px; align-items: center; margin-bottom: 14px; }
+                #team-management .team-panel-head p { margin: 2px 0 0; color: #94a3b8 !important; font-size: 13px; }
+                #team-management .team-empty { text-align: center; padding: 28px 12px 18px; }
+                #team-management .team-empty-icon {
+                    width: 54px;
+                    height: 54px;
+                    margin: 0 auto 12px;
+                    border-radius: 16px;
+                    display: grid;
+                    place-items: center;
+                    background: rgba(99,102,241,0.16);
+                    color: #c4b5fd;
+                    font-size: 20px;
+                }
+                #team-management .team-empty h5 { margin: 0 0 6px; color: #f8fafc !important; }
+                #team-management .team-empty p { margin: 0 0 16px; color: #94a3b8 !important; }
+                #team-management .team-table { width: 100%; border-collapse: separate; border-spacing: 0; margin: 0; color: #e2e8f0; }
+                #team-management .team-table th {
+                    color: #94a3b8 !important;
+                    font-size: 11px;
+                    font-weight: 700;
+                    letter-spacing: 0.08em;
+                    text-transform: uppercase;
+                    border: 0;
+                    padding: 0 10px 10px;
+                    background: transparent;
+                }
+                #team-management .team-table td {
+                    border-top: 1px solid rgba(148,163,184,0.12);
+                    padding: 12px 10px;
+                    color: #e2e8f0 !important;
+                    vertical-align: middle;
+                    background: transparent;
+                }
+                #team-management .team-person { display: flex; align-items: center; gap: 10px; font-weight: 700; color: #f8fafc !important; }
+                #team-management .team-avatar {
+                    width: 34px;
+                    height: 34px;
+                    border-radius: 12px;
+                    display: grid;
+                    place-items: center;
+                    background: rgba(99,102,241,0.2);
+                    color: #c4b5fd;
+                    font-size: 13px;
+                }
+                #team-management .team-pill { border-radius: 999px; padding: 4px 10px; font-size: 12px; font-weight: 700; }
+                #team-management .team-pill.on { background: rgba(16,185,129,0.16); color: #6ee7b7 !important; }
+                #team-management .team-pill.off { background: rgba(248,113,113,0.14); color: #fca5a5 !important; }
+                #team-management .team-icon-btn {
+                    width: 34px;
+                    height: 34px;
+                    border-radius: 10px;
+                    border: 1px solid rgba(148,163,184,0.22);
+                    background: rgba(15,23,42,0.45);
+                    color: #e2e8f0 !important;
+                    display: inline-grid;
+                    place-items: center;
+                }
+                #team-management .team-icon-btn i { color: #e2e8f0 !important; }
+                #team-management .team-icon-btn:hover { border-color: #818cf8; color: #fff !important; }
+                #team-management .team-limit {
+                    width: 92px;
+                    border-radius: 10px;
+                    border: 1px solid rgba(148,163,184,0.24);
+                    background: rgba(15,23,42,0.7);
+                    color: #f8fafc;
+                    text-align: center;
+                    padding: 6px 8px;
+                }
+                #team-management .team-save {
+                    border: 0;
+                    border-radius: 10px;
+                    background: #34d399;
+                    color: #052e26;
+                    width: 34px;
+                    height: 34px;
+                }
+                #team-management .team-manage {
+                    border: 1px solid rgba(129,140,248,0.45);
+                    background: rgba(99,102,241,0.16);
+                    color: #c4b5fd !important;
+                    border-radius: 999px;
+                    padding: 6px 12px;
+                    font-size: 12px;
+                    font-weight: 700;
+                }
+                #team-management .team-manage i { color: #c4b5fd !important; }
+                @media (max-width: 980px) {
+                    #team-management .team-stats, #team-management .team-headline { grid-template-columns: 1fr; display: grid; }
+                    #team-management .team-headline { align-items: flex-start; }
+                }
+            </style>
+            <div class="team-shell">
+                <div class="team-headline">
+                    <div>
+                        <p class="team-kicker"><i class="fas fa-users"></i> Team</p>
+                        <h1 class="section-header">Team Management</h1>
+                        <p class="section-description">Invite people, assign roles, and control what each member can see.</p>
                     </div>
+                    <button type="button" class="team-invite-btn" id="add_stuff_btn_header">
+                        <i class="fas fa-plus"></i> Invite member
+                    </button>
                 </div>
-                <div class="col-md-8">
-                    <div class="card h-100">
-                        <div class="card-header d-flex justify-content-between align-items-center">
-                            <i class="fas fa-user-plus"></i> Invite New Member
-                            <button class="btn btn-primary btn-sm" id="add_stuff_btn_header">
-                                <i class="fas fa-plus"></i> Invite
-                            </button>
-                        </div>
-                        <div id="stuffFormSect" class="d-none animate__animated animate__fadeIn">
+
+                <div class="team-stats">
+                    <article class="team-stat team-stat-main">
+                        <p>Invitations</p>
+                        <h3>{{ team_invitations|length }}</h3>
+                        <span>Pending and sent invites</span>
+                    </article>
+                    <article class="team-stat">
+                        <p>Active members</p>
+                        <h3>{% if team_accounts %}{{ team_accounts|length }}{% else %}0{% endif %}</h3>
+                        <span>Working in this account</span>
+                    </article>
+                    <article class="team-stat">
+                        <p>Roles</p>
+                        <h3>3</h3>
+                        <span>Orders, support, and admin</span>
+                    </article>
+                </div>
+
+                <div id="stuffFormSect" class="team-panel d-none animate__animated animate__fadeIn">
                             <div class="modern-card">
                                 <div class="card-body p-4 p-lg-5">
                                     <form class="stuff_form" method="post" id="stuff_forms">
@@ -955,9 +1517,9 @@ $(document).ready(function () {
                                                     <i class="fas fa-shield-alt input-icon"></i>
                                                     <select class="modern-input" name="role" required>
                                                         <option value="" disabled selected>Select a role...</option>
-                                                        <option value="shopify">📦 Order Management (Shopify)</option>
-                                                        <option value="support">🎧 Customer Support</option>
-                                                        <option value="admin">🔑 Admin</option>
+                                                        <option value="shopify">Order management</option>
+                                                        <option value="support">Customer support</option>
+                                                        <option value="admin">Admin</option>
                                                     </select>
                                                     <i class="fas fa-chevron-down select-arrow"></i>
                                                 </div>
@@ -1036,7 +1598,7 @@ $(document).ready(function () {
                                             </div>
                                         </div>
                         
-                                        <div class="d-flex justify-content-end gap-3 mt-5 pt-3 border-top">
+                                        <div class="d-flex justify-content-end gap-3 mt-4">
                                             <button type="button" class="btn btn-light-custom" id="hideStuffFormBtn">Cancel</button>
                                             <button type="submit" class="btn btn-primary-custom">
                                                 <span>Send Invitation</span>
@@ -1048,12 +1610,16 @@ $(document).ready(function () {
                             </div>
                         </div>
 
-
-
-                        <div id="team_member_list_container">
+                        <div id="team_member_list_container" class="team-panel">
+                            <div class="team-panel-head">
+                                <div>
+                                    <h2>Invitations</h2>
+                                    <p>People you invited to this account.</p>
+                                </div>
+                            </div>
                             {% if team_invitations %}
                             <div class="table-responsive">
-                                <table class="table table-hover mb-0">
+                                <table class="table team-table mb-0">
                                     <thead>
                                         <tr>
                                             <th>Name</th>
@@ -1066,23 +1632,23 @@ $(document).ready(function () {
                                         {% for account in team_invitations %}
                                         <tr>
                                             <td>
-                                                <span class="badge badge-info">
-                                                    <i class="{{ account.get_platform_icon }} me-1"></i>
+                                                <span class="team-person">
+                                                    <span class="team-avatar"><i class="{{ account.get_platform_icon }}"></i></span>
                                                     {{ account.user_name }}
                                                 </span>
                                             </td>
                                             <td>{{ account.email }}</td>
                                             <td>
-                                                <span class="badge {% if account.is_active %}badge-success{% else %}badge-danger{% endif %}">
+                                                <span class="team-pill {% if account.is_active %}on{% else %}off{% endif %}">
                                                     {% if account.is_active %}Active{% else %}Inactive{% endif %}
                                                 </span>
                                             </td>
                                             <td>
-                                                <div class="btn-group btn-group-sm">
-                                                    <button class="btn btn-outline-dark" data-bs-toggle="modal" data-bs-target="#accountModal{{ account.id }}" title="View Details">
+                                                <div class="d-flex gap-2">
+                                                    <button type="button" class="team-icon-btn" data-bs-toggle="modal" data-bs-target="#accountModal{{ account.id }}" title="View Details">
                                                         <i class="fas fa-info-circle"></i>
                                                     </button>
-                                                    <a href="{% url 'unlink_user' account.id %}" class="btn btn-outline-dark" title="Remove Member">
+                                                    <a href="{% url 'unlink_user' account.id %}" class="team-icon-btn" title="Remove Member">
                                                         <i class="fas fa-user-times"></i>
                                                     </a>
                                                 </div>
@@ -1093,158 +1659,131 @@ $(document).ready(function () {
                                 </table>
                             </div>
                             {% else %}
-                            <div class="empty-state d-none" id="no_members_message"> <!-- Initially hidden, shown if no members AND form is hidden -->
-                                <div class="empty-state-icon">
-                                    <i class="fas fa-users-slash"></i>
+                            <div class="team-empty d-none" id="no_members_message">
+                                <div class="team-empty-icon">
+                                    <i class="fas fa-user-plus"></i>
                                 </div>
-                                <h5>No Team Members Found</h5>
-                                <p class="text-muted mb-4">Invite team members to collaborate on your account and manage their access.</p>
-                               <button class="btn btn-primary" id="add_stuff_empty_state">
-                                <i class="fas fa-user-plus"></i> Invite First Member
-                            </button>
+                                <h5>No team members yet</h5>
+                                <p>Invite someone to share orders, chats, and channels.</p>
+                                <button type="button" class="team-invite-btn" id="add_stuff_empty_state">
+                                    <i class="fas fa-plus"></i> Invite first member
+                                </button>
                             </div>
                             {% endif %}
                         </div>
 
-
-                    </div>
-                </div>
-            
-            
-            </div>
-
-            <!-- Empty Third Column - Placeholder for future features -->
-            <div class="row g-4">
-                <div class="col-12">
-                    <div class="card h-100">
-                        <div class="card-header">
-                            <i class="fas fa-ellipsis-h"></i> Future Team Features
-                        </div>
-                        <div class="card-body">
-                            <!-- <div class="empty-state">
-                                <div class="empty-state-icon">
-                                    <i class="fas fa-sparkles"></i>
+                        <div class="team-panel">
+                            <div class="team-panel-head">
+                                <div>
+                                    <h2>Active members</h2>
+                                    <p>Set a daily order limit and manage permissions.</p>
                                 </div>
-                                <h5>More Features Coming Soon!</h5>
-                                <p class="text-muted">This area is reserved for advanced team management functionalities.</p>
-                            Team Order Limits Management -->
-                            {% if team_accounts %} 
-                            <div class="card-footer bg-transparent border-0 pt-4">
-                                <h5 class="text-center mb-4" style="color: var(--text-light); font-weight: 600;">
-                                    Manage Team Members 
-                                </h5>
-                                <div class="table-responsive">
-                                    <table class="table align-middle mb-0" style="background: transparent;"> 
-                                        <thead>
-                                            <tr style="background: var(--background-tertiary);">
-                                                <th class="text-center" style="color: var(--text-muted); font-size: .95rem;">User Name</th>
-                                                <th class="text-center" style="color: var(--text-muted); font-size: .95rem;">Email</th>
-                                                <th class="text-center" style="color: var(--text-muted); font-size: .95rem;">Daily Orders</th>
-                                                <th class="text-center" style="color: var(--text-muted); font-size: .95rem;">Permission</th>
-                                            </tr>
-                                        </thead> 
-                                        <tbody>
-                                            {% for team_Account in team_accounts %}
-                                            <tr style="border-bottom: 1px solid var(--border-color-light);">
-                                                <td class="text-center" style="color: var(--text-light); font-weight: 500;">
+                            </div>
+                            {% if team_accounts %}
+                            <div class="table-responsive">
+                                <table class="table team-table mb-0">
+                                    <thead>
+                                        <tr>
+                                            <th>Name</th>
+                                            <th>Email</th>
+                                            <th>Daily orders</th>
+                                            <th>Permission</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for team_Account in team_accounts %}
+                                        <tr>
+                                            <td>
+                                                <span class="team-person">
+                                                    <span class="team-avatar">{{ team_Account.username|first|upper }}</span>
                                                     {{ team_Account.username }}
-                                                </td>
-                                                <td class="text-center" style="color: var(--text-light); font-size: .93rem;">
-                                                    {{ team_Account.email }}
-                                                </td>
-                                                <td class="text-center">
-                                                    <form method="POST" class="d-inline-flex align-items-center gap-2 order-limit-form" style="min-width: 120px;">
-                                                        {% csrf_token %}
-                                                        <div class="input-group input-group-sm" style="width: 110px; direction: rtl;">
-                                                            <input type="number" name="order_limit"
-                                                                value="{{ team_Account.daily_order_limit }}"
-                                                                min="0"
-                                                                class="form-control form-control-sm text-center"
-                                                                style="background: var(--background-tertiary); color: var(--text-light); border: 1px solid var(--border-color);"
-                                                                oninput="this.form.querySelector('button[type=&quot;submit&quot;]').classList.remove('d-none');">
-                                                            <input type="hidden" name="account_id" value="{{ team_Account.id }}">
-                                                            <button type="submit" class="btn btn-success btn-sm d-none" style="font-size: .85rem;">
-                                                                <i class="fas fa-save"></i>
-                                                            </button>
-                                                        </div>
-                                                    </form>
-                                                    <script>
-                                                    $(document).ready(function(){
-                                                        $('.order-limit-form').on('submit', function(e){
-                                                            e.preventDefault();
-                                                            var $form = $(this);
-                                                            var $btn = $form.find('button[type="submit"]');
-                                                            var formData = $form.serialize();
-                                                            $btn.prop('disabled', true).html('<span class="spinner-border spinner-border-sm"></span>');
-                                                            $.ajax({
-                                                                type: 'POST',
-                                                                url: '{% url "update_order_limit" %}',
-                                                                data: formData,
-                                                                success: function(response){
-                                                                    if(response.success){
-                                                                        $btn.addClass('d-none');
-                                                                        Swal.fire({
-                                                                            icon: 'success',
-                                                                            title: 'تم التحديث بنجاح',
-                                                                            text: response.message || 'تم حفظ الحد اليومي للطلبات.',
-                                                                            timer: 1500,
-                                                                            showConfirmButton: false,
-                                                                            background: 'var(--background-secondary)',
-                                                                            color: 'var(--text-light)'
-                                                                        });
-                                                                    }else{
-                                                                        Swal.fire({
-                                                                            icon: 'error',
-                                                                            title: 'خطأ',
-                                                                            text: response.message || 'حدث خطأ أثناء الحفظ.',
-                                                                            background: 'var(--background-secondary)',
-                                                                            color: 'var(--text-light)'
-                                                                        });
-                                                                    }
-                                                                },
-                                                                error: function(xhr){
-                                                                    Swal.fire({
-                                                                        icon: 'error',
-                                                                        title: 'خطأ في الاتصال',
-                                                                        text: xhr.responseJSON?.message || 'حدث خطأ غير متوقع.',
-                                                                        background: 'var(--background-secondary)',
-                                                                        color: 'var(--text-light)'
-                                                                    });
-                                                                },
-                                                                complete: function(){
-                                                                    $btn.prop('disabled', false).html('<i class="fas fa-save"></i>');
-                                                                }
-                                                            });
-                                                        });
-                                                    });
-                                                    </script>
-                                                </td>
-                                               <td class="text-center">
-  <button class="btn btn-outline-dark btn-sm manage-perm-btn"
-          data-user-id="{{ team_Account.id }}"
-          style="font-size: .85rem;">
-    <i class="fas fa-cog me-1"></i> Manage
-  </button>
-</td>
-
-                                            </tr>
-                                            {% endfor %}
-                                        </tbody>
-                                    </table>
-                                </div>
+                                                </span>
+                                            </td>
+                                            <td>{{ team_Account.email }}</td>
+                                            <td>
+                                                <form method="POST" class="d-inline-flex align-items-center gap-2 order-limit-form">
+                                                    {% csrf_token %}
+                                                    <input type="number" name="order_limit"
+                                                        value="{{ team_Account.daily_order_limit }}"
+                                                        min="0"
+                                                        class="team-limit"
+                                                        oninput="this.form.querySelector('button[type=&quot;submit&quot;]').classList.remove('d-none');">
+                                                    <input type="hidden" name="account_id" value="{{ team_Account.id }}">
+                                                    <button type="submit" class="team-save d-none" title="Save">
+                                                        <i class="fas fa-check"></i>
+                                                    </button>
+                                                </form>
+                                            </td>
+                                            <td>
+                                                <button type="button" class="team-manage manage-perm-btn" data-user-id="{{ team_Account.id }}">
+                                                    <i class="fas fa-sliders-h"></i> Manage
+                                                </button>
+                                            </td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
                             </div>
+                            <script>
+                            $(document).ready(function(){
+                                $('.order-limit-form').off('submit.teamLimit').on('submit.teamLimit', function(e){
+                                    e.preventDefault();
+                                    var $form = $(this);
+                                    var $btn = $form.find('button[type="submit"]');
+                                    var formData = $form.serialize();
+                                    $btn.prop('disabled', true).html('<span class="spinner-border spinner-border-sm"></span>');
+                                    $.ajax({
+                                        type: 'POST',
+                                        url: '{% url "update_order_limit" %}',
+                                        data: formData,
+                                        success: function(response){
+                                            if(response.success){
+                                                $btn.addClass('d-none');
+                                                Swal.fire({
+                                                    icon: 'success',
+                                                    title: 'Updated',
+                                                    text: response.message || 'Daily order limit saved.',
+                                                    timer: 1500,
+                                                    showConfirmButton: false,
+                                                    background: '#151b24',
+                                                    color: '#f8fafc'
+                                                });
+                                            }else{
+                                                Swal.fire({
+                                                    icon: 'error',
+                                                    title: 'Could not save',
+                                                    text: response.message || 'Something went wrong.',
+                                                    background: '#151b24',
+                                                    color: '#f8fafc'
+                                                });
+                                            }
+                                        },
+                                        error: function(xhr){
+                                            Swal.fire({
+                                                icon: 'error',
+                                                title: 'Connection error',
+                                                text: xhr.responseJSON?.message || 'Unexpected error.',
+                                                background: '#151b24',
+                                                color: '#f8fafc'
+                                            });
+                                        },
+                                        complete: function(){
+                                            $btn.prop('disabled', false).html('<i class="fas fa-check"></i>');
+                                        }
+                                    });
+                                });
+                            });
+                            </script>
                             {% else %}
-                            <div class="empty-state mt-3">
-                                <div class="empty-state-icon">
-                                    <i class="fas fa-users-slash"></i>
+                            <div class="team-empty">
+                                <div class="team-empty-icon">
+                                    <i class="fas fa-user-clock"></i>
                                 </div>
-                                <h5>Ther is no active momber now</h5>
+                                <h5>No active members yet</h5>
+                                <p>Accepted invitations show up here.</p>
                             </div>
                             {% endif %}
-
                         </div>
-                    </div>
-                </div>
             </div>
         </div>
         <style>
@@ -1386,6 +1925,50 @@ $(document).ready(function () {
             .dropdown-item:active { background-color: #f3f4f6; color: inherit; }
             .dropdown-item:hover { background-color: #f9fafb; }
             .pointer { cursor: pointer; }
+
+            #team-management .modern-card { background: transparent; border: 0; box-shadow: none; border-radius: 0; }
+            #team-management .modern-card .card-body { padding: 4px 0 0 !important; }
+            #team-management .modern-label { color: #94a3b8 !important; }
+            #team-management .modern-input {
+                background: rgba(15,23,42,0.72) !important;
+                border: 1px solid rgba(148,163,184,0.24) !important;
+                color: #f8fafc !important;
+                border-radius: 12px !important;
+            }
+            #team-management .modern-input::placeholder { color: #64748b; }
+            #team-management .modern-input:focus {
+                background: rgba(15,23,42,0.9) !important;
+                border-color: #818cf8 !important;
+                box-shadow: 0 0 0 3px rgba(99,102,241,0.25) !important;
+            }
+            #team-management .select-arrow { background: transparent; color: #94a3b8; }
+            #team-management .divider-text { color: #94a3b8; }
+            #team-management .divider-text::before,
+            #team-management .divider-text::after { background: rgba(148,163,184,0.2); }
+            #team-management .btn-light-custom {
+                background: rgba(148,163,184,0.14);
+                border: 0;
+                color: #e2e8f0;
+                border-radius: 999px;
+            }
+            #team-management .btn-light-custom:hover { background: rgba(148,163,184,0.24); color: #fff; }
+            #team-management .btn-primary-custom { border-radius: 999px; }
+            #team-management .dropdown-menu {
+                background: #151b24;
+                border: 1px solid rgba(148,163,184,0.2) !important;
+                border-radius: 14px;
+            }
+            #team-management .dropdown-item { color: #e2e8f0 !important; }
+            #team-management .dropdown-item:hover,
+            #team-management .dropdown-item:active { background: rgba(99,102,241,0.22); color: #fff !important; }
+            #team-management .dropdown-menu .form-control {
+                background: rgba(15,23,42,0.8);
+                border: 1px solid rgba(148,163,184,0.24);
+                color: #f8fafc;
+            }
+            #team-management .text-muted,
+            #team-management .text-primary,
+            #team-management .text-success { color: #cbd5e1 !important; }
             </style>
 <script>
     document.addEventListener("DOMContentLoaded", function() {
@@ -2875,16 +3458,15 @@ $(document).ready(function(){
     $('#hideStuffFormBtn').click(function(e) { 
         e.preventDefault();
         $('#stuffFormSect').addClass('d-none');
-        // Show the "Add Member" button in the header again
-        $('#add_stuff_btn_header').removeClass('d-none');
         $('#team_member_list_container').removeClass('d-none');
 
-        // If there are no team members, show the empty state message
         if ($('#team-management .table tbody tr').length === 0) {
              $('#no_members_message').removeClass('d-none');
-             $('#add_stuff_initial_message').addClass('d-none'); // Hide initial message if empty state is visible
+             $('#add_stuff_empty_state').removeClass('d-none');
+             $('#add_stuff_btn_header').addClass('d-none');
         } else {
-             $('#add_stuff_initial_message').removeClass('d-none'); // Show initial message if members exist
+             $('#add_stuff_btn_header').removeClass('d-none');
+             $('#no_members_message').addClass('d-none');
         }
     });
     

@@ -89,6 +89,7 @@ urlpatterns = [
 
 #    for dash
 path('api/dashboard/stats/', views.api_dashboard_stats, name='api_dashboard_stats'),
+path('api/ad-statistics/', views.api_ad_statistics, name='api_ad_statistics'),
 path('api/dashboard/team/', views.api_team_stats, name='api_team_stats'),
 # AI Analytics Dashboard
 path('analytics/', views.ai_analytics_dashboard_page, name='ai_analytics_dashboard'),

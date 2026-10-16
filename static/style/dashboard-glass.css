@@ -275,14 +275,72 @@
   background: #121218;
   border: 1px solid var(--dash-border);
   border-radius: 12px;
-  overflow: hidden;
+  overflow: visible;
   padding: 6px;
+  min-width: 220px;
 }
 
 .dash-date-menu .dropdown-item {
   color: #cbd5e1;
   border-radius: 8px;
   font-size: 13px;
+}
+
+.dash-date-menu .dropdown-item.is-active {
+  background: rgba(168, 85, 247, 0.22);
+  color: #fff;
+}
+
+.dash-date-custom {
+  margin-top: 6px;
+  padding: 10px;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.dash-date-custom-label {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #94a3b8;
+}
+
+.dash-date-custom label {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin: 0;
+  font-size: 12px;
+  color: #cbd5e1;
+}
+
+.dash-date-custom input[type="date"] {
+  width: 132px;
+  padding: 4px 6px;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: #0c0c10;
+  color: #f8fafc;
+  font-size: 12px;
+}
+
+.dash-date-apply {
+  border: none;
+  border-radius: 8px;
+  padding: 6px 10px;
+  background: #7c3aed;
+  color: #fff;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.dash-date-apply:hover {
+  background: #6d28d9;
 }
 
 .dash-date-menu .dropdown-item:hover {
@@ -1621,7 +1679,8 @@
   font-size: 14px;
   line-height: 1.6;
   color: #e2e8f0;
-  word-break: break-word;
+  word-break: normal;
+  overflow-wrap: break-word;
   border: none;
   box-shadow: none;
   padding: 16px 24px;
@@ -1730,21 +1789,46 @@
 .dash-msg-metric {
   display: flex;
   justify-content: space-between;
-  align-items: baseline;
+  align-items: flex-start;
   gap: 16px;
-  padding: 5px 2px;
+  padding: 8px 2px;
+}
+
+.dash-msg-metric.is-stacked {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 4px;
 }
 
 .dash-msg-metric-label {
+  flex: 0 1 auto;
+  min-width: min(42%, 12rem);
+  max-width: 48%;
   color: #94a3b8;
   font-size: 12px;
+  line-height: 1.45;
+  word-break: normal;
+  overflow-wrap: break-word;
+}
+
+.dash-msg-metric.is-stacked .dash-msg-metric-label,
+.dash-msg-metric.is-stacked .dash-msg-metric-value {
+  max-width: none;
+  min-width: 0;
+  text-align: start;
 }
 
 .dash-msg-metric-value {
+  flex: 1 1 auto;
+  min-width: 0;
   color: #f8fafc;
   font-weight: 650;
   font-size: 14px;
-  white-space: nowrap;
+  line-height: 1.5;
+  text-align: end;
+  white-space: normal;
+  word-break: normal;
+  overflow-wrap: break-word;
 }
 
 .dash-msg-toolbar {
@@ -2203,47 +2287,6 @@ body > .dash-strategy-menu {
   display: flex;
 }
 
-/* ---------- Secondary sections ---------- */
-.dash-more {
-  border-radius: 18px;
-  border: 1px solid var(--dash-border);
-  background: rgba(255, 255, 255, 0.03);
-  overflow: hidden;
-}
-
-.dash-more-toggle {
-  width: 100%;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  padding: 12px 16px;
-  background: transparent;
-  border: none;
-  color: #e2e8f0;
-  font-size: 13px;
-  font-weight: 600;
-  cursor: pointer;
-}
-
-.dash-more-toggle i {
-  color: #94a3b8;
-  transition: transform 0.2s ease;
-}
-
-.dash-more.open .dash-more-toggle i {
-  transform: rotate(180deg);
-}
-
-.dash-more-body {
-  display: none;
-  padding: 0 16px 16px;
-}
-
-.dash-more.open .dash-more-body {
-  display: block;
-}
-
 .dash-glass .cls3741_chart_section,
 .dash-glass .cls3741_lifecycle_card,
 .dash-glass .stat_card {
@@ -2387,4 +2430,395 @@ html.light .dash-glass .dash-kpi-label,
   background: transparent;
   border: none;
   box-shadow: none;
+}
+
+/* Copilot workspace refresh */
+#dashCopilot {
+  background:
+    radial-gradient(640px 180px at 12% -20%, rgba(99, 102, 241, 0.28), transparent 60%),
+    linear-gradient(180deg, rgba(18, 24, 38, 0.96), rgba(12, 16, 24, 0.96)) !important;
+  border: 1px solid rgba(148, 163, 184, 0.16) !important;
+  box-shadow: 0 24px 50px rgba(0, 0, 0, 0.28);
+}
+#dashCopilot .dash-copilot-header,
+#dashCopilot .dash-copilot-workspace,
+#dashCopilot .dash-copilot-sidebar,
+#dashCopilot .dash-copilot-main {
+  background: transparent !important;
+  color: #e2e8f0 !important;
+}
+#dashCopilot .dash-copilot-workspace {
+  gap: 14px;
+  align-items: stretch;
+}
+#dashCopilot .dash-copilot-sidebar {
+  background: rgba(15, 23, 42, 0.55) !important;
+  border: 1px solid rgba(148, 163, 184, 0.16) !important;
+  border-radius: 18px;
+}
+#dashCopilot #aiCopilotNewChat.ai-copilot-compose-btn {
+  width: 100%;
+  height: 42px;
+  justify-content: flex-start;
+  gap: 10px;
+  padding: 0 12px;
+  border-radius: 14px;
+}
+#dashCopilot #aiCopilotNewChat.ai-copilot-compose-btn span {
+  color: #fff !important;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0;
+  white-space: nowrap;
+}
+#dashCopilot .dash-copilot-search {
+  height: 40px;
+  border-radius: 12px;
+  background: rgba(15, 23, 42, 0.72) !important;
+  border: 1px solid rgba(148, 163, 184, 0.2) !important;
+}
+#dashCopilot .dash-copilot-search-input {
+  background: transparent !important;
+  border: 0 !important;
+  color: #f8fafc !important;
+}
+#dashCopilot .dash-copilot-history-empty {
+  margin-top: 6px;
+  padding: 22px 12px;
+  border-radius: 14px;
+  border: 1px dashed rgba(148, 163, 184, 0.28);
+  color: #94a3b8 !important;
+  line-height: 1.5;
+  background: rgba(15, 23, 42, 0.35);
+}
+#dashCopilot .ai-chat-hero-title {
+  color: #f8fafc !important;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+}
+#dashCopilot .ai-chat-hero-sub {
+  color: #94a3b8 !important;
+}
+#dashCopilot .ai-chat-composer-shell {
+  background: rgba(15, 23, 42, 0.82) !important;
+  border: 1px solid rgba(148, 163, 184, 0.22) !important;
+  border-radius: 22px;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.22);
+}
+#dashCopilot .ai-chat-composer-input {
+  background: transparent !important;
+  border: 0 !important;
+  color: #f8fafc !important;
+}
+#dashCopilot .ai-chat-composer-input::placeholder {
+  color: #64748b !important;
+}
+#dashCopilot .ai-chat-tool-btn,
+#dashCopilot .dash-strategy-btn {
+  color: #cbd5e1 !important;
+}
+#dashCopilot .ai-chat-send-btn {
+  background: linear-gradient(135deg, #6366f1, #8b5cf6) !important;
+  color: #fff !important;
+}
+#dashCopilot .ai-chat-prompts-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+#dashCopilot .ai-chat-prompt-chip {
+  width: 100%;
+  justify-content: flex-start;
+  text-align: left;
+  border-radius: 16px !important;
+  padding: 12px !important;
+  background: rgba(15, 23, 42, 0.55) !important;
+  border: 1px solid rgba(148, 163, 184, 0.16) !important;
+  color: #f8fafc !important;
+}
+#dashCopilot .ai-chat-prompt-chip:hover {
+  border-color: rgba(129, 140, 248, 0.55) !important;
+  transform: translateY(-2px);
+}
+#dashCopilot .ai-chat-prompt-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+#dashCopilot .ai-chat-prompt-label {
+  color: #f8fafc !important;
+  font-weight: 700;
+  white-space: normal;
+}
+#dashCopilot .ai-chat-prompt-hint {
+  color: #94a3b8 !important;
+  font-size: 12px;
+  font-weight: 500;
+}
+#dashCopilot .ai-chat-prompt-icon {
+  width: 36px;
+  height: 36px;
+  border-radius: 12px;
+  display: inline-grid;
+  place-items: center;
+  flex-shrink: 0;
+}
+#dashCopilot .ai-chat-prompt-icon i { color: inherit !important; }
+#dashCopilot .tone-chart { background: rgba(34, 211, 238, 0.16); color: #67e8f9 !important; }
+#dashCopilot .tone-strategy { background: rgba(139, 92, 246, 0.18); color: #c4b5fd !important; }
+#dashCopilot .tone-products { background: rgba(16, 185, 129, 0.16); color: #6ee7b7 !important; }
+#dashCopilot .tone-alert { background: rgba(245, 158, 11, 0.16); color: #fcd34d !important; }
+#dashCopilot .dash-copilot-rules-title,
+#dashCopilot .dash-copilot-persona-value { color: #f8fafc !important; }
+#dashCopilot .dash-copilot-persona-label { color: #94a3b8 !important; }
+@media (max-width: 720px) {
+  #dashCopilot .ai-chat-prompts-grid { grid-template-columns: 1fr; }
+}
+
+#dashCopilot #aiCopilotHistoryToggle {
+  display: none;
+}
+@media (max-width: 1279px) {
+  #dashCopilot #aiCopilotHistoryToggle {
+    display: inline-flex;
+  }
+  #dashCopilot.is-history-open #aiCopilotHistoryToggle {
+    color: #fff;
+    background: rgba(99, 102, 241, 0.28);
+  }
+  #dashCopilot #aiCopilotHistoryPanel.dash-copilot-history {
+    display: flex !important;
+    position: absolute;
+    z-index: 30;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    width: min(288px, calc(100% - 24px));
+    max-height: none;
+    margin: 0;
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+    transform: translateX(-10px);
+    transition: opacity 0.16s ease, transform 0.16s ease, visibility 0.16s;
+    background: rgba(12, 16, 28, 0.98) !important;
+    box-shadow: 16px 0 40px rgba(0, 0, 0, 0.35);
+  }
+  #dashCopilot.is-history-open #aiCopilotHistoryPanel.dash-copilot-history {
+    opacity: 1;
+    visibility: visible;
+    pointer-events: auto;
+    transform: none;
+  }
+}
+@media (min-width: 1280px) {
+  #dashCopilot #aiCopilotHistoryToggle {
+    display: none !important;
+  }
+  #dashCopilot #aiCopilotHistoryPanel.dash-copilot-history {
+    position: static;
+    opacity: 1;
+    visibility: visible;
+    pointer-events: auto;
+    transform: none;
+  }
+}
+
+#dashCopilot #aiCopilotRulesToggle {
+  display: none;
+}
+@media (max-width: 1535px) {
+  #dashCopilot #aiCopilotRulesToggle {
+    display: inline-flex;
+  }
+  #dashCopilot.is-rules-open #aiCopilotRulesToggle {
+    color: #fff;
+    background: rgba(99, 102, 241, 0.28);
+  }
+  #dashCopilot #aiCopilotRulesPanel.dash-copilot-rules {
+    display: flex !important;
+    position: absolute;
+    z-index: 30;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    left: auto;
+    width: min(288px, calc(100% - 24px));
+    max-height: none;
+    margin: 0;
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+    transform: translateX(10px);
+    transition: opacity 0.16s ease, transform 0.16s ease, visibility 0.16s;
+    background: rgba(12, 16, 28, 0.98) !important;
+    box-shadow: -16px 0 40px rgba(0, 0, 0, 0.35);
+  }
+  #dashCopilot.is-rules-open #aiCopilotRulesPanel.dash-copilot-rules {
+    opacity: 1;
+    visibility: visible;
+    pointer-events: auto;
+    transform: none;
+  }
+}
+@media (min-width: 1536px) {
+  #dashCopilot #aiCopilotRulesToggle {
+    display: none !important;
+  }
+  #dashCopilot #aiCopilotRulesPanel.dash-copilot-rules {
+    position: static;
+    opacity: 1;
+    visibility: visible;
+    pointer-events: auto;
+    transform: none;
+  }
+}
+
+#dashCopilot #aiCopilotRulesPanel.dash-copilot-rules {
+  gap: 12px;
+  padding: 16px 14px;
+}
+#dashCopilot .dash-copilot-rules-header {
+  margin-bottom: 0;
+}
+#dashCopilot .dash-copilot-rules-heading {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+#dashCopilot .dash-copilot-rules-kicker {
+  color: #a5b4fc !important;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+#dashCopilot .dash-copilot-rules-title {
+  color: #f8fafc !important;
+  font-size: 16px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  text-transform: none;
+}
+#dashCopilot .dash-copilot-rules-settings {
+  width: 32px;
+  height: 32px;
+  border-radius: 10px;
+  background: rgba(15, 23, 42, 0.65);
+  border: 1px solid rgba(148, 163, 184, 0.16);
+  color: #cbd5e1 !important;
+}
+#dashCopilot .dash-copilot-persona {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 0;
+  padding: 12px;
+  border-radius: 16px;
+  background: linear-gradient(135deg, rgba(99, 102, 241, 0.22), rgba(15, 23, 42, 0.4)) !important;
+  border: 1px solid rgba(129, 140, 248, 0.28);
+}
+#dashCopilot .dash-copilot-persona-icon {
+  width: 36px;
+  height: 36px;
+  border-radius: 12px;
+  display: inline-grid;
+  place-items: center;
+  flex-shrink: 0;
+  background: rgba(99, 102, 241, 0.28);
+  color: #c4b5fd !important;
+}
+#dashCopilot .dash-copilot-persona-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+#dashCopilot .dash-copilot-persona-label {
+  color: #a5b4fc !important;
+  letter-spacing: 0.08em;
+  margin: 0;
+}
+#dashCopilot .dash-copilot-persona-value {
+  color: #f8fafc !important;
+  font-size: 14px;
+  font-weight: 700;
+}
+#dashCopilot .dash-copilot-rules-list {
+  gap: 8px;
+}
+#dashCopilot .dash-copilot-rule-card {
+  padding: 11px 10px;
+  border-radius: 14px;
+  background: rgba(15, 23, 42, 0.55) !important;
+  border: 1px solid rgba(148, 163, 184, 0.14);
+}
+#dashCopilot .dash-copilot-rule-card:has(input:checked) {
+  background: rgba(99, 102, 241, 0.14) !important;
+  border-color: rgba(129, 140, 248, 0.4);
+}
+#dashCopilot .dash-copilot-rule-text {
+  color: #e2e8f0 !important;
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.35;
+}
+#dashCopilot .dash-copilot-rule-card:not(:has(input:checked)) .dash-copilot-rule-text {
+  color: #94a3b8 !important;
+}
+#dashCopilot .dash-copilot-rule-tag {
+  background: rgba(16, 185, 129, 0.16);
+  color: #6ee7b7 !important;
+}
+#dashCopilot .dash-copilot-rule-empty {
+  padding: 18px 10px;
+  border-radius: 14px;
+  border: 1px dashed rgba(148, 163, 184, 0.28);
+  color: #94a3b8 !important;
+  line-height: 1.5;
+}
+#dashCopilot .dash-toggle-slider {
+  background: #334155;
+}
+#dashCopilot .dash-toggle input:checked + .dash-toggle-slider {
+  background: #6366f1;
+}
+#dashCopilot .dash-copilot-rule-card,
+.dash-copilot-inline-rule-item {
+  flex-wrap: wrap;
+}
+.dash-copilot-rule-confirm {
+  flex: 1 0 100%;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid rgba(148, 163, 184, 0.16);
+  color: #e2e8f0;
+  font-size: 12px;
+  font-weight: 600;
+}
+.dash-copilot-rule-confirm span {
+  flex: 1;
+  color: #e2e8f0 !important;
+}
+.dash-copilot-rule-confirm button {
+  border: 0;
+  border-radius: 8px;
+  height: 28px;
+  padding: 0 10px;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.dash-copilot-rule-confirm-cancel {
+  background: rgba(148, 163, 184, 0.12);
+  color: #cbd5e1;
+}
+.dash-copilot-rule-confirm-ok {
+  background: #ef4444;
+  color: #fff;
 }

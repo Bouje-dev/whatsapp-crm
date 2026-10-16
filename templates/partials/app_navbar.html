@@ -1,0 +1,217 @@
+{% load static %}
+{% url 'user' as account_url %}
+{% url 'analytics' as analytics_url %}
+<nav class="top-navbar">
+    {% if nav_active_channel and nav_user_channels %}
+    <div class="workspace-switcher workspace-switcher--navbar" id="workspaceSwitcher">
+      {% if nav_user_channels|length > 1 or user.is_team_admin or user.is_superuser %}
+      <button
+        type="button"
+        id="workspaceSwitcherTrigger"
+        class="navbar-brand workspace-switcher-trigger workspace-switcher-trigger--navbar"
+        aria-expanded="false"
+        aria-haspopup="listbox"
+        aria-controls="workspaceSwitcherMenu"
+        title="{{ nav_active_channel.name|default:'Switch channel' }}">
+        <span class="workspace-switcher-trigger-icon workspace-switcher-trigger-icon--navbar" id="wsTriggerIcon">
+          {% if nav_active_channel.profile_image %}
+          <img src="{{ nav_active_channel.profile_image.url }}" alt="{{ nav_active_channel.name }}">
+          {% else %}
+          {{ nav_active_channel.name|slice:":1"|upper|default:"?" }}
+          {% endif %}
+        </span>
+        <span class="workspace-switcher-trigger-name workspace-switcher-trigger-name--navbar" id="wsTriggerName">{{ nav_active_channel.name|default:"Select Channel" }}</span>
+        <span class="workspace-switcher-trigger-chevron workspace-switcher-trigger-chevron--navbar" id="wsTriggerChevron" aria-hidden="true">
+          <i class="fas fa-chevron-down"></i>
+        </span>
+      </button>
+
+      <div
+        id="workspaceSwitcherMenu"
+        class="workspace-switcher-menu"
+        role="listbox"
+        aria-label="Channels">
+        <div class="workspace-switcher-menu-header">
+          <span class="workspace-switcher-menu-mark" aria-hidden="true"><i class="fas fa-comments"></i></span>
+          <div>
+            <p class="workspace-switcher-menu-title">Workspaces</p>
+            <p class="workspace-switcher-menu-subtitle">{{ nav_user_channels|length }} channel{{ nav_user_channels|length|pluralize }}</p>
+          </div>
+        </div>
+
+        <div class="workspace-switcher-search-wrap">
+          <i class="fas fa-search workspace-switcher-search-icon" aria-hidden="true"></i>
+          <input
+            type="search"
+            id="workspaceChannelSearch"
+            placeholder="Search name or phone"
+            autocomplete="off"
+            class="workspace-switcher-search">
+        </div>
+
+        <div class="workspace-switcher-list custom-scrollbar" id="workspaceChannelList">
+          {% for channel in nav_user_channels %}
+          <button
+            type="button"
+            class="workspace-item workspace-switcher-item {% if channel.id == nav_initial_channel_id %}active{% endif %}"
+            data-channel-id="{{ channel.id }}"
+            data-name="{{ channel.name }}"
+            data-phone="{{ channel.phone_number }}"
+            {% if channel.profile_image %}data-profile="{{ channel.profile_image.url }}"{% else %}data-profile=""{% endif %}
+            data-agents="{{ channel.assigned_agents.count }}"
+            data-is-configured="{% if channel.is_configured %}true{% else %}false{% endif %}"
+            onclick="window.appNavbarOpenChannel('{{ channel.id }}')"
+            title="{{ channel.name }}{% if channel.phone_number %} · {{ channel.phone_number }}{% endif %}"
+            role="option"
+            aria-selected="{% if channel.id == nav_initial_channel_id %}true{% else %}false{% endif %}">
+            <span class="workspace-switcher-item-avatar">
+              {% if channel.profile_image %}
+              <img src="{{ channel.profile_image.url }}" alt="">
+              {% else %}
+              {{ channel.name|slice:":1"|upper }}
+              {% endif %}
+            </span>
+            <span class="workspace-switcher-item-body">
+              <span class="workspace-switcher-item-line">
+                <span class="workspace-switcher-item-name">{{ channel.name }}</span>
+                {% if channel.phone_number %}
+                <span class="workspace-switcher-item-phone"><i class="fas fa-phone" aria-hidden="true"></i>{{ channel.phone_number }}</span>
+                {% endif %}
+              </span>
+              <span class="workspace-switcher-item-meta">{{ channel.assigned_agents.count }} agent{{ channel.assigned_agents.count|pluralize }}</span>
+            </span>
+            <span class="workspace-switcher-item-check workspace-active-indicator{% if channel.id != nav_initial_channel_id %} hidden{% endif %}" aria-hidden="true">
+              <i class="fas fa-check"></i>
+            </span>
+            {% if channel.unread_count > 0 %}<span class="unread-dot workspace-unread-dot"></span>{% endif %}
+          </button>
+          {% endfor %}
+        </div>
+
+        {% if user.is_team_admin or user.is_superuser %}
+        <div class="workspace-switcher-footer">
+          <button type="button" class="workspace-switcher-add-btn" onclick="window.appNavbarAddChannel()">
+            <span class="workspace-switcher-add-icon"><i class="fas fa-plus"></i></span>
+            Add New Channel
+          </button>
+        </div>
+        {% endif %}
+      </div>
+      {% else %}
+      <div class="navbar-brand navbar-brand--channel-static">
+        <span class="workspace-switcher-trigger-icon workspace-switcher-trigger-icon--navbar" id="wsTriggerIcon">
+          {% if nav_active_channel.profile_image %}
+          <img src="{{ nav_active_channel.profile_image.url }}" alt="{{ nav_active_channel.name }}">
+          {% else %}
+          {{ nav_active_channel.name|slice:":1"|upper|default:"?" }}
+          {% endif %}
+        </span>
+        <span class="workspace-switcher-trigger-name workspace-switcher-trigger-name--navbar" id="wsTriggerName">{{ nav_active_channel.name }}</span>
+      </div>
+      {% endif %}
+    </div>
+    {% else %}
+    <a href="/tracking/" class="navbar-brand">
+        <img src="{% static 'img/logo.png' %}" alt="Logo" width="40" height="40" style="border-radius: 50%;">
+        <span class="fw-bold ms-2">Waselytics</span>
+    </a>
+    {% endif %}
+
+    <div class="nav-links" aria-label="Main menu">
+        <a href="/tracking/" class="btn nav_link nav-link2{% if request.resolver_match.url_name == 'tracking' %} active{% endif %}" id="track1"><i class="fas fa-comments" aria-hidden="true"></i> Tracking</a>
+        <a href="{{ account_url }}" class="btn nav_link nav-link2{% if request.resolver_match.url_name == 'user' %} active{% endif %}"><i class="fas fa-user" aria-hidden="true"></i> Account</a>
+        {% if request.user.is_superuser %}
+        <a href="/admin/" class="btn nav_link nav-link2{% if '/admin/' in request.path %} active{% endif %}"><i class="fas fa-shield-halved" aria-hidden="true"></i> Admin</a>
+        <a href="{{ analytics_url }}" class="btn nav_link nav-link2{% if request.resolver_match.url_name == 'analytics' %} active{% endif %}"><i class="fas fa-chart-pie" aria-hidden="true"></i> Analytics</a>
+        {% endif %}
+    </div>
+</nav>
+<script>
+(function () {
+    if (window.__workspaceSwitcherReady) return;
+    window.__workspaceSwitcherReady = true;
+
+    window.appNavbarOpenChannel = function (id) {
+        if (typeof window.switchChannel === 'function') {
+            window.switchChannel(String(id));
+            return;
+        }
+        window.location.href = '/tracking/?channel_id=' + encodeURIComponent(id);
+    };
+    window.appNavbarAddChannel = function () {
+        if (typeof window.openAddChannelModal === 'function') {
+            window.openAddChannelModal();
+            return;
+        }
+        window.location.href = '/tracking/';
+    };
+
+    var root = document.getElementById('workspaceSwitcher');
+    if (!root) return;
+    var trigger = document.getElementById('workspaceSwitcherTrigger');
+    var menu = document.getElementById('workspaceSwitcherMenu');
+    var search = document.getElementById('workspaceChannelSearch');
+    var list = document.getElementById('workspaceChannelList');
+
+    function filterChannels(query) {
+        if (!list) return;
+        var q = (query || '').trim().toLowerCase();
+        list.querySelectorAll('.workspace-switcher-item').forEach(function (item) {
+            var name = (item.getAttribute('data-name') || '').toLowerCase();
+            var phone = (item.getAttribute('data-phone') || '').toLowerCase();
+            var digits = phone.replace(/\D/g, '');
+            var qDigits = q.replace(/\D/g, '');
+            var hit = !q || name.indexOf(q) !== -1 || phone.indexOf(q) !== -1 || (qDigits && digits.indexOf(qDigits) !== -1);
+            item.style.display = hit ? '' : 'none';
+        });
+    }
+    function openMenu() {
+        if (!menu || !trigger) return;
+        menu.classList.add('open');
+        trigger.setAttribute('aria-expanded', 'true');
+        if (search) {
+            search.value = '';
+            filterChannels('');
+            setTimeout(function () { search.focus(); }, 50);
+        }
+    }
+    function closeMenu() {
+        if (!menu || !trigger) return;
+        menu.classList.remove('open');
+        trigger.setAttribute('aria-expanded', 'false');
+        if (search) search.value = '';
+        filterChannels('');
+    }
+    window.closeWorkspaceSwitcher = closeMenu;
+    window.updateWorkspaceSwitcherTrigger = function (name, dataprofile) {
+        var iconEl = document.getElementById('wsTriggerIcon');
+        var nameEl = document.getElementById('wsTriggerName');
+        if (nameEl && name) nameEl.textContent = name;
+        if (trigger && name) trigger.setAttribute('title', name);
+        if (!iconEl) return;
+        if (dataprofile) {
+            iconEl.innerHTML = '<img src="' + dataprofile + '" alt="">';
+        } else if (name) {
+            iconEl.textContent = name.charAt(0).toUpperCase();
+        }
+    };
+    if (trigger) {
+        trigger.addEventListener('click', function (e) {
+            e.stopPropagation();
+            if (trigger.getAttribute('aria-expanded') === 'true') closeMenu();
+            else openMenu();
+        });
+    }
+    if (search) {
+        search.addEventListener('input', function () { filterChannels(search.value); });
+        search.addEventListener('click', function (e) { e.stopPropagation(); });
+    }
+    if (menu) {
+        menu.addEventListener('click', function (e) { e.stopPropagation(); });
+    }
+    document.addEventListener('click', function () { closeMenu(); });
+    document.addEventListener('keydown', function (e) {
+        if (e.key === 'Escape') closeMenu();
+    });
+})();
+</script>

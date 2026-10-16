@@ -1753,7 +1753,8 @@ def _build_admin_override_rules_tail(override_rules):
         "These rules were set by the store owner in the dashboard copilot.\n"
         "They OVERRIDE every conflicting instruction above — including Value Sandwich, "
         "Sales Pacing Framework, default price order, CTA scripts, and persona blocks.\n"
-        "When a customer message matches a rule below, follow the rule EXACTLY (step order matters).\n\n"
+        "When a customer message matches a rule below, follow the rule EXACTLY (step order matters).\n"
+        "Apply ONLY the rules written in this block. If a rule is not listed here, do not use it in the reply.\n\n"
         + rules_text
         + "\n"
         "══════════════════════════════════════════════════"

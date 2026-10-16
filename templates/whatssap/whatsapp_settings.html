@@ -90,19 +90,38 @@
     height: 124px;
     border-radius: 50%;
     position: relative;
-    overflow: hidden;
+    overflow: visible;
     border: 3px solid #2a3942;
     box-shadow: 0 8px 20px rgba(0, 0, 0, 0.35);
+    background: #1f2c34;
 }
 .wa-phone-preview .wa-profile-circle img {
     width: 100%;
     height: 100%;
     object-fit: cover;
+    border-radius: 50%;
+    background: #1f2c34;
+}
+.wa-phone-preview .wa-profile-circle.is-empty {
+    background: radial-gradient(circle at 50% 42%, #2a3942, #111b21 72%);
+}
+.wa-phone-preview .wa-profile-circle.is-empty::before {
+    content: "\f007";
+    font-family: "Font Awesome 6 Free";
+    font-weight: 900;
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #8b9bab;
+    font-size: 42px;
 }
 .wa-phone-preview .wa-edit-badge {
     position: absolute;
-    right: 2px;
-    bottom: 2px;
+    right: -2px;
+    bottom: -2px;
+    z-index: 2;
     width: 30px;
     height: 30px;
     border-radius: 50%;
@@ -276,38 +295,107 @@
     border-color: rgba(255, 255, 255, 0.1);
 }
 
-/* Google Sheets drag-and-drop mapping */
-.gs-drag-list .gs-item { padding: 8px 10px; margin-bottom: 6px; border-radius: 8px; background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.1); cursor: grab; display: flex; align-items: center; gap: 8px; }
-.gs-drag-list .gs-item:active { cursor: grabbing; }
-.gs-drag-list .gs-item.sortable-ghost { opacity: 0.5; }
-.gs-drag-list .gs-active-item .gs-header-input { flex: 1; min-width: 0; padding: 4px 8px; font-size: 0.875rem; background: #0d1117; border: 1px solid #30363d; color: #e6edf3; border-radius: 6px; }
-.gs-drag-list .gs-active-item .gs-field-label { font-size: 0.8rem; color: #8b949e; min-width: 100px; }
-.gs-app-tile {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 12px;
-    background: rgba(255,255,255,0.04);
-    border: 1px solid rgba(255,255,255,0.1);
-    border-radius: 12px;
-    padding: 12px 14px;
+/* Google Sheets integrations */
+#content-integrations .gs-shell { display: flex; flex-direction: column; gap: 16px; }
+#content-integrations .gs-kicker { display: block; color: #a5b4fc !important; font-size: 11px; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; }
+#content-integrations .gs-title { margin: 4px 0 0; color: #f8fafc !important; font-size: 22px; font-weight: 700; letter-spacing: -0.03em; }
+#content-integrations .gs-sub { margin: 6px 0 0; max-width: 68ch; color: #94a3b8 !important; font-size: 13px; line-height: 1.5; }
+#content-integrations .gs-app-tile {
+    display: flex; align-items: center; justify-content: space-between; gap: 16px;
+    padding: 14px 16px; border-radius: 18px;
+    background: rgba(15, 23, 42, 0.55) !important;
+    border: 1px solid rgba(148, 163, 184, 0.14);
 }
-.gs-app-left { display: flex; align-items: center; gap: 12px; min-width: 0; }
-.gs-app-icon {
-    width: 38px;
-    height: 38px;
-    border-radius: 10px;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    color: #4ade80;
-    background: rgba(74, 222, 128, 0.12);
-    border: 1px solid rgba(74, 222, 128, 0.25);
+#content-integrations .gs-app-left { display: flex; align-items: center; gap: 12px; min-width: 0; }
+#content-integrations .gs-app-icon {
+    width: 40px; height: 40px; border-radius: 12px; flex-shrink: 0;
+    display: inline-flex; align-items: center; justify-content: center;
+    color: #6ee7b7 !important; background: rgba(16, 185, 129, 0.16);
 }
-.gs-app-name { color: #e6edf3; font-weight: 600; }
-.gs-app-desc { color: #8b949e; font-size: 0.8rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 520px; }
-.gs-app-toggle i { transition: transform .2s ease; }
-.gs-app-toggle[aria-expanded="true"] i { transform: rotate(180deg); }
+#content-integrations .gs-app-name { color: #f8fafc !important; font-size: 15px; font-weight: 700; }
+#content-integrations .gs-app-desc { margin-top: 2px; color: #94a3b8 !important; font-size: 12px; line-height: 1.4; }
+#content-integrations .gs-open {
+    display: inline-flex; align-items: center; gap: 8px;
+    min-height: 38px; padding: 0 14px; border-radius: 12px; cursor: pointer;
+    border: 1px solid rgba(148, 163, 184, 0.28); background: rgba(2, 6, 23, 0.35);
+    color: #e2e8f0 !important; font-size: 13px; font-weight: 700;
+}
+#content-integrations .gs-app-toggle i { transition: transform .2s ease; }
+#content-integrations .gs-app-toggle[aria-expanded="true"] i { transform: rotate(180deg); }
+#content-integrations .gs-stack { display: flex; flex-direction: column; gap: 14px; }
+#content-integrations .gs-card {
+    display: flex; flex-direction: column; gap: 12px;
+    padding: 16px; border-radius: 18px;
+    background: rgba(15, 23, 42, 0.55) !important;
+    border: 1px solid rgba(148, 163, 184, 0.14);
+}
+#content-integrations .gs-card-head { display: flex; align-items: center; gap: 12px; }
+#content-integrations .gs-card-head h6 { margin: 0; color: #f8fafc !important; font-size: 15px; font-weight: 700; }
+#content-integrations .gs-card-head p, #content-integrations .gs-hint { margin: 2px 0 0; color: #94a3b8 !important; font-size: 12px; line-height: 1.45; }
+#content-integrations .gs-ico {
+    width: 40px; height: 40px; border-radius: 12px; flex-shrink: 0;
+    display: inline-flex; align-items: center; justify-content: center; font-size: 15px;
+}
+#content-integrations .tone-link { background: rgba(99, 102, 241, 0.18); color: #c4b5fd !important; }
+#content-integrations .tone-bot { background: rgba(245, 158, 11, 0.16); color: #fcd34d !important; }
+#content-integrations .tone-sheet { background: rgba(16, 185, 129, 0.16); color: #6ee7b7 !important; }
+#content-integrations .tone-map { background: rgba(56, 189, 248, 0.14); color: #7dd3fc !important; }
+#content-integrations .gs-step { display: flex; flex-direction: column; gap: 8px; }
+#content-integrations .gs-step-label { color: #cbd5e1 !important; font-size: 13px; font-weight: 700; }
+#content-integrations .gs-step-label span { color: #a5b4fc !important; margin-right: 6px; }
+#content-integrations .gs-email-row, #content-integrations .gs-actions { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+#content-integrations #gs-service-account-email {
+    flex: 1; min-width: 0; margin: 0; padding: 10px 12px; border-radius: 12px;
+    color: #e0e7ff !important; background: rgba(2, 6, 23, 0.55) !important;
+    border: 1px solid rgba(148, 163, 184, 0.16);
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; word-break: break-all;
+}
+#content-integrations .gs-copy, #content-integrations .gs-quiet {
+    display: inline-flex; align-items: center; gap: 8px;
+    min-height: 38px; padding: 0 12px; border-radius: 12px; cursor: pointer;
+    border: 1px solid rgba(148, 163, 184, 0.28); background: transparent;
+    color: #e2e8f0 !important; font-size: 13px; font-weight: 700;
+}
+#content-integrations .gs-field { display: flex; flex-direction: column; gap: 8px; max-width: 420px; }
+#content-integrations .gs-field label, #content-integrations .gs-pane-label { color: #cbd5e1 !important; font-size: 12px; font-weight: 700; }
+#content-integrations .gs-field .modern-input { min-height: 42px; }
+#content-integrations .gs-switch {
+    display: flex; align-items: center; justify-content: space-between; gap: 16px;
+    padding: 12px 14px; border-radius: 14px;
+    background: rgba(2, 6, 23, 0.35) !important;
+    border: 1px solid rgba(148, 163, 184, 0.1);
+}
+#content-integrations .gs-switch label { margin: 0; color: #f8fafc !important; font-size: 13px; font-weight: 700; }
+#content-integrations .gs-switch .form-check-input { width: 2.4em; height: 1.25em; margin: 0; cursor: pointer; }
+#content-integrations .gs-map { display: grid; grid-template-columns: minmax(220px, 0.8fr) minmax(280px, 1.2fr); gap: 12px; }
+#content-integrations .gs-pane { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+#content-integrations .gs-drag-list {
+    min-height: 220px; padding: 10px; border-radius: 14px;
+    background: rgba(2, 6, 23, 0.35) !important;
+    border: 1px solid rgba(148, 163, 184, 0.12);
+}
+#content-integrations .gs-drag-list .gs-item {
+    display: flex; align-items: center; gap: 8px;
+    margin-bottom: 8px; padding: 8px 10px; border-radius: 10px; cursor: grab;
+    color: #e2e8f0 !important; background: rgba(15, 23, 42, 0.85) !important;
+    border: 1px solid rgba(148, 163, 184, 0.16);
+}
+#content-integrations .gs-drag-list .gs-item:active { cursor: grabbing; }
+#content-integrations .gs-drag-list .gs-item.sortable-ghost { opacity: 0.5; }
+#content-integrations .gs-header-input {
+    flex: 1; min-width: 0; height: 32px; padding: 0 8px; border-radius: 8px;
+    color: #f8fafc !important; background: rgba(2, 6, 23, 0.7) !important;
+    border: 1px solid rgba(148, 163, 184, 0.2);
+}
+#content-integrations .gs-field-label { min-width: 92px; color: #94a3b8 !important; font-size: 12px; font-weight: 700; }
+#content-integrations #gs-mapping-table { margin: 0; color: #e2e8f0; }
+#content-integrations #gs-mapping-table th { color: #94a3b8 !important; font-size: 12px; font-weight: 700; border-color: rgba(148, 163, 184, 0.12); }
+#content-integrations #gs-mapping-table td { border-color: rgba(148, 163, 184, 0.08); vertical-align: middle; }
+#content-integrations #gs-connection-status { border-radius: 999px; padding: 6px 10px; font-weight: 700; }
+@media (max-width: 800px) {
+    #content-integrations .gs-map { grid-template-columns: 1fr; }
+    #content-integrations .gs-app-tile, #content-integrations .gs-switch { flex-direction: column; align-items: flex-start; }
+}
 
 /* --- زر الحفظ --- */
 .btn-save-glow {
@@ -360,176 +448,115 @@
 .settings-content .tab-pane { display: none; }
 .settings-content .tab-pane.active { display: block; }
 
-/* ----- Team & Routing: Toggles ----- */
-.routing-toggle-wrap {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 1rem;
-    padding: 0.75rem 0;
+/* ----- Team & Routing ----- */
+#content-routing .rt-shell { display: flex; flex-direction: column; gap: 16px; }
+#content-routing .rt-kicker { display: block; color: #a5b4fc !important; font-size: 11px; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; }
+#content-routing .rt-title { margin: 4px 0 0; color: #f8fafc !important; font-size: 22px; font-weight: 700; letter-spacing: -0.03em; }
+#content-routing .rt-sub { margin: 6px 0 0; max-width: 62ch; color: #94a3b8 !important; font-size: 13px; line-height: 1.5; }
+#content-routing .rt-card {
+    display: flex; flex-direction: column; gap: 12px;
+    padding: 16px; border-radius: 18px;
+    background: rgba(15, 23, 42, 0.55) !important;
+    border: 1px solid rgba(148, 163, 184, 0.14);
 }
-.routing-toggle-label { display: flex; align-items: center; gap: 8px; font-weight: 500; color: #e6edf3; }
-.routing-toggle-switch {
-    position: relative;
-    width: 44px;
-    height: 24px;
-    flex-shrink: 0;
-    border-radius: 12px;
-    background: #30363d;
-    cursor: pointer;
-    transition: background 0.2s;
+#content-routing .rt-card-head { display: flex; align-items: center; gap: 12px; }
+#content-routing .rt-card-head h6 { margin: 0; color: #f8fafc !important; font-size: 15px; font-weight: 700; }
+#content-routing .rt-card-head p, #content-routing .rt-note { margin: 2px 0 0; color: #94a3b8 !important; font-size: 12px; line-height: 1.45; }
+#content-routing .rt-ico {
+    width: 40px; height: 40px; border-radius: 12px; flex-shrink: 0;
+    display: inline-flex; align-items: center; justify-content: center; font-size: 15px;
 }
-.routing-toggle-switch.on { background: #6366f1; }
-.routing-toggle-switch::after {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 2px;
-    width: 20px;
-    height: 20px;
-    border-radius: 50%;
-    background: #fff;
-    box-shadow: 0 1px 3px rgba(0,0,0,0.3);
-    transition: transform 0.2s;
+#content-routing .tone-sliders { background: rgba(99, 102, 241, 0.18); color: #c4b5fd !important; }
+#content-routing .tone-share { background: rgba(16, 185, 129, 0.16); color: #6ee7b7 !important; }
+#content-routing .rt-switch {
+    display: flex; align-items: center; justify-content: space-between; gap: 16px;
+    padding: 12px 14px; border-radius: 14px;
+    background: rgba(2, 6, 23, 0.35) !important;
+    border: 1px solid rgba(148, 163, 184, 0.1);
 }
-.routing-toggle-switch.on::after { transform: translateX(20px); }
-.routing-tooltip-btn {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: 20px;
-    height: 20px;
-    border-radius: 50%;
-    color: #8b949e;
-    background: transparent;
-    border: none;
-    cursor: help;
-    padding: 0;
-    transition: color 0.2s;
+#content-routing .routing-toggle-label { display: flex; align-items: center; gap: 8px; color: #f8fafc !important; font-size: 13px; font-weight: 700; }
+#content-routing .rt-switch small { display: block; margin-top: 3px; color: #94a3b8 !important; font-size: 12px; font-weight: 500; line-height: 1.4; }
+#content-routing .routing-toggle-switch {
+    position: relative; width: 44px; height: 24px; flex-shrink: 0; border: 0; padding: 0;
+    border-radius: 12px; background: #334155; cursor: pointer;
 }
-.routing-tooltip-btn:hover { color: #58a6ff; }
-.routing-tooltip-box {
-    position: absolute;
-    left: 100%;
-    top: 50%;
-    transform: translateY(-50%);
-    margin-left: 10px;
-    width: 260px;
-    padding: 10px 12px;
-    font-size: 12px;
-    line-height: 1.45;
-    color: #e6edf3;
-    background: #161b22;
-    border: 1px solid #30363d;
-    border-radius: 8px;
-    box-shadow: 0 8px 24px rgba(0,0,0,0.4);
-    z-index: 100;
-    pointer-events: none;
-    opacity: 0;
-    visibility: hidden;
-    transition: opacity 0.15s, visibility 0.15s;
+#content-routing .routing-toggle-switch.on { background: #6366f1; }
+#content-routing .routing-toggle-switch::after {
+    content: ''; position: absolute; top: 2px; left: 2px; width: 20px; height: 20px;
+    border-radius: 50%; background: #fff; box-shadow: 0 1px 3px rgba(0,0,0,0.3); transition: transform 0.2s;
 }
-.routing-tooltip-wrap:hover .routing-tooltip-box,
-.routing-tooltip-btn:focus + .routing-tooltip-box { opacity: 1; visibility: visible; }
-.routing-tooltip-wrap { position: relative; display: inline-flex; }
-
-/* ----- Team & Routing: Member cards ----- */
-.routing-member-card {
-    display: flex;
-    align-items: center;
-    gap: 1rem;
-    padding: 1rem 1.25rem;
-    background: rgba(255,255,255,0.03);
-    border: 1px solid #30363d;
-    border-radius: 12px;
-    margin-bottom: 10px;
-    transition: border-color 0.2s, opacity 0.2s;
+#content-routing .routing-toggle-switch.on::after { transform: translateX(20px); }
+#content-routing .routing-tooltip-wrap { position: relative; display: inline-flex; }
+#content-routing .routing-tooltip-btn {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 20px; height: 20px; border: 0; padding: 0; border-radius: 50%;
+    color: #94a3b8 !important; background: transparent; cursor: help;
 }
-.routing-member-card.disabled { opacity: 0.65; pointer-events: none; }
-.routing-member-avatar {
-    width: 40px;
-    height: 40px;
-    flex-shrink: 0;
-    border-radius: 50%;
-    background: rgba(99, 102, 241, 0.2);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    color: #6366f1;
+#content-routing .routing-tooltip-box {
+    position: absolute; left: 0; top: calc(100% + 8px); width: min(280px, 70vw);
+    padding: 10px 12px; border-radius: 10px; z-index: 20; pointer-events: none;
+    color: #e2e8f0 !important; background: #0f172a !important;
+    border: 1px solid rgba(148, 163, 184, 0.2);
+    box-shadow: 0 12px 28px rgba(0,0,0,0.35);
+    font-size: 12px; font-weight: 500; line-height: 1.45;
+    opacity: 0; visibility: hidden;
 }
-.routing-member-card:not([data-ai]) .routing-member-avatar { background: rgba(255,255,255,0.08); color: #8b949e; }
-.routing-member-info { flex: 1; min-width: 0; }
-.routing-member-name { font-weight: 500; color: #e6edf3; }
-.routing-member-status {
-    width: 8px;
-    height: 8px;
-    border-radius: 50%;
-    flex-shrink: 0;
-    margin-left: 8px;
+#content-routing .routing-tooltip-wrap:hover .routing-tooltip-box,
+#content-routing .routing-tooltip-btn:focus + .routing-tooltip-box { opacity: 1; visibility: visible; }
+#content-routing .routing-member-card {
+    display: grid; grid-template-columns: 44px minmax(0, 1fr) minmax(220px, 280px);
+    align-items: center; gap: 14px;
+    padding: 12px 14px; margin: 0; border-radius: 14px;
+    background: rgba(2, 6, 23, 0.35) !important;
+    border: 1px solid rgba(148, 163, 184, 0.1);
 }
-.routing-member-status.online { background: #22c55e; }
-.routing-member-status.offline { background: #6b7280; }
-.routing-member-controls { display: flex; align-items: center; gap: 12px; }
-.routing-slider {
-    width: 140px;
-    height: 6px;
-    -webkit-appearance: none;
-    appearance: none;
-    background: #30363d;
-    border-radius: 3px;
+#content-routing .routing-member-card.disabled { opacity: 0.55; }
+#content-routing .routing-member-card.disabled .routing-member-controls { pointer-events: none; }
+#content-routing .routing-member-avatar {
+    width: 40px; height: 40px; border-radius: 12px;
+    display: flex; align-items: center; justify-content: center;
+    background: rgba(148, 163, 184, 0.12); color: #cbd5e1 !important;
 }
-.routing-slider::-webkit-slider-thumb {
-    -webkit-appearance: none;
-    width: 18px;
-    height: 18px;
-    border-radius: 50%;
-    background: #6366f1;
-    cursor: pointer;
-    transition: transform 0.15s;
+#content-routing #routing_row_ai .routing-member-avatar { background: rgba(99, 102, 241, 0.2); color: #c4b5fd !important; }
+#content-routing .routing-member-info { min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+#content-routing .routing-member-name { color: #f8fafc !important; font-size: 14px; font-weight: 700; }
+#content-routing .routing-member-meta { display: inline-flex; align-items: center; gap: 6px; }
+#content-routing .routing-presence { color: #94a3b8 !important; font-size: 12px; font-weight: 600; }
+#content-routing .routing-member-status { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+#content-routing .routing-member-status.online { background: #4ade80; }
+#content-routing .routing-member-status.offline { background: #64748b; }
+#content-routing .routing-member-controls { display: flex; align-items: center; gap: 10px; }
+#content-routing .routing-slider { flex: 1; width: auto; height: 22px; accent-color: #818cf8; }
+#content-routing .routing-pct-input {
+    width: 64px; height: 36px; padding: 0 8px; text-align: right;
+    font-variant-numeric: tabular-nums; font-size: 14px; font-weight: 700;
+    color: #f8fafc !important; background: rgba(15, 23, 42, 0.8) !important;
+    border: 1px solid rgba(148, 163, 184, 0.22) !important; border-radius: 10px;
 }
-.routing-slider::-webkit-slider-thumb:hover { transform: scale(1.1); }
-.routing-slider::-moz-range-thumb {
-    width: 18px;
-    height: 18px;
-    border-radius: 50%;
-    background: #6366f1;
-    cursor: pointer;
-    border: none;
+#content-routing .routing-pct-input:focus { outline: none; border-color: #818cf8 !important; }
+#content-routing .routing-member-controls > span { color: #94a3b8 !important; font-size: 13px; font-weight: 700; }
+#content-routing #routing_member_list { display: flex; flex-direction: column; gap: 8px; }
+#content-routing #routing_team_rows { display: flex; flex-direction: column; gap: 8px; }
+#content-routing .routing-total-bar {
+    position: sticky; bottom: 0; z-index: 2;
+    display: flex; align-items: center; justify-content: space-between; gap: 16px;
+    padding: 14px 16px; border-radius: 16px;
+    background: #12182b !important;
+    border: 1px solid rgba(148, 163, 184, 0.18);
 }
-.routing-pct-input {
-    width: 56px;
-    padding: 6px 8px;
-    text-align: right;
-    font-variant-numeric: tabular-nums;
-    background: #0d1117;
-    border: 1px solid #30363d;
-    color: #e6edf3;
-    border-radius: 6px;
-    font-size: 14px;
+#content-routing .routing-total-label { color: #94a3b8 !important; font-size: 13px; font-weight: 600; }
+#content-routing #routing_total_display { font-size: 18px; font-weight: 800; font-variant-numeric: tabular-nums; }
+#content-routing .total-valid { color: #4ade80 !important; }
+#content-routing .total-invalid { color: #fca5a5 !important; }
+#content-routing .routing-total-unit { color: #94a3b8 !important; font-weight: 700; }
+#content-routing .routing-save-btn { border-radius: 12px; font-weight: 700; }
+#content-routing .routing-save-btn:disabled { opacity: 0.45; cursor: not-allowed !important; }
+#content-routing #routing_save_status { color: #94a3b8 !important; min-height: 1.1em; }
+@media (max-width: 800px) {
+    #content-routing .routing-member-card { grid-template-columns: 44px minmax(0, 1fr); }
+    #content-routing .routing-member-controls { grid-column: 1 / -1; }
+    #content-routing .routing-total-bar { flex-direction: column; align-items: stretch; }
 }
-.routing-pct-input:focus { outline: none; border-color: #6366f1; box-shadow: 0 0 0 2px rgba(99,102,241,0.2); }
-
-/* ----- Sticky total bar ----- */
-.routing-total-bar {
-    position: sticky;
-    bottom: 0;
-    left: 0;
-    right: 0;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 1rem;
-    padding: 1rem 1.25rem;
-    background: #161b22;
-    border: 1px solid #30363d;
-    border-radius: 12px;
-    margin-top: 1.5rem;
-    box-shadow: 0 -4px 20px rgba(0,0,0,0.2);
-}
-.routing-total-bar .total-valid { color: #22c55e; font-weight: 600; }
-.routing-total-bar .total-invalid { color: #ef4444; font-weight: 600; }
-.routing-save-btn { transition: opacity 0.2s; }
-.routing-save-btn:disabled { opacity: 0.5; cursor: not-allowed !important; }
 
 /* Voice Gallery modal (ElevenLabs) */
 #voiceGalleryModal .voice-gallery-modal-body { max-height: min(70vh, 720px); overflow-y: auto; }
@@ -551,6 +578,79 @@
 #voiceGalleryModal .vg-voice-card .vg-tags { font-size: 0.75rem; color: #8b949e; margin-bottom: 0.65rem; }
 #voiceGalleryModal .vg-voice-card .vg-tags span { margin-right: 0.35rem; }
 #voiceGalleryModal .badge-vg-native { background: linear-gradient(135deg, #238636, #2ea043); color: #fff; font-size: 0.7rem; }
+
+#content-profile .ch-shell { display: flex; flex-direction: column; gap: 16px; color: #e2e8f0; }
+#content-profile .ch-head { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; }
+#content-profile .ch-kicker { display: block; color: #a5b4fc !important; font-size: 11px; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; }
+#content-profile .ch-title { margin: 4px 0 0; color: #f8fafc !important; font-size: 22px; font-weight: 700; letter-spacing: -0.03em; }
+#content-profile .ch-sub { margin: 6px 0 0; color: #94a3b8 !important; font-size: 13px; line-height: 1.5; }
+#content-profile .ch-field { display: flex; flex-direction: column; gap: 8px; }
+#content-profile .ch-field > span,
+#content-profile .ch-label { color: #cbd5e1 !important; font-size: 12px; font-weight: 700; letter-spacing: 0.04em; }
+#content-profile .ch-field .modern-input,
+#content-profile .ch-form .modern-input,
+#content-profile .input-group .modern-input {
+    background: rgba(15, 23, 42, 0.72) !important;
+    border: 1px solid rgba(148, 163, 184, 0.2) !important;
+    color: #f8fafc !important;
+    border-radius: 12px;
+    min-height: 44px;
+}
+#content-profile textarea.modern-input { min-height: 110px; padding-top: 12px; }
+#content-profile .modern-addon {
+    background: rgba(15, 23, 42, 0.9) !important;
+    border: 1px solid rgba(148, 163, 184, 0.2) !important;
+    color: #a5b4fc !important;
+    border-radius: 12px 0 0 12px;
+}
+#content-profile .ch-identity {
+    display: grid;
+    grid-template-columns: 168px 1fr;
+    gap: 14px;
+    padding: 14px;
+    border-radius: 18px;
+    background: rgba(15, 23, 42, 0.55) !important;
+    border: 1px solid rgba(148, 163, 184, 0.16);
+}
+#content-profile .account_qr_section { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; }
+#content-profile #qrcode_container.qr_img_wrapper {
+    width: 128px !important; height: 128px !important; background: #fff !important;
+    padding: 8px; border-radius: 14px; display: flex; align-items: center; justify-content: center;
+}
+#content-profile .scan_hint { color: #94a3b8 !important; font-size: 12px; font-weight: 600; }
+#content-profile .account_info_grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+#content-profile .info_item {
+    padding: 12px 14px; border-radius: 14px;
+    background: rgba(2, 6, 23, 0.35); border: 1px solid rgba(148, 163, 184, 0.1);
+}
+#content-profile .info_item label { display: block; margin: 0 0 4px; color: #94a3b8 !important; font-size: 11px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; }
+#content-profile .info_item .val { color: #f8fafc !important; font-size: 14px; font-weight: 650; word-break: break-word; }
+#content-profile .info_item .val.highlight { color: #c4b5fd !important; }
+#content-profile .info_item .val.mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 13px; letter-spacing: 0; }
+#content-profile .info_item .val.text-green { color: #4ade80 !important; }
+#content-profile .ch-layout { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(240px, 0.7fr); gap: 16px; align-items: start; }
+#content-profile .ch-form, #content-profile .ch-preview {
+    padding: 16px; border-radius: 18px;
+    background: rgba(15, 23, 42, 0.4) !important;
+    border: 1px solid rgba(148, 163, 184, 0.14);
+}
+#content-profile .ch-form { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+#content-profile .ch-span { grid-column: 1 / -1; }
+#content-profile .ch-preview { display: flex; justify-content: center; }
+#content-profile .wa-phone-preview { margin: 0 auto; }
+#content-profile .ch-danger {
+    display: flex; align-items: center; justify-content: space-between; gap: 16px;
+    padding: 16px; border-radius: 16px;
+    background: rgba(127, 29, 29, 0.18) !important;
+    border: 1px solid rgba(248, 113, 113, 0.35);
+}
+#content-profile .ch-danger h6 { margin: 0 0 4px; color: #fecaca !important; font-size: 14px; font-weight: 700; }
+#content-profile .ch-danger p { margin: 0; color: #fca5a5 !important; font-size: 13px; line-height: 1.45; }
+#content-profile .ch-danger .btn { border-radius: 10px; font-weight: 700; }
+@media (max-width: 900px) {
+    #content-profile .ch-identity, #content-profile .ch-layout, #content-profile .ch-form, #content-profile .account_info_grid { grid-template-columns: 1fr; }
+    #content-profile .ch-danger { flex-direction: column; align-items: flex-start; }
+}
 </style>
 <div class="container-fluid p-4">
     <div class="mb-4">
@@ -654,98 +754,86 @@
                 <div class="tab-content">
                     
                     <div class="tab-pane fade show active" id="content-profile">
-                        <div class="border-bottom border-secondary" style="margin-bottom: 9px;" > 
-                            <h4 class="text-white fw-bold mb-1">
-                                <i class="fab fa-whatsapp text-success me-2"></i> Channel Name 
-                            </h4>
-                           <div class="alert alert-glass d-flex align-items-center mb-4" role="alert">
-                            <input type="text" name="channel_name" class="form-control modern-input" style="background-color: transparent;" id="channel_name" value="{{ channel.channel_name }}" placeholder="Channel Name">
-                           </div>
-                        
-                           
-                        </div>
-                        <div class="alert alert-glass d-flex align-items-center mb-4" role="alert">
-                            <i class="fas fa-info-circle me-3 fs-5"></i>
-                            <div>
-                                Changes here will be <strong class="text-white">synced with WhatsApp directly</strong>. Please update carefully.
-                            </div>
-                        </div>
-                        
-                        <div class="cls3741_account_card mb-4">
-                            <div class="account_qr_section">
-                                <div id="qrcode_container" class="qr_img_wrapper" style="width: 120px; height: 120px; background: white; padding: 8px; border-radius: 12px; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 12px rgba(0,0,0,0.1);"></div>
-                                <div class="scan_hint">Scan to conntact</div>
-                            </div>
-                            <div class="account_info_grid">
-                                <div class="info_item">
-                                    <label>Display Name</label>
-                                    <div class="val" id="dash_display_name"> </div>
+                        <div class="ch-shell">
+                            <header class="ch-head">
+                                <div>
+                                    <span class="ch-kicker">Channel</span>
+                                    <h4 class="ch-title">General</h4>
+                                    <p class="ch-sub">Profile details sync directly with WhatsApp. Update them carefully.</p>
                                 </div>
-                                <div class="info_item">
-                                    <label>Connected Number</label>
-                                    <div class="val highlight" id="dash_phone_number">+{{ active_channel.phone_number }}</div>
+                            </header>
+
+                            <label class="ch-field">
+                                <span>Channel name</span>
+                                <input type="text" name="channel_name" class="form-control modern-input" id="channel_name" value="{{ channel.channel_name }}" placeholder="Channel name">
+                            </label>
+
+                            <div class="cls3741_account_card ch-identity">
+                                <div class="account_qr_section">
+                                    <div id="qrcode_container" class="qr_img_wrapper wa-connect-qr"></div>
+                                    <div class="scan_hint">Scan to connect</div>
                                 </div>
-                                <div class="info_item">
-                                    <label>WABA ID</label>
-                                    <div class="val mono" id="dash_waba_id">{{ active_channel.business_account_id }}</div>
-                                </div>
-                                <div class="info_item">
-                                    <label>Messaging Limit</label>
-                                    <div class="val" id="dash_messaging_limit">TIER_250</div>
-                                </div>
-                                <div class="info_item">
-                                    <label>Quality Rating</label>
-                                    <div class="val text-green" id="dash_quality_rating">GREEN ●</div>
-                                </div>
-                                <div class="info_item">
-                                    <label>Account Status</label>
-                                    <div class="val status_tag" id="dash_account_status">APPROVED</div>
-                                </div>
-                            </div>
-                        </div>
-                    
-                        <div class="row g-4">
-                            
-                            <div class="col-lg-8 order-2 order-lg-1">
-                                <div class="row g-4">
-                                    <div class="col-12">
-                                        <label class="form-label-modern">Business Description</label>
-                                        <textarea name="business_description" class="form-control modern-input" id="business_description" rows="4" placeholder="Tell customers about your business...">{{ channel.business_description }}</textarea>
+                                <div class="account_info_grid">
+                                    <div class="info_item">
+                                        <label>Display name</label>
+                                        <div class="val" id="dash_display_name"></div>
                                     </div>
-                    
-                                    <div class="col-md-6">
-                                        <label class="form-label-modern">Address</label>
+                                    <div class="info_item">
+                                        <label>Connected number</label>
+                                        <div class="val highlight" id="dash_phone_number">{% if active_channel.phone_number|slice:":1" == "+" %}{{ active_channel.phone_number }}{% else %}+{{ active_channel.phone_number }}{% endif %}</div>
+                                    </div>
+                                    <div class="info_item">
+                                        <label>WABA ID</label>
+                                        <div class="val mono" id="dash_waba_id">{{ active_channel.business_account_id }}</div>
+                                    </div>
+                                    <div class="info_item">
+                                        <label>Messaging limit</label>
+                                        <div class="val" id="dash_messaging_limit">TIER_250</div>
+                                    </div>
+                                    <div class="info_item">
+                                        <label>Quality rating</label>
+                                        <div class="val text-green" id="dash_quality_rating">GREEN</div>
+                                    </div>
+                                    <div class="info_item">
+                                        <label>Account status</label>
+                                        <div class="val status_tag" id="dash_account_status">APPROVED</div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="ch-layout">
+                                <div class="ch-form">
+                                    <label class="ch-field ch-span">
+                                        <span class="ch-label">Business description</span>
+                                        <textarea name="business_description" class="form-control modern-input" id="business_description" rows="4" placeholder="Tell customers about your business...">{{ channel.business_description }}</textarea>
+                                    </label>
+                                    <label class="ch-field">
+                                        <span class="ch-label">Address</span>
                                         <div class="input-group">
                                             <span class="input-group-text modern-addon"><i class="fas fa-map-marker-alt"></i></span>
-                                            <input type="text" name="business_address"  id="business_address" class="form-control modern-input" value="{{ channel.business_address }}">
+                                            <input type="text" name="business_address" id="business_address" class="form-control modern-input" value="{{ channel.business_address }}">
                                         </div>
-                                    </div>
-                    
-                                    <div class="col-md-6">
-                                        <label class="form-label-modern">Email Contact</label>
+                                    </label>
+                                    <label class="ch-field">
+                                        <span class="ch-label">Email</span>
                                         <div class="input-group">
                                             <span class="input-group-text modern-addon"><i class="fas fa-envelope"></i></span>
-                                            <input type="email"  id="business_email" name="business_email" class="form-control modern-input" value="{{ channel.business_email }}">
+                                            <input type="email" id="business_email" name="business_email" class="form-control modern-input" value="{{ channel.business_email }}">
                                         </div>
-                                    </div>
-                    
-                                    <div class="col-md-6">
-                                        <label class="form-label-modern">Website</label>
+                                    </label>
+                                    <label class="ch-field">
+                                        <span class="ch-label">Website</span>
                                         <div class="input-group">
                                             <span class="input-group-text modern-addon"><i class="fas fa-globe"></i></span>
                                             <input type="url" id="business_website" name="business_website" class="form-control modern-input" value="{{ channel.business_website }}">
                                         </div>
-                                    </div>
-                    
-                                    <div class="col-md-6">
-                                        <label class="form-label-modern">Status (About Info)</label>
-                                        <input type="text" id="business_about" name="business_about" class="form-control modern-input" value="{{ channel.business_about }}" placeholder="e.g. Available 9AM - 5PM">
-                                    </div>
+                                    </label>
+                                    <label class="ch-field">
+                                        <span class="ch-label">About</span>
+                                        <input type="text" id="business_about" name="business_about" class="form-control modern-input" value="{{ channel.business_about }}" placeholder="Available 9AM – 5PM">
+                                    </label>
                                 </div>
-                            </div>
-                    
-                            <div class="col-lg-4 order-1 order-lg-2 d-flex flex-column align-items-center justify-content-start pt-lg-2">
-                                <div class="w-100 h-100 d-flex flex-column align-items-center justify-content-center" style="min-height: 250px;">
+                                <div class="ch-preview">
                                     <div class="wa-phone-preview">
                                         <div class="wa-phone-topbar">
                                             <span>WhatsApp</span>
@@ -753,39 +841,31 @@
                                         </div>
                                         <div class="wa-phone-body">
                                             <div class="wa-profile-circle profile-upload-wrapper">
-                                                <img id="profile_preview" src="{% if channel.profile_image %}{{ channel.profile_image.url }}{% else %}/static/img/default-wa.png{% endif %}" alt="Profile Preview">
+                                                <img id="profile_preview" src="{% if channel.profile_image %}{{ channel.profile_image.url }}{% else %}/static/img/default-wa.png{% endif %}" alt="" onerror="this.style.display='none'; this.parentElement.classList.add('is-empty');">
                                                 <label for="profile_image_input" class="wa-edit-badge" title="Update profile photo">
                                                     <i class="fas fa-camera"></i>
                                                 </label>
                                             </div>
                                             <input type="file" id="profile_image_input" name="profile_image" class="d-none" accept="image/*">
                                             <div class="wa-name" id="wa_cloud_display_name">Loading Meta name...</div>
-                                            <div class="wa-number">{{ active_channel.phone_number }}</div>
+                                            <div class="wa-number">{% if active_channel.phone_number|slice:":1" == "+" %}{{ active_channel.phone_number }}{% else %}+{{ active_channel.phone_number }}{% endif %}</div>
                                             <div class="wa-chip">Business Account</div>
-                                            <div class="wa-upload-hint">This is how your profile photo looks in phone app.</div>
-                                            <label for="profile_image_input" class="wa-upload-btn">Upload / Update Photo</label>
+                                            <div class="wa-upload-hint">This is how your profile looks in WhatsApp.</div>
+                                            <label for="profile_image_input" class="wa-upload-btn">Upload photo</label>
                                         </div>
                                     </div>
                                 </div>
                             </div>
-                    
-                        </div>
-                    
-                        <div class="mt-5 pt-4 border-top border-secondary">
-                            <h6 class="text-danger text-uppercase fw-bold small ls-1 mb-3">Danger Zone</h6>
-                            <div class="card border-danger bg-danger bg-opacity-10">
-                                <div class="card-body d-flex justify-content-between align-items-center flex-wrap gap-3">
-                                    <div>
-                                        <h6 class="text-danger mb-1 fw-bold">Delete this Channel</h6>
-                                        <p class="text-danger text-opacity-75 small mb-0">
-                                            Once deleted, there is no going back. All messages and configurations will be permanently removed.
-                                        </p>
-                                    </div>
-                                    <button type="button" class="btn btn-outline-danger" onclick="openDeleteModal()">
-                                        <i class="fas fa-trash-alt me-2"></i> Delete Channel
-                                    </button>
+
+                            <section class="ch-danger">
+                                <div>
+                                    <h6>Delete this channel</h6>
+                                    <p>Deleting removes the channel, its messages, and its configuration. This cannot be undone.</p>
                                 </div>
-                            </div>
+                                <button type="button" class="btn btn-outline-danger" onclick="openDeleteModal()">
+                                    <i class="fas fa-trash-alt me-2"></i> Delete channel
+                                </button>
+                            </section>
                         </div>
                     
                         <div class="modal fade" id="deleteOtpModal" tabindex="-1" data-bs-backdrop="static">
@@ -874,208 +954,210 @@
                             <!-- AI Sales Voice Orchestrator -->
                             {% if plan_can_ai_assistant %}
                             <div class="automation-ai-section">
-                                <div class="automation-ai-header">
-                                    <span class="automation-ai-badge"><i class="fas fa-robot me-1"></i> AI Sales Voice</span>
-                                    <p class="automation-ai-subtitle mb-0">Autopilot, voice identity, and order capture</p>
-                                </div>
-                                <div class="row g-4">
-                                    <div class="col-lg-4" style="width: 50%;" id="ai_autopilot_card" title="">
-                                        <div class="automation-card h-100">
-                                            <div class="automation-card-head">
-                                                <span class="automation-card-icon bg-primary bg-opacity-25 text-primary"><i class="fas fa-rocket"></i></span>
-                                                <h6 class="automation-card-title mb-0">Automation</h6>
-                                            </div>
-                                            <div class="automation-card-body">
-                                                <div class="form-check form-switch mb-4">
-                                                    <input class="form-check-input" type="checkbox" name="ai_auto_reply" id="switch_ai_autopilot" {% if channel.ai_auto_reply %}checked{% endif %}>
-                                                    <label class="form-check-label text-muted" for="switch_ai_autopilot">Full Autopilot</label>
-                                                </div>
-                                                <label class="form-label text-muted small d-flex justify-content-between">
-                                                    <span>Response delay</span>
-                                                    <span id="voice_delay_value" class="text-white">20</span>s
-                                                </label>
-                                                <input type="range" class="form-range" name="voice_delay_seconds" id="voice_delay_slider" min="10" max="30" value="{{ channel.voice_delay_seconds|default:20 }}">
-                                            </div>
-                                        
-                                        <div class="automation-card h-100">
-                                            <div class="automation-card-head">
-                                                <span class="automation-card-icon bg-warning bg-opacity-25 text-warning"><i class="fas fa-shopping-cart"></i></span>
-                                                <h6 class="automation-card-title mb-0">Sales Intelligence</h6>
-                                            </div>
-                                            <div class="automation-card-body">
-                                                <div class="form-check form-switch mb-2">
-                                                    <input class="form-check-input" type="checkbox" name="ai_order_capture" id="switch_ai_order_capture" {% if channel.ai_order_capture %}checked{% endif %}>
-                                                    <label class="form-check-label text-muted" for="switch_ai_order_capture">Automatic Order Extraction</label>
-                                                </div>
-                                                <p class="text-muted small mb-0">Extract name, city &amp; address from chat and create orders.</p>
-                                                <div class="automation-block mt-3 pt-3 {% if not channel.ai_order_capture %}d-none{% endif %}" id="order_notify_wrap">
-                                                    <label class="form-label text-muted small mb-2">Notify when AI creates an order</label>
-                                                    <select name="order_notify_method" id="order_notify_method" class="form-select form-select-sm modern-input mb-2">
-                                                        <option value="" {% if not channel.order_notify_method %}selected{% endif %}>Off</option>
-                                                        <option value="EMAIL" {% if channel.order_notify_method == 'EMAIL' %}selected{% endif %}>Email</option>
-                                                        <option value="WHATSAPP" {% if channel.order_notify_method == 'WHATSAPP' %}selected{% endif %}>WhatsApp</option>
-                                                    </select>
-                                                    <div id="order_notify_email_row" class="mb-2 {% if channel.order_notify_method != 'EMAIL' %}d-none{% endif %}">
-                                                        <input type="email" name="order_notify_email" id="order_notify_email" class="form-control form-control-sm modern-input" placeholder="your@email.com" value="{{ channel.order_notify_email|default:'' }}">
-                                                    </div>
-                                                    <div id="order_notify_whatsapp_row" class="mb-2 {% if channel.order_notify_method != 'WHATSAPP' %}d-none{% endif %}">
-                                                        <input type="text" name="order_notify_whatsapp_phone" id="order_notify_whatsapp_phone" class="form-control form-control-sm modern-input" placeholder="+1234567890" value="{{ channel.order_notify_whatsapp_phone|default:'' }}">
-                                                        <small class="text-muted" style="font-size: 0.7rem;">With country code (e.g. +212...)</small>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </div>
+                                <header class="ai-head">
+                                    <div>
+                                        <span class="ai-kicker">AI Sales</span>
+                                        <h4 class="ai-title">Assistant</h4>
+                                        <p class="ai-sub">Autopilot, voice identity, and order capture. These settings sync when you save the channel.</p>
                                     </div>
-                                    </div>
+                                </header>
 
-                                    <div class="col-lg-4" style="width: 50%;" id="ai_voice_identity_card" title="">
-                                        <div class="automation-card automation-card-voice h-100">
-                                            <div class="automation-card-head">
-                                                <span class="automation-card-icon bg-success bg-opacity-25 text-success"><i class="fas fa-microphone-alt"></i></span>
-                                                <h6 class="automation-card-title mb-0">Voice Identity</h6>
+                                <div class="ai-ops">
+                                    <section class="ai-card" id="ai_autopilot_card" title="">
+                                        <div class="ai-card-head">
+                                            <span class="ai-ico tone-rocket"><i class="fas fa-rocket"></i></span>
+                                            <div>
+                                                <h6>Autopilot</h6>
+                                                <p>The agent replies without a manual send.</p>
                                             </div>
-                                            <div class="automation-card-body">
-                                                <div class="mb-3">
-                                                    <label class="form-label text-muted small mb-1">AI chat model</label>
-                                                    <select name="ai_llm_engine" id="channel_ai_llm_engine" class="form-select form-select-sm modern-input">
-                                                        <option value="AUTO" {% if channel.ai_llm_engine == 'AUTO' or not channel.ai_llm_engine %}selected{% endif %}>Auto (dialect-based)</option>
-                                                        <option value="GPT_4O" {% if channel.ai_llm_engine == 'GPT_4O' %}selected{% endif %}>GPT-4o (OpenAI)</option>
-                                                        <option value="CLAUDE_3_5" {% if channel.ai_llm_engine == 'CLAUDE_3_5' %}selected{% endif %}>Claude (Anthropic)</option>
+                                        </div>
+                                        <div class="ai-switch">
+                                            <div>
+                                                <label for="switch_ai_autopilot">Full Autopilot</label>
+                                                <p>Turn this on to let the sales agent answer new chats.</p>
+                                            </div>
+                                            <div class="form-check form-switch mb-0">
+                                                <input class="form-check-input" type="checkbox" name="ai_auto_reply" id="switch_ai_autopilot" {% if channel.ai_auto_reply %}checked{% endif %}>
+                                            </div>
+                                        </div>
+                                        <div class="ai-slider">
+                                            <div class="ai-slider-top">
+                                                <span>Response delay</span>
+                                                <strong><span id="voice_delay_value">{{ channel.voice_delay_seconds|default:20 }}</span>s</strong>
+                                            </div>
+                                            <input type="range" class="form-range" name="voice_delay_seconds" id="voice_delay_slider" min="10" max="30" value="{{ channel.voice_delay_seconds|default:20 }}">
+                                            <div class="ai-slider-scale"><span>10s</span><span>30s</span></div>
+                                        </div>
+                                    </section>
+
+                                    <section class="ai-card">
+                                        <div class="ai-card-head">
+                                            <span class="ai-ico tone-cart"><i class="fas fa-shopping-cart"></i></span>
+                                            <div>
+                                                <h6>Orders</h6>
+                                                <p>Pull checkout details out of the chat.</p>
+                                            </div>
+                                        </div>
+                                        <div class="ai-switch">
+                                            <div>
+                                                <label for="switch_ai_order_capture">Automatic order extraction</label>
+                                                <p>Read name, city, and address, then create the order.</p>
+                                            </div>
+                                            <div class="form-check form-switch mb-0">
+                                                <input class="form-check-input" type="checkbox" name="ai_order_capture" id="switch_ai_order_capture" {% if channel.ai_order_capture %}checked{% endif %}>
+                                            </div>
+                                        </div>
+                                        <div class="ai-notify {% if not channel.ai_order_capture %}d-none{% endif %}" id="order_notify_wrap">
+                                            <label for="order_notify_method">Notify when AI creates an order</label>
+                                            <select name="order_notify_method" id="order_notify_method" class="form-select form-select-sm modern-input">
+                                                <option value="" {% if not channel.order_notify_method %}selected{% endif %}>Off</option>
+                                                <option value="EMAIL" {% if channel.order_notify_method == 'EMAIL' %}selected{% endif %}>Email</option>
+                                                <option value="WHATSAPP" {% if channel.order_notify_method == 'WHATSAPP' %}selected{% endif %}>WhatsApp</option>
+                                            </select>
+                                            <div id="order_notify_email_row" class="{% if channel.order_notify_method != 'EMAIL' %}d-none{% endif %}">
+                                                <input type="email" name="order_notify_email" id="order_notify_email" class="form-control form-control-sm modern-input" placeholder="your@email.com" value="{{ channel.order_notify_email|default:'' }}">
+                                            </div>
+                                            <div id="order_notify_whatsapp_row" class="{% if channel.order_notify_method != 'WHATSAPP' %}d-none{% endif %}">
+                                                <input type="text" name="order_notify_whatsapp_phone" id="order_notify_whatsapp_phone" class="form-control form-control-sm modern-input" placeholder="+212612345678" value="{{ channel.order_notify_whatsapp_phone|default:'' }}">
+                                                <small>Include the country code, for example +212…</small>
+                                            </div>
+                                        </div>
+                                    </section>
+                                </div>
+
+                                <section class="ai-card ai-voice" id="ai_voice_identity_card" title="">
+                                    <div class="ai-card-head">
+                                        <span class="ai-ico tone-mic"><i class="fas fa-microphone-alt"></i></span>
+                                        <div>
+                                            <h6>Voice identity</h6>
+                                            <p>Model, reply format, and the voice customers hear.</p>
+                                        </div>
+                                    </div>
+                                    <div class="ai-voice-grid">
+                                        <div class="ai-pane">
+                                            <span class="ai-pane-label">Conversation</span>
+                                            <label for="channel_ai_llm_engine">AI chat model</label>
+                                            <select name="ai_llm_engine" id="channel_ai_llm_engine" class="form-select form-select-sm modern-input">
+                                                <option value="AUTO" {% if channel.ai_llm_engine == 'AUTO' or not channel.ai_llm_engine %}selected{% endif %}>Auto (dialect-based)</option>
+                                                <option value="GPT_4O" {% if channel.ai_llm_engine == 'GPT_4O' %}selected{% endif %}>GPT-4o (OpenAI)</option>
+                                                <option value="CLAUDE_3_5" {% if channel.ai_llm_engine == 'CLAUDE_3_5' %}selected{% endif %}>Claude (Anthropic)</option>
+                                            </select>
+                                            <small>Auto still uses GPT-4o outside Maghreb dialects. Claude forces Anthropic. A flow node set to GPT-4o overrides this.</small>
+                                            <label for="channel_response_mode">Reply format</label>
+                                            <select name="response_mode" class="form-select form-select-sm modern-input" id="channel_response_mode">
+                                                <option value="text_only" {% if channel.response_mode == 'text_only' or not channel.response_mode and not channel.ai_voice_enabled %}selected{% endif %}>Text only</option>
+                                                <option value="voice_enabled" {% if channel.response_mode == 'voice_enabled' or not channel.response_mode and channel.ai_voice_enabled %}selected{% endif %}>Voice enabled</option>
+                                                <option value="auto" {% if channel.response_mode == 'auto' %}selected{% endif %}>Auto — AI chooses text or voice</option>
+                                            </select>
+                                            <small>Auto uses voice for trust, hesitation, and order congratulations. Prices and data stay as text.</small>
+                                        </div>
+                                        <div class="ai-pane">
+                                            <span class="ai-pane-label">Voice</span>
+                                            <div class="ai-split">
+                                                <div>
+                                                    <label for="channel_voice_provider">Provider</label>
+                                                    <select name="voice_provider" id="channel_voice_provider" class="form-select form-select-sm modern-input">
+                                                        <option value="OPENAI" {% if channel.voice_provider == 'OPENAI' %}selected{% endif %}>OpenAI TTS</option>
+                                                        <option value="ELEVENLABS" {% if channel.voice_provider == 'ELEVENLABS' %}selected{% endif %}>ElevenLabs</option>
                                                     </select>
-                                                    <small class="text-muted d-block mt-1" style="font-size: 0.7rem;">Chat replies for this number. <strong>Auto</strong> still uses GPT-4o for non-Maghreb dialects. Pick <strong>Claude</strong> to force Anthropic. An AI Agent flow node set to GPT-4o overrides this.</small>
                                                 </div>
-                                                <div class="row g-2 mb-3">
-                                                    <div class="col-6">
-                                                        <label class="form-label text-muted small mb-1">Provider</label>
-                                                        <select name="voice_provider" class="form-select form-select-sm modern-input">
-                                                            <option value="OPENAI" {% if channel.voice_provider == 'OPENAI' %}selected{% endif %}>OpenAI TTS</option>
-                                                            <option value="ELEVENLABS" {% if channel.voice_provider == 'ELEVENLABS' %}selected{% endif %}>ElevenLabs</option>
-                                                        </select>
-                                                    </div>
-                                                    <div class="col-6">
-                                                        <label class="form-label text-muted small mb-1">Gender</label>
-                                                        <select name="voice_gender" class="form-select form-select-sm modern-input">
-                                                            <option value="FEMALE" {% if channel.voice_gender == 'FEMALE' %}selected{% endif %}>Female</option>
-                                                            <option value="MALE" {% if channel.voice_gender == 'MALE' %}selected{% endif %}>Male</option>
-                                                        </select>
-                                                    </div>
-                                                </div>
-                                                <div class="mb-3">
-                                                    <label class="form-label text-muted small mb-1">Language</label>
-                                                    <select name="voice_language" class="form-select form-select-sm modern-input" id="voice_language_select">
-                                                        <option value="AUTO" {% if channel.voice_language == 'AUTO' %}selected{% endif %}>Auto — follow customer's language</option>
-                                                        <option value="AR_MA" {% if channel.voice_language == 'AR_MA' %}selected{% endif %}>Arabic (Morocco)</option>
-                                                        <option value="AR_SA" {% if channel.voice_language == 'AR_SA' %}selected{% endif %}>Arabic (Saudi)</option>
-                                                        <option value="FR_FR" {% if channel.voice_language == 'FR_FR' %}selected{% endif %}>French (France)</option>
-                                                        <option value="EN_US" {% if channel.voice_language == 'EN_US' %}selected{% endif %}>English (US)</option>
+                                                <div>
+                                                    <label for="channel_voice_gender">Gender</label>
+                                                    <select name="voice_gender" id="channel_voice_gender" class="form-select form-select-sm modern-input">
+                                                        <option value="FEMALE" {% if channel.voice_gender == 'FEMALE' %}selected{% endif %}>Female</option>
+                                                        <option value="MALE" {% if channel.voice_gender == 'MALE' %}selected{% endif %}>Male</option>
                                                     </select>
-                                                    <span class="d-inline-block mt-1" data-bs-toggle="tooltip" title="Auto: the bot replies in the language the customer uses (French, English, or Arabic dialect). Fixed options lock one language for all customers."><i class="fas fa-info-circle text-muted small"></i></span>
                                                 </div>
-                                                <div class="mb-3">
-                                                    <label class="form-label text-muted small mb-1" for="channel_response_mode">Reply format</label>
-                                                    <select name="response_mode" class="form-select form-select-sm modern-input" id="channel_response_mode">
-                                                        <option value="text_only" {% if channel.response_mode == 'text_only' or not channel.response_mode and not channel.ai_voice_enabled %}selected{% endif %}>Text only</option>
-                                                        <option value="voice_enabled" {% if channel.response_mode == 'voice_enabled' or not channel.response_mode and channel.ai_voice_enabled %}selected{% endif %}>Voice enabled</option>
-                                                        <option value="auto" {% if channel.response_mode == 'auto' %}selected{% endif %}>Auto — AI chooses text or voice</option>
-                                                    </select>
-                                                    <small class="text-muted d-block mt-1">Auto uses voice only for trust, hesitation, and order congratulations — text for data and prices (saves TTS cost).</small>
+                                            </div>
+                                            <label for="voice_language_select">Language</label>
+                                            <select name="voice_language" class="form-select form-select-sm modern-input" id="voice_language_select">
+                                                <option value="AUTO" {% if channel.voice_language == 'AUTO' %}selected{% endif %}>Auto — follow the customer</option>
+                                                <option value="AR_MA" {% if channel.voice_language == 'AR_MA' %}selected{% endif %}>Arabic (Morocco)</option>
+                                                <option value="AR_SA" {% if channel.voice_language == 'AR_SA' %}selected{% endif %}>Arabic (Saudi)</option>
+                                                <option value="FR_FR" {% if channel.voice_language == 'FR_FR' %}selected{% endif %}>French (France)</option>
+                                                <option value="EN_US" {% if channel.voice_language == 'EN_US' %}selected{% endif %}>English (US)</option>
+                                            </select>
+                                            <small>Auto follows French, English, or the customer’s Arabic dialect. A fixed language applies to every chat. <i class="fas fa-info-circle" data-bs-toggle="tooltip" title="Auto: the bot replies in the language the customer uses. Fixed options lock one language for all customers."></i></small>
+                                            <button type="button" id="btn_voice_gallery" class="ai-gallery"><i class="fas fa-th-large"></i> Voice gallery</button>
+                                            <div class="form-check form-switch d-none">
+                                                <input class="form-check-input" type="checkbox" name="ai_voice_enabled" id="switch_ai_voice" {% if channel.ai_voice_enabled %}checked{% endif %}>
+                                                <label class="form-check-label" for="switch_ai_voice">Send as voice</label>
+                                            </div>
+                                            <div id="voice_cloning_row" class="ai-switch {% if channel.voice_provider != 'ELEVENLABS' %}d-none{% endif %}" title="">
+                                                <div>
+                                                    <label for="switch_voice_cloning">Voice cloning <span class="pro-badge">PRO</span></label>
+                                                    <p>Use your own voice. Premium only. <i class="fas fa-info-circle" data-bs-toggle="tooltip" title="Clone your own voice. Premium only."></i></p>
                                                 </div>
-                                                <div class="automation-voice-switches">
-                                                    <div class="form-check form-switch mb-2 d-none">
-                                                        <input class="form-check-input" type="checkbox" name="ai_voice_enabled" id="switch_ai_voice" {% if channel.ai_voice_enabled %}checked{% endif %}>
-                                                        <label class="form-check-label text-muted" for="switch_ai_voice">Send as voice</label>
-                                                    </div>
-                                                    <div id="voice_cloning_row" class="form-check form-switch mb-2 {% if channel.voice_provider != 'ELEVENLABS' %}d-none{% endif %}" title="">
-                                                        <input class="form-check-input" type="checkbox" name="voice_cloning_enabled" id="switch_voice_cloning" {% if channel.voice_cloning_enabled %}checked{% endif %}>
-                                                        <label class="form-check-label text-muted" for="switch_voice_cloning">Voice Cloning <span class="pro-badge ms-1">👑 PRO</span></label>
-                                                        <span class="ms-1" data-bs-toggle="tooltip" title="Clone your own voice. Premium only."><i class="fas fa-info-circle text-muted small"></i></span>
-                                                    </div>
+                                                <div class="form-check form-switch mb-0">
+                                                    <input class="form-check-input" type="checkbox" name="voice_cloning_enabled" id="switch_voice_cloning" {% if channel.voice_cloning_enabled %}checked{% endif %}>
                                                 </div>
-                                                <div class="mt-2">
-                                                    <button type="button" id="btn_voice_gallery" class="btn btn-outline-info btn-sm w-100"><i class="fas fa-th-large me-1"></i> Voice Gallery</button>
-                                                    <small class="text-muted d-block mt-1 small">Lists OpenAI or ElevenLabs voices to match the Provider above.</small>
-                                                </div>
-                                                <div class="automation-block mt-3 pt-3" id="tone_control_card" title="">
-                                                    <h6 class="text-white mb-2 small">Tone <span class="pro-badge ms-1">👑 PRO</span></h6>
-                                                    <label class="form-label text-muted small d-flex justify-content-between mb-1">Stability <span id="voice_stability_value" class="text-white">0.5</span></label>
-                                                    <input type="range" class="form-range mb-2" name="voice_stability" id="voice_stability_slider" min="0" max="1" step="0.05" value="{{ channel.voice_stability|default:0.5 }}">
-                                                    <label class="form-label text-muted small d-flex justify-content-between mb-1">Similarity <span id="voice_similarity_value" class="text-white">0.75</span></label>
-                                                    <input type="range" class="form-range" name="voice_similarity" id="voice_similarity_slider" min="0" max="1" step="0.05" value="{{ channel.voice_similarity|default:0.75 }}">
-                                                </div>
-                                                {% if user.is_superuser %}
-                                                <div id="voice_clone_section" class="automation-block mt-3 pt-3 {% if channel.voice_provider != 'ELEVENLABS' %}d-none{% endif %}">
-                                                    <h6 class="text-white mb-2 small">Clone <span class="pro-badge ms-1">👑 PRO</span></h6>
-                                                    <p class="text-muted small mb-2">Upload your own voice only. Celebrity/news/public figure voices are strictly forbidden.</p>
-                                                    <label class="form-label text-muted small mb-1" for="clone_audio_input">Voice sample (required)</label>
-                                                    <input type="file" id="clone_audio_input" class="form-control form-control-sm modern-input mb-2" accept=".mp3,.wav,.m4a,.ogg,.webm,audio/*">
-                                                    <label class="form-label text-muted small mb-1" for="clone_dialect_select">What dialect is this voice speaking? <span class="text-danger">*</span></label>
-                                                    <select id="clone_dialect_select" class="form-select form-select-sm modern-input mb-2">
-                                                        <option value="">Select dialect…</option>
-                                                        <option value="MA_DARIJA">Moroccan Darija</option>
-                                                        <option value="SA_ARABIC">Saudi Arabic</option>
-                                                        <option value="EG_ARABIC">Egyptian Arabic</option>
-                                                        <option value="MSA">Modern Standard Arabic</option>
-                                                        <option value="LEV_ARABIC">Levantine Arabic</option>
-                                                        <option value="GULF_ARABIC">Gulf Arabic</option>
-                                                        <option value="OTHER">Other / Multilingual</option>
-                                                    </select>
-                                                    <div class="form-check mb-2">
-                                                        <input class="form-check-input" type="checkbox" id="clone_consent_checkbox">
-                                                        <label class="form-check-label text-muted small" for="clone_consent_checkbox">
-                                                            I confirm this is my own voice (or I have explicit legal authorization), and I accept full responsibility for misuse.
-                                                        </label>
-                                                    </div>
-                                                    <button type="button" class="btn btn-outline-primary btn-sm w-100 mb-2" id="btn_process_clone">
-                                                        <i class="fas fa-cog fa-spin d-none" id="clone_spinner"></i>
-                                                        <i class="fas fa-upload me-1" id="clone_icon"></i> Submit for Review
-                                                    </button>
-                                                    <span class="badge bg-secondary" id="clone_status_badge">Not Set</span>
-                                                </div>
-                                                {% else %}
-                                                <div id="voice_clone_section" class="automation-block mt-3 pt-3 {% if channel.voice_provider != 'ELEVENLABS' %}d-none{% endif %}">
-                                                    <h6 class="text-white mb-2 small">Clone <span class="pro-badge ms-1">👑 PRO</span></h6>
-                                                    <div class="alert alert-secondary mb-0 py-2 px-3">
-                                                        <i class="fas fa-hourglass-half me-2"></i>
-                                                        Coming soon.
-                                                    </div>
-                                                </div>
-                                                {% endif %}
-                                               
                                             </div>
                                         </div>
                                     </div>
-
-                                    <!-- <div class="col-lg-4">
-                                        <div class="automation-card h-100">
-                                            <div class="automation-card-head">
-                                                <span class="automation-card-icon bg-warning bg-opacity-25 text-warning"><i class="fas fa-shopping-cart"></i></span>
-                                                <h6 class="automation-card-title mb-0">Sales Intelligence</h6>
+                                    <div class="ai-tone" id="tone_control_card" title="">
+                                        <div class="ai-tone-head">
+                                            <h6>Tone</h6>
+                                            <span class="pro-badge">PRO</span>
+                                        </div>
+                                        <div class="ai-tone-grid">
+                                            <div class="ai-slider">
+                                                <div class="ai-slider-top">
+                                                    <span>Stability</span>
+                                                    <strong id="voice_stability_value">{{ channel.voice_stability|default:0.5 }}</strong>
+                                                </div>
+                                                <input type="range" class="form-range" name="voice_stability" id="voice_stability_slider" min="0" max="1" step="0.05" value="{{ channel.voice_stability|default:0.5 }}">
                                             </div>
-                                            <div class="automation-card-body">
-                                                <div class="form-check form-switch mb-2">
-                                                    <input class="form-check-input" type="checkbox" name="ai_order_capture" id="switch_ai_order_capture" {% if channel.ai_order_capture %}checked{% endif %}>
-                                                    <label class="form-check-label text-muted" for="switch_ai_order_capture">Automatic Order Extraction</label>
+                                            <div class="ai-slider">
+                                                <div class="ai-slider-top">
+                                                    <span>Similarity</span>
+                                                    <strong id="voice_similarity_value">{{ channel.voice_similarity|default:0.75 }}</strong>
                                                 </div>
-                                                <p class="text-muted small mb-0">Extract name, city &amp; address from chat and create orders.</p>
-                                                <div class="automation-block mt-3 pt-3 {% if not channel.ai_order_capture %}d-none{% endif %}" id="order_notify_wrap">
-                                                    <label class="form-label text-muted small mb-2">Notify when AI creates an order</label>
-                                                    <select name="order_notify_method" id="order_notify_method" class="form-select form-select-sm modern-input mb-2">
-                                                        <option value="" {% if not channel.order_notify_method %}selected{% endif %}>Off</option>
-                                                        <option value="EMAIL" {% if channel.order_notify_method == 'EMAIL' %}selected{% endif %}>Email</option>
-                                                        <option value="WHATSAPP" {% if channel.order_notify_method == 'WHATSAPP' %}selected{% endif %}>WhatsApp</option>
-                                                    </select>
-                                                    <div id="order_notify_email_row" class="mb-2 {% if channel.order_notify_method != 'EMAIL' %}d-none{% endif %}">
-                                                        <input type="email" name="order_notify_email" id="order_notify_email" class="form-control form-control-sm modern-input" placeholder="your@email.com" value="{{ channel.order_notify_email|default:'' }}">
-                                                    </div>
-                                                    <div id="order_notify_whatsapp_row" class="mb-2 {% if channel.order_notify_method != 'WHATSAPP' %}d-none{% endif %}">
-                                                        <input type="text" name="order_notify_whatsapp_phone" id="order_notify_whatsapp_phone" class="form-control form-control-sm modern-input" placeholder="+1234567890" value="{{ channel.order_notify_whatsapp_phone|default:'' }}">
-                                                        <small class="text-muted" style="font-size: 0.7rem;">With country code (e.g. +212...)</small>
-                                                    </div>
-                                                </div>
+                                                <input type="range" class="form-range" name="voice_similarity" id="voice_similarity_slider" min="0" max="1" step="0.05" value="{{ channel.voice_similarity|default:0.75 }}">
                                             </div>
                                         </div>
-                                    </div> -->
-                                </div>
+                                    </div>
+                                    {% if user.is_superuser %}
+                                    <div id="voice_clone_section" class="ai-clone {% if channel.voice_provider != 'ELEVENLABS' %}d-none{% endif %}">
+                                        <div class="ai-tone-head">
+                                            <h6>Clone</h6>
+                                            <span class="pro-badge">PRO</span>
+                                        </div>
+                                        <p>Upload your own voice only. Celebrity, news, and public-figure voices are not allowed.</p>
+                                        <label for="clone_audio_input">Voice sample</label>
+                                        <input type="file" id="clone_audio_input" class="form-control form-control-sm modern-input" accept=".mp3,.wav,.m4a,.ogg,.webm,audio/*">
+                                        <label for="clone_dialect_select">Dialect this voice speaks <span class="ai-req">*</span></label>
+                                        <select id="clone_dialect_select" class="form-select form-select-sm modern-input">
+                                            <option value="">Select dialect…</option>
+                                            <option value="MA_DARIJA">Moroccan Darija</option>
+                                            <option value="SA_ARABIC">Saudi Arabic</option>
+                                            <option value="EG_ARABIC">Egyptian Arabic</option>
+                                            <option value="MSA">Modern Standard Arabic</option>
+                                            <option value="LEV_ARABIC">Levantine Arabic</option>
+                                            <option value="GULF_ARABIC">Gulf Arabic</option>
+                                            <option value="OTHER">Other / Multilingual</option>
+                                        </select>
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="checkbox" id="clone_consent_checkbox">
+                                            <label class="form-check-label" for="clone_consent_checkbox">I confirm this is my own voice, or I have explicit legal authorization, and I accept full responsibility for misuse.</label>
+                                        </div>
+                                        <div class="ai-clone-actions">
+                                            <button type="button" class="ai-gallery" id="btn_process_clone">
+                                                <i class="fas fa-cog fa-spin d-none" id="clone_spinner"></i>
+                                                <i class="fas fa-upload" id="clone_icon"></i> Submit for review
+                                            </button>
+                                            <span class="badge bg-secondary" id="clone_status_badge">Not Set</span>
+                                        </div>
+                                    </div>
+                                    {% else %}
+                                    <div id="voice_clone_section" class="ai-clone {% if channel.voice_provider != 'ELEVENLABS' %}d-none{% endif %}">
+                                        <div class="ai-tone-head">
+                                            <h6>Clone</h6>
+                                            <span class="pro-badge">PRO</span>
+                                        </div>
+                                        <p class="mb-0"><i class="fas fa-hourglass-half"></i> Coming soon.</p>
+                                    </div>
+                                    {% endif %}
+                                </section>
                             </div>
                             {% else %}
                             <div class="automation-ai-section ai-assistant-plan-locked">
@@ -1110,192 +1192,303 @@
                             {% endif %}
                         </div>
                         <style>
-                        .automation-tab { padding: 0 2px; }
-                        .automation-card { background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); border-radius: 14px; overflow: hidden; transition: border-color .2s, box-shadow .2s; }
-                        .automation-card:hover { border-color: rgba(255,255,255,0.12); box-shadow: 0 4px 20px rgba(0,0,0,0.15); }
-                        .automation-card-head { display: flex; align-items: center; gap: 12px; padding: 1rem 1.25rem; border-bottom: 1px solid rgba(255,255,255,0.06); }
-                        .automation-card-icon { width: 40px; height: 40px; border-radius: 10px; display: inline-flex; align-items: center; justify-content: center; font-size: 1rem; flex-shrink: 0; }
-                        .automation-card-title { font-size: 0.95rem; font-weight: 600; color: #e6edf3; }
-                        .automation-card-desc { font-size: 0.75rem; color: #8b949e; margin-top: 2px; }
-                        .automation-card-body { padding: 1.25rem; }
-                        .automation-setting-row { display: flex; justify-content: space-between; align-items: center; gap: 1rem; flex-wrap: wrap; }
-                        .automation-ai-section { background: linear-gradient(180deg, rgba(88,166,255,0.06) 0%, transparent 100%); border: 1px solid rgba(88,166,255,0.12); border-radius: 16px; padding: 1.5rem; margin-top: 0.5rem; }
-                        .automation-ai-header { margin-bottom: 1.25rem; }
-                        .automation-ai-badge { display: inline-flex; align-items: center; font-size: 0.85rem; font-weight: 600; color: #58a6ff; background: rgba(88,166,255,0.12); padding: 6px 12px; border-radius: 8px; }
-                        .automation-ai-subtitle { font-size: 0.8rem; color: #8b949e; margin-top: 8px; }
-                        .automation-block { border-top: 1px solid rgba(255,255,255,0.08); }
-                        .automation-voice-switches { padding: 8px 0; }
-                        @media (max-width: 991px) { .automation-ai-section { padding: 1rem; } .automation-card-body { padding: 1rem; } }
+                        #content-automation .automation-tab { padding: 0; }
+                        #content-automation .automation-ai-section {
+                            display: flex; flex-direction: column; gap: 16px;
+                            padding: 20px; border-radius: 20px;
+                            background: #0e1424 !important;
+                            border: 1px solid rgba(148, 163, 184, 0.16);
+                        }
+                        #content-automation .ai-kicker { display: block; color: #a5b4fc !important; font-size: 11px; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; }
+                        #content-automation .ai-title { margin: 4px 0 0; color: #f8fafc !important; font-size: 22px; font-weight: 700; letter-spacing: -0.03em; }
+                        #content-automation .ai-sub { margin: 6px 0 0; max-width: 62ch; color: #94a3b8 !important; font-size: 13px; line-height: 1.5; }
+                        #content-automation .ai-ops { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+                        #content-automation .ai-card {
+                            display: flex; flex-direction: column; gap: 14px;
+                            padding: 16px; border-radius: 18px;
+                            background: rgba(15, 23, 42, 0.55) !important;
+                            border: 1px solid rgba(148, 163, 184, 0.14);
+                        }
+                        #content-automation .ai-card-head { display: flex; align-items: center; gap: 12px; }
+                        #content-automation .ai-card-head h6 { margin: 0; color: #f8fafc !important; font-size: 15px; font-weight: 700; }
+                        #content-automation .ai-card-head p { margin: 2px 0 0; color: #94a3b8 !important; font-size: 12px; line-height: 1.4; }
+                        #content-automation .ai-ico {
+                            width: 40px; height: 40px; border-radius: 12px; flex-shrink: 0;
+                            display: inline-flex; align-items: center; justify-content: center; font-size: 15px;
+                        }
+                        #content-automation .tone-rocket { background: rgba(99, 102, 241, 0.18); color: #c4b5fd !important; }
+                        #content-automation .tone-cart { background: rgba(245, 158, 11, 0.16); color: #fcd34d !important; }
+                        #content-automation .tone-mic { background: rgba(16, 185, 129, 0.16); color: #6ee7b7 !important; }
+                        #content-automation .ai-switch {
+                            display: flex; align-items: center; justify-content: space-between; gap: 16px;
+                            padding: 12px 14px; border-radius: 14px;
+                            background: rgba(2, 6, 23, 0.35); border: 1px solid rgba(148, 163, 184, 0.1);
+                        }
+                        #content-automation .ai-switch label { margin: 0; color: #f8fafc !important; font-size: 13px; font-weight: 700; }
+                        #content-automation .ai-switch p { margin: 3px 0 0; color: #94a3b8 !important; font-size: 12px; line-height: 1.4; }
+                        #content-automation .ai-switch .form-check-input { width: 2.4em; height: 1.25em; margin: 0; cursor: pointer; }
+                        #content-automation .ai-slider { display: flex; flex-direction: column; gap: 6px; }
+                        #content-automation .ai-slider-top, #content-automation .ai-slider-scale { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+                        #content-automation .ai-slider-top span, #content-automation .ai-slider-scale span { color: #94a3b8 !important; font-size: 12px; font-weight: 600; }
+                        #content-automation .ai-slider-top strong { color: #e0e7ff !important; font-size: 13px; font-variant-numeric: tabular-nums; }
+                        #content-automation .ai-slider-top strong span { color: #e0e7ff !important; }
+                        #content-automation .form-range { height: 1.4rem; }
+                        #content-automation .form-range::-webkit-slider-runnable-track { height: 4px; background: rgba(148, 163, 184, 0.28); border-radius: 999px; }
+                        #content-automation .form-range::-webkit-slider-thumb { margin-top: -6px; background: #818cf8; }
+                        #content-automation .ai-notify { display: flex; flex-direction: column; gap: 8px; padding-top: 4px; }
+                        #content-automation .ai-notify > label, #content-automation .ai-pane > label, #content-automation .ai-clone > label, #content-automation .ai-split label { color: #cbd5e1 !important; font-size: 12px; font-weight: 700; margin: 0; }
+                        #content-automation .ai-notify small, #content-automation .ai-pane small, #content-automation .ai-clone p { color: #94a3b8 !important; font-size: 12px; line-height: 1.45; }
+                        #content-automation .ai-notify .modern-input, #content-automation .ai-pane .modern-input, #content-automation .ai-clone .modern-input { min-height: 42px; }
+                        #content-automation .ai-voice-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+                        #content-automation .ai-pane, #content-automation .ai-tone, #content-automation .ai-clone {
+                            display: flex; flex-direction: column; gap: 8px;
+                            padding: 14px; border-radius: 14px;
+                            background: rgba(2, 6, 23, 0.28); border: 1px solid rgba(148, 163, 184, 0.1);
+                        }
+                        #content-automation .ai-pane-label { color: #a5b4fc !important; font-size: 11px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; }
+                        #content-automation .ai-split { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+                        #content-automation .ai-gallery {
+                            display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+                            min-height: 40px; padding: 0 14px; border-radius: 12px; cursor: pointer;
+                            border: 1px solid rgba(129, 140, 248, 0.45); background: rgba(99, 102, 241, 0.12);
+                            color: #e0e7ff !important; font-size: 13px; font-weight: 700;
+                        }
+                        #content-automation .ai-gallery:hover { background: rgba(99, 102, 241, 0.22); }
+                        #content-automation .ai-tone-head { display: flex; align-items: center; gap: 8px; }
+                        #content-automation .ai-tone-head h6 { margin: 0; color: #f8fafc !important; font-size: 14px; font-weight: 700; }
+                        #content-automation .ai-tone-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+                        #content-automation .ai-req { color: #fca5a5 !important; }
+                        #content-automation .ai-clone-actions { display: flex; align-items: center; gap: 10px; }
+                        #content-automation .ai-clone .form-check-label { color: #cbd5e1 !important; font-size: 12px; line-height: 1.45; }
+                        #content-automation .automation-card { background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); border-radius: 14px; }
+                        #content-automation .automation-card-head { display: flex; align-items: center; gap: 12px; padding: 1rem 1.25rem; }
+                        #content-automation .automation-card-icon { width: 40px; height: 40px; border-radius: 10px; display: inline-flex; align-items: center; justify-content: center; }
+                        #content-automation .automation-card-title { color: #e6edf3 !important; font-size: 0.95rem; font-weight: 600; }
+                        #content-automation .automation-card-desc, #content-automation .automation-ai-subtitle { color: #8b949e !important; }
+                        #content-automation .automation-card-body { padding: 0 1.25rem 1.25rem; }
+                        #content-automation .automation-ai-badge { display: inline-flex; align-items: center; color: #58a6ff !important; background: rgba(88,166,255,0.12); padding: 6px 12px; border-radius: 8px; font-weight: 600; }
+                        @media (max-width: 900px) {
+                            #content-automation .ai-ops, #content-automation .ai-voice-grid, #content-automation .ai-tone-grid, #content-automation .ai-split { grid-template-columns: 1fr; }
+                        }
                         </style>
                     </div>
 
                     <!-- Team & Routing: modern card UI with toggles, sliders, total bar -->
                     <div class="tab-pane fade" id="content-routing">
-                        <div id="routing_settings_section">
-                            <h4 class="text-white fw-semibold mb-1">Team &amp; Routing</h4>
-                            <p class="text-muted small mb-4">Control who receives new chats and how allocation is distributed.</p>
+                        <div id="routing_settings_section" class="rt-shell">
+                            <header class="rt-head">
+                                <span class="rt-kicker">Team</span>
+                                <h4 class="rt-title">Routing</h4>
+                                <p class="rt-sub">Control who receives new chats and how the share is split. The total has to equal 100% before it can be saved.</p>
+                            </header>
 
-                            <div class="rounded-3 border border-secondary p-4 mb-4" style="background: rgba(255,255,255,0.02);">
-                                <h6 class="text-white mb-3">Behavior</h6>
+                            <section class="rt-card">
+                                <div class="rt-card-head">
+                                    <span class="rt-ico tone-sliders"><i class="fas fa-sliders"></i></span>
+                                    <div>
+                                        <h6>Behavior</h6>
+                                        <p>How new chats are handed off.</p>
+                                    </div>
+                                </div>
                                 {% if plan_can_ai_assistant %}
-                                <div class="routing-toggle-wrap">
-                                    <div class="routing-toggle-label">
-                                        Full AI Autopilot
-                                        <span class="routing-tooltip-wrap">
-                                            <button type="button" class="routing-tooltip-btn" aria-label="Help"><i class="fas fa-question-circle"></i></button>
-                                            <span class="routing-tooltip-box">When enabled, the AI Sales Agent can receive new incoming chats. When disabled, AI share is 0% and 100% is split among team members only.</span>
-                                        </span>
+                                <div class="rt-switch">
+                                    <div>
+                                        <div class="routing-toggle-label">
+                                            Full AI Autopilot
+                                            <span class="routing-tooltip-wrap">
+                                                <button type="button" class="routing-tooltip-btn" aria-label="Help"><i class="fas fa-question-circle"></i></button>
+                                                <span class="routing-tooltip-box">When enabled, the AI Sales Agent can receive new incoming chats. When disabled, AI share is 0% and 100% is split among team members only.</span>
+                                            </span>
+                                        </div>
+                                        <small>Let the sales agent take a share of new chats.</small>
                                     </div>
                                     <button type="button" class="routing-toggle-switch on" id="routing_toggle_autopilot" aria-pressed="true"></button>
                                 </div>
                                 {% endif %}
-                                <div class="routing-toggle-wrap">
-                                    <div class="routing-toggle-label">
-                                        Dynamic Offline Redistribution
-                                        <span class="routing-tooltip-wrap">
-                                            <button type="button" class="routing-tooltip-btn" aria-label="Help"><i class="fas fa-question-circle"></i></button>
-                                            <span class="routing-tooltip-box">When enabled, offline agents are excluded and their share is redistributed among online agents (and the AI if Autopilot is on).</span>
-                                        </span>
+                                <div class="rt-switch">
+                                    <div>
+                                        <div class="routing-toggle-label">
+                                            Dynamic offline redistribution
+                                            <span class="routing-tooltip-wrap">
+                                                <button type="button" class="routing-tooltip-btn" aria-label="Help"><i class="fas fa-question-circle"></i></button>
+                                                <span class="routing-tooltip-box">When enabled, offline agents are excluded and their share is redistributed among online agents (and the AI if Autopilot is on).</span>
+                                            </span>
+                                        </div>
+                                        <small>Skip agents who are offline and give their share to whoever is online.</small>
                                     </div>
                                     <button type="button" class="routing-toggle-switch" id="routing_toggle_dynamic" aria-pressed="false"></button>
                                 </div>
-                            </div>
+                            </section>
 
-                            <div class="rounded-3 border border-secondary p-4 mb-4" style="background: rgba(255,255,255,0.02);">
-                                <h6 class="text-white mb-1">Weighted distribution</h6>
-                                <p class="text-muted small mb-4">Set each member’s share of new chats (0–100%). Total must equal 100%.</p>
+                            <section class="rt-card">
+                                <div class="rt-card-head">
+                                    <span class="rt-ico tone-share"><i class="fas fa-chart-pie"></i></span>
+                                    <div>
+                                        <h6>Weighted distribution</h6>
+                                        <p>Set each member’s share of new chats, from 0 to 100.</p>
+                                    </div>
+                                </div>
+                                <p class="rt-note" id="routing_team_note">Only agents with access to this channel are shown.</p>
                                 <div id="routing_member_list">
-                                    <!-- AI row (always first) -->
                                     <div class="routing-member-card" id="routing_row_ai" data-id="ai">
                                         <div class="routing-member-avatar"><i class="fas fa-robot"></i></div>
-                                        <div class="routing-member-info d-flex align-items-center">
+                                        <div class="routing-member-info">
                                             <span class="routing-member-name">AI Sales Agent</span>
+                                            <span class="routing-presence">Included while Autopilot is on</span>
                                         </div>
                                         <div class="routing-member-controls">
                                             <input type="range" class="routing-slider" id="routing_slider_ai" min="0" max="100" value="20">
                                             <input type="number" class="routing-pct-input" id="routing_input_ai" min="0" max="100" value="20">
-                                            <span class="text-muted">%</span>
+                                            <span>%</span>
                                         </div>
                                     </div>
-                                    <!-- Team rows: only users with access to this channel (filled by JS from data.routing) -->
-                                    <p class="text-muted small mb-2 mt-2" id="routing_team_note">Only agents with access to this channel are shown.</p>
                                     <div id="routing_team_rows"></div>
                                 </div>
-                            </div>
+                            </section>
 
                             <div class="routing-total-bar" id="routing_total_bar">
                                 <div class="d-flex align-items-center gap-2">
-                                    <span class="text-muted me-1">Total allocation:</span>                                    <span id="routing_total_display" class="total-invalid">0</span><span class="text-muted">%</span>
-
+                                    <span class="routing-total-label">Total allocation</span>
+                                    <span id="routing_total_display" class="total-invalid">0</span><span class="routing-total-unit">%</span>
                                     <span class="routing-tooltip-wrap">
-                                        <span class="routing-tooltip-btn" style="cursor: help;" aria-label="Help"><i class="fas fa-question-circle text-muted"></i></span>
+                                        <span class="routing-tooltip-btn" style="cursor: help;" aria-label="Help"><i class="fas fa-question-circle"></i></span>
                                         <span class="routing-tooltip-box">The sum of all routing percentages must equal 100% to save. {% if plan_can_ai_assistant %}When Full AI Autopilot is on, the AI share is included; when it is off, only team members' percentages count.{% else %}Only team members' percentages count (AI routing is not on your plan).{% endif %}</span>
                                     </span>
                                 </div>
                                 <button type="button" class="btn btn-save-glow routing-save-btn" id="btn_save_routing" disabled><i class="fas fa-save me-1"></i> Save changes</button>
                             </div>
-                            <span id="routing_save_status" class="d-block mt-2 small text-muted"></span>
+                            <span id="routing_save_status"></span>
                         </div>
                     </div>
 
                     <!-- Integrations: Google Sheets (Global Service Account) -->
                     <div class="tab-pane fade" id="content-integrations">
-                        <div class="row">
-                            <div class="col-lg-8">
-                                <h5 class="text-white mb-3"><i class="fas fa-table text-success me-2"></i> Google Sheets</h5>
-                                <p class="text-muted small mb-4">Export order data (Name, Phone, Address, etc.) to a Google Sheet when a flow reaches the Google Sheets node. Connection uses a global service account—no per-user credentials.</p>
-                                <div class="gs-app-tile mb-3">
-                                    <div class="gs-app-left">
-                                        <span class="gs-app-icon"><i class="fas fa-table"></i></span>
-                                        <div class="min-w-0">
-                                            <div class="gs-app-name">Google Sheets App</div>
-                                            <div class="gs-app-desc">Click to configure connection, sheet mapping, and export fields.</div>
+                        <div class="gs-shell">
+                            <header class="gs-head">
+                                <span class="gs-kicker">Integrations</span>
+                                <h4 class="gs-title">Google Sheets</h4>
+                                <p class="gs-sub">Export name, phone, address, and the rest of an order when a flow reaches the Google Sheets step. Connection uses one shared service account.</p>
+                            </header>
+
+                            <div class="gs-app-tile">
+                                <div class="gs-app-left">
+                                    <span class="gs-app-icon"><i class="fas fa-table"></i></span>
+                                    <div class="min-w-0">
+                                        <div class="gs-app-name">Google Sheets app</div>
+                                        <div class="gs-app-desc">Connection, auto-export, and the columns written to the sheet.</div>
+                                    </div>
+                                </div>
+                                <button type="button" class="gs-open gs-app-toggle" id="gs-app-toggle-btn" aria-expanded="false" aria-controls="gs-app-content">
+                                    Open <i class="fas fa-chevron-down"></i>
+                                </button>
+                            </div>
+
+                            <div id="gs-app-content" class="gs-stack d-none">
+                                <section class="gs-card">
+                                    <div class="gs-card-head">
+                                        <span class="gs-ico tone-link"><i class="fas fa-link"></i></span>
+                                        <div>
+                                            <h6>Connection</h6>
+                                            <p>Share the spreadsheet, then paste its ID.</p>
                                         </div>
                                     </div>
-                                    <button type="button" class="btn btn-outline-light btn-sm gs-app-toggle" id="gs-app-toggle-btn" aria-expanded="false" aria-controls="gs-app-content">
-                                        Open <i class="fas fa-chevron-down ms-1"></i>
-                                    </button>
-                                </div>
-                                <div id="gs-app-content" class="d-none">
-
-                                <!-- Connection Box -->
-                                <div class="inner-card p-4 mb-4 border border-secondary">
-                                    <h6 class="text-white mb-3">Connection</h6>
-                                    <p class="text-muted small mb-3"><strong class="text-white">1.</strong> Share your spreadsheet with this email (as Editor).</p>
-                                    <div class="d-flex align-items-center gap-2 flex-wrap mb-4">
-                                        <code id="gs-service-account-email" class="modern-input flex-grow-1 p-2 rounded" style="font-size:0.85rem; word-break:break-all;">—</code>
-                                        <button type="button" class="btn btn-outline-light btn-sm" id="gs-copy-email" title="Copy">
-                                            <i class="fas fa-copy"></i> Copy
-                                        </button>
+                                    <div class="gs-step">
+                                        <div class="gs-step-label"><span>1</span> Share the spreadsheet with this email as Editor.</div>
+                                        <div class="gs-email-row">
+                                            <code id="gs-service-account-email">—</code>
+                                            <button type="button" class="gs-copy" id="gs-copy-email" title="Copy"><i class="fas fa-copy"></i> Copy</button>
+                                        </div>
                                     </div>
-                                    <p class="text-muted small mb-2"><strong class="text-white">2.</strong> Paste your Spreadsheet ID below.</p>
-                                    <div class="mb-3">
-                                        <input type="text" id="gs-spreadsheet-id" class="form-control modern-input" placeholder="e.g. 1abc123xyz..." maxlength="128">
-                                        <small class="text-muted">From the sheet URL: docs.google.com/spreadsheets/d/<strong>SPREADSHEET_ID</strong>/edit</small>
+                                    <div class="gs-step">
+                                        <label class="gs-step-label" for="gs-spreadsheet-id"><span>2</span> Spreadsheet ID</label>
+                                        <div class="gs-field">
+                                            <input type="text" id="gs-spreadsheet-id" class="form-control modern-input" placeholder="e.g. 1abc123xyz..." maxlength="128">
+                                            <p class="gs-hint">From the sheet URL: docs.google.com/spreadsheets/d/SPREADSHEET_ID/edit</p>
+                                        </div>
                                     </div>
-                                    <div class="d-flex align-items-center gap-3 flex-wrap">
+                                    <div class="gs-actions">
                                         <button type="button" class="btn btn-save-glow" id="gs-test-connection"><i class="fas fa-plug me-1"></i> Test connection</button>
                                         <span id="gs-connection-status" class="badge bg-secondary">—</span>
                                     </div>
-                                    <p class="text-muted small mt-2 mb-0">On success, your Spreadsheet ID is saved to your profile. If you see a permission error, share the sheet with the email above as Editor.</p>
-                                </div>
+                                    <p class="gs-hint">A successful test saves the Spreadsheet ID. If access is denied, share the sheet with the email above.</p>
+                                </section>
 
-                                <!-- AI orders auto-export -->
-                                <div class="inner-card p-4 mb-4">
-                                    <h6 class="text-white mb-2"><i class="fas fa-robot me-2 text-warning"></i> AI orders export</h6>
-                                    <p class="text-muted small mb-3">When enabled, orders recorded by the AI sales agent are sent to Google Sheets automatically. When disabled, orders are still saved in the dashboard — use <strong>Sync Now</strong> in the Orders list to export them manually.</p>
-                                    <div class="form-check form-switch">
-                                        <input class="form-check-input" type="checkbox" role="switch" id="gs-auto-sync-ai-orders" checked>
-                                        <label class="form-check-label text-white" for="gs-auto-sync-ai-orders">Auto-export AI orders to Google Sheets</label>
+                                <section class="gs-card">
+                                    <div class="gs-card-head">
+                                        <span class="gs-ico tone-bot"><i class="fas fa-robot"></i></span>
+                                        <div>
+                                            <h6>AI orders</h6>
+                                            <p>Orders stay in the dashboard either way. Sync Now in Orders sends them manually.</p>
+                                        </div>
                                     </div>
-                                </div>
+                                    <div class="gs-switch">
+                                        <label for="gs-auto-sync-ai-orders">Auto-export AI orders to Google Sheets</label>
+                                        <div class="form-check form-switch mb-0">
+                                            <input class="form-check-input" type="checkbox" role="switch" id="gs-auto-sync-ai-orders" checked>
+                                        </div>
+                                    </div>
+                                </section>
 
-                                <!-- Sheet name + Save (optional) -->
-                                <div class="inner-card p-4 mb-4">
-                                    <h6 class="text-white mb-3">Sheet & mapping</h6>
-                                    <div class="mb-3">
-                                        <label class="form-label-modern">Default Sheet Name</label>
+                                <section class="gs-card">
+                                    <div class="gs-card-head">
+                                        <span class="gs-ico tone-sheet"><i class="fas fa-file-alt"></i></span>
+                                        <div>
+                                            <h6>Sheet</h6>
+                                            <p>The tab name inside the spreadsheet.</p>
+                                        </div>
+                                    </div>
+                                    <div class="gs-field">
+                                        <label for="gs-sheet-name">Default sheet name</label>
                                         <input type="text" id="gs-sheet-name" class="form-control modern-input" value="Orders" placeholder="Orders" maxlength="128">
                                     </div>
-                                    <button type="button" class="btn btn-outline-light btn-sm" id="gs-save-config">Save sheet name & mapping</button>
-                                </div>
+                                    <div>
+                                        <button type="button" class="gs-quiet" id="gs-save-config">Save sheet name &amp; mapping</button>
+                                    </div>
+                                </section>
 
-                                <!-- Drag-and-Drop Field Mapping -->
-                                <div class="inner-card p-4 mb-4">
-                                    <h6 class="text-white mb-2"><i class="fas fa-arrows-alt me-2 text-info"></i> Drag-and-Drop Field Mapping</h6>
-                                    <p class="text-muted small mb-3">Drag fields from <strong>Available</strong> into <strong>Active Sheet Columns</strong>. Set the header name for each. Order = column order in the sheet.</p>
-                                    <div class="row g-3">
-                                        <div class="col-md-5">
-                                            <label class="form-label-modern small text-muted">Available Database Fields</label>
-                                            <div id="gs-available-fields" class="gs-drag-list border rounded p-2" style="min-height:200px;background:rgba(0,0,0,0.2);">
-                                            </div>
-                                        </div>
-                                        <div class="col-md-7">
-                                            <label class="form-label-modern small text-muted">Active Sheet Columns <span class="text-info">(drag to reorder)</span></label>
-                                            <div id="gs-active-columns" class="gs-drag-list border rounded p-2" style="min-height:200px;background:rgba(0,0,0,0.2);">
-                                            </div>
+                                <section class="gs-card">
+                                    <div class="gs-card-head">
+                                        <span class="gs-ico tone-map"><i class="fas fa-arrows-alt"></i></span>
+                                        <div>
+                                            <h6>Field mapping</h6>
+                                            <p>Drag a field into Active columns, name the header, then drag to set the column order.</p>
                                         </div>
                                     </div>
-                                    <div class="mt-3">
+                                    <div class="gs-map">
+                                        <div class="gs-pane">
+                                            <span class="gs-pane-label">Available fields</span>
+                                            <div id="gs-available-fields" class="gs-drag-list"></div>
+                                        </div>
+                                        <div class="gs-pane">
+                                            <span class="gs-pane-label">Active columns</span>
+                                            <div id="gs-active-columns" class="gs-drag-list"></div>
+                                        </div>
+                                    </div>
+                                    <div>
                                         <button type="button" class="btn btn-save-glow btn-sm" id="gs-save-sheets-mapping">
-                                            <i class="fas fa-save me-1"></i> Save Mapping
+                                            <i class="fas fa-save me-1"></i> Save mapping
                                         </button>
                                     </div>
-                                </div>
+                                </section>
 
-                                <!-- Legacy Field Mapping (Column → Variable) -->
-                                <div class="inner-card p-4 mb-4">
-                                    <h6 class="text-white mb-2">Legacy field mapping</h6>
-                                    <p class="text-muted small mb-3">If you don't use drag-and-drop above, map columns (A, B, C…) to variables here.</p>
+                                <section class="gs-card">
+                                    <div class="gs-card-head">
+                                        <span class="gs-ico tone-sheet"><i class="fas fa-table"></i></span>
+                                        <div>
+                                            <h6>Column mapping</h6>
+                                            <p>Use this only if you map columns A, B, C by hand instead of dragging fields above.</p>
+                                        </div>
+                                    </div>
                                     <div class="table-responsive">
-                                        <table class="table table-dark table-borderless" id="gs-mapping-table">
+                                        <table class="table table-borderless" id="gs-mapping-table">
                                             <thead><tr><th>Column</th><th>Variable</th><th></th></tr></thead>
                                             <tbody id="gs-mapping-tbody"></tbody>
                                         </table>
                                     </div>
-                                    <button type="button" class="btn btn-outline-secondary btn-sm" id="gs-add-mapping-row"><i class="fas fa-plus me-1"></i> Add row</button>
-                                </div>
-                                </div>
+                                    <div>
+                                        <button type="button" class="gs-quiet" id="gs-add-mapping-row"><i class="fas fa-plus"></i> Add row</button>
+                                    </div>
+                                </section>
                             </div>
                         </div>
                     </div>
@@ -1393,11 +1586,11 @@
                                             <div class="bg-dark p-2 rounded me-3 text-warning"><i class="fas fa-volume-up"></i></div>
                                             <div>
                                                 <h6 class="mb-0 text-white">Sound Notifications</h6>
-                                                <p class="text-muted small mb-0 mt-1">Play a sound when a new customer message arrives (toast / background tab).</p>
+                                                <p class="text-muted small mb-0 mt-1">Show a notification and play a sound when a new customer message arrives. Turn this off to hide the toast and the background-tab alert.</p>
                                             </div>
                                         </div>
                                         <div class="form-check form-switch">
-                                            <input class="form-check-input" type="checkbox" id="personal_sound_toggle" name="wa_sound_notifications" aria-label="Enable sound for new message notifications">
+                                            <input class="form-check-input" type="checkbox" id="personal_sound_toggle" name="wa_sound_notifications" aria-label="Enable notifications for new customer messages">
                                         </div>
                                     </div>
                                     </div>
@@ -1567,7 +1760,7 @@
             var card = $('<div class="routing-member-card" data-agent-id="' + row.agent_id + '" data-accepting="' + (row.is_accepting_chats !== false ? '1' : '0') + '">');
             card.append('<div class="routing-member-avatar"><i class="fas fa-user"></i></div>');
             var statusClass = row.is_online ? 'online' : 'offline';
-            card.append('<div class="routing-member-info d-flex align-items-center"><span class="routing-member-name">' + (row.agent_name || ('Agent ' + row.agent_id)) + '</span><span class="routing-member-status ' + statusClass + '" title="' + (row.is_online ? 'Online' : 'Offline') + '"></span></div>');
+            card.append('<div class="routing-member-info"><span class="routing-member-name">' + (row.agent_name || ('Agent ' + row.agent_id)) + '</span><span class="routing-member-meta"><span class="routing-member-status ' + statusClass + '" title="' + (row.is_online ? 'Online' : 'Offline') + '"></span><span class="routing-presence">' + (row.is_online ? 'Online' : 'Offline') + '</span></span></div>');
             var pct = Math.min(100, Math.max(0, parseInt(row.routing_percentage, 10) || 0));
             card.append('<div class="routing-member-controls"><input type="range" class="routing-slider" min="0" max="100" value="' + pct + '"><input type="number" class="routing-pct-input" min="0" max="100" value="' + pct + '"><span class="text-muted">%</span></div>');
             container.append(card);
@@ -2116,6 +2309,10 @@ $('#btn_open_settings').on('click', function() {
             var isChecked = $(this).is(':checked');
             localStorage.setItem('wa_sound_enabled', isChecked);
             window.soundEnabled = isChecked;
+            if (!isChecked) {
+                var existingToasts = document.getElementById('toast_container');
+                if (existingToasts) existingToasts.innerHTML = '';
+            }
             if (isChecked && typeof window.playIncomingMessageSound === 'function') {
                 var a = document.getElementById('notification_sound');
                 var prev = a ? a.volume : 1;

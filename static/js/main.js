@@ -10,6 +10,15 @@ function maybeLazyLoadPanelScripts(target) {
       window.ensureDashboardData();
     }
   }
+  if (target === 'statistics') {
+    if (typeof window.refreshStatistics === 'function') {
+      window.refreshStatistics();
+    } else {
+      if (typeof window.loadAdStatistics === 'function') window.loadAdStatistics();
+      if (typeof window.loadTeamStats === 'function') window.loadTeamStats();
+      if (typeof window.loadLifecycleStats === 'function') window.loadLifecycleStats(window.currentChannelId);
+    }
+  }
 }
 
 navBtns.forEach(btn => {

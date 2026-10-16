@@ -2290,7 +2290,7 @@ def api_export_conversation_transcript(request):
 from django.db.models import Max, OuterRef, Subquery, Count, Q
 
 from django.core.paginator import Paginator
-from django.db.models import Max, Count, Q, F
+from django.db.models import Max, Count, Q, F, Case, When, Value, IntegerField
 from django.http import JsonResponse
  
  
@@ -2393,6 +2393,15 @@ def api_contacts2(request):
         elif read_only:
             conversations = conversations.filter(unread_count=0)
 
+        # Unread customer threads first, then the most recent conversation.
+        conversations = conversations.annotate(
+            has_unread=Case(
+                When(unread_count__gt=0, then=Value(0)),
+                default=Value(1),
+                output_field=IntegerField(),
+            )
+        ).order_by('has_unread', '-last_msg_time', '-last_msg_id')
+
         # 7. الترقيم (Pagination)
         try:
             page_size = max(1, min(50, int(request.GET.get("page_size", 10))))
@@ -2410,14 +2419,47 @@ def api_contacts2(request):
         messages_map = Message.objects.filter(id__in=msg_ids).in_bulk()
 
         # جلب بيانات جهات الاتصال دفعة واحدة (بما في ذلك الموظف المسؤول)
-        contacts_map = {
-            c.phone: {
-                'name': c.name, 
+        def _phone_keys(phone):
+            raw = str(phone or '')
+            digits = ''.join(ch for ch in raw if ch.isdigit())
+            keys = {raw}
+            if digits:
+                keys.add(digits)
+                if len(digits) >= 9:
+                    keys.add(digits[-9:])
+            return keys
+
+        phone_query = Q()
+        for raw_phone in senders_phones:
+            digits = ''.join(ch for ch in str(raw_phone or '') if ch.isdigit())
+            if len(digits) >= 9:
+                phone_query |= Q(phone__icontains=digits[-9:])
+            elif raw_phone:
+                phone_query |= Q(phone=raw_phone)
+        contact_qs = Contact.objects.filter(channel=target_channel)
+        if phone_query:
+            contact_qs = contact_qs.filter(phone_query)
+
+        contacts_map = {}
+        for c in contact_qs:
+            info = {
+                'name': c.name,
                 'pic': c.profile_picture.url if c.profile_picture else None,
-                'agent_id': c.assigned_agent_id # 🔥 جلبنا الموظف هنا لتقليل الاستعلامات
+                'agent_id': c.assigned_agent_id,
+                'pipeline_stage': c.pipeline_stage or 'new',
             }
-            for c in Contact.objects.filter(phone__in=senders_phones, channel=target_channel)
-        }
+            for key in _phone_keys(c.phone):
+                contacts_map.setdefault(key, info)
+
+        def _contact_info(phone):
+            if phone in contacts_map:
+                return contacts_map[phone]
+            digits = ''.join(ch for ch in str(phone or '') if ch.isdigit())
+            if digits in contacts_map:
+                return contacts_map[digits]
+            if len(digits) >= 9 and digits[-9:] in contacts_map:
+                return contacts_map[digits[-9:]]
+            return {}
 
         # HITL: which senders have AI disabled (Needs Human Action)
         needs_human_phones = set(
@@ -2434,7 +2476,7 @@ def api_contacts2(request):
             msg = messages_map.get(item['last_msg_id'])
             
             # استخراج بيانات الاتصال من الذاكرة (Map)
-            contact_info = contacts_map.get(phone, {})
+            contact_info = _contact_info(phone)
             name = contact_info.get('name', phone)
             pic = contact_info.get('pic', None)
             assigned_agent_id = contact_info.get('agent_id', None)
@@ -2462,6 +2504,7 @@ def api_contacts2(request):
                 "timestamp": item['last_msg_time'].strftime("%H:%M") if item['last_msg_time'] else "",
                 "channel_id": target_channel.id,
                 "assigned_agent_id": assigned_agent_id,
+                "pipeline_stage": contact_info.get('pipeline_stage') or 'new',
                 "needs_human": phone in needs_human_phones,
             })
 
@@ -5059,28 +5102,21 @@ def api_dashboard_stats(request):
         today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
         yesterday_start = today_start - timedelta(days=1)
 
-        # Date range filter: today | 7d | month (default)
-        range_param = request.GET.get('range', 'month')
-        if range_param == 'today':
-            range_start = today_start
-            chart_days = 1
-        elif range_param == '7d':
-            range_start = today_start - timedelta(days=6)
-            chart_days = 7
-        else:
-            first_of_month = today_start.replace(day=1)
-            range_start = first_of_month
-            chart_days = (now.date() - first_of_month.date()).days + 1
+        range_start, range_end, _range_label = dashboard_period(request)
 
         # Contacts
-        total_contacts = Contact.objects.filter(channel=channel, created_at__gte=range_start).count()
+        total_contacts = Contact.objects.filter(
+            channel=channel, created_at__gte=range_start, created_at__lte=range_end
+        ).count()
         today_contacts = Contact.objects.filter(channel=channel, created_at__gte=today_start).count()
         yesterday_contacts = Contact.objects.filter(
             channel=channel, created_at__gte=yesterday_start, created_at__lt=today_start
         ).count()
 
         # Messages
-        msgs_in_range = Message.objects.filter(channel=channel, created_at__gte=range_start)
+        msgs_in_range = Message.objects.filter(
+            channel=channel, created_at__gte=range_start, created_at__lte=range_end
+        )
         total_messages = msgs_in_range.count()
         sent_count = msgs_in_range.filter(is_from_me=True).count()
         received_count = msgs_in_range.filter(is_from_me=False).count()
@@ -5089,7 +5125,7 @@ def api_dashboard_stats(request):
         orders_base = SimpleOrder.objects.filter(channel=channel)
         if not (user.is_superuser or user.is_team_admin):
             orders_base = orders_base.filter(agent=user)
-        total_order = orders_base.filter(created_at__gte=range_start).count()
+        total_order = orders_base.filter(created_at__gte=range_start, created_at__lte=range_end).count()
         orders_today = orders_base.filter(created_at__gte=today_start).count()
         orders_yesterday = orders_base.filter(
             created_at__gte=yesterday_start, created_at__lt=today_start
@@ -5108,16 +5144,22 @@ def api_dashboard_stats(request):
         }
 
         # Chart data (one point per day in the selected range)
-        today_date = now.date()
+        start_day = timezone.localtime(range_start).date()
+        end_day = timezone.localtime(range_end).date()
+        if end_day < start_day:
+            start_day, end_day = end_day, start_day
+        if (end_day - start_day).days > 92:
+            start_day = end_day - timedelta(days=92)
         labels = []
         sent_data = []
         received_data = []
-        for i in range(chart_days - 1, -1, -1):
-            day = today_date - timedelta(days=i)
-            labels.append(day.strftime("%a %d") if chart_days > 1 else day.strftime("%H:00"))
+        day = start_day
+        while day <= end_day:
+            labels.append(day.strftime("%d %b"))
             daily_msgs = Message.objects.filter(channel=channel, created_at__date=day)
             sent_data.append(daily_msgs.filter(is_from_me=True).count())
             received_data.append(daily_msgs.filter(is_from_me=False).count())
+            day += timedelta(days=1)
 
         return JsonResponse({
             'success': True,
@@ -5144,6 +5186,270 @@ def api_dashboard_stats(request):
     except Exception as e:
         print(f"Dashboard Error: {e}")
         return JsonResponse({'error': str(e)}, status=500)
+
+
+def dashboard_period(request):
+    """
+    Window for the home dashboard and its AI chart.
+
+    Returns aware (start, end, label). Default is today. Custom uses from/to.
+    """
+    from datetime import datetime, time
+
+    range_param = (request.GET.get('range') or 'today').strip().lower()
+    now = timezone.localtime()
+    today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
+    tz = timezone.get_current_timezone()
+
+    def bounds(first, last):
+        start = timezone.make_aware(datetime.combine(first, time.min), tz)
+        end = timezone.make_aware(datetime.combine(last, time.max), tz)
+        if last >= now.date() and end > now:
+            end = now
+        return start, end
+
+    if range_param == '7d':
+        return today_start - timedelta(days=6), now, '7d'
+    if range_param == 'month':
+        return today_start.replace(day=1), now, 'month'
+    if range_param == 'custom':
+        first = _parse_stat_date(request.GET.get('from'))
+        last = _parse_stat_date(request.GET.get('to'))
+        if first and not last:
+            last = first
+        if last and not first:
+            first = last
+        if first and last:
+            if last < first:
+                first, last = last, first
+            if (last - first).days > 366:
+                first = last - timedelta(days=366)
+            start, end = bounds(first, last)
+            return start, end, 'custom'
+    return today_start, now, 'today'
+
+
+def _parse_stat_date(value):
+    from datetime import datetime
+
+    raw = str(value or "").strip()
+    if not raw:
+        return None
+    try:
+        return datetime.strptime(raw[:10], "%Y-%m-%d").date()
+    except ValueError:
+        return None
+
+
+def statistics_period(request):
+    """
+    Shared window for the Statistics page.
+
+    Returns (start, end, label). start/end are aware datetimes, or None when
+    the range is all time. End is inclusive.
+    """
+    from datetime import datetime, time
+
+    range_param = (request.GET.get("range") or "today").strip().lower()
+    now = timezone.localtime()
+
+    def start_of(day_offset):
+        moment = now - timedelta(days=day_offset)
+        return moment.replace(hour=0, minute=0, second=0, microsecond=0)
+
+    if range_param == "all":
+        return None, None, "all"
+    if range_param == "7d":
+        return start_of(6), now, "7d"
+    if range_param == "30d":
+        return start_of(29), now, "30d"
+    if range_param == "90d":
+        return start_of(89), now, "90d"
+    if range_param == "custom":
+        first = _parse_stat_date(request.GET.get("from"))
+        last = _parse_stat_date(request.GET.get("to"))
+        if first and not last:
+            last = first
+        if last and not first:
+            first = last
+        if first and last:
+            if last < first:
+                first, last = last, first
+            tz = timezone.get_current_timezone()
+            start = timezone.make_aware(datetime.combine(first, time.min), tz)
+            end = timezone.make_aware(datetime.combine(last, time.max), tz)
+            return start, end, "custom"
+    start = now.replace(hour=0, minute=0, second=0, microsecond=0)
+    return start, now, "today"
+
+
+def _adstat_phone_key(value) -> str:
+    raw = str(value or "").strip()
+    digits = "".join(ch for ch in raw if ch.isdigit())
+    return digits or raw
+
+
+def _adstat_source_id(value) -> str:
+    from discount.services.ad_attribution import DIRECT_SOURCE_ID
+
+    sid = str(value or "").strip()
+    if not sid or sid == DIRECT_SOURCE_ID:
+        return DIRECT_SOURCE_ID
+    return sid[:128]
+
+
+@login_required
+def api_ad_statistics(request):
+    """
+    Orders, messages, and conversion rate grouped by Click-to-WhatsApp ad id.
+
+    Customers with no referral source_id are reported as the direct source.
+    """
+    from django.db.models import Count, Max
+
+    from discount.models import Message, SimpleOrder, WhatsAppCheckoutState
+    from discount.services.ad_attribution import (
+        CONFIRMED_ORDER_EXCLUDED_STATUSES,
+        DIRECT_HEADLINE,
+        DIRECT_SOURCE_ID,
+    )
+
+    try:
+        channel = get_target_channel(request.user, request.GET.get("channel_id"))
+        if not channel:
+            return JsonResponse({"error": "Channel not found"}, status=404)
+
+        period_start, period_end, range_label = statistics_period(request)
+
+        phone_source = {}
+        phone_headline = {}
+        state_qs = WhatsAppCheckoutState.objects.filter(channel=channel).only(
+            "customer_phone", "ad_source_id", "ad_headline"
+        )
+        for state in state_qs.iterator(chunk_size=500):
+            key = _adstat_phone_key(state.customer_phone)
+            if not key:
+                continue
+            phone_source[key] = _adstat_source_id(state.ad_source_id)
+            headline = (state.ad_headline or "").strip()
+            if headline:
+                phone_headline[key] = headline
+
+        messages = Message.objects.filter(channel=channel, is_internal=False).exclude(
+            Q(sender__isnull=True) | Q(sender="")
+        )
+        orders = SimpleOrder.objects.filter(channel=channel).exclude(
+            status__in=CONFIRMED_ORDER_EXCLUDED_STATUSES
+        )
+        if period_start is not None:
+            messages = messages.filter(timestamp__gte=period_start)
+            orders = orders.filter(created_at__gte=period_start)
+        if period_end is not None:
+            messages = messages.filter(timestamp__lte=period_end)
+            orders = orders.filter(created_at__lte=period_end)
+
+        buckets = {}
+
+        def ensure(source_id):
+            row = buckets.get(source_id)
+            if row is None:
+                is_direct = source_id == DIRECT_SOURCE_ID
+                row = {
+                    "ad_source_id": source_id,
+                    "source_label": "Direct" if is_direct else source_id,
+                    "is_direct": is_direct,
+                    "headline": DIRECT_HEADLINE if is_direct else "",
+                    "messages": 0,
+                    "conversations": 0,
+                    "orders": 0,
+                    "buyers": 0,
+                    "conversion_rate_pct": 0.0,
+                }
+                buckets[source_id] = row
+            return row
+
+        msg_rows = messages.values("sender").annotate(message_count=Count("id"))
+        for row in msg_rows:
+            key = _adstat_phone_key(row.get("sender"))
+            if not key:
+                continue
+            source_id = phone_source.get(key) or DIRECT_SOURCE_ID
+            bucket = ensure(source_id)
+            bucket["messages"] += int(row.get("message_count") or 0)
+            bucket["conversations"] += 1
+            headline = phone_headline.get(key) or ""
+            if headline and not bucket["headline"]:
+                bucket["headline"] = headline
+
+        order_rows = orders.values("ad_source_id").annotate(
+            orders_count=Count("id"),
+            buyers=Count("customer_phone", distinct=True),
+            last_headline=Max("ad_headline"),
+        )
+        for row in order_rows:
+            source_id = _adstat_source_id(row.get("ad_source_id"))
+            bucket = ensure(source_id)
+            bucket["orders"] += int(row.get("orders_count") or 0)
+            bucket["buyers"] += int(row.get("buyers") or 0)
+            headline = (row.get("last_headline") or "").strip()
+            if headline and source_id != DIRECT_SOURCE_ID and not bucket["headline"]:
+                bucket["headline"] = headline
+
+        rows = []
+        for bucket in buckets.values():
+            conversations = bucket["conversations"]
+            if conversations:
+                bucket["conversion_rate_pct"] = round(
+                    (float(bucket["buyers"]) / float(conversations)) * 100.0, 1
+                )
+            else:
+                bucket["conversion_rate_pct"] = None
+            if bucket["is_direct"]:
+                bucket["headline"] = "No ad id"
+            rows.append(bucket)
+
+        rows.sort(
+            key=lambda item: (
+                0 if item["is_direct"] else 1,
+                item["orders"],
+                item["messages"],
+            ),
+            reverse=True,
+        )
+        # Keep Direct as its own row, but after paid ads when both have data.
+        ads = [item for item in rows if not item["is_direct"]]
+        direct_rows = [item for item in rows if item["is_direct"]]
+        ads.sort(key=lambda item: (item["orders"], item["messages"]), reverse=True)
+        rows = ads + direct_rows
+
+        total_messages = sum(item["messages"] for item in rows)
+        total_conversations = sum(item["conversations"] for item in rows)
+        total_orders = sum(item["orders"] for item in rows)
+        total_buyers = sum(item["buyers"] for item in rows)
+        overall_rate = (
+            round((float(total_buyers) / float(total_conversations)) * 100.0, 1)
+            if total_conversations
+            else None
+        )
+
+        return JsonResponse(
+            {
+                "success": True,
+                "range": range_label,
+                "channel_id": channel.id,
+                "totals": {
+                    "orders": total_orders,
+                    "messages": total_messages,
+                    "conversations": total_conversations,
+                    "buyers": total_buyers,
+                    "conversion_rate_pct": overall_rate,
+                },
+                "rows": rows,
+            }
+        )
+    except Exception as exc:
+        logger.exception("api_ad_statistics failed")
+        return JsonResponse({"error": str(exc)}, status=500)
 
 
 # ---------------------------------------------------------------------------
@@ -5176,20 +5482,13 @@ def api_ai_analytics(request):
             return JsonResponse({'error': 'Channel not found'}, status=404)
 
         from discount.services.ai_stats import get_ai_analytics
-        now = timezone.now()
-        range_param = (request.GET.get('range') or 'month').strip().lower()
-        if range_param == 'today':
-            date_from = now.replace(hour=0, minute=0, second=0, microsecond=0)
-            date_to = now
-            label = 'Today'
-        elif range_param == '7d':
-            date_from = now - timedelta(days=7)
-            date_to = now
-            label = 'Last 7 Days'
-        else:
-            date_from = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
-            date_to = now
-            label = 'This Month'
+        date_from, date_to, range_key = dashboard_period(request)
+        label = {
+            'today': 'Today',
+            '7d': 'Last 7 Days',
+            'month': 'This Month',
+            'custom': 'Custom',
+        }.get(range_key, 'Today')
 
         data = get_ai_analytics(channel, date_from, date_to)
         data['range_label'] = label
@@ -5209,17 +5508,7 @@ def api_ai_analytics_export_csv(request):
             return HttpResponse('Channel not found', status=404)
 
         from discount.services.ai_stats import get_ai_analytics
-        now = timezone.now()
-        range_param = (request.GET.get('range') or 'month').strip().lower()
-        if range_param == 'today':
-            date_from = now.replace(hour=0, minute=0, second=0, microsecond=0)
-            date_to = now
-        elif range_param == '7d':
-            date_from = now - timedelta(days=7)
-            date_to = now
-        else:
-            date_from = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
-            date_to = now
+        date_from, date_to, _range_key = dashboard_period(request)
 
         data = get_ai_analytics(channel, date_from, date_to)
         buf = StringIO()
@@ -5307,16 +5596,22 @@ def api_team_stats(request):
     confirmed_statuses = ['Shipped', 'Delivered', 'Returned', 'Confirmed', 'Pending' , 'returned' , 'out_for_delivery' , 'exception' , 'delivered' ,'confirmed' ,'pending' , 'shipped' , 'cancelled' ,'failed' ]
     returned_statuses = ['Returned', 'returned', 'Return']
     pending_statuses = ['Pending', 'pending' , 'exception' , 'out_for_delivery']
+    period_start, period_end, _range_label = statistics_period(request)
+    period = Q(simple_orders__channel=target_channel)
+    if period_start is not None:
+        period &= Q(simple_orders__created_at__gte=period_start)
+    if period_end is not None:
+        period &= Q(simple_orders__created_at__lte=period_end)
     team_stats = users_qs.annotate(
         # العدد الكلي لطلبات هذا المستخدم في هذه القناة
-        total=Count('simple_orders', filter=Q(simple_orders__channel=target_channel),distinct=True),
+        total=Count('simple_orders', filter=period, distinct=True),
 
         # باقي الحالات
-        confirmed=Count('simple_orders', filter=Q(simple_orders__channel=target_channel, simple_orders__status__in=confirmed_statuses),distinct=True),
-        delivered=Count('simple_orders', filter=Q(simple_orders__channel=target_channel, simple_orders__status='Delivered'),distinct=True),
-        pending=Count('simple_orders', filter=Q(simple_orders__channel=target_channel, simple_orders__status__in =pending_statuses ), distinct=True),
-        cancelled=Count('simple_orders', filter=Q(simple_orders__channel=target_channel, simple_orders__status='Cancelled'), distinct=True),
-        returned = Count('simple_orders', filter=Q(simple_orders__channel=target_channel, simple_orders__status__in=returned_statuses), distinct=True)
+        confirmed=Count('simple_orders', filter=period & Q(simple_orders__status__in=confirmed_statuses), distinct=True),
+        delivered=Count('simple_orders', filter=period & Q(simple_orders__status='Delivered'), distinct=True),
+        pending=Count('simple_orders', filter=period & Q(simple_orders__status__in=pending_statuses), distinct=True),
+        cancelled=Count('simple_orders', filter=period & Q(simple_orders__status='Cancelled'), distinct=True),
+        returned=Count('simple_orders', filter=period & Q(simple_orders__status__in=returned_statuses), distinct=True)
     ).annotate(
         # حساب النسب المئوية
         conf_rate=Case(
@@ -5679,6 +5974,13 @@ def wallet_topup(request):
         return JsonResponse({"error": "userId and amount are required"}, status=400)
     if user_id != str(request.user.pk):
         return JsonResponse({"error": "userId does not match authenticated user"}, status=403)
+    from decimal import Decimal, InvalidOperation
+    try:
+        dollars = Decimal(str(amount))
+    except (InvalidOperation, ValueError, TypeError):
+        return JsonResponse({"error": "Invalid amount"}, status=400)
+    if dollars < Decimal("5"):
+        return JsonResponse({"error": "Minimum top-up amount is $5."}, status=400)
 
     from discount.services.stripe_billing import create_wallet_topup_checkout_session
 

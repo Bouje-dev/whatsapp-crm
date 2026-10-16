@@ -138,6 +138,7 @@ TEMPLATES = [
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
                 'disound.context_processors.sentry_config',
+                'disound.context_processors.app_navbar',
             ],
         },
     },
@@ -302,8 +303,8 @@ KEY = 'k76TMkpykna7wyWyNS4KYdZC-NK_XfoXvWMPLacwVAY='
 
  
  
-# Mail: Railway blocks outbound SMTP (465/587 timeout). Use an HTTPS API there.
-# Local/dev can still use Hostinger SMTP. Production needs BREVO_API_KEY or RESEND_API_KEY.
+# Mail: Railway blocks outbound SMTP (465/587). Local Hostinger SMTP still works.
+# Production: set EMAIL_PROVIDER=ses (Amazon SES HTTPS, cheapest) or BREVO_API_KEY.
 EMAIL_HOST = os.environ.get("EMAIL_HOST", "smtp.hostinger.com")
 EMAIL_PORT = int(os.environ.get("EMAIL_PORT", "465"))
 EMAIL_TIMEOUT = int(os.environ.get("EMAIL_TIMEOUT", "20"))
@@ -319,6 +320,7 @@ else:
 DEFAULT_FROM_EMAIL = "Waselytics Support <support@waselytics.com>"
 SERVER_EMAIL = "support@waselytics.com"
 
+_EMAIL_PROVIDER = os.environ.get("EMAIL_PROVIDER", "").strip().lower()
 _BREVO_API_KEY = os.environ.get("BREVO_API_KEY", "").strip()
 _RESEND_API_KEY = os.environ.get("RESEND_API_KEY", "").strip()
 _SENDGRID_API_KEY = os.environ.get("SENDGRID_API_KEY", "").strip()
@@ -326,7 +328,14 @@ _ON_RAILWAY = bool(
     os.environ.get("RAILWAY_ENVIRONMENT") or os.environ.get("RAILWAY_PROJECT_ID")
 )
 ANYMAIL = {}
-if _BREVO_API_KEY:
+if _EMAIL_PROVIDER in ("ses", "amazon_ses", "amazon-ses"):
+    EMAIL_BACKEND = "anymail.backends.amazon_ses.EmailBackend"
+    ANYMAIL["AMAZON_SES_CLIENT_PARAMS"] = {
+        "region_name": os.environ.get("AWS_SES_REGION_NAME")
+        or os.environ.get("AWS_S3_REGION_NAME")
+        or "us-east-1",
+    }
+elif _BREVO_API_KEY:
     EMAIL_BACKEND = "anymail.backends.brevo.EmailBackend"
     ANYMAIL["BREVO_API_KEY"] = _BREVO_API_KEY
 elif _RESEND_API_KEY:

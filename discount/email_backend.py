@@ -63,5 +63,5 @@ class HttpsMailRequiredBackend(BaseEmailBackend):
 
     def send_messages(self, email_messages):
         raise OSError(
-            "Outbound SMTP is blocked here. Set BREVO_API_KEY or RESEND_API_KEY."
+            "Outbound SMTP is blocked here. Set EMAIL_PROVIDER=ses or BREVO_API_KEY."
         )

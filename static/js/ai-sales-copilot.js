@@ -697,12 +697,37 @@
     return String(text || "").replace(/\*\*(.+?)\*\*/g, "$1");
   }
 
+  function appendMetricRow(metric, labelText, valueText) {
+    var label = document.createElement("span");
+    label.className = "dash-msg-metric-label";
+    label.textContent = labelText;
+    var value = document.createElement("span");
+    value.className = "dash-msg-metric-value";
+    var valueStr = String(valueText || "").trim();
+    if (valueStr) {
+      value.className = "dash-msg-metric-value dash-msg-emphasis";
+      appendRichText(value, valueStr);
+      if (valueStr.length > 56) metric.classList.add("is-stacked");
+    }
+    metric.appendChild(label);
+    if (valueStr) metric.appendChild(value);
+  }
+
   function looksLikeMetricLine(line) {
     var t = (line || "").trim();
     if (!t) return false;
     if (/^\|/.test(t) || /^\s*\|?[\s:|-]+$/.test(t)) return true;
-    if (/[:：]\s+\S+/.test(t) && /[\d%$]|orders?|rate|product|conversion|saved|contacts|ai\b/i.test(t)) return true;
-    if (/\b\d+(\.\d+)?%\b/.test(t) && t.length < 90) return true;
+    var colon = t.split(/[:：]/);
+    if (colon.length < 2) {
+      return /\b\d+(\.\d+)?%\b/.test(t) && t.length < 90;
+    }
+    var label = colon[0].trim();
+    var value = colon.slice(1).join(":").trim();
+    if (!value || value.length > 56) return false;
+    if (/^\d+[\.\)]\s/.test(label)) return false;
+    if (/[.!?؟]/.test(value)) return false;
+    if (/[\d%$]/.test(value)) return true;
+    if (/\b(orders?|rate|product|conversion|saved|contacts|campaigns?|ai)\b/i.test(label) && value.split(/\s+/).length <= 8) return true;
     return false;
   }
 
@@ -755,20 +780,13 @@
       var metric = document.createElement("div");
       metric.className = "dash-msg-metric";
       var parts = line.split(/[:：]/);
-      var label = document.createElement("span");
-      label.className = "dash-msg-metric-label";
-      var value = document.createElement("span");
-      value.className = "dash-msg-metric-value";
+      var labelText = stripMarkdownBold(line);
+      var valueText = "";
       if (parts.length >= 2) {
-        label.textContent = stripMarkdownBold(parts.shift()).replace(/^\*+|\*+$/g, "").trim();
-        value.className = "dash-msg-metric-value dash-msg-emphasis";
-        appendRichText(value, parts.join(":").trim());
-      } else {
-        label.textContent = stripMarkdownBold(line);
-        value.textContent = "";
+        labelText = stripMarkdownBold(parts.shift()).replace(/^\*+|\*+$/g, "").trim();
+        valueText = parts.join(":").trim();
       }
-      metric.appendChild(label);
-      if (value.textContent) metric.appendChild(value);
+      appendMetricRow(metric, labelText, valueText);
       card.appendChild(metric);
     });
     return card;
@@ -833,14 +851,7 @@
     (componentData && componentData.rows ? componentData.rows : []).forEach(function (row) {
       var metric = document.createElement("div");
       metric.className = "dash-msg-metric";
-      var label = document.createElement("span");
-      label.className = "dash-msg-metric-label";
-      label.textContent = row.label || "";
-      var value = document.createElement("span");
-      value.className = "dash-msg-metric-value dash-msg-emphasis";
-      appendRichText(value, row.value || "");
-      metric.appendChild(label);
-      metric.appendChild(value);
+      appendMetricRow(metric, row.label || "", row.value || "");
       card.appendChild(metric);
     });
     return card;
@@ -1142,31 +1153,101 @@
     return parts;
   }
 
-  function ruleIsActive(ruleText) {
-    return currentRulesList.some(function (r) {
-      return r === ruleText;
+  function normRule(text) {
+    return String(text || "").replace(/\s+/g, " ").trim().toLowerCase();
+  }
+
+  function dismissedPresetKey(cid) {
+    return "disound.dismissedCoachPresets." + cid;
+  }
+
+  function readDismissedPresets(cid) {
+    if (!cid) return [];
+    try {
+      var parsed = JSON.parse(localStorage.getItem(dismissedPresetKey(cid)) || "[]");
+      return Array.isArray(parsed) ? parsed : [];
+    } catch (e) {
+      return [];
+    }
+  }
+
+  function isPresetDismissed(cid, ruleText) {
+    var key = normRule(ruleText);
+    return readDismissedPresets(cid).some(function (text) {
+      return normRule(text) === key;
     });
   }
 
-  function applyRuleListChange(cid, newList, rulesBlock) {
-    saveRulesAndUpdate(cid, newList, rulesBlock);
+  function dismissPreset(cid, ruleText) {
+    if (!cid) return;
+    var list = readDismissedPresets(cid).filter(function (text) {
+      return normRule(text) !== normRule(ruleText);
+    });
+    list.push(ruleText);
+    localStorage.setItem(dismissedPresetKey(cid), JSON.stringify(list));
+  }
+
+  function clearDismissedPresets(cid) {
+    if (!cid) return;
+    localStorage.removeItem(dismissedPresetKey(cid));
+  }
+
+  function ruleIsActive(ruleText) {
+    var key = normRule(ruleText);
+    return currentRulesList.some(function (r) {
+      return normRule(r) === key;
+    });
+  }
+
+  function applyRuleListChange(cid, newList, rulesBlock, onSuccess) {
+    saveRulesAndUpdate(cid, newList, rulesBlock, onSuccess);
   }
 
   function toggleRuleInList(ruleText, enable) {
-    var newList = currentRulesList.slice();
-    var idx = newList.indexOf(ruleText);
-    if (enable) {
-      if (idx === -1) newList.push(ruleText);
-    } else if (idx !== -1) {
-      newList.splice(idx, 1);
-    }
+    var key = normRule(ruleText);
+    var newList = currentRulesList.filter(function (r) {
+      return normRule(r) !== key;
+    });
+    if (enable) newList.push(ruleText);
     return newList;
   }
 
   function deleteRuleFromList(ruleText) {
+    var key = normRule(ruleText);
     return currentRulesList.filter(function (r) {
-      return r !== ruleText;
+      return normRule(r) !== key;
     });
+  }
+
+  function askRuleDelete(card, onConfirm) {
+    if (!card || card.querySelector(".dash-copilot-rule-confirm")) return;
+    var bar = document.createElement("div");
+    bar.className = "dash-copilot-rule-confirm";
+    var label = document.createElement("span");
+    label.textContent = "Delete this rule?";
+    var cancel = document.createElement("button");
+    cancel.type = "button";
+    cancel.className = "dash-copilot-rule-confirm-cancel";
+    cancel.textContent = "Cancel";
+    var ok = document.createElement("button");
+    ok.type = "button";
+    ok.className = "dash-copilot-rule-confirm-ok";
+    ok.textContent = "Delete";
+    cancel.addEventListener("click", function (e) {
+      e.preventDefault();
+      e.stopPropagation();
+      bar.remove();
+    });
+    ok.addEventListener("click", function (e) {
+      e.preventDefault();
+      e.stopPropagation();
+      ok.disabled = true;
+      onConfirm();
+    });
+    bar.appendChild(label);
+    bar.appendChild(cancel);
+    bar.appendChild(ok);
+    card.appendChild(bar);
   }
 
   function createRuleToggle(item, onChange) {
@@ -1205,7 +1286,9 @@
   function buildRulesPanelItems() {
     var items = [];
     var seen = {};
+    var cid = getChannelId();
     PRESET_RULES.forEach(function (preset) {
+      if (isPresetDismissed(cid, preset.text)) return;
       items.push({ label: preset.label, text: preset.text, preset: true });
       seen[preset.text] = true;
     });
@@ -1251,11 +1334,11 @@
         createRuleDeleteButton(item, function () {
           var cid = getChannelId();
           if (!cid) return;
-          var msg = item.preset
-            ? "Remove this preset from active rules?"
-            : "Delete this AI rule permanently?";
-          if (!confirm(msg)) return;
-          applyRuleListChange(cid, deleteRuleFromList(item.text), null);
+          askRuleDelete(card, function () {
+            applyRuleListChange(cid, deleteRuleFromList(item.text), null, function () {
+              if (item.preset) dismissPreset(cid, item.text);
+            });
+          });
         })
       );
       card.appendChild(text);
@@ -1283,7 +1366,7 @@
       });
   }
 
-  function saveRulesAndUpdate(cid, newList, rulesBlock) {
+  function saveRulesAndUpdate(cid, newList, rulesBlock, onSuccess) {
     var newText = newList.join(rulesSeparator());
     fetch("/discount/whatssapAPI/api/admin/coach-ai-set-rules/", {
       method: "POST",
@@ -1291,16 +1374,25 @@
       body: JSON.stringify({ channel_id: parseInt(cid, 10) || cid, rules: newText }),
     })
       .then(function (r) {
-        return r.json();
+        return r.json().then(function (data) {
+          return { ok: r.ok, data: data };
+        });
       })
-      .then(function (data) {
-        if (data.success) {
-          currentRulesList = newList;
+      .then(function (res) {
+        if (res.ok && res.data && res.data.success) {
+          currentRulesList = newList.slice();
+          if (onSuccess) onSuccess();
           renderRulesPanel();
           if (newList.length === 0 && rulesBlock) rulesBlock.remove();
+          return;
         }
+        renderRulesPanel();
+        appendMessage("assistant", (res.data && res.data.error) || "Could not update the rule.");
       })
-      .catch(function () {});
+      .catch(function () {
+        renderRulesPanel();
+        appendMessage("assistant", "Could not update the rule.");
+      });
   }
 
   function hideRules() {
@@ -1370,10 +1462,11 @@
             );
             actions.appendChild(
               createRuleDeleteButton(item, function () {
-                if (!confirm(item.preset ? "Remove this rule?" : "Delete this AI rule permanently?")) return;
-                applyRuleListChange(cid, deleteRuleFromList(item.text), wrap);
-                row.remove();
-                if (!currentRulesList.length) title.textContent = "No rules set for this channel.";
+                askRuleDelete(row, function () {
+                  applyRuleListChange(cid, deleteRuleFromList(item.text), wrap, function () {
+                    if (item.preset) dismissPreset(cid, item.text);
+                  });
+                });
               })
             );
             row.appendChild(text);
@@ -1424,6 +1517,7 @@
         if (data.success) {
           hideRules();
           currentRulesList = [];
+          clearDismissedPresets(cid);
           renderRulesPanel();
           appendMessage("assistant", "Rules cleared for this channel.");
         } else {
@@ -1519,6 +1613,142 @@
       historySearchQuery = historySearchEl.value || "";
       renderHistoryList();
     });
+  }
+
+  var historyToggleBtn = document.getElementById("aiCopilotHistoryToggle");
+  var historyPanelEl = document.getElementById("aiCopilotHistoryPanel");
+  var historyMq = window.matchMedia("(max-width: 1279px)");
+  var historyPinned = false;
+  var historyHovering = false;
+  var historyHoverTimer = null;
+
+  function syncHistoryPanel() {
+    if (!copilotRoot) return;
+    var open = historyMq.matches && (historyPinned || historyHovering);
+    copilotRoot.classList.toggle("is-history-open", open);
+    if (historyToggleBtn) historyToggleBtn.setAttribute("aria-expanded", open ? "true" : "false");
+  }
+
+  function releaseHistoryHover() {
+    clearTimeout(historyHoverTimer);
+    historyHoverTimer = setTimeout(function () {
+      var overBtn = historyToggleBtn && historyToggleBtn.matches(":hover");
+      var overPanel = historyPanelEl && historyPanelEl.matches(":hover");
+      if (!overBtn && !overPanel) historyHovering = false;
+      syncHistoryPanel();
+    }, 180);
+  }
+
+  if (historyToggleBtn && historyPanelEl) {
+    historyToggleBtn.addEventListener("click", function (e) {
+      e.stopPropagation();
+      historyPinned = !historyPinned;
+      historyHovering = false;
+      syncHistoryPanel();
+    });
+    historyToggleBtn.addEventListener("mouseenter", function () {
+      historyHovering = true;
+      syncHistoryPanel();
+    });
+    historyToggleBtn.addEventListener("mouseleave", releaseHistoryHover);
+    historyPanelEl.addEventListener("mouseenter", function () {
+      clearTimeout(historyHoverTimer);
+      historyHovering = true;
+      syncHistoryPanel();
+    });
+    historyPanelEl.addEventListener("mouseleave", releaseHistoryHover);
+    document.addEventListener("click", function (e) {
+      if (!historyPinned || !historyMq.matches) return;
+      if (historyPanelEl.contains(e.target) || historyToggleBtn.contains(e.target)) return;
+      historyPinned = false;
+      historyHovering = false;
+      syncHistoryPanel();
+    });
+    if (historyListEl) {
+      historyListEl.addEventListener("click", function (e) {
+        if (!historyMq.matches || !e.target.closest(".dash-copilot-history-item")) return;
+        historyPinned = false;
+        historyHovering = false;
+        syncHistoryPanel();
+      });
+    }
+    if (newChatBtn) {
+      newChatBtn.addEventListener("click", function () {
+        if (!historyMq.matches) return;
+        historyPinned = false;
+        historyHovering = false;
+        syncHistoryPanel();
+      });
+    }
+    if (typeof historyMq.addEventListener === "function") {
+      historyMq.addEventListener("change", function () {
+        if (!historyMq.matches) {
+          historyPinned = false;
+          historyHovering = false;
+        }
+        syncHistoryPanel();
+      });
+    }
+  }
+
+  var rulesToggleBtn = document.getElementById("aiCopilotRulesToggle");
+  var rulesPanelEl = document.getElementById("aiCopilotRulesPanel");
+  var rulesMq = window.matchMedia("(max-width: 1535px)");
+  var rulesPinned = false;
+  var rulesHovering = false;
+  var rulesHoverTimer = null;
+
+  function syncRulesPanel() {
+    if (!copilotRoot) return;
+    var open = rulesMq.matches && (rulesPinned || rulesHovering);
+    copilotRoot.classList.toggle("is-rules-open", open);
+    if (rulesToggleBtn) rulesToggleBtn.setAttribute("aria-expanded", open ? "true" : "false");
+  }
+
+  function releaseRulesHover() {
+    clearTimeout(rulesHoverTimer);
+    rulesHoverTimer = setTimeout(function () {
+      var overBtn = rulesToggleBtn && rulesToggleBtn.matches(":hover");
+      var overPanel = rulesPanelEl && rulesPanelEl.matches(":hover");
+      if (!overBtn && !overPanel) rulesHovering = false;
+      syncRulesPanel();
+    }, 180);
+  }
+
+  if (rulesToggleBtn && rulesPanelEl) {
+    rulesToggleBtn.addEventListener("click", function (e) {
+      e.stopPropagation();
+      rulesPinned = !rulesPinned;
+      rulesHovering = false;
+      syncRulesPanel();
+    });
+    rulesToggleBtn.addEventListener("mouseenter", function () {
+      rulesHovering = true;
+      syncRulesPanel();
+    });
+    rulesToggleBtn.addEventListener("mouseleave", releaseRulesHover);
+    rulesPanelEl.addEventListener("mouseenter", function () {
+      clearTimeout(rulesHoverTimer);
+      rulesHovering = true;
+      syncRulesPanel();
+    });
+    rulesPanelEl.addEventListener("mouseleave", releaseRulesHover);
+    document.addEventListener("click", function (e) {
+      if (!rulesPinned || !rulesMq.matches) return;
+      if (rulesPanelEl.contains(e.target) || rulesToggleBtn.contains(e.target)) return;
+      rulesPinned = false;
+      rulesHovering = false;
+      syncRulesPanel();
+    });
+    if (typeof rulesMq.addEventListener === "function") {
+      rulesMq.addEventListener("change", function () {
+        if (!rulesMq.matches) {
+          rulesPinned = false;
+          rulesHovering = false;
+        }
+        syncRulesPanel();
+      });
+    }
   }
   if (rulesSettingsBtn && clearRulesBtn) {
     rulesSettingsBtn.addEventListener("click", function () {

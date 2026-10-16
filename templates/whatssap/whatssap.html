@@ -1,13 +1,13 @@
 {% load static %}
-<link rel="stylesheet" href="{% static 'style/styleup.css' %}">
-<link rel="stylesheet" href="{% static 'style/dashboard-glass.css' %}?v=20">
+<link rel="stylesheet" href="{% static 'style/styleup.css' %}?v=6">
+<link rel="stylesheet" href="{% static 'style/dashboard-glass.css' %}?v=28">
 <script src="https://cdn.tailwindcss.com"></script>
 <script>
   tailwind.config = { corePlugins: { preflight: false } };
 </script>
  <div class="current_user_id" id="current_user_id" data-user-id="{{ user.id }}"></div>
 <script src="{% static 'js/whatssap.js' %}"></script>
-<script src="{% static 'js/chat_virtualization.js' %}"></script>
+<script src="{% static 'js/chat_virtualization.js' %}?v=3"></script>
 <script src="https://browser.sentry-cdn.com/8.35.0/bundle.tracing.min.js" crossorigin="anonymous"></script>
  
 </head>
@@ -650,6 +650,11 @@
       <span class="cls3741_tooltip">Orders</span>
   </button>
 
+  <button class="cls3741_btn" data-target="statistics" id="btn_open_statistics">
+      <i class="fas fa-chart-line cls3741_icon"></i>
+      <span class="cls3741_tooltip">Statistics</span>
+  </button>
+
   <button class="cls3741_btn" data-target="contacts">
       <i class="fas fa-users cls3741_icon"></i>
       <span class="cls3741_tooltip">Contacts</span>
@@ -920,6 +925,9 @@
 
       // دالة إظهار الإشعار وتشغيل الصوت
       window.showNotification = function(title, message, onClickCallback) {
+        // Preferences → Sound Notifications also hides the toast and the background-tab alert.
+        if (window.soundEnabled === false) return;
+
         // 1. الصوت (respects Preferences → Sound Notifications)
         if (typeof window.playIncomingMessageSound === 'function') {
           window.playIncomingMessageSound();
@@ -1077,13 +1085,19 @@
         </button>
 
         <div class="dropdown">
-          <button class="dash-date-btn dropdown-toggle" type="button" id="aiRangeDropdown" data-bs-toggle="dropdown" aria-expanded="false">
-            <i class="fas fa-calendar-alt"></i> Date <span id="aiRangeLabel">This Month</span>
+          <button class="dash-date-btn dropdown-toggle" type="button" id="aiRangeDropdown" data-bs-toggle="dropdown" data-bs-auto-close="outside" aria-expanded="false">
+            <i class="fas fa-calendar-alt"></i> Date <span id="aiRangeLabel">Today</span>
           </button>
           <ul class="dropdown-menu dropdown-menu-end dash-date-menu" aria-labelledby="aiRangeDropdown">
-            <li><a class="dropdown-item ai-range-option" href="#" data-range="today">Today</a></li>
+            <li><a class="dropdown-item ai-range-option is-active" href="#" data-range="today">Today</a></li>
             <li><a class="dropdown-item ai-range-option" href="#" data-range="7d">Last 7 Days</a></li>
             <li><a class="dropdown-item ai-range-option" href="#" data-range="month">This Month</a></li>
+            <li class="dash-date-custom">
+              <span class="dash-date-custom-label">Custom date</span>
+              <label>From <input type="date" id="dash_range_from" aria-label="From date"></label>
+              <label>To <input type="date" id="dash_range_to" aria-label="To date"></label>
+              <button type="button" class="dash-date-apply" id="dash_range_apply">Apply</button>
+            </li>
           </ul>
         </div>
       </div>
@@ -1096,26 +1110,24 @@
       <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
       <script>
       function generateWhatsAppQR(phoneNumber) {
-        const container = document.getElementById('qrcode_container');
-        if (!container) return;
-        container.innerHTML = '';
-        const cleanPhone = phoneNumber.replace(/\D/g, '');
+        const containers = document.querySelectorAll('.wa-connect-qr');
+        if (!containers.length || !phoneNumber) return;
+        const cleanPhone = String(phoneNumber).replace(/\D/g, '');
+        if (!cleanPhone) return;
         const waLink = 'https://wa.me/' + cleanPhone;
-        new QRCode(container, {
-          text: waLink,
-          width: 100,
-          height: 100,
-          colorDark: '#000000',
-          colorLight: '#ffffff',
-          correctLevel: QRCode.CorrectLevel.H
+        containers.forEach(function (container) {
+          container.innerHTML = '';
+          new QRCode(container, {
+            text: waLink,
+            width: 112,
+            height: 112,
+            colorDark: '#000000',
+            colorLight: '#ffffff',
+            correctLevel: QRCode.CorrectLevel.H
+          });
         });
       }
       </script>
-
-      {% if not user.is_team_admin or not user.is_superuser %}
-      {% include 'teams.html' %}
-      <div style="padding-bottom: 24px;"></div>
-      {% endif %}
 
       <!-- AI Sales Copilot — 3-column workspace -->
       <section class="dash-copilot" id="dashCopilot" data-can-coach="{% if user.is_team_admin or user.is_superuser %}true{% else %}false{% endif %}">
@@ -1127,6 +1139,8 @@
             AI Sales Copilot
           </h3>
           <div class="dash-copilot-actions">
+            <button type="button" class="dash-icon-btn" id="aiCopilotHistoryToggle" title="Chat history" aria-label="Chat history" aria-expanded="false" aria-controls="aiCopilotHistoryPanel"><i class="fas fa-comments"></i></button>
+            <button type="button" class="dash-icon-btn" id="aiCopilotRulesToggle" title="Persuasion rules" aria-label="Persuasion rules" aria-expanded="false" aria-controls="aiCopilotRulesPanel"><i class="fas fa-list-check"></i></button>
             <button type="button" class="dash-icon-btn" id="aiCopilotHelp" title="How coaching works"><i class="far fa-question-circle"></i></button>
             <div class="dropdown">
               <button type="button" class="dash-icon-btn" data-bs-toggle="dropdown" data-bs-display="static" aria-expanded="false" title="More"><i class="fas fa-ellipsis-v"></i></button>
@@ -1149,6 +1163,7 @@
                 <circle cx="14.8" cy="10.2" r="0.95" fill="currentColor"/>
                 <path d="M18.6 2.1l.42 1.28 1.28.42-1.28.42L18.6 5.5l-.42-1.28-1.28-.42 1.28-.42L18.6 2.1z" fill="currentColor"/>
               </svg>
+              <span>New chat</span>
             </button>
             <div class="dash-copilot-search bg-gray-900 border-gray-800">
               <i class="fas fa-search dash-copilot-search-icon" aria-hidden="true"></i>
@@ -1235,20 +1250,32 @@
               <div class="dash-copilot-suggestions ai-chat-prompts" id="aiCopilotSuggestions">
                 <div class="ai-chat-prompts-grid">
                   <button type="button" class="ai-chat-prompt-chip" data-copilot-suggest="Summarize today's sales vs yesterday and highlight key changes.">
-                    <span class="ai-chat-prompt-emoji" aria-hidden="true">📊</span>
-                    <span class="ai-chat-prompt-label">Analyze performance</span>
+                    <span class="ai-chat-prompt-icon tone-chart" aria-hidden="true"><i class="fas fa-chart-line"></i></span>
+                    <span class="ai-chat-prompt-copy">
+                      <span class="ai-chat-prompt-label">Analyze performance</span>
+                      <span class="ai-chat-prompt-hint">Today compared with yesterday</span>
+                    </span>
                   </button>
                   <button type="button" class="ai-chat-prompt-chip" data-copilot-suggest="Switch persona to Friendly Consultant and explain how you will sell differently." data-copilot-persona="Friendly Consultant">
-                    <span class="ai-chat-prompt-emoji" aria-hidden="true">🎯</span>
-                    <span class="ai-chat-prompt-label">Change strategy</span>
+                    <span class="ai-chat-prompt-icon tone-strategy" aria-hidden="true"><i class="fas fa-bullseye"></i></span>
+                    <span class="ai-chat-prompt-copy">
+                      <span class="ai-chat-prompt-label">Change strategy</span>
+                      <span class="ai-chat-prompt-hint">Switch the selling persona</span>
+                    </span>
                   </button>
                   <button type="button" class="ai-chat-prompt-chip" data-copilot-suggest="Identify the best-selling items this week and suggest how to promote them.">
-                    <span class="ai-chat-prompt-emoji" aria-hidden="true">🛒</span>
-                    <span class="ai-chat-prompt-label">Top products</span>
+                    <span class="ai-chat-prompt-icon tone-products" aria-hidden="true"><i class="fas fa-bag-shopping"></i></span>
+                    <span class="ai-chat-prompt-copy">
+                      <span class="ai-chat-prompt-label">Top products</span>
+                      <span class="ai-chat-prompt-hint">What to promote this week</span>
+                    </span>
                   </button>
                   <button type="button" class="ai-chat-prompt-chip" data-copilot-suggest="Why did the last 5 customers drop off? Analyze objections and suggest fixes.">
-                    <span class="ai-chat-prompt-emoji" aria-hidden="true">⚠️</span>
-                    <span class="ai-chat-prompt-label">Objection analysis</span>
+                    <span class="ai-chat-prompt-icon tone-alert" aria-hidden="true"><i class="fas fa-triangle-exclamation"></i></span>
+                    <span class="ai-chat-prompt-copy">
+                      <span class="ai-chat-prompt-label">Objection analysis</span>
+                      <span class="ai-chat-prompt-hint">Why recent chats dropped off</span>
+                    </span>
                   </button>
                 </div>
               </div>
@@ -1258,12 +1285,18 @@
           <!-- Right: Active persuasion rules -->
           <aside class="dash-copilot-sidebar dash-copilot-rules w-72 hidden 2xl:flex" id="aiCopilotRulesPanel" aria-label="Active persuasion rules">
             <div class="dash-copilot-rules-header">
-              <h4 class="dash-copilot-rules-title">Active Persuasion Rules</h4>
+              <div class="dash-copilot-rules-heading">
+                <span class="dash-copilot-rules-kicker">Active</span>
+                <h4 class="dash-copilot-rules-title">Persuasion rules</h4>
+              </div>
               <button type="button" class="dash-icon-btn dash-copilot-rules-settings" id="aiCopilotRulesSettings" title="Rules settings"><i class="fas fa-cog"></i></button>
             </div>
             <div class="dash-copilot-persona" id="aiCopilotPersona">
-              <span class="dash-copilot-persona-label">Current Strategy</span>
-              <span class="dash-copilot-persona-value" id="aiCopilotPersonaValue">Friendly Consultant</span>
+              <span class="dash-copilot-persona-icon" aria-hidden="true"><i class="fas fa-bullseye"></i></span>
+              <span class="dash-copilot-persona-copy">
+                <span class="dash-copilot-persona-label">Current strategy</span>
+                <span class="dash-copilot-persona-value" id="aiCopilotPersonaValue">Friendly Consultant</span>
+              </span>
             </div>
             <div class="dash-copilot-rules-list overflow-y-auto custom-scrollbar" id="aiCopilotRulesList"></div>
           </aside>
@@ -1354,16 +1387,49 @@
 (function() {
     var aiChartAiVsManual = null;
     var aiChartTopProducts = null;
-    var aiCurrentRange = window.dashboardCurrentRange || 'month';
+    window.dashboardCurrentRange = window.dashboardCurrentRange || 'today';
+    var aiCurrentRange = window.dashboardCurrentRange;
     var aiRangeLabels = { today: 'Today', '7d': 'Last 7 Days', month: 'This Month' };
+
+    function dashFormatDay(iso) {
+        if (!iso) return '';
+        var parts = iso.split('-');
+        if (parts.length !== 3) return iso;
+        var d = new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]));
+        return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+    }
+    function dashRangeLabel(range) {
+        if (range === 'custom') {
+            var from = window.dashboardCustomFrom || '';
+            var to = window.dashboardCustomTo || from;
+            if (from && to && from !== to) return dashFormatDay(from) + ' – ' + dashFormatDay(to);
+            if (from) return dashFormatDay(from);
+        }
+        return aiRangeLabels[range] || 'Today';
+    }
+    window.dashboardRangeQuery = function () {
+        var range = window.dashboardCurrentRange || 'today';
+        var q = 'range=' + encodeURIComponent(range);
+        if (range === 'custom') {
+            q += '&from=' + encodeURIComponent(window.dashboardCustomFrom || '');
+            q += '&to=' + encodeURIComponent(window.dashboardCustomTo || '');
+        }
+        return q;
+    };
+    function dashCloseRangeMenu() {
+        var toggle = document.getElementById('aiRangeDropdown');
+        if (!toggle || typeof bootstrap === 'undefined' || !bootstrap.Dropdown) return;
+        var inst = bootstrap.Dropdown.getInstance(toggle) || bootstrap.Dropdown.getOrCreateInstance(toggle);
+        inst.hide();
+    }
     var baseUrl = '/discount/whatssapAPI/api/ai-analytics/';
     var exportBaseUrl = '/discount/whatssapAPI/api/ai-analytics/export-csv/';
 
-    function aiApiUrl(channelId, range) {
-        return baseUrl + '?channel_id=' + encodeURIComponent(channelId) + '&range=' + encodeURIComponent(range);
+    function aiApiUrl(channelId) {
+        return baseUrl + '?channel_id=' + encodeURIComponent(channelId) + '&' + window.dashboardRangeQuery();
     }
-    function aiExportUrl(channelId, range) {
-        return exportBaseUrl + '?channel_id=' + encodeURIComponent(channelId) + '&range=' + encodeURIComponent(range);
+    function aiExportUrl(channelId) {
+        return exportBaseUrl + '?channel_id=' + encodeURIComponent(channelId) + '&' + window.dashboardRangeQuery();
     }
 
     function aiSetLoading(show) {
@@ -1521,14 +1587,16 @@
             return;
         }
         if (noChannel) noChannel.style.display = 'none';
-        aiCurrentRange = aiCurrentRange || 'month';
+        aiCurrentRange = window.dashboardCurrentRange || 'today';
         var rangeLabel = document.getElementById('aiRangeLabel');
-        if (rangeLabel) rangeLabel.textContent = aiRangeLabels[aiCurrentRange] || aiCurrentRange;
+        if (rangeLabel) rangeLabel.textContent = dashRangeLabel(aiCurrentRange);
+        var chartHeading = document.querySelector('#aiAnalyticsContent .dash-chart-header h3');
+        if (chartHeading) chartHeading.textContent = 'AI vs Manual Conversions (' + dashRangeLabel(aiCurrentRange) + ')';
         var exportBtn = document.getElementById('aiExportCsvBtn');
-        if (exportBtn) exportBtn.href = aiExportUrl(cid, aiCurrentRange);
+        if (exportBtn) exportBtn.href = aiExportUrl(cid);
         aiSetLoading(true);
         var run = function() {
-            fetch(aiApiUrl(cid, aiCurrentRange))
+            fetch(aiApiUrl(cid))
                 .then(function(r) { return r.json(); })
                 .then(function(res) {
                     aiSetLoading(false);
@@ -1545,38 +1613,67 @@
         }
     }
 
+    function applyDashboardRange(range) {
+        aiCurrentRange = range;
+        window.dashboardCurrentRange = range;
+        document.querySelectorAll('.ai-range-option').forEach(function (item) {
+            item.classList.toggle('is-active', item.getAttribute('data-range') === range);
+        });
+        var label = document.getElementById('aiRangeLabel');
+        if (label) label.textContent = dashRangeLabel(range);
+        var chartHeading = document.querySelector('#aiAnalyticsContent .dash-chart-header h3');
+        if (chartHeading) chartHeading.textContent = 'AI vs Manual Conversions (' + dashRangeLabel(range) + ')';
+        var cid = window.currentChannelId || (document.querySelector('.workspace-item.active') && document.querySelector('.workspace-item.active').getAttribute('data-channel-id'));
+        if (!cid) return;
+        if (typeof window.loadDashboardData === 'function') {
+            window.loadDashboardData(cid, range, true);
+        }
+        var exportBtn = document.getElementById('aiExportCsvBtn');
+        if (exportBtn) exportBtn.href = aiExportUrl(cid);
+        aiSetLoading(true);
+        fetch(aiApiUrl(cid))
+            .then(function(r) { return r.json(); })
+            .then(function(res) {
+                aiSetLoading(false);
+                if (res.success && res.data) aiApplyData(res.data);
+            })
+            .catch(function() { aiSetLoading(false); });
+    }
+
     document.querySelectorAll('.ai-range-option').forEach(function(el) {
         el.addEventListener('click', function(e) {
             e.preventDefault();
-            aiCurrentRange = el.getAttribute('data-range');
-            window.dashboardCurrentRange = aiCurrentRange;
-            var label = document.getElementById('aiRangeLabel');
-            if (label) label.textContent = aiRangeLabels[aiCurrentRange] || aiCurrentRange;
-            var cid = window.currentChannelId || (document.querySelector('.workspace-item.active') && document.querySelector('.workspace-item.active').getAttribute('data-channel-id'));
-            if (cid) {
-                // Reload ALL dashboard data (stats cards, chart, orders) with the new range
-                // skipAiAnalytics=true because we fetch AI analytics right below
-                if (typeof window.loadDashboardData === 'function') {
-                    window.loadDashboardData(cid, aiCurrentRange, true);
-                }
-                // Also reload AI analytics with the same range
-                var exportBtn = document.getElementById('aiExportCsvBtn');
-                if (exportBtn) exportBtn.href = aiExportUrl(cid, aiCurrentRange);
-                aiSetLoading(true);
-                fetch(aiApiUrl(cid, aiCurrentRange))
-                    .then(function(r) { return r.json(); })
-                    .then(function(res) {
-                        aiSetLoading(false);
-                        if (res.success && res.data) aiApplyData(res.data);
-                    })
-                    .catch(function() { aiSetLoading(false); });
-            }
+            applyDashboardRange(el.getAttribute('data-range'));
+            dashCloseRangeMenu();
         });
     });
+    (function initDashCustomDates() {
+        var fromInput = document.getElementById('dash_range_from');
+        var toInput = document.getElementById('dash_range_to');
+        var applyBtn = document.getElementById('dash_range_apply');
+        if (!fromInput || !toInput || !applyBtn) return;
+        var todayIso = new Date().toISOString().slice(0, 10);
+        fromInput.value = todayIso;
+        toInput.value = todayIso;
+        fromInput.addEventListener('click', function (e) { e.stopPropagation(); });
+        toInput.addEventListener('click', function (e) { e.stopPropagation(); });
+        applyBtn.addEventListener('click', function (e) {
+            e.preventDefault();
+            e.stopPropagation();
+            var from = fromInput.value;
+            var to = toInput.value || from;
+            if (!from && to) from = to;
+            if (!from) return;
+            window.dashboardCustomFrom = from;
+            window.dashboardCustomTo = to;
+            applyDashboardRange('custom');
+            dashCloseRangeMenu();
+        });
+    })();
     var exportBtnEl = document.getElementById('aiExportCsvBtn');
     if (exportBtnEl) exportBtnEl.addEventListener('click', function() {
         var cid = window.currentChannelId || (document.querySelector('.workspace-item.active') && document.querySelector('.workspace-item.active').getAttribute('data-channel-id'));
-        if (cid) this.href = aiExportUrl(cid, aiCurrentRange);
+        if (cid) this.href = aiExportUrl(cid);
     });
 
     window.loadAiAnalytics = loadAiAnalytics;
@@ -1587,41 +1684,7 @@
 })();
       </script>
 
-      <div class="dash-more" id="dashMoreInsights">
-        <button type="button" class="dash-more-toggle" id="dashMoreToggle">
-          <span>More insights · lifecycle, team &amp; API usage</span>
-          <i class="fas fa-chevron-down"></i>
-        </button>
-        <div class="dash-more-body">
-          <div class="row g-3 mb-3" style="max-width: 100%; margin-left: 0; margin-right: 0;">
-            <div class="col-12 col-lg-8" style="padding: 0 9px;">
-              <div class="cls3741_chart_section" style="margin-bottom: 0;">
-                <div class="chart_header"><h3>Top Products (AI)</h3></div>
-                <div class="chart_container" style="height: 220px;">
-                  <canvas id="aiChartTopProducts"></canvas>
-                </div>
-              </div>
-            </div>
-            <div class="col-12 col-lg-4" style="padding: 0 9px;">
-              <div class="cls3741_chart_section" style="margin-bottom: 0;">
-                <div class="chart_header"><h3>API Usage (Characters)</h3></div>
-                <p class="text-muted small mb-2">ElevenLabs &amp; Whisper in selected period</p>
-                <div class="progress" style="height: 24px; background: var(--bg-tertiary);">
-                  <div class="progress-bar bg-secondary" id="aiApiProgressBar" role="progressbar" style="width: 0%;" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100">0</div>
-                </div>
-                <div class="d-flex justify-content-between mt-2 small text-muted">
-                  <span id="aiApiUsedLabel">0 characters used</span>
-                  <span id="aiApiRemainingLabel">—</span>
-                </div>
-              </div>
-            </div>
-          </div>
 
-      <!-- Contact Lifecycle -->
-      <div class="cls3741_section_title">
-        <h3><i class="fas fa-route me-2"></i>Contact Lifecycle</h3>
-        <span class="cls3741_badge_gray">Pipeline View</span>
-      </div>
       <script>
     /**
     * دالة لجلب إحصائيات دورة حياة العميل
@@ -1641,6 +1704,12 @@
     
     // 2. تجهيز البيانات للإرسال
     let requestData = {};
+    const period = window.adstatPeriod || { range: 'today', from: '', to: '' };
+    requestData.range = period.range || 'today';
+    if (period.range === 'custom') {
+        requestData.from = period.from || '';
+        requestData.to = period.to || '';
+    }
     if (channelId && channelId !== 'all') {
         requestData.channel_id = channelId;
     }
@@ -1732,457 +1801,9 @@ function filterContactsByStage(stageKey) {
 }
 
       </script>
-      <div class="cls3741_lifecycle_container" id="lifecycle_container">
-        <div class="cls3741_lifecycle_card loading_skeleton"></div>
-        <div class="cls3741_lifecycle_card loading_skeleton"></div>
-        <div class="cls3741_lifecycle_card loading_skeleton"></div>
-      </div>
 
-      <!-- Messages chart (last 7 days) -->
-      <div class="row cls3741_charts_row mb-4">
-      <!-- first card  -->
-      <div class="cls3741_chart_section col-12 col-lg-8" style="padding: 17px 18px;">
-        <div class="chart_header">
-          <h3>Messages Analysis for last 7 days</h3>
-          <div class="chart_legend">
-            <span class="legend_item"><span class="dot sent"></span> Sent</span>
-            <span class="legend_item"><span class="dot received"></span> Received</span>
-          </div>
-        </div>
-        <div class="chart_container">
-          <canvas id="messagesChart"></canvas>
-        </div>
-        
-      </div>
-      <!-- second card  -->
-      <div class="cls3741_chart_section col-12 col-lg-4 cls3741_team_status_wrapper"  style="padding: 15px 13px" id="teamStatusSection">
-        <div class="chart_header cls3741_team_status_header" id="teamStatusHeader">
-          <h3>Team Status</h3>
-          <span class="cls3741_team_status_badge">
-            {% if user.is_team_admin or user.is_superuser %}
-            {{ team_members|length|default:0 }} members </span>
-        </div>
-        <div class="cls3741_team_status_list_wrap" id="teamStatusListWrap">
-          
-          <ul class="cls3741_team_status_list">
-            {% if user.is_team_admin or user.is_superuser %}
-            <!-- AI Sales Agent row (Coach only; no stats popup) -->
-            <li class="cls3741_team_status_item cls3741_ai_agent_row" data-role="ai-agent" id="agent_row_ai">
-              <div class="cls3741_team_status_avatar cls3741_ai_avatar">
-                <span class="cls3741_team_status_avatar_initials"><i class="fas fa-robot"></i></span>
-                <span class="cls3741_team_status_dot online"></span>
-              </div>
-              <div class="cls3741_team_status_info">
-                <span class="cls3741_team_status_name">AI Sales Agent</span>
-                <span class="cls3741_team_status_role">AI</span>
-              </div>
-              <div class="cls3741_team_status_actions">
-                <button type="button" class="cls3741_btn_coach" id="btn_coach_ai" title="Jump to AI Sales Copilot">Copilot</button>
-              </div>
-            </li>
-            {% endif %}
-            {% for member in team_members %}
-            <li class="cls3741_team_status_item _agentRow" id="agent_row_{{ member.id }}" data-agent-id="{{ member.id }}">
-              <div class="cls3741_team_status_avatar">
-                {% if member.profile_picture %}
-                <img src="{{ member.profile_picture.url }}" alt="{{ member.first_name }}" class="cls3741_team_status_avatar_img">
-                {% else %}
-                <span class="cls3741_team_status_avatar_initials">{{ member.email|slice:":1" }}{{ member.last_name|slice:":1" }}</span>
-                {% endif %}
-                <span id="status_dot_{{ member.id }}" class="cls3741_team_status_dot {% if member.is_online %}online{% else %}offline{% endif %}"></span>
-              </div>
-              <div class="cls3741_team_status_info">
-                <span class="cls3741_team_status_name">
-                  {{ member.user_name|default:member.first_name }}
-                  {% if member.id == user.id %}<em class="cls3741_team_status_you">You</em>{% endif %}
-                </span>
-                <span class="cls3741_team_status_role"> {% if member.is_team_admin or member.is_superuser %} Admin {% else %} {{ member.role|default:"Agent" }} {% endif %}</span>
-              </div>
-              <div class="cls3741_team_status_activity" id="seen_text_{{ member.id }}">
-                {% if member.is_online %}
-                <span class="cls3741_team_status_online">Active now</span>
-                {% else %}
-                <span class="cls3741_team_status_ago">{{ member.last_seen|timesince }} ago</span>
-                {% endif %}
-              </div>
-            </li>
-            {% empty %}
-            <li class="cls3741_team_status_empty">No team members found.</li>
-            {% endfor %}
-          </ul>
-          {% else %}
-          <p class="cls3741_team_status_empty">Team view is available for admins.</p>
-          {% endif %}
-        </div>
-      </div>
+      <script src="{% static 'js/ai-sales-copilot.js' %}?v=23"></script>
 
-      <!-- Agent Stats Popup (overlay) -->
-      <div class="agentPopup-overlay" id="agentPopupOverlay">
-        <div class="agentPopup-card" id="agentPopupCard">
-          <button class="agentPopup-close" id="agentPopupClose">&times;</button>
-          <div class="agentPopup-header">
-            <div class="agentPopup-avatar" id="apAvatar"></div>
-            <div class="agentPopup-identity">
-              <span class="agentPopup-name" id="apName"></span>
-              <span class="agentPopup-role" id="apRole"></span>
-            </div>
-            <span class="agentPopup-statusPill" id="apStatusPill"></span>
-          </div>
-          <div class="agentPopup-lastSeen" id="apLastSeenRow">
-            <i class="fas fa-clock"></i>
-            <span id="apLastSeen"></span>
-          </div>
-          <div class="agentPopup-grid">
-            <div class="agentPopup-stat">
-              <div class="agentPopup-statIcon" style="background:rgba(79,70,229,.12);color:#4f46e5">
-                <i class="fas fa-wifi"></i>
-              </div>
-              <div class="agentPopup-statBody">
-                <span class="agentPopup-statLabel">Online Today</span>
-                <span class="agentPopup-statVal" id="apOnlineToday">--</span>
-              </div>
-            </div>
-            <div class="agentPopup-stat">
-              <div class="agentPopup-statIcon" style="background:rgba(34,197,94,.12);color:#22c55e">
-                <i class="fas fa-calendar-week"></i>
-              </div>
-              <div class="agentPopup-statBody">
-                <span class="agentPopup-statLabel">Online This Week</span>
-                <span class="agentPopup-statVal" id="apOnlineWeek">--</span>
-              </div>
-            </div>
-            <div class="agentPopup-stat">
-              <div class="agentPopup-statIcon" style="background:rgba(234,179,8,.12);color:#eab308">
-                <i class="fas fa-paper-plane"></i>
-              </div>
-              <div class="agentPopup-statBody">
-                <span class="agentPopup-statLabel" id="apMsgsLabel">Messages Today</span>
-                <span class="agentPopup-statVal" id="apMsgsToday">--</span>
-              </div>
-            </div>
-            <div class="agentPopup-stat">
-              <div class="agentPopup-statIcon" style="background:rgba(168,85,247,.12);color:#a855f7">
-                <i class="fas fa-comments"></i>
-              </div>
-              <div class="agentPopup-statBody">
-                <span class="agentPopup-statLabel" id="apConvosLabel">Conversations Today</span>
-                <span class="agentPopup-statVal" id="apConvosToday">--</span>
-              </div>
-            </div>
-          </div>
-          <div class="agentPopup-responseBox" id="apResponseBox">
-            <div class="agentPopup-responseHeader">
-              <i class="fas fa-bolt"></i> Avg Response Time
-            </div>
-            <div class="agentPopup-responseBody">
-              <span class="agentPopup-responseVal" id="apAvgResponse">--</span>
-              <span class="agentPopup-responseBadge" id="apSpeedBadge">--</span>
-            </div>
-          </div>
-          <div class="agentPopup-loading" id="apLoading">
-            <div class="agentPopup-spinner"></div>
-            <span>Loading agent stats...</span>
-          </div>
-        </div>
-      </div>
-
-      <!-- Agent Stats Popup styles -->
-      <style>
-/* Agent Stats Popup */
-.agentPopup-overlay{
-  position:fixed;inset:0;z-index:9999;
-  background:rgba(0,0,0,.45);backdrop-filter:blur(4px);
-  display:none;align-items:center;justify-content:center;
-  animation:apFadeIn .2s ease;
-}
-.agentPopup-overlay.active{display:flex}
-@keyframes apFadeIn{from{opacity:0}to{opacity:1}}
-@keyframes apSlideUp{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:translateY(0)}}
-
-.agentPopup-card{
-  position:relative;width:380px;max-width:92vw;
-  background:var(--bg-primary,#1a1a2e);
-  border:1px solid var(--border-color,#2a2a4a);
-  border-radius:20px;padding:28px 24px 24px;
-  box-shadow:0 24px 48px rgba(0,0,0,.35);
-  animation:apSlideUp .25s ease;
-  color:var(--text-primary,#e2e8f0);
-}
-.agentPopup-close{
-  position:absolute;top:12px;right:14px;
-  background:none;border:none;font-size:22px;
-  color:var(--text-secondary,#94a3b8);cursor:pointer;
-  width:32px;height:32px;border-radius:8px;
-  display:flex;align-items:center;justify-content:center;
-  transition:all .15s;
-}
-.agentPopup-close:hover{background:rgba(255,255,255,.08);color:#fff}
-
-/* header */
-.agentPopup-header{display:flex;align-items:center;gap:12px;margin-bottom:16px}
-.agentPopup-avatar{
-  width:48px;height:48px;border-radius:14px;
-  background:linear-gradient(135deg,#4f46e5,#7c3aed);
-  display:flex;align-items:center;justify-content:center;
-  font-weight:700;font-size:18px;color:#fff;flex-shrink:0;
-}
-.agentPopup-identity{display:flex;flex-direction:column;flex:1;min-width:0}
-.agentPopup-name{font-size:15px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.agentPopup-role{font-size:11px;color:var(--text-secondary,#94a3b8);margin-top:1px}
-.agentPopup-statusPill{
-  font-size:11px;font-weight:600;padding:4px 10px;border-radius:20px;
-  white-space:nowrap;flex-shrink:0;
-}
-.agentPopup-statusPill.online{background:rgba(34,197,94,.15);color:#22c55e}
-.agentPopup-statusPill.offline{background:rgba(239,68,68,.12);color:#ef4444}
-
-/* last seen */
-.agentPopup-lastSeen{
-  display:flex;align-items:center;gap:8px;
-  font-size:12px;color:var(--text-secondary,#94a3b8);
-  background:rgba(255,255,255,.04);border-radius:10px;
-  padding:8px 12px;margin-bottom:16px;
-}
-.agentPopup-lastSeen i{font-size:11px;opacity:.7}
-
-/* stat grid */
-.agentPopup-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px}
-.agentPopup-stat{
-  display:flex;align-items:center;gap:10px;
-  background:rgba(255,255,255,.04);border-radius:12px;padding:12px;
-  transition:background .15s;
-}
-.agentPopup-stat:hover{background:rgba(255,255,255,.07)}
-.agentPopup-statIcon{
-  width:36px;height:36px;border-radius:10px;
-  display:flex;align-items:center;justify-content:center;
-  font-size:14px;flex-shrink:0;
-}
-.agentPopup-statBody{display:flex;flex-direction:column;min-width:0}
-.agentPopup-statLabel{font-size:10px;color:var(--text-secondary,#94a3b8);text-transform:uppercase;letter-spacing:.4px}
-.agentPopup-statVal{font-size:15px;font-weight:700;margin-top:2px}
-
-/* response time box */
-.agentPopup-responseBox{
-  background:rgba(255,255,255,.04);border-radius:14px;
-  padding:14px 16px;border:1px solid rgba(255,255,255,.06);
-}
-.agentPopup-responseHeader{
-  font-size:11px;text-transform:uppercase;letter-spacing:.5px;
-  color:var(--text-secondary,#94a3b8);margin-bottom:8px;
-  display:flex;align-items:center;gap:6px;
-}
-.agentPopup-responseHeader i{color:#eab308;font-size:12px}
-.agentPopup-responseBody{display:flex;align-items:center;justify-content:space-between}
-.agentPopup-responseVal{font-size:22px;font-weight:800}
-.agentPopup-responseBadge{
-  font-size:11px;font-weight:600;padding:4px 10px;border-radius:20px;
-}
-.agentPopup-responseBadge.green{background:rgba(34,197,94,.15);color:#22c55e}
-.agentPopup-responseBadge.blue{background:rgba(59,130,246,.15);color:#3b82f6}
-.agentPopup-responseBadge.yellow{background:rgba(234,179,8,.15);color:#eab308}
-.agentPopup-responseBadge.red{background:rgba(239,68,68,.15);color:#ef4444}
-.agentPopup-responseBadge.gray{background:rgba(148,163,184,.12);color:#94a3b8}
-
-/* loading */
-.agentPopup-loading{
-  position:absolute;inset:0;border-radius:20px;
-  background:var(--bg-primary,#1a1a2e);
-  display:flex;flex-direction:column;
-  align-items:center;justify-content:center;gap:12px;
-  z-index:2;
-}
-.agentPopup-loading.hidden{display:none}
-.agentPopup-spinner{
-  width:28px;height:28px;border:3px solid rgba(255,255,255,.1);
-  border-top-color:#4f46e5;border-radius:50%;
-  animation:apSpin .7s linear infinite;
-}
-@keyframes apSpin{to{transform:rotate(360deg)}}
-.agentPopup-loading span{font-size:12px;color:var(--text-secondary,#94a3b8)}
-
-/* mobile */
-@media(max-width:440px){
-  .agentPopup-card{padding:20px 16px 18px}
-  .agentPopup-grid{grid-template-columns:1fr}
-}
-      </style>
-
-      <script>
-(function(){
-  var overlay  = document.getElementById('agentPopupOverlay');
-  var card     = document.getElementById('agentPopupCard');
-  var closeBtn = document.getElementById('agentPopupClose');
-  var loading  = document.getElementById('apLoading');
-  var cache    = {};
-  var currentAgentId = null;
-
-  function close(){
-    overlay.classList.remove('active');
-  }
-
-  closeBtn.addEventListener('click', close);
-  overlay.addEventListener('click', function(e){
-    if(e.target === overlay) close();
-  });
-  document.addEventListener('keydown', function(e){
-    if(e.key === 'Escape') close();
-  });
-
-  function show(agentId){
-    if(!agentId) return;
-    agentId = String(agentId);
-    currentAgentId = agentId;
-    // Clear previous content so we never show wrong agent
-    document.getElementById('apName').textContent = 'Loading…';
-    document.getElementById('apRole').textContent = '';
-    document.getElementById('apAvatar').textContent = '…';
-    var pill = document.getElementById('apStatusPill');
-    pill.textContent = '…';
-    pill.className = 'agentPopup-statusPill';
-    loading.classList.remove('hidden');
-    overlay.classList.add('active');
-    var loadingContent = loading.innerHTML;
-
-    if(cache[agentId] && (Date.now() - cache[agentId]._ts < 15000)){
-      var cached = cache[agentId];
-      if(cached.agent && String(cached.agent.id) === agentId){
-        render(cached);
-        return;
-      }
-      delete cache[agentId];
-    }
-
-    fetch('/discount/whatssapAPI/api/agent-stats/?agent_id=' + encodeURIComponent(agentId))
-      .then(function(r){ return r.json(); })
-      .then(function(data){
-        if(currentAgentId !== agentId) return;
-        if(!data.success){ loading.innerHTML = '<span style="color:#ef4444">Failed to load</span>'; loading.classList.add('hidden'); return; }
-        if(!data.agent || String(data.agent.id) !== agentId){
-          loading.innerHTML = '<span style="color:#ef4444">Wrong agent data</span>';
-          loading.classList.add('hidden');
-          return;
-        }
-        data._ts = Date.now();
-        cache[agentId] = data;
-        render(data);
-      })
-      .catch(function(){
-        if(currentAgentId !== agentId) return;
-        loading.innerHTML = '<span style="color:#ef4444">Network error</span>';
-        loading.classList.add('hidden');
-      });
-  }
-
-  function render(data){
-    var a = data.agent;
-    var s = data.stats;
-    if(!a || !s) return;
-
-    // avatar
-    var initials = (a.name || '?').split(' ').map(function(w){return w[0]||''}).join('').toUpperCase().slice(0,2);
-    document.getElementById('apAvatar').textContent = initials;
-
-    // identity
-    document.getElementById('apName').textContent = a.name;
-    document.getElementById('apRole').textContent = a.role;
-
-    // status pill
-    var pill = document.getElementById('apStatusPill');
-    pill.textContent = a.is_online ? 'Online' : 'Offline';
-    pill.className = 'agentPopup-statusPill ' + (a.is_online ? 'online' : 'offline');
-
-    // last seen
-    var lsRow = document.getElementById('apLastSeenRow');
-    if(a.is_online || !s.last_seen){
-      lsRow.style.display = 'none';
-    } else {
-      lsRow.style.display = 'flex';
-      document.getElementById('apLastSeen').textContent = 'Last seen ' + s.last_seen;
-    }
-
-    // stats - show best available data (today > week > total)
-    document.getElementById('apOnlineToday').textContent  = s.online_today;
-    document.getElementById('apOnlineWeek').textContent   = s.online_week;
-
-    var msgsVal = s.messages_today;
-    var msgsLbl = 'Messages Today';
-    if(msgsVal === 0 && s.messages_week > 0){ msgsVal = s.messages_week; msgsLbl = 'Messages This Week'; }
-    else if(msgsVal === 0 && s.messages_total > 0){ msgsVal = s.messages_total; msgsLbl = 'Total Messages'; }
-    document.getElementById('apMsgsToday').textContent = msgsVal;
-    document.getElementById('apMsgsLabel').textContent = msgsLbl;
-
-    var convVal = s.conversations_today;
-    var convLbl = 'Conversations Today';
-    if(convVal === 0 && s.conversations_week > 0){ convVal = s.conversations_week; convLbl = 'Conversations This Week'; }
-    else if(convVal === 0 && s.conversations_total > 0){ convVal = s.conversations_total; convLbl = 'Total Conversations'; }
-    document.getElementById('apConvosToday').textContent = convVal;
-    document.getElementById('apConvosLabel').textContent = convLbl;
-
-    // response time
-    document.getElementById('apAvgResponse').textContent = s.avg_response_time;
-    var badge = document.getElementById('apSpeedBadge');
-    badge.textContent = s.speed_label;
-    badge.className = 'agentPopup-responseBadge ' + s.speed_color;
-
-    loading.classList.add('hidden');
-  }
-
-  // Event delegation: handle clicks on any agent row (works when list is rendered later)
-  document.addEventListener('click', function(e){
-    var row = e.target && e.target.closest && e.target.closest('._agentRow');
-    if(!row) return;
-    var id = row.getAttribute('data-agent-id');
-    if(id) show(id);
-  });
-
-  // expose for websocket status updates
-  window.updateUserStatusUI = function(userId, status){
-    var dot = document.getElementById('status_dot_' + userId);
-    var txt = document.getElementById('seen_text_' + userId);
-
-    if(dot){
-      dot.classList.remove('online','offline');
-      dot.classList.add(status === 'online' ? 'online' : 'offline');
-    }
-    if(txt){
-      txt.innerHTML = status === 'online'
-        ? '<span class="text-success">Active Now</span>'
-        : 'Offline';
-    }
-    delete cache[userId];
-  };
-})();
-</script>
-      <script src="{% static 'js/ai-sales-copilot.js' %}?v=19"></script>
-      <script>
-      (function(){
-        var toggle = document.getElementById('dashMoreToggle');
-        var wrap = document.getElementById('dashMoreInsights');
-        if (toggle && wrap) {
-          toggle.addEventListener('click', function(){
-            wrap.classList.toggle('open');
-            setTimeout(function(){
-              if (window.dashboardChartInstance && typeof window.dashboardChartInstance.resize === 'function') {
-                window.dashboardChartInstance.resize();
-              }
-            }, 50);
-          });
-        }
-      })();
-      </script>
-
-          
-        <!-- </div> -->
-      </div>
-      <!-- </div> -->
-
-      {% if user.is_team_admin or user.is_superuser %}
-      <div style="margin-top: 24px;"></div>
-      {% include 'teams.html' %}
-      {% endif %}
-        </div>
-      </div>
 
     </div>
     <!-- end .main1 -->
@@ -3252,22 +2873,22 @@ async function loadDashboardData(channelId, range, skipAiAnalytics) {
     await loadChartJsOnce();
     $('#settings_loaderD').removeClass('d-none');
     document.body.classList.add('loading-active');
-    if (!document.getElementById('messagesChart')) return;
 
     const activeId = channelId || window.currentChannelId;
     if (!activeId || activeId === 'null') return;
 
-    var activeRange = range || window.dashboardCurrentRange || 'month';
+    var activeRange = range || window.dashboardCurrentRange || 'today';
     window.dashboardCurrentRange = activeRange;
 
-    // Sync the dropdown label to match the active range
-    var rangeLabels = { today: 'Today', '7d': 'Last 7 Days', month: 'This Month' };
     var rl = document.getElementById('aiRangeLabel');
-    if (rl) rl.textContent = rangeLabels[activeRange] || activeRange;
+    if (rl && typeof dashRangeLabel === 'function') rl.textContent = dashRangeLabel(activeRange);
 
 
     try {
-        const response = await fetch(`/discount/whatssapAPI/api/dashboard/stats/?channel_id=${activeId}&range=${encodeURIComponent(activeRange)}`);
+        const rangeQuery = (typeof window.dashboardRangeQuery === 'function')
+            ? window.dashboardRangeQuery()
+            : ('range=' + encodeURIComponent(activeRange));
+        const response = await fetch(`/discount/whatssapAPI/api/dashboard/stats/?channel_id=${activeId}&${rangeQuery}`);
         const data = await response.json();
 
         if (data.success) {
@@ -4529,7 +4150,7 @@ window.resetFilters = function() {
 </div>
 </div>
       
-      <div class="cls3741_chat_input_wrapper" role="region" aria-label="Message input">
+      <div class="cls3741_chat_input_wrapper is-no-chat" role="region" aria-label="Message input">
 
         <!--
           Pending digital-order payment-verification banner.
@@ -4621,6 +4242,10 @@ window.resetFilters = function() {
         <input type="hidden" id="canned_file_url" value="">
         <input type="hidden" id="canned_file_type" value="">
  
+        <div class="cls3741_composer_prompt" id="cls3741_composer_prompt" role="status">
+          Select a contact to open a conversation
+        </div>
+
         <div class="cls3741_input_container cls3741_input_container_phone">
             <div id="collision_alert_bar" class="cls3741_collision_bar" style="display: none;">
                 <div class="d-flex align-items-center gap-2">
@@ -4636,21 +4261,6 @@ window.resetFilters = function() {
                     placeholder="Type your message... or use / for short responses"
                     rows="1"
                   ></textarea>
-              </div>
-              <div class="cls3741_send_record_slot" id="cls3741_send_record_slot">
-                      <button type="button" id="cls3741_audio_btn" class="cls3741_icon_btn cls3741_mobile_record_btn" title="Record voice note">
-                          <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-                              <path d="M12 14c1.66 0 2.99-1.34 2.99-3L15 5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3zm5.3-3c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c3.39-.49 6-3.39 6-6.92h-2.7z"/>
-                          </svg>
-                      </button>
-                  <div class="cls3741_send_group">
-                      <button type="button" id="cls3741_send_btn" class="cls3741_send_button" disabled>
-                          <span>Send</span>
-                          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                              <line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
-                          </svg>
-                      </button>
-                  </div>
               </div>
             </div>
 
@@ -4812,7 +4422,7 @@ function sendInternalNote(text) {
                   </div>
                   </div>
                   
-                  <div class="cls3741_divider"></div>
+                  <div class="cls3741_divider cls3741_divider_tools"></div>
                   
                   <div class="cls3741_emoji_wrapper" style="position:relative;">
                   <button type="button" id="cls3741_emoji_btn" class="cls3741_icon_btn" title="Emoji">
@@ -4848,7 +4458,7 @@ function sendInternalNote(text) {
                       </button>
                   </div>
                   
-                  <div class="cls3741_divider"></div>
+                  <div class="cls3741_divider cls3741_divider_ai"></div>
     
                   <!-- <button type="button" id="cls3741_audio_btn" class="cls3741_icon_btn" title="Record Voice">
                       <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -4856,7 +4466,7 @@ function sendInternalNote(text) {
                       </svg>
                   </button> -->
     
-                  <div style="position:relative;">
+                  <div class="cls3741_ai_wrap" style="position:relative;">
                   <button type="button" id="cls3741_ai_assist_btn" class="cls3741_tool_btn ai_assist_btn" title="AI Assist — Generate a smart reply">
                     <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                         <path d="M12 2a10 10 0 1 0 10 10H12V2z"></path>
@@ -4914,6 +4524,21 @@ function sendInternalNote(text) {
                   </div>
                   </div>
     
+              </div>
+              <div class="cls3741_send_record_slot" id="cls3741_send_record_slot">
+                  <button type="button" id="cls3741_audio_btn" class="cls3741_icon_btn cls3741_mobile_record_btn" title="Record voice note">
+                      <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                          <path d="M12 14c1.66 0 2.99-1.34 2.99-3L15 5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3zm5.3-3c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c3.39-.49 6-3.39 6-6.92h-2.7z"/>
+                      </svg>
+                  </button>
+                  <div class="cls3741_send_group">
+                      <button type="button" id="cls3741_send_btn" class="cls3741_send_button" disabled>
+                          <span>Send</span>
+                          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                              <line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+                          </svg>
+                      </button>
+                  </div>
               </div>
     
           </div>
@@ -7352,6 +6977,185 @@ function sendCannedResponseDirectly(item) {
           transform: translateY(-1px);
       }
 
+      .cls3741_composer_prompt {
+        display: none;
+        align-items: center;
+        justify-content: center;
+        min-height: 72px;
+        padding: 16px 18px;
+        border-radius: 18px;
+        border: 1px dashed #cbd5e1;
+        background: #f8fafc;
+        color: #475569;
+        font-size: 14px;
+        font-weight: 600;
+        text-align: center;
+        line-height: 1.4;
+      }
+      .cls3741_chat_input_wrapper.is-no-chat > .cls3741_input_container,
+      .cls3741_chat_input_wrapper.is-no-chat > .cls3741_media_preview,
+      .cls3741_chat_input_wrapper.is-no-chat > .cls3741_slash_menu {
+        display: none !important;
+      }
+      .cls3741_chat_input_wrapper.is-no-chat > .cls3741_composer_prompt {
+        display: flex;
+      }
+      html.dark #cls3741_chat_col .cls3741_composer_prompt {
+        border-color: rgba(255, 255, 255, 0.14);
+        background: rgba(255, 255, 255, 0.03);
+        color: #a1a1aa;
+      }
+
+      /* Composer: dark surface, message field on top, tools along the bottom */
+      html.dark #cls3741_chat_col .cls3741_chat_input_wrapper {
+        padding: 12px 16px 16px;
+        background: transparent;
+      }
+      html.dark #cls3741_chat_col .cls3741_input_container_phone {
+        position: relative;
+        background: #141416 !important;
+        border: 1px solid rgba(255, 255, 255, 0.08) !important;
+        border-radius: 18px !important;
+        box-shadow: 0 16px 40px rgba(0, 0, 0, 0.35) !important;
+        padding: 8px !important;
+        gap: 8px !important;
+      }
+      html.dark #cls3741_chat_col .cls3741_input_send_row {
+        align-items: center;
+        min-height: 46px;
+        padding: 0 12px;
+        background: rgba(255, 255, 255, 0.035);
+        border: 1px solid rgba(255, 255, 255, 0.06);
+        border-radius: 12px;
+      }
+      html.dark #cls3741_chat_col .cls3741_chat_textarea {
+        color: #f4f4f5 !important;
+        background: transparent !important;
+        border: none !important;
+        padding: 11px 0 !important;
+        font-size: 14.5px;
+        font-weight: 500;
+      }
+      html.dark #cls3741_chat_col .cls3741_chat_textarea::placeholder {
+        color: #71717a !important;
+      }
+      html.dark #cls3741_chat_col .cls3741_actions_row {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        min-height: 36px;
+        padding: 0 2px;
+      }
+      html.dark #cls3741_voice_composer[data-voice-state="recording"] ~ .cls3741_actions_row,
+      html.dark #cls3741_voice_composer[data-voice-state="preview"] ~ .cls3741_actions_row {
+        display: none;
+      }
+      html.dark #cls3741_chat_col .cls3741_tools_group {
+        flex: 1;
+        min-width: 0;
+        gap: 0;
+      }
+      html.dark #cls3741_chat_col .cls3741_tools_expanded {
+        display: flex;
+        align-items: center;
+        flex-wrap: nowrap;
+        gap: 2px;
+        width: 100%;
+      }
+      html.dark #cls3741_chat_col .cls3741_emoji_wrapper { order: 1; }
+      html.dark #cls3741_chat_col #cls3741_attach_btn { order: 2; }
+      html.dark #cls3741_chat_col .cls3741_media_actions { order: 3; }
+      html.dark #cls3741_chat_col .cls3741_divider_tools { order: 4; }
+      html.dark #cls3741_chat_col #open_template { order: 5; }
+      html.dark #cls3741_chat_col #btn_toggle_note { order: 6; }
+      html.dark #cls3741_chat_col .cls3741_flow_send_wrap { order: 7; }
+      html.dark #cls3741_chat_col .cls3741_divider_ai { order: 8; }
+      html.dark #cls3741_chat_col .cls3741_ai_wrap { order: 9; margin-left: auto; }
+      html.dark #cls3741_chat_col .cls3741_tools_group .cls3741_tool_btn,
+      html.dark #cls3741_chat_col .cls3741_tools_group .cls3741_icon_btn {
+        width: 34px;
+        height: 34px;
+        min-width: 34px;
+        padding: 0;
+        border-radius: 10px;
+        color: #a1a1aa !important;
+        background: transparent !important;
+        justify-content: center;
+      }
+      html.dark #cls3741_chat_col .cls3741_tools_group .cls3741_tool_btn:hover,
+      html.dark #cls3741_chat_col .cls3741_tools_group .cls3741_icon_btn:hover {
+        background: rgba(255, 255, 255, 0.07) !important;
+        color: #fafafa !important;
+      }
+      html.dark #cls3741_chat_col #btn_toggle_note svg { stroke: #fbbf24; }
+      html.dark #cls3741_chat_col .cls3741_divider {
+        width: 1px;
+        height: 16px;
+        margin: 0 6px;
+        background: rgba(255, 255, 255, 0.12);
+      }
+      html.dark #cls3741_chat_col .ai_assist_btn {
+        width: auto !important;
+        min-width: 0 !important;
+        height: 32px !important;
+        padding: 0 10px !important;
+        gap: 6px;
+        border-radius: 999px !important;
+        background: rgba(124, 58, 237, 0.18) !important;
+        border: 1px solid rgba(167, 139, 250, 0.38) !important;
+        color: #ddd6fe !important;
+      }
+      html.dark #cls3741_chat_col .ai_assist_btn svg { stroke: #c4b5fd; }
+      html.dark #cls3741_chat_col .ai_assist_btn .cls3741_btn_label {
+        display: inline !important;
+        color: #ddd6fe !important;
+        font-size: 12px;
+        font-weight: 650;
+      }
+      html.dark #cls3741_chat_col .ai_assist_btn:hover {
+        background: rgba(124, 58, 237, 0.3) !important;
+        box-shadow: none;
+      }
+      html.dark #cls3741_chat_col .cls3741_send_record_slot {
+        flex-shrink: 0;
+      }
+      html.dark #cls3741_chat_col .cls3741_send_record_slot .cls3741_mobile_record_btn {
+        width: 36px;
+        height: 36px;
+        min-width: 36px;
+        border-radius: 50%;
+        background: rgba(255, 255, 255, 0.06) !important;
+        color: #fafafa !important;
+      }
+      html.dark #cls3741_chat_col .cls3741_send_record_slot .cls3741_mobile_record_btn:hover {
+        background: rgba(255, 255, 255, 0.12) !important;
+      }
+      html.dark #cls3741_chat_col .cls3741_send_button {
+        height: 36px;
+        padding: 0 14px;
+        border-radius: 999px;
+        background: #27272a !important;
+        color: #a1a1aa !important;
+        box-shadow: none;
+      }
+      html.dark #cls3741_chat_col .cls3741_send_button:not([disabled]) {
+        background: #7c3aed !important;
+        color: #ffffff !important;
+        box-shadow: 0 6px 16px rgba(124, 58, 237, 0.35);
+      }
+      html.dark #cls3741_chat_col .cls3741_voice_panel_recording,
+      html.dark #cls3741_chat_col .cls3741_voice_panel_preview {
+        background: #1c1c1f !important;
+        border-color: rgba(255, 255, 255, 0.08) !important;
+        box-shadow: none !important;
+      }
+      html.dark #cls3741_chat_col .cls3741_voice_recording_center { color: #f4f4f5 !important; }
+      html.dark #cls3741_chat_col .cls3741_voice_round_btn {
+        background: #27272a !important;
+        color: #e4e4e7 !important;
+        box-shadow: none !important;
+      }
+
       /* Tailwind-style helpers (voice composer) */
       .transition-all.duration-200 {
         transition: all 200ms ease;
@@ -7605,6 +7409,9 @@ function sendCannedResponseDirectly(item) {
           const result = await response.json();
   
           if (result.success) {
+              if (action === 'pipeline' && typeof window.__setContactPipelineStage === 'function') {
+                  window.__setContactPipelineStage(currentPhone, value);
+              }
               // تحديث الواجهة في حالة التاجات (Tag Removal)
               if (action === 'remove_tag' && element) {
                   element.closest('.tag-badge').remove();
@@ -8961,8 +8768,667 @@ $('#cls3741_attach_btn').on('click', function() {
 </section>
 <!-- END: Chats 3-column layout -->
 
+<section class="cls3741_panel cls3741_panel_statistics" style="display:none; height:100%; overflow:auto;">
+  <style>
+    .cls3741_panel.cls3741_panel_statistics {
+      background:
+        radial-gradient(900px 420px at -10% -20%, rgba(99, 102, 241, 0.28), transparent 55%),
+        radial-gradient(700px 380px at 110% 0%, rgba(16, 185, 129, 0.18), transparent 50%),
+        radial-gradient(600px 320px at 80% 100%, rgba(245, 158, 11, 0.12), transparent 45%),
+        #0b1020 !important;
+      color: #e8eefc !important;
+    }
+    .cls3741_panel.cls3741_panel_statistics .adstat-page {
+      padding: 28px 32px 48px;
+      max-width: 1120px;
+      margin: 0 auto;
+      background: transparent !important;
+      color: #e8eefc !important;
+    }
+    .cls3741_panel.cls3741_panel_statistics .adstat-head {
+      display: flex;
+      align-items: flex-end;
+      justify-content: space-between;
+      gap: 18px;
+      flex-wrap: wrap;
+      margin-bottom: 22px;
+    }
+    .cls3741_panel.cls3741_panel_statistics .adstat-kicker {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      margin: 0 0 8px;
+      padding: 4px 10px;
+      border-radius: 999px;
+      background: rgba(129, 140, 248, 0.16) !important;
+      color: #c7d2fe !important;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+    }
+    .cls3741_panel.cls3741_panel_statistics .adstat-kicker i { color: #a5b4fc !important; }
+    .cls3741_panel.cls3741_panel_statistics .adstat-head h2 {
+      margin: 0 0 6px;
+      font-size: 1.7rem;
+      font-weight: 750;
+      letter-spacing: -0.03em;
+      color: #f8fafc !important;
+    }
+    .cls3741_panel.cls3741_panel_statistics .adstat-head p {
+      margin: 0;
+      max-width: 560px;
+      font-size: 0.92rem;
+      line-height: 1.5;
+      color: #94a3b8 !important;
+    }
+    .cls3741_panel.cls3741_panel_statistics .adstat-range-wrap {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-end;
+      gap: 10px;
+    }
+    .cls3741_panel.cls3741_panel_statistics .adstat-custom {
+      display: flex;
+      align-items: flex-end;
+      gap: 8px;
+      padding: 8px;
+      border-radius: 14px;
+      background: rgba(15, 23, 42, 0.72) !important;
+      border: 1px solid rgba(148, 163, 184, 0.18);
+    }
+    .cls3741_panel.cls3741_panel_statistics .adstat-custom[hidden] { display: none !important; }
+    .cls3741_panel.cls3741_panel_statistics .adstat-custom label {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      color: #94a3b8 !important;
+    }
+    .cls3741_panel.cls3741_panel_statistics .adstat-custom input[type="date"] {
+      border: 1px solid rgba(148, 163, 184, 0.28);
+      background: #0f172a !important;
+      color: #f8fafc !important;
+      border-radius: 10px;
+      padding: 7px 8px;
+      font-size: 13px;
+      color-scheme: dark;
+    }
+    .cls3741_panel.cls3741_panel_statistics .adstat-apply {
+      border: 0;
+      border-radius: 10px;
+      padding: 8px 12px;
+      font-size: 12px;
+      font-weight: 800;
+      cursor: pointer;
+      background: linear-gradient(135deg, #6366f1, #8b5cf6) !important;
+      color: #fff !important;
+    }
+    .cls3741_panel.cls3741_panel_statistics .adstat-ranges {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+      gap: 6px;
+      padding: 5px;
+      border-radius: 18px;
+      background: rgba(15, 23, 42, 0.72) !important;
+      border: 1px solid rgba(148, 163, 184, 0.18);
+    }
+    .cls3741_panel.cls3741_panel_statistics .adstat-range {
+      border: 0;
+      background: transparent !important;
+      color: #cbd5e1 !important;
+      border-radius: 999px;
+      padding: 8px 14px;
+      font-size: 12px;
+      font-weight: 700;
+      cursor: pointer;
+    }
+    .cls3741_panel.cls3741_panel_statistics .adstat-range.is-active {
+      background: linear-gradient(135deg, #6366f1, #8b5cf6) !important;
+      color: #fff !important;
+      box-shadow: 0 8px 18px rgba(99, 102, 241, 0.35);
+    }
+    .cls3741_panel.cls3741_panel_statistics .adstat-cards {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 14px;
+      margin-bottom: 18px;
+    }
+    .cls3741_panel.cls3741_panel_statistics .adstat-card {
+      position: relative;
+      overflow: hidden;
+      border: 0 !important;
+      border-radius: 18px;
+      padding: 16px 16px 14px;
+      min-height: 118px;
+      box-shadow: 0 16px 30px rgba(2, 6, 23, 0.28);
+    }
+    .cls3741_panel.cls3741_panel_statistics .adstat-card::after {
+      content: "";
+      position: absolute;
+      width: 90px;
+      height: 90px;
+      right: -18px;
+      top: -24px;
+      border-radius: 50%;
+      background: rgba(255, 255, 255, 0.16);
+    }
+    .cls3741_panel.cls3741_panel_statistics .adstat-card.is-orders { background: linear-gradient(145deg, #4f46e5, #7c3aed) !important; }
+    .cls3741_panel.cls3741_panel_statistics .adstat-card.is-messages { background: linear-gradient(145deg, #0284c7, #06b6d4) !important; }
+    .cls3741_panel.cls3741_panel_statistics .adstat-card.is-chats { background: linear-gradient(145deg, #d97706, #f59e0b) !important; }
+    .cls3741_panel.cls3741_panel_statistics .adstat-card.is-rate { background: linear-gradient(145deg, #059669, #34d399) !important; }
+    .cls3741_panel.cls3741_panel_statistics .adstat-card .adstat-label,
+    .cls3741_panel.cls3741_panel_statistics .adstat-card strong,
+    .cls3741_panel.cls3741_panel_statistics .adstat-card i {
+      position: relative;
+      z-index: 1;
+      color: #fff !important;
+    }
+    .cls3741_panel.cls3741_panel_statistics .adstat-card .adstat-label {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 12px;
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      color: rgba(255, 255, 255, 0.88) !important;
+    }
+    .cls3741_panel.cls3741_panel_statistics .adstat-card strong {
+      display: block;
+      font-size: 2rem;
+      line-height: 1;
+      font-weight: 750;
+      letter-spacing: -0.04em;
+    }
+    .cls3741_panel.cls3741_panel_statistics .adstat-board {
+      border-radius: 18px;
+      overflow: auto;
+      background: rgba(15, 23, 42, 0.78) !important;
+      border: 1px solid rgba(148, 163, 184, 0.16);
+      box-shadow: 0 18px 40px rgba(2, 6, 23, 0.25);
+    }
+    .cls3741_panel.cls3741_panel_statistics .adstat-table {
+      width: 100%;
+      border-collapse: collapse;
+      min-width: 760px;
+      background: transparent !important;
+    }
+    .cls3741_panel.cls3741_panel_statistics .adstat-table th,
+    .cls3741_panel.cls3741_panel_statistics .adstat-table td {
+      padding: 14px 16px;
+      text-align: left;
+      border-bottom: 1px solid rgba(148, 163, 184, 0.12) !important;
+      font-size: 13px;
+      color: #e2e8f0 !important;
+      background: transparent !important;
+    }
+    .cls3741_panel.cls3741_panel_statistics .adstat-table th {
+      font-size: 11px;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: #94a3b8 !important;
+      font-weight: 700;
+      background: rgba(30, 41, 59, 0.65) !important;
+    }
+    .cls3741_panel.cls3741_panel_statistics .adstat-table tbody tr:hover td {
+      background: rgba(99, 102, 241, 0.08) !important;
+    }
+    .cls3741_panel.cls3741_panel_statistics .adstat-table tr:last-child td { border-bottom: 0 !important; }
+    .cls3741_panel.cls3741_panel_statistics .adstat-source {
+      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+      font-weight: 700;
+      color: #c4b5fd !important;
+    }
+    .cls3741_panel.cls3741_panel_statistics .adstat-id {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      max-width: 100%;
+    }
+    .cls3741_panel.cls3741_panel_statistics .adstat-copy {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 28px;
+      height: 28px;
+      padding: 0;
+      border: 1px solid rgba(165, 180, 252, 0.35);
+      border-radius: 9px;
+      background: rgba(99, 102, 241, 0.18) !important;
+      color: #c4b5fd !important;
+      cursor: pointer;
+      opacity: 0;
+      transform: translateX(-4px);
+      transition: opacity 0.16s ease, transform 0.16s ease, background 0.16s ease, color 0.16s ease;
+    }
+    .cls3741_panel.cls3741_panel_statistics .adstat-id:hover .adstat-copy,
+    .cls3741_panel.cls3741_panel_statistics .adstat-copy:focus {
+      opacity: 1;
+      transform: none;
+    }
+    .cls3741_panel.cls3741_panel_statistics .adstat-copy:hover {
+      background: #6366f1 !important;
+      color: #fff !important;
+      border-color: #6366f1;
+    }
+    .cls3741_panel.cls3741_panel_statistics .adstat-copy.is-copied {
+      opacity: 1;
+      transform: none;
+      background: rgba(16, 185, 129, 0.22) !important;
+      border-color: rgba(52, 211, 153, 0.5);
+      color: #6ee7b7 !important;
+    }
+    .cls3741_panel.cls3741_panel_statistics .adstat-copy i { font-size: 12px; pointer-events: none; }
+    .cls3741_panel.cls3741_panel_statistics .adstat-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 10px;
+      border-radius: 999px;
+      background: rgba(251, 191, 36, 0.16) !important;
+      color: #fcd34d !important;
+      font-size: 12px;
+      font-weight: 800;
+    }
+    .cls3741_panel.cls3741_panel_statistics .adstat-headline { color: #e2e8f0 !important; }
+    .cls3741_panel.cls3741_panel_statistics .adstat-num { font-variant-numeric: tabular-nums; font-weight: 700; }
+    .cls3741_panel.cls3741_panel_statistics .adstat-rate {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      min-width: 120px;
+    }
+    .cls3741_panel.cls3741_panel_statistics .adstat-rate-track {
+      flex: 1;
+      height: 7px;
+      border-radius: 999px;
+      background: rgba(148, 163, 184, 0.2) !important;
+      overflow: hidden;
+    }
+    .cls3741_panel.cls3741_panel_statistics .adstat-rate-fill {
+      display: block;
+      height: 100%;
+      border-radius: inherit;
+      background: #94a3b8;
+    }
+    .cls3741_panel.cls3741_panel_statistics .adstat-rate.is-good .adstat-rate-fill { background: linear-gradient(90deg, #34d399, #6ee7b7); }
+    .cls3741_panel.cls3741_panel_statistics .adstat-rate.is-mid .adstat-rate-fill { background: linear-gradient(90deg, #f59e0b, #fbbf24); }
+    .cls3741_panel.cls3741_panel_statistics .adstat-rate.is-low .adstat-rate-fill { background: linear-gradient(90deg, #f43f5e, #fb7185); }
+    .cls3741_panel.cls3741_panel_statistics .adstat-rate.is-good .adstat-rate-val { color: #6ee7b7 !important; }
+    .cls3741_panel.cls3741_panel_statistics .adstat-rate.is-mid .adstat-rate-val { color: #fcd34d !important; }
+    .cls3741_panel.cls3741_panel_statistics .adstat-rate.is-low .adstat-rate-val { color: #fda4af !important; }
+    .cls3741_panel.cls3741_panel_statistics .adstat-rate-val {
+      min-width: 42px;
+      font-weight: 800;
+      color: #e2e8f0 !important;
+    }
+    .cls3741_panel.cls3741_panel_statistics .adstat-empty,
+    .cls3741_panel.cls3741_panel_statistics .adstat-error {
+      padding: 36px 16px !important;
+      text-align: center !important;
+      color: #94a3b8 !important;
+    }
+    .cls3741_panel.cls3741_panel_statistics .adstat-note {
+      margin: 12px 4px 0;
+      font-size: 12px;
+      color: #94a3b8 !important;
+    }
+    .cls3741_panel.cls3741_panel_statistics .adstat-team { margin-top: 28px; }
+    .cls3741_panel.cls3741_panel_statistics .adstat-team h3 {
+      margin: 0 0 4px;
+      font-size: 1.25rem;
+      font-weight: 750;
+      color: #f8fafc !important;
+    }
+    .cls3741_panel.cls3741_panel_statistics .adstat-team .adstat-team-sub {
+      margin: 0 0 14px;
+      font-size: 0.9rem;
+      color: #94a3b8 !important;
+    }
+    .cls3741_panel.cls3741_panel_statistics .team-agent {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-weight: 700;
+      color: #f8fafc !important;
+    }
+    .cls3741_panel.cls3741_panel_statistics .team-avatar {
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      background: rgba(99, 102, 241, 0.28) !important;
+      color: #c4b5fd !important;
+      font-size: 12px;
+      font-weight: 800;
+      flex-shrink: 0;
+    }
+    .cls3741_panel.cls3741_panel_statistics .team-blue { color: #93c5fd !important; font-weight: 700; }
+    .cls3741_panel.cls3741_panel_statistics .team-green { color: #6ee7b7 !important; font-weight: 700; }
+    .cls3741_panel.cls3741_panel_statistics .team-yellow { color: #fcd34d !important; font-weight: 700; }
+    .cls3741_panel.cls3741_panel_statistics .team-red { color: #fda4af !important; font-weight: 700; }
+    .cls3741_panel.cls3741_panel_statistics .team-orange { color: #fdba74 !important; font-weight: 700; }
+    .cls3741_panel.cls3741_panel_statistics .team-pill {
+      display: inline-block;
+      padding: 3px 8px;
+      border-radius: 999px;
+      font-size: 12px;
+      font-weight: 800;
+    }
+    .cls3741_panel.cls3741_panel_statistics .team-pill.is-good { background: rgba(59, 130, 246, 0.2) !important; color: #93c5fd !important; }
+    .cls3741_panel.cls3741_panel_statistics .team-pill.is-bad { background: rgba(244, 63, 94, 0.18) !important; color: #fda4af !important; }
+    .cls3741_panel.cls3741_panel_statistics .team-pill.is-deliver { background: rgba(16, 185, 129, 0.18) !important; color: #6ee7b7 !important; }
+    .cls3741_panel.cls3741_panel_statistics .team-pill.is-warn { background: rgba(245, 158, 11, 0.18) !important; color: #fcd34d !important; }
+    .cls3741_panel.cls3741_panel_statistics .adstat-lifecycle { margin-top: 28px; }
+    .cls3741_panel.cls3741_panel_statistics .adstat-lifecycle h3 {
+      margin: 0 0 4px;
+      font-size: 1.25rem;
+      font-weight: 750;
+      color: #f8fafc !important;
+    }
+    .cls3741_panel.cls3741_panel_statistics .adstat-lifecycle .adstat-team-sub { margin-bottom: 14px; }
+    .cls3741_panel.cls3741_panel_statistics .cls3741_lifecycle_container {
+      display: grid;
+      grid-template-columns: repeat(5, minmax(0, 1fr));
+      gap: 12px;
+      margin: 0;
+      padding: 0;
+      overflow: visible;
+    }
+    .cls3741_panel.cls3741_panel_statistics .cls3741_lifecycle_card {
+      min-width: 0;
+      border-radius: 16px;
+      padding: 14px 14px 12px;
+      background: rgba(15, 23, 42, 0.78) !important;
+      border: 1px solid rgba(148, 163, 184, 0.16) !important;
+      border-left-width: 4px !important;
+      box-shadow: 0 12px 28px rgba(2, 6, 23, 0.22);
+      gap: 8px;
+    }
+    .cls3741_panel.cls3741_panel_statistics .cls3741_lifecycle_card:hover {
+      transform: translateY(-2px);
+      border-color: rgba(165, 180, 252, 0.35) !important;
+    }
+    .cls3741_panel.cls3741_panel_statistics .cls3741_lc_header,
+    .cls3741_panel.cls3741_panel_statistics .cls3741_lc_count {
+      color: #f8fafc !important;
+    }
+    .cls3741_panel.cls3741_panel_statistics .cls3741_lc_percent {
+      color: #c4b5fd !important;
+      background: rgba(99, 102, 241, 0.18) !important;
+    }
+    .cls3741_panel.cls3741_panel_statistics .cls3741_lc_metric {
+      color: #94a3b8 !important;
+    }
+    @media (max-width: 900px) {
+      .cls3741_panel.cls3741_panel_statistics .adstat-page { padding: 18px 14px 32px; }
+      .cls3741_panel.cls3741_panel_statistics .adstat-cards { grid-template-columns: 1fr 1fr; }
+      .cls3741_panel.cls3741_panel_statistics .adstat-head { align-items: flex-start; }
+      .cls3741_panel.cls3741_panel_statistics .adstat-range-wrap,
+      .cls3741_panel.cls3741_panel_statistics .adstat-custom { align-items: stretch; width: 100%; }
+      .cls3741_panel.cls3741_panel_statistics .adstat-ranges { justify-content: flex-start; }
+      .cls3741_panel.cls3741_panel_statistics .adstat-copy { opacity: 1; transform: none; }
+      .cls3741_panel.cls3741_panel_statistics .cls3741_lifecycle_container { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    }
+  </style>
+  <div class="adstat-page">
+    <div class="adstat-head">
+      <div>
+        <p class="adstat-kicker"><i class="fas fa-bullseye"></i> Ad performance</p>
+        <h2>Statistics</h2>
+        <p>Orders, messages, and conversion rate for every ad id. Chats that arrive without an ad id are counted as Direct.</p>
+      </div>
+      <div class="adstat-range-wrap">
+      <div class="adstat-ranges" role="tablist" aria-label="Date range">
+        <button type="button" class="adstat-range is-active" data-adstat-range="today">Today</button>
+        <button type="button" class="adstat-range" data-adstat-range="7d">7 days</button>
+        <button type="button" class="adstat-range" data-adstat-range="30d">30 days</button>
+        <button type="button" class="adstat-range" data-adstat-range="90d">90 days</button>
+        <button type="button" class="adstat-range" data-adstat-range="all">All time</button>
+        <button type="button" class="adstat-range" data-adstat-range="custom">Custom</button>
+      </div>
+      <div class="adstat-custom" id="adstat_custom" hidden>
+        <label>From <input type="date" id="adstat_from" aria-label="From date"></label>
+        <label>To <input type="date" id="adstat_to" aria-label="To date"></label>
+        <button type="button" class="adstat-apply" id="adstat_apply">Apply</button>
+      </div>
+      </div>
+    </div>
+    <div class="adstat-cards">
+      <div class="adstat-card is-orders"><div class="adstat-label"><i class="fas fa-box"></i> Orders</div><strong id="adstat_orders">—</strong></div>
+      <div class="adstat-card is-messages"><div class="adstat-label"><i class="fas fa-comment-dots"></i> Messages</div><strong id="adstat_messages">—</strong></div>
+      <div class="adstat-card is-chats"><div class="adstat-label"><i class="fas fa-users"></i> Chats</div><strong id="adstat_conversations">—</strong></div>
+      <div class="adstat-card is-rate"><div class="adstat-label"><i class="fas fa-percent"></i> Conversion</div><strong id="adstat_rate">—</strong></div>
+    </div>
+    <div class="adstat-board">
+      <table class="adstat-table">
+        <thead>
+          <tr>
+            <th>Ad id</th>
+            <th>Headline</th>
+            <th>Messages</th>
+            <th>Chats</th>
+            <th>Orders</th>
+            <th>Conversion</th>
+          </tr>
+        </thead>
+        <tbody id="adstat_tbody">
+          <tr><td class="adstat-empty" colspan="6">Open Statistics to load your ad data.</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="adstat-note">Conversion = customers who placed an order ÷ chats from the same source. Cancelled and returned orders are excluded.</p>
+    <div class="adstat-lifecycle">
+      <p class="adstat-kicker"><i class="fas fa-route"></i> Pipeline</p>
+      <h3>Contact Lifecycle</h3>
+      <p class="adstat-team-sub">Chats created in the selected period. Click a stage to open those contacts.</p>
+      <div class="cls3741_lifecycle_container" id="lifecycle_container">
+        <div class="cls3741_lifecycle_card loading_skeleton"></div>
+        <div class="cls3741_lifecycle_card loading_skeleton"></div>
+        <div class="cls3741_lifecycle_card loading_skeleton"></div>
+      </div>
+    </div>
+    {% include 'teams.html' %}
+  </div>
+  <script>
+  (function () {
+    var currentRange = 'today';
+    var customFrom = '';
+    var customTo = '';
+    window.adstatPeriod = { range: 'today', from: '', to: '' };
 
+    function publishPeriod() {
+      window.adstatPeriod = {
+        range: currentRange,
+        from: currentRange === 'custom' ? customFrom : '',
+        to: currentRange === 'custom' ? customTo : ''
+      };
+    }
 
+    function refreshStatistics(channelId) {
+      publishPeriod();
+      var customBox = document.getElementById('adstat_custom');
+      if (customBox) customBox.hidden = currentRange !== 'custom';
+      loadAdStatistics(channelId, currentRange);
+      if (typeof window.loadTeamStats === 'function') window.loadTeamStats(channelId);
+      if (typeof window.loadLifecycleStats === 'function') {
+        window.loadLifecycleStats(channelId || adstatChannelId());
+      }
+    }
+
+    function adstatChannelId() {
+      return window.currentChannelId || window._activeChannelId || '{{ initial_channel_id|default:"" }}';
+    }
+
+    function esc(value) {
+      return String(value == null ? '' : value).replace(/[&<>"']/g, function (ch) {
+        return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[ch];
+      });
+    }
+
+    function fmtRate(value) {
+      if (value === null || value === undefined || value === '') return '—';
+      return String(value) + '%';
+    }
+
+    function rateClass(value) {
+      if (value === null || value === undefined || value === '') return '';
+      if (value >= 20) return 'is-good';
+      if (value >= 5) return 'is-mid';
+      return 'is-low';
+    }
+
+    function rateCell(value) {
+      var label = fmtRate(value);
+      var width = 0;
+      if (typeof value === 'number' && !isNaN(value)) width = Math.max(0, Math.min(100, value));
+      return '<div class="adstat-rate ' + rateClass(value) + '">' +
+        '<span class="adstat-rate-track"><span class="adstat-rate-fill" style="width:' + width + '%"></span></span>' +
+        '<span class="adstat-rate-val">' + esc(label) + '</span></div>';
+    }
+
+    function setActiveRange(range) {
+      document.querySelectorAll('.adstat-range').forEach(function (btn) {
+        btn.classList.toggle('is-active', btn.getAttribute('data-adstat-range') === range);
+      });
+    }
+
+    async function loadAdStatistics(channelId, range) {
+      var tbody = document.getElementById('adstat_tbody');
+      if (!tbody) return;
+      var activeRange = range || currentRange;
+      currentRange = activeRange;
+      publishPeriod();
+      setActiveRange(activeRange);
+      var cid = channelId || adstatChannelId();
+      if (!cid || cid === 'null' || cid === 'undefined') {
+        tbody.innerHTML = '<tr><td class="adstat-error" colspan="6">Select a WhatsApp channel first.</td></tr>';
+        return;
+      }
+      tbody.innerHTML = '<tr><td class="adstat-empty" colspan="6">Loading…</td></tr>';
+      try {
+        var url = '/discount/whatssapAPI/api/ad-statistics/?channel_id=' + encodeURIComponent(cid) + '&range=' + encodeURIComponent(activeRange);
+        if (activeRange === 'custom') {
+          url += '&from=' + encodeURIComponent(customFrom) + '&to=' + encodeURIComponent(customTo);
+        }
+        var response = await fetch(url, { credentials: 'same-origin' });
+        var data = await response.json();
+        if (!response.ok || !data.success) {
+          throw new Error((data && data.error) || 'Could not load statistics');
+        }
+        var totals = data.totals || {};
+        document.getElementById('adstat_orders').textContent = totals.orders ?? 0;
+        document.getElementById('adstat_messages').textContent = totals.messages ?? 0;
+        document.getElementById('adstat_conversations').textContent = totals.conversations ?? 0;
+        document.getElementById('adstat_rate').textContent = fmtRate(totals.conversion_rate_pct);
+        var rows = data.rows || [];
+        if (!rows.length) {
+          tbody.innerHTML = '<tr><td class="adstat-empty" colspan="6">No messages or orders in this period.</td></tr>';
+          return;
+        }
+        tbody.innerHTML = rows.map(function (row) {
+          var adId = row.ad_source_id || row.source_label || '';
+          var label = row.is_direct
+            ? '<span class="adstat-badge"><i class="fas fa-store"></i> Direct</span>'
+            : '<span class="adstat-id"><span class="adstat-source">' + esc(row.source_label || adId) + '</span>' +
+              '<button type="button" class="adstat-copy" data-copy="' + esc(adId) + '" aria-label="Copy ad id" title="Copy ad id"><i class="far fa-copy"></i></button></span>';
+          var headline = row.is_direct ? 'First message had no ad id' : esc(row.headline || '—');
+          return '<tr>' +
+            '<td>' + label + '</td>' +
+            '<td class="adstat-headline">' + headline + '</td>' +
+            '<td class="adstat-num">' + esc(row.messages || 0) + '</td>' +
+            '<td class="adstat-num">' + esc(row.conversations || 0) + '</td>' +
+            '<td class="adstat-num">' + esc(row.orders || 0) + '</td>' +
+            '<td>' + rateCell(row.conversion_rate_pct) + '</td>' +
+            '</tr>';
+        }).join('');
+      } catch (err) {
+        tbody.innerHTML = '<tr><td class="adstat-error" colspan="6">' + esc(err.message || 'Could not load statistics') + '</td></tr>';
+      }
+    }
+
+    document.querySelectorAll('.adstat-range').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        var next = btn.getAttribute('data-adstat-range');
+        if (next === 'custom') {
+          currentRange = 'custom';
+          setActiveRange('custom');
+          publishPeriod();
+          var customBox = document.getElementById('adstat_custom');
+          if (customBox) customBox.hidden = false;
+          if (customFrom || customTo) refreshStatistics();
+          return;
+        }
+        currentRange = next;
+        refreshStatistics();
+      });
+    });
+
+    var applyBtn = document.getElementById('adstat_apply');
+    if (applyBtn) {
+      applyBtn.addEventListener('click', function () {
+        customFrom = (document.getElementById('adstat_from') || {}).value || '';
+        customTo = (document.getElementById('adstat_to') || {}).value || '';
+        if (!customFrom && !customTo) return;
+        currentRange = 'custom';
+        refreshStatistics();
+      });
+    }
+
+    var adstatBody = document.getElementById('adstat_tbody');
+    if (adstatBody) {
+      adstatBody.addEventListener('click', function (event) {
+        var btn = event.target.closest('.adstat-copy');
+        if (!btn || !adstatBody.contains(btn)) return;
+        var value = btn.getAttribute('data-copy') || '';
+        if (!value) return;
+        var done = function () {
+          btn.classList.add('is-copied');
+          btn.innerHTML = '<i class="fas fa-check"></i>';
+          btn.setAttribute('aria-label', 'Copied');
+          window.setTimeout(function () {
+            btn.classList.remove('is-copied');
+            btn.innerHTML = '<i class="far fa-copy"></i>';
+            btn.setAttribute('aria-label', 'Copy ad id');
+          }, 1200);
+        };
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          navigator.clipboard.writeText(value).then(done).catch(function () {
+            copyAdIdFallback(value);
+            done();
+          });
+        } else {
+          copyAdIdFallback(value);
+          done();
+        }
+      });
+    }
+
+    function copyAdIdFallback(value) {
+      var input = document.createElement('textarea');
+      input.value = value;
+      input.setAttribute('readonly', '');
+      input.style.position = 'fixed';
+      input.style.left = '-9999px';
+      document.body.appendChild(input);
+      input.select();
+      try { document.execCommand('copy'); } catch (e) {}
+      document.body.removeChild(input);
+    }
+
+    window.loadAdStatistics = loadAdStatistics;
+    window.refreshStatistics = refreshStatistics;
+  })();
+  </script>
+</section>
 
   <section class="cls3741_panel cls3741_panel_orders cls3741_orders_panel" style="display: none; padding: 0; height: 100%; overflow: auto; background: var(--panel-gradient);">
     <header class="cls3741_orders_header">
@@ -14656,6 +15122,7 @@ $(document).ready(function() {
 
 .cls3741_panel_dashboard,
 .cls3741_panel_orders,
+.cls3741_panel_statistics,
 .cls3741_panel_products,
 .cls3741_panel_contacts,
 .cls3741_panel_templates,
@@ -16280,6 +16747,34 @@ document.addEventListener("DOMContentLoaded", function() {
       syncSidebarActiveRowHighlight(phoneRaw);
     }
 
+    var PIPELINE_STAGES = {
+      new: { icon: '🆕', label: 'New Chat' },
+      interested: { icon: '🔥', label: 'Interested' },
+      follow_up: { icon: '📅', label: 'Follow Up' },
+      closed: { icon: '✅', label: 'Closed / Won' },
+      rejected: { icon: '❌', label: 'Not Interested' }
+    };
+
+    function pipelineStageMarkup(stage) {
+      var key = (stage || 'new').toString();
+      var info = PIPELINE_STAGES[key] || PIPELINE_STAGES.new;
+      var label = escapeHtml(info.label);
+      return '<span class="cls3741_pipeline_stage" data-label="' + label + '" title="' + label + '" aria-label="' + label + '">' + info.icon + '</span>';
+    }
+
+    window.__setContactPipelineStage = function(phone, stage) {
+      if (!phone) return;
+      function patch(list) {
+        (list || []).forEach(function(c) {
+          if (contactPhonesMatch(c.phone, phone)) c.pipeline_stage = stage || 'new';
+        });
+      }
+      patch(sidebarState.contacts);
+      patch(allContactsData);
+      window.__allContactsData = allContactsData;
+      if (typeof __refreshContactsVirtualList === 'function') __refreshContactsVirtualList();
+    };
+
     function buildContactItemElement(c, kind) {
       const item = document.createElement('div');
       item.className = 'cls3741_contact_item';
@@ -16314,20 +16809,37 @@ document.addEventListener("DOMContentLoaded", function() {
       }
       const avatarSrc = c.profile_picture || 'https://cdn.pixabay.com/photo/2023/02/18/11/00/icon-7797704_640.png';
       const ts = c.timestamp || (kind === 'full' ? 'Now' : '');
+      const stageHtml = pipelineStageMarkup(c.pipeline_stage);
+      const rawName = String(c.name || '').trim();
+      const phoneDigits = String(phoneRaw).replace(/\D/g, '');
+      const nameDigits = rawName.replace(/\D/g, '');
+      const nameIsPhone = !!(
+        rawName && phoneDigits && nameDigits &&
+        (nameDigits === phoneDigits ||
+          (nameDigits.length >= 9 && phoneDigits.length >= 9 && nameDigits.slice(-9) === phoneDigits.slice(-9)))
+      );
+      const personName = (!rawName || nameIsPhone) ? '~' : rawName;
+      const personClass = personName === '~' ? 'cls3741_contact_person is-unnamed' : 'cls3741_contact_person';
       item.innerHTML = `
         <div class="cls3741_contact_avatar">
-            <img src="${avatarSrc}" style="width:100%;height:100%;border-radius:50%;object-fit:cover;">
+            <img src="${avatarSrc}" alt="">
         </div>
         <div class="cls3741_contact_meta">
-            <div class="cls3741_contact_name">${escapeHtml(c.name || c.phone)}</div>
-            <div class="${snippetClass}" data-sidebar-snippet="${escapeHtml(phoneRaw)}" style="font-family:'tajawal', sans-serif;">
-                <span data-sidebar-status-icon="${escapeHtml(phoneRaw)}">${statusIconHTML}</span><span data-sidebar-snippet-text="${escapeHtml(phoneRaw)}">${escapeHtml(c.snippet || '')}</span>
+            <div class="cls3741_contact_topline">
+                <div class="cls3741_contact_name">${escapeHtml(phoneRaw || rawName)}</div>
+                <span data-sidebar-ts="${escapeHtml(phoneRaw)}" class="cls3741_msg_time">${ts}</span>
             </div>
-        </div>
-        <div data-sidebar-meta-wrap="${escapeHtml(phoneRaw)}" style="display:flex; flex-direction:column; align-items:flex-end; gap:4px;">
-             <span data-sidebar-ts="${escapeHtml(phoneRaw)}" class="cls3741_msg_time" style="font-size:10px; color:var(--text-secondary);">${ts}</span>
-             ${needsHumanBadge}
-             <span data-sidebar-badge-wrap="${escapeHtml(phoneRaw)}">${badge}</span>
+            <div class="cls3741_contact_bottomline">
+                <div class="${personClass}">${escapeHtml(personName)}</div>
+                <div class="${snippetClass}" data-sidebar-snippet="${escapeHtml(phoneRaw)}">
+                    <span data-sidebar-status-icon="${escapeHtml(phoneRaw)}">${statusIconHTML}</span><span data-sidebar-snippet-text="${escapeHtml(phoneRaw)}">${escapeHtml(c.snippet || '')}</span>
+                </div>
+                <div class="cls3741_contact_side" data-sidebar-meta-wrap="${escapeHtml(phoneRaw)}">
+                    ${stageHtml}
+                    ${needsHumanBadge}
+                    <span data-sidebar-badge-wrap="${escapeHtml(phoneRaw)}">${badge}</span>
+                </div>
+            </div>
         </div>
     `;
       return item;
@@ -18463,6 +18975,9 @@ async function bootstrapActiveChannelFromStorage() {
 
     if (typeof window.loadTeamStats === 'function') window.loadTeamStats(resolved);
     if (typeof window.loadDashboardData === 'function') window.loadDashboardData(resolved);
+    if (typeof window.loadAdStatistics === 'function' && document.querySelector('.cls3741_panel_statistics') && document.querySelector('.cls3741_panel_statistics').style.display !== 'none') {
+        window.loadAdStatistics(resolved);
+    }
 }
 window.syncActiveChannelUi = syncActiveChannelUi;
 window.bootstrapActiveChannelFromStorage = bootstrapActiveChannelFromStorage;
@@ -18502,6 +19017,10 @@ async function switchChannel(newChannelId) {
         activeEl.setAttribute('aria-selected', 'true');
         var activeDot = activeEl.querySelector('.workspace-active-indicator');
         if (activeDot) activeDot.classList.remove('hidden');
+    }
+
+    if (typeof window.clearOpenChatSelection === 'function') {
+        window.clearOpenChatSelection();
     }
 
     // تنظيف الشات والقائمة الحالية
@@ -18561,6 +19080,9 @@ async function switchChannel(newChannelId) {
 if (typeof window.loadDashboardData === 'function') {
         window.loadDashboardData(newChannelId);
     }
+    if (typeof window.loadAdStatistics === 'function' && document.querySelector('.cls3741_panel_statistics') && document.querySelector('.cls3741_panel_statistics').style.display !== 'none') {
+        window.loadAdStatistics(newChannelId);
+    }
     if (typeof window.reloadAiSalesCopilot === 'function') {
         window.reloadAiSalesCopilot();
     }
@@ -18591,6 +19113,8 @@ if (typeof window.loadDashboardData === 'function') {
 window.switchChannel = switchChannel;
 
 (function initWorkspaceSwitcher() {
+    if (window.__workspaceSwitcherReady) return;
+    window.__workspaceSwitcherReady = true;
     var root = document.getElementById('workspaceSwitcher');
     if (!root) return;
 
@@ -18882,6 +19406,19 @@ async function fetchContactsAndUpdateUIws(wsData = null, loadFromApi = false) {
     }
     window.applySidebarTabFilter = applySidebarTabFilter;
 
+    function syncChatComposerVisibility() {
+      var wrapper = document.querySelector('.cls3741_chat_input_wrapper');
+      if (!wrapper) return;
+      var hasChat = !!(currentPhone && String(currentPhone).trim());
+      wrapper.classList.toggle('is-no-chat', !hasChat);
+    }
+    window.syncChatComposerVisibility = syncChatComposerVisibility;
+    window.clearOpenChatSelection = function() {
+      currentPhone = null;
+      window.currentPhone = null;
+      syncChatComposerVisibility();
+    };
+
     // دالة محسنة لاختيار جهة اتصال
     function onContactSelected(el){
       if (window.matchMedia('(max-width: 768px)').matches) {
@@ -18900,7 +19437,8 @@ async function fetchContactsAndUpdateUIws(wsData = null, loadFromApi = false) {
       window.currentChannelId = channelId;
       window._activeChannelId = channelId;
       lastMessageId = 0;
-      window.currentPhone  = currentPhone 
+      window.currentPhone  = currentPhone
+      syncChatComposerVisibility();
       /* Non-virtual list: toggle selection on live DOM before any refresh */
       if (contactsListEl && !__contactsVirtualList) {
         contactsListEl.querySelectorAll('.cls3741_contact_item').forEach(function (i) {
@@ -19528,9 +20066,17 @@ function contactMatchesTabFilter(c) {
   return true;
 }
 
+function sidebarUnreadRank(c) {
+  var unread = Number(c && c.unread || 0);
+  if (unread > 0 && !isLastMessageFromAgent(c)) return 0;
+  return 1;
+}
+
 function getFilteredSidebarContacts(list) {
   var source = Array.isArray(list) ? list : sidebarState.contacts;
-  return source.filter(contactMatchesTabFilter);
+  return source.filter(contactMatchesTabFilter).sort(function(a, b) {
+    return sidebarUnreadRank(a) - sidebarUnreadRank(b);
+  });
 }
 
 // 2. الدالة المطورة (تقبل كل الفلاتر)
@@ -19925,6 +20471,7 @@ window.loadSidebarContacts = loadSidebarContacts;
       
       currentPhone = normalized;
       window.currentPhone = normalized;
+      syncChatComposerVisibility();
       clearUnreadForOpenedChat(phone || normalized);
       let contactRow = sidebarState.contacts.find(c => contactPhonesMatch(c.phone, phone || normalized));
       if (!contactRow) contactRow = allContactsData.find(c => contactPhonesMatch(c.phone, phone || normalized));
@@ -19961,6 +20508,9 @@ window.loadSidebarContacts = loadSidebarContacts;
         if (chatsRoot && window.matchMedia('(max-width: 768px)').matches) {
           chatsRoot.classList.remove('mobile-show-chat');
         }
+        requestAnimationFrame(function() {
+          applySidebarTabFilter({ filter: 'all', fetch: true });
+        });
       });
     });
 
@@ -19997,6 +20547,8 @@ window.loadSidebarContacts = loadSidebarContacts;
     window.__chatInput = window.__chatInput || {};
     window.__chatInput.setCurrentPhone = function(phone, channelId = null) {
       currentPhone = phone;
+      window.currentPhone = phone || null;
+      syncChatComposerVisibility();
       currentChannelId = channelId;
       if (channelId != null) {
         window.currentChannelId = channelId;
