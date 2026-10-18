@@ -1598,7 +1598,9 @@ def save_incoming_message(msg, message_type, sender=None, channel=None, name=Non
         if str(display_type).lower() == "interactive":
             # Customer tapped a button — show as a normal incoming text bubble.
             display_type = "text"
-        msg_time = message_obj.created_at or message_obj.timestamp or timezone.now()
+        # Prefer the later clock: WhatsApp timestamp can be older than the moment we stored the message.
+        candidates = [t for t in (message_obj.created_at, message_obj.timestamp) if t]
+        msg_time = max(candidates) if candidates else timezone.now()
         msg_payload = {
             "id": message_obj.id,
             "body": message_obj.body,

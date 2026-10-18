@@ -16,8 +16,8 @@ from django.utils import timezone
 from django.core.files.base import ContentFile
 from django.conf import settings
 from django.db import IntegrityError, transaction
-from django.db.models import Max, Q
-from django.db.models.functions import Coalesce
+from django.db.models import Max, Q, F
+from django.db.models.functions import Coalesce, Greatest
 from django.core.paginator import Paginator
 from discount.models import Message, SimpleOrder, Template, Order , Contact, WhatsAppChannel, CustomUser, ChatSession
 from django.contrib.auth.decorators import login_required
@@ -2340,8 +2340,12 @@ def api_contacts2(request):
             .values('sender')\
             .annotate(
                 last_msg_id=Max('id'),
-                # Message.timestamp is the real event time (date and clock).
-                last_msg_time=Max(Coalesce('timestamp', 'created_at')),
+                # Later of WhatsApp time and save time. A message can arrive
+                # with an older WhatsApp timestamp than the moment we stored it.
+                last_msg_time=Max(Greatest(
+                    Coalesce('timestamp', 'created_at'),
+                    Coalesce('created_at', 'timestamp'),
+                )),
                 unread_count=Count('id', filter=Q(is_read=False, is_from_me=False))
             )\
             .order_by('-last_msg_id')
@@ -2408,14 +2412,11 @@ def api_contacts2(request):
         elif read_only:
             conversations = conversations.filter(unread_count=0)
 
-        # Unread customer threads first, then the most recent conversation.
-        conversations = conversations.annotate(
-            has_unread=Case(
-                When(unread_count__gt=0, then=Value(0)),
-                default=Value(1),
-                output_field=IntegerField(),
-            )
-        ).order_by('has_unread', '-last_msg_time', '-last_msg_id')
+        # Last real interaction first. An older unread chat must not sit above a newer reply.
+        conversations = conversations.order_by(
+            F('last_msg_time').desc(nulls_last=True),
+            F('last_msg_id').desc(nulls_last=True),
+        )
 
         # 7. الترقيم (Pagination)
         try:

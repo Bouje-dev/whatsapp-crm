@@ -20806,10 +20806,8 @@ function sidebarActivityAt(c) {
   return isFinite(n) ? n : 0;
 }
 
-/** Unread customer threads first, then everyone else. Inside each group, latest activity first. */
+/** Latest interaction first, using the full date and time. Unread is a badge, not the sort key. */
 function compareSidebarContacts(a, b) {
-  var rank = sidebarUnreadRank(a) - sidebarUnreadRank(b);
-  if (rank) return rank;
   return sidebarActivityAt(b) - sidebarActivityAt(a);
 }
 
