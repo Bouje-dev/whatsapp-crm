@@ -11781,6 +11781,39 @@ $('#cls3741_attach_btn').on('click', function() {
         letter-spacing: -0.02em;
       }
       .cls3741_panel_products .pf-save { margin-left: auto; padding: 0.55rem 1.05rem; white-space: nowrap; }
+      .cls3741_panel_products {
+        display: flex !important;
+        flex-direction: column;
+        overflow: hidden !important;
+        min-height: 0;
+      }
+      .cls3741_panel_products[style*="display: none"] { display: none !important; }
+      .cls3741_panel_products .product-header { flex: 0 0 auto; margin-bottom: 0; }
+      .cls3741_panel_products .product-panel {
+        flex: 1 1 auto;
+        min-height: 0;
+        overflow: auto;
+        width: 100%;
+        box-sizing: border-box;
+      }
+      .cls3741_panel_products .product-form-footer {
+        display: flex;
+        justify-content: flex-end;
+        margin-top: 0.5rem;
+        padding-top: 0.25rem;
+      }
+      .cls3741_panel_products .product-save-dock {
+        display: none;
+        flex: 0 0 auto;
+        justify-content: flex-end;
+        align-items: center;
+        gap: 0.75rem;
+        padding: 0.75rem 1.5rem;
+        border-top: 1px solid rgba(148,163,184,0.18);
+        background: rgba(14,17,24,0.98);
+      }
+      .cls3741_panel_products.is-product-form .product-save-dock { display: flex; }
+      .cls3741_panel_products .product-save-dock .pf-save { min-width: 160px; padding: 0.7rem 1.35rem; }
       .cls3741_panel_products .product-card,
       .cls3741_panel_products .pricing-panel,
       .cls3741_panel_products .copy-panel {
@@ -11931,7 +11964,7 @@ $('#cls3741_attach_btn').on('click', function() {
             <div class="product-form-header">
               <button type="button" id="product_btn_back" class="product-btn-back" aria-label="Back to list"><i class="fas fa-arrow-left"></i> Back to list</button>
               <span id="product_form_heading" class="product-form-heading">New product</span>
-              <button type="submit" id="product_submit_btn" class="btn-submit pf-save">Create Product</button>
+              <button type="submit" id="product_submit_btn" class="btn-submit pf-save" form="product_create_form">Save product</button>
             </div>
             <form id="product_create_form">
               <input type="hidden" name="csrfmiddlewaretoken" value="{{ csrf_token }}">
@@ -12457,6 +12490,10 @@ $('#cls3741_attach_btn').on('click', function() {
                 </div>
               </div>
 
+              <div class="product-form-footer">
+                <button type="submit" class="btn-submit pf-save">Save product</button>
+              </div>
+
             </form>
           </div>
         </div>
@@ -12476,6 +12513,9 @@ $('#cls3741_attach_btn').on('click', function() {
           </div>
         </div>
       </div>
+    </div>
+    <div class="product-save-dock" id="product_save_dock">
+      <button type="submit" class="btn-submit pf-save" form="product_create_form">Save product</button>
     </div>
 
     <script>
@@ -12998,18 +13038,24 @@ $('#cls3741_attach_btn').on('click', function() {
       function showListView() {
         var listView = document.getElementById('product_list_view');
         var formWrap = document.getElementById('product_form_wrap');
+        var section = document.querySelector('.cls3741_panel_products');
         if (listView) listView.style.display = 'block';
         if (formWrap) formWrap.style.display = 'none';
+        if (section) section.classList.remove('is-product-form');
       }
       function showFormView(isEdit) {
         var listView = document.getElementById('product_list_view');
         var formWrap = document.getElementById('product_form_wrap');
         var heading = document.getElementById('product_form_heading');
-        var submitBtn = document.getElementById('product_submit_btn');
+        var section = document.querySelector('.cls3741_panel_products');
         if (listView) listView.style.display = 'none';
         if (formWrap) formWrap.style.display = 'block';
+        if (section) section.classList.add('is-product-form');
         if (heading) heading.textContent = isEdit ? 'Edit product' : 'New product';
-        if (submitBtn) submitBtn.textContent = isEdit ? 'Update Product' : 'Create Product';
+        document.querySelectorAll('.pf-save').forEach(function(b) {
+          b.textContent = isEdit ? 'Save changes' : 'Save product';
+          b.disabled = false;
+        });
       }
 
       function showPreviewFromProduct(p) {
@@ -14195,7 +14241,7 @@ $('#cls3741_attach_btn').on('click', function() {
             if (!parsedUrls || !parsedUrls.length) errs.push('At least one photo or video is required.');
           }
           if (errs.length) {
-            if (errEl) { errEl.innerHTML = errs.join('<br>'); errEl.style.display = 'block'; }
+            if (errEl) { errEl.innerHTML = errs.join('<br>'); errEl.style.display = 'block'; errEl.scrollIntoView({ block: 'nearest' }); }
             return;
           }
           if (offerHidden) offerHidden.value = getOfferTiersAsString();
@@ -14213,7 +14259,7 @@ $('#cls3741_attach_btn').on('click', function() {
           fd.delete('images');
           fd.delete('product_id');
           files.forEach(function(file) { fd.append('images', file); });
-          if (btn) btn.disabled = true;
+          document.querySelectorAll('.pf-save').forEach(function(b) { b.disabled = true; });
           var url = isEdit ? ('/discount/whatssapAPI/api_products/' + editId + '/update/') : '/discount/whatssapAPI/api_products/create/';
           fetch(url, { method: 'POST', body: fd, credentials: 'same-origin', headers: { 'X-CSRFToken': (document.querySelector('input[name="csrfmiddlewaretoken"]') || {}).value || '' } })
             .then(function(r) { return r.json().then(function(j) { return { ok: r.ok, json: j }; }); })
@@ -14240,7 +14286,7 @@ $('#cls3741_attach_btn').on('click', function() {
                 applyProductTypeUI(false);
                 resetCheckoutFormCopyDefaults();
                 setProductCheckoutMethod('hybrid');
-                if (btn) btn.disabled = false;
+                document.querySelectorAll('.pf-save').forEach(function(b) { b.disabled = false; });
                 showListView();
                 loadProductList();
                 if (isEdit && res.json.product_id) {
@@ -14259,7 +14305,7 @@ $('#cls3741_attach_btn').on('click', function() {
               }
             })
             .catch(function() { if (errEl) { errEl.innerHTML = 'Network error. Try again.'; errEl.style.display = 'block'; } })
-            .finally(function() { if (btn) btn.disabled = false; });
+            .finally(function() { document.querySelectorAll('.pf-save').forEach(function(b) { b.disabled = false; }); });
         });
       }
       var productsNavBtn = document.querySelector('.cls3741_btn[data-target="products"]');
