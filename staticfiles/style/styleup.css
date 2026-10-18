@@ -2620,10 +2620,44 @@ position: relative;
     }
 
     .cls3741_msg_meta_inline .cls3741_msg_status {
+      position: relative;
       display: inline-flex;
       align-items: center;
       line-height: 1;
       color: rgba(255, 255, 255, 0.5);
+    }
+
+    .cls3741_msg_status:has(.cls3741_msg_fail_tip) {
+      cursor: help;
+    }
+
+    .cls3741_msg_fail_tip {
+      position: absolute;
+      right: 0;
+      bottom: calc(100% + 8px);
+      width: max-content;
+      max-width: 260px;
+      padding: 8px 10px;
+      border-radius: 8px;
+      background: #111827;
+      color: #fff;
+      font-size: 12px;
+      font-weight: 500;
+      line-height: 1.45;
+      text-align: left;
+      white-space: normal;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.28);
+      opacity: 0;
+      pointer-events: none;
+      transform: translateY(4px);
+      transition: opacity 0.15s ease, transform 0.15s ease;
+      z-index: 40;
+    }
+
+    .cls3741_msg_status:hover .cls3741_msg_fail_tip,
+    .cls3741_msg_status:focus-within .cls3741_msg_fail_tip {
+      opacity: 1;
+      transform: translateY(0);
     }
 
     .cls3741_msg_bubble:not(.me) .cls3741_msg_meta_inline .cls3741_msg_status {

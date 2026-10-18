@@ -29,6 +29,47 @@ def normalize_whatsapp_delivery_status(raw) -> str:
     return "sent"
 
 
+def meta_failure_reason(payload) -> str:
+    """Readable reason from a Graph API error body or a status-webhook errors list."""
+    import json
+
+    data = payload
+    if isinstance(payload, str):
+        text = payload.strip()
+        if not text:
+            return ""
+        try:
+            data = json.loads(text)
+        except Exception:
+            return text[:500]
+    if not isinstance(data, dict):
+        return ""
+
+    items = []
+    err = data.get("error")
+    if isinstance(err, dict):
+        items.append(err)
+    raw_errors = data.get("errors")
+    if isinstance(raw_errors, list):
+        items.extend(item for item in raw_errors if isinstance(item, dict))
+    elif isinstance(raw_errors, dict):
+        items.append(raw_errors)
+
+    parts = []
+    for item in items:
+        details = ""
+        error_data = item.get("error_data")
+        if isinstance(error_data, dict):
+            details = str(error_data.get("details") or "").strip()
+        message = str(item.get("message") or item.get("title") or "").strip()
+        if details:
+            parts.append(details)
+        elif message:
+            parts.append(message)
+    reason = " — ".join(dict.fromkeys(part for part in parts if part))
+    return reason[:500]
+
+
 def status_timestamp_from_meta_webhook(status_dict: dict):
     """Parse Meta status.timestamp (unix seconds, string or number) to aware UTC datetime."""
     ts = (status_dict or {}).get("timestamp")

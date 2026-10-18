@@ -140,6 +140,7 @@ from django.utils import timezone
 from django.db.models import Q
 from ..channel.socket_utils import send_socket
 from discount.whatssapAPI.wa_status import (
+    meta_failure_reason,
     normalize_whatsapp_delivery_status,
     status_timestamp_from_meta_webhook,
 )
@@ -8480,7 +8481,13 @@ def process_message_statuses(statuses, channel=None) :
 
             message.status = status_value
             message.status_timestamp = status_timestamp_from_meta_webhook(status)
-            message.save(update_fields=["status", "status_timestamp"])
+            update_fields = ["status", "status_timestamp"]
+            if status_value == "failed":
+                reason = meta_failure_reason(status)
+                if reason:
+                    message.failure_reason = reason
+                    update_fields.append("failure_reason")
+            message.save(update_fields=update_fields)
 
             if not channel or not getattr(channel, "owner_id", None):
                 continue
@@ -8492,6 +8499,7 @@ def process_message_statuses(statuses, channel=None) :
                 "status": status_value,
                 "phone": message.sender,
                 "channel_id": channel.id if channel else None,
+                "failure_reason": message.failure_reason or "",
             }
             send_socket(
                 "message_status_update",
@@ -9548,20 +9556,42 @@ def send_message_socket(sreciver,  user ,channel_id ,  message, msg_type,
             status_code,
             err_detail[:2000] if err_detail else "",
         )
-        send_socket(
-            "error",
-            {
-                "error": "whatsapp_messages_api_failed",
-                "status": status_code,
-                "details": err_detail,
-            },
-            group_name=group_name,
-        )
+        reason = meta_failure_reason(err_detail) or f"WhatsApp rejected the message ({status_code})."
+        saved_failed_id = None
+        try:
+            failed_row = Message.objects.create(
+                channel=channel,
+                sender=to,
+                is_from_me=True,
+                body=(body or body_text or "")[:4096],
+                status="failed",
+                failure_reason=reason,
+                user=user if user is not None else None,
+                type=media_type or "text",
+                media_type=media_type if media_type not in (None, "", "text", "template") else None,
+            )
+            saved_failed_id = failed_row.id
+        except Exception:
+            logger.exception("Could not store failed outbound message")
+        fail_payload = {
+            "error": "whatsapp_messages_api_failed",
+            "status": status_code,
+            "details": err_detail,
+            "failure_reason": reason,
+            "saved_message_id": saved_failed_id,
+            "body": body or body_text or "",
+            "to": to,
+            "media_type": media_type or "text",
+            "time": timezone.now().strftime("%H:%M"),
+        }
+        send_socket("error", fail_payload, group_name=group_name)
         return {
             "ok": False,
             "error": "whatsapp_messages_api_failed",
             "status": status_code,
             "details": err_detail,
+            "failure_reason": reason,
+            "saved_message_id": saved_failed_id,
         }
 
     snippet = body or ""

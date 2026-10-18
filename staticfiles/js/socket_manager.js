@@ -55,7 +55,7 @@ const ChatSocket = {
     if (data.type === 'send_result') {
         if (data.status && data.status !== 200) {
             const p = data.payload || {};
-            const msg = (p.error || p.details || p.message || JSON.stringify(p)).toString().substring(0, 900);
+            const msg = (p.failure_reason || p.error || p.details || p.message || JSON.stringify(p)).toString().substring(0, 900);
             console.error('send_result failed:', data);
             if (typeof window.showSendErrorchat === 'function') {
                 window.showSendErrorchat({ error: 'Send failed', reason: msg }, {});
@@ -77,8 +77,26 @@ const ChatSocket = {
 
     case 'error': {
         const p = data.payload || data;
-        const msg = (p.error || p.details || p.message || 'Unknown error').toString().substring(0, 900);
+        const reason = (p.failure_reason || '').toString().trim();
+        const msg = (reason || p.details || p.error || p.message || 'Unknown error').toString().substring(0, 900);
         console.error('Socket error event:', p);
+        if (p.saved_message_id && typeof window.appendMessagesws === 'function') {
+            const activePhone = (typeof window.getCurrentChatPhone === 'function') ? window.getCurrentChatPhone() : null;
+            const incoming = String(p.to || '').replace(/\D/g, '');
+            const current = activePhone ? String(activePhone).replace(/\D/g, '') : '';
+            const sameChat = incoming && current && (incoming === current || (incoming.length >= 9 && current.length >= 9 && incoming.slice(-9) === current.slice(-9)));
+            if (sameChat) {
+                window.appendMessagesws([{
+                    id: p.saved_message_id,
+                    body: p.body || '',
+                    type: p.media_type || 'text',
+                    fromMe: true,
+                    status: 'failed',
+                    failure_reason: reason,
+                    time: p.time || '',
+                }]);
+            }
+        }
         if (typeof window.showSendErrorchat === 'function') {
             window.showSendErrorchat({ error: 'Send failed', reason: msg }, {});
         } else {
@@ -206,6 +224,7 @@ const ChatSocket = {
             } else if (!snippetText && payload.media_type) {
                 if (payload.media_type === 'audio') snippetText = '🎤 مقطع صوتي';
                 else if (payload.media_type === 'image') snippetText = '📷 صورة';
+                else if (payload.media_type === 'sticker') snippetText = '🎭 ملصق';
                 else snippetText = '📁 ملف';
             }
 
@@ -274,7 +293,17 @@ const ChatSocket = {
                 );
             }
             if (msgStatusIcon && typeof window.getStatusIconHTML === 'function') {
+                const reason = (payload.failure_reason || '').toString().trim();
                 msgStatusIcon.innerHTML = window.getStatusIconHTML(st || 'sent');
+                if (st === 'failed' && reason) {
+                    msgStatusIcon.setAttribute('title', reason);
+                    const tip = document.createElement('span');
+                    tip.className = 'cls3741_msg_fail_tip';
+                    tip.textContent = reason;
+                    msgStatusIcon.appendChild(tip);
+                } else {
+                    msgStatusIcon.removeAttribute('title');
+                }
             }
 
             const threadPhone = payload.phone || payload.recipient_id || payload.sender || '';
@@ -560,6 +589,14 @@ const ChatSocket = {
      
     
 
+
+        case 'knowledge_gap':
+        case 'knowledge_gap_resolved': {
+            if (typeof window.refreshEscalationActionButton === 'function') {
+                window.refreshEscalationActionButton();
+            }
+            break;
+        }
 
         default:
             console.warn("Unknown message type:", type);

@@ -1,5 +1,5 @@
 {% load static %}
-<link rel="stylesheet" href="{% static 'style/styleup.css' %}?v=7">
+<link rel="stylesheet" href="{% static 'style/styleup.css' %}?v=8">
 <link rel="stylesheet" href="{% static 'style/dashboard-glass.css' %}?v=29">
 <script src="https://cdn.tailwindcss.com"></script>
 <script>
@@ -18228,8 +18228,10 @@ function makeMessageNode(m) {
     const timeHtml = `<span class="cls3741_msg_time">${escapeHtml(m.time)}</span>`;
     
     // تصحيح: إزالة الأقواس [] الزائدة من data-msg-id
+    const failReason = String((m && (m.failure_reason || m.error_reason)) || '').trim();
+    const showFailTip = isMe && String(m.status || '').toLowerCase() === 'failed' && !!failReason;
     const msg_status = isMe ?
-        `<span class="cls3741_msg_status" data-msg-id="${m.id}">${statusIconHTML}</span>` : '';
+        `<span class="cls3741_msg_status" data-msg-id="${m.id}"${showFailTip ? ` title="${escapeHtml(failReason)}"` : ''}>${statusIconHTML}${showFailTip ? `<span class="cls3741_msg_fail_tip">${escapeHtml(failReason)}</span>` : ''}</span>` : '';
     var interactiveCard = parseInteractiveButtonsCard(m);
     if (m.type === 'note') {
         wrapper.className = 'system-log-wrapper animate-fadeIn'; 

@@ -2216,6 +2216,11 @@ class Message(models.Model):
         ('failed', 'Failed')
     ])
     status_timestamp = models.DateTimeField(null=True, blank=True)
+    failure_reason = models.TextField(
+        blank=True,
+        default="",
+        help_text="Why Meta rejected or failed this outbound message. Shown on the failed tick.",
+    )
     type = models.CharField(max_length=50, blank=True, null=True) 
     
     is_internal = models.BooleanField(default=False, help_text="إذا كانت True، لا تظهر للعميل ولا ترسل للواتساب")

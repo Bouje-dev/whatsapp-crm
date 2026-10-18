@@ -675,6 +675,7 @@ def process_message_statuses(statuses):
             if message_id:
                 try:
                     from discount.whatssapAPI.wa_status import (
+                        meta_failure_reason,
                         normalize_whatsapp_delivery_status,
                         status_timestamp_from_meta_webhook,
                     )
@@ -682,7 +683,13 @@ def process_message_statuses(statuses):
                     message = Message.objects.get(message_id=message_id)
                     message.status = normalize_whatsapp_delivery_status(status_value)
                     message.status_timestamp = status_timestamp_from_meta_webhook(status)
-                    message.save(update_fields=["status", "status_timestamp"])
+                    update_fields = ["status", "status_timestamp"]
+                    if message.status == "failed":
+                        reason = meta_failure_reason(status)
+                        if reason:
+                            message.failure_reason = reason
+                            update_fields.append("failure_reason")
+                    message.save(update_fields=update_fields)
                 except Message.DoesNotExist:
                     pass
                     
@@ -1289,6 +1296,26 @@ from django.views.decorators.csrf import csrf_exempt
  
  
 
+def _store_rejected_outbound(channel, to_number, body, res_data, user):
+    """Keep a failed bubble and Meta's rejection text when POST /messages is refused."""
+    from discount.whatssapAPI.wa_status import meta_failure_reason
+
+    reason = meta_failure_reason(res_data) or "WhatsApp rejected the message."
+    try:
+        Message.objects.create(
+            channel=channel,
+            sender=to_number,
+            is_from_me=True,
+            body=(body or "")[:4096],
+            status="failed",
+            failure_reason=reason[:500],
+            user=user if getattr(user, "is_authenticated", False) else None,
+        )
+    except Exception:
+        logger.exception("Could not store rejected outbound message")
+    return reason
+
+
 @csrf_exempt # إذا كنت تستخدمها كـ API خارجي أحياناً
 def send_message(request):
     """
@@ -1384,7 +1411,8 @@ def send_message(request):
 
             if response.status_code not in [200, 201]:
                 print(res_data)
-                return JsonResponse({"error": "Meta API Error", "details": res_data}, status=400)
+                reason = _store_rejected_outbound(channel, to_number, f"[Template: {template_name}]", res_data, request.user)
+                return JsonResponse({"error": "Meta API Error", "details": res_data, "failure_reason": reason}, status=400)
             print('temaplit' , res_data)
             # الحفظ في قاعدة البيانات
             # نستخرج wamid
@@ -1419,7 +1447,8 @@ def send_message(request):
             response = requests.post(url, headers=headers, json=payload)
             res_data = response.json()
             if response.status_code not in [200, 201]:
-                return JsonResponse({"error": "Meta API Error", "details": res_data}, status=400)
+                reason = _store_rejected_outbound(channel, to_number, body[:4096], res_data, request.user)
+                return JsonResponse({"error": "Meta API Error", "details": res_data, "failure_reason": reason}, status=400)
             wamid = res_data.get("messages", [{}])[0].get("id")
             Message.objects.create(
                 channel=channel,
@@ -1631,13 +1660,20 @@ def live_chat_audio_upload(request):
         r = requests.post(msg_url, headers=headers, json=send_payload, timeout=30)
 
         if r.status_code not in (200, 201):
-            try:
-                saved_message.media_file.delete(save=False)
-            except Exception:
-                pass
-            saved_message.delete()
+            from discount.whatssapAPI.wa_status import meta_failure_reason
+            reason = meta_failure_reason(r.text) or f"WhatsApp rejected the message ({r.status_code})."
+            saved_message.status = "failed"
+            saved_message.failure_reason = reason[:500]
+            saved_message.save(update_fields=["status", "failure_reason"])
             return JsonResponse(
-                {"ok": False, "error": "whatsapp_messages_api_failed", "details": r.text, "status": r.status_code},
+                {
+                    "ok": False,
+                    "error": "whatsapp_messages_api_failed",
+                    "details": r.text,
+                    "failure_reason": reason,
+                    "saved_message_id": saved_message.id,
+                    "status": r.status_code,
+                },
                 status=502,
             )
 
@@ -1817,6 +1853,7 @@ def _message_to_chat_dict(m, request):
         "type": out_type,
         "url": media_url,
         "status": status,
+        "failure_reason": (getattr(m, "failure_reason", None) or "") if status == "failed" else "",
         "user": note_author,
         "timestamp": timestamp_str,
         "captions": m.captions,
@@ -6402,7 +6439,7 @@ def api_payment_methods_delete(request, method_id: int):
 def _send_wa_text(channel, to: str, text: str):
     """
     Send a plain-text WhatsApp message via Meta Cloud API.
-    Returns (success: bool, wamid: str | None).
+    Returns (success, wamid, failure_reason). failure_reason is Meta's text when the send is rejected.
     """
     try:
         from discount.services.message_normalize import normalize_outbound_text
@@ -6415,7 +6452,7 @@ def _send_wa_text(channel, to: str, text: str):
         logging.getLogger(__name__).warning(
             "_send_wa_text: channel %s has no credentials", channel.pk
         )
-        return False, None
+        return False, None, "Channel has no WhatsApp credentials."
     api_version = getattr(channel, 'api_version', None) or 'v17.0'
     url = f"https://graph.facebook.com/{api_version}/{phone_id}/messages"
     payload = {
@@ -6437,14 +6474,16 @@ def _send_wa_text(channel, to: str, text: str):
                 wamid = (resp.json().get('messages') or [{}])[0].get('id')
             except Exception:
                 pass
-            return True, wamid
+            return True, wamid, ""
+        from discount.whatssapAPI.wa_status import meta_failure_reason
+        reason = meta_failure_reason(resp.text) or f"WhatsApp rejected the message ({resp.status_code})."
         logging.getLogger(__name__).warning(
-            "_send_wa_text failed: %s %s", resp.status_code, resp.text[:300]
+            "_send_wa_text failed: %s %s", resp.status_code, reason
         )
-        return False, None
+        return False, None, reason
     except Exception as exc:
         logging.getLogger(__name__).exception("_send_wa_text exception: %s", exc)
-        return False, None
+        return False, None, str(exc)[:500]
 
 
 def _persist_outbound_chat_message(
@@ -6455,6 +6494,7 @@ def _persist_outbound_chat_message(
     wa_sent=False,
     wamid=None,
     user=None,
+    failure_reason="",
 ):
     """
     Save an outbound WhatsApp text to the dashboard chat history.
@@ -6471,6 +6511,7 @@ def _persist_outbound_chat_message(
             body=(body or '')[:4096],
             is_from_me=True,
             status='sent' if wa_sent else 'failed',
+            failure_reason="" if wa_sent else (failure_reason or "")[:500],
             type='text',
             message_id=wamid or None,
             user=user,
@@ -6601,7 +6642,7 @@ def api_verify_receipt(request):
         wamid = None
         rejection_message_id = None
         if channel and customer_phone:
-            wa_sent, wamid = _send_wa_text(channel, customer_phone, rejection_text)
+            wa_sent, wamid, fail_reason = _send_wa_text(channel, customer_phone, rejection_text)
             if wa_sent:
                 order.payment_rejection_notice_text = rejection_text
                 order.save(update_fields=['payment_rejection_notice_text'])
@@ -6611,6 +6652,7 @@ def api_verify_receipt(request):
                 rejection_text,
                 wa_sent=wa_sent,
                 wamid=wamid,
+                failure_reason=fail_reason,
                 user=request.user if getattr(request, 'user', None) and request.user.is_authenticated else None,
             )
 
@@ -6814,8 +6856,9 @@ def api_verify_receipt(request):
 
     wa_sent = False
     fulfilment_wamid = None
+    fail_reason = ""
     if channel and customer_phone:
-        wa_sent, fulfilment_wamid = _send_wa_text(channel, customer_phone, fulfilment_text)
+        wa_sent, fulfilment_wamid, fail_reason = _send_wa_text(channel, customer_phone, fulfilment_text)
 
     # ── Persist the outgoing fulfillment message so the dashboard chat
     # can render it as a Telegram-style spoiler bubble for non-owner
@@ -6846,6 +6889,7 @@ def api_verify_receipt(request):
             channel=channel,
             is_from_me=True,
             status='sent' if wa_sent else 'failed',
+            failure_reason="" if wa_sent else (fail_reason or "")[:500],
             type='text',
         )
         if asset_fields:
@@ -6967,13 +7011,14 @@ def api_resolve_support(request):
         rejection_text = get_localized_support_rejection_message(lang_code or 'ar')
         wa_sent = False
         if channel and customer_phone:
-            wa_sent, _wamid = _send_wa_text(channel, customer_phone, rejection_text)
+            wa_sent, _wamid, fail_reason = _send_wa_text(channel, customer_phone, rejection_text)
             _persist_outbound_chat_message(
                 channel,
                 customer_phone,
                 rejection_text,
                 wa_sent=wa_sent,
                 wamid=_wamid,
+                failure_reason=fail_reason,
                 user=request.user if getattr(request, 'user', None) and request.user.is_authenticated else None,
             )
         return JsonResponse({
@@ -7024,8 +7069,9 @@ def api_resolve_support(request):
     )
 
     wa_sent = False
+    fail_reason = ""
     if channel and customer_phone:
-        wa_sent, _support_wamid = _send_wa_text(channel, customer_phone, fulfilment_text)
+        wa_sent, _support_wamid, fail_reason = _send_wa_text(channel, customer_phone, fulfilment_text)
 
     delivery_message_id = None
     try:
@@ -7035,6 +7081,7 @@ def api_resolve_support(request):
             channel=channel,
             is_from_me=True,
             status='sent' if wa_sent else 'failed',
+            failure_reason="" if wa_sent else (fail_reason or "")[:500],
             type='text',
         )
         if asset_fields:
