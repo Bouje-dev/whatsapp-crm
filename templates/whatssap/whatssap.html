@@ -5241,6 +5241,7 @@ function sendCannedResponseDirectly(item) {
         }, { once: true });
     }
     function updateSendBtn() {
+        if (sendBtn.dataset.busy === '1') return;
         var p = products.find(function(x) { return String(x.id) === String(selectedId); });
         sendBtn.disabled = !p || !canSend(p) || !getPhone();
         if (p && canSend(p)) {
@@ -5358,7 +5359,15 @@ function sendCannedResponseDirectly(item) {
         if (!el || el.tagName === 'TEXTAREA') return;
         startEdit(el);
     });
-    sendBtn.addEventListener('click', async function() {
+    function releaseSendBtn() {
+        sendBtn.dataset.busy = '';
+        sendBtn.removeAttribute('aria-busy');
+        updateSendBtn();
+    }
+    sendBtn.addEventListener('click', function(ev) {
+        ev.preventDefault();
+        ev.stopPropagation();
+        if (sendBtn.dataset.busy === '1') return;
         commitEdits();
         var p = productById(selectedId);
         var phone = getPhone();
@@ -5368,41 +5377,68 @@ function sendCannedResponseDirectly(item) {
             return;
         }
         var copy = getCopy(p);
+        var payload = {
+            channel_id: chId,
+            to: phone,
+            product_id: p.id,
+            text: copy.text,
+            header_text: copy.header,
+            footer_text: copy.footer,
+            cta_label: copy.cta
+        };
+        sendBtn.dataset.busy = '1';
+        sendBtn.setAttribute('aria-busy', 'true');
         sendBtn.disabled = true;
         sendBtn.textContent = 'Sending…';
         setStatus('');
-        try {
-            var res = await fetch('/discount/whatssapAPI/api/whatsapp-flows/send-checkout/', {
-                method: 'POST',
-                credentials: 'same-origin',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-CSRFToken': csrf(),
-                    'Accept': 'application/json'
-                },
-                body: JSON.stringify({
-                    channel_id: chId,
-                    to: phone,
-                    product_id: p.id,
-                    text: copy.text,
-                    header_text: copy.header,
-                    footer_text: copy.footer,
-                    cta_label: copy.cta
-                })
-            });
-            var data = {};
-            try { data = await res.json(); } catch (e) {}
-            if (!res.ok || !data.success) {
-                setStatus(data.error || 'Could not send the form.', 'error');
-                updateSendBtn();
+        var controller = (typeof AbortController === 'function') ? new AbortController() : null;
+        var settled = false;
+        function finish(ok, message) {
+            if (settled) return;
+            settled = true;
+            clearTimeout(watchdog);
+            if (!ok) {
+                setStatus(message || 'Could not send the form.', 'error');
+                releaseSendBtn();
                 return;
             }
             setStatus('Form sent.', 'ok');
-            setTimeout(closePanel, 700);
-        } catch (err) {
-            setStatus('Network error.', 'error');
-            updateSendBtn();
+            setTimeout(function() {
+                releaseSendBtn();
+                closePanel();
+            }, 700);
         }
+        var watchdog = setTimeout(function() {
+            if (controller) {
+                try { controller.abort(); } catch (e) {}
+            }
+            finish(false, 'Sending took too long. Check the chat, then try again.');
+        }, 20000);
+        var fetchOpts = {
+            method: 'POST',
+            credentials: 'same-origin',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': csrf(),
+                'Accept': 'application/json'
+            },
+            body: JSON.stringify(payload)
+        };
+        if (controller) fetchOpts.signal = controller.signal;
+        fetch('/discount/whatssapAPI/api/whatsapp-flows/send-checkout/', fetchOpts)
+            .then(function(res) {
+                return res.json().catch(function() { return {}; }).then(function(data) {
+                    return { ok: res.ok, data: data || {} };
+                });
+            })
+            .then(function(result) {
+                if (result.ok && result.data.success) finish(true);
+                else finish(false, (result.data && result.data.error) || 'Could not send the form.');
+            })
+            .catch(function(err) {
+                if (err && err.name === 'AbortError') return;
+                finish(false, 'Network error. The form was not sent.');
+            });
     });
 
     async function postCopy(payload) {
@@ -6451,7 +6487,11 @@ function sendCannedResponseDirectly(item) {
         overflow: hidden;
         animation: ai-panel-in 0.2s ease-out;
       }
-      .wa-flow-send-panel.visible { display: block; }
+      .wa-flow-send-panel.visible {
+        display: flex;
+        flex-direction: column;
+        max-height: min(520px, calc(100vh - 96px));
+      }
       .wa-flow-send-header {
         display: flex;
         align-items: center;
@@ -6479,7 +6519,13 @@ function sendCannedResponseDirectly(item) {
         line-height: 1;
       }
       .wa-flow-send-close:hover { background: rgba(255,255,255,0.35); }
-      .wa-flow-send-body { padding: 12px 14px 14px; }
+      .wa-flow-send-body {
+        padding: 12px 14px 14px;
+        display: flex;
+        flex-direction: column;
+        min-height: 0;
+        overflow: hidden;
+      }
       .wa-flow-send-search {
         width: 100%;
         padding: 8px 12px;
@@ -6492,7 +6538,8 @@ function sendCannedResponseDirectly(item) {
       }
       .wa-flow-send-search:focus { border-color: #2563eb; }
       .wa-flow-send-list {
-        max-height: 180px;
+        max-height: 132px;
+        flex: 0 1 auto;
         overflow-y: auto;
         display: flex;
         flex-direction: column;
@@ -6526,7 +6573,9 @@ function sendCannedResponseDirectly(item) {
       }
       .wa-flow-send-preview {
         margin-top: 10px;
-        min-height: 88px;
+        min-height: 0;
+        flex: 1 1 auto;
+        overflow: auto;
       }
       .wa-flow-mock {
         background: #e5ddd5;
@@ -6617,6 +6666,7 @@ function sendCannedResponseDirectly(item) {
         flex-wrap: wrap;
         gap: 8px;
         margin-top: 10px;
+        flex: 0 0 auto;
       }
       .wa-flow-send-submit {
         flex: 1 1 100%;

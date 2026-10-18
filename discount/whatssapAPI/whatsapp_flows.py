@@ -285,6 +285,31 @@ def _find_flow_id_by_name(channel, headers, waba_id, name):
     return ""
 
 
+def _meta_error_text(data, raw="", fallback="Could not create the WhatsApp form"):
+    err = data.get("error") if isinstance(data, dict) else {}
+    if not isinstance(err, dict):
+        err = {}
+    text = str(err.get("error_user_msg") or err.get("error_user_title") or err.get("message") or "").strip()
+    if not text and raw:
+        raw = str(raw).strip()
+        if raw[:1] == "{":
+            try:
+                return _meta_error_text(json.loads(raw), "", fallback)
+            except Exception:
+                text = raw[:300]
+        else:
+            text = raw[:300]
+    low = text.lower()
+    if "integrity" in low:
+        return (
+            "WhatsApp blocked this form for this business account. "
+            "Meta's integrity check has not passed, so the form was not sent."
+        )
+    if "not unique" in low:
+        return "WhatsApp already has a form with this name. Try sending again."
+    return (text or fallback)[:300]
+
+
 def ensure_meta_flow_id(channel, parsed, *, name_suffix, existing_id="", existing_hash=""):
     """Create or update a published WhatsApp Flow. Returns (flow_id, json_hash, error)."""
     flow_json = build_flow_json(parsed)
@@ -318,7 +343,7 @@ def ensure_meta_flow_id(channel, parsed, *, name_suffix, existing_id="", existin
                 logger.warning("WhatsApp Flow create failed: %s %s", res.status_code, res.text)
                 meta_id = _find_flow_id_by_name(channel, headers, waba_id, name)
                 if not meta_id:
-                    return "", json_hash, data.get("error", {}).get("message") or res.text[:300]
+                    return "", json_hash, _meta_error_text(data, res.text)
             else:
                 meta_id = str(data.get("id") or "").strip()
         except Exception as exc:
@@ -340,7 +365,12 @@ def ensure_meta_flow_id(channel, parsed, *, name_suffix, existing_id="", existin
         )
         if res.status_code >= 400:
             logger.warning("WhatsApp Flow upload failed: %s %s", res.status_code, res.text)
-            return meta_id, json_hash, res.text[:300]
+            upload_data = {}
+            try:
+                upload_data = res.json() if res.content else {}
+            except Exception:
+                upload_data = {}
+            return "", json_hash, _meta_error_text(upload_data, res.text, "Could not update the WhatsApp form")
     except Exception as exc:
         logger.exception("WhatsApp Flow upload error")
         return meta_id, json_hash, str(exc)
@@ -506,14 +536,18 @@ def build_outbound_flow_from_parsed(channel, content, sender, *, persist_ai_node
     if parsed["purpose"] == PURPOSE_ORDER and not parsed["product_id"]:
         return None, "Collect order requires a product"
 
+    if persist_ai_node is not None:
+        name_suffix = f"ai_{persist_ai_node.id}"
+    else:
+        name_suffix = f"inbox_{parsed.get('product_id') or 0}"
     meta_id, json_hash, err = ensure_meta_flow_id(
         channel,
         parsed,
-        name_suffix=f"ai_{getattr(persist_ai_node, 'id', 0)}",
+        name_suffix=name_suffix,
         existing_id=parsed.get("meta_flow_id") or "",
         existing_hash=parsed.get("meta_flow_json_hash") or "",
     )
-    if not meta_id:
+    if err or not meta_id:
         return None, err or "Could not create WhatsApp Flow on Meta"
     if persist_ai_node:
         persist_meta_on_ai_node(persist_ai_node, meta_id, json_hash)
