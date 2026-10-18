@@ -229,9 +229,10 @@ admin.site.register(GroupMessages)
 
 from .models import WhatsAppChannel , CannedResponse , Plan, VoiceGalleryEntry, VoiceCloneRequest, BlockedCustomer
 class ChannelAdmin(admin.ModelAdmin):
-    list_display = ('name', 'phone_number', 'phone_number_id', 'business_account_id', 'access_token', 'is_active', 'created_at')
-    search_fields = ('name', 'phone_number', 'phone_number_id', 'business_account_id')
+    list_display = ('name', 'public_id', 'phone_number', 'phone_number_id', 'business_account_id', 'access_token', 'is_active', 'created_at')
+    search_fields = ('name', 'public_id', 'phone_number', 'phone_number_id', 'business_account_id')
     list_filter = ('is_active', 'created_at')
+    readonly_fields = ('public_id',)
 admin.site.register(WhatsAppChannel, ChannelAdmin)
 
 

@@ -1,13 +1,13 @@
 {% load static %}
-<link rel="stylesheet" href="{% static 'style/styleup.css' %}?v=6">
-<link rel="stylesheet" href="{% static 'style/dashboard-glass.css' %}?v=28">
+<link rel="stylesheet" href="{% static 'style/styleup.css' %}?v=7">
+<link rel="stylesheet" href="{% static 'style/dashboard-glass.css' %}?v=29">
 <script src="https://cdn.tailwindcss.com"></script>
 <script>
   tailwind.config = { corePlugins: { preflight: false } };
 </script>
  <div class="current_user_id" id="current_user_id" data-user-id="{{ user.id }}"></div>
 <script src="{% static 'js/whatssap.js' %}"></script>
-<script src="{% static 'js/chat_virtualization.js' %}?v=3"></script>
+<script src="{% static 'js/chat_virtualization.js' %}?v=4"></script>
 <script src="https://browser.sentry-cdn.com/8.35.0/bundle.tracing.min.js" crossorigin="anonymous"></script>
  
 </head>
@@ -108,42 +108,59 @@
     .context-toggle-btn {
         display: flex;
         align-items: center;
-        gap: 8px;
+        gap: 10px;
         width: 100%;
-        padding: 10px 16px;
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        border: none;
-        border-radius: 12px;
-        color: white;
-        font-size: 14px;
-        font-weight: 500;
+        padding: 8px 10px 8px 8px;
+        background: rgba(255, 255, 255, 0.04);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        border-radius: 14px;
+        color: #f4f4f5;
+        font-size: 13px;
+        font-weight: 600;
+        letter-spacing: -0.01em;
         cursor: pointer;
-        transition: all 0.3s ease;
-        box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3);
+        transition: background 0.2s ease, border-color 0.2s ease;
+        box-shadow: none;
     }
-    
+
     .context-toggle-btn:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+        transform: none;
+        background: rgba(255, 255, 255, 0.07);
+        border-color: rgba(192, 132, 252, 0.4);
+        box-shadow: none;
     }
-    
+
+    .context-toggle-btn.is-open {
+        background: rgba(168, 85, 247, 0.14);
+        border-color: rgba(192, 132, 252, 0.5);
+        color: #f5f3ff;
+    }
+
     .context-toggle-btn svg {
         flex-shrink: 0;
+        width: 28px;
+        height: 28px;
+        padding: 5px;
+        border-radius: 9px;
+        background: rgba(168, 85, 247, 0.18);
+        color: #e9d5ff;
+        box-sizing: border-box;
     }
-    
+
     .context-status-indicator {
         margin-left: auto;
         width: 8px;
         height: 8px;
         border-radius: 50%;
-        background-color: #94a3b8;
-        transition: background-color 0.3s ease;
+        background-color: #52525b;
+        transition: background-color 0.2s ease, box-shadow 0.2s ease;
         display: inline-block;
     }
-    
-    .context-status-indicator.active {
-        background-color: #10b981;
-        box-shadow: 0 0 8px rgba(16, 185, 129, 0.5);
+
+    .context-status-indicator.active,
+    .context-toggle-btn.is-open .context-status-indicator {
+        background-color: #c084fc;
+        box-shadow: 0 0 8px rgba(192, 132, 252, 0.75);
     }
     
     /* Context Panel - Dark Theme */
@@ -608,31 +625,26 @@
     </button>
     <div class="cls3741_sidebar_overlay" id="cls3741_sidebar_overlay" aria-hidden="true"></div>
     <!-- sidebar -->
-    <aside class="cls3741_sidebar" role="navigation" aria-label="Sidebar" style="z-index: 100;">
+    <aside class="cls3741_sidebar" role="navigation" aria-label="Sidebar">
       <div class="cls3741_brand">
-        <!-- <div class="cls3741_logo" id="current_channel_logo">
-            {% if active_channel.profile_image %}<img src="{{ active_channel.profile_image.url }}" style="width: 100%; border-radius: 50%;" alt="Channel Logo">
+        <div class="cls3741_logo_wrap">
+          <div class="cls3741_logo" id="current_channel_logo" aria-hidden="true">
+            {% if active_channel.profile_image %}
+              <img src="{{ active_channel.profile_image.url }}" alt="">
             {% else %}
-            {{ active_channel.name|slice:":1"|upper|default:"?" }}
+              {{ active_channel.name|slice:":1"|upper|default:"?" }}
             {% endif %}
-
-            
-        </div> -->
-        
-        <div>
-            <div class="cls3741_title" id="current_channel_name">
-              <span class="cls3741_tooltip">
-                {{ active_channel.name|default:"Select Channel" }}</span>
-            </div>
-            
-            <div class="cls3741_sub" id="current_channel_agents_count">
-                {{ active_channel.assigned_agents.count|default:"0" }} Agents
-            </div> 
+          </div>
+          <span class="cls3741_tooltip" id="cls3741_channel_tooltip">{{ active_channel.name|default:"Select Channel" }}</span>
+        </div>
+        <div class="cls3741_brand_meta">
+            <div class="cls3741_title" id="current_channel_name">{{ active_channel.name|default:"Select Channel" }}</div>
+            <div class="cls3741_sub" id="current_channel_agents_count">{{ active_channel.assigned_agents.count|default:"0" }} Agents</div>
         </div>
     </div>
 
 <nav class="cls3741_nav collapsed" aria-label="Main menu">
-    
+
   <button class="cls3741_btn cls3741_btn_active" data-target="dashboard">
       <i class="fas fa-chart-pie cls3741_icon"></i>
       <span class="cls3741_tooltip">Dashboard</span>
@@ -640,7 +652,7 @@
 
   <button class="cls3741_btn" data-target="chats">
       <i class="fas fa-comments cls3741_icon"></i>
-      <span class="cls3741_badge_dot" id="badge_chats"></span> 
+      <span class="cls3741_badge_dot" id="badge_chats"></span>
       <span class="cls3741_tooltip">Chats</span>
   </button>
 
@@ -659,6 +671,8 @@
       <i class="fas fa-users cls3741_icon"></i>
       <span class="cls3741_tooltip">Contacts</span>
   </button>
+
+  <span class="cls3741_nav_rule" aria-hidden="true"></span>
 
   <button class="cls3741_btn d-none" data-target="campaigns">
       <i class="fas fa-bullhorn cls3741_icon"></i>
@@ -713,6 +727,7 @@
         <div style="margin-top:6px;color:#84e7f0;font-weight:700">متصل</div>
       </div> -->
 
+      <div class="cls3741_sidebar_footer">
       {% if debug or user.is_superuser %}
       <a class="cls3741_btn" href="{% url 'sandbox_lab' %}" title="AI Sandbox" target="_blank" rel="noopener">
         <i class="fas fa-flask cls3741_icon"></i>
@@ -721,13 +736,14 @@
       {% endif %}
       <button class="cls3741_btn" id="btn_open_settings" data-target="settings">
         <i class="fas fa-cog cls3741_icon"></i>
-        <span class="cls3741_tooltip">Settings </span>
+        <span class="cls3741_tooltip">Settings</span>
         </button>
       <a class="cls3741_btn cls3741_btn_logout" href="{% url 'logout' %}" title="Logout">
         <i class="fas fa-sign-out-alt cls3741_icon"></i>
         <span class="cls3741_tooltip">Logout</span>
       </a>
-      
+      </div>
+
     </aside>
 
 
@@ -3985,17 +4001,13 @@ window.resetFilters = function() {
       </div>
       <div class="cls3741_filter_buttons">
         <button class="cls3741_filter_btn active" data-filter="all" title="الكل">
-         
-          <span>all</span>
+          <span>All</span>
         </button>
         <button class="cls3741_filter_btn" data-filter="unread" title="غير مقروء">
-     
-          <span>unread</span>
+          <span>Unread</span>
         </button>
         <button class="cls3741_filter_btn" data-filter="read" title="مقروء">
-       
-          <span>read
-          </span>
+          <span>Read</span>
         </button>  
      
    </div>
@@ -4052,18 +4064,15 @@ window.resetFilters = function() {
       </div>
 
       <div class="cls3741_messages_area" id="cls3741_messages_area" tabindex="0">
-        <div class="flex items-center justify-center" style="
-    display: flex;
-    align-content: space-between;
-    flex-direction: column;
-    justify-content: center;
-    align-items: center;
-    height: 100%;">
-          <img src="https://leadr.space/build/assets/choose-conversation-Cj2zZ2gp.svg" alt="choose a conversation image" class="w-lg">
-        <span >Select a conversation to start chatting</span>
+        <div class="cls3741_chat_empty">
+          <div class="cls3741_chat_empty_mark" aria-hidden="true">
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+            </svg>
+          </div>
+          <h2>Select a conversation</h2>
+          <p>Choose a contact on the left to read the thread and reply.</p>
         </div>
-
-      
       </div>
  <!-- Block customer confirmation modal -->
  <div id="block-customer-modal"
@@ -5568,11 +5577,14 @@ function sendCannedResponseDirectly(item) {
         background: rgba(255, 255, 255, 0.06);
       }
       .cls3741_panel_chats .cls3741_contact_item.cls3741_btn_active {
-        background: rgba(31, 41, 55, 0.8);
-        border-color: transparent;
-        border-left: 4px solid #6366f1;
+        background: rgba(168, 85, 247, 0.14);
+        border-color: rgba(192, 132, 252, 0.32);
+        border-left-color: rgba(192, 132, 252, 0.32);
         box-shadow: none;
-        padding-left: 8px;
+        padding-left: 0.65rem;
+      }
+      .cls3741_panel_chats .cls3741_contact_person.is-unnamed {
+        display: none;
       }
       /* ========== PHONE: Chat input redesign (max-width: 768px) ========== */
       @media (max-width: 768px) {
@@ -7006,6 +7018,121 @@ function sendCannedResponseDirectly(item) {
         color: #a1a1aa;
       }
 
+      .cls3741_chat_col:has(.cls3741_chat_input_wrapper.is-no-chat) .cls3741_chat_header,
+      .cls3741_chat_col:has(.cls3741_chat_input_wrapper.is-no-chat) .cls3741_chat_input_wrapper {
+        display: none;
+      }
+      .cls3741_chat_col:has(.cls3741_chat_input_wrapper.is-no-chat) .cls3741_messages_area {
+        background: #0b0b0e;
+        background-image: none;
+        justify-content: center;
+      }
+      .cls3741_chat_empty {
+        margin: auto;
+        max-width: 280px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        text-align: center;
+        gap: 8px;
+        color: #a1a1aa;
+      }
+      .cls3741_chat_empty_mark {
+        width: 56px;
+        height: 56px;
+        margin-bottom: 6px;
+        border-radius: 18px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: #e9d5ff;
+        background: rgba(168, 85, 247, 0.14);
+        box-shadow: inset 0 0 0 1px rgba(192, 132, 252, 0.35);
+      }
+      .cls3741_chat_empty h2 {
+        margin: 0;
+        font-size: 16px;
+        font-weight: 600;
+        letter-spacing: -0.02em;
+        color: #f4f4f5;
+      }
+      .cls3741_chat_empty p {
+        margin: 0;
+        font-size: 13px;
+        line-height: 1.45;
+        color: #a1a1aa;
+      }
+
+      #cls3741_chat_col .cls3741_chat_header {
+        padding: 12px 16px;
+        background: #101014;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+      }
+      #cls3741_chat_col #cls3741_active_avatar {
+        width: 40px;
+        height: 40px;
+        border-radius: 14px;
+        background: #1c1c22;
+        box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.08);
+        font-size: 13px;
+        font-weight: 700;
+        color: #f4f4f5;
+      }
+      #cls3741_chat_col #cls3741_active_name {
+        font-size: 15px;
+        font-weight: 600;
+        letter-spacing: -0.02em;
+        color: #fafafa;
+      }
+      #cls3741_chat_col #last_seen_ {
+        font-size: 12px;
+        color: #71717a;
+        margin-top: 1px;
+      }
+      #cls3741_chat_col #last_seen_:empty {
+        display: none;
+      }
+      #cls3741_chat_col .cls3741_messages_area {
+        background: #0c0c0f;
+        background-image: none;
+        padding: 20px 22px 12px;
+        gap: 8px;
+      }
+      #cls3741_chat_col .cls3741_msg_bubble {
+        max-width: min(68%, 520px);
+        padding: 8px 12px 6px;
+        border-radius: 16px;
+        box-shadow: none;
+        font-size: 14.5px;
+        line-height: 1.45;
+      }
+      #cls3741_chat_col .cls3741_msg_bubble:hover {
+        transform: none;
+        box-shadow: none;
+      }
+      #cls3741_chat_col .cls3741_msg_bubble:not(.me):not(.wa-int-bubble) {
+        background: #1c1c22;
+        border: 1px solid rgba(255, 255, 255, 0.06);
+        border-bottom-left-radius: 6px;
+      }
+      #cls3741_chat_col .cls3741_msg_bubble.me:not(.wa-int-bubble) {
+        background: #7c3aed;
+        border: none;
+        border-bottom-right-radius: 6px;
+        color: #fff;
+      }
+      #cls3741_chat_col .cls3741_msg_bubble:has(.cls3741_text:empty) {
+        width: fit-content;
+        padding: 6px 10px;
+        border-radius: 12px;
+        background: rgba(255, 255, 255, 0.04);
+        border: 1px solid rgba(255, 255, 255, 0.06);
+      }
+      #cls3741_chat_col .cls3741_msg_bubble:has(.cls3741_text:empty) .cls3741_msg_time {
+        color: #a1a1aa;
+        font-size: 11px;
+      }
+
       /* Composer: dark surface, message field on top, tools along the bottom */
       html.dark #cls3741_chat_col .cls3741_chat_input_wrapper {
         padding: 12px 16px 16px;
@@ -7294,7 +7421,7 @@ function sendCannedResponseDirectly(item) {
                 
                 <!-- ✨ Context Button - NEW -->
                 <div class="crm-actions" style=" position: relative; z-index: 1000;">
-                    <button type="button" class="context-toggle-btn" id="toggle_context_view" onclick="toggleContextView()">
+                    <button type="button" class="context-toggle-btn" id="toggle_context_view" onclick="toggleContextView()" aria-expanded="false">
                         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                             <path d="M12 2L2 7l10 5 10-5-10-5z"></path>
                             <path d="M2 17l10 5 10-5"></path>
@@ -7867,13 +7994,13 @@ document.addEventListener("DOMContentLoaded", function() {
     flex-direction: column;
     align-items: stretch;
     width: 100%;
-    min-height: 69px;
-    max-height: 69px;
-    padding: 30px 20px 20px;
-    background-color: #0a0a0a;
-    border-bottom: 1px solid var(--qs-border);
+    min-height: 0;
+    max-height: none;
+    padding: 12px 14px 10px;
+    background-color: transparent;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
     box-sizing: border-box;
-    overflow: hidden;
+    overflow: visible;
 }
 
 /* Conversation Memory open — section + panel fill the sidebar card */
@@ -7954,20 +8081,21 @@ document.addEventListener("DOMContentLoaded", function() {
 
 /* Orders Section */
 .crm-orders-section {
-    margin-top: 20px;
-    background: rgba(0,0,0,0.2);
-    border-radius: var(--qs-radius);
+    margin-top: 8px;
+    background: rgba(255, 255, 255, 0.02);
+    border-radius: 16px;
     overflow: hidden;
-    border: 1px solid var(--qs-border);
+    border: 1px solid rgba(255, 255, 255, 0.08);
 }
 
 .section-header {
-    background: rgba(255,255,255,0.03);
-    padding: 10px 15px;
-    font-size: 0.85rem;
+    background: transparent;
+    padding: 12px 14px;
+    font-size: 0.8rem;
     font-weight: 600;
-    color: var(--qs-accent);
-    border-bottom: 1px solid var(--qs-border);
+    letter-spacing: -0.01em;
+    color: #e4e4e7;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
 }
 
 .empty-orders-state {
@@ -7980,18 +8108,18 @@ document.addEventListener("DOMContentLoaded", function() {
 
 /* Main CTA Button */
 .create-order-btn-lg {
-    background: var(--qs-accent);
+    background: #7c3aed;
     color: white;
     border: none;
-    padding: 10px 20px;
-    border-radius: 8px;
+    padding: 9px 16px;
+    border-radius: 12px;
     font-weight: 600;
-    font-size: 0.9rem;
+    font-size: 0.85rem;
     cursor: pointer;
-    box-shadow: 0 4px 15px rgba(99, 102, 241, 0.4);
-    transition: transform 0.2s;
+    box-shadow: none;
+    transition: background 0.2s ease;
 }
-.create-order-btn-lg:hover { transform: translateY(-2px); background: var(--qs-accent-hover); }
+.create-order-btn-lg:hover { transform: none; background: #6d28d9; }
 
 /* Back Button for Order Form */
 .back-btn {
@@ -8538,12 +8666,12 @@ document.addEventListener("DOMContentLoaded", function() {
         /* Labels */
         .input-label {
             display: block;
-            font-size: 0.75rem;
+            font-size: 0.7rem;
             font-weight: 600;
             text-transform: uppercase;
-            color: var(--qs-text-muted);
-            margin-bottom: 6px;
-            letter-spacing: 0.5px;
+            color: #a1a1aa;
+            margin-bottom: 8px;
+            letter-spacing: 0.06em;
         }
         
         /* Modern Inputs */
@@ -8953,6 +9081,67 @@ $('#cls3741_attach_btn').on('click', function() {
       border: 1px solid rgba(148, 163, 184, 0.16);
       box-shadow: 0 18px 40px rgba(2, 6, 23, 0.25);
     }
+    .cls3741_panel.cls3741_panel_statistics .adstat-board--ads {
+      overflow: hidden;
+    }
+    .cls3741_panel.cls3741_panel_statistics .adstat-board--ads .adstat-table-scroll {
+      overflow: auto;
+    }
+    .cls3741_panel.cls3741_panel_statistics .adstat-search {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin: 12px;
+      padding: 0 12px;
+      height: 42px;
+      border-radius: 12px;
+      border: 1px solid rgba(148, 163, 184, 0.22);
+      background: rgba(15, 23, 42, 0.55);
+    }
+    .cls3741_panel.cls3741_panel_statistics .adstat-search[hidden] {
+      display: none !important;
+    }
+    .cls3741_panel.cls3741_panel_statistics .adstat-search i {
+      color: #94a3b8;
+      font-size: 13px;
+    }
+    .cls3741_panel.cls3741_panel_statistics .adstat-search input {
+      flex: 1;
+      min-width: 0;
+      border: 0;
+      outline: none;
+      background: transparent;
+      color: #e2e8f0;
+      font-size: 13px;
+      font-weight: 600;
+    }
+    .cls3741_panel.cls3741_panel_statistics .adstat-search input::placeholder {
+      color: #64748b;
+      font-weight: 500;
+    }
+    .cls3741_panel.cls3741_panel_statistics .adstat-more {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: calc(100% - 24px);
+      margin: 4px 12px 12px;
+      height: 40px;
+      border-radius: 12px;
+      border: 1px solid rgba(148, 163, 184, 0.22);
+      background: rgba(15, 23, 42, 0.45);
+      color: #c4b5fd;
+      font-size: 13px;
+      font-weight: 700;
+      cursor: pointer;
+    }
+    .cls3741_panel.cls3741_panel_statistics .adstat-more:hover {
+      background: rgba(99, 102, 241, 0.18);
+      border-color: rgba(165, 180, 252, 0.45);
+      color: #fff;
+    }
+    .cls3741_panel.cls3741_panel_statistics .adstat-more[hidden] {
+      display: none !important;
+    }
     .cls3741_panel.cls3741_panel_statistics .adstat-table {
       width: 100%;
       border-collapse: collapse;
@@ -9208,7 +9397,12 @@ $('#cls3741_attach_btn').on('click', function() {
       <div class="adstat-card is-chats"><div class="adstat-label"><i class="fas fa-users"></i> Chats</div><strong id="adstat_conversations">—</strong></div>
       <div class="adstat-card is-rate"><div class="adstat-label"><i class="fas fa-percent"></i> Conversion</div><strong id="adstat_rate">—</strong></div>
     </div>
-    <div class="adstat-board">
+    <div class="adstat-board adstat-board--ads">
+      <label class="adstat-search" id="adstat_search_wrap" hidden>
+        <i class="fas fa-search" aria-hidden="true"></i>
+        <input type="search" id="adstat_search" placeholder="Search ad id or headline" autocomplete="off" enterkeyhint="search">
+      </label>
+      <div class="adstat-table-scroll">
       <table class="adstat-table">
         <thead>
           <tr>
@@ -9224,6 +9418,8 @@ $('#cls3741_attach_btn').on('click', function() {
           <tr><td class="adstat-empty" colspan="6">Open Statistics to load your ad data.</td></tr>
         </tbody>
       </table>
+      </div>
+      <button type="button" class="adstat-more" id="adstat_more" hidden>Load more</button>
     </div>
     <p class="adstat-note">Conversion = customers who placed an order ÷ chats from the same source. Cancelled and returned orders are excluded.</p>
     <div class="adstat-lifecycle">
@@ -9243,6 +9439,11 @@ $('#cls3741_attach_btn').on('click', function() {
     var currentRange = 'today';
     var customFrom = '';
     var customTo = '';
+    var adstatRows = [];
+    var adstatQuery = '';
+    var adstatLoadedChannel = '';
+    var adstatShown = 5;
+    var ADSTAT_PAGE = 5;
     window.adstatPeriod = { range: 'today', from: '', to: '' };
 
     function publishPeriod() {
@@ -9301,6 +9502,84 @@ $('#cls3741_attach_btn').on('click', function() {
       });
     }
 
+    function rowAdId(row) {
+      return String(row.ad_source_id || row.source_label || '');
+    }
+
+    function rowHeadline(row) {
+      if (row.is_direct) return 'First message had no ad id';
+      return String(row.headline || '');
+    }
+
+    function setAdstatSearchVisible(show) {
+      var wrap = document.getElementById('adstat_search_wrap');
+      if (wrap) wrap.hidden = !show;
+    }
+
+    function setAdstatMore(remaining) {
+      var btn = document.getElementById('adstat_more');
+      if (!btn) return;
+      if (!remaining) {
+        btn.hidden = true;
+        btn.textContent = 'Load more';
+        return;
+      }
+      btn.hidden = false;
+      btn.textContent = 'Load more (' + remaining + ')';
+    }
+
+    function syncAdstatSearch(rowCount) {
+      var show = rowCount > 5;
+      setAdstatSearchVisible(show);
+      if (!show) {
+        adstatQuery = '';
+        var input = document.getElementById('adstat_search');
+        if (input) input.value = '';
+      }
+    }
+
+    function renderAdstatRows(rows, keepCount) {
+      var tbody = document.getElementById('adstat_tbody');
+      if (!tbody) return;
+      if (!keepCount) adstatShown = ADSTAT_PAGE;
+      var query = adstatQuery.trim().toLowerCase();
+      var visible = rows;
+      if (query && rows.length > 5) {
+        visible = rows.filter(function (row) {
+          var haystack = [
+            row.ad_source_id,
+            row.source_label,
+            row.headline,
+            rowHeadline(row)
+          ].join('\n').toLowerCase();
+          return haystack.indexOf(query) !== -1;
+        });
+      }
+      if (!visible.length) {
+        setAdstatMore(0);
+        tbody.innerHTML = '<tr><td class="adstat-empty" colspan="6">No ads match this search.</td></tr>';
+        return;
+      }
+      var slice = visible.slice(0, adstatShown);
+      setAdstatMore(Math.max(0, visible.length - slice.length));
+      tbody.innerHTML = slice.map(function (row) {
+        var adId = rowAdId(row);
+        var label = row.is_direct
+          ? '<span class="adstat-badge"><i class="fas fa-store"></i> Direct</span>'
+          : '<span class="adstat-id"><span class="adstat-source">' + esc(row.source_label || adId) + '</span>' +
+            '<button type="button" class="adstat-copy" data-copy="' + esc(adId) + '" aria-label="Copy ad id" title="Copy ad id"><i class="far fa-copy"></i></button></span>';
+        var headline = row.is_direct ? esc(rowHeadline(row)) : esc(row.headline || '—');
+        return '<tr>' +
+          '<td>' + label + '</td>' +
+          '<td class="adstat-headline">' + headline + '</td>' +
+          '<td class="adstat-num">' + esc(row.messages || 0) + '</td>' +
+          '<td class="adstat-num">' + esc(row.conversations || 0) + '</td>' +
+          '<td class="adstat-num">' + esc(row.orders || 0) + '</td>' +
+          '<td>' + rateCell(row.conversion_rate_pct) + '</td>' +
+          '</tr>';
+      }).join('');
+    }
+
     async function loadAdStatistics(channelId, range) {
       var tbody = document.getElementById('adstat_tbody');
       if (!tbody) return;
@@ -9310,9 +9589,20 @@ $('#cls3741_attach_btn').on('click', function() {
       setActiveRange(activeRange);
       var cid = channelId || adstatChannelId();
       if (!cid || cid === 'null' || cid === 'undefined') {
+        adstatRows = [];
+        setAdstatSearchVisible(false);
+        setAdstatMore(0);
         tbody.innerHTML = '<tr><td class="adstat-error" colspan="6">Select a WhatsApp channel first.</td></tr>';
         return;
       }
+      if (String(cid) !== adstatLoadedChannel) {
+        adstatQuery = '';
+        adstatLoadedChannel = String(cid);
+        var searchInput = document.getElementById('adstat_search');
+        if (searchInput) searchInput.value = '';
+      }
+      setAdstatSearchVisible(false);
+      setAdstatMore(0);
       tbody.innerHTML = '<tr><td class="adstat-empty" colspan="6">Loading…</td></tr>';
       try {
         var url = '/discount/whatssapAPI/api/ad-statistics/?channel_id=' + encodeURIComponent(cid) + '&range=' + encodeURIComponent(activeRange);
@@ -9329,30 +9619,36 @@ $('#cls3741_attach_btn').on('click', function() {
         document.getElementById('adstat_messages').textContent = totals.messages ?? 0;
         document.getElementById('adstat_conversations').textContent = totals.conversations ?? 0;
         document.getElementById('adstat_rate').textContent = fmtRate(totals.conversion_rate_pct);
-        var rows = data.rows || [];
-        if (!rows.length) {
+        adstatRows = data.rows || [];
+        syncAdstatSearch(adstatRows.length);
+        if (!adstatRows.length) {
+          setAdstatMore(0);
           tbody.innerHTML = '<tr><td class="adstat-empty" colspan="6">No messages or orders in this period.</td></tr>';
           return;
         }
-        tbody.innerHTML = rows.map(function (row) {
-          var adId = row.ad_source_id || row.source_label || '';
-          var label = row.is_direct
-            ? '<span class="adstat-badge"><i class="fas fa-store"></i> Direct</span>'
-            : '<span class="adstat-id"><span class="adstat-source">' + esc(row.source_label || adId) + '</span>' +
-              '<button type="button" class="adstat-copy" data-copy="' + esc(adId) + '" aria-label="Copy ad id" title="Copy ad id"><i class="far fa-copy"></i></button></span>';
-          var headline = row.is_direct ? 'First message had no ad id' : esc(row.headline || '—');
-          return '<tr>' +
-            '<td>' + label + '</td>' +
-            '<td class="adstat-headline">' + headline + '</td>' +
-            '<td class="adstat-num">' + esc(row.messages || 0) + '</td>' +
-            '<td class="adstat-num">' + esc(row.conversations || 0) + '</td>' +
-            '<td class="adstat-num">' + esc(row.orders || 0) + '</td>' +
-            '<td>' + rateCell(row.conversion_rate_pct) + '</td>' +
-            '</tr>';
-        }).join('');
+        renderAdstatRows(adstatRows);
       } catch (err) {
+        adstatRows = [];
+        setAdstatSearchVisible(false);
+        setAdstatMore(0);
         tbody.innerHTML = '<tr><td class="adstat-error" colspan="6">' + esc(err.message || 'Could not load statistics') + '</td></tr>';
       }
+    }
+
+    var adstatSearch = document.getElementById('adstat_search');
+    if (adstatSearch) {
+      adstatSearch.addEventListener('input', function () {
+        adstatQuery = adstatSearch.value || '';
+        if (adstatRows.length > 5) renderAdstatRows(adstatRows);
+      });
+    }
+
+    var adstatMore = document.getElementById('adstat_more');
+    if (adstatMore) {
+      adstatMore.addEventListener('click', function () {
+        adstatShown += ADSTAT_PAGE;
+        renderAdstatRows(adstatRows, true);
+      });
     }
 
     document.querySelectorAll('.adstat-range').forEach(function (btn) {
@@ -11420,6 +11716,105 @@ $('#cls3741_attach_btn').on('click', function() {
         background: rgba(56,189,248,0.1); color: #7dd3fc;
         border: 1px solid rgba(56,189,248,0.18);
       }
+
+      /* ── Product editor studio ─────────────────────────────── */
+      .cls3741_panel_products { background: #090b10; }
+      .cls3741_panel_products .product-panel { max-width: 1240px; padding: 1rem 1.25rem 2.5rem; }
+      .cls3741_panel_products .product-panel-layout {
+        grid-template-columns: minmax(0, 1fr) 320px;
+        gap: 1.15rem;
+        align-items: start;
+      }
+      .cls3741_panel_products .product-form-header {
+        position: sticky;
+        top: 0;
+        z-index: 6;
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        margin: 0 0 1rem;
+        padding: 0.65rem 0.75rem;
+        border-radius: 14px;
+        border: 1px solid rgba(148,163,184,0.16);
+        background: rgba(14,17,24,0.92);
+        backdrop-filter: blur(14px);
+        box-shadow: 0 10px 30px rgba(0,0,0,0.28);
+      }
+      .cls3741_panel_products .product-form-heading {
+        flex: 1;
+        min-width: 0;
+        font-size: 1.02rem;
+        font-weight: 700;
+        color: #f8fafc;
+        letter-spacing: -0.02em;
+      }
+      .cls3741_panel_products .pf-save { margin-left: auto; padding: 0.55rem 1.05rem; white-space: nowrap; }
+      .cls3741_panel_products .product-card,
+      .cls3741_panel_products .pricing-panel,
+      .cls3741_panel_products .copy-panel {
+        background: #12161f;
+        border: 1px solid rgba(148,163,184,0.14);
+        border-radius: 16px;
+        box-shadow: none;
+      }
+      .cls3741_panel_products .pricing-panel,
+      .cls3741_panel_products .copy-panel { margin-bottom: 0.85rem; }
+      .cls3741_panel_products .product-card { padding: 1.15rem 1.2rem; margin-bottom: 0.9rem; }
+      .cls3741_panel_products .product-card-title { color: #cbd5e1; letter-spacing: 0.08em; }
+      .cls3741_panel_products .ptype-selector { display: grid; grid-template-columns: 1fr 1fr; gap: 0.65rem; }
+      .cls3741_panel_products .ptype-card {
+        display: grid;
+        grid-template-columns: auto 1fr;
+        column-gap: 0.75rem;
+        row-gap: 0.15rem;
+        align-items: center;
+        text-align: left;
+        padding: 0.85rem 0.95rem;
+        border-radius: 12px;
+        border-width: 1px;
+        background: rgba(255,255,255,0.02);
+      }
+      .cls3741_panel_products .ptype-card .ptype-icon { grid-row: 1 / span 2; font-size: 1.35rem; line-height: 1; }
+      .cls3741_panel_products .ptype-card .ptype-label,
+      .cls3741_panel_products .ptype-card .ptype-desc { grid-column: 2; }
+      .cls3741_panel_products .ptype-label { font-weight: 700; color: #f8fafc; }
+      .cls3741_panel_products .ptype-desc { color: #94a3b8; font-size: 0.75rem; }
+      .cls3741_panel_products .product-preview-card {
+        position: sticky;
+        top: 0.75rem;
+        max-height: calc(100vh - 110px);
+        overflow: auto;
+        align-self: start;
+        border-radius: 16px;
+        background: #12161f;
+        border: 1px solid rgba(148,163,184,0.16);
+        box-shadow: 0 18px 40px rgba(0,0,0,0.28);
+      }
+      .cls3741_panel_products .basic-info-block,
+      .cls3741_panel_products .pricing-option-card,
+      .cls3741_panel_products .persona-sidebar {
+        background: rgba(255,255,255,0.025);
+      }
+      .cls3741_panel_products .form-row,
+      .cls3741_panel_products .basic-info-field {
+        display: flex;
+        flex-direction: column;
+        align-items: stretch;
+        gap: 0.35rem;
+      }
+      .cls3741_panel_products .form-row > input,
+      .cls3741_panel_products .form-row > textarea,
+      .cls3741_panel_products .form-row > select,
+      .cls3741_panel_products .basic-info-field > input,
+      .cls3741_panel_products .basic-info-field > textarea {
+        width: 100%;
+        min-width: 0;
+      }
+      .cls3741_panel_products .aliases-label-row { width: 100%; }
+      @media (max-width: 1024px) {
+        .cls3741_panel_products .product-preview-card { position: static; max-height: none; }
+        .cls3741_panel_products .ptype-selector { grid-template-columns: 1fr; }
+      }
     </style>
 <header class="product-header">
         <div class="product-header-inner">
@@ -11504,6 +11899,7 @@ $('#cls3741_attach_btn').on('click', function() {
             <div class="product-form-header">
               <button type="button" id="product_btn_back" class="product-btn-back" aria-label="Back to list"><i class="fas fa-arrow-left"></i> Back to list</button>
               <span id="product_form_heading" class="product-form-heading">New product</span>
+              <button type="submit" id="product_submit_btn" class="btn-submit pf-save">Create Product</button>
             </div>
             <form id="product_create_form">
               <input type="hidden" name="csrfmiddlewaretoken" value="{{ csrf_token }}">
@@ -11539,6 +11935,7 @@ $('#cls3741_attach_btn').on('click', function() {
                 <!-- Identity -->
                 <div class="basic-info-block">
                   <div class="basic-info-block-label"><i class="fas fa-box-open" aria-hidden="true"></i> Identity</div>
+                  <div class="basic-info-grid-2">
                   <div class="basic-info-field form-row">
                     <label for="product_name">Product name <span class="req">*</span></label>
                     <input type="text" name="name" id="product_name" required placeholder="e.g. Wireless Earbuds X1">
@@ -11548,6 +11945,7 @@ $('#cls3741_attach_btn').on('click', function() {
                     <label for="product_sku">SKU</label>
                     <input type="text" name="sku" id="product_sku" maxlength="100" placeholder="e.g. EARBUDS-X1" autocomplete="off" spellcheck="false">
                     <div class="form-hint">Optional product code for inventory and orders. Leave blank to generate one automatically.</div>
+                  </div>
                   </div>
                   <div class="basic-info-field form-row">
                     <div class="aliases-label-row">
@@ -11560,6 +11958,63 @@ $('#cls3741_attach_btn').on('click', function() {
                   </div>
                 </div>
 
+                <!-- Description & AI persona -->
+                <div class="copy-panel">
+                  <div class="copy-panel-header">
+                    <div>
+                      <p class="copy-panel-title"><i class="fas fa-align-left" aria-hidden="true"></i> Description &amp; sales persona</p>
+                      <p class="copy-panel-sub">Product copy for the AI agent — plus automatic persona detection for the right sales tone.</p>
+                    </div>
+                    <span class="copy-panel-badge"><i class="fas fa-wand-magic-sparkles" aria-hidden="true"></i> AI-powered</span>
+                  </div>
+
+                  <div class="copy-panel-body">
+                    <div class="copy-description-block">
+                      <label for="product_description">Product description <span class="req">*</span></label>
+                      <textarea
+                        name="description"
+                        id="product_description"
+                        class="copy-description-input"
+                        required
+                        rows="5"
+                        placeholder="Highlight key features, benefits, and why customers should buy…"></textarea>
+                      <p class="copy-description-hint">
+                        <i class="fas fa-lightbulb" aria-hidden="true"></i>
+                        <span>A short, accurate description is enough — even a product name like &ldquo;AirPods&rdquo; can be classified instantly.</span>
+                      </p>
+                    </div>
+
+                    <aside class="persona-sidebar" aria-labelledby="persona_sidebar_label">
+                      <div class="persona-sidebar-head">
+                        <span class="persona-sidebar-icon" aria-hidden="true"><i class="fas fa-robot"></i></span>
+                        <div>
+                          <p class="persona-sidebar-label" id="persona_sidebar_label">Detected persona</p>
+                          <p class="persona-sidebar-sublabel">Updates as you type</p>
+                        </div>
+                      </div>
+
+                      <div class="category-ai-field-wrap" id="category_ai_field_wrap">
+                        <input type="text" id="product_category_display" readonly placeholder="Waiting for input…" aria-describedby="category_ai_note">
+                        <i class="fas fa-wand-magic-sparkles category-ai-icon" aria-hidden="true"></i>
+                      </div>
+                      <input type="hidden" name="category" id="product_category" value="">
+
+                      <div class="persona-tags" aria-hidden="true">
+                        <span class="persona-tag">Beauty</span>
+                        <span class="persona-tag">Electronics</span>
+                        <span class="persona-tag">Fragrances</span>
+                        <span class="persona-tag">Fashion</span>
+                        <span class="persona-tag">Health</span>
+                        <span class="persona-tag">General</span>
+                      </div>
+
+                      <p class="persona-sidebar-note" id="category_ai_note">
+                        <i class="fas fa-circle-info" aria-hidden="true"></i>
+                        <span>The AI picks the best-matching sales persona from your product name and description. If unclear, it defaults to General.</span>
+                      </p>
+                    </aside>
+                  </div>
+                </div>
                 <!-- Pricing -->
                 <div class="pricing-panel">
                   <div class="pricing-panel-header">
@@ -11701,63 +12156,6 @@ $('#cls3741_attach_btn').on('click', function() {
                   </div>
                 </div>
 
-                <!-- Description & AI persona -->
-                <div class="copy-panel">
-                  <div class="copy-panel-header">
-                    <div>
-                      <p class="copy-panel-title"><i class="fas fa-align-left" aria-hidden="true"></i> Description &amp; sales persona</p>
-                      <p class="copy-panel-sub">Product copy for the AI agent — plus automatic persona detection for the right sales tone.</p>
-                    </div>
-                    <span class="copy-panel-badge"><i class="fas fa-wand-magic-sparkles" aria-hidden="true"></i> AI-powered</span>
-                  </div>
-
-                  <div class="copy-panel-body">
-                    <div class="copy-description-block">
-                      <label for="product_description">Product description <span class="req">*</span></label>
-                      <textarea
-                        name="description"
-                        id="product_description"
-                        class="copy-description-input"
-                        required
-                        rows="5"
-                        placeholder="Highlight key features, benefits, and why customers should buy…"></textarea>
-                      <p class="copy-description-hint">
-                        <i class="fas fa-lightbulb" aria-hidden="true"></i>
-                        <span>A short, accurate description is enough — even a product name like &ldquo;AirPods&rdquo; can be classified instantly.</span>
-                      </p>
-                    </div>
-
-                    <aside class="persona-sidebar" aria-labelledby="persona_sidebar_label">
-                      <div class="persona-sidebar-head">
-                        <span class="persona-sidebar-icon" aria-hidden="true"><i class="fas fa-robot"></i></span>
-                        <div>
-                          <p class="persona-sidebar-label" id="persona_sidebar_label">Detected persona</p>
-                          <p class="persona-sidebar-sublabel">Updates as you type</p>
-                        </div>
-                      </div>
-
-                      <div class="category-ai-field-wrap" id="category_ai_field_wrap">
-                        <input type="text" id="product_category_display" readonly placeholder="Waiting for input…" aria-describedby="category_ai_note">
-                        <i class="fas fa-wand-magic-sparkles category-ai-icon" aria-hidden="true"></i>
-                      </div>
-                      <input type="hidden" name="category" id="product_category" value="">
-
-                      <div class="persona-tags" aria-hidden="true">
-                        <span class="persona-tag">Beauty</span>
-                        <span class="persona-tag">Electronics</span>
-                        <span class="persona-tag">Fragrances</span>
-                        <span class="persona-tag">Fashion</span>
-                        <span class="persona-tag">Health</span>
-                        <span class="persona-tag">General</span>
-                      </div>
-
-                      <p class="persona-sidebar-note" id="category_ai_note">
-                        <i class="fas fa-circle-info" aria-hidden="true"></i>
-                        <span>The AI picks the best-matching sales persona from your product name and description. If unclear, it defaults to General.</span>
-                      </p>
-                    </aside>
-                  </div>
-                </div>
               </div>
 
               <div class="prod-section" id="section_physical_pricing"><div class="prod-section-inner">
@@ -11894,55 +12292,7 @@ $('#cls3741_attach_btn').on('click', function() {
             </div>
 
               <div class="product-card">
-                <div class="product-card-title">Optional details</div>
-                <div class="prod-section" id="section_physical_delivery"><div class="prod-section-inner">
-                <div class="form-row">
-                  <label>Delivery options</label>
-                  <input type="text" name="delivery_options" id="product_delivery_options" maxlength="500" placeholder="e.g. Free delivery, 30 MAD, Free above 200 MAD">
-                  <div class="form-hint">Shown to customers when they ask about delivery. Leave blank if not set.</div>
-                </div>
-                </div></div>
-                <div class="return-policy-card return-policy--physical-emphasis" id="return_policy_row">
-                  <div class="return-policy-card-header">
-                    <p class="return-policy-card-title">
-                      <i class="fas fa-shield-halved" aria-hidden="true"></i>
-                      Return &amp; Warranty Policy
-                    </p>
-                    <span class="return-policy-badge" id="return_policy_physical_badge">
-                      <i class="fas fa-box" aria-hidden="true"></i> Recommended for physical
-                    </span>
-                  </div>
-                  <p class="return-policy-card-lead">
-                    Define what customers can expect about returns, exchanges, and package inspection.
-                    Leave blank to apply strict default delivery rules.
-                  </p>
-                  <textarea
-                    name="return_policy"
-                    id="product_return_policy"
-                    rows="3"
-                    aria-describedby="return_policy_ai_note"
-                    placeholder="e.g. 7-day returns if unused, or: package must not be opened before payment…"></textarea>
-                  <div class="return-policy-examples" aria-label="Quick examples">
-                    <button type="button" class="return-policy-example" data-policy="7-day returns accepted if the product is unused and in original packaging.">
-                      7-day returns
-                    </button>
-                    <button type="button" class="return-policy-example" data-policy="No opening the package before payment. Inspection is not allowed unless the courier permits it.">
-                      No open before payment
-                    </button>
-                    <button type="button" class="return-policy-example" data-policy="1-year manufacturer warranty. Contact us with your order number for support.">
-                      1-year warranty
-                    </button>
-                  </div>
-                  <p class="return-policy-ai-note" id="return_policy_ai_note">
-                    <i class="fas fa-robot" aria-hidden="true"></i>
-                    <span>The AI sales agent uses this text when customers ask about warranty, returns, or inspecting the product. It will not invent guarantees beyond what you write here.</span>
-                  </p>
-                </div>
-                <div class="form-row">
-                  <label>How to use</label>
-                  <textarea name="how_to_use" id="product_how_to_use" rows="3" placeholder="Usage instructions..."></textarea>
-                </div>
-
+                <div class="product-card-title">Checkout &amp; fulfillment</div>
                 <div class="form-row checkout-mode-wrap">
                   <div class="checkout-mode-label"><i class="fas fa-shopping-cart"></i> Checkout Mode (AI Data Collection)</div>
                   <div class="checkout-mode-options">
@@ -12021,13 +12371,60 @@ $('#cls3741_attach_btn').on('click', function() {
                   </div>
                 </div>
 
+                <div class="prod-section" id="section_physical_delivery"><div class="prod-section-inner">
+                <div class="form-row">
+                  <label>Delivery options</label>
+                  <input type="text" name="delivery_options" id="product_delivery_options" maxlength="500" placeholder="e.g. Free delivery, 30 MAD, Free above 200 MAD">
+                  <div class="form-hint">Shown to customers when they ask about delivery. Leave blank if not set.</div>
+                </div>
+                </div></div>
+                <div class="return-policy-card return-policy--physical-emphasis" id="return_policy_row">
+                  <div class="return-policy-card-header">
+                    <p class="return-policy-card-title">
+                      <i class="fas fa-shield-halved" aria-hidden="true"></i>
+                      Return &amp; Warranty Policy
+                    </p>
+                    <span class="return-policy-badge" id="return_policy_physical_badge">
+                      <i class="fas fa-box" aria-hidden="true"></i> Recommended for physical
+                    </span>
+                  </div>
+                  <p class="return-policy-card-lead">
+                    Define what customers can expect about returns, exchanges, and package inspection.
+                    Leave blank to apply strict default delivery rules.
+                  </p>
+                  <textarea
+                    name="return_policy"
+                    id="product_return_policy"
+                    rows="3"
+                    aria-describedby="return_policy_ai_note"
+                    placeholder="e.g. 7-day returns if unused, or: package must not be opened before payment…"></textarea>
+                  <div class="return-policy-examples" aria-label="Quick examples">
+                    <button type="button" class="return-policy-example" data-policy="7-day returns accepted if the product is unused and in original packaging.">
+                      7-day returns
+                    </button>
+                    <button type="button" class="return-policy-example" data-policy="No opening the package before payment. Inspection is not allowed unless the courier permits it.">
+                      No open before payment
+                    </button>
+                    <button type="button" class="return-policy-example" data-policy="1-year manufacturer warranty. Contact us with your order number for support.">
+                      1-year warranty
+                    </button>
+                  </div>
+                  <p class="return-policy-ai-note" id="return_policy_ai_note">
+                    <i class="fas fa-robot" aria-hidden="true"></i>
+                    <span>The AI sales agent uses this text when customers ask about warranty, returns, or inspecting the product. It will not invent guarantees beyond what you write here.</span>
+                  </p>
+                </div>
+                <div class="form-row">
+                  <label>How to use</label>
+                  <textarea name="how_to_use" id="product_how_to_use" rows="3" placeholder="Usage instructions..."></textarea>
+                </div>
+
                 <div class="form-row">
                   <label>Testimonial — audio / video / image</label>
                   <input type="file" name="testimonial" id="product_testimonial" accept="image/*,audio/*,video/*">
                 </div>
               </div>
 
-              <button type="submit" id="product_submit_btn" class="btn-submit">Create Product</button>
             </form>
           </div>
         </div>
@@ -13857,8 +14254,12 @@ $('#cls3741_attach_btn').on('click', function() {
         <span class="cls3741_contacts_page_icon"><i class="fas fa-address-book"></i></span>
         <div>
           <h2 class="cls3741_contacts_page_title">Contacts</h2>
-          <p class="cls3741_contacts_page_subtitle">Search and manage your channel contacts. Select one to view details.</p>
+          <p class="cls3741_contacts_page_subtitle">Your channel directory. Select a contact, or add people by hand or from a list.</p>
         </div>
+      </div>
+      <div class="cls3741_contacts_page_actions">
+        <button type="button" class="cls3741_btn1 cls3741_btn_secondary" onclick="window.openImportModal()"><i class="fas fa-file-import"></i> Import list</button>
+        <button type="button" class="cls3741_btn1 cls3741_btn_primary" onclick="window.openAddContactModal()"><i class="fas fa-user-plus"></i> Add contact</button>
       </div>
     </div>
   </header>
@@ -13970,12 +14371,24 @@ $(document).ready(function() {
 
       <div class="cls3741_details_panel" id="cls3741_details_panel">
         <div class="cls3741_empty_state" id="cls3741_empty_details">
-          <div class="cls3741_empty_icon">👆</div>
-          <h3 class="cls3741_empty_title">Contacts Directory</h3>
-          <p class="cls3741_empty_text">Select a contact from the list to view details, or add a new one.</p>
+          <div class="cls3741_empty_icon"><i class="fas fa-address-book"></i></div>
+          <h3 class="cls3741_empty_title">Contacts directory</h3>
+          <p class="cls3741_empty_text">Select a contact to view details, or bring people into this channel.</p>
           <div class="cls3741_empty_actions">
-            <button type="button" class="cls3741_btn1 cls3741_btn_secondary" onclick="window.openImportModal()">📤 Import CSV</button>
-            <button type="button" class="cls3741_btn1 cls3741_btn_primary" onclick="window.openAddContactModal()">+ Add Contact</button>
+            <button type="button" class="ct-action" onclick="window.openImportModal()">
+              <span class="ct-action-icon"><i class="fas fa-file-import"></i></span>
+              <span class="ct-action-copy">
+                <strong>Import a phone list</strong>
+                <em>CSV file, or one number per line</em>
+              </span>
+            </button>
+            <button type="button" class="ct-action ct-action-primary" onclick="window.openAddContactModal()">
+              <span class="ct-action-icon"><i class="fas fa-user-plus"></i></span>
+              <span class="ct-action-copy">
+                <strong>Add a contact</strong>
+                <em>Name, phone, and pipeline stage</em>
+              </span>
+            </button>
           </div>
         </div>
 
@@ -14017,16 +14430,17 @@ $(document).ready(function() {
   </div>
 
   <style>
-    .cls3741_panel_contacts { background: var(--panel-gradient); }
-    .cls3741_contacts_page_header { padding: 1.25rem 1.5rem; background: var(--surface-soft); border-bottom: 1px solid var(--border-color); }
-    .cls3741_contacts_page_header_inner { display: flex; align-items: center; justify-content: space-between; }
+    .cls3741_panel_contacts { background: radial-gradient(1200px 480px at 0% -10%, rgba(99,102,241,0.16), transparent 55%), #0b0e14; display: flex; flex-direction: column; }
+    .cls3741_contacts_page_header { padding: 1.1rem 1.35rem; background: rgba(15,18,28,0.72); border-bottom: 1px solid rgba(148,163,184,0.12); backdrop-filter: blur(8px); }
+    .cls3741_contacts_page_header_inner { display: flex; align-items: center; justify-content: space-between; gap: 1rem; flex-wrap: wrap; }
+    .cls3741_contacts_page_actions { display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; }
     .cls3741_contacts_page_title_wrap { display: flex; align-items: center; gap: 0.9rem; }
     .cls3741_contacts_page_icon { width: 42px; height: 42px; display: inline-flex; align-items: center; justify-content: center; background: linear-gradient(135deg, #8b5cf6 0%, #6d28d9 100%); color: #fff; border-radius: 10px; font-size: 1.05rem; }
     .cls3741_contacts_page_title { margin: 0; font-size: 1.25rem; font-weight: 700; color: #f1f5f9; letter-spacing: -0.02em; }
     .cls3741_contacts_page_subtitle { margin: 0.25rem 0 0; font-size: 0.8rem; color: #94a3b8; }
-    .cls3741_contacts_panel { padding: 1.25rem 1.5rem; height: calc(100% - 80px); box-sizing: border-box; }
-    .cls3741_contacts_layout { display: grid; grid-template-columns: 360px 1fr; gap: 1.5rem; max-width: 1200px; margin: 0 auto; height: 100%; min-height: 0; }
-    .cls3741_list_container { background: var(--surface-soft); border: 1px solid var(--border-color); border-radius: 12px; display: flex; flex-direction: column; overflow: hidden; min-height: 0; }
+    .cls3741_contacts_panel { padding: 1rem 1.25rem 1.25rem; flex: 1; min-height: 0; box-sizing: border-box; }
+    .cls3741_contacts_layout { display: grid; grid-template-columns: minmax(320px, 440px) minmax(0, 1fr); gap: 1rem; height: 100%; min-height: 0; }
+    .cls3741_list_container { background: rgba(17,22,34,0.92); border: 1px solid rgba(148,163,184,0.14); border-radius: 16px; display: flex; flex-direction: column; overflow: hidden; min-height: 0; box-shadow: 0 16px 40px rgba(0,0,0,0.22); }
     .cls3741_search_wrapper { padding: 0.85rem 1rem; border-bottom: 1px solid var(--border-color); }
     .cls3741_search_input_group { position: relative; }
     .cls3741_search_icon { position: absolute; left: 0.85rem; top: 50%; transform: translateY(-50%); color: #64748b; font-size: 0.8rem; pointer-events: none; }
@@ -14065,12 +14479,35 @@ $(document).ready(function() {
     .cls3741_page_btn { min-width: 32px; height: 32px; padding: 0 0.5rem; font-size: 0.9rem; font-weight: 500; color: #e2e8f0; background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.08); border-radius: 8px; cursor: pointer; transition: background 0.15s; }
     .cls3741_page_btn:hover:not(:disabled) { background: rgba(255,255,255,0.1); }
     .cls3741_page_btn:disabled { opacity: 0.4; cursor: not-allowed; }
-    .cls3741_details_panel { background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.06); border-radius: 12px; padding: 1.5rem; display: flex; flex-direction: column; align-items: center; text-align: center; overflow-y: auto; min-height: 0; }
-    .cls3741_empty_state { text-align: center; padding: 2rem 1rem; }
-    .cls3741_empty_icon { font-size: 2.5rem; margin-bottom: 1rem; opacity: 0.4; }
-    .cls3741_empty_title { margin: 0 0 0.35rem; font-size: 1.1rem; font-weight: 600; color: #e2e8f0; }
-    .cls3741_empty_text { margin: 0 0 1.25rem; font-size: 0.85rem; color: #94a3b8; }
-    .cls3741_empty_actions { display: flex; flex-wrap: wrap; gap: 0.5rem; justify-content: center; }
+    .cls3741_details_panel { background: rgba(17,22,34,0.92); border: 1px solid rgba(148,163,184,0.14); border-radius: 16px; padding: 1.5rem; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; overflow-y: auto; min-height: 0; box-shadow: 0 16px 40px rgba(0,0,0,0.22); }
+    .cls3741_empty_state { text-align: center; padding: 1.5rem 0.5rem; width: min(100%, 460px); }
+    .cls3741_empty_icon { width: 64px; height: 64px; margin: 0 auto 1rem; border-radius: 18px; display: flex; align-items: center; justify-content: center; font-size: 1.4rem; color: #c4b5fd; background: linear-gradient(160deg, rgba(139,92,246,0.28), rgba(59,130,246,0.12)); border: 1px solid rgba(167,139,250,0.28); }
+    .cls3741_empty_title { margin: 0 0 0.35rem; font-size: 1.25rem; font-weight: 700; color: #f8fafc; letter-spacing: -0.02em; }
+    .cls3741_empty_text { margin: 0 0 1.25rem; font-size: 0.9rem; color: #94a3b8; line-height: 1.45; }
+    .cls3741_empty_actions { display: grid; gap: 0.65rem; }
+    .ct-action { display: flex; align-items: center; gap: 0.85rem; width: 100%; text-align: left; padding: 0.85rem 0.95rem; border-radius: 14px; border: 1px solid rgba(148,163,184,0.16); background: rgba(255,255,255,0.03); color: #e2e8f0; cursor: pointer; transition: border-color .15s, background .15s, transform .12s; }
+    .ct-action:hover { background: rgba(255,255,255,0.06); border-color: rgba(167,139,250,0.45); transform: translateY(-1px); }
+    .ct-action-primary { background: linear-gradient(135deg, rgba(99,102,241,0.22), rgba(59,130,246,0.12)); border-color: rgba(129,140,248,0.35); }
+    .ct-action-icon { width: 40px; height: 40px; border-radius: 12px; display: inline-flex; align-items: center; justify-content: center; background: rgba(15,23,42,0.65); color: #c4b5fd; flex-shrink: 0; }
+    .ct-action-copy { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+    .ct-action-copy strong { font-size: 0.92rem; font-weight: 700; color: #f8fafc; }
+    .ct-action-copy em { font-style: normal; font-size: 0.78rem; color: #94a3b8; }
+    .ct-stage { display: inline-flex; align-items: center; margin-left: 0.35rem; padding: 0.05rem 0.4rem; border-radius: 999px; background: rgba(148,163,184,0.12); color: #cbd5e1; font-size: 0.68rem; font-weight: 600; }
+    .ct-modal[hidden] { display: none !important; }
+    .ct-modal { position: fixed; inset: 0; z-index: 80; display: flex; align-items: center; justify-content: center; padding: 1.25rem; background: rgba(2,6,23,0.72); }
+    .ct-modal-card { width: min(520px, 100%); background: #121722; border: 1px solid rgba(148,163,184,0.18); border-radius: 18px; box-shadow: 0 24px 60px rgba(0,0,0,0.45); padding: 1.15rem 1.2rem 1.2rem; text-align: left; color: #e2e8f0; }
+    .ct-modal-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 0.75rem; margin-bottom: 0.85rem; }
+    .ct-modal-head h3 { margin: 0; font-size: 1.05rem; color: #f8fafc; }
+    .ct-modal-head p { margin: 0.25rem 0 0; font-size: 0.8rem; color: #94a3b8; line-height: 1.4; }
+    .ct-modal-x { border: 0; background: transparent; color: #94a3b8; font-size: 1.1rem; cursor: pointer; padding: 0.15rem 0.35rem; }
+    .ct-field { display: flex; flex-direction: column; gap: 0.3rem; margin-bottom: 0.75rem; }
+    .ct-field span { font-size: 0.75rem; font-weight: 600; color: #94a3b8; letter-spacing: 0.02em; }
+    .ct-field input, .ct-field select, .ct-field textarea { width: 100%; box-sizing: border-box; border-radius: 10px; border: 1px solid rgba(148,163,184,0.2); background: #0c1018; color: #f8fafc; padding: 0.6rem 0.75rem; font-size: 0.9rem; }
+    .ct-field textarea { min-height: 120px; resize: vertical; font-family: ui-monospace, monospace; }
+    .ct-modal-error { margin: 0 0 0.75rem; padding: 0.55rem 0.7rem; border-radius: 10px; background: rgba(127,29,29,0.45); border: 1px solid rgba(248,113,113,0.4); color: #fecaca; font-size: 0.82rem; }
+    .ct-modal-ok { margin: 0 0 0.75rem; padding: 0.55rem 0.7rem; border-radius: 10px; background: rgba(6,78,59,0.45); border: 1px solid rgba(52,211,153,0.35); color: #a7f3d0; font-size: 0.82rem; }
+    .ct-modal-actions { display: flex; justify-content: flex-end; gap: 0.5rem; margin-top: 0.25rem; }
+    .ct-file { font-size: 0.82rem; color: #cbd5e1; }
     .cls3741_contact_detail_content { width: 100%; max-width: 400px; }
     .cls3741_profile_header { margin-bottom: 1.5rem; width: 100%; }
     .cls3741_vip_badge_large { display: none; background: rgba(245, 158, 11, 0.2); color: #fbbf24; padding: 0.35rem 0.75rem; border-radius: 20px; font-size: 0.75rem; font-weight: 700; margin: 0 auto 0.75rem; width: fit-content; border: 1px solid rgba(245, 158, 11, 0.4); }
@@ -14196,23 +14633,35 @@ $(document).ready(function() {
       };
   
       // --- Render List ---
+      function ctEscape(value) {
+          return String(value == null ? '' : value).replace(/[&<>"']/g, function (m) {
+              return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[m];
+          });
+      }
+      const CT_STAGE = {
+          new: 'New',
+          interested: 'Interested',
+          follow_up: 'Follow up',
+          closed: 'Won',
+          rejected: 'Not interested'
+      };
       function renderMainList(contacts) {
           const frag = document.createDocumentFragment();
           contacts.forEach(c => {
               const el = document.createElement('div');
-              // إضافة كلاس VIP إذا كان مهماً
               const vipClass = c.is_important ? 'is_vip' : '';
               const activeClass = (STATE.selectedContactId === c.id) ? 'active' : '';
               
               el.className = `cls3741_contact_card ${vipClass} ${activeClass}`;
               el.onclick = () => selectContact(c, el);
   
-              // الأفاتار
-              const initial = c.name.charAt(0).toUpperCase();
+              const label = c.name || c.phone || '?';
+              const initial = ctEscape(String(label).charAt(0).toUpperCase());
               let avatarHtml = initial;
-              if(c.profile_picture) {
-                  avatarHtml = `<img src="${c.profile_picture}" style="width:100%;height:100%;border-radius:12px;object-fit:cover;">`;
+              if (c.profile_picture) {
+                  avatarHtml = `<img src="${ctEscape(c.profile_picture)}" alt="">`;
               }
+              const stage = CT_STAGE[c.pipeline_stage] ? `<span class="ct-stage">${CT_STAGE[c.pipeline_stage]}</span>` : '';
   
               el.innerHTML = `
                   <div class="cls3741_avatar">
@@ -14221,12 +14670,13 @@ $(document).ready(function() {
                   </div>
                   <div class="cls3741_card_info">
                       <div class="cls3741_card_name">
-                          ${c.name}
-                          ${c.unread > 0 ? `<span class="cls3741_badge">${c.unread}</span>` : ''}
+                          ${ctEscape(label)}
+                          ${stage}
+                          ${c.unread > 0 ? `<span class="cls3741_badge">${ctEscape(c.unread)}</span>` : ''}
                       </div>
                       <div class="cls3741_card_meta">
-                          <span>${c.phone}</span>
-                          <span>${c.timestamp || ''}</span>
+                          <span>${ctEscape(c.phone)}</span>
+                          <span>${ctEscape(c.timestamp || c.last_interaction || '')}</span>
                       </div>
                   </div>
               `;
@@ -14336,9 +14786,104 @@ $(document).ready(function() {
           });
       }
   
-      // Modal Placeholders
-      window.openAddContactModal = () => alert("Add Contact Modal - Coming Soon");
-      window.openImportModal = () => alert("Import CSV Modal - Coming Soon");
+      function ctCsrf() {
+          return (document.querySelector('[name=csrfmiddlewaretoken]') || {}).value || '';
+      }
+      function ctShow(id, message, ok) {
+          const el = document.getElementById(id);
+          if (!el) return;
+          if (!message) { el.hidden = true; el.textContent = ''; return; }
+          el.hidden = false;
+          el.textContent = message;
+          el.className = ok ? 'ct-modal-ok' : 'ct-modal-error';
+      }
+      function ctReloadDirectory() {
+          const stage = (typeof currentStageFilter !== 'undefined') ? currentStageFilter : null;
+          if (typeof window.loadContactsListForChannel === 'function') {
+              window.loadContactsListForChannel(window.currentChannelId, true, stage);
+          }
+      }
+      window.openAddContactModal = function () {
+          const form = document.getElementById('ct_add_form');
+          if (form) form.reset();
+          ctShow('ct_add_error', '');
+          const modal = document.getElementById('ct_add_modal');
+          if (modal) modal.hidden = false;
+          const phone = document.getElementById('ct_add_phone');
+          if (phone) phone.focus();
+      };
+      window.openImportModal = function () {
+          const form = document.getElementById('ct_import_form');
+          if (form) form.reset();
+          ctShow('ct_import_error', '');
+          const modal = document.getElementById('ct_import_modal');
+          if (modal) modal.hidden = false;
+      };
+      window.closeContactModal = function (id) {
+          const modal = document.getElementById(id);
+          if (modal) modal.hidden = true;
+      };
+      document.getElementById('ct_add_form')?.addEventListener('submit', async function (e) {
+          e.preventDefault();
+          const btn = document.getElementById('ct_add_save');
+          const name = (document.getElementById('ct_add_name').value || '').trim();
+          const phone = (document.getElementById('ct_add_phone').value || '').trim();
+          const stage = document.getElementById('ct_add_stage').value;
+          if (!phone) { ctShow('ct_add_error', 'Enter a phone number.'); return; }
+          if (btn) btn.disabled = true;
+          ctShow('ct_add_error', '');
+          try {
+              const res = await fetch("{% url 'api_contacts_create' %}", {
+                  method: 'POST',
+                  credentials: 'same-origin',
+                  headers: { 'Content-Type': 'application/json', 'X-CSRFToken': ctCsrf(), 'Accept': 'application/json' },
+                  body: JSON.stringify({ channel_id: window.currentChannelId, name: name, phone: phone, pipeline_stage: stage })
+              });
+              const data = await res.json().catch(function () { return {}; });
+              if (!res.ok) throw new Error(data.error || 'Could not save this contact.');
+              window.closeContactModal('ct_add_modal');
+              ctReloadDirectory();
+          } catch (err) {
+              ctShow('ct_add_error', err.message || 'Could not save this contact.');
+          } finally {
+              if (btn) btn.disabled = false;
+          }
+      });
+      document.getElementById('ct_import_form')?.addEventListener('submit', async function (e) {
+          e.preventDefault();
+          const btn = document.getElementById('ct_import_save');
+          const fileInput = document.getElementById('ct_import_file');
+          const text = (document.getElementById('ct_import_text').value || '').trim();
+          const file = fileInput && fileInput.files && fileInput.files[0];
+          if (!file && !text) { ctShow('ct_import_error', 'Choose a file or paste phone numbers.'); return; }
+          const body = new FormData();
+          body.append('channel_id', window.currentChannelId || '');
+          if (file) body.append('file', file);
+          else body.append('text', text);
+          if (btn) btn.disabled = true;
+          ctShow('ct_import_error', '');
+          try {
+              const res = await fetch("{% url 'api_contacts_import' %}", {
+                  method: 'POST',
+                  credentials: 'same-origin',
+                  headers: { 'X-CSRFToken': ctCsrf(), 'Accept': 'application/json' },
+                  body: body
+              });
+              const data = await res.json().catch(function () { return {}; });
+              if (!res.ok) throw new Error(data.error || 'Import failed.');
+              const bits = [data.created + ' added', data.skipped + ' already existed'];
+              if (data.invalid) bits.push(data.invalid + ' invalid');
+              let msg = bits.join(' · ') + '.';
+              if (data.invalid_samples && data.invalid_samples.length) msg += ' ' + data.invalid_samples[0];
+              if (data.truncated) msg += ' Only the first 1,000 rows were read.';
+              ctShow('ct_import_error', msg, true);
+              ctReloadDirectory();
+          } catch (err) {
+              ctShow('ct_import_error', err.message || 'Import failed.');
+          } finally {
+              if (btn) btn.disabled = false;
+          }
+      });
   
       // Initial Load
       if (window.currentChannelId) {
@@ -14350,6 +14895,53 @@ $(document).ready(function() {
   });
   </script>
 
+  <div id="ct_add_modal" class="ct-modal" hidden>
+    <form id="ct_add_form" class="ct-modal-card">
+      <div class="ct-modal-head">
+        <div>
+          <h3>Add a contact</h3>
+          <p>The number is saved on the current channel. Include the country code.</p>
+        </div>
+        <button type="button" class="ct-modal-x" onclick="window.closeContactModal('ct_add_modal')" aria-label="Close">&times;</button>
+      </div>
+      <p id="ct_add_error" class="ct-modal-error" hidden></p>
+      <label class="ct-field"><span>Name</span><input id="ct_add_name" type="text" maxlength="255" placeholder="Customer name" autocomplete="name"></label>
+      <label class="ct-field"><span>Phone</span><input id="ct_add_phone" type="tel" inputmode="tel" placeholder="21265550199" required autocomplete="tel"></label>
+      <label class="ct-field"><span>Pipeline stage</span>
+        <select id="ct_add_stage">
+          <option value="new">New Chat</option>
+          <option value="interested">Interested</option>
+          <option value="follow_up">Follow Up</option>
+          <option value="closed">Closed / Won</option>
+          <option value="rejected">Not Interested</option>
+        </select>
+      </label>
+      <div class="ct-modal-actions">
+        <button type="button" class="cls3741_btn1 cls3741_btn_secondary" onclick="window.closeContactModal('ct_add_modal')">Cancel</button>
+        <button type="submit" class="cls3741_btn1 cls3741_btn_primary" id="ct_add_save">Save contact</button>
+      </div>
+    </form>
+  </div>
+
+  <div id="ct_import_modal" class="ct-modal" hidden>
+    <form id="ct_import_form" class="ct-modal-card">
+      <div class="ct-modal-head">
+        <div>
+          <h3>Import a phone list</h3>
+          <p>Upload a CSV or paste numbers. A line can be a phone, or name, phone. Country code included, for example 21265550199.</p>
+        </div>
+        <button type="button" class="ct-modal-x" onclick="window.closeContactModal('ct_import_modal')" aria-label="Close">&times;</button>
+      </div>
+      <p id="ct_import_error" class="ct-modal-error" hidden></p>
+      <label class="ct-field"><span>CSV or text file</span><input id="ct_import_file" class="ct-file" type="file" accept=".csv,.txt,text/csv,text/plain"></label>
+      <label class="ct-field"><span>Or paste numbers</span><textarea id="ct_import_text" placeholder="21265550199&#10;Sara, 21265550200"></textarea></label>
+      <div class="ct-modal-actions">
+        <button type="button" class="cls3741_btn1 cls3741_btn_secondary" onclick="window.closeContactModal('ct_import_modal')">Cancel</button>
+        <button type="submit" class="cls3741_btn1 cls3741_btn_primary" id="ct_import_save">Import</button>
+      </div>
+    </form>
+  </div>
+
 </section>
 
   <!-- --------------end contact ---------------- -->
@@ -14359,38 +14951,91 @@ $(document).ready(function() {
     <p>ادارة الحملات.</p>
   </section>
 
- <section class="cls3741_panel cls3741_panel_templates wa-templates-panel" style="display:none;height:100%;overflow:auto;background:linear-gradient(180deg,#0b0e14 0%,#111620 40%);">
+ <section class="cls3741_panel cls3741_panel_templates wa-templates-panel" style="display:none;height:100%;overflow:auto;">
   <style>
-    .wa-templates-panel { --wa-tpl-border: rgba(148,163,184,0.12); --wa-tpl-card: rgba(15,23,42,0.55); }
-    .wa-tpl-topbar { display:flex; align-items:flex-start; justify-content:space-between; gap:16px; flex-wrap:wrap; padding:1.25rem 1.5rem; border-bottom:1px solid var(--wa-tpl-border); background:linear-gradient(135deg, rgba(16,185,129,0.08), rgba(99,102,241,0.06)); }
-    .wa-tpl-title { font-size:1.2rem; font-weight:700; color:#f1f5f9; letter-spacing:-0.02em; margin:0 0 4px 0; }
-    .wa-tpl-sub { font-size:0.875rem; color:#94a3b8; max-width:520px; line-height:1.45; margin:0; }
-    .wa-tpl-actions { display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
-    .wa-tpl-btn-secondary { padding:9px 16px; border-radius:999px; background:rgba(15,23,42,0.85); border:1px solid rgba(148,163,184,0.25); color:#cbd5e1; cursor:pointer; display:inline-flex; align-items:center; gap:8px; font-size:0.85rem; font-weight:600; transition:border-color .15s, color .15s; }
-    .wa-tpl-btn-secondary:hover { border-color:rgba(16,185,129,0.5); color:#6ee7b7; }
-    .wa-tpl-btn-primary { padding:9px 18px; border-radius:999px; background:linear-gradient(135deg,#10B981,#059669); color:#fff; border:none; cursor:pointer; display:inline-flex; align-items:center; gap:8px; font-size:0.88rem; font-weight:600; box-shadow:0 4px 14px rgba(16,185,129,0.25); }
-    .wa-tpl-body { display:flex; flex-direction:column; gap:18px; padding:20px 20px 28px; max-width:1400px; margin:0 auto; }
-    .wa-tpl-meta-hint { font-size:0.8rem; color:#94a3b8; padding:12px 14px; border-radius:10px; border:1px solid var(--wa-tpl-border); background:var(--wa-tpl-card); line-height:1.5; }
-    .wa-tpl-meta-hint strong { color:#e2e8f0; }
-    #formErrors.wa-tpl-form-errors { display:none; border-radius:10px; padding:12px 14px; margin-bottom:12px; background:rgba(127,29,29,0.35); border:1px solid rgba(248,113,113,0.45); color:#fecaca; font-size:0.875rem; line-height:1.45; }
-    .wa-tpl-table-wrap { border-radius:14px; border:1px solid var(--wa-tpl-border); overflow:hidden; background:var(--wa-tpl-card); }
-    .wa-tpl-table-wrap table { width:100%; border-collapse:collapse; min-width:640px; }
-    .wa-tpl-table-wrap th { padding:12px 14px; font-size:0.72rem; text-transform:uppercase; letter-spacing:0.06em; color:#64748b; text-align:left; border-bottom:1px solid var(--wa-tpl-border); background:rgba(0,0,0,0.2); }
-    .wa-tpl-table-wrap td { padding:12px 14px; font-size:0.875rem; color:#e2e8f8; border-bottom:1px solid rgba(148,163,184,0.08); vertical-align:middle; }
-    .wa-tpl-table-wrap tr:last-child td { border-bottom:none; }
-    .wa-tpl-pill { display:inline-flex; align-items:center; padding:4px 10px; border-radius:999px; font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:0.04em; }
-    .wa-tpl-pill--ok { background:rgba(16,185,129,0.2); color:#6ee7b7; }
-    .wa-tpl-pill--wait { background:rgba(251,191,36,0.15); color:#fcd34d; }
-    .wa-tpl-pill--bad { background:rgba(248,113,113,0.18); color:#fca5a5; }
+    .wa-templates-panel {
+      --wa-tpl-border: rgba(148,163,184,0.14);
+      --wa-tpl-card: #12161f;
+      background: #090b10;
+    }
+    .wa-tpl-topbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      flex-wrap: wrap;
+      margin: 1rem 1.25rem 0;
+      padding: 1rem 1.1rem;
+      border-radius: 16px;
+      border: 1px solid var(--wa-tpl-border);
+      background: rgba(18,22,31,0.92);
+      box-shadow: 0 16px 40px rgba(0,0,0,0.22);
+    }
+    .wa-tpl-brand { display: flex; align-items: center; gap: 14px; min-width: 0; }
+    .wa-tpl-mark {
+      width: 46px; height: 46px; border-radius: 14px; flex-shrink: 0;
+      display: flex; align-items: center; justify-content: center;
+      background: linear-gradient(160deg, rgba(16,185,129,0.22), rgba(99,102,241,0.18));
+      color: #c4b5fd; border: 1px solid rgba(167,139,250,0.28); font-size: 1.05rem;
+    }
+    .wa-tpl-title { font-size: 1.15rem; font-weight: 700; color: #f8fafc; letter-spacing: -0.02em; margin: 0 0 4px; }
+    .wa-tpl-sub { font-size: 0.84rem; color: #94a3b8; max-width: 560px; line-height: 1.45; margin: 0; }
+    .wa-tpl-actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+    .wa-tpl-btn-secondary {
+      padding: 9px 14px; border-radius: 999px; background: transparent;
+      border: 1px solid rgba(148,163,184,0.28); color: #e2e8f0; cursor: pointer;
+      display: inline-flex; align-items: center; gap: 8px; font-size: 0.84rem; font-weight: 600;
+    }
+    .wa-tpl-btn-secondary:hover { border-color: rgba(167,139,250,0.55); color: #fff; }
+    .wa-tpl-btn-primary {
+      padding: 9px 16px; border-radius: 999px; border: none; cursor: pointer;
+      background: linear-gradient(135deg, #6366f1, #4f46e5); color: #fff;
+      display: inline-flex; align-items: center; gap: 8px; font-size: 0.86rem; font-weight: 650;
+      box-shadow: 0 8px 20px rgba(79,70,229,0.28);
+    }
+    .wa-tpl-btn-primary:hover { filter: brightness(1.06); }
+    .wa-tpl-body { display: flex; flex-direction: column; gap: 14px; padding: 14px 1.25rem 28px; max-width: 1240px; margin: 0 auto; width: 100%; box-sizing: border-box; }
+    .wa-tpl-meta-hint {
+      display: flex; gap: 10px; align-items: flex-start;
+      font-size: 0.8rem; color: #94a3b8; line-height: 1.5;
+      padding: 12px 14px; border-radius: 14px;
+      border: 1px solid rgba(99,102,241,0.18);
+      background: rgba(99,102,241,0.06);
+    }
+    .wa-tpl-meta-hint i { color: #a5b4fc; margin-top: 2px; }
+    .wa-tpl-meta-hint strong { color: #e2e8f0; }
+    .wa-tpl-meta-hint code { color: #c4b5fd; font-size: 0.78rem; }
+    #formErrors.wa-tpl-form-errors { display: none; border-radius: 10px; padding: 12px 14px; margin-bottom: 12px; background: rgba(127,29,29,0.35); border: 1px solid rgba(248,113,113,0.45); color: #fecaca; font-size: 0.875rem; line-height: 1.45; }
+    .wa-templates-panel .wa-tpl-table-wrap {
+      border-radius: 16px; border: 1px solid var(--wa-tpl-border);
+      overflow: auto; background: var(--wa-tpl-card);
+      box-shadow: 0 16px 40px rgba(0,0,0,0.2);
+    }
+    .wa-templates-panel #templates_table { width: 100%; border-collapse: collapse; min-width: 720px; }
+    .wa-templates-panel #templates_table thead th {
+      padding: 13px 16px !important; font-size: 0.7rem !important; text-transform: uppercase;
+      letter-spacing: 0.07em; color: #64748b !important; text-align: left;
+      border-bottom: 1px solid var(--wa-tpl-border) !important;
+      background: rgba(0,0,0,0.22) !important; font-weight: 700;
+    }
+    .wa-templates-panel #templates_table td {
+      padding: 14px 16px; font-size: 0.875rem; color: #e2e8f0;
+      border-bottom: 1px solid rgba(148,163,184,0.08) !important; vertical-align: middle;
+      background: transparent;
+    }
+    .wa-templates-panel #templates_tbody tr:last-child td { border-bottom: none !important; }
+    .wa-templates-panel #templates_tbody tr:hover { background: rgba(255,255,255,0.03) !important; }
+    .wa-tpl-pill { display: inline-flex; align-items: center; padding: 4px 10px; border-radius: 999px; font-size: 11px; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; }
+    .wa-tpl-pill--ok { background: rgba(16,185,129,0.16); color: #6ee7b7; }
+    .wa-tpl-pill--wait { background: rgba(251,191,36,0.14); color: #fcd34d; }
+    .wa-tpl-pill--bad { background: rgba(248,113,113,0.16); color: #fca5a5; }
   </style>
   <div class="wa-tpl-topbar">
-            <div style="display:flex;align-items:flex-start;gap:14px;">
-                <div style="width:44px;height:44px;border-radius:14px;display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,#10b981,#6366f1);color:#fff;font-size:1.1rem;flex-shrink:0;box-shadow:0 8px 24px rgba(99,102,241,0.25);">
-                    <i class="fas fa-file-alt"></i>
-                </div>
+            <div class="wa-tpl-brand">
+                <div class="wa-tpl-mark"><i class="fas fa-file-alt"></i></div>
                 <div>
                     <h2 class="wa-tpl-title">Message templates</h2>
-                    <p class="wa-tpl-sub">Build headers (text, image, video, document), body with variables, and buttons. Submissions are sent to Meta for review; use sync to refresh status.</p>
+                    <p class="wa-tpl-sub">Headers, variables, and buttons for WhatsApp. New templates go to Meta for review. Sync refreshes their status.</p>
                 </div>
             </div>
             <div class="wa-tpl-actions">
@@ -14405,7 +15050,7 @@ $(document).ready(function() {
             </div>
         </div>
    <div class="wa-tpl-body">
-          <p class="wa-tpl-meta-hint"><strong>Meta review.</strong> Each save calls the WhatsApp Business API to create a template. Media headers are uploaded to Meta first. Body placeholders <code style="color:#a5b4fc;">{{1}}</code>, <code style="color:#a5b4fc;">{{2}}</code> need sample values. Category must match your use case (Utility vs Marketing).</p>
+          <p class="wa-tpl-meta-hint"><i class="fas fa-circle-info"></i><span><strong>Meta review.</strong> Saving creates the template on WhatsApp. Media headers upload first. Placeholders <code>&#123;&#123;1&#125;&#125;</code> and <code>&#123;&#123;2&#125;&#125;</code> need sample values. Pick Utility or Marketing to match the message.</span></p>
          
     
         <div id="template_create_section" class="wa-tpl-editor" style="display:none;">
@@ -14484,7 +15129,7 @@ $(document).ready(function() {
                     font-weight: 700;
                     margin-bottom: 12px;
                 }
-                .form-row { display: flex; gap: 14px; align-items: flex-start; margin-bottom: 4px; }
+                .wa-tpl-form-panel .form-row { display: flex; gap: 14px; align-items: flex-start; margin-bottom: 4px; }
                 .form-col { flex: 1; min-width: 0; }
                 .form-label {
                     display: block;
@@ -14850,8 +15495,8 @@ $(document).ready(function() {
                 </thead>
                 <tbody id="templates_tbody" style="border-color: inherit; border-style: solid; border-width: 0;">
                     <tr>
-                        <td colspan="6" style="padding:40px;color:var(--text-muted);text-align:center;font-style:italic;">
-                            No templates found — Click "Create Template" to add one
+                        <td colspan="6" style="padding:48px 24px;color:#94a3b8;text-align:center;">
+                            No templates yet. Create one and submit it to Meta.
                         </td>
                     </tr>
                 </tbody>
@@ -14862,7 +15507,7 @@ $(document).ready(function() {
 
 </section>
 
-  <section class="cls3741_panel cls3741_panel_automation" style="display: none; padding: 0px; background:linear-gradient(180deg, #0d0f14 0%, #13161d 100%);    height: 100%;">
+  <section class="cls3741_panel cls3741_panel_automation" style="display: none; padding: 0; height: 100%; overflow: auto;">
      
 
     {% include 'whatssap/flowbiulder.html' %}
@@ -14871,7 +15516,7 @@ $(document).ready(function() {
         {% include 'whatssap/whatsapp_settings.html' %}
         </section>
 
-  <section class="cls3741_panel cls3741_panel_quick_replies" style="display: none; padding: 0px;     height: 100%;">
+  <section class="cls3741_panel cls3741_panel_quick_replies" style="display: none; padding: 0; height: 100%; overflow: auto;">
     {% include 'whatssap/quick_replies.html' %}
     </section>
 
@@ -16223,7 +16868,7 @@ async function exchangeTokenForChannel(code, channelName, wabaId, phoneId) {
 
             // 3. Redirect with success setup flag after 3 seconds
             setTimeout(() => {
-                const fallbackUrl = '/tracking/?setup=success&channel_id=' + encodeURIComponent(data.channel_id || '');
+                const fallbackUrl = '/messaging/?setup=success&c=' + encodeURIComponent(data.public_id || '');
                 window.location.href = data.redirect_url || fallbackUrl;
             }, 3000);
 
@@ -16743,8 +17388,8 @@ document.addEventListener("DOMContentLoaded", function() {
         }
       });
       if (changed) window.__allContactsData = allContactsData;
-      if (__contactsVirtualList) __contactsVirtualList.refresh();
-      syncSidebarActiveRowHighlight(phoneRaw);
+      if (typeof __refreshContactsVirtualList === 'function') __refreshContactsVirtualList();
+      else syncSidebarActiveRowHighlight(phoneRaw);
     }
 
     var PIPELINE_STAGES = {
@@ -16863,12 +17508,17 @@ document.addEventListener("DOMContentLoaded", function() {
     }
 
     function __refreshContactsVirtualList() {
-      if (__contactsVirtualList) {
-        __contactsVirtualList.refresh();
-      } else {
-        // Fallback for non-virtual mode: data changed but list was never re-rendered.
-        renderSidebarItems(false);
+      // Rebuild the sorted row list. refresh() alone redraws the previous order,
+      // so a new message never moved to the top until a full reload.
+      if (__contactsViewMode === 'full' && allContactsData.length && typeof renderContactsList === 'function') {
+        renderContactsList(allContactsData);
+        return;
       }
+      if (typeof renderSidebarItems === 'function') {
+        renderSidebarItems(false);
+        return;
+      }
+      if (__contactsVirtualList) __contactsVirtualList.refresh();
       syncSidebarActiveRowHighlight();
     }
     window.__refreshContactsVirtualList = __refreshContactsVirtualList;
@@ -18931,12 +19581,14 @@ function syncActiveChannelUi(channelId) {
 
     if (logoEl) {
         if (dataprofile) {
-            logoEl.innerHTML = '<img src="' + dataprofile + '" style="width:50px;height:50px;border-radius:50%;object-fit:cover;">';
+            logoEl.innerHTML = '<img src="' + dataprofile + '" alt="">';
         } else if (name) {
             logoEl.textContent = name.charAt(0).toUpperCase();
         }
     }
     if (nameEl) nameEl.textContent = name || '';
+    var channelTip = document.getElementById('cls3741_channel_tooltip');
+    if (channelTip) channelTip.textContent = name || 'Select Channel';
     if (subEl && agentsCount != null) subEl.textContent = agentsCount + ' Agents';
 
     if (typeof window.updateWhatsAppConnectionBadge === 'function') {
@@ -19004,6 +19656,20 @@ async function switchChannel(newChannelId) {
     if (window.ActiveChannelStorage && typeof window.ActiveChannelStorage.save === 'function') {
         window.ActiveChannelStorage.save(newChannelId);
     }
+    var switchedEl = document.querySelector('.workspace-item[data-channel-id="' + newChannelId + '"]');
+    var switchedPublicId = switchedEl && switchedEl.getAttribute('data-public-id');
+    if (switchedPublicId) {
+        try {
+            var channelUrl = new URL(window.location.href);
+            var channelPath = channelUrl.pathname.replace(/\/$/, '');
+            if (channelPath === '/messaging' || channelPath === '/tracking') {
+                channelUrl.pathname = '/messaging/';
+                channelUrl.searchParams.delete('channel_id');
+                channelUrl.searchParams.set('c', switchedPublicId);
+                window.history.replaceState({}, '', channelUrl.pathname + channelUrl.search + channelUrl.hash);
+            }
+        } catch (e) {}
+    }
 
     document.querySelectorAll('.workspace-item').forEach(function(el) {
         el.classList.remove('active');
@@ -19026,7 +19692,7 @@ async function switchChannel(newChannelId) {
     // تنظيف الشات والقائمة الحالية
     if (typeof window.__destroyContactsVirtualList === 'function') window.__destroyContactsVirtualList();
     document.getElementById('cls3741_contacts_list').innerHTML = '<div class="loader">Loading...</div>';
-    document.getElementById('cls3741_messages_area').innerHTML = '';
+    if (typeof window.renderChatEmptyState === 'function') window.renderChatEmptyState();
     
     // جلب بيانات القناة الجديدة
     await fetchContactsAndUpdateUIws( null , true);
@@ -19065,9 +19731,11 @@ async function switchChannel(newChannelId) {
 
 
         if (logoEl) {
-        if (dataprofile){ logoEl.innerHTML = `<img src="${dataprofile}" style="width:50px;height:50px;border-radius:50%;object-fit:cover;">`; } else logoEl.textContent = name.charAt(0).toUpperCase();
+        if (dataprofile){ logoEl.innerHTML = `<img src="${dataprofile}" alt="">`; } else logoEl.textContent = name.charAt(0).toUpperCase();
           }
         if (nameEl) nameEl.textContent = name;
+        var channelTip = document.getElementById('cls3741_channel_tooltip');
+        if (channelTip) channelTip.textContent = name || 'Select Channel';
         if (subEl) subEl.textContent = `${agentsCount} Agents`;
         if (typeof window.updateWorkspaceSwitcherTrigger === 'function') {
             window.updateWorkspaceSwitcherTrigger(name, dataprofile);
@@ -19332,6 +20000,8 @@ async function fetchContactsAndUpdateUIws(wsData = null, loadFromApi = false) {
         }
 
         __contactsViewMode = 'full';
+        if (typeof ensureSidebarActivityStamps === 'function') ensureSidebarActivityStamps(filtered);
+        filtered.sort(compareSidebarContacts);
         __contactsVirtualRows = filtered;
 
         if (!window.ChatVirtualization) {
@@ -19406,11 +20076,27 @@ async function fetchContactsAndUpdateUIws(wsData = null, loadFromApi = false) {
     }
     window.applySidebarTabFilter = applySidebarTabFilter;
 
+    function chatEmptyStateHtml() {
+      return '<div class="cls3741_chat_empty">' +
+        '<div class="cls3741_chat_empty_mark" aria-hidden="true">' +
+          '<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>' +
+        '</div>' +
+        '<h2>Select a conversation</h2>' +
+        '<p>Choose a contact on the left to read the thread and reply.</p>' +
+      '</div>';
+    }
+    window.renderChatEmptyState = function() {
+      var area = document.getElementById('cls3741_messages_area');
+      if (!area) return;
+      if (currentPhone && String(currentPhone).trim()) return;
+      area.innerHTML = chatEmptyStateHtml();
+    };
     function syncChatComposerVisibility() {
       var wrapper = document.querySelector('.cls3741_chat_input_wrapper');
       if (!wrapper) return;
       var hasChat = !!(currentPhone && String(currentPhone).trim());
       wrapper.classList.toggle('is-no-chat', !hasChat);
+      if (!hasChat) window.renderChatEmptyState();
     }
     window.syncChatComposerVisibility = syncChatComposerVisibility;
     window.clearOpenChatSelection = function() {
@@ -19462,20 +20148,25 @@ async function fetchContactsAndUpdateUIws(wsData = null, loadFromApi = false) {
     document.getElementById('crm_assign_agent').value = ""; // Unassigned
 }
 
+      var personName = (name && String(name).trim() && String(name).trim() !== 'null') ? String(name).trim() : '';
+      var phoneLabel = '+' + String(currentPhone || phone || '').replace(/^\+/, '');
+      var avatarText = personName
+        ? personName.charAt(0).toUpperCase()
+        : ((phoneLabel.replace(/\D/g, '').slice(-2)) || '?');
       const avatarEl = document.getElementById('cls3741_active_avatar');
       if (avatarEl) {
-        avatarEl.textContent = (name||phone).trim().charAt(0).toUpperCase();
-        document.getElementById('crm-avatar_sidbar').textContent = (name||phone).trim().charAt(0).toUpperCase();
+        avatarEl.textContent = avatarText;
+        var crmAvatar = document.getElementById('crm-avatar_sidbar');
+        if (crmAvatar) crmAvatar.textContent = avatarText;
       }
 
       const nameEl = document.getElementById('cls3741_active_name');
       const last_seen_ = document.getElementById('last_seen_')
-      if (last_seen_) last_seen_.textContent = 'Last interaction: ' + (las_seen__ || '—')
-      if (nameEl){nameEl.textContent = name + ": +" + currentPhone || phone;
-
-        document.querySelector('.crm-name').textContent  = name || phone;
-        // document.createElement('div').className = 'crm-currphone';
-        // document.querySelector('.crm-currphone').textContent = '+' + currentPhone;
+      if (last_seen_) last_seen_.textContent = las_seen__ ? ('Last interaction: ' + las_seen__) : ''
+      if (nameEl){
+        nameEl.textContent = personName || phoneLabel;
+        var crmName = document.querySelector('.crm-name');
+        if (crmName) crmName.textContent = personName || phoneLabel;
       }
       
       
@@ -20072,11 +20763,59 @@ function sidebarUnreadRank(c) {
   return 1;
 }
 
+var __sidebarActivitySeq = 0;
+
+function sidebarActivityAt(c) {
+  var n = Number(c && c._activityAt);
+  return isFinite(n) ? n : 0;
+}
+
+/** Unread customer threads first, then everyone else. Inside each group, latest activity first. */
+function compareSidebarContacts(a, b) {
+  var rank = sidebarUnreadRank(a) - sidebarUnreadRank(b);
+  if (rank) return rank;
+  return sidebarActivityAt(b) - sidebarActivityAt(a);
+}
+
+/**
+ * Keep the server order for rows that have not moved yet.
+ * A later page is older, so its stamps stay below rows already on screen.
+ */
+function ensureSidebarActivityStamps(list) {
+  if (!Array.isArray(list) || !list.length) return;
+  var pending = [];
+  var minExisting = Infinity;
+  var hasExisting = false;
+  for (var i = 0; i < list.length; i++) {
+    var row = list[i];
+    if (!row) continue;
+    if (typeof row._activityAt === 'number') {
+      hasExisting = true;
+      if (row._activityAt < minExisting) minExisting = row._activityAt;
+    } else {
+      pending.push(row);
+    }
+  }
+  if (!pending.length) return;
+  if (hasExisting) {
+    for (var j = 0; j < pending.length; j++) pending[j]._activityAt = minExisting - 1 - j;
+    return;
+  }
+  var start = __sidebarActivitySeq + pending.length;
+  __sidebarActivitySeq = start;
+  for (var k = 0; k < pending.length; k++) pending[k]._activityAt = start - k;
+}
+
+function touchSidebarActivity(c) {
+  if (!c) return;
+  __sidebarActivitySeq += 1;
+  c._activityAt = __sidebarActivitySeq;
+}
+
 function getFilteredSidebarContacts(list) {
   var source = Array.isArray(list) ? list : sidebarState.contacts;
-  return source.filter(contactMatchesTabFilter).sort(function(a, b) {
-    return sidebarUnreadRank(a) - sidebarUnreadRank(b);
-  });
+  ensureSidebarActivityStamps(source);
+  return source.filter(contactMatchesTabFilter).sort(compareSidebarContacts);
 }
 
 // 2. الدالة المطورة (تقبل كل الفلاتر)
@@ -20167,6 +20906,7 @@ async function loadSidebarContacts(reset = false) {
             });
             window.__allContactsData = allContactsData;
         }
+        ensureSidebarActivityStamps(sidebarState.contacts);
 
         renderSidebarItems(reset);
 
@@ -20287,8 +21027,11 @@ function applyContactItemSingleUpdate(contactData, messagePayload) {
   let sidx = sidebarState.contacts.findIndex(sameThread);
   let base = sidx >= 0 ? sidebarState.contacts[sidx] : {};
   let row = Object.assign({}, base, merged);
+  touchSidebarActivity(row);
   if (sidx >= 0) sidebarState.contacts.splice(sidx, 1);
   sidebarState.contacts.unshift(row);
+  var aidx = allContactsData.findIndex(sameThread);
+  if (aidx >= 0) allContactsData[aidx]._activityAt = row._activityAt;
 
   __refreshContactsVirtualList();
 }
@@ -20680,7 +21423,9 @@ function toggleContextView() {
             badge.classList.add('active');
         }
         if (btn) {
-            btn.style.background = 'linear-gradient(135deg, #10b981 0%, #059669 100%)';
+            btn.classList.add('is-open');
+            btn.style.background = '';
+            btn.setAttribute('aria-expanded', 'true');
         }
         
         console.log('✅ Panel opened, quick-body hidden, loading data...');
@@ -20701,7 +21446,9 @@ function toggleContextView() {
             badge.classList.remove('active');
         }
         if (btn) {
-            btn.style.background = 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)';
+            btn.classList.remove('is-open');
+            btn.style.background = '';
+            btn.setAttribute('aria-expanded', 'false');
         }
         
         console.log('✅ Panel closed, quick-body shown');

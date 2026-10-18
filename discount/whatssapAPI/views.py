@@ -2628,6 +2628,197 @@ def api_contactsList(request):
         "total_count": paginator.count
     })
 
+
+def _directory_channel(user, channel_id):
+    """Channel the current user may manage in the contacts directory."""
+    if not user.is_authenticated:
+        return None, JsonResponse({"error": "Auth required"}, status=401)
+    if getattr(user, "is_team_admin", False) or user.is_superuser:
+        allowed = WhatsAppChannel.objects.filter(owner=user)
+    else:
+        allowed = WhatsAppChannel.objects.filter(assigned_agents=user)
+    if channel_id in (None, "", "null", "undefined"):
+        channel = allowed.first()
+    else:
+        channel = allowed.filter(id=channel_id).first()
+    if not channel:
+        return None, JsonResponse({"error": "Channel not found"}, status=404)
+    return channel, None
+
+
+def _normalize_contact_phone(raw):
+    digits = re.sub(r"\D", "", str(raw or ""))
+    if digits.startswith("00") and len(digits) > 4:
+        digits = digits[2:]
+    if not (8 <= len(digits) <= 15):
+        return None
+    return digits
+
+
+def _existing_phone_keys(channel):
+    keys = set()
+    for phone in Contact.objects.filter(channel=channel).values_list("phone", flat=True):
+        key = re.sub(r"\D", "", phone or "")
+        if key.startswith("00") and len(key) > 4:
+            key = key[2:]
+        if key:
+            keys.add(key)
+    return keys
+
+
+_CONTACT_HEADER_ALIASES = {
+    "phone": "phone",
+    "mobile": "phone",
+    "number": "phone",
+    "tel": "phone",
+    "telephone": "phone",
+    "whatsapp": "phone",
+    "name": "name",
+    "full name": "name",
+    "contact": "name",
+    "customer": "name",
+}
+
+
+def _parse_contact_import(text, limit=1000):
+    """Return (rows, truncated) where each row is (name, raw_phone)."""
+    import csv
+    import io
+
+    text = (text or "").replace("\ufeff", "").strip()
+    if not text:
+        return [], False
+    sample = text[:4000]
+    try:
+        dialect = csv.Sniffer().sniff(sample, delimiters=",;\t")
+    except Exception:
+        dialect = csv.excel
+    reader = csv.reader(io.StringIO(text), dialect)
+    rows = []
+    header = None
+    truncated = False
+    for cells in reader:
+        cells = [c.strip() for c in cells]
+        if not any(cells):
+            continue
+        lowered = [c.lower() for c in cells]
+        if header is None and any(c in _CONTACT_HEADER_ALIASES for c in lowered):
+            header = lowered
+            continue
+        name, phone = "", ""
+        if header:
+            for idx, col in enumerate(header):
+                kind = _CONTACT_HEADER_ALIASES.get(col)
+                if not kind or idx >= len(cells):
+                    continue
+                if kind == "phone" and not phone:
+                    phone = cells[idx]
+                elif kind == "name" and not name:
+                    name = cells[idx]
+        else:
+            phone = cells[0]
+            name = cells[1] if len(cells) > 1 else ""
+            if _normalize_contact_phone(phone) is None and len(cells) > 1 and _normalize_contact_phone(cells[1]):
+                name, phone = cells[0], cells[1]
+        rows.append((name[:255], phone))
+        if len(rows) >= limit:
+            truncated = True
+            break
+    return rows, truncated
+
+
+def _save_directory_contact(channel, name, phone, pipeline_stage):
+    contact = Contact.objects.create(
+        user=channel.owner,
+        channel=channel,
+        phone=phone,
+        name=(name or "")[:255],
+        pipeline_stage=pipeline_stage or Contact.PipelineStage.NEW,
+    )
+    try:
+        from discount.whatssapAPI.chat_routing import run_weighted_routing_for_new_contact
+        run_weighted_routing_for_new_contact(contact, channel)
+    except Exception:
+        logging.getLogger(__name__).exception("directory contact routing failed")
+    return contact
+
+
+def api_contacts_create(request):
+    if request.method != "POST":
+        return JsonResponse({"error": "POST required"}, status=405)
+    try:
+        payload = json.loads(request.body.decode() or "{}")
+    except Exception:
+        payload = request.POST
+    channel, error = _directory_channel(request.user, payload.get("channel_id"))
+    if error:
+        return error
+    phone = _normalize_contact_phone(payload.get("phone"))
+    if not phone:
+        return JsonResponse({"error": "Enter a phone number with the country code, 8 to 15 digits."}, status=400)
+    stage = (payload.get("pipeline_stage") or Contact.PipelineStage.NEW).strip()
+    if stage not in Contact.PipelineStage.values:
+        stage = Contact.PipelineStage.NEW
+    if phone in _existing_phone_keys(channel):
+        return JsonResponse({"error": "This phone number is already in this channel."}, status=409)
+    name = (payload.get("name") or "").strip()
+    contact = _save_directory_contact(channel, name, phone, stage)
+    return JsonResponse({
+        "ok": True,
+        "contact": {
+            "id": contact.id,
+            "name": contact.name or contact.phone,
+            "phone": contact.phone,
+            "pipeline_stage": contact.pipeline_stage,
+        },
+    })
+
+
+def api_contacts_import(request):
+    if request.method != "POST":
+        return JsonResponse({"error": "POST required"}, status=405)
+    channel, error = _directory_channel(request.user, request.POST.get("channel_id"))
+    if error:
+        return error
+    raw = ""
+    upload = request.FILES.get("file")
+    if upload:
+        if upload.size > 1_500_000:
+            return JsonResponse({"error": "File is too large. Keep the list under 1.5 MB."}, status=400)
+        blob = upload.read()
+        raw = blob.decode("utf-8-sig", errors="replace")
+    else:
+        raw = request.POST.get("text") or ""
+    rows, truncated = _parse_contact_import(raw)
+    if not rows:
+        return JsonResponse({"error": "Add a CSV file or paste phone numbers, one per line."}, status=400)
+    existing = _existing_phone_keys(channel)
+    created = 0
+    skipped = 0
+    invalid = []
+    seen = set()
+    for index, (name, raw_phone) in enumerate(rows, start=1):
+        phone = _normalize_contact_phone(raw_phone)
+        if not phone:
+            if len(invalid) < 8:
+                invalid.append("Row %s: invalid phone" % index)
+            continue
+        if phone in existing or phone in seen:
+            skipped += 1
+            continue
+        seen.add(phone)
+        _save_directory_contact(channel, name.strip(), phone, Contact.PipelineStage.NEW)
+        created += 1
+    return JsonResponse({
+        "ok": True,
+        "created": created,
+        "skipped": skipped,
+        "invalid": len(rows) - created - skipped,
+        "invalid_samples": invalid,
+        "truncated": truncated,
+    })
+
+
 # ---------------templates---------------------
  
 
@@ -5033,12 +5224,13 @@ def exchange_token_and_create_channel(request):
             
         channel.assigned_agents.add(request.user)
 
-        dashboard_url = reverse('tracking')
-        success_redirect_url = f"{dashboard_url}?setup=success&channel_id={channel.id}"
+        dashboard_url = reverse('messaging')
+        success_redirect_url = f"{dashboard_url}?setup=success&c={channel.public_id}"
 
         return JsonResponse({
             'success': True, 
             'channel_id': channel.id,
+            'public_id': channel.public_id,
             'phone_number': phone_number,
             'redirect_url': success_redirect_url
         })

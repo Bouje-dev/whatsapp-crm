@@ -1,7 +1,13 @@
 # from tkinter import CASCADE
+import secrets
 from urllib import request
 from django.db import models
 from django.conf import settings # لاستخدام AUTH_USER_MODEL
+
+
+def generate_channel_public_id():
+    """Unguessable public token for channel URLs. The integer pk stays internal."""
+    return secrets.token_urlsafe(16)
 
 
 def _default_json_list():
@@ -1619,6 +1625,13 @@ class WhatsAppChannel(models.Model):
     
     is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
+    public_id = models.CharField(
+        max_length=32,
+        unique=True,
+        editable=False,
+        default=generate_channel_public_id,
+        help_text="Public unguessable id used in the messaging URL.",
+    )
 
     # AI Coaching: rules set by Admin via Coach chat; appended at end of sales agent system prompt
     ai_override_rules = models.TextField(
@@ -1629,6 +1642,47 @@ class WhatsAppChannel(models.Model):
 
     def __str__(self):
         return f"{self.name} ({self.phone_number})"
+
+    @classmethod
+    def unused_public_id(cls):
+        for _ in range(8):
+            candidate = generate_channel_public_id()
+            if not cls.objects.filter(public_id=candidate).exists():
+                return candidate
+        return generate_channel_public_id()
+
+    def save(self, *args, **kwargs):
+        if not self.public_id:
+            self.public_id = self.unused_public_id()
+            update_fields = kwargs.get("update_fields")
+            if update_fields is not None:
+                kwargs["update_fields"] = set(update_fields) | {"public_id"}
+        super().save(*args, **kwargs)
+
+    @classmethod
+    def resolve_for_request(cls, request, queryset):
+        """Pick the channel for this user from ?c=, then ?channel_id=, then the session."""
+        active = None
+        public = (request.GET.get("c") or "").strip()
+        if public:
+            active = queryset.filter(public_id=public).first()
+        if active is None:
+            requested = (request.GET.get("channel_id") or "").strip()
+            if requested.isdigit():
+                active = queryset.filter(id=int(requested)).first()
+        if active is not None:
+            if request.session.get("active_channel_id") != active.id:
+                request.session["active_channel_id"] = active.id
+        else:
+            last_id = request.session.get("active_channel_id")
+            if last_id:
+                active = queryset.filter(id=last_id).first()
+        if active is None:
+            active = queryset.first()
+        if active is not None and not active.public_id:
+            active.public_id = cls.unused_public_id()
+            active.save(update_fields=["public_id"])
+        return active
 
     def has_user_permission(self, user):
         """

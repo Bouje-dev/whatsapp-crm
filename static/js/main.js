@@ -153,11 +153,11 @@ e.target.closest('.cls3741_sidecard').classList.remove('cls3741_sidecard_visible
         const activeId = specificChannelId || window.currentChannelId || CONFIG.initialChannelId;
         
         if (!activeId || activeId === 'null') {
-            tbody.innerHTML = `<tr><td colspan="6" style="padding:40px;text-align:center;">لا توجد قناة محددة</td></tr>`;
+            tbody.innerHTML = `<tr><td colspan="6" style="padding:48px 24px;text-align:center;color:#94a3b8;">Select a channel to see its templates.</td></tr>`;
             return;
         }
 
-        tbody.innerHTML = `<tr><td colspan="6" style="padding:40px;text-align:center;color:var(--text-muted);">جاري تحميل القوالب...</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="6" style="padding:48px 24px;text-align:center;color:#94a3b8;">Loading templates…</td></tr>`;
 
         try {
             // استخدام الرابط من Config
@@ -183,7 +183,7 @@ e.target.closest('.cls3741_sidecard').classList.remove('cls3741_sidecard_visible
 
     function renderTemplates(templates) {
         if (!templates || templates.length === 0) {
-            tbody.innerHTML = `<tr><td colspan="6" style="padding:40px;text-align:center;color:var(--text-muted);"> There are no templates</td></tr>`;
+            tbody.innerHTML = `<tr><td colspan="6" style="padding:48px 24px;text-align:center;color:#94a3b8;">No templates yet. Create one and submit it to Meta.</td></tr>`;
             return;
         }
 

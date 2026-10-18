@@ -327,7 +327,7 @@
 
     function redirectToStripeCheckout(msgBox) {
       if (!SELECTED_PLAN) {
-        window.location.href = "{% url 'tracking' %}";
+        window.location.href = "{% url 'messaging' %}";
         return;
       }
       msgBox.text("✅ Account verified! Redirecting to secure checkout…").css("color", "#4ade80").show();
@@ -342,12 +342,12 @@
             window.location.href = res.url;
           } else {
             msgBox.text("Payment setup failed — taking you to dashboard.").css("color", "#fca5a5").show();
-            setTimeout(function(){ window.location.href = "{% url 'tracking' %}"; }, 1500);
+            setTimeout(function(){ window.location.href = "{% url 'messaging' %}"; }, 1500);
           }
         },
         error: function() {
           msgBox.text("Payment setup failed — taking you to dashboard.").css("color", "#fca5a5").show();
-          setTimeout(function(){ window.location.href = "{% url 'tracking' %}"; }, 1500);
+          setTimeout(function(){ window.location.href = "{% url 'messaging' %}"; }, 1500);
         }
       });
     }
@@ -375,7 +375,7 @@
             if (SELECTED_PLAN) {
               redirectToStripeCheckout(msgBox);
             } else {
-              setTimeout(function(){ window.location.href = "{% url 'tracking' %}"; }, 1500);
+              setTimeout(function(){ window.location.href = "{% url 'messaging' %}"; }, 1500);
             }
           } else {
             btn.prop("disabled", false);

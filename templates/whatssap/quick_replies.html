@@ -1,12 +1,16 @@
 <div class="quick-replies-page">
     <header class="quick-replies-header">
-        <div class="quick-replies-header-inner">
-            <div class="quick-replies-title-wrap">
-                <span class="quick-replies-icon"><i class="fas fa-bolt"></i></span>
-                <div>
-                    <h1 class="quick-replies-title">Quick Replies</h1>
-                    <p class="quick-replies-subtitle">Type <kbd>/shortcut</kbd> in chat to insert saved replies</p>
-                </div>
+        <div class="quick-replies-title-wrap">
+            <span class="quick-replies-icon"><i class="fas fa-bolt"></i></span>
+            <div>
+                <h2 class="quick-replies-title">Quick Replies</h2>
+                <p class="quick-replies-subtitle">Type <kbd>/shortcut</kbd> in chat to insert a saved reply.</p>
+            </div>
+        </div>
+        <div class="quick-replies-header-actions">
+            <div class="qr-search">
+                <i class="fas fa-search"></i>
+                <input type="search" id="qr_search" placeholder="Search shortcut or message" autocomplete="off">
             </div>
             <button type="button" class="quick-replies-btn-new" data-bs-toggle="modal" data-bs-target="#addReplyModal">
                 <i class="fas fa-plus"></i>
@@ -16,48 +20,22 @@
     </header>
 
     <div class="quick-replies-content">
-        <section class="quick-replies-section">
+        <section class="quick-replies-section" id="qr_mine_section">
             <div class="quick-replies-section-header">
                 <span class="quick-replies-section-icon"><i class="fas fa-user"></i></span>
-                <h2 class="quick-replies-section-title">My Quick Replies</h2>
+                <h3 class="quick-replies-section-title">My replies</h3>
+                <span class="qr-count" id="qr_mine_count">0</span>
             </div>
-            <div class="quick-replies-table-wrap">
-                <table class="quick-replies-table">
-                    <thead>
-                        <tr>
-                            <th>Shortcut</th>
-                            <th>Message</th>
-                            <th class="quick-replies-th-usage">Usage</th>
-                            <th>Created By</th>
-                            <th>Created</th>
-                            <th class="quick-replies-th-actions"></th>
-                        </tr>
-                    </thead>
-                    <tbody id="my_replies_grid"></tbody>
-                </table>
-            </div>
+            <div id="my_replies_grid" class="qr-grid"></div>
         </section>
 
-        <section class="quick-replies-section">
+        <section class="quick-replies-section" id="qr_team_section">
             <div class="quick-replies-section-header">
                 <span class="quick-replies-section-icon team"><i class="fas fa-users"></i></span>
-                <h2 class="quick-replies-section-title">Team Replies</h2>
+                <h3 class="quick-replies-section-title">Team replies</h3>
+                <span class="qr-count" id="qr_team_count">0</span>
             </div>
-            <div class="quick-replies-table-wrap">
-                <table class="quick-replies-table">
-                    <thead>
-                        <tr>
-                            <th>Shortcut</th>
-                            <th>Message</th>
-                            <th class="quick-replies-th-usage">Usage</th>
-                            <th>Created By</th>
-                            <th>Created</th>
-                            <th class="quick-replies-th-actions"></th>
-                        </tr>
-                    </thead>
-                    <tbody id="team_replies_grid"></tbody>
-                </table>
-            </div>
+            <div id="team_replies_grid" class="qr-grid"></div>
         </section>
 
         <div id="replies_loader" class="quick-replies-loader" style="display: none;">
@@ -283,7 +261,15 @@ $('#mediaPreviewModal').on('hidden.bs.modal', function () {
 
 
 $(document).ready(function() {
-    
+    $('#qr_search').on('input', function() {
+        if (typeof window.filterQuickReplies === 'function') window.filterQuickReplies(this.value);
+    });
+    $(document).on('click', '.qr-preview', function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        openMediaPreview(this.getAttribute('data-type'), this.getAttribute('data-url'), this.getAttribute('data-shortcut'));
+    });
+
     // عند النقر على زر فتح إدارة الردود
     $('#btn_open_quick_replies').click(function() {
         // 1. إظهار القسم (متلا في مودال أو في وسط الصفحة حسب تصميمك)
@@ -311,12 +297,7 @@ $(document).ready(function() {
         success: function(response) {
             loader.hide();
             window.quickRepliesData = {};
-            if (!response.data || response.data.length === 0) {
-                myGrid.html('<tr><td colspan="6" class="text-center text-muted py-5">No quick replies yet. Create one with the button above.</td></tr>');
-                return;
-            }
-
-            response.data.forEach(function(reply) {
+            (response.data || []).forEach(function(reply) {
                 window.quickRepliesData[reply.id] = reply;
                 const rowHTML = createReplyRowHTML(reply);
                 if (reply.is_mine) {
@@ -325,6 +306,19 @@ $(document).ready(function() {
                     teamGrid.append(rowHTML);
                 }
             });
+            var mineCount = myGrid.children('.qr-card').length;
+            var teamCount = teamGrid.children('.qr-card').length;
+            $('#qr_mine_count').text(mineCount);
+            $('#qr_team_count').text(teamCount);
+            if (!mineCount) {
+                myGrid.html('<div class="qr-empty"><div class="qr-empty-mark"><i class="fas fa-bolt"></i></div><p>No replies yet. Create one with New Reply.</p></div>');
+            }
+            if (!teamCount) {
+                teamGrid.html('<div class="qr-empty"><div class="qr-empty-mark"><i class="fas fa-users"></i></div><p>No team replies on this channel.</p></div>');
+            }
+            if (typeof window.filterQuickReplies === 'function') {
+                window.filterQuickReplies($('#qr_search').val());
+            }
         },
         error: function() {
             loader.hide();
@@ -335,312 +329,184 @@ $(document).ready(function() {
 
 
 
-    // دالة مساعدة لرسم البطاقة (نفس تصميمك الجميل)
-   function createReplyRowHTML(reply) {
-    // 1. تحديد أيقونة النوع (صورة، نص، فيديو)
-    let typeIcon = '';
-    let previewText = reply.message || 'No text provided';
-
-    // تحديد الأيقونة بناء على المرفقات
-    if (reply.media_type === 'image' || reply.image) {
-        typeIcon = `<div class="media-icon image"><i class="fas fa-image"></i></div>`;
-        if(!reply.message) previewText = '<span class="fst-italic text-muted">Image Only</span>';
-    } else if (reply.media_type === 'video') {
-        typeIcon = `<div class="media-icon video"><i class="fas fa-video"></i></div>`;
-        if(!reply.message) previewText = '<span class="fst-italic text-muted">Video Only</span>';
-    } else if (reply.media_type === 'audio') {
-        typeIcon = `<div class="media-icon audio"><i class="fas fa-microphone"></i></div>`;
-        if(!reply.message) previewText = '<span class="fst-italic text-muted">Audio Clip</span>';
-    } else {
-        typeIcon = `<div class="media-icon text"><i class="fas fa-align-left"></i></div>`;
+    function qrEscape(value) {
+        return String(value == null ? '' : value)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#39;');
     }
 
-    // قص النص الطويل
-    const truncatedText = previewText.length > 50 ? previewText.substring(0, 50) + '...' : previewText;
+    window.filterQuickReplies = function(query) {
+        var q = String(query || '').trim().toLowerCase();
+        document.querySelectorAll('.qr-card').forEach(function(card) {
+            var hay = (card.getAttribute('data-search') || '').toLowerCase();
+            card.style.display = !q || hay.indexOf(q) !== -1 ? '' : 'none';
+        });
+    };
 
-    // 2. تحديد صورة المنشئ (Avatar)
-    // نفترض وجود رابط صورة، وإلا نستخدم الحرف الأول
-    const creatorAvatar = reply.author 
-        ? `<img src="${reply.creator_avatar}" class="rounded-circle me-2" width="25" height="25">`
-        : `<span class="badge bg-secondary rounded-circle me-2" style="width:25px;height:25px;display:inline-flex;align-items:center;justify-content:center;">${reply.creator_name ? reply.author.charAt(0).toUpperCase() : 'U'}</span>`;
-
-    // 3. HTML الصف
-    return `
-    <tr class="reply-item" onclick="openMediaPreview('${reply.media_type}', '${reply.file_url}', '${reply.shortcut}')">
-        
-        <td>
-            <span class="shortcut-badge">/${reply.shortcut || 'no-code'}</span>
-        </td>
-        
-        <td>
-            <div class="d-flex align-items-center">
-                ${typeIcon}
-                <div class="text-white-50 small">${truncatedText}</div>
-            </div>
-        </td>
-
-        <td class="text-center">
-            <span class="usage-count">
-                <i class="fas fa-history me-1"></i> ${reply.usage_count || 0}
-            </span>
-        </td>
-
-        <td>
-            <div class="d-flex align-items-center text-white-50 small">
-                ${creatorAvatar}
-                <span>${reply.author || 'Unknown'}</span>
-            </div>
-           
-        </td>
-        <td>
-              <div class="d-flex align-items-center text-white-50 small">
-                <i class="fas fa-calendar-alt me-1"></i>
-                <span>${reply.created_at || 'Unknown'}</span>
-            </div>
-            </td>
-        <td class="text-end">
-            <button class="btn btn-icon btn-sm btn-active-light-primary w-30px h-30px" onclick="event.stopPropagation(); editReply(${reply.id})">
-                <i class="fas fa-pencil-alt fs-5 text-muted"></i>
-            </button>
-            <button class="btn btn-icon btn-sm btn-active-light-danger w-30px h-30px ms-1" onclick="event.stopPropagation(); deleteReply(${reply.id})">
-                <i class="fas fa-trash fs-5 text-muted"></i>
-            </button>
-        </td>
-    </tr>
-    `;
-}
+    function createReplyRowHTML(reply) {
+        var media = reply.media_type || 'text';
+        var icons = { image: 'fa-image', video: 'fa-video', audio: 'fa-microphone', document: 'fa-file' };
+        var labels = { image: 'Image', video: 'Video', audio: 'Audio', document: 'File', text: 'Text' };
+        var icon = icons[media] || 'fa-align-left';
+        var label = labels[media] || 'Text';
+        var message = reply.message || (media !== 'text' ? (label + ' only') : 'No message');
+        var shortcut = reply.shortcut || 'no-code';
+        var author = reply.author || 'Unknown';
+        var created = reply.created_at || '';
+        var uses = Number(reply.usage_count || 0);
+        var search = qrEscape((shortcut + ' ' + (reply.message || '') + ' ' + author).toLowerCase());
+        var preview = '';
+        if (reply.file_url) {
+            preview = '<button type="button" class="qr-preview" data-type="' + qrEscape(media) + '" data-url="' + qrEscape(reply.file_url) + '" data-shortcut="' + qrEscape(shortcut) + '"><i class="fas fa-eye"></i> Preview</button>';
+        }
+        return ''
+            + '<article class="qr-card" data-search="' + search + '">'
+            + '<div class="qr-card-top">'
+            + '<span class="shortcut-badge">/' + qrEscape(shortcut) + '</span>'
+            + '<span class="qr-kind qr-kind--' + qrEscape(media) + '"><i class="fas ' + icon + '"></i>' + qrEscape(label) + '</span>'
+            + '<div class="qr-card-actions">'
+            + '<button type="button" class="qr-icon-btn" onclick="editReply(' + Number(reply.id) + ')" aria-label="Edit"><i class="fas fa-pen"></i></button>'
+            + '<button type="button" class="qr-icon-btn qr-icon-btn--danger" onclick="deleteReply(' + Number(reply.id) + ')" aria-label="Delete"><i class="fas fa-trash"></i></button>'
+            + '</div></div>'
+            + '<p class="qr-message">' + qrEscape(message) + '</p>'
+            + '<div class="qr-card-foot">'
+            + '<span class="usage-count">' + uses + (uses === 1 ? ' use' : ' uses') + '</span>'
+            + '<span class="qr-meta">' + qrEscape(author) + '</span>'
+            + '<span class="qr-meta">' + qrEscape(created) + '</span>'
+            + preview
+            + '</div></article>';
+    }
     
 })
 </script>
 
 
 <style>
-/* ----- Page layout ----- */
 .quick-replies-page {
     min-height: 100%;
-    padding: 0;
-    background: linear-gradient(180deg, #0d0f14 0%, #13161d 100%);
+    padding: 0 0 28px;
+    background: transparent;
 }
-
 .quick-replies-header {
-    padding: 1.5rem 1.75rem;
-    background: rgba(255,255,255,0.03);
-    border-bottom: 1px solid rgba(255,255,255,0.06);
-}
-
-.quick-replies-header-inner {
     display: flex;
     align-items: center;
     justify-content: space-between;
+    gap: 16px;
     flex-wrap: wrap;
-    gap: 1rem;
+    margin: 1rem 1.25rem 0;
+    padding: 1rem 1.1rem;
+    border-radius: 16px;
+    border: 1px solid rgba(148,163,184,0.14);
+    background: rgba(18,22,31,0.92);
+    box-shadow: 0 16px 40px rgba(0,0,0,0.22);
 }
-
-.quick-replies-title-wrap {
-    display: flex;
-    align-items: center;
-    gap: 1rem;
-}
-
+.quick-replies-title-wrap { display: flex; align-items: center; gap: 14px; min-width: 0; }
 .quick-replies-icon {
-    width: 44px;
-    height: 44px;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
-    color: #fff;
-    border-radius: 12px;
-    font-size: 1.15rem;
+    width: 46px; height: 46px; border-radius: 14px; flex-shrink: 0;
+    display: inline-flex; align-items: center; justify-content: center;
+    background: linear-gradient(160deg, rgba(245,158,11,0.22), rgba(99,102,241,0.18));
+    color: #fcd34d; border: 1px solid rgba(252,211,77,0.28); font-size: 1.05rem;
 }
-
-.quick-replies-title {
-    margin: 0;
-    font-size: 1.35rem;
-    font-weight: 700;
-    color: #f1f5f9;
-    letter-spacing: -0.02em;
-}
-
-.quick-replies-subtitle {
-    margin: 0.25rem 0 0;
-    font-size: 0.8rem;
-    color: #94a3b8;
-}
-
+.quick-replies-title { margin: 0 0 4px; font-size: 1.15rem; font-weight: 700; letter-spacing: -0.02em; color: #f8fafc !important; }
+.quick-replies-subtitle { margin: 0; font-size: 0.84rem; color: #94a3b8 !important; line-height: 1.45; }
 .quick-replies-subtitle kbd {
-    padding: 0.15rem 0.4rem;
-    font-size: 0.75rem;
-    background: rgba(255,255,255,0.08);
-    border: 1px solid rgba(255,255,255,0.12);
-    border-radius: 6px;
-    color: #cbd5e1;
+    padding: 1px 6px; font-size: 0.75rem; font-family: ui-monospace, monospace;
+    background: rgba(99,102,241,0.14); border: 1px solid rgba(129,140,248,0.28);
+    border-radius: 6px; color: #c4b5fd;
 }
-
+.quick-replies-header-actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.qr-search { position: relative; }
+.qr-search i {
+    position: absolute; left: 12px; top: 50%; transform: translateY(-50%);
+    color: #64748b; font-size: 0.8rem; pointer-events: none;
+}
+.qr-search input {
+    width: 240px; max-width: 100%;
+    padding: 9px 12px 9px 34px; border-radius: 999px;
+    border: 1px solid rgba(148,163,184,0.22); background: rgba(0,0,0,0.28);
+    color: #f8fafc; font-size: 0.84rem; outline: none;
+}
+.qr-search input:focus { border-color: rgba(129,140,248,0.75); box-shadow: 0 0 0 3px rgba(99,102,241,0.16); }
 .quick-replies-btn-new {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.5rem;
-    padding: 0.6rem 1.1rem;
-    font-size: 0.9rem;
-    font-weight: 600;
-    color: #fff;
-    background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
-    border: none;
-    border-radius: 10px;
-    cursor: pointer;
-    transition: transform 0.15s ease, box-shadow 0.15s ease;
+    display: inline-flex; align-items: center; gap: 8px;
+    padding: 9px 16px; border: none; border-radius: 999px; cursor: pointer;
+    background: linear-gradient(135deg, #6366f1, #4f46e5); color: #fff;
+    font-size: 0.86rem; font-weight: 650; box-shadow: 0 8px 20px rgba(79,70,229,0.28);
 }
-
-.quick-replies-btn-new:hover {
-    color: #fff;
-    transform: translateY(-1px);
-    box-shadow: 0 4px 14px rgba(59, 130, 246, 0.4);
-}
-
-.quick-replies-content {
-    padding: 1.5rem 1.75rem;
-}
-
-.quick-replies-section {
-    margin-bottom: 2rem;
-}
-
-.quick-replies-section:last-of-type {
-    margin-bottom: 0;
-}
-
-.quick-replies-section-header {
-    display: flex;
-    align-items: center;
-    gap: 0.6rem;
-    margin-bottom: 1rem;
-}
-
+.quick-replies-btn-new:hover { color: #fff; filter: brightness(1.06); }
+.quick-replies-content { padding: 14px 1.25rem 0; display: flex; flex-direction: column; gap: 18px; }
+.quick-replies-section-header { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
 .quick-replies-section-icon {
-    width: 32px;
-    height: 32px;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    background: rgba(59, 130, 246, 0.15);
-    color: #60a5fa;
-    border-radius: 8px;
-    font-size: 0.9rem;
+    width: 30px; height: 30px; border-radius: 10px;
+    display: inline-flex; align-items: center; justify-content: center;
+    background: rgba(99,102,241,0.16); color: #c4b5fd; font-size: 0.8rem;
 }
-
-.quick-replies-section-icon.team {
-    background: rgba(139, 92, 246, 0.15);
-    color: #a78bfa;
+.quick-replies-section-icon.team { background: rgba(16,185,129,0.14); color: #6ee7b7; }
+.quick-replies-section-title { margin: 0; font-size: 0.95rem; font-weight: 700; color: #f8fafc !important; }
+.qr-count {
+    min-width: 22px; padding: 2px 8px; border-radius: 999px; text-align: center;
+    background: rgba(148,163,184,0.12); color: #cbd5e1; font-size: 0.72rem; font-weight: 700;
 }
-
-.quick-replies-section-title {
-    margin: 0;
-    font-size: 1rem;
-    font-weight: 600;
-    color: #e2e8f0;
+.qr-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 12px; }
+.qr-card {
+    display: flex; flex-direction: column; gap: 10px; min-height: 148px;
+    padding: 14px 14px 12px; border-radius: 16px;
+    border: 1px solid rgba(148,163,184,0.14); background: #12161f;
+    box-shadow: 0 12px 30px rgba(0,0,0,0.16);
 }
-
-.quick-replies-table-wrap {
-    overflow-x: auto;
-    border-radius: 12px;
-    border: 1px solid rgba(255,255,255,0.06);
-    background: rgba(255,255,255,0.02);
-}
-
-.quick-replies-table {
-    width: 100%;
-    border-collapse: collapse;
-    color: #e2e8f0;
-}
-
-.quick-replies-table thead th {
-    padding: 0.85rem 1rem;
-    font-size: 0.7rem;
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.06em;
-    color: #94a3b8;
-    background: rgba(0,0,0,0.2);
-    border-bottom: 1px solid rgba(255,255,255,0.06);
-    text-align: left;
-}
-
-.quick-replies-table thead th.quick-replies-th-usage,
-.quick-replies-table thead th.quick-replies-th-actions {
-    text-align: center;
-}
-
-.quick-replies-table thead th.quick-replies-th-actions {
-    width: 100px;
-}
-
-.quick-replies-table tbody tr.reply-item {
-    transition: background 0.15s ease;
-    border-bottom: 1px solid rgba(255,255,255,0.04);
-    cursor: pointer;
-}
-
-.quick-replies-table tbody tr.reply-item:last-child {
-    border-bottom: none;
-}
-
-.quick-replies-table tbody tr.reply-item:hover {
-    background: rgba(255,255,255,0.04);
-}
-
-.quick-replies-table tbody td {
-    padding: 0.9rem 1rem;
-    font-size: 0.875rem;
-    vertical-align: middle;
-}
-
-.quick-replies-table tbody td:last-child {
-    text-align: right;
-}
-
-.quick-replies-table tbody tr td.text-center.text-muted {
-    color: #64748b !important;
-    font-size: 0.875rem;
-    padding: 2rem 1rem;
-}
-
+.qr-card-top { display: flex; align-items: center; gap: 8px; }
 .shortcut-badge {
-    display: inline-block;
-    padding: 0.35rem 0.65rem;
-    font-family: ui-monospace, monospace;
-    font-size: 0.8rem;
-    font-weight: 600;
-    color: #60a5fa;
-    background: rgba(59, 130, 246, 0.12);
-    border: 1px solid rgba(59, 130, 246, 0.2);
-    border-radius: 8px;
+    display: inline-flex; align-items: center;
+    padding: 4px 8px; border-radius: 8px;
+    font-family: ui-monospace, monospace; font-size: 0.78rem; font-weight: 700;
+    color: #c4b5fd; background: rgba(99,102,241,0.16); border: 1px solid rgba(129,140,248,0.28);
 }
-
-.media-icon {
-    width: 34px;
-    height: 34px;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    border-radius: 10px;
-    margin-right: 0.75rem;
-    font-size: 0.8rem;
-    flex-shrink: 0;
+.qr-kind {
+    display: inline-flex; align-items: center; gap: 5px;
+    font-size: 0.7rem; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; color: #94a3b8;
 }
-
-.media-icon.image { background: rgba(251, 191, 36, 0.15); color: #fbbf24; }
-.media-icon.video { background: rgba(239, 68, 68, 0.15); color: #ef4444; }
-.media-icon.audio { background: rgba(34, 211, 238, 0.15); color: #22d3ee; }
-.media-icon.text { background: rgba(148, 163, 184, 0.15); color: #94a3b8; }
-
+.qr-kind--image { color: #fcd34d; }
+.qr-kind--video { color: #fca5a5; }
+.qr-kind--audio { color: #67e8f9; }
+.qr-card-actions { margin-left: auto; display: flex; gap: 4px; }
+.qr-icon-btn {
+    width: 30px; height: 30px; border-radius: 10px; border: 1px solid rgba(148,163,184,0.2);
+    background: transparent; color: #cbd5e1; cursor: pointer;
+}
+.qr-icon-btn:hover { border-color: rgba(167,139,250,0.55); color: #fff; background: rgba(99,102,241,0.12); }
+.qr-icon-btn--danger:hover { border-color: rgba(248,113,113,0.55); color: #fecaca; background: rgba(248,113,113,0.12); }
+.qr-message {
+    margin: 0; flex: 1;
+    font-size: 0.88rem; line-height: 1.5; color: #e2e8f0 !important;
+    display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden;
+}
+.qr-card-foot { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
 .usage-count {
-    font-size: 0.8rem;
-    font-weight: 600;
-    color: #34d399;
-    background: rgba(52, 211, 153, 0.12);
-    padding: 0.25rem 0.5rem;
-    border-radius: 6px;
+    font-size: 0.72rem; font-weight: 700; color: #6ee7b7;
+    background: rgba(16,185,129,0.14); padding: 3px 8px; border-radius: 999px;
+}
+.qr-meta { font-size: 0.75rem; color: #94a3b8 !important; }
+.qr-preview {
+    margin-left: auto; border: none; background: transparent; cursor: pointer;
+    color: #a5b4fc; font-size: 0.75rem; font-weight: 700; display: inline-flex; align-items: center; gap: 5px;
+}
+.qr-preview:hover { color: #ddd6fe; }
+.qr-empty {
+    grid-column: 1 / -1; text-align: center; padding: 28px 16px;
+    border-radius: 16px; border: 1px dashed rgba(148,163,184,0.22); background: rgba(18,22,31,0.55);
+}
+.qr-empty-mark {
+    width: 42px; height: 42px; margin: 0 auto 10px; border-radius: 14px;
+    display: flex; align-items: center; justify-content: center;
+    background: rgba(99,102,241,0.12); color: #c4b5fd;
+}
+.qr-empty p { margin: 0; color: #94a3b8 !important; font-size: 0.86rem; }
+@media (max-width: 720px) {
+    .qr-search input { width: 100%; }
+    .quick-replies-header-actions { width: 100%; }
 }
 
 .quick-replies-loader {
@@ -670,10 +536,11 @@ $(document).ready(function() {
 
 /* ----- Create Reply Modal ----- */
 .quick-replies-modal-content {
-    background: #1a1d26;
-    border: 1px solid rgba(255,255,255,0.08);
-    border-radius: 14px;
+    background: #12161f;
+    border: 1px solid rgba(148,163,184,0.16);
+    border-radius: 18px;
     color: #e2e8f0;
+    box-shadow: 0 24px 60px rgba(0,0,0,0.45);
 }
 
 .quick-replies-modal-header {
@@ -779,32 +646,33 @@ $(document).ready(function() {
 }
 
 .quick-replies-btn {
-    padding: 0.5rem 1rem;
-    font-size: 0.875rem;
-    font-weight: 600;
-    border: none;
-    border-radius: 8px;
+    padding: 9px 16px;
+    font-size: 0.86rem;
+    font-weight: 650;
+    border-radius: 999px;
     cursor: pointer;
-    transition: background 0.15s ease, transform 0.15s ease;
 }
 
 .quick-replies-btn-secondary {
-    color: #94a3b8;
-    background: rgba(255,255,255,0.06);
+    color: #e2e8f0;
+    background: transparent;
+    border: 1px solid rgba(148,163,184,0.28);
 }
 
 .quick-replies-btn-secondary:hover {
-    background: rgba(255,255,255,0.1);
-    color: #cbd5e1;
+    background: rgba(255,255,255,0.04);
+    color: #fff;
 }
 
 .quick-replies-btn-primary {
     color: #fff;
-    background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+    border: none;
+    background: linear-gradient(135deg, #6366f1, #4f46e5);
+    box-shadow: 0 8px 20px rgba(79,70,229,0.28);
 }
 
 .quick-replies-btn-primary:hover {
-    background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+    filter: brightness(1.06);
     color: #fff;
 }
 

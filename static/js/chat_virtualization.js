@@ -37,6 +37,8 @@
     inner.className = "cls3741_vscroll_inner";
     inner.style.position = "relative";
     inner.style.minHeight = "0";
+    // Dropping the clicked row (refresh) makes Chromium scroll-anchor back to 0.
+    scrollEl.style.overflowAnchor = "none";
 
     var rowPool = new Map();
 
@@ -99,8 +101,25 @@
 
     /** Full redraw of visible rows — required when row *data* changes (unread, snippet). */
     function refreshFromData() {
+      var savedTop = scrollEl.scrollTop;
+      var active = document.activeElement;
+      if (active && active !== document.body && scrollEl.contains(active)) {
+        active.blur();
+      }
       clearRows();
+      if (scrollEl.scrollTop !== savedTop) scrollEl.scrollTop = savedTop;
       sync();
+      if (scrollEl.scrollTop !== savedTop) {
+        scrollEl.scrollTop = savedTop;
+        sync();
+      }
+      // Chromium can reset the scroller again after the click that removed its anchor.
+      requestAnimationFrame(function () {
+        if (Math.abs(scrollEl.scrollTop - savedTop) > 1) {
+          scrollEl.scrollTop = savedTop;
+          sync();
+        }
+      });
     }
 
     scrollEl.innerHTML = "";

@@ -727,7 +727,8 @@
   align-items: center;
   gap: 6px;
   width: 100%;
-  height: 675px;
+  height: auto;
+  min-height: 0;
   flex: 1; /* يأخذ المساحة المتبقية */
 }
 
@@ -820,46 +821,7 @@
 }
 .cls3741_badge_dot:not(:empty) { display: block; }
 
-/* 7. الفوتر (حالة الحساب) - تحويله لأيقونة */
-.cls3741_sidebar > div:last-child {
-  margin-top: auto; /* يذهب للأسفل */
-  width: 44px;
-  height: 44px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: rgba(255, 255, 255, 0.03);
-  border-radius: 12px;
-  cursor: help;
-  position: relative; /* للـ tooltip */
-}
-
-/* إخفاء النص القديم داخل الفوتر */
-.cls3741_sidebar > div:last-child > div {
-  display: none; 
-}
-
-/* وضع نقطة خضراء بدلاً من النص */
-.cls3741_sidebar > div:last-child::after {
-  content: '';
-  width: 10px;
-  height: 10px;
-  background-color: #10b981; /* أخضر */
-  border-radius: 50%;
-  box-shadow: 0 0 10px rgba(16, 185, 129, 0.5);
-}
-
-/* إظهار كلمة "Online" عند التمرير على النقطة */
-.cls3741_sidebar > div:last-child:hover::before {
-  content: 'Online';
-  position: absolute;
-  left: 55px;
-  background: #10b981;
-  color: white;
-  padding: 4px 8px;
-  border-radius: 4px;
-  font-size: 12px;
-}
+/* Sidebar footer is styled in dashboard-glass.css */
   /* المحتوى الرئيسي */
   .cls3741_main{
     flex:1;
@@ -2215,45 +2177,46 @@
       color: var(--text-primary);
     }
 
-    /* 🔥 أزرار الفلترة */
+    /* 🔥 Segmented filter control */
     .cls3741_filter_buttons {
       display: flex;
-      gap: 8px;
-      flex-wrap: wrap;
-
-    border-bottom: 1px solid #1f2937;
-    padding:13px;
+      gap: 2px;
+      flex-wrap: nowrap;
+      margin: 8px 13px 0;
+      padding: 4px;
+      border-radius: 12px;
+      background: #030712;
+      border-bottom: none;
     }
 
     .cls3741_filter_btn {
       flex: 1;
-      min-width: 80px;
+      min-width: 0;
       display: flex;
       align-items: center;
       justify-content: center;
       gap: 6px;
-      padding: 8px 12px;
-      border: 1px solid var(--border-color);
+      padding: 8px 10px;
+      border: none;
       border-radius: 10px;
-      background: var(--bg-tertiary);
-      color: var(--text-secondary);
-      font-size: 13px;
+      background: transparent;
+      color: #9ca3af;
+      font-size: 12px;
       font-weight: 600;
       cursor: pointer;
-      transition: all 0.2s ease;
+      transition: background 0.2s ease, color 0.2s ease, box-shadow 0.2s ease;
       font-family: inherit;
     }
 
     .cls3741_filter_btn:hover {
-      background: var(--bg-hover);
-      border-color: var(--border-light);
-      color: var(--text-primary);
+      color: #e5e7eb;
+      background: rgba(255, 255, 255, 0.04);
     }
 
     .cls3741_filter_btn.active {
-      background: var(--accent);
-      border-color: var(--accent);
-      color: #ffffff;
+      background: rgba(55, 65, 81, 0.85);
+      color: #f3f4f6;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.06);
     }
 
     .cls3741_filter_btn svg {
@@ -2291,17 +2254,43 @@
 
     /* 🔥 قائمة جهات الاتصال المحسّنة */
     .cls3741_contacts_list{
+
+      
+        /* 1. Ensure the element is actually scrollable */
+        overflow: scroll; 
+      
+        /* 2. Hide scrollbar for Firefox */
+        scrollbar-width: none;
+      
+        /* 3. Hide scrollbar for IE and Edge */
+        -ms-overflow-style: none;
+    
+      
+      /* 4. Hide scrollbar for Chrome, Safari, and Opera */
+        
+
       overflow:auto;
+      overflow-anchor: none;
       padding: 8px;
       display:flex;
       flex-direction:column;
       gap: 4px;
       flex: 1 1 0;
     }
+    .cls3741_contacts_list::-webkit-scrollbar {
+      display: none;
+    }
+    .cls3741_contacts_list::-webkit-scrollbar {
+      display: none !important;
+      width: 0 !important;
+      height: 0 !important;
+      background: transparent !important;
+      -webkit-appearance: none !important;
+    }
 
     /* Scrollbar مخصص */
     .cls3741_contacts_list::-webkit-scrollbar {
-      width: 6px;
+      width: 0px;
     }
 
     .cls3741_contacts_list::-webkit-scrollbar-track {
@@ -2320,12 +2309,13 @@
     /* 🔥 عناصر جهات الاتصال المحسّنة */
     .cls3741_contact_item{
       display:flex;
-      gap:12px;
+      gap:10px;
       align-items:center;
-      padding:14px 12px;
+      padding:12px;
+      min-height: 84px;
       border-radius:12px;
       cursor:pointer;
-      transition:all 0.2s ease;
+      transition: background 0.2s ease, border-color 0.2s ease;
       border: 1px solid transparent;
       background: transparent;
       position: relative;
@@ -2338,14 +2328,50 @@
     }
 
     .cls3741_contact_item.cls3741_btn_active {
-      background: var(--bg-tertiary);
-      border-color: var(--accent);
-      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+      background: rgba(31, 41, 55, 0.8);
+      border-color: transparent;
+      border-left: 4px solid #6366f1;
+      box-shadow: none;
+      padding-left: 8px;
+    }
+
+    .cls3741_pipeline_stage {
+      position: relative;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 28px;
+      height: 28px;
+      font-size: 18px;
+      line-height: 1;
+      border-radius: 8px;
+      background: rgba(15, 23, 42, 0.45);
+      cursor: default;
+      flex-shrink: 0;
+    }
+    .cls3741_pipeline_stage:hover::after {
+      content: attr(data-label);
+      position: absolute;
+      right: calc(100% + 8px);
+      top: 50%;
+      transform: translateY(-50%);
+      padding: 4px 8px;
+      border-radius: 8px;
+      background: #0f172a;
+      color: #f8fafc;
+      border: 1px solid rgba(148, 163, 184, 0.28);
+      font-size: 11px;
+      font-weight: 700;
+      line-height: 1.2;
+      white-space: nowrap;
+      z-index: 30;
+      pointer-events: none;
+      box-shadow: 0 8px 20px rgba(0, 0, 0, 0.35);
     }
 
     .cls3741_contact_avatar {
-      width:48px;
-      height:48px;
+      width:44px;
+      height:44px;
       border-radius:12px;
       background:var(--gradient-secondary);
       display:flex;
@@ -2356,7 +2382,16 @@
       font-size:18px;
       font-family: inherit;
       flex-shrink: 0;
+      overflow: hidden;
       box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+    }
+    .cls3741_contact_avatar img {
+      width: 100%;
+      height: 100%;
+      max-width: 44px;
+      max-height: 44px;
+      object-fit: cover;
+      display: block;
     }
 
     .cls3741_contact_meta{
@@ -2364,18 +2399,64 @@
       min-width:0;
       display: flex;
       flex-direction:column;
-      gap: 4px;
+      gap: 6px;
+    }
+    .cls3741_contact_topline,
+    .cls3741_contact_bottomline {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      min-width: 0;
+    }
+    .cls3741_contact_side {
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      gap: 6px;
+      flex-shrink: 0;
+    }
+    #cls3741_contacts_list .cls3741_contact_item .cls3741_msg_time {
+      flex-shrink: 0;
+      margin: 0;
+      font-size: 11px;
+      font-weight: 600;
+      color: #94a3b8;
     }
 
     .cls3741_contact_name{
       font-weight:700;
       color:var(--text-primary);
-      font-size:15px;
+      font-size:14px;
       font-family: inherit;
       line-height: 1.3;
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .cls3741_contact_person {
+      flex: 1;
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      font-size: 12px;
+      font-weight: 600;
+      line-height: 1.3;
+      color: #cbd5e1;
+      text-align: left;
+    }
+    .cls3741_contact_person.is-unnamed {
+      color: #64748b;
+      font-weight: 500;
     }
 
     .cls3741_contact_snippet{
+      flex: 0 1 auto;
+      max-width: 46%;
+      min-width: 0;
       font-size:13px;
       color:var(--text-secondary);
       white-space:nowrap;
@@ -2431,6 +2512,9 @@
       border-bottom:1px solid var(--border-color);
       background:var(--bg-primary);
       backdrop-filter: blur(10px);
+      position: relative;
+      z-index: 30;
+      flex-shrink: 0;
     }
 
     .cls3741_chat_header .title{
@@ -2514,6 +2598,38 @@ position: relative;
       border: 1px solid var(--accent);
     } 
     
+    .cls3741_msg_meta_inline {
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      gap: 4px;
+      margin-top: 4px;
+      line-height: 1;
+    }
+
+    .cls3741_msg_meta_inline .cls3741_msg_time {
+      font-size: 10px;
+      color: rgba(255, 255, 255, 0.5);
+      margin: 0;
+      display: inline;
+      opacity: 1;
+    }
+
+    .cls3741_msg_bubble:not(.me) .cls3741_msg_meta_inline .cls3741_msg_time {
+      color: rgba(156, 163, 175, 0.85);
+    }
+
+    .cls3741_msg_meta_inline .cls3741_msg_status {
+      display: inline-flex;
+      align-items: center;
+      line-height: 1;
+      color: rgba(255, 255, 255, 0.5);
+    }
+
+    .cls3741_msg_bubble:not(.me) .cls3741_msg_meta_inline .cls3741_msg_status {
+      color: rgba(156, 163, 175, 0.85);
+    }
+
     .cls3741_msg_time{
       display:block;
       font-size:11px;
@@ -2922,8 +3038,9 @@ position: relative;
         min-height: 44px;
       }
       .cls3741_filter_buttons {
-        padding: 8px 12px;
-        gap: 6px;
+        margin: 8px 12px 0;
+        padding: 4px;
+        gap: 2px;
       }
       .cls3741_filter_btn {
         min-width: 0;

@@ -162,7 +162,7 @@ def login_user(request):
                 else:
                     login(request, user)
                     log_activity('login', f"User logged in ({email})", user=user, request=request, defer=False)
-                    return redirect('tracking')
+                    return redirect('messaging')
             else:
                 log_activity('login_failed', f"Failed login attempt for {email}", request=request, defer=False)
                 error = "Invalid email or password."
@@ -358,7 +358,7 @@ def activate_account(request, user_id=None):
         user.email_verified = True
         user.is_active = True
         user.save()
-        return redirect('tracking')
+        return redirect('messaging')
 
 
 def verify_code(request):
@@ -402,7 +402,7 @@ from django.contrib.auth import authenticate, login
 
 def singup(request):
     if request.user.is_authenticated and request.user.is_active and request.user.is_verified:
-        return redirect('tracking')
+        return redirect('messaging')
 
     selected_plan = (request.GET.get("plan") or request.POST.get("selected_plan") or "").strip().lower()
 

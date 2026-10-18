@@ -61,7 +61,8 @@ urlpatterns = [
     path('update_cod_ids_safely', shopifyLink.update_id, name='update_cod_ids_safely'),
 
     path('tracking/table_update/', shopifyLink.table_update, name='table_update'), #def for updating table 
-    path('tracking/', shopifyLink.tracking, name='tracking'), #def for updating table 
+    path('messaging/', shopifyLink.tracking, name='messaging'),
+    path('tracking/', shopifyLink.tracking, name='tracking'), # legacy; view redirects to messaging 
     # path('search/', shopifyLink.getSearch, name='search'),
 
     path('tracking/orders/', shopifyLink.getSearch, name='orders_list'),

@@ -1493,43 +1493,266 @@
             margin-top: 0.25rem;
         }
     </style>
- <!-- Header -->
-<div id="automations-top-header" class="header" style="padding:1.25rem 1.5rem;border-bottom:1px solid rgba(255,255,255,0.06); height:auto; background:rgba(255,255,255,0.03);">
-    <div class="title-section" style="display: flex;align-items: center;gap: 12px;">
-        <div style="width:44px;height:44px;border-radius:12px;display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,#10b981,#059669);color:#ecfdf5;font-size:1rem;flex-shrink:0;">
-            <i class="fas fa-robot"></i>
+<style>
+  .cls3741_panel_automation {
+    --wa-auto-border: rgba(148,163,184,0.14);
+    --wa-auto-card: #12161f;
+  }
+  #automations-top-header.wa-auto-topbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    flex-wrap: wrap;
+    height: auto;
+    margin: 1rem 1.25rem 0;
+    padding: 1rem 1.1rem;
+    border-radius: 16px;
+    border: 1px solid var(--wa-auto-border);
+    background: rgba(18,22,31,0.92);
+    box-shadow: 0 16px 40px rgba(0,0,0,0.22);
+  }
+  .wa-auto-brand { display: flex; align-items: center; gap: 14px; min-width: 0; }
+  .wa-auto-mark {
+    width: 46px; height: 46px; border-radius: 14px; flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center;
+    background: linear-gradient(160deg, rgba(16,185,129,0.22), rgba(99,102,241,0.18));
+    color: #c4b5fd; border: 1px solid rgba(167,139,250,0.28); font-size: 1.05rem;
+  }
+  .wa-auto-title { font-size: 1.15rem; font-weight: 700; letter-spacing: -0.02em; margin: 0 0 4px; color: #f8fafc; }
+  .wa-auto-sub { font-size: 0.84rem; color: #94a3b8; margin: 0; line-height: 1.45; max-width: 560px; }
+  #new-automation-btn.wa-auto-create {
+    height: auto;
+    padding: 9px 16px;
+    border-radius: 999px;
+    border: none;
+    cursor: pointer;
+    background: linear-gradient(135deg, #6366f1, #4f46e5);
+    color: #fff;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.86rem;
+    font-weight: 650;
+    box-shadow: 0 8px 20px rgba(79,70,229,0.28);
+  }
+  #new-automation-btn.wa-auto-create:hover { filter: brightness(1.06); transform: none; box-shadow: 0 8px 20px rgba(79,70,229,0.28); }
+  #automations-container.containerNew_auto {
+    padding: 14px 1.25rem 28px;
+    max-width: 1240px;
+  }
+  #automations-container .wa-auto-search {
+    position: relative;
+    margin: 0 0 14px;
+  }
+  #automations-container .wa-auto-search i {
+    position: absolute;
+    left: 14px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #64748b;
+    font-size: 0.82rem;
+    pointer-events: none;
+  }
+  #automations-container .search-input {
+    width: 100%;
+    padding: 12px 14px 12px 38px;
+    border-radius: 14px;
+    border: 1px solid var(--wa-auto-border) !important;
+    background: rgba(18,22,31,0.92);
+    color: #e2e8f0;
+    font-size: 0.88rem;
+  }
+  #automations-container .search-input:focus {
+    border-color: rgba(129,140,248,0.7) !important;
+    box-shadow: 0 0 0 3px rgba(99,102,241,0.16);
+  }
+  #automations-container .automations-table {
+    border-radius: 16px;
+    border: 1px solid var(--wa-auto-border);
+    background: var(--wa-auto-card);
+    box-shadow: 0 16px 40px rgba(0,0,0,0.2);
+    overflow: visible;
+  }
+  #automations-container .table-header,
+  #automations-container .table-row {
+    display: grid;
+    grid-template-columns: minmax(180px, 2.2fr) 88px 120px minmax(140px, 1.4fr) 72px;
+    gap: 12px;
+    align-items: center;
+    padding: 0 18px;
+  }
+  #automations-container .table-header {
+    min-height: 44px;
+    border-bottom: 1px solid var(--wa-auto-border);
+    background: rgba(0,0,0,0.22);
+    color: #64748b;
+    font-size: 0.7rem;
+    font-weight: 700;
+    letter-spacing: 0.07em;
+    text-transform: uppercase;
+    border-radius: 16px 16px 0 0;
+  }
+  #automations-container .table-row {
+    min-height: 72px;
+    background: transparent;
+    border-bottom: 1px solid rgba(148,163,184,0.08);
+    font-size: 0.875rem;
+  }
+  #automations-container .table-row:last-child { border-bottom: none; }
+  #automations-container .table-row:hover { background: rgba(255,255,255,0.03); }
+  #automations-container .flow-name {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    min-width: 0;
+  }
+  .wa-auto-avatar {
+    width: 36px; height: 36px; border-radius: 12px; flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center;
+    background: rgba(99,102,241,0.16);
+    color: #c4b5fd;
+    font-size: 0.82rem;
+    font-weight: 700;
+  }
+  .wa-auto-name-copy { min-width: 0; }
+  .wa-auto-name-copy strong {
+    display: block;
+    color: #f8fafc;
+    font-weight: 650;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .flow-description {
+    color: #94a3b8;
+    font-size: 0.78rem;
+    margin-top: 2px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .wa-auto-runs {
+    display: inline-flex;
+    min-width: 32px;
+    justify-content: center;
+    padding: 4px 8px;
+    border-radius: 999px;
+    background: rgba(148,163,184,0.1);
+    color: #e2e8f0;
+    font-variant-numeric: tabular-nums;
+    font-weight: 650;
+    font-size: 0.8rem;
+  }
+  #automations-container .status-active,
+  #automations-container .status-inactive {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 10px;
+    border-radius: 999px;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    background: rgba(148,163,184,0.12);
+    color: #cbd5e1;
+  }
+  #automations-container .status-active { background: rgba(16,185,129,0.16); color: #6ee7b7; }
+  #automations-container .status-inactive { background: rgba(148,163,184,0.12); color: #94a3b8; }
+  .wa-auto-dot {
+    width: 6px; height: 6px; border-radius: 50%;
+    background: currentColor;
+  }
+  #automations-container .flow-updated { color: #94a3b8; font-size: 0.82rem; }
+  #automations-container .menu-toggle-btn {
+    width: 34px; height: 34px; padding: 0;
+    border-radius: 10px;
+    border: 1px solid rgba(148,163,184,0.22);
+    background: transparent;
+    color: #cbd5e1;
+  }
+  #automations-container .menu-toggle-btn:hover {
+    border-color: rgba(167,139,250,0.55);
+    color: #fff;
+    background: rgba(99,102,241,0.12);
+  }
+  #automations-container .menu-dropdown {
+    min-width: 168px;
+    padding: 6px;
+    border-radius: 12px;
+    background: #1a2030;
+    border: 1px solid rgba(148,163,184,0.18);
+    box-shadow: 0 18px 40px rgba(0,0,0,0.4);
+  }
+  #automations-container .menu-item {
+    text-align: left;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 10px;
+    border-radius: 8px;
+    font-size: 0.82rem;
+    color: #e2e8f0;
+  }
+  #automations-container .menu-item i { width: 14px; color: #94a3b8; }
+  #automations-container .menu-item:hover { background: rgba(255,255,255,0.06); }
+  #automations-container .menu-item--danger { color: #fca5a5 !important; }
+  #automations-container .menu-item--danger i { color: #fca5a5; }
+  #automations-container .empty-state.wa-auto-empty {
+    padding: 48px 24px;
+    text-align: center;
+  }
+  .wa-auto-empty-mark {
+    width: 52px; height: 52px; margin: 0 auto 14px;
+    border-radius: 16px;
+    display: flex; align-items: center; justify-content: center;
+    background: rgba(99,102,241,0.12);
+    color: #c4b5fd;
+    font-size: 1.15rem;
+  }
+  #automations-container .empty-state h3 { color: #f8fafc; font-size: 1rem; margin-bottom: 6px; }
+  #automations-container .empty-state p { color: #94a3b8; font-size: 0.86rem; }
+  @media (max-width: 820px) {
+    #automations-container .table-header { display: none; }
+    #automations-container .table-row {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 10px 12px;
+      padding: 14px 16px;
+    }
+    #automations-container .flow-name { flex: 1 1 180px; }
+    #automations-container .actions { margin-left: auto; }
+  }
+</style>
+<div id="automations-top-header" class="wa-auto-topbar">
+    <div class="wa-auto-brand">
+        <div class="wa-auto-mark"><i class="fas fa-robot"></i></div>
+        <div>
+            <h2 class="wa-auto-title">My Automations</h2>
+            <p class="wa-auto-sub">Reply automatically when a message matches rules you set. Pause one anytime without deleting it.</p>
         </div>
-        <div style="display:flex;flex-direction:column;"> 
-        <h1 style="font-size:1.25rem;font-weight:700;letter-spacing:-0.02em;margin-bottom:0.25rem;">My Automations</h1>
-        <p style="color:var(--text-secondary);font-size:0.9rem;">Respond automatically to messages based on your own criteria</p>
     </div>
-    </div>
-    <button class="btn btn-primary" id="new-automation-btn" style="padding:0.75rem 1.5rem;border-radius:999px;background:linear-gradient(135deg,var(--primary),var(--primary-dark));color:white;border:none;cursor:pointer;display:inline-flex;align-items:center;gap:0.5rem;font-size:0.88rem;font-weight:600;">
-        <span style="display:inline-block;width:24px;height:24px;border-radius:50%;background:white;color:var(--primary);display:flex;align-items:center;justify-content:center;">+</span>
+    <button class="btn btn-primary wa-auto-create" id="new-automation-btn" type="button">
+        <i class="fas fa-plus"></i>
         <span>New Automation</span>
     </button>
 </div>
-    <!-- Automations List -->
     <div class="containerNew_auto" id="automations-container">
-         
-
-        <!-- Search -->
-        <div class="search-box">
-            <input type="text" class="search-input" placeholder="Search by name or trigger text" id="search-input">
+        <div class="search-box wa-auto-search">
+            <i class="fas fa-search"></i>
+            <input type="text" class="search-input" placeholder="Search by name" id="search-input">
         </div>
-
-        <!-- Automations Table -->
         <div class="automations-table">
             <div class="table-header">
                 <div>Name</div>
                 <div class="text-center">Runs</div>
                 <div class="text-center">Status</div>
-                <div>Last Updated</div>
+                <div>Last updated</div>
                 <div class="text-center">Actions</div>
             </div>
-            <div id="automations-list" class="automations-list-body">
-                <!-- سيتم ملؤها بالبيانات -->
-            </div>
+            <div id="automations-list" class="automations-list-body"></div>
         </div>
     </div>
 
@@ -2072,26 +2295,31 @@ closeCreateFlowForm() {
             const container = document.getElementById('automations-list');
             if (!flows || flows.length === 0) {
                 container.innerHTML = `
-                    <div class="empty-state">
-                        <div class="icon">🤖</div>
+                    <div class="empty-state wa-auto-empty">
+                        <div class="wa-auto-empty-mark"><i class="fas fa-robot"></i></div>
                         <h3>No automations yet</h3>
-                        <p>Create your first automation to get started</p>
+                        <p>Create one to reply automatically when a message matches your rules.</p>
                     </div>
                 `;
                 return;
             }
-            container.innerHTML = flows.map(flow => `
+            container.innerHTML = flows.map(flow => {
+                const initial = this.escapeHtml((flow.name || 'A').trim().charAt(0).toUpperCase() || 'A');
+                return `
                 <div class="table-row" data-flow-id="${flow.id}">
                     <div class="flow-name">
-                        <strong>${this.escapeHtml(flow.name)}</strong>
-                        ${flow.description ? `<div class="flow-description">${this.escapeHtml(flow.description)}</div>` : ''}
+                        <span class="wa-auto-avatar">${initial}</span>
+                        <div class="wa-auto-name-copy">
+                            <strong>${this.escapeHtml(flow.name)}</strong>
+                            ${flow.description ? `<div class="flow-description">${this.escapeHtml(flow.description)}</div>` : ''}
+                        </div>
                     </div>
                     <div class="text-center flow-runs">
-                        ${flow.count || 0}
+                        <span class="wa-auto-runs">${flow.count || 0}</span>
                     </div>
                     <div class="text-center flow-status">
                         <span class="${flow.active ? 'status-active' : 'status-inactive'}">
-                            ${flow.active ? 'Active' : 'Inactive'}
+                            <span class="wa-auto-dot"></span>${flow.active ? 'Active' : 'Inactive'}
                         </span>
                     </div>
                     <div class="flow-updated">
@@ -2099,37 +2327,39 @@ closeCreateFlowForm() {
                     </div>
                     <div class="text-center actions">
                         <div class="menu-button">
-                            <button class="btn btn-secondary btn-icon menu-toggle-btn" data-flow-id="${flow.id}">
-                                ⋮
+                            <button class="btn btn-secondary btn-icon menu-toggle-btn" type="button" data-flow-id="${flow.id}" aria-label="Automation actions">
+                                <i class="fas fa-ellipsis-v"></i>
                             </button>
                             <div class="menu-dropdown" id="menu-${flow.id}">
-                                <button class="menu-item" data-action="toggle" id="toggle-${flow.id}" data-flow-id="${flow.id}">
-                                    ${flow.active ? '⏸️ Deactivate' : '▶️ Activate'}
+                                <button class="menu-item" type="button" data-action="toggle" id="toggle-${flow.id}" data-flow-id="${flow.id}">
+                                    <i class="fas ${flow.active ? 'fa-pause' : 'fa-play'}"></i>
+                                    ${flow.active ? 'Deactivate' : 'Activate'}
                                 </button>
-                                <button class="menu-item" data-action="edit" data-flow-id="${flow.id}">
-                                    ✏️ Edit
+                                <button class="menu-item" type="button" data-action="edit" data-flow-id="${flow.id}">
+                                    <i class="fas fa-pen"></i> Edit
                                 </button>
-                                <button class="menu-item" data-action="duplicate" data-flow-id="${flow.id}">
-                                    ⎘ Duplicate
+                                <button class="menu-item" type="button" data-action="duplicate" data-flow-id="${flow.id}">
+                                    <i class="fas fa-copy"></i> Duplicate
                                 </button>
-                                <button class="menu-item" style="color: var(--danger);" data-action="delete" data-flow-id="${flow.id}">
-                                    🗑️ Delete
+                                <button class="menu-item menu-item--danger" type="button" data-action="delete" data-flow-id="${flow.id}">
+                                    <i class="fas fa-trash"></i> Delete
                                 </button>
                             </div>
                         </div>
                     </div>
                 </div>
-            `).join('');
-            document.querySelectorAll('.menu-toggle-btn').forEach(btn => {
+            `;
+            }).join('');
+            document.querySelectorAll('#automations-list .menu-toggle-btn').forEach(btn => {
                 btn.addEventListener('click', (e) => {
-                    const flowId = e.target.dataset.flowId;
-                    this.toggleMenu(flowId);
+                    e.stopPropagation();
+                    this.toggleMenu(e.currentTarget.dataset.flowId);
                 });
             });
-            document.querySelectorAll('.menu-item').forEach(item => {
+            document.querySelectorAll('#automations-list .menu-item').forEach(item => {
                 item.addEventListener('click', (e) => {
-                    const action = e.target.dataset.action;
-                    const flowId = e.target.dataset.flowId;
+                    const action = e.currentTarget.dataset.action;
+                    const flowId = e.currentTarget.dataset.flowId;
                     if (action === 'toggle') this.toggleFlow(flowId);
                     else if (action === 'edit') this.editFlow(flowId);
                     else if (action === 'duplicate') this.duplicateFlow(flowId);
@@ -7550,112 +7780,160 @@ initializeZoom() {
 
 <!-- Create Flow Modal -->
 <div id="createFlowModal" class="cf-modal">
-    <div class="cf-modal-content">
-        <h2 style="color: black;">Create New Flow</h2>
+    <div class="cf-modal-content" role="dialog" aria-labelledby="cf-title">
+        <div class="cf-head">
+            <div class="cf-mark"><i class="fas fa-robot"></i></div>
+            <div>
+                <h2 id="cf-title">Create new flow</h2>
+                <p>Name the automation. You add the steps after it is created.</p>
+            </div>
+        </div>
 
-        <label>Flow Name</label>
-        <input type="text" id="cf-name" class="cf-input" placeholder="Enter flow name">
+        <label for="cf-name">Flow name</label>
+        <input type="text" id="cf-name" class="cf-input" placeholder="Welcome reply" autocomplete="off">
 
-        <label>Description</label>
-        <textarea id="cf-desc" class="cf-textarea" placeholder="Enter description"></textarea>
+        <label for="cf-desc">Description <span>Optional</span></label>
+        <textarea id="cf-desc" class="cf-textarea" placeholder="What this automation does"></textarea>
 
         <div class="cf-actions">
-            <button id="cf-cancel" class="cf-btn cf-cancel">Cancel</button>
-            <button id="cf-save" class="cf-btn cf-save">Save</button>
+            <button id="cf-cancel" type="button" class="cf-btn cf-cancel">Cancel</button>
+            <button id="cf-save" type="button" class="cf-btn cf-save">Create</button>
         </div>
     </div>
 </div>
 
-<style> 
+<style>
 .cf-modal {
     position: fixed;
-    top: 0;
-    left: 0;
+    inset: 0;
     width: 100%;
     height: 100%;
     display: none;
-    background: rgba(0,0,0,0.45);
-    backdrop-filter: blur(3px);
+    background: rgba(2, 6, 14, 0.72);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
     justify-content: center;
     align-items: center;
     z-index: 9999;
-}
-
-
-
-.cf-modal label {
-    font-size: 14px;
-    font-weight: 500;
-    margin-bottom: 6px;
-    display: block;
-    color:#0F172A;
-    font-family: 'Franklin Gothic Medium', 'Arial Narrow', Arial, sans-serif;
+    padding: 24px;
+    box-sizing: border-box;
 }
 .cf-modal-content {
-    width: 380px;
-    background: #fff;
-    padding: 22px;
-    border-radius: 14px;
-    box-shadow: 0 8px 25px rgba(0,0,0,0.15);
+    width: min(440px, 100%);
+    background: #12161f;
+    color: #e2e8f0;
+    padding: 22px 22px 18px;
+    border-radius: 18px;
+    border: 1px solid rgba(148,163,184,0.16);
+    box-shadow: 0 24px 60px rgba(0,0,0,0.45);
     display: flex;
     flex-direction: column;
-    gap: 12px;
-    font-family: sans-serif;
+    gap: 8px;
+    font-family: inherit;
 }
-
+.cf-head {
+    display: flex;
+    align-items: flex-start;
+    gap: 14px;
+    margin-bottom: 10px;
+}
+.cf-mark {
+    width: 42px;
+    height: 42px;
+    border-radius: 14px;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(160deg, rgba(16,185,129,0.22), rgba(99,102,241,0.18));
+    color: #c4b5fd;
+    border: 1px solid rgba(167,139,250,0.28);
+    font-size: 1rem;
+}
 .cf-modal-content h2 {
-    margin: 0;
-    font-size: 20px;
-    font-weight: 600;
+    margin: 0 0 4px;
+    font-size: 1.08rem;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    color: #f8fafc !important;
 }
-
+.cf-head p {
+    margin: 0;
+    font-size: 0.82rem;
+    line-height: 1.45;
+    color: #94a3b8 !important;
+}
+.cf-modal label {
+    font-size: 0.75rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    margin: 8px 0 0;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: #94a3b8 !important;
+    font-family: inherit;
+}
+.cf-modal label span {
+    text-transform: none;
+    letter-spacing: 0;
+    font-weight: 600;
+    font-size: 0.72rem;
+    color: #64748b;
+}
 .cf-input, .cf-textarea {
     width: 100%;
-    padding: 10px;
-    border-radius: 8px;
-    border: 1.5px solid #ddd;
-    font-size: 15px;
+    box-sizing: border-box;
+    padding: 11px 12px;
+    border-radius: 12px;
+    border: 1px solid rgba(148,163,184,0.2);
+    background: rgba(0,0,0,0.28);
+    color: #f8fafc;
+    font-size: 0.9rem;
+    font-family: inherit;
+    outline: none;
 }
-
+.cf-input::placeholder, .cf-textarea::placeholder { color: #64748b; }
+.cf-input:focus, .cf-textarea:focus {
+    border-color: rgba(129,140,248,0.75);
+    box-shadow: 0 0 0 3px rgba(99,102,241,0.18);
+}
 .cf-textarea {
-    min-height: 80px;
+    min-height: 88px;
     resize: vertical;
 }
-
 .cf-actions {
     display: flex;
     justify-content: flex-end;
-    gap: 10px;
-    margin-top: 8px;
+    gap: 8px;
+    margin-top: 14px;
 }
-
 .cf-btn {
-    padding: 10px 18px;
-    font-size: 15px;
-    border-radius: 8px;
+    padding: 9px 16px;
+    font-size: 0.86rem;
+    font-weight: 650;
+    border-radius: 999px;
     cursor: pointer;
-    border: none;
-    transition: 0.2s;
+    font-family: inherit;
+    transition: filter 0.15s ease, border-color 0.15s ease, background 0.15s ease;
 }
-
 .cf-cancel {
-    border: 1px solid #4b7cff;
-    color: black;
-    background: #0000002b;
+    border: 1px solid rgba(148,163,184,0.28);
+    color: #e2e8f0;
+    background: transparent;
 }
-
 .cf-cancel:hover {
-    background: #ddd;
+    border-color: rgba(148,163,184,0.5);
+    background: rgba(255,255,255,0.04);
 }
-
 .cf-save {
-    background: #4a7cff;
-    color: white;
+    border: none;
+    background: linear-gradient(135deg, #6366f1, #4f46e5);
+    color: #fff;
+    box-shadow: 0 8px 20px rgba(79,70,229,0.28);
 }
-
-.cf-save:hover {
-    background: #3a68d8;
-}
+.cf-save:hover { filter: brightness(1.06); }
 
 /* AI Product modal: validation & layout */
 /* ========== AI Product Modal — professional overlay ========== */

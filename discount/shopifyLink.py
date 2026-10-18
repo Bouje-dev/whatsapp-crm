@@ -649,10 +649,46 @@ def update_product(request):
 from django.utils.timezone import now
 from datetime import datetime
 
+def canonical_messaging_url(request, channel):
+    params = request.GET.copy()
+    params.pop('channel_id', None)
+    if channel and channel.public_id:
+        params['c'] = channel.public_id
+    else:
+        params.pop('c', None)
+    query = params.urlencode()
+    return '/messaging/' + (('?' + query) if query else '')
+
+
+def messaging_url_needs_redirect(request, channel):
+    if request.method != 'GET':
+        return False
+    if request.headers.get('x-requested-with') == 'XMLHttpRequest':
+        return False
+    if request.path.rstrip('/') != '/messaging':
+        return True
+    if 'channel_id' in request.GET:
+        return True
+    expected = channel.public_id if channel and channel.public_id else ''
+    current = (request.GET.get('c') or '').strip()
+    return current != expected
+
+
 login_required(login_url='/auth/login/')
 def tracking(request,leades = None):
     if not request.user.is_authenticated:
         return redirect('/auth/login/')
+
+    from .models import WhatsAppChannel
+    if request.user.is_team_admin or request.user.is_superuser:
+        channel_qs = WhatsAppChannel.objects.filter(owner=request.user)
+    else:
+        channel_qs = WhatsAppChannel.objects.filter(assigned_agents=request.user)
+    if request.method == 'GET' and request.headers.get('x-requested-with') != 'XMLHttpRequest':
+        active_for_url = WhatsAppChannel.resolve_for_request(request, channel_qs)
+        if messaging_url_needs_redirect(request, active_for_url):
+            return redirect(canonical_messaging_url(request, active_for_url))
+
     request.session['last_product_update'] = timezone.now().isoformat()
     last_product_update = request.session.get('last_product_update')
    
@@ -870,7 +906,7 @@ def tracking(request,leades = None):
 
 
     from .models import WhatsAppChannel
-    if request.user.is_team_admin or user.is_superuser:
+    if request.user.is_team_admin or request.user.is_superuser:
         user_channels = WhatsAppChannel.objects.filter(owner=request.user).annotate(
         unread_count=Count('messages', filter=Q(messages__is_read=False, messages__is_from_me=False))
     )
@@ -879,24 +915,7 @@ def tracking(request,leades = None):
         unread_count=Count('messages', filter=Q(messages__is_read=False, messages__is_from_me=False))
     )
 
-    # print('-----------------user channnels  id ' , user_channels)
-    
-    # 2. تحديد القناة النشطة (Default Channel)
-    # الخيار أ: نتحقق هل هناك قناة محفوظة في الجلسة (Session) من زيارة سابقة؟
-    last_active_id = request.session.get('active_channel_id')
-    requested_channel_id = request.GET.get('channel_id')
-    
-    active_channel = None
-    if requested_channel_id:
-        active_channel = user_channels.filter(id=requested_channel_id).first()
-        if active_channel:
-            request.session['active_channel_id'] = active_channel.id
-    if not active_channel and last_active_id:
-        active_channel = user_channels.filter(id=last_active_id).first()
-    
-    # الخيار ب: إذا لم نجد، نأخذ أول قناة متاحة
-    if not active_channel:
-        active_channel = user_channels.first()
+    active_channel = WhatsAppChannel.resolve_for_request(request, user_channels)
     setup_success = (request.GET.get('setup') == 'success')
 
 

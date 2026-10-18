@@ -36,16 +36,7 @@ def app_navbar(request):
         )
     )
 
-    active = None
-    requested = (request.GET.get("channel_id") or "").strip()
-    if requested.isdigit():
-        active = channels.filter(id=int(requested)).first()
-    if active is None:
-        last_id = request.session.get("active_channel_id")
-        if last_id:
-            active = channels.filter(id=last_id).first()
-    if active is None:
-        active = channels.first()
+    active = WhatsAppChannel.resolve_for_request(request, channels)
 
     return {
         "nav_user_channels": channels,

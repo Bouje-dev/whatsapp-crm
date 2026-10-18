@@ -22,6 +22,8 @@ urlpatterns = [
     path("api/get_messages/", views.get_messages1, name="get_messages"),
     path("api/export_conversation_transcript/", views.api_export_conversation_transcript, name="export_conversation_transcript"),
     path("api/contactslist/", views.api_contactsList, name="api_contactslist"),
+    path("api/contacts/create/", views.api_contacts_create, name="api_contacts_create"),
+    path("api/contacts/import/", views.api_contacts_import, name="api_contacts_import"),
     path("api/last_message/", views.get_last_message, name="get_last_message"),
     
     path("api/contacts/", views.api_contacts2, name="api_contacts"),

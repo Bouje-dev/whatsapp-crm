@@ -727,7 +727,8 @@
   align-items: center;
   gap: 6px;
   width: 100%;
-  height: 675px;
+  height: auto;
+  min-height: 0;
   flex: 1; /* يأخذ المساحة المتبقية */
 }
 
@@ -820,46 +821,7 @@
 }
 .cls3741_badge_dot:not(:empty) { display: block; }
 
-/* 7. الفوتر (حالة الحساب) - تحويله لأيقونة */
-.cls3741_sidebar > div:last-child {
-  margin-top: auto; /* يذهب للأسفل */
-  width: 44px;
-  height: 44px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: rgba(255, 255, 255, 0.03);
-  border-radius: 12px;
-  cursor: help;
-  position: relative; /* للـ tooltip */
-}
-
-/* إخفاء النص القديم داخل الفوتر */
-.cls3741_sidebar > div:last-child > div {
-  display: none; 
-}
-
-/* وضع نقطة خضراء بدلاً من النص */
-.cls3741_sidebar > div:last-child::after {
-  content: '';
-  width: 10px;
-  height: 10px;
-  background-color: #10b981; /* أخضر */
-  border-radius: 50%;
-  box-shadow: 0 0 10px rgba(16, 185, 129, 0.5);
-}
-
-/* إظهار كلمة "Online" عند التمرير على النقطة */
-.cls3741_sidebar > div:last-child:hover::before {
-  content: 'Online';
-  position: absolute;
-  left: 55px;
-  background: #10b981;
-  color: white;
-  padding: 4px 8px;
-  border-radius: 4px;
-  font-size: 12px;
-}
+/* Sidebar footer is styled in dashboard-glass.css */
   /* المحتوى الرئيسي */
   .cls3741_main{
     flex:1;
@@ -2308,6 +2270,7 @@
         
 
       overflow:auto;
+      overflow-anchor: none;
       padding: 8px;
       display:flex;
       flex-direction:column;

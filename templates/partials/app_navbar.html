@@ -1,6 +1,5 @@
 {% load static %}
 {% url 'user' as account_url %}
-{% url 'analytics' as analytics_url %}
 <nav class="top-navbar">
     {% if nav_active_channel and nav_user_channels %}
     <div class="workspace-switcher workspace-switcher--navbar" id="workspaceSwitcher">
@@ -55,12 +54,13 @@
             type="button"
             class="workspace-item workspace-switcher-item {% if channel.id == nav_initial_channel_id %}active{% endif %}"
             data-channel-id="{{ channel.id }}"
+            data-public-id="{{ channel.public_id }}"
             data-name="{{ channel.name }}"
             data-phone="{{ channel.phone_number }}"
             {% if channel.profile_image %}data-profile="{{ channel.profile_image.url }}"{% else %}data-profile=""{% endif %}
             data-agents="{{ channel.assigned_agents.count }}"
             data-is-configured="{% if channel.is_configured %}true{% else %}false{% endif %}"
-            onclick="window.appNavbarOpenChannel('{{ channel.id }}')"
+            onclick="window.appNavbarOpenChannel('{{ channel.id }}', '{{ channel.public_id }}')"
             title="{{ channel.name }}{% if channel.phone_number %} · {{ channel.phone_number }}{% endif %}"
             role="option"
             aria-selected="{% if channel.id == nav_initial_channel_id %}true{% else %}false{% endif %}">
@@ -111,18 +111,17 @@
       {% endif %}
     </div>
     {% else %}
-    <a href="/tracking/" class="navbar-brand">
+    <a href="{% url 'messaging' %}" class="navbar-brand">
         <img src="{% static 'img/logo.png' %}" alt="Logo" width="40" height="40" style="border-radius: 50%;">
         <span class="fw-bold ms-2">Waselytics</span>
     </a>
     {% endif %}
 
     <div class="nav-links" aria-label="Main menu">
-        <a href="/tracking/" class="btn nav_link nav-link2{% if request.resolver_match.url_name == 'tracking' %} active{% endif %}" id="track1"><i class="fas fa-comments" aria-hidden="true"></i> Tracking</a>
+        <a href="{% url 'messaging' %}{% if nav_active_channel.public_id %}?c={{ nav_active_channel.public_id }}{% endif %}" class="btn nav_link nav-link2{% if request.resolver_match.url_name == 'messaging' or request.resolver_match.url_name == 'tracking' %} active{% endif %}" id="track1"><i class="fas fa-comments" aria-hidden="true"></i> Messaging</a>
         <a href="{{ account_url }}" class="btn nav_link nav-link2{% if request.resolver_match.url_name == 'user' %} active{% endif %}"><i class="fas fa-user" aria-hidden="true"></i> Account</a>
         {% if request.user.is_superuser %}
         <a href="/admin/" class="btn nav_link nav-link2{% if '/admin/' in request.path %} active{% endif %}"><i class="fas fa-shield-halved" aria-hidden="true"></i> Admin</a>
-        <a href="{{ analytics_url }}" class="btn nav_link nav-link2{% if request.resolver_match.url_name == 'analytics' %} active{% endif %}"><i class="fas fa-chart-pie" aria-hidden="true"></i> Analytics</a>
         {% endif %}
     </div>
 </nav>
@@ -131,19 +130,30 @@
     if (window.__workspaceSwitcherReady) return;
     window.__workspaceSwitcherReady = true;
 
-    window.appNavbarOpenChannel = function (id) {
-        if (typeof window.switchChannel === 'function') {
-            window.switchChannel(String(id));
+    window.appNavbarOpenChannel = function (id, publicId) {
+        id = String(id || '');
+        publicId = String(publicId || '');
+        var current = window.currentChannelId != null ? String(window.currentChannelId) : '';
+        if (!current || current === 'null') {
+            current = window._activeChannelId != null ? String(window._activeChannelId) : '';
+        }
+        if (current && current !== 'null' && current === id) {
+            if (typeof window.closeWorkspaceSwitcher === 'function') window.closeWorkspaceSwitcher();
             return;
         }
-        window.location.href = '/tracking/?channel_id=' + encodeURIComponent(id);
+        if (window.ActiveChannelStorage && typeof window.ActiveChannelStorage.save === 'function') {
+            window.ActiveChannelStorage.save(id);
+        }
+        var url = new URL('/messaging/', window.location.origin);
+        if (publicId) url.searchParams.set('c', publicId);
+        window.location.assign(url.toString());
     };
     window.appNavbarAddChannel = function () {
         if (typeof window.openAddChannelModal === 'function') {
             window.openAddChannelModal();
             return;
         }
-        window.location.href = '/tracking/';
+        window.location.href = '/messaging/';
     };
 
     var root = document.getElementById('workspaceSwitcher');
