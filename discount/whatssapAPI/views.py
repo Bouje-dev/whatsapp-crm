@@ -17,6 +17,7 @@ from django.core.files.base import ContentFile
 from django.conf import settings
 from django.db import IntegrityError, transaction
 from django.db.models import Max, Q
+from django.db.models.functions import Coalesce
 from django.core.paginator import Paginator
 from discount.models import Message, SimpleOrder, Template, Order , Contact, WhatsAppChannel, CustomUser, ChatSession
 from django.contrib.auth.decorators import login_required
@@ -2294,6 +2295,19 @@ from django.db.models import Max, Count, Q, F, Case, When, Value, IntegerField
 from django.http import JsonResponse
  
  
+def _sidebar_time_label(when):
+    """Clock for today, calendar date otherwise, so a later hour on an older day does not look newer."""
+    if not when:
+        return ""
+    local = timezone.localtime(when) if timezone.is_aware(when) else when
+    now = timezone.localtime()
+    if local.date() == now.date():
+        return local.strftime("%H:%M")
+    if local.year == now.year:
+        return local.strftime("%d %b")
+    return local.strftime("%d %b %Y")
+
+
 def api_contacts2(request):
     try:
         user = request.user
@@ -2326,7 +2340,8 @@ def api_contacts2(request):
             .values('sender')\
             .annotate(
                 last_msg_id=Max('id'),
-                last_msg_time=Max('created_at'),
+                # Message.timestamp is the real event time (date and clock).
+                last_msg_time=Max(Coalesce('timestamp', 'created_at')),
                 unread_count=Count('id', filter=Q(is_read=False, is_from_me=False))
             )\
             .order_by('-last_msg_id')
@@ -2501,7 +2516,8 @@ def api_contacts2(request):
                 "unread": item['unread_count'],
                 "last_status": msg.status if msg else '',
                 "fromMe": msg.is_from_me if msg else False,
-                "timestamp": item['last_msg_time'].strftime("%H:%M") if item['last_msg_time'] else "",
+                "timestamp": _sidebar_time_label(item['last_msg_time']),
+                "activity_at": item['last_msg_time'].isoformat() if item['last_msg_time'] else "",
                 "channel_id": target_channel.id,
                 "assigned_agent_id": assigned_agent_id,
                 "pipeline_stage": contact_info.get('pipeline_stage') or 'new',

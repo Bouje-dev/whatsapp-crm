@@ -7208,6 +7208,8 @@ function sendCannedResponseDirectly(item) {
       html.dark #cls3741_chat_col .cls3741_ai_wrap { order: 9; margin-left: auto; }
       html.dark #cls3741_chat_col .cls3741_tools_group .cls3741_tool_btn,
       html.dark #cls3741_chat_col .cls3741_tools_group .cls3741_icon_btn {
+        position: relative;
+        overflow: visible;
         width: 34px;
         height: 34px;
         min-width: 34px;
@@ -7216,6 +7218,34 @@ function sendCannedResponseDirectly(item) {
         color: #a1a1aa !important;
         background: transparent !important;
         justify-content: center;
+      }
+      html.dark #cls3741_chat_col .cls3741_actions_row .cls3741_btn_label {
+        position: absolute;
+        left: 50%;
+        bottom: calc(100% + 8px);
+        transform: translateX(-50%) translateY(4px);
+        opacity: 0;
+        pointer-events: none;
+        white-space: nowrap;
+        display: block !important;
+        width: auto;
+        height: auto;
+        padding: 5px 8px;
+        border-radius: 8px;
+        background: #4f46e5;
+        color: #fff !important;
+        font-size: 12px !important;
+        font-weight: 600 !important;
+        line-height: 1.2;
+        border: 0;
+        box-shadow: 0 8px 20px rgba(79, 70, 229, 0.35);
+        z-index: 40;
+        transition: opacity 0.15s ease, transform 0.15s ease;
+      }
+      html.dark #cls3741_chat_col .cls3741_actions_row .cls3741_tool_btn:hover .cls3741_btn_label,
+      html.dark #cls3741_chat_col .cls3741_actions_row .cls3741_tool_btn:focus-visible .cls3741_btn_label {
+        opacity: 1;
+        transform: translateX(-50%) translateY(0);
       }
       html.dark #cls3741_chat_col .cls3741_tools_group .cls3741_tool_btn:hover,
       html.dark #cls3741_chat_col .cls3741_tools_group .cls3741_icon_btn:hover {
@@ -7230,23 +7260,17 @@ function sendCannedResponseDirectly(item) {
         background: rgba(255, 255, 255, 0.12);
       }
       html.dark #cls3741_chat_col .ai_assist_btn {
-        width: auto !important;
-        min-width: 0 !important;
-        height: 32px !important;
-        padding: 0 10px !important;
-        gap: 6px;
-        border-radius: 999px !important;
+        width: 34px !important;
+        min-width: 34px !important;
+        height: 34px !important;
+        padding: 0 !important;
+        gap: 0;
+        border-radius: 10px !important;
         background: rgba(124, 58, 237, 0.18) !important;
         border: 1px solid rgba(167, 139, 250, 0.38) !important;
         color: #ddd6fe !important;
       }
       html.dark #cls3741_chat_col .ai_assist_btn svg { stroke: #c4b5fd; }
-      html.dark #cls3741_chat_col .ai_assist_btn .cls3741_btn_label {
-        display: inline !important;
-        color: #ddd6fe !important;
-        font-size: 12px;
-        font-weight: 650;
-      }
       html.dark #cls3741_chat_col .ai_assist_btn:hover {
         background: rgba(124, 58, 237, 0.3) !important;
         box-shadow: none;
@@ -20774,6 +20798,10 @@ function sidebarUnreadRank(c) {
 var __sidebarActivitySeq = 0;
 
 function sidebarActivityAt(c) {
+  if (c && c.activity_at) {
+    var ms = Date.parse(c.activity_at);
+    if (isFinite(ms)) return ms;
+  }
   var n = Number(c && c._activityAt);
   return isFinite(n) ? n : 0;
 }
@@ -20816,8 +20844,13 @@ function ensureSidebarActivityStamps(list) {
 
 function touchSidebarActivity(c) {
   if (!c) return;
-  __sidebarActivitySeq += 1;
-  c._activityAt = __sidebarActivitySeq;
+  var parsed = c.activity_at ? Date.parse(c.activity_at) : NaN;
+  if (!isFinite(parsed)) {
+    var now = new Date();
+    c.activity_at = now.toISOString();
+    parsed = now.getTime();
+  }
+  c._activityAt = parsed;
 }
 
 function getFilteredSidebarContacts(list) {

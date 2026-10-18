@@ -1638,6 +1638,7 @@ def save_incoming_message(msg, message_type, sender=None, channel=None, name=Non
             "unread": unread_count,
             "last_id": message_obj.id,
             "timestamp": msg_time.strftime("%H:%M"),
+            "activity_at": msg_time.isoformat(),
         }
 
         team_id = getattr(channel, "owner_id", None) or (
